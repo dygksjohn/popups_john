@@ -35,13 +35,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 Long userId = jwtProvider.getUserId(accessToken);
                 String roleName = jwtProvider.getRoleName(accessToken);
-
+                
                 var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + roleName));
-                var authentication = new UsernamePasswordAuthenticationToken(userId, null, authorities);
+                var authentication = new UsernamePasswordAuthenticationToken(userId, null, authorities);              
+                         
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (Exception e) {
+                e.printStackTrace();
                 SecurityContextHolder.clearContext();
             }
+
         }
 
         filterChain.doFilter(request, response);
@@ -51,6 +54,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (header == null) return null;
         if (!header.startsWith("Bearer ")) return null;
-        return header.substring(7);
+        return header.substring(7).trim();
     }
 }
