@@ -1,0 +1,5 @@
+package com.popups.pupoo.qr.domain.enum;
+
+public enum QrStatus {
+    DUMMY
+}

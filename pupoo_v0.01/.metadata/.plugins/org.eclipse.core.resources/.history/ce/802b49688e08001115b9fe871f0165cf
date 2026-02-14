@@ -1,0 +1,5 @@
+package com.popups.pupoo.auth.security.handler;
+
+public class JwtAuthenticationEntryPoint {
+
+}

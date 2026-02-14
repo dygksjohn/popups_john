@@ -1,0 +1,5 @@
+package com.popups.pupoo.payment.refund.domain.enum;
+
+public enum RefundStatus {
+    DUMMY
+}

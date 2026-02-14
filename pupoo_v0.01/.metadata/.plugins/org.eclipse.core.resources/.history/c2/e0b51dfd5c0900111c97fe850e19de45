@@ -1,0 +1,5 @@
+package com.popups.pupoo.user.domain.enum;
+
+public enum RoleName {
+    DUMMY
+}

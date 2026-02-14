@@ -1,0 +1,26 @@
+package com.popups.pupoo.auth.application;
+
+import com.popups.pupoo.auth.dto.LoginResponse;
+import com.popups.pupoo.auth.security.authentication.jwt.JwtProvider;
+import com.popups.pupoo.user.domain.model.User;
+import org.springframework.stereotype.Service;
+
+@Service
+public class TokenService {
+
+    private final JwtProvider jwtProvider;
+
+    public TokenService(JwtProvider jwtProvider) {
+        this.jwtProvider = jwtProvider;
+    }
+
+    public LoginResponse issueTokens(User user) {
+        String subject = String.valueOf(user.getUserId()); // users.user_id
+        String role = "ROLE_" + user.getRoleName();        // users.role_name: USER/ADMIN -> ROLE_USER/ROLE_ADMIN
+
+        String accessToken = jwtProvider.createAccessToken(subject, role);
+        String refreshToken = jwtProvider.createRefreshToken(subject, role);
+
+        return LoginResponse.of(accessToken, refreshToken);
+    }
+}

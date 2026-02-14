@@ -1,0 +1,39 @@
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+
+    private static final String REFRESH_COOKIE_NAME = "refresh_token";
+
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
+    @PostMapping("/login")
+    public ApiResponse<LoginResponse> login(@RequestBody LoginRequest req, HttpServletResponse response) {
+        return ApiResponse.success(authService.login(req, response));
+    }
+
+    @PostMapping("/refresh")
+    public ApiResponse<TokenResponse> refreshToken(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = readCookie(request, REFRESH_COOKIE_NAME);
+        return ApiResponse.success(authService.refreshToken(refreshToken, response));
+    }
+
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = readCookie(request, REFRESH_COOKIE_NAME);
+        authService.logout(refreshToken, response); // 디바이스 단위
+        return ApiResponse.success(null);
+    }
+
+    private String readCookie(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) return null;
+        for (Cookie c : cookies) {
+            if (name.equals(c.getName())) return c.getValue();
+        }
+        return null;
+    }
+}

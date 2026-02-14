@@ -1,0 +1,88 @@
+package com.popups.pupoo.auth.security.authentication.jwt;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.util.Date;
+import java.util.List;
+
+@Component
+public class JwtProvider {
+
+    private final SecretKey key;
+    private final long accessExpMs;
+    private final long refreshExpMs;
+
+    public JwtProvider(
+            @Value("${security.jwt.secret}") String secret,
+            @Value("${security.jwt.access-token-expiration-ms}") long accessExpMs,
+            @Value("${security.jwt.refresh-token-expiration-ms}") long refreshExpMs
+    ) {
+        this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+        this.accessExpMs = accessExpMs;
+        this.refreshExpMs = refreshExpMs;
+    }
+
+    public String createAccessToken(String subject, String role) {
+        return createToken(subject, role, accessExpMs);
+    }
+
+    public String createRefreshToken(String subject, String role) {
+        return createToken(subject, role, refreshExpMs);
+    }
+
+    private String createToken(String subject, String role, long expMs) {
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + expMs);
+
+        return Jwts.builder()
+                .subject(subject)
+                .claim("role", role) // "ROLE_USER" / "ROLE_ADMIN"
+                .issuedAt(now)
+                .expiration(exp)
+                .signWith(key)
+                .compact();
+    }
+
+    public Claims parseClaims(String token) throws JwtException {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    public boolean validate(String token) {
+        try {
+            parseClaims(token);
+            return true;
+        } catch (ExpiredJwtException e) {
+            return false;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public Authentication getAuthentication(String token) {
+        Claims claims = parseClaims(token);
+        String subject = claims.getSubject();
+        String role = claims.get("role", String.class);
+
+        List<SimpleGrantedAuthority> authorities =
+                (role == null || role.isBlank())
+                        ? List.of()
+                        : List.of(new SimpleGrantedAuthority(role));
+
+        return new UsernamePasswordAuthenticationToken(subject, null, authorities);
+    }
+}

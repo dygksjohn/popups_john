@@ -1,0 +1,26 @@
+package com.popups.pupoo.auth.api;
+
+import com.popups.pupoo.auth.application.AuthService;
+import com.popups.pupoo.auth.dto.LoginRequest;
+import com.popups.pupoo.auth.dto.TokenResponse;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+public class AuthController {
+
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
+    // ✅ 정식 로그인
+    @PostMapping("/api/auth/login")
+    public TokenResponse login(@RequestBody LoginRequest request) {
+        return authService.login(request);
+    }
+
+    // ✅ 개발용 dev-token은 검증 끝났으니, 이제 삭제/비활성화 추천
+    // @GetMapping("/api/auth/dev-token")
+    // public String devToken() { ... }
+}

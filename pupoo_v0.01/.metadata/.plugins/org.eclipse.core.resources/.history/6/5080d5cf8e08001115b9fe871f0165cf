@@ -1,0 +1,9 @@
+package com.popups.pupoo.user.api;
+
+
+import org.springframework.web.bind.annotation.GetMapping;
+
+@GetMapping("/api/ping")
+public String ping() {
+    return "pong";
+}

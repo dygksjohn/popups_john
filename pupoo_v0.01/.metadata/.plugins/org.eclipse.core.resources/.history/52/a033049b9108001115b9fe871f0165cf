@@ -1,0 +1,22 @@
+package com.popups.pupoo.auth.api;
+
+import com.popups.pupoo.auth.security.authentication.jwt.JwtProvider;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class AuthController {
+
+    private final JwtProvider jwtProvider;
+
+    public AuthController(JwtProvider jwtProvider) {
+        this.jwtProvider = jwtProvider;
+    }
+
+    // ✅ 개발용: 토큰 발급 (나중에 삭제)
+    @GetMapping("/api/auth/dev-token")
+    public String devToken() {
+        // subject는 일단 임시로 "1" (userId 가정)
+        return jwtProvider.createAccessToken("1", "ROLE_USER");
+    }
+}

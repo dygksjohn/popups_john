@@ -1,0 +1,5 @@
+package com.popups.pupoo.program.domain.enum;
+
+public enum ProgramType {
+    DUMMY
+}

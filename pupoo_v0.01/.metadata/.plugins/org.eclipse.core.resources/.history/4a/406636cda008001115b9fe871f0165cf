@@ -1,0 +1,29 @@
+package com.popups.pupoo.user.api;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class UserController {
+
+    // ✅ PUBLIC 테스트용 (EndpointPolicy에 /api/ping 넣으면 200)
+    @GetMapping("/api/ping")
+    public String ping() {
+        return "pong";
+    }
+
+    // ✅ 인증 필요 테스트용 (PUBLIC에 넣지 말 것)
+    @GetMapping("/api/secure-ping")
+    public String securePing() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null) {
+            return "secure-pong auth=null";
+        }
+
+        return "secure-pong subject=" + auth.getName()
+                + " authorities=" + auth.getAuthorities();
+    }
+}

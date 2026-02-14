@@ -1,0 +1,27 @@
+package com.popups.pupoo.auth.application;
+
+import com.popups.pupoo.auth.token.JwtProvider;
+import org.springframework.stereotype.Service;
+
+@Service
+public class TokenService {
+
+    private final JwtProvider jwtProvider;
+
+    public TokenService(JwtProvider jwtProvider) {
+        this.jwtProvider = jwtProvider;
+    }
+
+    // ✅ 백로그: createAccessToken(userId, role)
+    public String createAccessToken(Long userId, String role) {
+        // jwtProvider가 어떤 시그니처인지(claims vs (userId,role))는 네 코드에 맞춰 연결
+        // TODO: return jwtProvider.createAccessToken(...);
+        return null;
+    }
+
+    // ✅ 백로그: createRefreshToken(userId)
+    public String createRefreshToken(Long userId) {
+        // TODO: return jwtProvider.createRefreshToken(...);
+        return null;
+    }
+}

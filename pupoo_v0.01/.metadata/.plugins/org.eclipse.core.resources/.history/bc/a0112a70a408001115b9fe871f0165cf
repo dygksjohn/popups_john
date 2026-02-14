@@ -1,0 +1,145 @@
+// src/main/java/com/popups/pupoo/user/domain/model/User.java
+package com.popups.pupoo.user.domain.model;
+
+import com.popups.pupoo.user.domain.enums.RoleName;
+import com.popups.pupoo.user.domain.enums.UserStatus;
+import jakarta.persistence.*;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(
+        name = "users",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_users_email", columnNames = "email"),
+                @UniqueConstraint(name = "uk_users_phone", columnNames = "phone"),
+                @UniqueConstraint(name = "uk_users_nickname", columnNames = "nickname")
+        }
+)
+public class User {
+
+    // user_id BIGINT NOT NULL AUTO_INCREMENT
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    // email VARCHAR(255) NOT NULL UNIQUE
+    @Column(name = "email", nullable = false, length = 255)
+    private String email;
+
+    // password VARCHAR(255) NOT NULL
+    @Column(name = "password", nullable = false, length = 255)
+    private String password;
+
+    // nickname VARCHAR(30) NOT NULL UNIQUE
+    @Column(name = "nickname", nullable = false, length = 30)
+    private String nickname;
+
+    // phone VARCHAR(30) NOT NULL UNIQUE
+    @Column(name = "phone", nullable = false, length = 30)
+    private String phone;
+
+    // status ENUM('ACTIVE','SUSPENDED','DELETED') NOT NULL DEFAULT 'ACTIVE'
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private UserStatus status;
+
+    // role_name ENUM('USER','ADMIN') NOT NULL DEFAULT 'USER'
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role_name", nullable = false, length = 20)
+    private RoleName roleName;
+
+    // show_age/show_gender/show_pet TINYINT NOT NULL DEFAULT 0
+    // TINYINT(0/1)과 JPA boolean 매핑 이슈를 피하려고 int로 둠(가장 안전)
+    @Column(name = "show_age", nullable = false)
+    private int showAge;
+
+    @Column(name = "show_gender", nullable = false)
+    private int showGender;
+
+    @Column(name = "show_pet", nullable = false)
+    private int showPet;
+
+    // created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    // last_login_at DATETIME NULL
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
+    // last_modified_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    // (SQL 코멘트: 비밀번호 마지막 수정일)
+    @Column(name = "last_modified_at", nullable = false)
+    private LocalDateTime lastModifiedAt;
+
+    protected User() {
+        // JPA only
+    }
+
+    // --------------------
+    // Lifecycle
+    // --------------------
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        if (this.createdAt == null) this.createdAt = now;
+        if (this.lastModifiedAt == null) this.lastModifiedAt = now;
+
+        // 기본값(미지정 시 SQL DEFAULT와 동일하게)
+        // show_* 기본 0, status/roleName 기본값도 앱에서 맞춰두면 안정적
+        // (DB DEFAULT가 있어도 JPA insert 시 null이면 깨질 수 있음)
+        if (this.status == null) this.status = UserStatus.ACTIVE;
+        if (this.roleName == null) this.roleName = RoleName.USER;
+    }
+
+    // --------------------
+    // Getters
+    // --------------------
+    public Long getUserId() { return userId; }
+    public String getEmail() { return email; }
+    public String getPassword() { return password; }
+    public String getNickname() { return nickname; }
+    public String getPhone() { return phone; }
+    public UserStatus getStatus() { return status; }
+    public RoleName getRoleName() { return roleName; }
+    public int getShowAge() { return showAge; }
+    public int getShowGender() { return showGender; }
+    public int getShowPet() { return showPet; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getLastLoginAt() { return lastLoginAt; }
+    public LocalDateTime getLastModifiedAt() { return lastModifiedAt; }
+
+    // --------------------
+    // Setters
+    // --------------------
+    public void setUserId(Long userId) { this.userId = userId; }
+
+    // ⚠️ email 변경 불가 정책은 Service에서 차단(엔티티는 setter 유지)
+    public void setEmail(String email) { this.email = email; }
+
+    /**
+     * password 변경 시 last_modified_at 갱신(정책상 '비밀번호 마지막 수정일')
+     * - 회원가입 시에도 setPassword가 호출되므로 생성 시점에도 찍힘
+     */
+    public void setPassword(String password) {
+        this.password = password;
+        this.lastModifiedAt = LocalDateTime.now();
+    }
+
+    public void setNickname(String nickname) { this.nickname = nickname; }
+    public void setPhone(String phone) { this.phone = phone; }
+
+    public void setStatus(UserStatus status) { this.status = status; }
+    public void setRoleName(RoleName roleName) { this.roleName = roleName; }
+
+    // 0/1로 관리 (0=false, 1=true)
+    public void setShowAge(int showAge) { this.showAge = showAge; }
+    public void setShowGender(int showGender) { this.showGender = showGender; }
+    public void setShowPet(int showPet) { this.showPet = showPet; }
+
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
+    public void setLastModifiedAt(LocalDateTime lastModifiedAt) { this.lastModifiedAt = lastModifiedAt; }
+}

@@ -1,0 +1,5 @@
+package com.popups.pupoo.notification.domain.enum;
+
+public enum SenderType {
+    DUMMY
+}

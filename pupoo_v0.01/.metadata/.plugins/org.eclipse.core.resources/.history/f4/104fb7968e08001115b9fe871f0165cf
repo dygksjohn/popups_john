@@ -1,0 +1,4 @@
+@GetMapping("/api/ping")
+public String ping() {
+    return "pong";
+}

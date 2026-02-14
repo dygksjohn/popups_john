@@ -1,0 +1,33 @@
+import Container from "../../components/Container";
+import SectionTitle from "../../components/SectionTitle";
+import Card from "../../components/Card";
+import ImageBlock from "../../components/ImageBlock";
+
+export default function Page() {
+  return (
+    <div className="bg-white">
+      <Container className="py-14">
+        <SectionTitle title="이용 흐름 및 활용 사례" desc="사전 신청 → QR 체크인 → 현장 운영 → 참여 이력/분석 흐름으로 구성됩니다." />
+        <div className="mt-10 grid gap-6 md:grid-cols-2 md:items-center">
+          <div className="space-y-4">
+            <Card className="p-6">
+              <div className="font-extrabold">요약</div>
+              <p className="mt-2 text-sm leading-6 text-[var(--color-sub)]">
+                이 페이지는 PDF(1~5)의 톤을 유지한 실제 플랫폼 웹 템플릿입니다. 필요한 섹션을 추가/삭제해 확장하세요.
+              </p>
+            </Card>
+            <Card className="p-6">
+              <div className="font-extrabold">핵심 포인트</div>
+              <ul className="mt-2 list-disc list-inside text-sm leading-6 text-[var(--color-sub)]">
+                <li>큰 사진 + 단정한 타이포</li>
+                <li>섹션 간 넓은 여백</li>
+                <li>그린 포인트 컬러</li>
+              </ul>
+            </Card>
+          </div>
+          <ImageBlock className="h-[260px] md:h-[340px]" src="https://images.unsplash.com/photo-1520975916090-3105956dac38?auto=format&fit=crop&w=2000&q=80" />
+        </div>
+      </Container>
+    </div>
+  );
+}

@@ -1,0 +1,5 @@
+package com.popups.pupoo.board.post.domain.enum;
+
+public enum PostStatus {
+    DUMMY
+}
