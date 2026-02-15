@@ -43,6 +43,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } catch (Exception e) {
                 e.printStackTrace();
                 SecurityContextHolder.clearContext();
+                // [추가]JWT 파싱 실패, 토큰만료, 인증객체 생성 중오류 => 인증되지 않은 상태로 요청이 흘러감
+               
             }
 
         }
