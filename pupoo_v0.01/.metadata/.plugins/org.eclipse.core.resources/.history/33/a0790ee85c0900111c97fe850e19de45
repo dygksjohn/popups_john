@@ -1,5 +1,0 @@
-package com.popups.pupoo.notice.domain.enum;
-
-public enum NoticeStatus {
-    DUMMY
-}

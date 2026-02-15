@@ -1,5 +1,0 @@
-package com.popups.pupoo.pet.domain.enum;
-
-public enum AnimalType {
-    DUMMY
-}

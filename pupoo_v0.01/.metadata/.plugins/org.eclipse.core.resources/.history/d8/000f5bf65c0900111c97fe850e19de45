@@ -1,5 +1,0 @@
-package com.popups.pupoo.program.speaker.domain.enum;
-
-public enum SpeakerRole {
-    DUMMY
-}

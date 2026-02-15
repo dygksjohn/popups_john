@@ -1,5 +1,0 @@
-package com.popups.pupoo.reply.domain.enum;
-
-public enum ReplyTargetType {
-    DUMMY
-}

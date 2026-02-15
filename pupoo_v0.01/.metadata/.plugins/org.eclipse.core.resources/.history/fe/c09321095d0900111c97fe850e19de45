@@ -1,5 +1,0 @@
-package com.popups.pupoo.contest.vote.domain.enum;
-
-public enum VoteStatus {
-    DUMMY
-}

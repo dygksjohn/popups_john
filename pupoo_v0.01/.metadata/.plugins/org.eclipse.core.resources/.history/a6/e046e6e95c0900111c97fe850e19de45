@@ -1,5 +1,0 @@
-package com.popups.pupoo.notification.domain.enum;
-
-public enum NotificationChannel {
-    DUMMY
-}

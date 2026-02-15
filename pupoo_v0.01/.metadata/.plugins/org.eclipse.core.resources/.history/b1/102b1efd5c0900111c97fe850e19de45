@@ -1,5 +1,0 @@
-package com.popups.pupoo.user.domain.enum;
-
-public enum UserStatus {
-    DUMMY
-}

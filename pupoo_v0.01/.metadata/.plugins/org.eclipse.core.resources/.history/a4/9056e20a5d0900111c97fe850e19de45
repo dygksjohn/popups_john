@@ -1,5 +1,0 @@
-package com.popups.pupoo.booth.domain.enum;
-
-public enum BoothZone {
-    DUMMY
-}
