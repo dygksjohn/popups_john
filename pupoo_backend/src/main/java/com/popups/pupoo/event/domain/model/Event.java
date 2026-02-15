@@ -65,4 +65,11 @@ public class Event {
     public String getLocation() { return location; }
     public EventStatus getStatus() { return status; }
     public Integer getRoundNo() { return roundNo; }
+
+    	
+    public boolean isClosed() {
+        return this.status == EventStatus.ENDED
+            || this.status == EventStatus.CANCELLED;
+    }
+
 }

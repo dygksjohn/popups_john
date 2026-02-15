@@ -1,5 +1,10 @@
 package com.popups.pupoo.program.apply.dto;
 
-public class ProgramApplyRequest {
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
+@Getter
+@NoArgsConstructor
+public class ProgramApplyRequest {
+    private Long programId;
 }
