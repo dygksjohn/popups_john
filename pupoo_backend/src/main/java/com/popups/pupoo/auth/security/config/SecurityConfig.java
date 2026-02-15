@@ -48,6 +48,9 @@ public class SecurityConfig {
 
                 // 비회원 검색 허용
                 .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/programs/**").permitAll()   // ✅ 프로그램 상세 공개 (선택)
+                .requestMatchers(HttpMethod.GET, "/api/speakers/**").permitAll()   // ✅ 연사 조회 공개
+                .requestMatchers(HttpMethod.GET, "/api/programs/*/speakers/**").permitAll() // ✅ 프로그램속 연사 공개
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/error").permitAll()
 
