@@ -1,5 +1,0 @@
-package com.popups.pupoo.auth.security.config;
-
-public class SecurityConfig {
-
-}

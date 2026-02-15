@@ -1,5 +1,0 @@
-package com.popups.pupoo.payment.domain.enum;
-
-public enum PaymentProvider {
-    DUMMY
-}

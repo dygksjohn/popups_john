@@ -1,5 +1,0 @@
-package com.popups.pupoo.auth.token;
-
-public class JwtProviderImpl {
-
-}

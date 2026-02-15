@@ -1,5 +1,0 @@
-package com.popups.pupoo.program.domain.enum;
-
-public enum ProgramStatus {
-    DUMMY
-}

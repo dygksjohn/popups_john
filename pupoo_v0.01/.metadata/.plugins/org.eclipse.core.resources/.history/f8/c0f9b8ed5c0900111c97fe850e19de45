@@ -1,5 +1,0 @@
-package com.popups.pupoo.payment.refund.domain.enum;
-
-public enum RefundReason {
-    DUMMY
-}

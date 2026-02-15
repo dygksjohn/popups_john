@@ -1,5 +1,0 @@
-package com.popups.pupoo.board.boardinfo.domain.enum;
-
-public enum BoardType {
-    DUMMY
-}
