@@ -64,3 +64,9 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// 추가(260214_배재혁) : 메서드의 파라미터 이름을 바이트코드에 보존하도록 설정하는 Gradle 설정
+tasks.withType(JavaCompile) {
+    options.compilerArgs += ["-parameters"]
+}
+

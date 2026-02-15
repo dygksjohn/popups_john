@@ -45,6 +45,20 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/secure-ping").authenticated()
+
+                // 비회원 검색 허용
+                .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/error").permitAll()
+
+                // USER 가능
+                .requestMatchers(HttpMethod.POST, "/api/event-registrations")
+                    .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
+                .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**")
+                    .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
+                .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations")
+                    .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
+
                 .anyRequest().authenticated()
         );
 
