@@ -34,7 +34,8 @@ public class ProgramApplyController {
     public ApiResponse<Void> cancel(@PathVariable("id") Long id) {
         Long userId = securityUtil.currentUserId();
         programApplyService.cancel(userId, id);
-        return ApiResponse.success(null);
+        return ApiResponse.success((Void) null);
+
     }
 
     @GetMapping("/{id}")

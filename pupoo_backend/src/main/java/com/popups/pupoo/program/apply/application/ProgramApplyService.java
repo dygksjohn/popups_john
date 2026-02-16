@@ -13,6 +13,7 @@ import com.popups.pupoo.program.domain.model.Program;
 import com.popups.pupoo.program.persistence.ProgramRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +29,9 @@ public class ProgramApplyService {
     private final ProgramRepository programRepository;
     private final EventRepository eventRepository;
 
-    // 재신청을 막을 상태들 (REJECTED는 재신청 허용)
-    private static final EnumSet<ApplyStatus> DUPLICATE_BLOCK_STATUSES =
+    // ✅ 활성 상태(= 중복 차단): APPLIED / WAITING / APPROVED
+    // (DB active_flag 정의와 반드시 동일해야 함)
+    private static final EnumSet<ApplyStatus> ACTIVE_STATUSES =
             EnumSet.of(ApplyStatus.APPLIED, ApplyStatus.WAITING, ApplyStatus.APPROVED);
 
     @Transactional(readOnly = true)
@@ -59,40 +61,32 @@ public class ProgramApplyService {
             throw new IllegalStateException("EVENT_NOT_APPLICABLE");
         }
 
-        // 2) 신청 가능 시간 검증: 시작 1시간 전까지 가능
+        // 2) 신청 가능 시간 검증
         if (!program.isApplyAllowed()) {
             throw new IllegalStateException("PROGRAM_APPLY_TIME_CLOSED");
         }
 
-        // 3) 방법 B: REJECTED면 기존 row 재활용 (status만 APPLIED로 되돌림)
-        var rejectedOpt = programApplyRepository.findByUserIdAndProgramIdAndStatus(
+        // 3) 중복 신청 검증 (활성 상태만 차단)
+        boolean existsActive = programApplyRepository.existsByUserIdAndProgramIdAndStatusIn(
                 userId,
                 program.getProgramId(),
-                ApplyStatus.REJECTED
+                ACTIVE_STATUSES
         );
 
-        if (rejectedOpt.isPresent()) {
-            ProgramApply rejected = rejectedOpt.get();
-            rejected.reapply(); // ✅ 엔티티에 구현 필요: status=APPLIED
-            return ProgramApplyResponse.from(rejected);
-        }
-
-        // 4) 중복 신청 검증 (진행 상태)
-        boolean exists = programApplyRepository.existsByUserIdAndProgramIdAndStatusIn(
-                userId,
-                program.getProgramId(),
-                DUPLICATE_BLOCK_STATUSES
-        );
-
-        if (exists) {
+        if (existsActive) {
             throw new IllegalStateException("PROGRAM_APPLY_DUPLICATED");
         }
 
-        ProgramApply saved = programApplyRepository.save(
-                ProgramApply.create(userId, program.getProgramId())
-        );
-
-        return ProgramApplyResponse.from(saved);
+        // 4) 저장 (REJECTED/CANCELLED 이력은 남기고, 재신청은 새 row INSERT)
+        try {
+            ProgramApply saved = programApplyRepository.save(
+                    ProgramApply.create(userId, program.getProgramId())
+            );
+            return ProgramApplyResponse.from(saved);
+        } catch (DataIntegrityViolationException e) {
+            // 동시성(더블클릭/중복요청)에서 DB 유니크에 걸릴 수 있음
+            throw new IllegalStateException("PROGRAM_APPLY_DUPLICATED");
+        }
     }
 
     public void cancel(Long userId, Long id) {
@@ -101,12 +95,13 @@ public class ProgramApplyService {
 
         validateOwner(userId, apply);
 
-        // 이미 REJECTED면 중복 취소 방지(선택)
-        if (apply.getStatus() == ApplyStatus.REJECTED) {
-            throw new IllegalStateException("ALREADY_REJECTED");
+        // 이미 취소면 중복 취소 방지(선택)
+        if (apply.getStatus() == ApplyStatus.CANCELLED) {
+            throw new IllegalStateException("ALREADY_CANCELLED");
         }
 
-        apply.cancel(); // status -> REJECTED (엔티티 구현 기준)
+        // 승인/대기/접수 상태에서만 취소 허용 같은 정책이 있으면 여기서 추가 가능
+        apply.cancel(); // ✅ status=CANCELLED + cancelledAt=now()
     }
 
     private void validateOwner(Long userId, ProgramApply apply) {
