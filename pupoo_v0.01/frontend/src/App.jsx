@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import SiteLayout from "./layouts/SiteLayout";
 
 /* admin */
-import SkoteAdminEntry from "./admin/SkoteAdminEntry";
+/* import SkoteAdminEntry from "./admin/SkoteAdminEntry";*/
 
 /* Home */
 import Home from "./pages/site/home/Home";
@@ -89,7 +89,7 @@ export default function App() {
       </Route>
 
       {/* Admin 영역 */}
-      <Route path="/admin/*" element={<SkoteAdminEntry />} />
+      {/*<Route path="/admin/*" element={<SkoteAdminEntry />} /> */}
 
       {/* fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

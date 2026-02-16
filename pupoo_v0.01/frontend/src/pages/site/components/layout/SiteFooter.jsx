@@ -9,8 +9,8 @@ const Footer = () => {
     >
       {/* 위에서 아래로 떨어지는 원 */}
       <span
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[250%]
-                   w-3 h-3 bg-white rounded-full opacity-0
+        className="absolute left-1/2 bottom-5 -translate-x-1/2 -translate-y-[250%]
+                   w-2 h-2 bg-white rounded-full opacity-0
                    transition-all duration-700
                    ease-[cubic-bezier(0.34,1.56,0.64,1)]
                    group-hover:-translate-y-1/2 group-hover:opacity-100
