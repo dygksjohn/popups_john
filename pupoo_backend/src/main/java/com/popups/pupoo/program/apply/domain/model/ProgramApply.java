@@ -32,10 +32,11 @@ public class ProgramApply {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
 
-    /* =========================
-       생성 로직
-    ========================= */
+    @Column(name = "active_flag", insertable = false, updatable = false)
+    private Byte activeFlag;
 
     public static ProgramApply create(Long userId, Long programId) {
         return ProgramApply.builder()
@@ -43,16 +44,24 @@ public class ProgramApply {
                 .programId(programId)
                 .status(ApplyStatus.APPLIED)
                 .createdAt(LocalDateTime.now())
+                .cancelledAt(null)
                 .build();
     }
 
     public void cancel() {
+        if (this.status == ApplyStatus.CANCELLED) return;
         this.status = ApplyStatus.CANCELLED;
+        this.cancelledAt = LocalDateTime.now();
     }
 
-    
-    public void reapply() {
-        this.status = ApplyStatus.APPLIED;
+    /**
+     * 활성 기준:
+     * APPLIED / WAITING / APPROVED 만 활성
+     */
+    public boolean isActive() {
+        return this.status == ApplyStatus.APPLIED
+                || this.status == ApplyStatus.WAITING
+                || this.status == ApplyStatus.APPROVED;
     }
-
 }
+
