@@ -16,7 +16,9 @@ public class ProgramResponse {
     private ProgramCategory category;
     private String programTitle;
     private String description;
-    private String placeName;
+
+    // ✅ placeName 제거
+    private Long boothId;
 
     private LocalDateTime startAt;
     private LocalDateTime endAt;
@@ -36,7 +38,7 @@ public class ProgramResponse {
                 .category(p.getCategory())
                 .programTitle(p.getProgramTitle())
                 .description(p.getDescription())
-                .placeName(p.getPlaceName())
+                .boothId(p.getBoothId())  // ✅ 변경
                 .startAt(p.getStartAt())
                 .endAt(p.getEndAt())
                 .ongoing(p.isOngoing())

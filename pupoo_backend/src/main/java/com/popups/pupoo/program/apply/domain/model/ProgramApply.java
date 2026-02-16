@@ -47,8 +47,9 @@ public class ProgramApply {
     }
 
     public void cancel() {
-        this.status = ApplyStatus.REJECTED; // 또는 CANCELLED (DB에 존재 시)
+        this.status = ApplyStatus.CANCELLED;
     }
+
     
     public void reapply() {
         this.status = ApplyStatus.APPLIED;
