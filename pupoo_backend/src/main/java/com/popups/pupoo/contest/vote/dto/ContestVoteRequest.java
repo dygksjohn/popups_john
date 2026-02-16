@@ -1,5 +1,5 @@
 package com.popups.pupoo.contest.vote.dto;
 
-public class ContestVoteRequest {
-
-}
+public record ContestVoteRequest(
+        Long programApplyId
+) {}
