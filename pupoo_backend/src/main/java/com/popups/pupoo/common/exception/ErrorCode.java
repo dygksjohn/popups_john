@@ -6,12 +6,16 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
     // 400
-    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "C400", "Invalid request"),
-    VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "C401", "Validation failed"),
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "C4000", "Invalid request"),
+    VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "C4001", "Validation failed"),
 
     // 401/403
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "C4010", "Unauthorized"),
     FORBIDDEN(HttpStatus.FORBIDDEN, "C4030", "Forbidden"),
+
+    // 404
+    RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "C4040", "Resource not found"),
+    BOOTH_NOT_FOUND(HttpStatus.NOT_FOUND, "B4041", "Booth not found"),
 
     // Auth
     USER_NOT_FOUND(HttpStatus.UNAUTHORIZED, "A4011", "User not found"),
@@ -20,17 +24,11 @@ public enum ErrorCode {
     REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "A4014", "Refresh token invalid"),
     JWT_INVALID(HttpStatus.UNAUTHORIZED, "A4015", "JWT invalid"),
 
-    // 404 ✅ 추가 부스 에러
-    BOOTH_NOT_FOUND(HttpStatus.NOT_FOUND, "B4041", "Booth not found"),
-
     // 409
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "C4090", "Duplicate resource"),
 
-
     // 500
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C5000", "Internal server error");
-	
-	
 
     private final HttpStatus status;
     private final String code;
