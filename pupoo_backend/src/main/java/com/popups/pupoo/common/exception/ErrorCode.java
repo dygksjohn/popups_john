@@ -20,11 +20,17 @@ public enum ErrorCode {
     REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "A4014", "Refresh token invalid"),
     JWT_INVALID(HttpStatus.UNAUTHORIZED, "A4015", "JWT invalid"),
 
+    // 404 ✅ 추가 부스 에러
+    BOOTH_NOT_FOUND(HttpStatus.NOT_FOUND, "B4041", "Booth not found"),
+
     // 409
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "C4090", "Duplicate resource"),
 
+
     // 500
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C5000", "Internal server error");
+	
+	
 
     private final HttpStatus status;
     private final String code;
