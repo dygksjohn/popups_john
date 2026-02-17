@@ -16,6 +16,7 @@ public enum ErrorCode {
     // 404
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "C4040", "Resource not found"),
     BOOTH_NOT_FOUND(HttpStatus.NOT_FOUND, "B4041", "Booth not found"),
+    QR_NOT_FOUND(HttpStatus.NOT_FOUND, "Q4041", "QR not found"), // ✅ 추가
 
     // Auth
     USER_NOT_FOUND(HttpStatus.UNAUTHORIZED, "A4011", "User not found"),
@@ -26,6 +27,10 @@ public enum ErrorCode {
 
     // 409
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "C4090", "Duplicate resource"),
+    QR_CHECK_CONFLICT(HttpStatus.CONFLICT, "Q4091", "QR check state conflict"), // ✅ 추가
+    
+    // 410
+    QR_EXPIRED(HttpStatus.GONE, "Q4100", "QR expired"), // ✅ 추가
 
     // 500
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C5000", "Internal server error");
