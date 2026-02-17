@@ -6,6 +6,7 @@ import com.popups.pupoo.auth.dto.LoginRequest;
 import com.popups.pupoo.auth.dto.LoginResponse;
 import com.popups.pupoo.auth.dto.TokenResponse;
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.user.dto.UserCreateRequest;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,6 +25,16 @@ public class AuthController {
     }
 
     /**
+     * 회원가입 + 자동 로그인
+     * - accessToken: body
+     * - refreshToken: HttpOnly 쿠키
+     */
+    @PostMapping("/signup")
+    public ApiResponse<LoginResponse> signup(@RequestBody UserCreateRequest req, HttpServletResponse response) {
+        return ApiResponse.success(authService.signup(req, response));
+    }
+
+    /**
      * 로그인
      * - accessToken: body
      * - refreshToken: HttpOnly 쿠키
@@ -35,7 +46,7 @@ public class AuthController {
 
     /**
      * refresh (쿠키 기반)
-     * ✅ rotation: refresh 성공 시 기존 row 삭제 + 신규 저장 + 쿠키 교체
+     * - rotation: refresh 성공 시 기존 row 삭제 + 신규 저장 + 쿠키 교체
      * - accessToken: body
      * - refreshToken: HttpOnly 쿠키 교체
      */

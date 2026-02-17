@@ -1,63 +1,44 @@
 // src/main/java/com/popups/pupoo/user/application/UserService.java
 package com.popups.pupoo.user.application;
 
-import com.popups.pupoo.auth.application.TokenService;
-import com.popups.pupoo.auth.domain.model.RefreshToken;
-import com.popups.pupoo.auth.dto.LoginResponse;
-import com.popups.pupoo.auth.persistence.RefreshTokenRepository;
 import com.popups.pupoo.user.domain.enums.RoleName;
 import com.popups.pupoo.user.domain.enums.UserStatus;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.dto.UserCreateRequest;
+import com.popups.pupoo.user.dto.UserMeResponse;
+import com.popups.pupoo.user.dto.UserUpdateRequest;
 import com.popups.pupoo.user.persistence.UserRepository;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-
+/**
+ * 사용자 도메인 서비스
+ * - 사용자 생성/조회/수정/탈퇴 등 User 리소스 책임만 담당한다.
+ * - 인증/토큰 발급/refresh 저장/쿠키 세팅은 auth 도메인에서 담당한다.
+ */
 @Service
 public class UserService {
-
-    private static final String REFRESH_COOKIE_NAME = "refresh_token";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // ✅ 가입 후 자동 로그인
-    private final TokenService tokenService;
-    private final RefreshTokenRepository refreshTokenRepository;
-
-    private final boolean refreshCookieSecure;
-    private final int refreshCookieMaxAgeSeconds;
-
     public UserService(
             UserRepository userRepository,
-            PasswordEncoder passwordEncoder,
-            TokenService tokenService,
-            RefreshTokenRepository refreshTokenRepository,
-            @Value("${auth.refresh.cookie.secure:true}") boolean refreshCookieSecure,
-            @Value("${auth.refresh.cookie.max-age-seconds:1209600}") int refreshCookieMaxAgeSeconds
+            PasswordEncoder passwordEncoder
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.tokenService = tokenService;
-        this.refreshTokenRepository = refreshTokenRepository;
-        this.refreshCookieSecure = refreshCookieSecure;
-        this.refreshCookieMaxAgeSeconds = refreshCookieMaxAgeSeconds;
     }
 
     /**
-     * 회원가입 + 자동 로그인
-     * - email: 로그인 키(정책상 변경 불가, 회원가입 시에만 입력)
-     * - user_id: 내부 고유 식별자(AUTO_INCREMENT)
-     * - refresh: 원문 저장 + HttpOnly 쿠키
+     * 회원가입을 위한 사용자 생성
+     * - 중복 검증 후 사용자 엔티티를 생성/저장하고 엔티티를 반환한다.
+     * - 자동 로그인(토큰 발급, refresh 저장, 쿠키 세팅)은 auth에서 처리한다.
      */
-    public LoginResponse create(UserCreateRequest req, HttpServletResponse response) {
+    @Transactional
+    public User create(UserCreateRequest req) {
 
-        // 1) 중복 체크 (SQL에 UK: email/phone/nickname)
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new IllegalArgumentException("Email already exists");
         }
@@ -68,55 +49,73 @@ public class UserService {
             throw new IllegalArgumentException("Nickname already exists");
         }
 
-        // 2) User 엔티티 생성 (SQL 정합 필드 세팅)
         User user = new User();
         user.setEmail(req.getEmail());
-        user.setPassword(passwordEncoder.encode(req.getPassword())); // setPassword가 lastModifiedAt 갱신 처리
+        user.setPassword(passwordEncoder.encode(req.getPassword()));
         user.setNickname(req.getNickname());
         user.setPhone(req.getPhone());
 
-        // 필수값(명시 세팅 권장: JPA insert 안정성)
         user.setStatus(UserStatus.ACTIVE);
         user.setRoleName(RoleName.USER);
 
-        // ✅ show_* : boolean 정합 (DB는 tinyint(1), 엔티티는 boolean)
-        // - 요청 DTO가 boolean이면 그대로 반영
-        // - 요청에 값이 없으면 기본값 false로 들어감(boolean default)
         user.setShowAge(req.isShowAge());
         user.setShowGender(req.isShowGender());
         user.setShowPet(req.isShowPet());
 
-        // created_at / last_modified_at은 User.java @PrePersist에서 기본 세팅됨
-        User saved = userRepository.save(user);
-
-        // 3) 토큰 발급 (user_id 기반)
-        Long userId = saved.getUserId();
-        String roleName = saved.getRoleName().name();
-
-        String accessToken = tokenService.createAccessToken(userId, roleName);
-        String refreshToken = tokenService.createRefreshToken(userId);
-
-        // 4) refresh_token 원문 저장
-        RefreshToken rt = new RefreshToken();
-        rt.setUserId(userId);
-        rt.setToken(refreshToken);
-        rt.setCreatedAt(LocalDateTime.now());
-        rt.setExpiredAt(LocalDateTime.now().plusSeconds(refreshCookieMaxAgeSeconds));
-        refreshTokenRepository.save(rt);
-
-        // 5) refresh 쿠키 세팅(HttpOnly)
-        setRefreshCookie(response, refreshToken);
-
-        // 6) access는 body로 반환 (refresh는 쿠키)
-        return new LoginResponse(accessToken, userId, roleName);
+        return userRepository.save(user);
     }
 
-    private void setRefreshCookie(HttpServletResponse response, String token) {
-        Cookie cookie = new Cookie(REFRESH_COOKIE_NAME, token);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(refreshCookieSecure);
-        cookie.setPath("/");
-        cookie.setMaxAge(refreshCookieMaxAgeSeconds);
-        response.addCookie(cookie);
+    /**
+     * 현재 로그인 사용자 정보 조회
+     */
+    @Transactional(readOnly = true)
+    public UserMeResponse getMe(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
+        return UserMeResponse.from(user);
+    }
+
+    /**
+     * 현재 로그인 사용자 정보 수정
+     * - 부분 수정: null이면 변경하지 않는다.
+     * - 닉네임 변경 시 중복 검증을 수행한다.
+     * - phone은 본인인증 후 별도 플로우에서만 변경 가능하므로 여기서는 수정하지 않는다.
+     */
+    @Transactional
+    public UserMeResponse updateMe(Long userId, UserUpdateRequest req) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
+
+        String newNickname = req.getNickname();
+        if (newNickname != null && !newNickname.isBlank()) {
+            if (!newNickname.equals(user.getNickname()) && userRepository.existsByNickname(newNickname)) {
+                throw new IllegalArgumentException("Nickname already exists");
+            }
+            user.setNickname(newNickname);
+        }
+
+        if (req.getShowAge() != null) {
+            user.setShowAge(req.getShowAge());
+        }
+        if (req.getShowGender() != null) {
+            user.setShowGender(req.getShowGender());
+        }
+        if (req.getShowPet() != null) {
+            user.setShowPet(req.getShowPet());
+        }
+
+        return UserMeResponse.from(user);
+    }
+
+    /**
+     * 현재 로그인 사용자 탈퇴 처리
+     * - 정책: soft delete (status 변경)
+     */
+    @Transactional
+    public void deleteMe(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
+
+        user.setStatus(UserStatus.INACTIVE);
     }
 }

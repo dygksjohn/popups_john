@@ -7,7 +7,10 @@ import com.popups.pupoo.auth.dto.LoginResponse;
 import com.popups.pupoo.auth.dto.TokenResponse;
 import com.popups.pupoo.auth.persistence.RefreshTokenRepository;
 import com.popups.pupoo.auth.token.JwtProvider;
+import com.popups.pupoo.user.application.UserService;
+import com.popups.pupoo.user.domain.enums.UserStatus;
 import com.popups.pupoo.user.domain.model.User;
+import com.popups.pupoo.user.dto.UserCreateRequest;
 import com.popups.pupoo.user.persistence.UserRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,6 +27,7 @@ public class AuthService {
     private static final String REFRESH_COOKIE_NAME = "refresh_token";
 
     private final UserRepository userRepository;
+    private final UserService userService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -35,6 +39,7 @@ public class AuthService {
 
     public AuthService(
             UserRepository userRepository,
+            UserService userService,
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
             TokenService tokenService,
@@ -43,6 +48,7 @@ public class AuthService {
             @Value("${auth.refresh.cookie.max-age-seconds:1209600}") int refreshCookieMaxAgeSeconds
     ) {
         this.userRepository = userRepository;
+        this.userService = userService;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
@@ -51,16 +57,45 @@ public class AuthService {
         this.refreshCookieMaxAgeSeconds = refreshCookieMaxAgeSeconds;
     }
 
+    /**
+     * 회원가입 + 자동 로그인
+     * - 사용자 생성은 user 도메인(UserService)을 통해 처리한다.
+     * - 토큰 발급/refresh 저장/쿠키 세팅은 auth 도메인에서 처리한다.
+     */
+    @Transactional
+    public LoginResponse signup(UserCreateRequest req, HttpServletResponse response) {
+
+        User saved = userService.create(req);
+
+        Long userId = saved.getUserId();
+        String roleName = saved.getRoleName().name();
+
+        String access = tokenService.createAccessToken(userId, roleName);
+        String refresh = tokenService.createRefreshToken(userId);
+
+        RefreshToken rt = new RefreshToken();
+        rt.setUserId(userId);
+        rt.setToken(refresh);
+        rt.setCreatedAt(LocalDateTime.now());
+        rt.setExpiredAt(LocalDateTime.now().plusSeconds(refreshCookieMaxAgeSeconds));
+        refreshTokenRepository.save(rt);
+
+        setRefreshCookie(response, refresh);
+
+        return new LoginResponse(access, userId, roleName);
+    }
+
+    /**
+     * 로그인
+     * - accessToken: body
+     * - refreshToken: HttpOnly 쿠키
+     */
+    @Transactional
     public LoginResponse login(LoginRequest req, HttpServletResponse response) {
         User user = userRepository.findByEmail(req.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        if (user.getStatus() != null && "DELETED".equals(user.getStatus().name())) {
-            throw new IllegalArgumentException("Deleted user");
-        }
-        if (user.getStatus() != null && "SUSPENDED".equals(user.getStatus().name())) {
-            throw new IllegalArgumentException("Suspended user");
-        }
+        validateUserStatusForAuth(user);
 
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
             throw new IllegalArgumentException("Invalid credentials");
@@ -89,7 +124,7 @@ public class AuthService {
 
     /**
      * refresh (쿠키 기반)
-     * ✅ rotation: 성공 시 기존 row 삭제 + 새 refresh 발급/저장 + 쿠키 교체
+     * - rotation: 성공 시 기존 row 삭제 + 새 refresh 발급/저장 + 쿠키 교체
      */
     @Transactional
     public TokenResponse refreshToken(String refreshToken, HttpServletResponse response) {
@@ -97,35 +132,24 @@ public class AuthService {
             throw new IllegalArgumentException("Refresh token missing");
         }
 
-        // 1) DB 존재 확인
         RefreshToken stored = refreshTokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new IllegalArgumentException("Refresh token invalid"));
 
-        // 2) JWT 검증
         jwtProvider.validateRefreshToken(refreshToken);
 
-        // 3) userId 추출 + role은 DB에서 조회
         Long userId = jwtProvider.getUserId(refreshToken);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        if (user.getStatus() != null && "DELETED".equals(user.getStatus().name())) {
-            throw new IllegalArgumentException("Deleted user");
-        }
-        if (user.getStatus() != null && "SUSPENDED".equals(user.getStatus().name())) {
-            throw new IllegalArgumentException("Suspended user");
-        }
+        validateUserStatusForAuth(user);
 
         String roleName = user.getRoleName().name();
 
-        // 4) access 재발급
         String newAccess = tokenService.createAccessToken(userId, roleName);
 
-        // 5) rotation: 기존 refresh row 삭제 (✅ deleteByToken 대신 delete(entity)로 안전하게)
         refreshTokenRepository.delete(stored);
 
-        // 6) 새 refresh 저장 + 쿠키 교체
         String newRefresh = tokenService.createRefreshToken(userId);
 
         RefreshToken newRt = new RefreshToken();
@@ -140,17 +164,37 @@ public class AuthService {
         return new TokenResponse(newAccess);
     }
 
+    /**
+     * 로그아웃 (디바이스 단위)
+     * - 쿠키의 refresh 토큰 1개만 DB에서 삭제
+     * - refresh 쿠키 만료
+     */
     @Transactional
     public void logout(String refreshToken, HttpServletResponse response) {
 
         if (refreshToken != null && !refreshToken.isBlank()) {
-
-            // ✅ token으로 엔티티 조회 후 delete(entity)로 안전 삭제
             refreshTokenRepository.findByToken(refreshToken)
                     .ifPresent(refreshTokenRepository::delete);
         }
 
         expireRefreshCookie(response);
+    }
+
+    /**
+     * 인증/인가 흐름에서 허용하지 않는 사용자 상태를 차단한다.
+     */
+    private void validateUserStatusForAuth(User user) {
+        UserStatus status = user.getStatus();
+        if (status == null) {
+            throw new IllegalArgumentException("Invalid user status");
+        }
+
+        if (status == UserStatus.INACTIVE) {
+            throw new IllegalArgumentException("Inactive user");
+        }
+        if (status == UserStatus.SUSPENDED) {
+            throw new IllegalArgumentException("Suspended user");
+        }
     }
 
     private void setRefreshCookie(HttpServletResponse response, String token) {
