@@ -27,7 +27,9 @@ public enum ErrorCode {
 
     // 409
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "C4090", "Duplicate resource"),
-    QR_CHECK_CONFLICT(HttpStatus.CONFLICT, "Q4091", "QR check state conflict"), // ✅ 추가
+    QR_CHECK_CONFLICT(HttpStatus.CONFLICT, "Q4091", "QR check state conflict"),
+    PAYMENT_DUPLICATE_ACTIVE(HttpStatus.CONFLICT, "P4091", "Payment already in progress"),  // ✅ 추가
+
     
     // 410
     QR_EXPIRED(HttpStatus.GONE, "Q4100", "QR expired"), // ✅ 추가

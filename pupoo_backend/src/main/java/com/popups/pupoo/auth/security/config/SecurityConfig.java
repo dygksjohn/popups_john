@@ -59,6 +59,12 @@ public class SecurityConfig {
                     .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
                 .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations")
                     .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
+                    
+                // 카카오페이 콜백은 인증 없이 허용
+                .requestMatchers(HttpMethod.GET,  "/api/payments/*/approve").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/payments/*/cancel").permitAll()
+                .requestMatchers(HttpMethod.GET,  "/api/payments/*/fail").permitAll()
+
 
                 .anyRequest().authenticated()
         );

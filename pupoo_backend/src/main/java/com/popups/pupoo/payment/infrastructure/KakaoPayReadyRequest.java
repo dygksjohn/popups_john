@@ -1,13 +1,14 @@
 package com.popups.pupoo.payment.infrastructure;
 
-public record KakaoPayApproveResponse(
-        String aid,
-        String tid,
+public record KakaoPayReadyRequest(
         String cid,
         String partner_order_id,
         String partner_user_id,
-        String payment_method_type,
         String item_name,
         int quantity,
-        String approved_at
+        int total_amount,
+        int tax_free_amount,
+        String approval_url,
+        String cancel_url,
+        String fail_url
 ) {}

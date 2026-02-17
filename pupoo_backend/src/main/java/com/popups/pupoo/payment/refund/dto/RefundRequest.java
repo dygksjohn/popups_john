@@ -1,5 +1,9 @@
 package com.popups.pupoo.payment.refund.dto;
 
-public class RefundRequest {
+import java.math.BigDecimal;
 
-}
+public record RefundRequest(
+        Long paymentId,
+        BigDecimal refundAmount,
+        String reason
+) {}

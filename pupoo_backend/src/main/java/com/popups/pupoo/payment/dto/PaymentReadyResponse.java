@@ -1,5 +1,9 @@
 package com.popups.pupoo.payment.dto;
 
-public class PaymentReadyResponse {
-
-}
+public record PaymentReadyResponse(
+        Long paymentId,
+        String orderNo,
+        String tid,
+        String redirectPcUrl,
+        String redirectMobileUrl
+) {}

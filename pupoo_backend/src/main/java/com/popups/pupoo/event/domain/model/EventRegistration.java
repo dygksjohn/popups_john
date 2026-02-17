@@ -70,6 +70,12 @@ public class EventRegistration {
     public void cancel() {
         this.status = RegistrationStatus.CANCELLED;
     }
+    
+    /** 결제 승인 후 자동 승인 */
+    public void approve() {
+        this.status = RegistrationStatus.APPROVED;
+    }
+
 
     // ===== Getter =====
     public Long getApplyId() { return applyId; }

@@ -2,6 +2,7 @@ package com.popups.pupoo.event.persistence;
 
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.model.Event;
+import com.popups.pupoo.event.domain.model.EventRegistration;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 /**
  * EventRepository (v2.5 기준)
@@ -42,5 +44,6 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             @Param("fromAt") LocalDateTime fromAt,
             @Param("toAt") LocalDateTime toAt,
             Pageable pageable
-    );
+    );       
+
 }
