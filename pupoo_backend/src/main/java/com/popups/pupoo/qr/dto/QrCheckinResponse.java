@@ -1,5 +1,15 @@
 package com.popups.pupoo.qr.dto;
 
-public class QrCheckinResponse {
+import lombok.Builder;
+import lombok.Getter;
 
+import java.time.LocalDateTime;
+
+@Getter
+@Builder
+public class QrCheckinResponse {
+    private Long qrId;
+    private Long boothId;
+    private String checkType;
+    private LocalDateTime checkedAt;
 }

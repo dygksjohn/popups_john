@@ -7,9 +7,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface QrCheckinRepository extends JpaRepository<QrCheckin, Long> {
 
+    // =========================
+    // (A) 방문 목록 요약(이벤트별/부스별) - Native Query
+    // =========================
     @Query(value = """
         WITH logs AS (
           SELECT
@@ -58,7 +62,9 @@ public interface QrCheckinRepository extends JpaRepository<QrCheckin, Long> {
             @Param("eventId") Long eventId
     );
 
-    // 방문 로그 JPQL
+    // =========================
+    // (B) 특정 부스 방문 로그 - JPQL
+    // =========================
     @Query("""
         select l
         from QrCheckin l
@@ -72,4 +78,9 @@ public interface QrCheckinRepository extends JpaRepository<QrCheckin, Long> {
             @Param("eventId") Long eventId,
             @Param("boothId") Long boothId
     );
+
+    // =========================
+    // (C) 관리자 체크인/체크아웃 정책용: 마지막 로그 1건 조회 (가장 중요)
+    // =========================
+    Optional<QrCheckin> findTopByQrCode_QrIdAndBooth_BoothIdOrderByCheckedAtDesc(Long qrId, Long boothId);
 }
