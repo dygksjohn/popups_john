@@ -1,12 +1,10 @@
+// src/main/java/com/popups/pupoo/payment/infrastructure/KakaoPayClient.java
 package com.popups.pupoo.payment.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 
@@ -14,41 +12,54 @@ import org.springframework.web.client.RestClient;
 @Component
 public class KakaoPayClient {
 
-    private final RestClient restClient;
+    private final RestClient.Builder builder;
     private final KakaoPayProperties props;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    
-    
+
+    private volatile RestClient restClient;
 
     public KakaoPayClient(RestClient.Builder builder, KakaoPayProperties props) {
+        this.builder = builder;
         this.props = props;
-
-        // ✅ 1) secretKey 주입 여부/치환 실패 감지 (시크릿 값 노출 없음)
-        String secret = props.secretKey();
-        if (secret == null || secret.isBlank() || secret.contains("$") || "__MISSING__".equals(secret)) {
-            throw new IllegalStateException(
-                    "KakaoPay secretKey is missing or not resolved. " +
-                    "Check environment variable KAKAOPAY_SECRET_KEY_DEV (Eclipse Run Config > Environment)."
-            );
-        }
-
-        String auth = props.authorizationPrefix() + secret;
-
-        // ✅ 2) 디버그 로그(시크릿 노출 없음)
-        System.out.println("[KakaoPay] authPrefix=" + props.authorizationPrefix()
-                + ", secretLen=" + secret.length()
-                + ", authContains$=" + auth.contains("$"));
-
-        this.restClient = builder
-                .baseUrl(props.baseUrl())
-                .defaultHeader("Authorization", auth)
-                .build();
     }
 
+    private RestClient client() {
+        if (restClient != null) {
+            return restClient;
+        }
+
+        synchronized (this) {
+            if (restClient != null) {
+                return restClient;
+            }
+
+            String secret = props.secretKey();
+
+            // ✅ 부팅은 허용, 호출 시점에만 막는다.
+            if (secret == null || secret.isBlank() || secret.contains("$") || "__MISSING__".equals(secret)) {
+                throw new IllegalStateException(
+                        "KakaoPay secretKey is missing or not resolved. " +
+                        "Set `kakaopay.secret-key` or env `KAKAOPAY_SECRET_KEY_DEV` before calling payment APIs."
+                );
+            }
+
+            String auth = props.authorizationPrefix() + secret;
+
+            System.out.println("[KakaoPay] init RestClient, authPrefix=" + props.authorizationPrefix()
+                    + ", secretLen=" + secret.length());
+
+            restClient = builder
+                    .baseUrl(props.baseUrl())
+                    .defaultHeader("Authorization", auth)
+                    .build();
+
+            return restClient;
+        }
+    }
 
     public KakaoPayReadyResponse ready(KakaoPayReadyRequest req) {
         try {
-            return restClient.post()
+            return client().post()
                     .uri(props.readyPath())
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -64,7 +75,7 @@ public class KakaoPayClient {
 
     public KakaoPayApproveResponse approve(KakaoPayApproveRequest req) {
         try {
-            return restClient.post()
+            return client().post()
                     .uri(props.approvePath())
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -80,7 +91,7 @@ public class KakaoPayClient {
 
     public KakaoPayCancelResponse cancel(KakaoPayCancelRequest req) {
         try {
-            return restClient.post()
+            return client().post()
                     .uri(props.cancelPath())
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -92,40 +103,6 @@ public class KakaoPayClient {
                     + ", body=" + e.getResponseBodyAsString());
             throw e;
         }
-    }
-
-    private MultiValueMap<String, String> toForm(KakaoPayReadyRequest r) {
-        MultiValueMap<String, String> f = new LinkedMultiValueMap<>();
-        f.add("cid", r.cid());
-        f.add("partner_order_id", r.partner_order_id());
-        f.add("partner_user_id", r.partner_user_id());
-        f.add("item_name", r.item_name());
-        f.add("quantity", String.valueOf(r.quantity()));
-        f.add("total_amount", String.valueOf(r.total_amount()));
-        f.add("tax_free_amount", String.valueOf(r.tax_free_amount()));
-        f.add("approval_url", r.approval_url());
-        f.add("cancel_url", r.cancel_url());
-        f.add("fail_url", r.fail_url());
-        return f;
-    }
-
-    private MultiValueMap<String, String> toForm(KakaoPayApproveRequest r) {
-        MultiValueMap<String, String> f = new LinkedMultiValueMap<>();
-        f.add("cid", r.cid());
-        f.add("tid", r.tid());
-        f.add("partner_order_id", r.partner_order_id());
-        f.add("partner_user_id", r.partner_user_id());
-        f.add("pg_token", r.pg_token());
-        return f;
-    }
-
-    private MultiValueMap<String, String> toForm(KakaoPayCancelRequest r) {
-        MultiValueMap<String, String> f = new LinkedMultiValueMap<>();
-        f.add("cid", r.cid());
-        f.add("tid", r.tid());
-        f.add("cancel_amount", String.valueOf(r.cancel_amount()));
-        f.add("cancel_tax_free_amount", String.valueOf(r.cancel_tax_free_amount()));
-        return f;
     }
 
     public String toJson(Object o) {
