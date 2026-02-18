@@ -5,36 +5,78 @@ import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
 
-    // 400
+    // =========================
+    // Common - 400
+    // =========================
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "C4000", "Invalid request"),
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "C4001", "Validation failed"),
 
-    // 401/403
+    // =========================
+    // Common - 401/403
+    // =========================
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "C4010", "Unauthorized"),
     FORBIDDEN(HttpStatus.FORBIDDEN, "C4030", "Forbidden"),
 
-    // 404
+    // =========================
+    // Common - 404
+    // =========================
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "C4040", "Resource not found"),
-    BOOTH_NOT_FOUND(HttpStatus.NOT_FOUND, "B4041", "Booth not found"),
-    QR_NOT_FOUND(HttpStatus.NOT_FOUND, "Q4041", "QR not found"), // ✅ 추가
 
-    // Auth
+    // =========================
+    // Booth - 404
+    // =========================
+    BOOTH_NOT_FOUND(HttpStatus.NOT_FOUND, "B4041", "Booth not found"),
+
+    // =========================
+    // QR - 404/409/410
+    // =========================
+    QR_NOT_FOUND(HttpStatus.NOT_FOUND, "Q4041", "QR not found"),
+    QR_CHECK_CONFLICT(HttpStatus.CONFLICT, "Q4091", "QR check state conflict"),
+    QR_EXPIRED(HttpStatus.GONE, "Q4100", "QR expired"),
+
+    // =========================
+    // Auth - 401
+    // =========================
     USER_NOT_FOUND(HttpStatus.UNAUTHORIZED, "A4011", "User not found"),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "A4012", "Invalid credentials"),
     REFRESH_TOKEN_MISSING(HttpStatus.UNAUTHORIZED, "A4013", "Refresh token missing"),
     REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "A4014", "Refresh token invalid"),
     JWT_INVALID(HttpStatus.UNAUTHORIZED, "A4015", "JWT invalid"),
 
-    // 409
+    // =========================
+    // User - 409/404 (내 정보, 중복)
+    // =========================
+    USER_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "U4041", "User profile not found"),
+    DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U4091", "Email already exists"),
+    DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "U4092", "Nickname already exists"),
+    DUPLICATE_PHONE(HttpStatus.CONFLICT, "U4093", "Phone already exists"),
+
+    // =========================
+    // Pet - 404/403
+    // =========================
+    PET_NOT_FOUND(HttpStatus.NOT_FOUND, "T4041", "Pet not found"),
+    PET_ACCESS_DENIED(HttpStatus.FORBIDDEN, "T4031", "No permission for this pet"),
+
+    // =========================
+    // Interest - 404/409
+    // =========================
+    INTEREST_NOT_FOUND(HttpStatus.NOT_FOUND, "I4041", "Interest not found"),
+    SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "I4042", "Subscription not found"),
+    SUBSCRIPTION_DUPLICATE(HttpStatus.CONFLICT, "I4091", "Subscription already exists"),
+
+    // =========================
+    // Payment - 409
+    // =========================
+    PAYMENT_DUPLICATE_ACTIVE(HttpStatus.CONFLICT, "P4091", "Payment already in progress"),
+
+    // =========================
+    // Common - 409
+    // =========================
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "C4090", "Duplicate resource"),
-    QR_CHECK_CONFLICT(HttpStatus.CONFLICT, "Q4091", "QR check state conflict"),
-    PAYMENT_DUPLICATE_ACTIVE(HttpStatus.CONFLICT, "P4091", "Payment already in progress"),  // ✅ 추가
 
-    
-    // 410
-    QR_EXPIRED(HttpStatus.GONE, "Q4100", "QR expired"), // ✅ 추가
-
-    // 500
+    // =========================
+    // Common - 500
+    // =========================
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C5000", "Internal server error");
 
     private final HttpStatus status;

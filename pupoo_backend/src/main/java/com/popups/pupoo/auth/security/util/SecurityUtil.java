@@ -9,7 +9,7 @@ public class SecurityUtil {
 
     /**
      * 현재 인증된 사용자의 userId를 반환한다.
-     * ✅ JwtAuthenticationFilter에서 principal=userId(Long)로 세팅하는 것을 표준으로 한다.
+     * JwtAuthenticationFilter에서 principal=userId(Long)로 세팅하는 것을 표준으로 한다.
      */
     public Long currentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

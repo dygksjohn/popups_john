@@ -1,10 +1,11 @@
 ############################################
 # STS / Eclipse Workspace (🔥 필수)
 ############################################
-.metadata/
-.project
-.classpath
-.settings/
+**/.metadata/
+**/.project
+**/.classpath
+**/.settings/
+**/.factorypath
 
 ############################################
 # IntelliJ
@@ -30,6 +31,9 @@
 ############################################
 **/node_modules/
 **/dist/
+**/.vite/
+**/.cache/
+**/.eslintcache
 
 ############################################
 # Logs
@@ -41,19 +45,26 @@
 ############################################
 .DS_Store
 Thumbs.db
+ehthumbs.db
 
 ############################################
 # Local environment config (중요 🔐)
 ############################################
-application-local.properties
-application-dev.properties
-application-test.properties
+**/application-local.properties
+**/application-local.yml
+**/application-dev.properties
+**/application-dev.yml
+**/application-test.properties
+**/application-test.yml
 
 ############################################
 # Secret files
 ############################################
 .env
 .env.*
+**/*.keystore
+**/*.p12
+**/*.jks
 
 ############################################
 # Temporary
