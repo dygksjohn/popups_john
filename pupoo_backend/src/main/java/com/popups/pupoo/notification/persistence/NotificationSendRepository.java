@@ -1,5 +1,7 @@
 package com.popups.pupoo.notification.persistence;
 
-public interface NotificationSendRepository {
+import com.popups.pupoo.notification.domain.model.NotificationSend;
+import org.springframework.data.jpa.repository.JpaRepository;
 
+public interface NotificationSendRepository extends JpaRepository<NotificationSend, Long> {
 }

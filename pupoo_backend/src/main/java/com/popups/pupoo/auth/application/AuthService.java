@@ -34,6 +34,8 @@ public class AuthService {
     private final TokenService tokenService;
     private final JwtProvider jwtProvider;
 
+    private final EmailVerificationService emailVerificationService;
+
     private final boolean refreshCookieSecure;
     private final int refreshCookieMaxAgeSeconds;
 
@@ -44,6 +46,7 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             TokenService tokenService,
             JwtProvider jwtProvider,
+            EmailVerificationService emailVerificationService,
             @Value("${auth.refresh.cookie.secure:true}") boolean refreshCookieSecure,
             @Value("${auth.refresh.cookie.max-age-seconds:1209600}") int refreshCookieMaxAgeSeconds
     ) {
@@ -53,6 +56,7 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.jwtProvider = jwtProvider;
+        this.emailVerificationService = emailVerificationService;
         this.refreshCookieSecure = refreshCookieSecure;
         this.refreshCookieMaxAgeSeconds = refreshCookieMaxAgeSeconds;
     }
@@ -81,6 +85,15 @@ public class AuthService {
         refreshTokenRepository.save(rt);
 
         setRefreshCookie(response, refresh);
+
+        // local(email/password) 가입에만 이메일 인증을 요구한다.
+        // 소셜 가입은 별도 플로우에서 처리하며, 이메일 인증을 생략한다.
+        try {
+            emailVerificationService.requestEmailVerification(userId);
+        } catch (Exception ignored) {
+            // 이메일 발송/검증 설정이 아직 준비되지 않은 환경에서도 회원가입은 진행 가능해야 한다.
+            // 운영에서는 반드시 verification.hash.salt 및 이메일 발송 구현을 활성화한다.
+        }
 
         return new LoginResponse(access, userId, roleName);
     }

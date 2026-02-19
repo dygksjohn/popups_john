@@ -56,6 +56,44 @@ public class Event {
         // JPA 기본 생성자
     }
 
+    public static Event create(
+            String eventName,
+            String description,
+            LocalDateTime startAt,
+            LocalDateTime endAt,
+            String location,
+            EventStatus status,
+            Integer roundNo
+    ) {
+        Event e = new Event();
+        e.eventName = eventName;
+        e.description = description;
+        e.startAt = startAt;
+        e.endAt = endAt;
+        e.location = location;
+        e.status = status;
+        e.roundNo = roundNo;
+        return e;
+    }
+
+    public void update(
+            String eventName,
+            String description,
+            LocalDateTime startAt,
+            LocalDateTime endAt,
+            String location,
+            EventStatus status,
+            Integer roundNo
+    ) {
+        this.eventName = eventName;
+        this.description = description;
+        this.startAt = startAt;
+        this.endAt = endAt;
+        this.location = location;
+        this.status = status;
+        this.roundNo = roundNo;
+    }
+
     // ===== Getter =====
     public Long getEventId() { return eventId; }
     public String getEventName() { return eventName; }

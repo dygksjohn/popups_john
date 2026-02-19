@@ -44,6 +44,19 @@ public enum ErrorCode {
     JWT_INVALID(HttpStatus.UNAUTHORIZED, "A4015", "JWT invalid"),
 
     // =========================
+    // Auth - verification (email/phone)
+    // =========================
+    EMAIL_VERIFICATION_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "A4001", "Email verification token invalid"),
+    EMAIL_ALREADY_VERIFIED(HttpStatus.CONFLICT, "A4091", "Email already verified"),
+    EMAIL_VERIFICATION_TOKEN_EXPIRED(HttpStatus.GONE, "A4101", "Email verification token expired"),
+
+    PHONE_OTP_INVALID(HttpStatus.BAD_REQUEST, "A4002", "Phone OTP invalid"),
+    PHONE_ALREADY_VERIFIED(HttpStatus.CONFLICT, "A4092", "Phone already verified"),
+    PHONE_OTP_EXPIRED(HttpStatus.GONE, "A4102", "Phone OTP expired"),
+    PHONE_OTP_TOO_MANY_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, "A4291", "Phone OTP too many attempts"),
+    VERIFICATION_TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "A4290", "Verification too many requests"),
+
+    // =========================
     // User - 409/404 (내 정보, 중복)
     // =========================
     USER_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "U4041", "User profile not found"),

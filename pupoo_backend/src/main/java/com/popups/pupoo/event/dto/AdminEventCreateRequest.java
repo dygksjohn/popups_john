@@ -6,10 +6,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 관리자용 행사 수정 요청 DTO
- * - interestIds: event_interest_map 갱신용 (delete + insert)
+ * 관리자용 행사 등록 요청 DTO
+ * - interestIds: event_interest_map 저장용
  */
-public class AdminEventUpdateRequest {
+public class AdminEventCreateRequest {
 
     private String eventName;
     private String description;
