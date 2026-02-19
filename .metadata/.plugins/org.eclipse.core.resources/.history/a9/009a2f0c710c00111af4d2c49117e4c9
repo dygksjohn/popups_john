@@ -1,0 +1,16 @@
+// src/main/java/com/popups/pupoo/pet/dto/PetCreateRequest.java
+package com.popups.pupoo.pet.dto;
+
+import com.popups.pupoo.pet.domain.enums.AnimalType;
+
+/**
+ * 반려동물 등록 요청 DTO
+ * - ServiceImpl에서 request.petName() 형태로 사용하므로 record로 정의
+ * - DB pet_breed ENUM('DOG','CAT','OTHER') -> AnimalType
+ */
+public record PetCreateRequest(
+        String petName,
+        AnimalType petBreed,
+        Integer petAge
+) {
+}

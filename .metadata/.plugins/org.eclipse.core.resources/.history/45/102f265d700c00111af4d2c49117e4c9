@@ -1,0 +1,14 @@
+// src/main/java/com/popups/pupoo/payment/dto/PaymentReadyRequest.java
+package com.popups.pupoo.payment.dto;
+
+/**
+ * PG Ready(결제 준비) 요청 DTO
+ * - KakaoPayGateway.ready()에서 사용
+ * - itemName/quantity/taxFreeAmount는 KakaoPay Ready API에 필요한 값
+ */
+public record PaymentReadyRequest(
+        String itemName,
+        int quantity,
+        int taxFreeAmount
+) {
+}

@@ -1,0 +1,12 @@
+// src/main/java/com/popups/pupoo/payment/dto/PaymentApproveRequest.java
+package com.popups.pupoo.payment.dto;
+
+/**
+ * PG Approve(결제 승인) 요청 DTO
+ * - KakaoPayGateway.approve()에서 사용
+ * - 카카오페이 승인에 pg_token이 필요
+ */
+public record PaymentApproveRequest(
+        String pgToken
+) {
+}

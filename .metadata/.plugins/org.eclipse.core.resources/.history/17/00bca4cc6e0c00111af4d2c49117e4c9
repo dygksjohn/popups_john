@@ -1,0 +1,71 @@
+// src/main/java/com/popups/pupoo/pet/api/PetController.java
+package com.popups.pupoo.pet.api;
+
+import com.popups.pupoo.auth.security.util.SecurityUtil;
+import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.pet.application.PetService;
+import com.popups.pupoo.pet.dto.PetCreateRequest;
+import com.popups.pupoo.pet.dto.PetMeResponse;
+import com.popups.pupoo.pet.dto.PetUpdateRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * Pet API
+ * - 내 반려동물 등록/조회/수정/삭제
+ */
+@RestController
+@RequestMapping("/pets")
+public class PetController {
+
+    private final PetService petService;
+
+    public PetController(PetService petService) {
+        this.petService = petService;
+    }
+
+    /**
+     * 내 반려동물 등록
+     */
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<Long> create(@RequestBody PetCreateRequest request) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        Long petId = petService.create(userId, request);
+        return ApiResponse.success(petId);
+    }
+
+    /**
+     * 내 반려동물 목록 조회
+     */
+    @GetMapping("/me")
+    public ApiResponse<PetMeResponse> getMe() {
+        Long userId = SecurityUtil.getCurrentUserId();
+        PetMeResponse response = petService.getMe(userId);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * 내 반려동물 수정 (owner 검증: Service에서 처리)
+     */
+    @PatchMapping("/{petId}")
+    public ApiResponse<Void> update(
+            @PathVariable Long petId,
+            @RequestBody PetUpdateRequest request
+    ) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        petService.update(userId, petId, request);
+        return ApiResponse.success(null);
+    }
+
+    /**
+     * 내 반려동물 삭제 (owner 검증: Service에서 처리)
+     */
+    @DeleteMapping("/{petId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ApiResponse<Void> delete(@PathVariable Long petId) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        petService.delete(userId, petId);
+        return ApiResponse.success(null);
+    }
+}
