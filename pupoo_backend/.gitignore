@@ -35,3 +35,10 @@ out/
 
 ### VS Code ###
 .vscode/
+
+.cursor/
+.cursorrules
+.vscode/
+.history/
+*.code-workspace
+.cursor-docs/
