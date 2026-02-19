@@ -1,73 +1,24 @@
-############################################
-# STS / Eclipse Workspace (🔥 필수)
-############################################
-**/.metadata/
-**/.project
-**/.classpath
-**/.settings/
-**/.factorypath
-
-############################################
-# IntelliJ
-############################################
-.idea/
-*.iml
-*.iws
-
-############################################
-# VS Code
-############################################
-.vscode/
-
-############################################
-# Build / Gradle (Backend)
-############################################
-**/build/
-**/.gradle/
-!gradle/wrapper/gradle-wrapper.jar
-
-############################################
-# Node (Frontend)
-############################################
-**/node_modules/
-**/dist/
-**/.vite/
-**/.cache/
-**/.eslintcache
-
-############################################
 # Logs
-############################################
+logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-############################################
-# OS
-############################################
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-Thumbs.db
-ehthumbs.db
-
-############################################
-# Local environment config (중요 🔐)
-############################################
-**/application-local.properties
-**/application-local.yml
-**/application-dev.properties
-**/application-dev.yml
-**/application-test.properties
-**/application-test.yml
-
-############################################
-# Secret files
-############################################
-.env
-.env.*
-**/*.keystore
-**/*.p12
-**/*.jks
-
-############################################
-# Temporary
-############################################
-*.swp
-*.tmp
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
