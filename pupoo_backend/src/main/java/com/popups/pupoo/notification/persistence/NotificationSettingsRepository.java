@@ -1,5 +1,7 @@
 package com.popups.pupoo.notification.persistence;
 
-public interface NotificationSettingsRepository {
+import com.popups.pupoo.notification.domain.model.NotificationSettings;
+import org.springframework.data.jpa.repository.JpaRepository;
 
+public interface NotificationSettingsRepository extends JpaRepository<NotificationSettings, Long> {
 }

@@ -62,6 +62,12 @@ public class User {
     @Column(name = "last_modified_at", nullable = false)
     private LocalDateTime lastModifiedAt;
 
+    @Column(name = "email_verified", nullable = false, columnDefinition = "TINYINT(1)")
+    private boolean emailVerified;
+
+    @Column(name = "phone_verified", nullable = false, columnDefinition = "TINYINT(1)")
+    private boolean phoneVerified;
+
     public User() {}
 
     @PrePersist
@@ -87,6 +93,9 @@ public class User {
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public LocalDateTime getLastModifiedAt() { return lastModifiedAt; }
 
+    public boolean isEmailVerified() { return emailVerified; }
+    public boolean isPhoneVerified() { return phoneVerified; }
+
     public void setUserId(Long userId) { this.userId = userId; }
     public void setEmail(String email) { this.email = email; }
     public void setPassword(String password) { this.password = password; this.lastModifiedAt = LocalDateTime.now(); }
@@ -100,4 +109,7 @@ public class User {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
     public void setLastModifiedAt(LocalDateTime lastModifiedAt) { this.lastModifiedAt = lastModifiedAt; }
+
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
+    public void setPhoneVerified(boolean phoneVerified) { this.phoneVerified = phoneVerified; }
 }
