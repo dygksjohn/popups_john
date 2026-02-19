@@ -110,11 +110,11 @@ const megaMenuData = {
       {
         title: "행사 안내",
         items: [
-          { label: "현재 진행 행사", href: "#dealer-location" },
-          { label: "예정 행사", href: "#shop-online" },
-          { label: "종료 행사", href: "#payment-calculator" },
-          { label: "행사 사전 등록", href: "#connected-drive" },
-          { label: "행사 일정 안내", href: "#trade-in" },
+          { label: "현재 진행 행사", href: "/event/current" },
+          { label: "예정 행사", href: "/event/upcoming" },
+          { label: "종료 행사", href: "/event/ended" },
+          { label: "행사 사전 등록", href: "/event/preregister" },
+          { label: "행사 일정 안내", href: "/event/current" },
         ],
       },
       {

@@ -1,3 +1,5 @@
+import EventList from "./_components/EventList";
+
 export default function Current() {
-  return <div>현재 진행 행사</div>;
+  return <EventList title="현재 진행 행사" statusList={["ONGOING"]} />;
 }
