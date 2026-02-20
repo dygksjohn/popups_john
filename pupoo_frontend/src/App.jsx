@@ -97,9 +97,9 @@ export default function App() {
           <Route path="/apply/qr" element={<QRCheckin />} />
 
           {/* 실시간 */}
-          <Route path="/realtime/checkin" element={<CheckinStatus />} />
-          <Route path="/realtime/waiting" element={<WaitingStatus />} />
-          <Route path="/realtime/vote" element={<VoteStatus />} />
+          <Route path="/realtime/checkinstatus" element={<CheckinStatus />} />
+          <Route path="/realtime/waitingstatus" element={<WaitingStatus />} />
+          <Route path="/realtime/votestatus" element={<VoteStatus />} />
           <Route path="/realtime/dashboard" element={<RealtimeDashboard />} />
 
           {/* 커뮤니티 */}
