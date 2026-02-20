@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * PageResponse
  *
- * Spring Data의 Page<T>를 그대로 반환하지 않고,
+ * Spring Data의 Page를 그대로 반환하지 않고,
  * 프론트엔드에 필요한 페이징 정보만 추려서 내려주기 위한 DTO
  *
  * ✔ 제네릭 지원
@@ -51,7 +51,7 @@ public class PageResponse<T> {
     }
 
     /**
-     * Page<T> → PageResponse<T> 변환
+     * Page → PageResponse 변환
      */
     public static <T> PageResponse<T> from(Page<T> page) {
         return new PageResponse<>(

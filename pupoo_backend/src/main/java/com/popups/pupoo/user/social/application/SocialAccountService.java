@@ -27,7 +27,7 @@ public class SocialAccountService {
      *  내 소셜 계정 목록 조회
      *
      * Repository에 아래 메서드가 필요:
-     *   List<SocialAccount> findAllByUserId(Long userId);
+     *   List findAllByUserId(Long userId);
      */
     @Transactional(readOnly = true)
     public List<SocialAccountResponse> getMySocialAccounts(Long userId) {

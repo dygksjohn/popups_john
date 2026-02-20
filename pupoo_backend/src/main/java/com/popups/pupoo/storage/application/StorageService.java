@@ -35,14 +35,17 @@ public class StorageService {
 
     /**
      * POST/NOTICE 첨부파일 업로드 → files 테이블에 기록한다.
+ *
+ *
+ * 외부 공개 접근은(로컬 파일 저장소 구성 기준) Nginx가 /static/** 경로로 정적 파일을 서빙하는 것을 전제로 한다.
+ *
+ *
+ * 스토리지 구현체를 S3로 바꾸더라도, 이 서비스는 ObjectStoragePort만 호출하므로
+     * 도메인 로직/DB 로직은 그대로 유지된다.
+ *
+ *
+ * 전환 메모(복붙용)
      *
-     * <p>외부 공개 접근은(로컬 파일 저장소 구성 기준) Nginx가 /static/** 경로로 정적 파일을 서빙하는 것을 전제로 한다.</p>
-     *
-     * <p>스토리지 구현체를 S3로 바꾸더라도, 이 서비스는 ObjectStoragePort만 호출하므로
-     * 도메인 로직/DB 로직은 그대로 유지된다.</p>
-     *
-     * <p><b>전환 메모(복붙용)</b></p>
-     * <pre>
      * - 로컬(Ubuntu/Nginx):
      *   1) storage.local.base-path 를 서버 디렉토리로 지정
      *   2) Nginx에서 /static/ 을 alias로 연결
@@ -50,7 +53,7 @@ public class StorageService {
      * - S3:
      *   1) ObjectStoragePort Bean을 S3ObjectStorageService로 교체
      *   2) getPublicPath()가 S3/CloudFront URL을 리턴하도록 구현
-     * </pre>
+     *
      */
     @Transactional
     public UploadResponse uploadForFilesTable(MultipartFile file, UploadRequest request) {

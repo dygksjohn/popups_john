@@ -12,10 +12,12 @@ import java.nio.file.*;
 /**
  * 로컬 파일시스템 접근을 담당하는 저수준(Local) 클라이언트.
  *
- * <p>부분 쓰기(업로드 중단 등)로 인한 손상 파일을 줄이기 위해
- * 임시 파일에 먼저 기록한 뒤(Temp file), 최종 경로로 원자적 이동(move)한다.</p>
  *
- * <p>추후 Ubuntu 서버에서 Nginx로 정적 파일을 서빙할 때도 그대로 재사용 가능하다.</p>
+ * 부분 쓰기(업로드 중단 등)로 인한 손상 파일을 줄이기 위해
+ * 임시 파일에 먼저 기록한 뒤(Temp file), 최종 경로로 원자적 이동(move)한다.
+ *
+ *
+ * 추후 Ubuntu 서버에서 Nginx로 정적 파일을 서빙할 때도 그대로 재사용 가능하다.
  */
 @Component
 public class LocalStorageClient {

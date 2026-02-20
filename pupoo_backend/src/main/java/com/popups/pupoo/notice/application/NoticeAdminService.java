@@ -26,8 +26,6 @@ public class NoticeAdminService {
 
     /**
      * 공지 생성.
-     * @param request 생성 요청 (scope, title, content 필수)
-     * @param createdByAdminId 생성자 관리자 ID (인증에서 전달)
      */
     @Transactional
     public NoticeResponse create(NoticeCreateRequest request, Long createdByAdminId) {

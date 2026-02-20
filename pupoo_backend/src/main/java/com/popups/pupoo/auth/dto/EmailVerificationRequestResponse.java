@@ -16,11 +16,12 @@ public class EmailVerificationRequestResponse {
 
     /**
      * 개발 환경(Postman 테스트)에서만 사용하는 필드.
+ *
+ *
+ * 운영 환경에서는 절대 노출되면 안 된다.
      *
-     * <p>운영 환경에서는 절대 노출되면 안 된다.</p>
-     * <ul>
-     *   <li>실제 이메일 발송이 연결되기 전, 토큰 확인을 위해 사용한다.</li>
-     * </ul>
+     *   - 실제 이메일 발송이 연결되기 전, 토큰 확인을 위해 사용한다.-
+     *
      */
     private String devToken;
 }
