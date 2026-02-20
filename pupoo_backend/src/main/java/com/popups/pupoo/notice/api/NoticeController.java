@@ -1,38 +1,51 @@
+/* file: src/main/java/com/popups/pupoo/notice/api/NoticeController.java
+ * 목적: 공지 API 컨트롤러
+ */
 package com.popups.pupoo.notice.api;
 
-import com.popups.pupoo.common.api.ApiResponse;
-import com.popups.pupoo.common.api.PageResponse;
+import com.popups.pupoo.notice.application.NoticeAdminService;
 import com.popups.pupoo.notice.application.NoticeService;
-import com.popups.pupoo.notice.dto.NoticeResponse;
-import org.springframework.data.domain.Pageable;
+import com.popups.pupoo.notice.dto.*;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * 공지 조회 API (사용자용, pupoo_v3.1)
- * GET /api/notices — 목록 (페이징, 고정 우선·최신순, PUBLISHED만)
- * GET /api/notices/{noticeId} — 단건
- */
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/notices")
 public class NoticeController {
 
     private final NoticeService noticeService;
+    private final NoticeAdminService noticeAdminService;
 
-    public NoticeController(NoticeService noticeService) {
-        this.noticeService = noticeService;
-    }
-
-    /** 공지 목록 (페이징, 고정 공지 우선·최신순) */
-    @GetMapping
-    public ApiResponse<PageResponse<NoticeResponse>> getNotices(Pageable pageable) {
-        return ApiResponse.success(
-                PageResponse.from(noticeService.getNotices(pageable))
-        );
-    }
-
-    /** 공지 단건 조회 */
     @GetMapping("/{noticeId}")
-    public ApiResponse<NoticeResponse> getNotice(@PathVariable("noticeId") Long noticeId) {
-        return ApiResponse.success(noticeService.getNotice(noticeId));
+    public ResponseEntity<NoticeResponse> get(@PathVariable Long noticeId) {
+        return ResponseEntity.ok(noticeService.get(noticeId));
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<NoticeResponse>> list(@RequestParam(defaultValue = "0") int page,
+                                                    @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(noticeService.list(page, size));
+    }
+
+    @PostMapping
+    public ResponseEntity<NoticeResponse> create(@RequestHeader("X-ADMIN-ID") Long adminUserId,
+                                                @Valid @RequestBody NoticeCreateRequest request) {
+        return ResponseEntity.ok(noticeAdminService.create(adminUserId, request));
+    }
+
+    @PatchMapping("/{noticeId}")
+    public ResponseEntity<NoticeResponse> update(@PathVariable Long noticeId,
+                                                 @Valid @RequestBody NoticeUpdateRequest request) {
+        return ResponseEntity.ok(noticeAdminService.update(noticeId, request));
+    }
+
+    @DeleteMapping("/{noticeId}")
+    public ResponseEntity<Void> delete(@PathVariable Long noticeId) {
+        noticeAdminService.delete(noticeId);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -45,15 +45,17 @@ import RealtimeDashboard from "./pages/site/realtime/Dashboard";
 import FreeBoard from "./pages/site/community/FreeBoard";
 import Review from "./pages/site/community/Review";
 import Gallery from "./pages/site/community/Gallery";
+import QnA from "./pages/site/community/QnA";
+import Notice from "./pages/site/community/Notice.jsx";
 
 /* Info */
 import PlatformIntro from "./pages/site/info/PlatformIntro";
-import Notice from "./pages/site/info/Notice";
+
 import FAQ from "./pages/site/info/FAQ";
 import Inquiry from "./pages/site/info/Inquiry";
 import Location from "./pages/site/info/Location";
 
-/* Policy */
+/* Policy (※ 파일명 대소문자 맞춤) */
 import AboutUs from "./pages/site/policy/aboutus";
 import PrivacyPolicy from "./pages/site/policy/privacypolicy";
 import ServiceGuide from "./pages/site/policy/serviceguide";
@@ -74,57 +76,65 @@ export default function App() {
         <Route element={<SiteLayout />}>
           {/* Home */}
           <Route path="/" element={<Home />} />
-          <Route path="/auth/login" element={<Login />} />
 
-          {/* 행사 */}
+          {/* Auth */}
+          <Route path="/auth/login" element={<Login />} />
+          <Route path="/auth/join/joinselect" element={<JoinSelect />} />
+          <Route path="/auth/join/joinnormal" element={<JoinNormal />} />
+          <Route path="/auth/join/joinsocial" element={<JoinSocial />} />
+
+          {/* Event */}
           <Route path="/event/current" element={<Current />} />
           <Route path="/event/upcoming" element={<Upcoming />} />
           <Route path="/event/closed" element={<Closed />} />
           <Route path="/event/preregister" element={<PreRegister />} />
           <Route path="/event/detail" element={<Detail />} />
 
-          {/* 프로그램 */}
+          {/* Program */}
           <Route path="/program/experience" element={<Experience />} />
           <Route path="/program/session" element={<Session />} />
           <Route path="/program/booth" element={<Booth />} />
           <Route path="/program/contest" element={<Contest />} />
           <Route path="/program/schedule" element={<Schedule />} />
 
-          {/* 참가/신청 */}
-          <Route path="/apply" element={<Apply />} />
-          <Route path="/apply/history" element={<ApplyHistory />} />
-          <Route path="/apply/payment" element={<PaymentHistory />} />
-          <Route path="/apply/qr" element={<QRCheckin />} />
+          {/* Registration */}
+          <Route path="/registration/apply" element={<Apply />} />
+          <Route
+            path="/registration/apply-history"
+            element={<ApplyHistory />}
+          />
+          <Route
+            path="/registration/payment-history"
+            element={<PaymentHistory />}
+          />
+          <Route path="/registration/qr-checkin" element={<QRCheckin />} />
 
-          {/* 실시간 */}
-          <Route path="/realtime/checkinstatus" element={<CheckinStatus />} />
-          <Route path="/realtime/waitingstatus" element={<WaitingStatus />} />
-          <Route path="/realtime/votestatus" element={<VoteStatus />} />
+          {/* Realtime */}
+          <Route path="/realtime/checkin-status" element={<CheckinStatus />} />
+          <Route path="/realtime/waiting-status" element={<WaitingStatus />} />
+          <Route path="/realtime/vote-status" element={<VoteStatus />} />
           <Route path="/realtime/dashboard" element={<RealtimeDashboard />} />
 
-          {/* 커뮤니티 */}
-          <Route path="/community/free" element={<FreeBoard />} />
+          {/* Community */}
+          <Route path="/community/freeboard" element={<FreeBoard />} />
           <Route path="/community/review" element={<Review />} />
           <Route path="/community/gallery" element={<Gallery />} />
+          <Route path="/community/qna" element={<QnA />} />
+          <Route path="/community/notice" element={<Notice />} />
 
-          {/* 안내 */}
+          {/* Info */}
           <Route path="/info/intro" element={<PlatformIntro />} />
-          <Route path="/info/notice" element={<Notice />} />
+
           <Route path="/info/faq" element={<FAQ />} />
           <Route path="/info/inquiry" element={<Inquiry />} />
-          <Route path="/info/directions" element={<Location />} />
+          <Route path="/info/location" element={<Location />} />
 
-          {/* 약관 */}
+          {/* Policy */}
           <Route path="/policy/aboutus" element={<AboutUs />} />
           <Route path="/policy/privacypolicy" element={<PrivacyPolicy />} />
           <Route path="/policy/serviceguide" element={<ServiceGuide />} />
           <Route path="/policy/termsofservice" element={<TermsOfService />} />
           <Route path="/policy/eftterms" element={<EFTTerms />} />
-
-          {/* 회원가입 */}
-          <Route path="/auth/join/joinselect" element={<JoinSelect />} />
-          <Route path="/auth/join/joinnormal" element={<JoinNormal />} />
-          <Route path="/auth/join/joinsocial" element={<JoinSocial />} />
         </Route>
       </Routes>
     </>

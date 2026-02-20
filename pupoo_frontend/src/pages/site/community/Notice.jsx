@@ -13,22 +13,22 @@ const NOTICES = [
   {
     id: 1,
     category: "pupoo",
-    type: "일상공유",
-    title: "체험 프로그램 중심으로 참여한 후기",
+    type: "공지사항",
+    title: "플랫폼 운영과 관련된 주요 사항을 공지합니다.",
     date: "2026.02.12",
   },
   {
     id: 2,
     category: "pupoo",
-    type: "일상공유",
-    title: "행사장에서 구매한 간식 후기",
+    type: "공지사항",
+    title: "플랫폼 이용에 필요한 중요 공지 사항을 제공합니다.",
     date: "2025.10.30",
   },
   {
     id: 3,
     category: "pupoo",
-    type: "일상공유",
-    title: "2026 봄 반려동물 페스티벌 방문 후기",
+    type: "공지사항",
+    title: "서비스 운영 및 관리와 관련된 공식 공지 사항을 게시합니다.",
     date: "2025.10.29",
   },
 ];
@@ -60,8 +60,8 @@ export default function Notice() {
   return (
     <>
       <PageHeader
-        title="행사 후기"
-        subtitle="자유롭게 의견을 나누고 일상을 공유하는 공간입니다."
+        title="공지사항"
+        subtitle="플랫폼 운영 및 주요 안내 사항을 공지하는 공간입니다."
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
         onNavigate={setCurrentPath}

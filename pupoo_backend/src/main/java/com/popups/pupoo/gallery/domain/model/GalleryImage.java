@@ -1,0 +1,50 @@
+/* file: src/main/java/com/popups/pupoo/gallery/domain/model/GalleryImage.java
+ * 목적: gallery_images 테이블 엔티티 매핑
+ * 주의: mime_type은 MySQL ENUM 컬럼이며, 프로젝트에서는 문자열로 처리한다.
+ */
+package com.popups.pupoo.gallery.domain.model;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "gallery_images")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder(toBuilder = true)
+public class GalleryImage {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "image_id", nullable = false)
+    private Long imageId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "gallery_id", nullable = false)
+    private Gallery gallery;
+
+    @Column(name = "original_url", nullable = false, length = 500)
+    private String originalUrl;
+
+    @Column(name = "thumb_url", length = 500)
+    private String thumbUrl;
+
+    @Column(name = "image_order")
+    private Integer imageOrder;
+
+    @Column(name = "mime_type", columnDefinition = "ENUM('jpeg','jpg','png','gif','webp','tiff','svg')")
+    private String mimeType;
+
+    @Column(name = "file_size")
+    private Integer fileSize;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    public Long getGalleryId() {
+        return gallery == null ? null : gallery.getGalleryId();
+    }
+}

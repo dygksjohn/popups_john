@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { LogIn, UserPlus } from "lucide-react";
 
 /* ─────────────────────────────────────────────
    ICONS
@@ -43,6 +44,7 @@ const IconButtonWithTooltip = ({ children, tooltip, to }) => {
           opacity: hovered ? 1 : 0,
           pointerEvents: "none",
           transition: "opacity 0.2s ease, transform 0.2s ease",
+          zIndex: 3000,
         }}
       >
         {tooltip}
@@ -325,7 +327,7 @@ const MegaMenu = ({ menuData }) => {
         backdropFilter: "blur(12px)",
         borderTop: "1px solid #e0e0e0",
         boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-        zIndex: 3000,
+        zindex: 1000,
         padding: "40px 0 48px",
       }}
     >
@@ -614,7 +616,7 @@ export default function pupooHeader() {
             height: "70px",
             display: "flex",
             alignItems: "stretch",
-            zIndex: 3000,
+            zindex: 1000,
             /* Smooth background + shadow transition */
             backgroundColor: isWhiteMode
               ? "rgba(255,255,255,0.97)"
@@ -631,7 +633,7 @@ export default function pupooHeader() {
               maxWidth: "1400px",
               width: "100%",
               margin: "0 auto",
-              padding: "0 40px",
+              padding: "0 25px",
               display: "flex",
               alignItems: "stretch",
               justifyContent: "space-between",
@@ -641,7 +643,7 @@ export default function pupooHeader() {
             <div
               style={{ display: "flex", alignItems: "stretch", gap: "32px" }}
             >
-              {/* ✅ 로고만 교체 (디자인/구조 그대로) */}
+              {/* 로고 */}
               <Link
                 to="/"
                 style={{
@@ -714,7 +716,7 @@ export default function pupooHeader() {
               top: "70px",
               left: 0,
               right: 0,
-              zIndex: 3000,
+              zindex: 1000,
             }}
           >
             <MegaMenu menuData={megaMenuData[activeMenu]} />

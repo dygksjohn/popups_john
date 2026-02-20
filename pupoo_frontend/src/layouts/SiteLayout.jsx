@@ -1,6 +1,6 @@
 import { Outlet, useLocation } from "react-router-dom";
-import SiteHeader from "../pages/site/components/layout/SiteHeader";
-import SiteFooter from "../pages/site/components/layout/SiteFooter";
+import SiteHeader from "../pages/site/components/SiteHeader";
+import SiteFooter from "../pages/site/components/SiteFooter";
 
 export default function SiteLayout() {
   const location = useLocation();

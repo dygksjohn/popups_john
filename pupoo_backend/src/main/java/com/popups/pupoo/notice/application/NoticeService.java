@@ -1,42 +1,46 @@
+/* file: src/main/java/com/popups/pupoo/notice/application/NoticeService.java
+ * 목적: 공지 조회 서비스
+ */
 package com.popups.pupoo.notice.application;
 
-import com.popups.pupoo.common.exception.BusinessException;
-import com.popups.pupoo.common.exception.ErrorCode;
-import com.popups.pupoo.notice.domain.enums.NoticeStatus;
 import com.popups.pupoo.notice.domain.model.Notice;
 import com.popups.pupoo.notice.dto.NoticeResponse;
 import com.popups.pupoo.notice.persistence.NoticeRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 공지 조회 서비스 (사용자 API, pupoo_v3.1)
- * GET /api/notices, GET /api/notices/{noticeId} — PUBLISHED만 노출
- */
 @Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class NoticeService {
 
     private final NoticeRepository noticeRepository;
 
-    public NoticeService(NoticeRepository noticeRepository) {
-        this.noticeRepository = noticeRepository;
-    }
-
-    /** 공개된 공지 목록 (고정 우선, 최신순) */
-    public Page<NoticeResponse> getNotices(Pageable pageable) {
-        return noticeRepository
-                .findByStatusOrderByPinnedDescCreatedAtDesc(NoticeStatus.PUBLISHED, pageable)
-                .map(NoticeResponse::from);
-    }
-
-    /** 공지 단건 조회 (PUBLISHED만 반환, 없거나 비공개면 예외) */
-    public NoticeResponse getNotice(Long noticeId) {
+    public NoticeResponse get(Long noticeId) {
         Notice notice = noticeRepository.findById(noticeId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "존재하지 않는 공지입니다. noticeId=" + noticeId));
-        if (notice.getStatus() != NoticeStatus.PUBLISHED) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "존재하지 않는 공지입니다. noticeId=" + noticeId);
-        }
-        return NoticeResponse.from(notice);
+                .orElseThrow(() -> new IllegalArgumentException("공지사항이 존재하지 않습니다."));
+        return toResponse(notice);
+    }
+
+    public Page<NoticeResponse> list(int page, int size) {
+        return noticeRepository.findAll(PageRequest.of(page, size))
+                .map(this::toResponse);
+    }
+
+    protected NoticeResponse toResponse(Notice n) {
+        return NoticeResponse.builder()
+                .noticeId(n.getNoticeId())
+                .scope(n.getScope())
+                .eventId(n.getEventId())
+                .title(n.getNoticeTitle())
+                .content(n.getContent())
+                .pinned(n.isPinned())
+                .status(n.getStatus())
+                .createdByAdminId(n.getCreatedByAdminId())
+                .createdAt(n.getCreatedAt())
+                .updatedAt(n.getUpdatedAt())
+                .build();
     }
 }

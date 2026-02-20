@@ -1,73 +1,75 @@
+/* file: src/main/java/com/popups/pupoo/notice/application/NoticeAdminService.java
+ * 목적: 공지 관리자용 생성/수정/삭제 서비스
+ */
 package com.popups.pupoo.notice.application;
 
-import com.popups.pupoo.common.exception.BusinessException;
-import com.popups.pupoo.common.exception.ErrorCode;
-import com.popups.pupoo.notice.domain.enums.NoticeStatus;
 import com.popups.pupoo.notice.domain.model.Notice;
-import com.popups.pupoo.notice.dto.NoticeCreateRequest;
-import com.popups.pupoo.notice.dto.NoticeResponse;
-import com.popups.pupoo.notice.dto.NoticeUpdateRequest;
+import com.popups.pupoo.notice.dto.*;
 import com.popups.pupoo.notice.persistence.NoticeRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 공지 관리 서비스 (관리자용, pupoo_v3.1)
- * 생성 / 수정 / 삭제
- */
+import java.time.LocalDateTime;
+
 @Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class NoticeAdminService {
 
     private final NoticeRepository noticeRepository;
 
-    public NoticeAdminService(NoticeRepository noticeRepository) {
-        this.noticeRepository = noticeRepository;
-    }
-
-    /**
-     * 공지 생성.
-     */
     @Transactional
-    public NoticeResponse create(NoticeCreateRequest request, Long createdByAdminId) {
-        String fileAttached = request.getFileAttached() != null ? request.getFileAttached() : "N";
-        boolean pinned = request.getPinned() != null && request.getPinned();
-        NoticeStatus status = request.getStatus() != null ? request.getStatus() : NoticeStatus.PUBLISHED;
+    public NoticeResponse create(Long adminUserId, NoticeCreateRequest request) {
+        Notice notice = Notice.builder()
+                .scope(request.getScope())
+                .eventId(request.getEventId())
+                .noticeTitle(request.getTitle())
+                .content(request.getContent())
+                .fileAttached("N")
+                .pinned(Boolean.TRUE.equals(request.getPinned()))
+                .status(request.getStatus())
+                .createdByAdminId(adminUserId)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
 
-        Notice notice = Notice.create(
-                request.getScope(),
-                request.getEventId(),
-                request.getTitle(),
-                request.getContent(),
-                fileAttached,
-                pinned,
-                status,
-                createdByAdminId
-        );
-        Notice saved = noticeRepository.save(notice);
-        return NoticeResponse.from(saved);
+        return toResponse(noticeRepository.save(notice));
     }
 
     @Transactional
     public NoticeResponse update(Long noticeId, NoticeUpdateRequest request) {
         Notice notice = noticeRepository.findById(noticeId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "존재하지 않는 공지입니다. noticeId=" + noticeId));
+                .orElseThrow(() -> new IllegalArgumentException("공지사항이 존재하지 않습니다."));
 
-        if (request.getScope() != null) notice.setScope(request.getScope());
-        if (request.getEventId() != null) notice.setEventId(request.getEventId());
-        if (request.getTitle() != null) notice.setTitle(request.getTitle());
-        if (request.getContent() != null) notice.setContent(request.getContent());
-        if (request.getFileAttached() != null) notice.setFileAttached(request.getFileAttached());
-        if (request.getPinned() != null) notice.setPinned(request.getPinned());
-        if (request.getStatus() != null) notice.setStatus(request.getStatus());
+        Notice updated = notice.toBuilder()
+                .noticeTitle(request.getTitle())
+                .content(request.getContent())
+                .pinned(Boolean.TRUE.equals(request.getPinned()))
+                .status(request.getStatus())
+                .updatedAt(LocalDateTime.now())
+                .build();
 
-        Notice saved = noticeRepository.save(notice);
-        return NoticeResponse.from(saved);
+        return toResponse(noticeRepository.save(updated));
     }
 
     @Transactional
     public void delete(Long noticeId) {
-        Notice notice = noticeRepository.findById(noticeId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "존재하지 않는 공지입니다. noticeId=" + noticeId));
-        noticeRepository.delete(notice);
+        noticeRepository.deleteById(noticeId);
+    }
+
+    private NoticeResponse toResponse(Notice n) {
+        return NoticeResponse.builder()
+                .noticeId(n.getNoticeId())
+                .scope(n.getScope())
+                .eventId(n.getEventId())
+                .title(n.getNoticeTitle())
+                .content(n.getContent())
+                .pinned(n.isPinned())
+                .status(n.getStatus())
+                .createdByAdminId(n.getCreatedByAdminId())
+                .createdAt(n.getCreatedAt())
+                .updatedAt(n.getUpdatedAt())
+                .build();
     }
 }

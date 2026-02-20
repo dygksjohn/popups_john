@@ -52,7 +52,7 @@ function EventSection() {
 
   return (
     <section className="w-full bg-gradient-to-b from-gray-50 to-white py-16 px-6">
-      <div className="max-w-[1370px] mx-auto">
+      <div className="max-w-[1400px] mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-10">
           <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">

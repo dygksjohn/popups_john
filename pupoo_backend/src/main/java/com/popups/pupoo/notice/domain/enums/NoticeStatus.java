@@ -1,7 +1,8 @@
+/* file: src/main/java/com/popups/pupoo/notice/domain/enums/NoticeStatus.java
+ * 목적: notices.status(MySQL ENUM) 매핑용 공지 상태 정의
+ */
 package com.popups.pupoo.notice.domain.enums;
 
 public enum NoticeStatus {
-    DRAFT,      // 임시저장
-    PUBLISHED,  // 게시
-    HIDDEN      // 비공개
+    PUBLISHED, DRAFT, HIDDEN
 }
