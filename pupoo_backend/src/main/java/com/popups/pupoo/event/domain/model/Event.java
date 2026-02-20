@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
  * - status (PLANNED/ONGOING/ENDED/CANCELLED)
  * - round_no
  *
- * ⚠️ created_at/updated_at 없음 (사용자 확인 반영)
+ *  created_at/updated_at 없음 (사용자 확인 반영)
  */
 @Entity
 @Table(name = "event")

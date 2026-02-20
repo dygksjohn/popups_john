@@ -89,10 +89,10 @@ public class EventRegistrationService {
      // 상태 변경
         reg.cancel();
 
-        // ✅ 확정 저장 (Update SQL 강제)
+        //  확정 저장 (Update SQL 강제)
         registrationRepository.save(reg);
 
-        // ✅ 즉시 DB 반영까지 강제(디버깅/확정용)
+        //  즉시 DB 반영까지 강제(디버깅/확정용)
         registrationRepository.flush();
 
     }

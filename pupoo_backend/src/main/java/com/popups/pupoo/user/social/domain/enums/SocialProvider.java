@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/user/social/domain/enums/SocialProvider.java
+// 파일 위치: src/main/java/com/popups/pupoo/user/social/domain/enums/SocialProvider.java
 package com.popups.pupoo.user.social.domain.enums;
 
 import java.util.Locale;

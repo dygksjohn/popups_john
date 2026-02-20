@@ -39,7 +39,7 @@ public class Program {
 	private LocalDateTime endAt;
 
 	/**
-	 * ✅ v2.7 변경 포인트 - event_program.place_name 컬럼 없음 - event_program.booth_id 컬럼
+	 *  v2.7 변경 포인트 - event_program.place_name 컬럼 없음 - event_program.booth_id 컬럼
 	 * 존재(Nullable)
 	 */
 	@Column(name = "booth_id")

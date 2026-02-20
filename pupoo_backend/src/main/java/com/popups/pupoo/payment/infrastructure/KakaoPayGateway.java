@@ -75,7 +75,7 @@ public class KakaoPayGateway implements PaymentGateway {
                 failUrl
         );
 
-        // ✅ 요청 로그(민감정보 없음)
+        //  요청 로그(민감정보 없음)
         System.out.println("[KakaoPay][READY] paymentId=" + payment.getPaymentId()
                 + ", cid=" + props.cid()
                 + ", orderNo=" + payment.getOrderNo()
@@ -106,7 +106,7 @@ public class KakaoPayGateway implements PaymentGateway {
                     res.next_redirect_mobile_url()
             );
         } catch (HttpStatusCodeException e) {
-            // ✅ 카카오가 내려주는 body를 그대로 로그로 남겨야 원인 추적 가능
+            //  카카오가 내려주는 body를 그대로 로그로 남겨야 원인 추적 가능
             System.out.println("[KakaoPay][READY][ERROR] status=" + e.getStatusCode()
                     + ", body=" + e.getResponseBodyAsString());
             throw e;
@@ -148,7 +148,7 @@ public class KakaoPayGateway implements PaymentGateway {
                 req.pgToken()
         );
 
-        // ✅ 요청 로그
+        //  요청 로그
         System.out.println("[KakaoPay][APPROVE] paymentId=" + payment.getPaymentId()
                 + ", cid=" + props.cid()
                 + ", tid=" + tx.getPgTid()

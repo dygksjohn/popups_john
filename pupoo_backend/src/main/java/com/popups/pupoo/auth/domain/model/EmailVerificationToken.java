@@ -1,7 +1,9 @@
-// src/main/java/com/popups/pupoo/auth/domain/model/EmailVerificationToken.java
+// 파일 위치: src/main/java/com/popups/pupoo/auth/domain/model/EmailVerificationToken.java
 package com.popups.pupoo.auth.domain.model;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
@@ -11,6 +13,8 @@ import java.time.LocalDateTime;
  * - token 원문은 저장하지 않고 token_hash(SHA-256 hex)만 저장한다.
  * - 1회용 사용 처리는 used_at으로 관리한다.
  */
+@Getter
+@NoArgsConstructor
 @Entity
 @Table(
         name = "email_verification_token",
@@ -42,10 +46,6 @@ public class EmailVerificationToken {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
-
-    public EmailVerificationToken() {
-    }
-
     public EmailVerificationToken(Long userId, String tokenHash, LocalDateTime expiresAt) {
         this.userId = userId;
         this.tokenHash = tokenHash;
@@ -58,13 +58,9 @@ public class EmailVerificationToken {
             this.createdAt = LocalDateTime.now();
         }
     }
-
-    public Long getEmailVerificationTokenId() { return emailVerificationTokenId; }
-    public Long getUserId() { return userId; }
-    public String getTokenHash() { return tokenHash; }
-    public LocalDateTime getExpiresAt() { return expiresAt; }
-    public LocalDateTime getUsedAt() { return usedAt; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
+public Long getUserId() { return userId; }
+public LocalDateTime getExpiresAt() { return expiresAt; }
+public LocalDateTime getCreatedAt() { return createdAt; }
 
     public void markUsed(LocalDateTime usedAt) {
         this.usedAt = usedAt;

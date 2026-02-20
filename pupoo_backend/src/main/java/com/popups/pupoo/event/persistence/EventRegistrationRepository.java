@@ -21,7 +21,7 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     Page<EventRegistration> findByUserId(Long userId, Pageable pageable);
 
     /**
-     * ✅ 결제 승인 시 자동 승인용: APPLIED 상태 row를 락으로 잡고 가져오기
+     *  결제 승인 시 자동 승인용: APPLIED 상태 row를 락으로 잡고 가져오기
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -38,7 +38,7 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     );
 
     /**
-     * ✅ 환불 완료 시 자동 취소용:
+     *  환불 완료 시 자동 취소용:
      * APPLIED/APPROVED 상태를 락으로 잡고 1건 가져오기
      * (CANCELLED/REJECTED는 대상 아님 → 멱등)
      */

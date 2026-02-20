@@ -38,7 +38,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getStatus()).body(ApiResponse.fail(body));
     }
 
-    // ✅ 결제 UNIQUE 멱등성 포함: DB 무결성 예외 처리
+    //  결제 UNIQUE 멱등성 포함: DB 무결성 예외 처리
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException e, HttpServletRequest request) {
         String root = rootMessage(e);

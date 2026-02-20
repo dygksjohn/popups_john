@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
  * - 목록 조회
  * - 상세 조회
  *
- * ⚠️ ErrorCode에 NOT_FOUND가 없으므로, "없는 eventId"는 INVALID_REQUEST로 처리
+ *  ErrorCode에 NOT_FOUND가 없으므로, "없는 eventId"는 INVALID_REQUEST로 처리
  */
 @Service
 public class EventService {

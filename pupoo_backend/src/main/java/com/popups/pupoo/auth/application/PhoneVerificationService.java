@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/auth/application/PhoneVerificationService.java
+// 파일 위치: src/main/java/com/popups/pupoo/auth/application/PhoneVerificationService.java
 package com.popups.pupoo.auth.application;
 
 import com.popups.pupoo.auth.domain.model.PhoneVerificationToken;

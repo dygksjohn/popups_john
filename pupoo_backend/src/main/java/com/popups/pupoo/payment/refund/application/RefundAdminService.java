@@ -42,9 +42,9 @@ public class RefundAdminService {
     }
 
     /**
-     * ✅ 정책: 관리자 환불 승인 = PG 취소 호출 = 즉시 COMPLETED
-     * ✅ 정책: COMPLETED 시점에 행사/프로그램 자동 취소
-     * ✅ 자가복구: 이미 COMPLETED여도 다시 호출되면 정합성 보정(행사/프로그램 취소 재시도)
+     *  정책: 관리자 환불 승인 = PG 취소 호출 = 즉시 COMPLETED
+     *  정책: COMPLETED 시점에 행사/프로그램 자동 취소
+     *  자가복구: 이미 COMPLETED여도 다시 호출되면 정합성 보정(행사/프로그램 취소 재시도)
      */
     @Transactional
     public RefundResponse approveAndComplete(Long refundId) {
@@ -56,7 +56,7 @@ public class RefundAdminService {
         Payment payment = paymentRepository.findByIdForUpdate(refund.getPaymentId())
                 .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + refund.getPaymentId()));
 
-        // ✅ 자가복구: 이미 COMPLETED면 PG 호출 없이 정합성만 맞추고 return
+        //  자가복구: 이미 COMPLETED면 PG 호출 없이 정합성만 맞추고 return
         if (refund.getStatus() == RefundStatus.COMPLETED) {
             if (payment.getEventId() != null) {
                 autoCancelEventRegistration(payment);

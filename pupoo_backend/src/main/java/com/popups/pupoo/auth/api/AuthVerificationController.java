@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/auth/api/AuthVerificationController.java
+// 파일 위치: src/main/java/com/popups/pupoo/auth/api/AuthVerificationController.java
 package com.popups.pupoo.auth.api;
 
 import com.popups.pupoo.auth.application.EmailVerificationService;

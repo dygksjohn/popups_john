@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/pet/persistence/PetRepository.java
+// 파일 위치: src/main/java/com/popups/pupoo/pet/persistence/PetRepository.java
 package com.popups.pupoo.pet.persistence;
 
 import com.popups.pupoo.pet.domain.model.Pet;

@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/payment/dto/PaymentReadyRequest.java
+// 파일 위치: src/main/java/com/popups/pupoo/payment/dto/PaymentReadyRequest.java
 package com.popups.pupoo.payment.dto;
 
 /**

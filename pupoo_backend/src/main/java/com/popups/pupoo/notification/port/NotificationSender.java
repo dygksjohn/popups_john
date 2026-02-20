@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/notification/port/NotificationSender.java
+// 파일 위치: src/main/java/com/popups/pupoo/notification/port/NotificationSender.java
 package com.popups.pupoo.notification.port;
 
 import com.popups.pupoo.notification.domain.enums.NotificationChannel;

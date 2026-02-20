@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/user/domain/model/User.java
+// 파일 위치: src/main/java/com/popups/pupoo/user/domain/model/User.java
 package com.popups.pupoo.user.domain.model;
 
 import com.popups.pupoo.user.domain.enums.RoleName;
@@ -43,7 +43,7 @@ public class User {
     @Column(name = "role_name", nullable = false, length = 20)
     private RoleName roleName;
 
-    // ✅ DB tinyint(1) 플래그면 boolean이 정석
+    //  DB tinyint(1) 플래그면 boolean이 정석
     @Column(name = "show_age", nullable = false, columnDefinition = "TINYINT(1)")
     private boolean showAge;
 

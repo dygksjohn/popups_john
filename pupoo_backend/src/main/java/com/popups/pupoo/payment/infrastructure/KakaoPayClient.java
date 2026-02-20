@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/payment/infrastructure/KakaoPayClient.java
+// 파일 위치: src/main/java/com/popups/pupoo/payment/infrastructure/KakaoPayClient.java
 package com.popups.pupoo.payment.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,7 +35,7 @@ public class KakaoPayClient {
 
             String secret = props.secretKey();
 
-            // ✅ 부팅은 허용, 호출 시점에만 막는다.
+            //  부팅은 허용, 호출 시점에만 막는다.
             if (secret == null || secret.isBlank() || secret.contains("$") || "__MISSING__".equals(secret)) {
                 throw new IllegalStateException(
                         "KakaoPay secretKey is missing or not resolved. " +

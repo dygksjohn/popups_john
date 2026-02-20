@@ -45,10 +45,10 @@ public class RefundService {
             throw new IllegalStateException("Refund already exists for this payment");
         }
 
-        // ✅ refundAmount 기본값: 결제금액(전액 환불)
+        //  refundAmount 기본값: 결제금액(전액 환불)
         BigDecimal refundAmount = (req.refundAmount() == null) ? payment.getAmount() : req.refundAmount();
 
-        // ✅ 검증
+        //  검증
         if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("refundAmount must be positive");
         }

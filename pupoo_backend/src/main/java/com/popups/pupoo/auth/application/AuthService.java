@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/auth/application/AuthService.java
+// 파일 위치: src/main/java/com/popups/pupoo/auth/application/AuthService.java
 package com.popups.pupoo.auth.application;
 
 import com.popups.pupoo.auth.domain.model.RefreshToken;

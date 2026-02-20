@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/user/social/application/SocialAccountService.java
+// 파일 위치: src/main/java/com/popups/pupoo/user/social/application/SocialAccountService.java
 package com.popups.pupoo.user.social.application;
 
 import com.popups.pupoo.common.exception.BusinessException;
@@ -24,7 +24,7 @@ public class SocialAccountService {
     }
 
     /**
-     * ✅ 내 소셜 계정 목록 조회
+     *  내 소셜 계정 목록 조회
      *
      * Repository에 아래 메서드가 필요:
      *   List<SocialAccount> findAllByUserId(Long userId);
@@ -38,7 +38,7 @@ public class SocialAccountService {
     }
 
     /**
-     * ✅ 소셜 계정 연동(원본 메서드)
+     *  소셜 계정 연동(원본 메서드)
      */
     @Transactional
     public SocialAccountResponse createMySocialAccount(Long userId, SocialLinkRequest request) {
@@ -61,7 +61,7 @@ public class SocialAccountService {
     }
 
     /**
-     * ✅ 소셜 계정 해제(원본 메서드)
+     *  소셜 계정 해제(원본 메서드)
      */
     @Transactional
     public void unlinkByProvider(Long userId, String providerValue) {
@@ -72,7 +72,7 @@ public class SocialAccountService {
     }
 
     /* =========================================================
-     * ✅ 컨트롤러/기존 코드 호환용 alias 메서드
+     *  컨트롤러/기존 코드 호환용 alias 메서드
      * ========================================================= */
 
     /**

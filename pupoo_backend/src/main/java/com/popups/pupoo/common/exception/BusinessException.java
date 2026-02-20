@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/common/exception/BusinessException.java
+// 파일 위치: src/main/java/com/popups/pupoo/common/exception/BusinessException.java
 package com.popups.pupoo.common.exception;
 
 public class BusinessException extends RuntimeException {

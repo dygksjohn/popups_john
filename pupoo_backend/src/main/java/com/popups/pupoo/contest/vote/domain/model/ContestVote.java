@@ -50,7 +50,7 @@ public class ContestVote {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
-    // ✅ GENERATED ALWAYS 컬럼 (직접 INSERT/UPDATE 금지)
+    //  GENERATED ALWAYS 컬럼 (직접 INSERT/UPDATE 금지)
     @Column(name = "active_flag", insertable = false, updatable = false)
     private Byte activeFlag;
 

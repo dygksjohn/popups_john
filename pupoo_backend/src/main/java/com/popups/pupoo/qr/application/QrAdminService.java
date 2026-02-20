@@ -77,14 +77,14 @@ public class QrAdminService {
                 throw new IllegalStateException("ALREADY_CHECKED_OUT");
             }
 
-            // ✅ 3) CHECKOUT은 직전이 반드시 CHECKIN이어야 함 (정책)
+            //  3) CHECKOUT은 직전이 반드시 CHECKIN이어야 함 (정책)
             if (type == QrCheckType.CHECKOUT && last.getCheckType() != QrCheckType.CHECKIN) {
                 throw new IllegalStateException("CHECKOUT_REQUIRES_CHECKIN");
             }
 
         }, () -> {
 
-            // ✅ 마지막 로그가 아예 없는데 CHECKOUT이면 불가 (정책)
+            //  마지막 로그가 아예 없는데 CHECKOUT이면 불가 (정책)
             if (type == QrCheckType.CHECKOUT) {
                 throw new IllegalStateException("CHECKOUT_REQUIRES_CHECKIN");
             }

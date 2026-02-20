@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/user/api/UserController.java
+// 파일 위치: src/main/java/com/popups/pupoo/user/api/UserController.java
 package com.popups.pupoo.user.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;

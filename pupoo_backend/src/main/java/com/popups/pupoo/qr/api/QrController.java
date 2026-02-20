@@ -33,7 +33,7 @@ public class QrController {
     }
 
     /**
-     * ✅ 내 부스 방문 목록 (이벤트별 그룹)
+     *  내 부스 방문 목록 (이벤트별 그룹)
      * GET /api/me/booth-visits
      */
     @GetMapping("/me/booth-visits")
@@ -43,7 +43,7 @@ public class QrController {
     }
 
     /**
-     * ✅ 내 부스 방문 목록 (특정 이벤트 1개) - eventName 포함
+     *  내 부스 방문 목록 (특정 이벤트 1개) - eventName 포함
      * GET /api/events/{eventId}/me/booth-visits
      *
      * 응답: { eventId, eventName, booths:[...] }

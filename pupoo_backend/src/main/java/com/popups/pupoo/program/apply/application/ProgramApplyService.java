@@ -29,7 +29,7 @@ public class ProgramApplyService {
     private final ProgramRepository programRepository;
     private final EventRepository eventRepository;
 
-    // ✅ 활성 상태(= 중복 차단): APPLIED / WAITING / APPROVED
+    //  활성 상태(= 중복 차단): APPLIED / WAITING / APPROVED
     // (DB active_flag 정의와 반드시 동일해야 함)
     private static final EnumSet<ApplyStatus> ACTIVE_STATUSES =
             EnumSet.of(ApplyStatus.APPLIED, ApplyStatus.WAITING, ApplyStatus.APPROVED);
@@ -101,7 +101,7 @@ public class ProgramApplyService {
         }
 
         // 승인/대기/접수 상태에서만 취소 허용 같은 정책이 있으면 여기서 추가 가능
-        apply.cancel(); // ✅ status=CANCELLED + cancelledAt=now()
+        apply.cancel(); //  status=CANCELLED + cancelledAt=now()
     }
 
     private void validateOwner(Long userId, ProgramApply apply) {

@@ -12,7 +12,7 @@ import com.popups.pupoo.contest.vote.dto.ContestVoteCreateResponse;
 import com.popups.pupoo.contest.vote.dto.ContestVoteRequest;
 import com.popups.pupoo.contest.vote.dto.ContestVoteResultResponse;
 import com.popups.pupoo.contest.vote.persistence.ContestVoteRepository;
-import com.popups.pupoo.program.apply.domain.enums.ApplyStatus;   // ✅ 추가
+import com.popups.pupoo.program.apply.domain.enums.ApplyStatus;   //  추가
 import com.popups.pupoo.program.apply.domain.model.ProgramApply;
 import com.popups.pupoo.program.apply.persistence.ProgramApplyRepository;
 import com.popups.pupoo.program.domain.enums.ProgramCategory;

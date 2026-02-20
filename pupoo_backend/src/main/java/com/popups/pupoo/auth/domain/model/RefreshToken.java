@@ -1,8 +1,15 @@
 package com.popups.pupoo.auth.domain.model;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 
+@Getter
+@Setter
+@NoArgsConstructor
 @Entity
 @Table(name = "refresh_token")
 public class RefreshToken {
@@ -23,18 +30,8 @@ public class RefreshToken {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
-
-    public RefreshToken() {}  // 🔥 반드시 public
-
-    public Long getRefreshTokenId() { return refreshTokenId; }
-    public Long getUserId() { return userId; }
-    public String getToken() { return token; }
-    public LocalDateTime getExpiredAt() { return expiredAt; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-
-    public void setRefreshTokenId(Long refreshTokenId) { this.refreshTokenId = refreshTokenId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-    public void setToken(String token) { this.token = token; }
-    public void setExpiredAt(LocalDateTime expiredAt) { this.expiredAt = expiredAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+public Long getUserId() { return userId; }
+public LocalDateTime getExpiredAt() { return expiredAt; }
+public void setUserId(Long userId) { this.userId = userId; }
+public void setExpiredAt(LocalDateTime expiredAt) { this.expiredAt = expiredAt; }
 }

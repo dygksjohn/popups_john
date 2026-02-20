@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/pet/domain/model/Pet.java
+// 파일 위치: src/main/java/com/popups/pupoo/pet/domain/model/Pet.java
 package com.popups.pupoo.pet.domain.model;
 
 import com.popups.pupoo.pet.domain.enums.AnimalType;

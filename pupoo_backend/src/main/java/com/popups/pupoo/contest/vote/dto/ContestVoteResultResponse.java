@@ -6,7 +6,7 @@ public record ContestVoteResultResponse(
         Long programId,
         long totalVotes,
         List<Item> results,
-        Long myProgramApplyId   // ✅ 내가 투표한 후보 (없으면 null)
+        Long myProgramApplyId   //  내가 투표한 후보 (없으면 null)
 ) {
     public record Item(Long programApplyId, long voteCount) {}
 }

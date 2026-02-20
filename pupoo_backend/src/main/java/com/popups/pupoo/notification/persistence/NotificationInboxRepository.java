@@ -54,7 +54,7 @@ public interface NotificationInboxRepository extends JpaRepository<NotificationI
      * [INAPP Fan-out] event_interest_map + user_interest_subscriptions 기반으로
      * 특정 event_id 관심 구독자들에게 인박스 대량 적재.
      *
-     * ✅ DB 정책: 인박스는 미열람만 저장. (클릭 시 삭제)
+     *  DB 정책: 인박스는 미열람만 저장. (클릭 시 삭제)
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """

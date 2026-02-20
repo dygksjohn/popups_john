@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/pet/api/PetController.java
+// 파일 위치: src/main/java/com/popups/pupoo/pet/api/PetController.java
 package com.popups.pupoo.pet.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;

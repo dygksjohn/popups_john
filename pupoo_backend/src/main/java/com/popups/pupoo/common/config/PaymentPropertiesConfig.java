@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/common/config/PaymentPropertiesConfig.java
+// 파일 위치: src/main/java/com/popups/pupoo/common/config/PaymentPropertiesConfig.java
 package com.popups.pupoo.common.config;
 
 import com.popups.pupoo.payment.infrastructure.KakaoPayProperties;

@@ -25,48 +25,75 @@ repositories {
 }
 
 dependencies {
-	// Spring
+
+	/* =========================
+	 * Spring Core
+	 * ========================= */
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 
-	// JWT (JJWT 0.11.5)
+	/* =========================
+	 * JWT (JJWT 0.11.5)
+	 * ========================= */
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
-	// DB
+	/* =========================
+	 * Database
+	 * ========================= */
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
-	// Lombok
+	/* =========================
+	 * Lombok
+	 * ========================= */
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
+	testCompileOnly 'org.projectlombok:lombok'
+	testAnnotationProcessor 'org.projectlombok:lombok'
 
-	// Configuration metadata (optional but good for IDE)
+	/* =========================
+	 * Configuration Metadata
+	 * ========================= */
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-	// Dev
+	/* =========================
+	 * AWS S3 (향후 전환 대비)
+	 * 현재는 LocalStorage만 사용해도 무관
+	 * ========================= */
+	implementation 'software.amazon.awssdk:s3:2.25.21'
+
+	/* =========================
+	 * Dev
+	 * ========================= */
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
-	// Test
+	/* =========================
+	 * Test
+	 * ========================= */
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-// ✅ UTF-8 인코딩 경고 제거 (STS/Eclipse warning 대응)
+/* =========================
+ * UTF-8 인코딩 설정
+ * ========================= */
 tasks.withType(JavaCompile).configureEach {
 	options.encoding = 'UTF-8'
+	options.compilerArgs += ["-parameters"]  // 메서드 파라미터 이름 보존
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
 }
 
-// 추가(260214_배재혁) : 메서드의 파라미터 이름을 바이트코드에 보존하도록 설정하는 Gradle 설정
-tasks.withType(JavaCompile) {
-    options.compilerArgs += ["-parameters"]
+/* =========================
+ * 운영 배포용 Jar 이름 고정
+ * ========================= */
+bootJar {
+	archiveFileName = "pupoo-backend.jar"
 }
-

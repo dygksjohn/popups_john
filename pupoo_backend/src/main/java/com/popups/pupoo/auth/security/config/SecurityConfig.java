@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
+// 파일 위치: src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
 package com.popups.pupoo.auth.security.config;
 
 import com.popups.pupoo.auth.security.authentication.filter.JwtAuthenticationFilter;
@@ -30,7 +30,7 @@ public class SecurityConfig {
     }
 
     /**
-     * ✅ CORS 설정
+     *  CORS 설정
      * - React dev server: http://localhost:5173 허용
      * - RefreshToken을 쿠키로 쓸 수 있으므로 allowCredentials=true
      */
@@ -67,10 +67,10 @@ public class SecurityConfig {
         );
 
         http.authorizeHttpRequests(auth -> auth
-            // ✅ CORS Preflight 허용(프론트 연동 시 403 방지)
+            //  CORS Preflight 허용(프론트 연동 시 403 방지)
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-            // ✅ 회원가입/인증
+            //  회원가입/인증
             .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
 
             // auth 하위는 전부 공개(로그인/리프레시/로그아웃/인증 등)
@@ -79,13 +79,13 @@ public class SecurityConfig {
             // health check(원하면 permitAll로 바꿔도 됨)
             .requestMatchers(HttpMethod.GET, "/api/auth/secure-ping").authenticated()
 
-            // ✅ 비회원 조회 허용
+            //  비회원 조회 허용
             .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/programs/**").permitAll()
 
             .requestMatchers("/error").permitAll()
 
-            // ✅ USER 가능
+            //  USER 가능
             // DB에 ROLE_ROLE_USER가 들어가 있다면 아래처럼 둘 다 허용해야 함
             .requestMatchers(HttpMethod.POST, "/api/event-registrations")
                 .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
@@ -94,7 +94,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations")
                 .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
 
-            // ✅ 카카오페이 콜백은 인증 없이 허용
+            //  카카오페이 콜백은 인증 없이 허용
             .requestMatchers(HttpMethod.GET,  "/api/payments/*/approve").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/payments/*/cancel").permitAll()
             .requestMatchers(HttpMethod.GET,  "/api/payments/*/fail").permitAll()

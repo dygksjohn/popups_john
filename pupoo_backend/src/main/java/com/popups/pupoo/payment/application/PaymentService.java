@@ -46,13 +46,13 @@ public class PaymentService {
 
         paymentRepository.save(payment);
 
-        // ✅ ready 호출 (카카오페이 결제창 URL 내려줌)
+        //  ready 호출 (카카오페이 결제창 URL 내려줌)
         return paymentGateway.ready(payment, new PaymentReadyRequest("Pupoo 결제", 1, 0));
     }
 
     /**
      * 결제 승인 콜백/처리 (카카오페이: pg_token 필수)
-     * ✅ 승인 성공 시 event_apply(EventRegistration) 자동 APPROVED 처리
+     *  승인 성공 시 event_apply(EventRegistration) 자동 APPROVED 처리
      */
     @Transactional
     public PaymentResponse approvePayment(Long paymentId, String pgToken) {
@@ -72,7 +72,7 @@ public class PaymentService {
         if (ok) {
             payment.markApproved();
 
-            // ✅ 결제 승인 성공 시 event_apply 자동 승인
+            //  결제 승인 성공 시 event_apply 자동 승인
             if (payment.getEventId() != null) {
                 eventRegistrationRepository
                         .findByEventIdAndUserIdAndStatusForUpdate(
@@ -83,7 +83,7 @@ public class PaymentService {
                         .ifPresentOrElse(
                                 er -> er.approve(),
                                 () -> {
-                                    // ✅ APPLIED가 없으면 생성 후 승인
+                                    //  APPLIED가 없으면 생성 후 승인
                                     EventRegistration created = EventRegistration.create(payment.getEventId(), payment.getUserId());
                                     created.approve(); // status=APPROVED
                                     eventRegistrationRepository.save(created);

@@ -18,7 +18,7 @@ public class QrHistoryResponse {
         private String type;
         private String status;
 
-        // ✅ 추가
+        //  추가
         private String company;
         private String description;
 

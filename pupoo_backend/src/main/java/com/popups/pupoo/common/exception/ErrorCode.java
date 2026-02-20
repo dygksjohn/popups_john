@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/common/exception/ErrorCode.java
+// 파일 위치: src/main/java/com/popups/pupoo/common/exception/ErrorCode.java
 package com.popups.pupoo.common.exception;
 
 import org.springframework.http.HttpStatus;

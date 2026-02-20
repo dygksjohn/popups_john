@@ -43,7 +43,7 @@ public class BoothController {
      */
     @GetMapping("/booths/{boothId}")
     public ApiResponse<BoothResponse> getBoothDetail(
-            @PathVariable("boothId") Long boothId   // ✅ 이름 명시
+            @PathVariable("boothId") Long boothId   //  이름 명시
     ) {
         return ApiResponse.success(boothService.getBoothDetail(boothId));
     }

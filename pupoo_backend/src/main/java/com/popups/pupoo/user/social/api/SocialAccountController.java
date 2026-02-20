@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/user/social/api/SocialAccountController.java
+// 파일 위치: src/main/java/com/popups/pupoo/user/social/api/SocialAccountController.java
 package com.popups.pupoo.user.social.api;
 
 import com.popups.pupoo.common.api.ApiResponse;

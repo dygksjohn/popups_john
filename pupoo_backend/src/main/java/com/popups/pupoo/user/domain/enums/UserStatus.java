@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/user/domain/enums/UserStatus.java
+// 파일 위치: src/main/java/com/popups/pupoo/user/domain/enums/UserStatus.java
 package com.popups.pupoo.user.domain.enums;
 
 public enum UserStatus {

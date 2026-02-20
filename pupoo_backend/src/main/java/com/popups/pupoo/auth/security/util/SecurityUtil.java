@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/auth/security/util/SecurityUtil.java
+// 파일 위치: src/main/java/com/popups/pupoo/auth/security/util/SecurityUtil.java
 package com.popups.pupoo.auth.security.util;
 
 import com.popups.pupoo.common.exception.BusinessException;
@@ -26,7 +26,7 @@ public class SecurityUtil {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
 
-        // ✅ 표준: JwtAuthenticationFilter에서 principal = Long userId
+        //  표준: JwtAuthenticationFilter에서 principal = Long userId
         if (principal instanceof Long userId) {
             return userId;
         }
@@ -53,7 +53,7 @@ public class SecurityUtil {
     }
 
     /**
-     * ✅ 호환용 메서드
+     *  호환용 메서드
      * 기존 코드에서 getCurrentUserId()를 호출하는 경우를 위한 브릿지.
      */
     public Long getCurrentUserId() {

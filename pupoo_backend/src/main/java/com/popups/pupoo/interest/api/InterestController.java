@@ -18,7 +18,7 @@ import java.util.List;
  * - POST /api/interests/unsubscribe         : 관심사 구독 해제(status=CANCELLED)
  * - POST /api/interests/mysubscriptions     : 내 구독 목록(includeInactive optional)
  *
- * ⚠️ 참고
+ *  참고
  * - mysubscriptions는 기존 합의대로 POST 유지(바디 없이도 가능하지만, 팀 합의 우선)
  */
 @RequiredArgsConstructor

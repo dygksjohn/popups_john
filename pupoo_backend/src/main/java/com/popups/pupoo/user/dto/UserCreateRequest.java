@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/user/dto/UserCreateRequest.java
+// 파일 위치: src/main/java/com/popups/pupoo/user/dto/UserCreateRequest.java
 package com.popups.pupoo.user.dto;
 
 import jakarta.validation.constraints.Email;
@@ -19,7 +19,7 @@ public class UserCreateRequest {
     @NotBlank
     private String phone;
 
-    // ✅ int → boolean
+    //  int → boolean
     private boolean showAge;
     private boolean showGender;
     private boolean showPet;

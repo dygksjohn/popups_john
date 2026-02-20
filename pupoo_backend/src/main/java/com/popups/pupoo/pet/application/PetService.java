@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/pet/application/PetService.java
+// 파일 위치: src/main/java/com/popups/pupoo/pet/application/PetService.java
 package com.popups.pupoo.pet.application;
 
 import com.popups.pupoo.pet.dto.PetCreateRequest;

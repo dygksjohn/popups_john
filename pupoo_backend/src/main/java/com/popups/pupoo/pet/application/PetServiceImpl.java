@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/pet/application/PetServiceImpl.java
+// 파일 위치: src/main/java/com/popups/pupoo/pet/application/PetServiceImpl.java
 package com.popups.pupoo.pet.application;
 
 import com.popups.pupoo.common.exception.BusinessException;
@@ -67,7 +67,7 @@ public class PetServiceImpl implements PetService {
     @Override
     @Transactional(readOnly = true)
     public PetMeResponse getMe(Long userId) {
-        // ✅ 공개설정(show_pet) 반영
+        //  공개설정(show_pet) 반영
         Boolean showPet = userRepository.findShowPetByUserId(userId);
 
         // user row가 없거나(비정상) show_pet=false면 빈 리스트 반환

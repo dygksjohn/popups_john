@@ -1,7 +1,9 @@
-// src/main/java/com/popups/pupoo/auth/domain/model/PhoneVerificationToken.java
+// 파일 위치: src/main/java/com/popups/pupoo/auth/domain/model/PhoneVerificationToken.java
 package com.popups.pupoo.auth.domain.model;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
@@ -12,6 +14,8 @@ import java.time.LocalDateTime;
  * - 1회용 사용 처리는 used_at으로 관리한다.
  * - 브루트포스 방어를 위해 attempt_count를 증가시키며, 초과 시 인증 실패로 처리한다.
  */
+@Getter
+@NoArgsConstructor
 @Entity
 @Table(
         name = "phone_verification_token",
@@ -49,10 +53,6 @@ public class PhoneVerificationToken {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
-
-    public PhoneVerificationToken() {
-    }
-
     public PhoneVerificationToken(Long userId, String phone, String codeHash, LocalDateTime expiresAt) {
         this.userId = userId;
         this.phone = phone;
@@ -66,15 +66,10 @@ public class PhoneVerificationToken {
             this.createdAt = LocalDateTime.now();
         }
     }
-
-    public Long getPhoneVerificationTokenId() { return phoneVerificationTokenId; }
-    public Long getUserId() { return userId; }
-    public String getPhone() { return phone; }
-    public String getCodeHash() { return codeHash; }
-    public LocalDateTime getExpiresAt() { return expiresAt; }
-    public LocalDateTime getUsedAt() { return usedAt; }
-    public int getAttemptCount() { return attemptCount; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
+public Long getUserId() { return userId; }
+public String getCodeHash() { return codeHash; }
+public LocalDateTime getUsedAt() { return usedAt; }
+public LocalDateTime getCreatedAt() { return createdAt; }
 
     public void increaseAttemptCount() {
         this.attemptCount++;

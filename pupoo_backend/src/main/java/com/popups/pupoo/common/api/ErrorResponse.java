@@ -1,4 +1,4 @@
-// src/main/java/com/popups/pupoo/common/api/ErrorResponse.java
+// 파일 위치: src/main/java/com/popups/pupoo/common/api/ErrorResponse.java
 package com.popups.pupoo.common.api;
 
 import java.time.LocalDateTime;
