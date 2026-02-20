@@ -132,4 +132,22 @@ public class ContestVoteService {
             throw new IllegalStateException("VOTE_PERIOD_CLOSED");
         }
     }
+    
+    @Transactional(readOnly = true)
+    public ContestVoteResultResponse resultPublic(Long programId) {
+        var program = programRepository.findById(programId)
+                .orElseThrow(() -> new IllegalArgumentException("PROGRAM_NOT_FOUND"));
+        if (program.getCategory() != ProgramCategory.CONTEST) {
+            throw new IllegalArgumentException("PROGRAM_NOT_CONTEST");
+        }
+
+        long total = voteRepository.countActiveVotes(programId);
+
+        var items = voteRepository.countActiveVotesByProgramApply(programId).stream()
+                .map(v -> new ContestVoteResultResponse.Item(v.getProgramApplyId(), v.getVoteCount()))
+                .toList();
+
+        // ✅ 비로그인 공개용이므로 내 투표(myProgramApplyId)는 null
+        return new ContestVoteResultResponse(programId, total, items, null);
+    }
 }

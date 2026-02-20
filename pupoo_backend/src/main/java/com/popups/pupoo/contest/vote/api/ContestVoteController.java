@@ -26,7 +26,7 @@ public class ContestVoteController {
             @PathVariable("programId") Long programId,
             @RequestBody ContestVoteRequest req
     ) {
-        Long userId = securityUtil.currentUserId();
+    	Long userId = securityUtil.currentUserId(); // ✅ 투표: 로그인 필요
         return ApiResponse.success(contestVoteService.vote(programId, userId, req));
     }
 
@@ -34,17 +34,21 @@ public class ContestVoteController {
     public ApiResponse<Void> cancel(
             @PathVariable("programId") Long programId
     ) {
-        Long userId = securityUtil.currentUserId();
+    	Long userId = securityUtil.currentUserId(); // ✅ 취소: 로그인 필요
         contestVoteService.cancel(programId, userId);
         return ApiResponse.success(null);
     }
 
+    /**
+     * ✅ 결과: 비로그인 허용
+     * 최종 URL: GET /api/programs/{programId}/votes/result
+     */
     @GetMapping("/result")
     public ApiResponse<ContestVoteResultResponse> result(
             @PathVariable("programId") Long programId
     ) {
-        Long userId = securityUtil.currentUserId();
-        return ApiResponse.success(contestVoteService.result(programId, userId));
+    	// ✅ 로그인 요구하면 안 됨 (공개)
+        return ApiResponse.success(contestVoteService.resultPublic(programId));
     }
 
 }

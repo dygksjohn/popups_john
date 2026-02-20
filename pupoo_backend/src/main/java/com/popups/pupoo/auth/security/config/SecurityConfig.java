@@ -38,8 +38,11 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // allowCredentials=true면 "*" 불가 → origin 명시 필요
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        // ✅ allowCredentials=true면 "*" 불가 → 개발환경 포트가 바뀌니 patterns 추천
+        config.setAllowedOriginPatterns(List.of(
+            "http://localhost:5173",
+            "http://localhost:5174"
+        ));
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
@@ -82,7 +85,7 @@ public class SecurityConfig {
             //  비회원 조회 허용
             .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/programs/**").permitAll()
-
+            .requestMatchers(HttpMethod.GET, "/api/programs/**/votes/result").permitAll()
             .requestMatchers("/error").permitAll()
 
             //  USER 가능

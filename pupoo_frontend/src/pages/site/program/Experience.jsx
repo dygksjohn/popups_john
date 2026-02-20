@@ -1,3 +1,5 @@
+import ProgramList from "./_components/ProgramList";
+
 export default function Experience() {
-  return <div>체험존</div>;
+  return <ProgramList title="체험" category="EXPERIENCE" />;
 }

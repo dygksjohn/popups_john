@@ -28,6 +28,11 @@ import Session from "./pages/site/program/Session";
 import Booth from "./pages/site/program/Booth";
 import Contest from "./pages/site/program/Contest";
 import Schedule from "./pages/site/program/Schedule";
+import SessionDetail from "./pages/site/program/SessionDetail";
+import ContestDetail from "./pages/site/program/contest/ContestDetail";
+import ContestApply from "./pages/site/program/contest/ContestApply";
+import ContestVote from "./pages/site/program/contest/ContestVote";
+import ContestResult from "./pages/site/program/contest/ContestResult";
 
 /* Registration */
 import Apply from "./pages/site/registration/Apply";
@@ -90,12 +95,20 @@ export default function App() {
           <Route path="/event/preregister" element={<PreRegister />} />
           <Route path="/event/detail" element={<Detail />} />
 
-          {/* Program */}
+          {/* program */}
           <Route path="/program/experience" element={<Experience />} />
           <Route path="/program/session" element={<Session />} />
           <Route path="/program/booth" element={<Booth />} />
           <Route path="/program/contest" element={<Contest />} />
           <Route path="/program/schedule" element={<Schedule />} />
+
+          <Route path="/program/session-detail" element={<SessionDetail />} />
+
+          {/* contest 상세/기능 */}
+          <Route path="/program/contest/detail" element={<ContestDetail />} />
+          <Route path="/program/contest/apply" element={<ContestApply />} />
+          <Route path="/program/contest/vote" element={<ContestVote />} />
+          <Route path="/program/contest/result" element={<ContestResult />} />
 
           {/* Registration */}
           <Route path="/registration/apply" element={<Apply />} />
