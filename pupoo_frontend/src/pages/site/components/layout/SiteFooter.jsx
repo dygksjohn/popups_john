@@ -5,7 +5,7 @@ const Footer = () => {
   const DropLink = ({ to, children }) => (
     <Link
       to={to}
-      className="relative inline-block group cursor-pointer z-[9999]"
+      className="relative inline-block group cursor-pointer z-[1000]"
     >
       {/* 위에서 아래로 떨어지는 원 */}
       <span
@@ -19,7 +19,7 @@ const Footer = () => {
 
       {/* 텍스트 */}
       <span
-        className="relative z-[9999] text-[#8f949b] text-sm
+        className="relative z-[1000] text-[#8f949b] text-sm
                    transition-colors duration-300
                    group-hover:text-white whitespace-nowrap px-1"
       >
@@ -29,7 +29,7 @@ const Footer = () => {
   );
 
   return (
-    <footer className="bg-black w-full relative z-[9999] isolate pointer-events-auto">
+    <footer className="bg-black w-full relative z-[1000] isolate pointer-events-auto">
       <div className="max-w-[1400px] mx-auto px-6 py-20">
         <div className="flex justify-between items-end mb-20">
           <div className="text-left">

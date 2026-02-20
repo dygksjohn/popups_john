@@ -1,15 +1,19 @@
 import { Routes, Route } from "react-router-dom";
 import SiteLayout from "./layouts/SiteLayout";
 import ScrollToTop from "./ScrollToTop";
+
 /* admin */
 import Intro from "./pages/admin/intro";
-import Dashboard from "./pages/admin/dashboard";
+import AdminDashboard from "./pages/admin/dashboard";
 
 /* Home */
 import Home from "./pages/site/home/Home";
 
 /* Auth */
 import Login from "./pages/site/auth/Login";
+import JoinSelect from "./pages/site/auth/join/JoinSelect";
+import JoinNormal from "./pages/site/auth/join/JoinNormal";
+import JoinSocial from "./pages/site/auth/join/JoinSocial";
 
 /* Event */
 import Current from "./pages/site/event/Current";
@@ -35,6 +39,7 @@ import QRCheckin from "./pages/site/registration/QRCheckin";
 import CheckinStatus from "./pages/site/realtime/CheckinStatus";
 import WaitingStatus from "./pages/site/realtime/WaitingStatus";
 import VoteStatus from "./pages/site/realtime/VoteStatus";
+import RealtimeDashboard from "./pages/site/realtime/Dashboard";
 
 /* Community */
 import FreeBoard from "./pages/site/community/FreeBoard";
@@ -58,14 +63,15 @@ import EFTTerms from "./pages/site/policy/EFTTerms";
 export default function App() {
   return (
     <>
-      {/* 스크롤 상단 이동 */}
       <ScrollToTop />
 
       <Routes>
-        <Route element={<SiteLayout />}>
-          {/*대시보드*/}
-          <Route path="/admin/dashboard" element={<Dashboard />} />
+        {/* ---------------- 관리자 전용 ---------------- */}
+        <Route path="/admin/intro" element={<Intro />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
+        {/* ---------------- 일반 사이트 ---------------- */}
+        <Route element={<SiteLayout />}>
           {/* Home */}
           <Route path="/" element={<Home />} />
           <Route path="/auth/login" element={<Login />} />
@@ -73,7 +79,7 @@ export default function App() {
           {/* 행사 */}
           <Route path="/event/current" element={<Current />} />
           <Route path="/event/upcoming" element={<Upcoming />} />
-          <Route path="/event/ended" element={<Closed />} />
+          <Route path="/event/closed" element={<Closed />} />
           <Route path="/event/preregister" element={<PreRegister />} />
           <Route path="/event/detail" element={<Detail />} />
 
@@ -94,6 +100,7 @@ export default function App() {
           <Route path="/realtime/checkin" element={<CheckinStatus />} />
           <Route path="/realtime/waiting" element={<WaitingStatus />} />
           <Route path="/realtime/vote" element={<VoteStatus />} />
+          <Route path="/realtime/dashboard" element={<RealtimeDashboard />} />
 
           {/* 커뮤니티 */}
           <Route path="/community/free" element={<FreeBoard />} />
@@ -113,11 +120,12 @@ export default function App() {
           <Route path="/policy/serviceguide" element={<ServiceGuide />} />
           <Route path="/policy/termsofservice" element={<TermsOfService />} />
           <Route path="/policy/eftterms" element={<EFTTerms />} />
-        </Route>
 
-        {/*admin */}
-        <Route path="/admin/intro" element={<Intro />} />
-        <Route path="/admin/dashboard" element={<Dashboard />} />
+          {/* 회원가입 */}
+          <Route path="/auth/join/joinselect" element={<JoinSelect />} />
+          <Route path="/auth/join/joinnormal" element={<JoinNormal />} />
+          <Route path="/auth/join/joinsocial" element={<JoinSocial />} />
+        </Route>
       </Routes>
     </>
   );

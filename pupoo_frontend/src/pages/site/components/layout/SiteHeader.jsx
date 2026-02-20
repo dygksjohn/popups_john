@@ -4,6 +4,67 @@ import { Link, useLocation } from "react-router-dom";
 /* ─────────────────────────────────────────────
    ICONS
 ───────────────────────────────────────────── */
+const IconButtonWithTooltip = ({ children, tooltip, to }) => {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      style={{ position: "relative", display: "inline-block" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <Link to={to} style={{ display: "inline-block" }}>
+        <button
+          className="pupoo-icon-btn"
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "4px",
+          }}
+        >
+          {children}
+        </button>
+      </Link>
+
+      {/* Tooltip */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: "-38px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          backgroundColor: "#262626",
+          color: "#ffffff",
+          fontSize: "12px",
+          padding: "6px 10px",
+          borderRadius: "6px",
+          whiteSpace: "nowrap",
+          opacity: hovered ? 1 : 0,
+          pointerEvents: "none",
+          transition: "opacity 0.2s ease, transform 0.2s ease",
+        }}
+      >
+        {tooltip}
+
+        {/* 말풍선 꼬리 */}
+        <div
+          style={{
+            position: "absolute",
+            top: "-6px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 0,
+            height: 0,
+            borderLeft: "6px solid transparent",
+            borderRight: "6px solid transparent",
+            borderBottom: "6px solid #262626",
+          }}
+        />
+      </div>
+    </div>
+  );
+};
 
 const ChevronIcon = ({ isOpen }) => (
   <svg
@@ -112,25 +173,24 @@ const megaMenuData = {
         items: [
           { label: "현재 진행 행사", href: "/event/current" },
           { label: "예정 행사", href: "/event/upcoming" },
-          { label: "종료 행사", href: "/event/ended" },
+          { label: "종료 행사", href: "/event/closed" },
           { label: "행사 사전 등록", href: "/event/preregister" },
-          { label: "행사 일정 안내", href: "/event/current" },
+          { label: "행사 일정 안내", href: "/event/detail" },
         ],
       },
       {
         title: "프로그램/참여",
         items: [
-          { label: "체험존 안내", href: "#certified-used" },
-          { label: "세션 · 강연", href: "#find-certified" },
-          { label: "콘테스트", href: "#sell-car" },
-          { label: "참가 신청", href: "#wish-alert" },
-          { label: "실시간 투표 · 결과", href: "#wish-alert" },
+          { label: "체험존 안내", href: "/program/experience" },
+          { label: "세션 · 강연", href: "/program/session" },
+          { label: "프로그램", href: "/program/schedule" },
+          { label: "참가 신청", href: "/program/contest" },
+          { label: "실시간 투표 · 결과", href: "/program/booth" },
         ],
       },
     ],
     promo: {
-      image:
-        "https://www.pupoo.co.kr/content/dam/pupoo/common/all-models/m-series/m-cars-overview/2021/overview/pupoo-m-cars-overview-ms-03.jpg",
+      image: "https://picsum.photos/600/400",
       description: "오직 온라인에서만 만나볼 수 있는 pupoo를 경험해보세요.",
       ctaLabel: "pupoo 샵 온라인 바로가기",
       ctaHref: "#shop-online",
@@ -141,24 +201,23 @@ const megaMenuData = {
       {
         title: "소통공간",
         items: [
-          { label: "자유 게시판", href: "#dealer-location" },
-          { label: "공지사항", href: "#shop-online" },
-          { label: "행사 후기", href: "#payment-calculator" },
-          { label: "질문 · 답변", href: "#connected-drive" },
+          { label: "자유 게시판", href: "/community/freeboard" },
+          { label: "공지사항", href: "/community/notice" },
+          { label: "행사 후기", href: "/community/review" },
+          { label: "질문 · 답변", href: "/community/qna" },
         ],
       },
       {
         title: "미디어",
         items: [
-          { label: "행사 갤러리", href: "#certified-used" },
-          { label: "인기 게시글", href: "#sell-car" },
-          { label: "베스트 후기", href: "#wish-alert" },
+          { label: "행사 갤러리", href: "/gallery/eventgallery" },
+          { label: "인기 게시글", href: "/gallery/bestgallery" },
+          { label: "베스트 후기", href: "/gallery/bestreview" },
         ],
       },
     ],
     promo: {
-      image:
-        "https://www.pupoo.co.kr/content/dam/pupoo/common/all-models/m-series/m-cars-overview/2021/overview/pupoo-m-cars-overview-ms-03.jpg",
+      image: "https://picsum.photos/600/400",
       description: "오직 온라인에서만 만나볼 수 있는 pupoo를 경험해보세요.",
       ctaLabel: "pupoo 샵 온라인 바로가기",
       ctaHref: "#shop-online",
@@ -170,24 +229,42 @@ const megaMenuData = {
       {
         title: "참가신청",
         items: [
-          { label: "행사 참가 신청", href: "#service" },
-          { label: "신청 내역 조회", href: "#financial" },
-          { label: "결재 내역", href: "#accessories" },
-          { label: "QR 체크인", href: "#accessories" },
+          { label: "행사 참가 신청", href: "/registration/apply" },
+          { label: "신청 내역 조회", href: "/registration/apply-history" },
+          { label: "결제 내역", href: "/registration/payment-history" },
+          { label: "QR 체크인", href: "/registration/qr-checkin" },
         ],
       },
       {
         title: "참여 안내",
         items: [
-          { label: "현장 운영 안내", href: "#certified-used" },
-          { label: "타임 테이블", href: "#find-certified" },
-          { label: "장소/오시는길", href: "#sell-car" },
+          { label: "현장 운영 안내", href: "/guide/operation" },
+          { label: "타임 테이블", href: "/guide/timetable" },
+          { label: "장소/오시는길", href: "/guide/location" },
         ],
       },
     ],
     promo: {
-      image:
-        "https://www.pupoo.co.kr/content/dam/pupoo/common/all-models/m-series/m-cars-overview/2021/overview/pupoo-m-cars-overview-ms-03.jpg",
+      image: "https://picsum.photos/600/400",
+      description: "오직 온라인에서만 만나볼 수 있는 pupoo를 경험해보세요.",
+      ctaLabel: "pupoo 샵 온라인 바로가기",
+      ctaHref: "#shop-online",
+    },
+  },
+  실시간현황: {
+    columns: [
+      {
+        title: "실시간 현황",
+        items: [
+          { label: "통합 현황", href: "/realtime/dashboard" },
+          { label: "입장 대기", href: "/realtime/waiting" },
+          { label: "QR 체크인", href: "/realtime/checkin" },
+          { label: "투표 현황", href: "/realtime/vote" },
+        ],
+      },
+    ],
+    promo: {
+      image: "https://picsum.photos/600/400",
       description: "오직 온라인에서만 만나볼 수 있는 pupoo를 경험해보세요.",
       ctaLabel: "pupoo 샵 온라인 바로가기",
       ctaHref: "#shop-online",
@@ -200,8 +277,8 @@ const navItems = [
   { label: "행사", hasDropdown: true, menuKey: "행사" },
   { label: "커뮤니티", hasDropdown: true, menuKey: "커뮤니티" },
   { label: "참가신청", hasDropdown: true, menuKey: "참가신청" },
+  { label: "실시간현황", hasDropdown: true, menuKey: "실시간현황" },
 ];
-
 /* ─────────────────────────────────────────────
    MEGA MENU ITEM
 ───────────────────────────────────────────── */
@@ -248,7 +325,7 @@ const MegaMenu = ({ menuData }) => {
         backdropFilter: "blur(12px)",
         borderTop: "1px solid #e0e0e0",
         boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-        zIndex: 1000,
+        zIndex: 3000,
         padding: "40px 0 48px",
       }}
     >
@@ -525,7 +602,7 @@ export default function pupooHeader() {
       <div
         className="pupoo-header-root"
         ref={headerRef}
-        style={{ position: "relative", zIndex: 999 }}
+        style={{ position: "relative", zIndex: 3000 }}
       >
         {/* ── Header bar ── */}
         <header
@@ -537,7 +614,7 @@ export default function pupooHeader() {
             height: "70px",
             display: "flex",
             alignItems: "stretch",
-            zIndex: 1001,
+            zIndex: 3000,
             /* Smooth background + shadow transition */
             backgroundColor: isWhiteMode
               ? "rgba(255,255,255,0.97)"
@@ -614,18 +691,17 @@ export default function pupooHeader() {
             </div>
 
             {/* Right: Icons */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <Link to="/auth/login">
-                <button className="pupoo-icon-btn" aria-label="Login">
-                  <LoginIcon color={iconColor} />
-                </button>
-              </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <IconButtonWithTooltip to="/auth/login" tooltip="로그인">
+                <LoginIcon color={iconColor} />
+              </IconButtonWithTooltip>
 
-              <Link to="/auth/join">
-                <button className="pupoo-icon-btn" aria-label="Sign up">
-                  <SignupIcon color={iconColor} />
-                </button>
-              </Link>
+              <IconButtonWithTooltip
+                to="/auth/join/joinselect"
+                tooltip="회원가입"
+              >
+                <SignupIcon color={iconColor} />
+              </IconButtonWithTooltip>
             </div>
           </div>
         </header>
@@ -638,7 +714,7 @@ export default function pupooHeader() {
               top: "70px",
               left: 0,
               right: 0,
-              zIndex: 1000,
+              zIndex: 3000,
             }}
           >
             <MegaMenu menuData={megaMenuData[activeMenu]} />

@@ -25,19 +25,14 @@ const topNavItems = [
   { id: "documents", label: "접수된 행사 목록", badge: 2 },
 ];
 
-const statuses = ["진행중", "예정", "종료", "취소"];
+const statuses = ["진행중행사", "예정된행사", "종료된행사", "취소된행사"];
 
 const generateRows = () =>
   Array.from({ length: 10 }, (_, i) => ({
     id: i + 1,
     author: "홍길동",
     role: "부스 진행자",
-    cells: [
-      "2026년에 대충 열리는 대충 펫 엑스포인데 뭐 어쩔",
-      "COEX",
-      "2026-01-01",
-      "2026-12-25",
-    ],
+    cells: ["Pet Expo 2026", "COEX", "2026-01-01", "2026-12-25"],
     badge: statuses[i % statuses.length], // 여기 수정
   }));
 
@@ -96,10 +91,10 @@ function Sidebar({ activeNav, setActiveNav }) {
         }}
       >
         <img
-          src="/logo_gray.png"
+          src="/logo_black.png"
           alt="Pupoo Logo"
           style={{
-            height: 20,
+            height: 55,
             width: "auto",
             objectFit: "contain",
           }}
@@ -135,8 +130,6 @@ function Sidebar({ activeNav, setActiveNav }) {
               cursor: "pointer",
               color: "#374151",
               transition: "all 0.2s",
-              textAlign: "center",
-              verticalAlign: "middle",
             }}
           >
             {item.icon}
@@ -382,59 +375,23 @@ function Table({
   checkedRows,
   setCheckedRows,
 }) {
-  function CustomCheckbox({ checked, onChange }) {
-    return (
-      <div
-        onClick={onChange}
-        style={{
-          width: 18,
-          height: 18,
-          borderRadius: 6,
-          border: "1px solid",
-          borderColor: checked ? "#3b82f6" : "#d1d5db",
-          background: checked ? "#3b82f6" : "#fff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          transition: "all 0.15s ease",
-        }}
-      >
-        {checked && (
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#fff"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        )}
-      </div>
-    );
-  }
-
   const badgeStyleMap = {
-    진행중: {
+    진행중행사: {
       light: "#DBEAFE",
       strong: "#2563EB",
       text: "#1E3A8A",
     },
-    예정: {
+    예정된행사: {
       light: "#E0F2FE",
       strong: "#0284C7",
       text: "#075985",
     },
-    종료: {
+    종료된행사: {
       light: "#F3F4F6",
       strong: "#6B7280",
       text: "#374151",
     },
-    취소: {
+    취소된행사: {
       light: "#FEE2E2",
       strong: "#DC2626",
       text: "#7F1D1D",
@@ -457,15 +414,7 @@ function Table({
     );
   };
 
-  const headers = [
-    "담당자",
-    "행사명",
-    "장소",
-    "시작일",
-    "종료일",
-    "상태",
-    "관리",
-  ];
+  const headers = ["담당자", "행사명", "장소", "시작일", "종료일", "상태"];
 
   return (
     <div
@@ -477,24 +426,8 @@ function Table({
       }}
     >
       <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          fontSize: 13,
-          tableLayout: "fixed",
-        }}
+        style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
       >
-        <colgroup>
-          <col style={{ width: "44px" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "30%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-        </colgroup>
-
         <thead>
           <tr
             style={{
@@ -502,39 +435,26 @@ function Table({
               borderBottom: "1px solid #d9dee7",
             }}
           >
-            <th
-              style={{
-                width: 44,
-                padding: "10px 12px",
-                textAlign: "center",
-                verticalAlign: "middle",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <CustomCheckbox checked={allChecked} onChange={toggleAll} />
-              </div>
+            <th style={{ width: 44, padding: "10px 12px" }}>
+              <input
+                type="checkbox"
+                checked={allChecked}
+                onChange={toggleAll}
+                style={{ width: 14, height: 14, cursor: "pointer" }}
+              />
             </th>
-
             {headers.map((h, i) => (
               <th
                 key={i}
                 style={{
                   padding: "10px 12px",
-                  textAlign: "center",
+                  textAlign: "left",
                   fontWeight: 500,
                   color: "#374151",
                   fontSize: 13,
-                  verticalAlign: "middle",
                 }}
               >
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 4,
-                  }}
-                >
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   {h}
                   {i === 0 && (
                     <svg
@@ -551,9 +471,9 @@ function Table({
                 </div>
               </th>
             ))}
+            {/* <th style={{ width: 40 }}></th> */}
           </tr>
         </thead>
-
         <tbody>
           {rows.map((row, idx) => (
             <tr
@@ -565,35 +485,16 @@ function Table({
                 transition: "background 0.1s",
               }}
             >
-              <td
-                style={{
-                  padding: "10px 12px",
-                  textAlign: "center",
-                  verticalAlign: "middle",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <CustomCheckbox
-                    checked={checkedRows.includes(row.id)}
-                    onChange={() => toggleRow(row.id)}
-                  />
-                </div>
+              <td style={{ padding: "10px 12px" }}>
+                <input
+                  type="checkbox"
+                  checked={checkedRows.includes(row.id)}
+                  onChange={() => toggleRow(row.id)}
+                  style={{ width: 14, height: 14, cursor: "pointer" }}
+                />
               </td>
-
-              <td
-                style={{
-                  padding: "10px 12px",
-                  textAlign: "center",
-                  verticalAlign: "middle",
-                }}
-              >
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
+              <td style={{ padding: "10px 12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Avatar />
                   <div>
                     <div
@@ -608,31 +509,17 @@ function Table({
                 </div>
               </td>
               {row.cells.map((cell, ci) => (
-                <td
-                  key={ci}
-                  style={{
-                    padding: "10px 12px",
-                    color: "#374151",
-                    textAlign: "center",
-                    verticalAlign: "middle",
-                  }}
-                >
+                <td key={ci} style={{ padding: "10px 12px", color: "#374151" }}>
                   {cell}
                 </td>
               ))}
-              <td
-                style={{
-                  padding: "10px 12px",
-                  textAlign: "center",
-                  verticalAlign: "middle",
-                }}
-              >
+              <td style={{ padding: "10px 12px" }}>
                 <div
                   style={{
-                    margin: "0 auto",
-                    width: 90,
+                    width: 90, // ← 고정 너비
                     height: 28,
                     borderRadius: 999,
+                    // background: badgeStyleMap[row.badge].light,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -666,67 +553,6 @@ function Table({
                   </div>
 
                   {row.badge}
-                </div>
-              </td>
-              <td
-                style={{
-                  padding: "10px 12px",
-                  textAlign: "center",
-                  verticalAlign: "middle",
-                }}
-              >
-                <div
-                  style={{ display: "flex", justifyContent: "center", gap: 8 }}
-                >
-                  {/* 수정 버튼 */}
-                  <button
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: 12,
-                      borderRadius: 8,
-                      border: "none",
-                      background: "#1F6FDB",
-                      color: "#fff",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      transition: "all 0.2s ease",
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.target.style.background = "#195EC0")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.style.background = "#1F6FDB")
-                    }
-                    onClick={() => console.log("수정", row.id)}
-                  >
-                    수정
-                  </button>
-
-                  {/* 삭제 버튼 */}
-                  <button
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: 12,
-                      borderRadius: 8,
-                      border: "none",
-                      background: "linear-gradient(90deg, #FF2D55, #FF3B5C)",
-                      color: "#fff",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      transition: "all 0.2s ease",
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.target.style.background =
-                        "linear-gradient(90deg, #E0264C, #E02F52)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.style.background =
-                        "linear-gradient(90deg, #FF2D55, #FF3B5C)")
-                    }
-                    onClick={() => console.log("삭제", row.id)}
-                  >
-                    삭제
-                  </button>
                 </div>
               </td>
             </tr>
@@ -885,7 +711,7 @@ function ContentArea({ activeTab }) {
   );
 }
 
-export default function Dashboard() {
+export default function EventManage() {
   const tabTitleMap = {
     overview: "실시간 데이터",
     tasks: "통계 요약",
