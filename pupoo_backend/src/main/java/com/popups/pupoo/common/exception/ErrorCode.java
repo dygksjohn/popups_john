@@ -23,6 +23,16 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "C4040", "Resource not found"),
 
     // =========================
+    // Common - 409
+    // =========================
+    DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "C4090", "Duplicate resource"),
+
+    // =========================
+    // Common - 500
+    // =========================
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C5000", "Internal server error"),
+
+    // =========================
     // Booth - 404
     // =========================
     BOOTH_NOT_FOUND(HttpStatus.NOT_FOUND, "B4041", "Booth not found"),
@@ -44,25 +54,37 @@ public enum ErrorCode {
     JWT_INVALID(HttpStatus.UNAUTHORIZED, "A4015", "JWT invalid"),
 
     // =========================
-    // Auth - verification (email/phone)
+    // Auth - Verification (Email)
     // =========================
-    EMAIL_VERIFICATION_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "A4001", "Email verification token invalid"),
-    EMAIL_ALREADY_VERIFIED(HttpStatus.CONFLICT, "A4091", "Email already verified"),
-    EMAIL_VERIFICATION_TOKEN_EXPIRED(HttpStatus.GONE, "A4101", "Email verification token expired"),
-
-    PHONE_OTP_INVALID(HttpStatus.BAD_REQUEST, "A4002", "Phone OTP invalid"),
-    PHONE_ALREADY_VERIFIED(HttpStatus.CONFLICT, "A4092", "Phone already verified"),
-    PHONE_OTP_EXPIRED(HttpStatus.GONE, "A4102", "Phone OTP expired"),
-    PHONE_OTP_TOO_MANY_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, "A4291", "Phone OTP too many attempts"),
-    VERIFICATION_TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "A4290", "Verification too many requests"),
+    EMAIL_ALREADY_VERIFIED(HttpStatus.BAD_REQUEST, "A4006", "Email already verified"),
+    EMAIL_VERIFICATION_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "A4007", "Invalid email verification token"),
+    EMAIL_VERIFICATION_TOKEN_EXPIRED(HttpStatus.BAD_REQUEST, "A4008", "Email verification token expired"),
+    VERIFICATION_TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "A4291", "Too many verification requests"),
 
     // =========================
-    // User - 409/404 (내 정보, 중복)
+    // Auth - Verification (Phone)
+    // =========================
+    PHONE_ALREADY_VERIFIED(HttpStatus.BAD_REQUEST, "A4009", "Phone already verified"),
+    PHONE_OTP_INVALID(HttpStatus.BAD_REQUEST, "A4016", "Invalid phone OTP"),
+    PHONE_OTP_EXPIRED(HttpStatus.BAD_REQUEST, "A4017", "Phone OTP expired"),
+    PHONE_OTP_TOO_MANY_ATTEMPTS(HttpStatus.BAD_REQUEST, "A4018", "Too many OTP attempts"),
+
+    // =========================
+    // User - 404/409
     // =========================
     USER_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "U4041", "User profile not found"),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U4091", "Email already exists"),
     DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "U4092", "Nickname already exists"),
     DUPLICATE_PHONE(HttpStatus.CONFLICT, "U4093", "Phone already exists"),
+
+    // =========================
+    // User SocialAccount
+    // =========================
+    SOCIAL_ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "U4042", "Social account not found"),
+    SOCIAL_ACCOUNT_DUPLICATE_PROVIDER(HttpStatus.CONFLICT, "U4094", "Social account already linked for this provider"),
+    SOCIAL_ACCOUNT_DUPLICATE_PROVIDER_UID(HttpStatus.CONFLICT, "U4095", "Social UID already linked"),
+    SOCIAL_ACCOUNT_PROVIDER_UID_CONFLICT(HttpStatus.CONFLICT, "U4096", "Social UID is linked to another user"),
+    SOCIAL_ACCOUNT_PROVIDER_MISMATCH(HttpStatus.BAD_REQUEST, "U4002", "Provider mismatch"),
 
     // =========================
     // Pet - 404/403
@@ -80,17 +102,7 @@ public enum ErrorCode {
     // =========================
     // Payment - 409
     // =========================
-    PAYMENT_DUPLICATE_ACTIVE(HttpStatus.CONFLICT, "P4091", "Payment already in progress"),
-
-    // =========================
-    // Common - 409
-    // =========================
-    DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "C4090", "Duplicate resource"),
-
-    // =========================
-    // Common - 500
-    // =========================
-    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C5000", "Internal server error");
+    PAYMENT_DUPLICATE_ACTIVE(HttpStatus.CONFLICT, "P4091", "Payment already in progress");
 
     private final HttpStatus status;
     private final String code;
@@ -102,7 +114,15 @@ public enum ErrorCode {
         this.message = message;
     }
 
-    public HttpStatus getStatus() { return status; }
-    public String getCode() { return code; }
-    public String getMessage() { return message; }
+    public HttpStatus getStatus() {
+        return status;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getMessage() {
+        return message;
+    }
 }
