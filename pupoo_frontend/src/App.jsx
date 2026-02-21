@@ -86,11 +86,17 @@ export default function App() {
           {/* Home */}
           <Route path="/" element={<Home />} />
 
-          {/* Auth */}
+          {/* Auth */}          
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/join/joinselect" element={<JoinSelect />} />
           <Route path="/auth/join/joinnormal" element={<JoinNormal />} />
           <Route path="/auth/join/joinsocial" element={<JoinSocial />} />
+
+          {/* Alias (짧은 경로 지원) */}
+          <Route path="/join" element={<JoinSelect />} />
+          <Route path="/join/select" element={<JoinSelect />} />
+          <Route path="/join/normal" element={<JoinNormal />} />
+          <Route path="/join/social" element={<JoinSocial />} />
 
           {/* Event */}
           <Route path="/event/current" element={<Current />} />

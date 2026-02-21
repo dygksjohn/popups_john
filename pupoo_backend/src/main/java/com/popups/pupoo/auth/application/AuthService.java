@@ -22,6 +22,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 import java.time.LocalDateTime;
 
 @Service
@@ -89,13 +92,19 @@ public class AuthService {
 
         setRefreshCookie(response, refresh);
 
-        // local(email/password) 가입에만 이메일 인증을 요구한다.
-        // 소셜 가입은 별도 플로우에서 처리하며, 이메일 인증을 생략한다.
-        try {
-            emailVerificationService.requestEmailVerification(userId);
-        } catch (Exception ignored) {
-            // 이메일 발송/검증 설정이 아직 준비되지 않은 환경에서도 회원가입은 진행 가능해야 한다.
-            // 운영에서는 반드시 verification.hash.salt 및 이메일 발송 구현을 활성화한다.
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        emailVerificationService.requestEmailVerification(userId);
+                    } catch (Throwable t) {
+                        // ✅ 절대 throw 금지: 회원가입 응답이 500으로 바뀜
+                        // 운영에서는 logger로 남기는 걸 권장
+                        t.printStackTrace();
+                    }
+                }
+            });
         }
 
         return new LoginResponse(access, userId, roleName);
