@@ -31,6 +31,27 @@ public enum ErrorCode {
     // Common - 500
     // =========================
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C5000", "Internal server error"),
+    
+	// =========================
+	// Program - 404/400
+	// =========================
+	PROGRAM_NOT_FOUND(HttpStatus.NOT_FOUND, "PR4041", "Program not found"),
+	PROGRAM_NOT_CONTEST(HttpStatus.BAD_REQUEST, "PR4001", "Program is not contest"),
+	
+	// =========================
+	// Program Apply - 404/400/403
+	// =========================
+	PROGRAM_APPLY_NOT_FOUND(HttpStatus.NOT_FOUND, "PA4041", "Program apply not found"),
+	PROGRAM_APPLY_NOT_MATCHED(HttpStatus.BAD_REQUEST, "PA4001", "Program apply does not match program"),
+	INVALID_VOTE_TARGET(HttpStatus.BAD_REQUEST, "CV4001", "Invalid vote target"),
+	CANNOT_VOTE_SELF(HttpStatus.BAD_REQUEST, "CV4002", "Cannot vote for yourself"),
+	
+	// =========================
+	// Contest Vote - 404/409/400
+	// =========================
+	ALREADY_VOTED(HttpStatus.CONFLICT, "CV4091", "Already voted"),
+	VOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "CV4041", "Vote not found"),
+	VOTE_PERIOD_CLOSED(HttpStatus.BAD_REQUEST, "CV4003", "Vote period closed"),
 
     // =========================
     // Booth - 404

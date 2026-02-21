@@ -18,7 +18,18 @@ public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long
     Page<ProgramApply> findByUserId(Long userId, Pageable pageable);
 
     /**
-     *  활성 신청 중복 차단용
+     * (추가) 후보 목록 조회용: programId + status
+     * - 콘테스트 후보는 APPROVED만 노출할 때 사용
+     */
+    Page<ProgramApply> findByProgramIdAndStatus(Long programId, ApplyStatus status, Pageable pageable);
+
+    /**
+     * (추가) 페이지 없이 리스트로 필요하면 사용
+     */
+    List<ProgramApply> findByProgramIdAndStatusOrderByProgramApplyIdAsc(Long programId, ApplyStatus status);
+
+    /**
+     * 활성 신청 중복 차단용
      * 활성 = APPLIED / WAITING / APPROVED (DB active_flag 정의와 동일)
      */
     boolean existsByUserIdAndProgramIdAndStatusIn(
@@ -28,7 +39,7 @@ public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long
     );
 
     /**
-     *  취소/진행중/승인/대기/반려 등 "최근 상태 1건" 조회용
+     * 취소/진행중/승인/대기/반려 등 "최근 상태 1건" 조회용
      * (취소 시 업데이트 대상 찾거나, 상태 확인/응답에 사용)
      */
     Optional<ProgramApply> findTop1ByUserIdAndProgramIdOrderByProgramApplyIdDesc(
@@ -37,7 +48,7 @@ public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long
     );
 
     /**
-     *  (선택) "현재 활성 신청 1건" 조회가 필요하면 추가
+     * (선택) "현재 활성 신청 1건" 조회가 필요하면 추가
      * 활성 상태에서만 1건
      */
     Optional<ProgramApply> findTop1ByUserIdAndProgramIdAndStatusInOrderByProgramApplyIdDesc(
@@ -47,7 +58,7 @@ public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long
     );
 
     /**
-     *  환불 COMPLETED 시 자동 취소용(행사 기준):
+     * 환불 COMPLETED 시 자동 취소용(행사 기준):
      * 해당 event_id에 속한 program들 중, user의 활성 신청(APPLIED/WAITING/APPROVED)을 전부 락으로 잡고 가져오기
      *
      * join 대상 엔티티 = Program (event_program)

@@ -20,26 +20,50 @@ public class ProgramApplyController {
     private final ProgramApplyService programApplyService;
     private final SecurityUtil securityUtil;
 
+    /**
+     * 내 신청 목록
+     */
     @GetMapping("/my")
     public ApiResponse<PageResponse<ProgramApplyResponse>> my(Pageable pageable) {
         Long userId = securityUtil.currentUserId();
         return ApiResponse.success(programApplyService.getMyApplies(userId, pageable));
     }
 
+    /**
+     * (추가) 콘테스트 후보 목록: APPROVED만 반환
+     * - 프론트에서 투표 후보는 APPROVED만 보여야 함
+     * - 비로그인도 열어줄지 정책에 따라 Security 설정에서 permitAll 여부 결정
+     */
+    @GetMapping("/programs/{programId}/candidates")
+    public ApiResponse<PageResponse<ProgramApplyResponse>> candidates(
+            @PathVariable("programId") Long programId,
+            Pageable pageable
+    ) {
+        return ApiResponse.success(programApplyService.getApprovedCandidates(programId, pageable));
+    }
+
+    /**
+     * 신청 생성
+     */
     @PostMapping
     public ApiResponse<ProgramApplyResponse> create(@RequestBody ProgramApplyRequest req) {
         Long userId = securityUtil.currentUserId();
         return ApiResponse.success(programApplyService.create(userId, req));
     }
 
+    /**
+     * 신청 취소
+     */
     @PatchMapping("/{id}/cancel")
     public ApiResponse<IdResponse> cancel(@PathVariable("id") Long id) {
         Long userId = securityUtil.currentUserId();
         programApplyService.cancel(userId, id);
         return ApiResponse.success(new IdResponse(id));
-
     }
 
+    /**
+     * 내 신청 단건 조회
+     */
     @GetMapping("/{id}")
     public ApiResponse<ProgramApplyResponse> get(@PathVariable("id") Long id) {
         Long userId = securityUtil.currentUserId();

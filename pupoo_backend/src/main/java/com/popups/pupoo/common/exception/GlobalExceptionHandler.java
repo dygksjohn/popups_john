@@ -4,7 +4,10 @@ package com.popups.pupoo.common.exception;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.ErrorResponse;
 import com.popups.pupoo.common.api.FieldErrorItem;
+
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -144,6 +147,11 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return ResponseEntity.status(ErrorCode.INTERNAL_ERROR.getStatus()).body(ApiResponse.fail(body));
+    }
+    
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEntityNotFound(EntityNotFoundException e, HttpServletRequest request) {
+        return build(request, ErrorCode.RESOURCE_NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND.getStatus(), e.getMessage());
     }
 
     private ResponseEntity<ApiResponse<Void>> build(HttpServletRequest request, ErrorCode ec, HttpStatus status, String msg) {

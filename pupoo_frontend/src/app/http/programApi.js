@@ -2,6 +2,10 @@
 import { axiosInstance } from "./axiosInstance";
 
 export const programApi = {
+  // =========================
+  // Program
+  // =========================
+
   // GET /api/events/{eventId}/programs
   getPrograms: ({ eventId, category, page = 0, size = 10, sort } = {}) => {
     if (eventId == null) throw new Error("getPrograms: eventId is required");
@@ -41,12 +45,28 @@ export const programApi = {
     );
   },
 
+  // =========================
+  // Program Apply
+  // =========================
+
   // GET /api/program-applies/my
   // ✅ C안은 programId 매칭용으로 한번에 많이 가져오므로 size 기본값을 200으로 올림
   getMyProgramApplies: ({ page = 0, size = 200, sort } = {}) =>
     axiosInstance.get(`/api/program-applies/my`, {
       params: { page, size, ...(sort ? { sort } : {}) },
     }),
+
+  // ✅ (추가) GET /api/program-applies/programs/{programId}/candidates
+  // 후보 목록(승인된 신청자만 백엔드에서 내려줌)
+  getCandidates: (programId, { page = 0, size = 200 } = {}) => {
+    if (programId == null)
+      throw new Error("getCandidates: programId is required");
+
+    return axiosInstance.get(
+      `/api/program-applies/programs/${programId}/candidates`,
+      { params: { page, size } },
+    );
+  },
 
   // POST /api/program-applies
   createProgramApply: (payload) => {
@@ -71,22 +91,35 @@ export const programApi = {
     return axiosInstance.get(`/api/program-applies/${applyId}`);
   },
 
-  // ===== Contest Vote =====
+  // =========================
+  // Contest Vote
+  // =========================
+
   // GET /api/programs/{programId}/votes/result
-  getContestVoteResult: (programId) =>
-    axiosInstance.get(`/api/programs/${programId}/votes/result`),
+  getContestVoteResult: (programId) => {
+    if (programId == null)
+      throw new Error("getContestVoteResult: programId is required");
+    return axiosInstance.get(`/api/programs/${programId}/votes/result`);
+  },
 
   // POST /api/programs/{programId}/votes
   // body/params 둘 다 실어 호환 처리
-  voteContest: (programId, programApplyId) =>
-    axiosInstance.post(
+  voteContest: (programId, programApplyId) => {
+    if (programId == null) throw new Error("voteContest: programId is required");
+    if (programApplyId == null)
+      throw new Error("voteContest: programApplyId is required");
+
+    return axiosInstance.post(
       `/api/programs/${programId}/votes`,
       { programApplyId },
       { params: { programApplyId } },
-    ),
+    );
+  },
 
   // DELETE /api/programs/{programId}/votes
-  // body/params 둘 다 실어 호환 처리(axios는 delete body가 가능하지만 환경 따라 다름)
-  cancelContestVote: (programId) =>
-    axiosInstance.delete(`/api/programs/${programId}/votes`),
+  cancelContestVote: (programId) => {
+    if (programId == null)
+      throw new Error("cancelContestVote: programId is required");
+    return axiosInstance.delete(`/api/programs/${programId}/votes`);
+  },
 };

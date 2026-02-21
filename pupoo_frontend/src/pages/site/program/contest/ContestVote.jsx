@@ -9,85 +9,147 @@ export default function ContestVote() {
   const programId = searchParams.get("programId");
 
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-
-  const [resultRaw, setResultRaw] = useState(null);
-  const [candidates, setCandidates] = useState([]); // 화면 표시용 후보 리스트
-  const [selectedApplyId, setSelectedApplyId] = useState(null);
 
   const [voting, setVoting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
+  // ✅ 토스트
+  const [toast, setToast] = useState(null); // { message, type }
+  const toastTimerRef = useRef(null);
+
+  // ✅ 후보(승인된 신청자) 원본
+  const [candidateBase, setCandidateBase] = useState([]); // ProgramApplyResponse[]
+  const [candidateLoading, setCandidateLoading] = useState(false);
+
+  // ✅ 득표 집계 원본 (result.items)
+  const [voteItems, setVoteItems] = useState([]); // [{programApplyId, voteCount}]
+  const [totalVotes, setTotalVotes] = useState(0);
+  const [myVotedApplyId, setMyVotedApplyId] = useState(null);
+
+  // 선택된 후보
+  const [selectedApplyId, setSelectedApplyId] = useState(null);
+
   // ✅ 401 팝업 2번 방지
   const didHandle401Ref = useRef(false);
+
+  const showToast = (message, type = "error") => {
+    setToast({ message, type });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2500);
+  };
 
   const handle401 = () => {
     if (didHandle401Ref.current) return;
     didHandle401Ref.current = true;
 
-    alert("로그인이 필요합니다.");
+    showToast("로그인이 필요합니다.", "error");
     const from = `${location.pathname}${location.search}`;
     navigate("/auth/login", { state: { from } });
   };
 
   const normalizeData = (res) => res?.data?.data ?? res?.data;
 
-  const extractCandidates = (data) => {
-    // 백엔드 응답 형태가 달라도 최대한 유연하게 후보 배열을 뽑는다.
-    // 1) data 자체가 배열인 경우
+  const extractList = (res) => {
+    const data = normalizeData(res);
     if (Array.isArray(data)) return data;
-
-    // 2) 흔한 케이스들: { results: [] } / { items: [] } / { content: [] }
-    if (Array.isArray(data?.results)) return data.results;
-    if (Array.isArray(data?.items)) return data.items;
     if (Array.isArray(data?.content)) return data.content;
-
-    // 3) { candidates: [] }
+    if (Array.isArray(data?.items)) return data.items;
+    if (Array.isArray(data?.results)) return data.results;
     if (Array.isArray(data?.candidates)) return data.candidates;
-
     return [];
   };
 
-  const getCandidateKey = (c) =>
-    c?.programApplyId ?? c?.applyId ?? c?.id ?? c?.program_apply_id ?? null;
+  // 후보 표시명(현재 백엔드는 ProgramApplyResponse라 petName 같은 건 없음)
+  const getCandidateTitle = (c) => `후보 ${c.programApplyId}`;
 
-  const getCandidateTitle = (c) => {
-    // 후보 표시 이름(응답 필드에 맞춰 최대한 대응)
-    // 예: petName/userName/nickname/title 등
-    return (
-      c?.petName ||
-      c?.pet_name ||
-      c?.userName ||
-      c?.user_name ||
-      c?.nickname ||
-      c?.name ||
-      `후보 ${getCandidateKey(c)}`
+  // ✅ 후보 + 득표 join 결과
+  const mergedCandidates = useMemo(() => {
+    const countMap = new Map(
+      (voteItems || []).map((x) => [
+        Number(x.programApplyId),
+        Number(x.voteCount || 0),
+      ]),
     );
+
+    return (candidateBase || []).map((c) => ({
+      ...c,
+      voteCount: countMap.get(Number(c.programApplyId)) ?? 0,
+    }));
+  }, [candidateBase, voteItems]);
+
+  // 선택값이 후보 목록에 없는 경우 해제
+  useEffect(() => {
+    if (selectedApplyId == null) return;
+    const exists = mergedCandidates.some(
+      (x) => String(x.programApplyId) === String(selectedApplyId),
+    );
+    if (!exists) setSelectedApplyId(null);
+  }, [mergedCandidates, selectedApplyId]);
+
+  const fetchCandidatesOnce = async () => {
+    if (!programId) return;
+
+    setCandidateLoading(true);
+    try {
+      const res = await programApi.getCandidates(programId, { page: 0, size: 200 });
+      const list = extractList(res);
+
+      // 백엔드가 이미 APPROVED만 내리지만, 방어로 한번 더 필터
+      const approvedOnly = list.filter(
+        (c) => String(c?.status ?? "").toUpperCase() === "APPROVED",
+      );
+
+      setCandidateBase(approvedOnly);
+    } catch (e) {
+      const status = e?.response?.status;
+      if (status === 401) return handle401();
+
+      setCandidateBase([]);
+      const msg =
+        e?.response?.data?.error?.message ||
+        e?.response?.data?.message ||
+        e?.message ||
+        "후보 목록 조회 실패";
+      showToast(msg, "error");
+    } finally {
+      setCandidateLoading(false);
+    }
   };
 
-  const getVoteCount = (c) =>
-    c?.voteCount ?? c?.vote_count ?? c?.count ?? c?.totalVotes ?? 0;
+  const fetchVoteResult = async ({ silent = false } = {}) => {
+    if (!programId) return;
 
-  const fetchResult = async () => {
-    const res = await programApi.getContestVoteResult(programId);
-    const data = normalizeData(res);
-    setResultRaw(data);
+    try {
+      const res = await programApi.getContestVoteResult(programId);
+      const data = normalizeData(res);
 
-    const list = extractCandidates(data);
-    setCandidates(list);
+      // ContestVoteResultResponse 가정:
+      // { programId, total, items:[{programApplyId,voteCount}], myProgramApplyId }
+      setTotalVotes(Number(data?.total ?? 0));
+      setVoteItems(Array.isArray(data?.items) ? data.items : []);
+      setMyVotedApplyId(data?.myProgramApplyId ?? null);
 
-    // 후보가 바뀌어도 선택값이 유효하면 유지, 아니면 해제
-    if (selectedApplyId != null) {
-      const exists = list.some(
-        (x) => String(getCandidateKey(x)) === String(selectedApplyId),
-      );
-      if (!exists) setSelectedApplyId(null);
+      if (!silent) {
+        // 성공 시엔 토스트 안 띄움(필요하면 여기서 showToast 가능)
+      }
+    } catch (e) {
+      const status = e?.response?.status;
+      if (status === 401) return handle401();
+
+      if (!silent) {
+        const msg =
+          e?.response?.data?.error?.message ||
+          e?.response?.data?.message ||
+          e?.message ||
+          "투표 현황 조회 실패";
+        showToast(msg, "error");
+      }
     }
   };
 
   useEffect(() => {
     if (!programId) {
-      setErrorMsg("programId가 없습니다.");
+      showToast("programId가 없습니다.", "error");
       return;
     }
 
@@ -95,30 +157,19 @@ export default function ContestVote() {
     let cancelled = false;
 
     (async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        setErrorMsg("");
-        await fetchResult();
+        // 1) 후보 1회 로드
+        await fetchCandidatesOnce();
 
-        // ✅ 3초 폴링(실시간)
+        // 2) 득표 결과 로드
+        await fetchVoteResult();
+
+        // 3) 득표 결과만 3초 폴링
         timerId = setInterval(async () => {
           if (cancelled) return;
-          try {
-            await fetchResult();
-          } catch (e) {
-            // 폴링 실패는 조용히 무시(네트워크 순간 이슈)
-          }
+          await fetchVoteResult({ silent: true });
         }, 3000);
-      } catch (e) {
-        const status = e?.response?.status;
-        if (status === 401) return handle401();
-
-        const msg =
-          e?.response?.data?.message ||
-          e?.response?.data?.error ||
-          e?.message ||
-          "투표 현황 조회 실패";
-        setErrorMsg(status ? `[${status}] ${msg}` : msg);
       } finally {
         setLoading(false);
       }
@@ -133,28 +184,30 @@ export default function ContestVote() {
 
   const onVote = async () => {
     if (!selectedApplyId) {
-      alert("투표할 후보를 선택하세요.");
+      showToast("투표할 후보를 선택하세요.", "error");
       return;
     }
 
     try {
       setVoting(true);
-      setErrorMsg("");
 
       await programApi.voteContest(programId, Number(selectedApplyId));
-      alert("투표가 완료되었습니다.");
+      showToast("투표가 완료되었습니다.", "success");
 
-      await fetchResult(); // 즉시 반영
+      await fetchVoteResult(); // 즉시 반영
     } catch (e) {
       const status = e?.response?.status;
       if (status === 401) return handle401();
 
-      const msg =
-        e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        e?.message ||
-        "투표 실패";
-      setErrorMsg(status ? `[${status}] ${msg}` : msg);
+      const error = e?.response?.data?.error;
+
+      let msg = "투표 실패";
+      if (error?.code === "CV4091") msg = "이미 투표를 했습니다.";
+      else if (error?.code === "CV4002") msg = "본인에게는 투표할 수 없습니다.";
+      else if (error?.code === "CV4003") msg = "투표 기간이 아닙니다.";
+      else if (error?.message) msg = error.message;
+
+      showToast(msg, "error");
     } finally {
       setVoting(false);
     }
@@ -163,22 +216,22 @@ export default function ContestVote() {
   const onCancelVote = async () => {
     try {
       setCancelling(true);
-      setErrorMsg("");
 
       await programApi.cancelContestVote(programId);
-      alert("투표가 취소되었습니다.");
+      showToast("투표가 취소되었습니다.", "success");
 
-      await fetchResult();
+      await fetchVoteResult();
     } catch (e) {
       const status = e?.response?.status;
       if (status === 401) return handle401();
 
-      const msg =
-        e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        e?.message ||
-        "투표 취소 실패";
-      setErrorMsg(status ? `[${status}] ${msg}` : msg);
+      const error = e?.response?.data?.error;
+      let msg = "투표 취소 실패";
+      if (error?.code === "CV4041") msg = "취소할 투표가 없습니다.";
+      else if (error?.code === "CV4003") msg = "투표 기간이 아닙니다.";
+      else if (error?.message) msg = error.message;
+
+      showToast(msg, "error");
     } finally {
       setCancelling(false);
     }
@@ -195,83 +248,80 @@ export default function ContestVote() {
     );
   }
 
+  const showEmpty = !loading && !candidateLoading && mergedCandidates.length === 0;
+
   return (
     <div style={{ padding: 16 }}>
       <button onClick={() => navigate(-1)}>뒤로</button>
       <h2 style={{ marginTop: 12 }}>{pageTitle}</h2>
-      <div style={{ opacity: 0.6, marginBottom: 12 }}>
-        programId: {programId}
-      </div>
+      <div style={{ opacity: 0.6, marginBottom: 12 }}>programId: {programId}</div>
 
-      {errorMsg && (
-        <div style={{ color: "red", marginBottom: 12 }}>{errorMsg}</div>
-      )}
-
-      {loading ? (
+      {(loading || candidateLoading) ? (
         <div>불러오는 중...</div>
-      ) : candidates.length === 0 ? (
+      ) : showEmpty ? (
         <div>
           <div style={{ marginBottom: 8 }}>현재 투표 후보가 없습니다.</div>
-          <div style={{ opacity: 0.6, fontSize: 13 }}>
-            (백엔드 result 응답에 후보 리스트가 포함되어야 표시됩니다)
-          </div>
+          <div style={{ opacity: 0.6, fontSize: 13 }}>(APPROVED 후보가 있어야 표시됩니다)</div>
         </div>
       ) : (
         <>
-          <div style={{ display: "grid", gap: 10 }}>
-            {candidates.map((c) => {
-              const key = getCandidateKey(c);
-              const checked = String(selectedApplyId) === String(key);
-
-              return (
-                <label
-                  key={String(key)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    border: "1px solid #ddd",
-                    borderRadius: 10,
-                    padding: "10px 12px",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 10 }}
-                  >
-                    <input
-                      type="radio"
-                      name="candidate"
-                      checked={checked}
-                      onChange={() => setSelectedApplyId(key)}
-                    />
-                    <div>
-                      <div style={{ fontWeight: 700 }}>
-                        {getCandidateTitle(c)}
-                      </div>
-                      <div style={{ opacity: 0.7, fontSize: 13 }}>
-                        후보ID: {String(key)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ fontWeight: 700 }}>
-                    {getVoteCount(c)}
-                    <span style={{ fontWeight: 400, opacity: 0.7 }}> 표</span>
-                  </div>
-                </label>
-              );
-            })}
+          <div style={{ marginBottom: 10, opacity: 0.7 }}>
+            총 투표수: <b>{totalVotes}</b>
+            {myVotedApplyId ? (
+              <span style={{ marginLeft: 10 }}>
+                내 투표: <b>{myVotedApplyId}</b>
+              </span>
+            ) : null}
           </div>
 
-          <div
-            style={{
-              marginTop: 16,
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ display: "grid", gap: 10 }}>
+            {mergedCandidates
+              .slice()
+              .sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0))
+              .map((c) => {
+                const key = c.programApplyId;
+                const checked = String(selectedApplyId) === String(key);
+
+                return (
+                  <label
+                    key={String(key)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      border: "1px solid #ddd",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      cursor: "pointer",
+                      background:
+                        String(myVotedApplyId) === String(key) ? "#f5fff5" : "#fff",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <input
+                        type="radio"
+                        name="candidate"
+                        checked={checked}
+                        onChange={() => setSelectedApplyId(key)}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 700 }}>{getCandidateTitle(c)}</div>
+                        <div style={{ opacity: 0.7, fontSize: 13 }}>
+                          후보ID: {String(key)} / userId: {c.userId}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ fontWeight: 700 }}>
+                      {c.voteCount}
+                      <span style={{ fontWeight: 400, opacity: 0.7 }}> 표</span>
+                    </div>
+                  </label>
+                );
+              })}
+          </div>
+
+          <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               onClick={onVote}
               disabled={voting}
@@ -289,18 +339,39 @@ export default function ContestVote() {
               {cancelling ? "취소 중..." : "투표 취소"}
             </button>
 
-            <button onClick={fetchResult} style={styles.ghostBtn}>
+            <button
+              onClick={async () => {
+                await fetchCandidatesOnce();
+                await fetchVoteResult();
+                showToast("새로고침 완료", "success");
+              }}
+              style={styles.ghostBtn}
+            >
               새로고침
             </button>
           </div>
         </>
       )}
 
-      {/* 디버깅용(필요 없으면 지워도 됨) */}
-      {resultRaw && (
-        <div style={{ marginTop: 18, opacity: 0.5, fontSize: 12 }}>
-          {/* eslint-disable-next-line react/no-unescaped-entities */}
-          resultRaw: (응답 형태 확인용) 콘솔로 확인하는 걸 권장
+      {/* ✅ 토스트 UI */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            left: "50%",
+            top: 80,
+            transform: "translateX(-50%)",
+            padding: "12px 16px",
+            borderRadius: 10,
+            background: toast.type === "success" ? "#1f2937" : "#b91c1c",
+            color: "#fff",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+            zIndex: 9999,
+            maxWidth: "90vw",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {toast.message}
         </div>
       )}
     </div>

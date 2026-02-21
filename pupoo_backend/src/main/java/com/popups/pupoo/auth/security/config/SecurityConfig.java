@@ -84,7 +84,19 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
             .requestMatchers("/swagger-ui/**").permitAll()
             .requestMatchers("/v3/api-docs/**").permitAll()
+
+            // 비회원 조회 허용(조회만 공개)
+            .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/events/*").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/programs").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/programs/*").permitAll()
+
+            // 콘테스트 결과 공개 조회
+            .requestMatchers(HttpMethod.GET, "/api/programs/*/votes/result").permitAll()
             .requestMatchers("/error").permitAll()
+            
+            // Program 
+            .requestMatchers(HttpMethod.GET, "/api/program-applies/programs/*/candidates").permitAll()
 
             // PUBLIC(비인증) 허용 범위: 조회(GET)만 (목록/상세로 제한)
             .requestMatchers(HttpMethod.GET, "/api/posts").permitAll()
