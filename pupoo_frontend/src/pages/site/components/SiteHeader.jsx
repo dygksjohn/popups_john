@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogIn, UserPlus } from "lucide-react";
+import { useAuth } from "../auth/AuthProvider";
 
 /* ─────────────────────────────────────────────
    ICONS
@@ -326,7 +327,7 @@ const MegaMenu = ({ menuData }) => {
         backdropFilter: "blur(12px)",
         borderTop: "1px solid #e0e0e0",
         boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-        zindex: 1000,
+        zIndex: 1000,
         padding: "40px 0 48px",
       }}
     >
@@ -552,12 +553,21 @@ const NavItem = ({
 /* ─────────────────────────────────────────────
    MAIN HEADER
 ───────────────────────────────────────────── */
-export default function pupooHeader() {
+export default function PupooHeader() {
   const [activeMenu, setActiveMenu] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef(null);
   const location = useLocation();
   const isHome = location.pathname === "/";
+  const navigate = useNavigate();
+
+  const { isAuthed, logout } = useAuth();
+
+  const handleLogout = async () => {
+  await logout();
+  setActiveMenu(null);
+  navigate("/");
+};
 
   /* Scroll detection */
   useEffect(() => {
@@ -615,7 +625,7 @@ export default function pupooHeader() {
             height: "70px",
             display: "flex",
             alignItems: "stretch",
-            zindex: 1000,
+            zIndex: 1000,
             /* Smooth background + shadow transition */
             backgroundColor: isWhiteMode
               ? "rgba(255,255,255,0.97)"
@@ -693,16 +703,49 @@ export default function pupooHeader() {
 
             {/* Right: Icons */}
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <IconButtonWithTooltip to="/auth/login" tooltip="로그인">
-                <LoginIcon color={iconColor} />
-              </IconButtonWithTooltip>
+              {!isAuthed ? (
+                <>
+                  <IconButtonWithTooltip to="/auth/login" tooltip="로그인">
+                    <LoginIcon color={iconColor} />
+                  </IconButtonWithTooltip>
 
-              <IconButtonWithTooltip
-                to="/auth/join/joinselect"
-                tooltip="회원가입"
-              >
-                <SignupIcon color={iconColor} />
-              </IconButtonWithTooltip>
+                  <IconButtonWithTooltip
+                    to="/auth/join/joinselect"
+                    tooltip="회원가입"
+                  >
+                    <SignupIcon color={iconColor} />
+                  </IconButtonWithTooltip>
+                </>
+              ) : (
+                <>
+                  <IconButtonWithTooltip to="/mypage" tooltip="마이페이지">
+                    {/* 기존 lucide-react import 이미 있어서 사용 가능 */}
+                    <UserPlus color={iconColor} size={24} />
+                  </IconButtonWithTooltip>
+
+                  {/* 로그아웃은 Link로 감싸면 안됨. 버튼 클릭으로 처리 */}
+                  <div style={{ position: "relative", display: "inline-block" }}>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="pupoo-icon-btn"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px",
+                      }}
+                      title="로그아웃"
+                    >
+                      <LogIn
+                        color={iconColor}
+                        size={24}
+                        style={{ transform: "rotate(180deg)" }}
+                      />
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
@@ -715,7 +758,7 @@ export default function pupooHeader() {
               top: "70px",
               left: 0,
               right: 0,
-              zindex: 1000,
+              zIndex: 1000,
             }}
           >
             <MegaMenu menuData={megaMenuData[activeMenu]} />

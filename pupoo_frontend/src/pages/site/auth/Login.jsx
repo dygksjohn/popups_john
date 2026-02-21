@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "./api/authApi";
 import { tokenStore } from "../../../app/http/tokenStore";
+import { useAuth } from "./AuthProvider";
 
 // ── Social button (reusable) ──────────────────────────────────────────────────
 const SocialButton = ({ onClick, style, children }) => {
@@ -91,6 +92,7 @@ const FloatingShape = ({ style }) => (
 // ── Main LoginPage component ──────────────────────────────────────────────────
 const LoginPage = ({ leftBgImage = null }) => {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   useEffect(() => {
     document.body.classList.add("light-header");
@@ -125,6 +127,7 @@ const LoginPage = ({ leftBgImage = null }) => {
       }
 
       tokenStore.setAccess(accessToken);
+      login();            // ✅ 전역 인증 상태 true -> 헤더 즉시 전환
       navigate("/");
     } catch (e) {
       setError(e?.response?.data?.message ?? e?.message ?? "로그인 실패");
@@ -435,7 +438,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    navigate("/join"); // ✅ 라우트에 맞게 조정
+                    navigate("/auth/join/joinselect"); // ✅ 라우트에 맞게 조정
                   }}
                   style={{
                     fontSize: 13,
