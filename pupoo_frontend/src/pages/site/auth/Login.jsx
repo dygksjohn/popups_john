@@ -99,8 +99,42 @@ const LoginPage = ({ leftBgImage = null }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
 
-  const handleLogin = () => {
-    console.log("Login attempt:", { userId, rememberMe });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleLogin = async () => {
+    if (loading) return;
+
+    setError("");
+
+    if (!email.trim()) return setError("이메일을 입력하세요.");
+    if (!password) return setError("비밀번호를 입력하세요.");
+
+    setLoading(true);
+    try {
+      const res = await authApi.login({ email, password });
+      const accessToken = res?.accessToken;
+
+      if (!accessToken) {
+        throw new Error("로그인 응답에 accessToken이 없습니다.");
+      }
+
+      tokenStore.setAccess(accessToken);
+      login(); // ✅ 전역 인증 상태 true -> 헤더 즉시 전환
+
+      navigate("/");
+    } catch (e) {
+      setError(e?.response?.data?.message ?? e?.message ?? "로그인 실패");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleLogin();
+    }
   };
 
   const inputStyle = (fieldName) => ({
@@ -451,15 +485,10 @@ const LoginPage = ({ leftBgImage = null }) => {
                 <div style={{ flex: 1, height: 1, background: "#E8EDF5" }} />
               </div>
 
-              {/* ─── Social buttons ─── */}
+              {/* Social buttons */}
               <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                }}
+                style={{ display: "flex", flexDirection: "column", gap: 10 }}
               >
-                {/* Kakao */}
                 <SocialButton
                   onClick={() => console.log("Kakao login")}
                   style={{
