@@ -549,7 +549,7 @@ export default function PaymentHistory({ onNavigate }) {
       <style>{styles}</style>
 
       <PageHeader
-        title="참가신청"
+        title="결제 내역"
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}

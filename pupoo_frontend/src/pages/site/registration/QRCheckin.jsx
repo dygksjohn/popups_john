@@ -168,7 +168,7 @@ export default function QRCheckin({ onNavigate }) {
       <style>{styles}</style>
 
       <PageHeader
-        title="참가신청"
+        title="QR 체크인"
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}

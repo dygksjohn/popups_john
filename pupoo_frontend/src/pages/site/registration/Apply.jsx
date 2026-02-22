@@ -1108,7 +1108,7 @@ export default function EventRegistration() {
       <style>{styles}</style>
 
       <PageHeader
-        title="참가신청"
+        title="행사 참가 신청"
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}

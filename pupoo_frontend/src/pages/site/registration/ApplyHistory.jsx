@@ -15,8 +15,21 @@ import {
   MessageSquare,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import { SERVICE_CATEGORIES, SUBTITLE_MAP } from "./Apply";
 
+const SERVICE_CATEGORIES = [
+  { label: "행사 참가 신청", path: "/registration/apply" },
+  { label: "신청 내역 조회", path: "/registration/applyhistory" },
+  { label: "결제 내역", path: "/registration/paymenthistory" },
+  { label: "QR 체크인", path: "/registration/qrcheckin" },
+];
+
+const SUBTITLE_MAP = {
+  "/registration/apply": "행사에 참가 신청하세요",
+  "/registration/applyhistory": "나의 행사 참가 신청 이력을 확인하세요",
+  "/registration/paymenthistory": "결제 완료된 내역을 확인하세요",
+  "/registration/qrcheckin":
+    "행사 당일 QR 코드를 제시하거나 신청번호를 입력하세요",
+};
 const RECORDS = [
   {
     id: "REG-2026-003847",
@@ -378,7 +391,7 @@ export default function ApplyHistory({ onNavigate, isLoggedIn = false }) {
       )}
 
       <PageHeader
-        title="참가신청"
+        title="신청 내역 조회"
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
