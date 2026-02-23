@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/common/util/HashUtil.java
+// file: src/main/java/com/popups/pupoo/common/util/HashUtil.java
 package com.popups.pupoo.common.util;
 
 import java.nio.charset.StandardCharsets;

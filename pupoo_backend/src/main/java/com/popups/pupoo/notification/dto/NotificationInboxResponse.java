@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/notification/dto/NotificationInboxResponse.java
 package com.popups.pupoo.notification.dto;
 
 import com.popups.pupoo.notification.domain.enums.InboxTargetType;

@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/user/social/application/SocialAccountService.java
+// file: src/main/java/com/popups/pupoo/user/social/application/SocialAccountService.java
 package com.popups.pupoo.user.social.application;
 
 import com.popups.pupoo.common.exception.BusinessException;

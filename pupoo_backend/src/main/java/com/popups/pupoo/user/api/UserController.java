@@ -1,8 +1,9 @@
-// 파일 위치: src/main/java/com/popups/pupoo/user/api/UserController.java
+// file: src/main/java/com/popups/pupoo/user/api/UserController.java
 package com.popups.pupoo.user.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.user.application.UserService;
 import com.popups.pupoo.user.dto.UserMeResponse;
 import com.popups.pupoo.user.dto.UserUpdateRequest;
@@ -46,9 +47,9 @@ public class UserController {
      * - 정책: soft delete (status 변경)
      */
     @DeleteMapping("/me")
-    public ApiResponse<Void> deleteMe() {
+    public ApiResponse<MessageResponse> deleteMe() {
         Long userId = securityUtil.currentUserId();
         userService.deleteMe(userId);
-        return ApiResponse.success(null);
+        return ApiResponse.success(new MessageResponse("USER_DEACTIVATED"));
     }
 }

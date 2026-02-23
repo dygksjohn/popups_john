@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/auth/security/config/SecurityBeansConfig.java
 package com.popups.pupoo.auth.security.config;
 
 import org.springframework.context.annotation.Bean;

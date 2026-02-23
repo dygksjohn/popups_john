@@ -1,6 +1,7 @@
-// 파일 위치: src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
+// file: src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
 package com.popups.pupoo.auth.security.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popups.pupoo.auth.security.authentication.filter.JwtAuthenticationFilter;
 import com.popups.pupoo.auth.security.handler.JwtAccessDeniedHandler;
 import com.popups.pupoo.auth.security.handler.JwtAuthenticationEntryPoint;
@@ -24,9 +25,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtProvider jwtProvider;
+    private final ObjectMapper objectMapper;
 
-    public SecurityConfig(JwtProvider jwtProvider) {
+    public SecurityConfig(JwtProvider jwtProvider, ObjectMapper objectMapper) {
         this.jwtProvider = jwtProvider;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -38,11 +41,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // ✅ allowCredentials=true면 "*" 불가 → 개발환경 포트가 바뀌니 patterns 추천
-        config.setAllowedOriginPatterns(List.of(
-            "http://localhost:5173",
-            "http://localhost:5174"
-        ));
+        // allowCredentials=true면 "*" 불가 → origin 명시 필요
+        config.setAllowedOrigins(List.of("http://localhost:5173"));
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
@@ -73,22 +73,40 @@ public class SecurityConfig {
             //  CORS Preflight 허용(프론트 연동 시 403 방지)
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-            //  회원가입/인증
-            .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
+            // 인증/회원가입(인증 기능은 예외적으로 공개)
+            .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/signup/**").permitAll()
 
-            // auth 하위는 전부 공개(로그인/리프레시/로그아웃/인증 등)
-            .requestMatchers("/api/auth/**").permitAll()
-
-            // health check(원하면 permitAll로 바꿔도 됨)
-            .requestMatchers(HttpMethod.GET, "/api/auth/secure-ping").authenticated()
-
-            //  비회원 조회 허용
-            .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/programs/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/programs/**/votes/result").permitAll()
+            // 운영/문서
+            .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()
+            .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+            .requestMatchers("/swagger-ui/**").permitAll()
+            .requestMatchers("/v3/api-docs/**").permitAll()
             .requestMatchers("/error").permitAll()
 
+            // PUBLIC(비인증) 허용 범위: 조회(GET)만 (목록/상세로 제한)
+            .requestMatchers(HttpMethod.GET, "/api/posts").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/posts/*").permitAll()
+
+            .requestMatchers(HttpMethod.GET, "/api/notices").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/notices/*").permitAll()
+
+            .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/events/*").permitAll()
+
+            .requestMatchers(HttpMethod.GET, "/api/programs").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/programs/*").permitAll()
+
+            .requestMatchers(HttpMethod.GET, "/api/speakers").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/speakers/*").permitAll()
+
+            .requestMatchers(HttpMethod.GET, "/api/booths").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/booths/*").permitAll()
+
             //  USER 가능
+
             // DB에 ROLE_ROLE_USER가 들어가 있다면 아래처럼 둘 다 허용해야 함
             .requestMatchers(HttpMethod.POST, "/api/event-registrations")
                 .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
@@ -97,16 +115,11 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations")
                 .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
 
-            //  카카오페이 콜백은 인증 없이 허용
-            .requestMatchers(HttpMethod.GET,  "/api/payments/*/approve").permitAll()
-            .requestMatchers(HttpMethod.POST, "/api/payments/*/cancel").permitAll()
-            .requestMatchers(HttpMethod.GET,  "/api/payments/*/fail").permitAll()
-
             .anyRequest().authenticated()
         );
 
         http.addFilterBefore(
-            new JwtAuthenticationFilter(jwtProvider),
+            new JwtAuthenticationFilter(jwtProvider, objectMapper),
             UsernamePasswordAuthenticationFilter.class
         );
 

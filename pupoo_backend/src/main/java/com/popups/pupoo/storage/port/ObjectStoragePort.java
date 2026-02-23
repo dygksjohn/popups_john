@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/storage/port/ObjectStoragePort.java
 package com.popups.pupoo.storage.port;
 
 import java.io.InputStream;

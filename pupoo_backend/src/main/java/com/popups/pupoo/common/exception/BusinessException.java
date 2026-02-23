@@ -1,7 +1,9 @@
-// 파일 위치: src/main/java/com/popups/pupoo/common/exception/BusinessException.java
+// file: src/main/java/com/popups/pupoo/common/exception/BusinessException.java
 package com.popups.pupoo.common.exception;
 
 public class BusinessException extends RuntimeException {
+
+    private static final long serialVersionUID = 1L;
 
     private final ErrorCode errorCode;
 

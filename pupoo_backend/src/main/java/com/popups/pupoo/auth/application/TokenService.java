@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/auth/application/TokenService.java
+// file: src/main/java/com/popups/pupoo/auth/application/TokenService.java
 package com.popups.pupoo.auth.application;
 
 import com.popups.pupoo.auth.token.JwtProvider;

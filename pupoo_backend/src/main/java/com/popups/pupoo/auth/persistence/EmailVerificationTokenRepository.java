@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/auth/persistence/EmailVerificationTokenRepository.java
+// file: src/main/java/com/popups/pupoo/auth/persistence/EmailVerificationTokenRepository.java
 package com.popups.pupoo.auth.persistence;
 
 import com.popups.pupoo.auth.domain.model.EmailVerificationToken;

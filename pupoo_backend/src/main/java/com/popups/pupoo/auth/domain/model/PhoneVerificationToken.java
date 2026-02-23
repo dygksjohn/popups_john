@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/auth/domain/model/PhoneVerificationToken.java
+// file: src/main/java/com/popups/pupoo/auth/domain/model/PhoneVerificationToken.java
 package com.popups.pupoo.auth.domain.model;
 
 import jakarta.persistence.*;

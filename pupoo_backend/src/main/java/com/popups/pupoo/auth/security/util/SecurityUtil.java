@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/auth/security/util/SecurityUtil.java
+// file: src/main/java/com/popups/pupoo/auth/security/util/SecurityUtil.java
 package com.popups.pupoo.auth.security.util;
 
 import com.popups.pupoo.common.exception.BusinessException;

@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/notification/domain/model/NotificationInbox.java
 package com.popups.pupoo.notification.domain.model;
 
 import com.popups.pupoo.notification.domain.enums.InboxTargetType;
@@ -44,7 +45,7 @@ public class NotificationInbox {
     private LocalDateTime createdAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "target_type", length = 20)
+    @Column(name = "target_type", length = 20, columnDefinition = "ENUM('EVENT','NOTICE')")
     private InboxTargetType targetType;
 
     @Column(name = "target_id")

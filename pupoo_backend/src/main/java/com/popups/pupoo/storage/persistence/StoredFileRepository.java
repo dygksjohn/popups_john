@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/storage/persistence/StoredFileRepository.java
 package com.popups.pupoo.storage.persistence;
 
 import com.popups.pupoo.storage.domain.model.StoredFile;

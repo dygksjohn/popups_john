@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/notification/domain/model/NotificationSend.java
 package com.popups.pupoo.notification.domain.model;
 
 import com.popups.pupoo.notification.domain.enums.NotificationChannel;
@@ -40,11 +41,11 @@ public class NotificationSend {
     private Long senderId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "sender_type", nullable = false, length = 20)
+    @Column(name = "sender_type", nullable = false, length = 20, columnDefinition = "ENUM('USER','ADMIN','SYSTEM')")
     private SenderType senderType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "channel", nullable = false, length = 20)
+    @Column(name = "channel", nullable = false, length = 20, columnDefinition = "ENUM('APP','EMAIL','SMS','PUSH')")
     private NotificationChannel channel;
 
     @Column(name = "sent_at", nullable = false, insertable = false, updatable = false)

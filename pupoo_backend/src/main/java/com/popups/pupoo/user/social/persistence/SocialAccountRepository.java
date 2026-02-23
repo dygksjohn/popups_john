@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/user/social/persistence/SocialAccountRepository.java
+// file: src/main/java/com/popups/pupoo/user/social/persistence/SocialAccountRepository.java
 package com.popups.pupoo.user.social.persistence;
 
 import com.popups.pupoo.user.social.domain.enums.SocialProvider;

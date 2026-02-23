@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/storage/infrastructure/StorageKeyGenerator.java
 package com.popups.pupoo.storage.infrastructure;
 
 import com.popups.pupoo.common.exception.BusinessException;

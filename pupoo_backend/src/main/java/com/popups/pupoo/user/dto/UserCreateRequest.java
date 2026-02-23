@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/user/dto/UserCreateRequest.java
+// file: src/main/java/com/popups/pupoo/user/dto/UserCreateRequest.java
 package com.popups.pupoo.user.dto;
 
 import jakarta.validation.constraints.Email;

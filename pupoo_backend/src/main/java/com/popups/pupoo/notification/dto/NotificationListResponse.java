@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/notification/dto/NotificationListResponse.java
 package com.popups.pupoo.notification.dto;
 
 import lombok.Getter;

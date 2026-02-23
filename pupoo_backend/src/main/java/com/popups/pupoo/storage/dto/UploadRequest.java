@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/storage/dto/UploadRequest.java
 package com.popups.pupoo.storage.dto;
 
 import com.popups.pupoo.common.exception.BusinessException;

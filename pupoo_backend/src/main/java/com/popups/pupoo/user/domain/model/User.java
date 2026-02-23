@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/user/domain/model/User.java
+// file: src/main/java/com/popups/pupoo/user/domain/model/User.java
 package com.popups.pupoo.user.domain.model;
 
 import com.popups.pupoo.user.domain.enums.RoleName;

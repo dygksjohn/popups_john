@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/notification/domain/model/Notification.java
 package com.popups.pupoo.notification.domain.model;
 
 import com.popups.pupoo.notification.domain.enums.NotificationType;
@@ -31,7 +32,7 @@ public class Notification {
     private Long notificationId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, length = 20)
+    @Column(name = "type", nullable = false, length = 20, columnDefinition = "ENUM('EVENT','EVENT_INFO','NOTICE','PAYMENT','APPLY','SYSTEM')")
     private NotificationType type;
 
     @Column(name = "notification_title", nullable = false, length = 255)

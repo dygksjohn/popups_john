@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/storage/application/LocalFileStorageService.java
 package com.popups.pupoo.storage.application;
 
 import com.popups.pupoo.common.exception.BusinessException;

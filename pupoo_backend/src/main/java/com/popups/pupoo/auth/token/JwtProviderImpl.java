@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/auth/token/JwtProviderImpl.java
+// file: src/main/java/com/popups/pupoo/auth/token/JwtProviderImpl.java
 package com.popups.pupoo.auth.token;
 
 import java.nio.charset.StandardCharsets;
@@ -8,6 +8,9 @@ import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -90,7 +93,8 @@ public class JwtProviderImpl implements JwtProvider {
         Claims claims = parseClaims(token);
         Object role = claims.get("role");
         if (role == null) {
-            throw new IllegalArgumentException("Role claim not found (likely refresh token)");
+            // 기능: access 토큰에서 role claim 누락
+            throw new BusinessException(ErrorCode.JWT_INVALID);
         }
         return String.valueOf(role);
     }
@@ -104,7 +108,8 @@ public class JwtProviderImpl implements JwtProvider {
                     .parseClaimsJws(token)
                     .getBody();
         } catch (JwtException e) {
-            throw new IllegalArgumentException("JWT invalid", e);
+            // 기능: JWT 파싱/검증 실패
+            throw new BusinessException(ErrorCode.JWT_INVALID);
         }
     }
 }

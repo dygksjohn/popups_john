@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/pet/application/PetServiceImpl.java
+// file: src/main/java/com/popups/pupoo/pet/application/PetServiceImpl.java
 package com.popups.pupoo.pet.application;
 
 import com.popups.pupoo.common.exception.BusinessException;

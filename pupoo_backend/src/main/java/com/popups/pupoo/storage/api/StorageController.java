@@ -1,6 +1,8 @@
+// file: src/main/java/com/popups/pupoo/storage/api/StorageController.java
 package com.popups.pupoo.storage.api;
 
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.IdResponse;
 import com.popups.pupoo.storage.application.StorageService;
 import com.popups.pupoo.storage.dto.FileResponse;
 import com.popups.pupoo.storage.dto.UploadRequest;
@@ -69,8 +71,8 @@ public class StorageController {
      * - 실제 저장된 파일 삭제
      */
     @DeleteMapping("/{fileId}")
-    public ApiResponse<Void> delete(@PathVariable Long fileId) {
+    public ApiResponse<IdResponse> delete(@PathVariable Long fileId) {
         storageService.delete(fileId);
-        return ApiResponse.success(null);
+        return ApiResponse.success(new IdResponse(fileId));
     }
 }

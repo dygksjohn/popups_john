@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/auth/api/AuthVerificationController.java
+// file: src/main/java/com/popups/pupoo/auth/api/AuthVerificationController.java
 package com.popups.pupoo.auth.api;
 
 import com.popups.pupoo.auth.application.EmailVerificationService;
@@ -9,6 +9,7 @@ import com.popups.pupoo.auth.dto.PhoneVerificationRequest;
 import com.popups.pupoo.auth.dto.PhoneVerificationRequestResponse;
 import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.MessageResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -58,9 +59,9 @@ public class AuthVerificationController {
      * - EndpointPolicy.PUBLIC_ENDPOINTS에 /api/auth/**가 포함되어 있어 public 접근을 허용한다.
      */
     @GetMapping("/api/auth/email/verification/confirm")
-    public ApiResponse<Void> confirmEmailVerification(@RequestParam("token") String token) {
+    public ApiResponse<MessageResponse> confirmEmailVerification(@RequestParam("token") String token) {
         emailVerificationService.confirmEmailVerification(token);
-        return ApiResponse.success(null);
+        return ApiResponse.success(new MessageResponse("EMAIL_VERIFIED"));
     }
 
     /**
@@ -76,9 +77,9 @@ public class AuthVerificationController {
      * 휴대폰 OTP 확인
      */
     @PostMapping("/api/users/me/phone-verification/confirm")
-    public ApiResponse<Void> confirmPhoneVerification(@Valid @RequestBody PhoneVerificationConfirmRequest request) {
+    public ApiResponse<MessageResponse> confirmPhoneVerification(@Valid @RequestBody PhoneVerificationConfirmRequest request) {
         Long userId = securityUtil.currentUserId();
         phoneVerificationService.confirmPhoneVerification(userId, request);
-        return ApiResponse.success(null);
+        return ApiResponse.success(new MessageResponse("PHONE_VERIFIED"));
     }
 }

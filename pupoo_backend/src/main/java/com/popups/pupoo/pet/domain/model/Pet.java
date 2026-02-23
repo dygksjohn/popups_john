@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/pet/domain/model/Pet.java
+// file: src/main/java/com/popups/pupoo/pet/domain/model/Pet.java
 package com.popups.pupoo.pet.domain.model;
 
 import com.popups.pupoo.pet.domain.enums.AnimalType;
@@ -32,14 +32,14 @@ public class Pet {
     private String petName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "pet_breed")
+    @Column(name = "pet_breed", columnDefinition = "ENUM('DOG','CAT','OTHER')")
     private AnimalType petBreed;
 
     @Column(name = "pet_age")
     private Integer petAge;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "pet_weight")
+    @Column(name = "pet_weight", columnDefinition = "ENUM('XS','S','M','L','XL')")
     private PetWeight petWeight;
 
     protected Pet() {

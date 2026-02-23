@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/auth/application/AuthService.java
+// file: src/main/java/com/popups/pupoo/auth/application/AuthService.java
 package com.popups.pupoo.auth.application;
 
 import com.popups.pupoo.auth.domain.model.RefreshToken;
@@ -7,14 +7,17 @@ import com.popups.pupoo.auth.dto.LoginResponse;
 import com.popups.pupoo.auth.dto.TokenResponse;
 import com.popups.pupoo.auth.persistence.RefreshTokenRepository;
 import com.popups.pupoo.auth.token.JwtProvider;
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.user.application.UserService;
 import com.popups.pupoo.user.domain.enums.UserStatus;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.dto.UserCreateRequest;
 import com.popups.pupoo.user.persistence.UserRepository;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -106,12 +109,14 @@ public class AuthService {
     @Transactional
     public LoginResponse login(LoginRequest req, HttpServletResponse response) {
         User user = userRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                // 기능: 로그인 대상 사용자 조회
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         validateUserStatusForAuth(user);
 
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("Invalid credentials");
+            // 기능: 로그인 실패(자격 증명 불일치)
+            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
         user.setLastLoginAt(LocalDateTime.now());
@@ -142,18 +147,21 @@ public class AuthService {
     @Transactional
     public TokenResponse refreshToken(String refreshToken, HttpServletResponse response) {
         if (refreshToken == null || refreshToken.isBlank()) {
-            throw new IllegalArgumentException("Refresh token missing");
+            // 기능: refresh cookie 미존재
+            throw new BusinessException(ErrorCode.REFRESH_TOKEN_MISSING);
         }
 
         RefreshToken stored = refreshTokenRepository.findByToken(refreshToken)
-                .orElseThrow(() -> new IllegalArgumentException("Refresh token invalid"));
+                // 기능: refresh token 저장소 미존재
+                .orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_INVALID));
 
         jwtProvider.validateRefreshToken(refreshToken);
 
         Long userId = jwtProvider.getUserId(refreshToken);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                // 기능: refresh 대상 사용자 조회
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         validateUserStatusForAuth(user);
 
@@ -199,32 +207,41 @@ public class AuthService {
     private void validateUserStatusForAuth(User user) {
         UserStatus status = user.getStatus();
         if (status == null) {
-            throw new IllegalArgumentException("Invalid user status");
+            // 기능: 사용자 상태값 비정상
+            throw new BusinessException(ErrorCode.USER_STATUS_INVALID);
         }
 
         if (status == UserStatus.INACTIVE) {
-            throw new IllegalArgumentException("Inactive user");
+            // 기능: 비활성 사용자 접근 차단
+            throw new BusinessException(ErrorCode.USER_INACTIVE);
         }
         if (status == UserStatus.SUSPENDED) {
-            throw new IllegalArgumentException("Suspended user");
+            // 기능: 정지 사용자 접근 차단
+            throw new BusinessException(ErrorCode.USER_SUSPENDED);
         }
     }
 
     private void setRefreshCookie(HttpServletResponse response, String token) {
-        Cookie cookie = new Cookie(REFRESH_COOKIE_NAME, token);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(refreshCookieSecure);
-        cookie.setPath("/");
-        cookie.setMaxAge(refreshCookieMaxAgeSeconds);
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, token)
+                .httpOnly(true)
+                .secure(refreshCookieSecure)
+                .path("/api/auth")
+                .sameSite("Lax")
+                .maxAge(refreshCookieMaxAgeSeconds)
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     private void expireRefreshCookie(HttpServletResponse response) {
-        Cookie cookie = new Cookie(REFRESH_COOKIE_NAME, "");
-        cookie.setHttpOnly(true);
-        cookie.setSecure(refreshCookieSecure);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
+                .httpOnly(true)
+                .secure(refreshCookieSecure)
+                .path("/api/auth")
+                .sameSite("Lax")
+                .maxAge(0)
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }

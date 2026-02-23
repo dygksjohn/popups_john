@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/notification/infrastructure/InAppNotificationSender.java
+// file: src/main/java/com/popups/pupoo/notification/infrastructure/InAppNotificationSender.java
 package com.popups.pupoo.notification.infrastructure;
 
 import com.popups.pupoo.notification.port.NotificationSender;

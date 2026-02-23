@@ -1,7 +1,9 @@
+// file: src/main/java/com/popups/pupoo/common/exception/GlobalExceptionHandler.java
 package com.popups.pupoo.common.exception;
 
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.ErrorResponse;
+import com.popups.pupoo.common.api.FieldErrorItem;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     private static final String UK_PAYMENTS_EVENT_USER_ACTIVE = "uk_payments_event_user_active";
+    private static final String UK_REFUNDS_PAYMENT_ID = "uk_refunds_payment_id";
+    private static final String UK_CONTEST_VOTES_ACTIVE = "uk_contest_votes_active";
+    private static final String UK_PAYMENT_TX_PAYMENT_ID = "uk_payment_transactions_payment_id";
+    private static final String UK_PAYMENT_TX_PROVIDER_TID = "uk_payment_transactions_provider_tid";
+    private static final String UK_PAYMENTS_ORDER_NO = "uk_payments_order_no";
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e, HttpServletRequest request) {
@@ -35,6 +42,13 @@ public class GlobalExceptionHandler {
                 ErrorCode.VALIDATION_FAILED.getStatus().value(),
                 request.getRequestURI()
         );
+
+        // fieldErrors 채우기(정책: 필드 에러 포함)
+        body.setFieldErrors(
+                e.getBindingResult().getFieldErrors().stream()
+                        .map(err -> new FieldErrorItem(err.getField(), err.getDefaultMessage()))
+                        .toList()
+        );
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getStatus()).body(ApiResponse.fail(body));
     }
 
@@ -42,11 +56,42 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException e, HttpServletRequest request) {
         String root = rootMessage(e);
+        String lower = (root == null) ? "" : root.toLowerCase();
 
         // payments(event_id, user_id, active_flag) UNIQUE 충돌 → 활성 결제 중복
-        if (root != null && root.toLowerCase().contains("uk_payments_event_user_active")) {
+        if (lower.contains(UK_PAYMENTS_EVENT_USER_ACTIVE)) {
             ErrorCode ec = ErrorCode.PAYMENT_DUPLICATE_ACTIVE;
             return build(request, ec, ec.getStatus(), ec.getMessage());
+        }
+
+        // refunds(payment_id) UNIQUE 충돌 → 결제 1건당 환불 1건 정책 위반
+        if (lower.contains(UK_REFUNDS_PAYMENT_ID)) {
+            ErrorCode ec = ErrorCode.REFUND_ALREADY_EXISTS;
+            return build(request, ec, ec.getStatus(), ec.getMessage());
+        }
+
+        // contest_votes(program_id, user_id, active_flag) UNIQUE 충돌 → 중복 투표
+        if (lower.contains(UK_CONTEST_VOTES_ACTIVE)) {
+            ErrorCode ec = ErrorCode.CONTEST_VOTE_ALREADY;
+            return build(request, ec, ec.getStatus(), ec.getMessage());
+        }
+
+        // payment_transactions UNIQUE 충돌 → 결제 트랜잭션 중복(멱등성)
+        if (lower.contains(UK_PAYMENT_TX_PAYMENT_ID) || lower.contains(UK_PAYMENT_TX_PROVIDER_TID)) {
+            ErrorCode ec = ErrorCode.PAYMENT_TX_ALREADY_EXISTS;
+            return build(request, ec, ec.getStatus(), ec.getMessage());
+        }
+
+        // payments(order_no) UNIQUE 충돌 → 주문번호 중복
+        if (lower.contains(UK_PAYMENTS_ORDER_NO)) {
+            ErrorCode ec = ErrorCode.DUPLICATE_RESOURCE;
+            return build(request, ec, ec.getStatus(), "Duplicate order_no");
+        }
+
+        // 그 외 "Duplicate entry"는 공통 409로 정규화
+        if (lower.contains("duplicate entry")) {
+            ErrorCode ec = ErrorCode.DUPLICATE_RESOURCE;
+            return build(request, ec, ec.getStatus(), "Duplicate entry");
         }
 
         // 그 외 DB 무결성(기본 400 처리)

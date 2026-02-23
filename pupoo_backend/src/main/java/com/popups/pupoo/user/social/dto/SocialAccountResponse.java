@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/user/social/dto/SocialAccountResponse.java
+// file: src/main/java/com/popups/pupoo/user/social/dto/SocialAccountResponse.java
 package com.popups.pupoo.user.social.dto;
 
 import com.popups.pupoo.user.social.domain.model.SocialAccount;

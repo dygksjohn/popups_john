@@ -1,8 +1,9 @@
-// 파일 위치: src/main/java/com/popups/pupoo/pet/api/PetController.java
+// file: src/main/java/com/popups/pupoo/pet/api/PetController.java
 package com.popups.pupoo.pet.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.pet.application.PetService;
 import com.popups.pupoo.pet.dto.PetCreateRequest;
 import com.popups.pupoo.pet.dto.PetMeResponse;
@@ -61,13 +62,13 @@ public class PetController {
      * - @Valid로 DTO 검증 수행
      */
     @PatchMapping("/{petId}")
-    public ApiResponse<Void> update(
+    public ApiResponse<PetMeResponse> update(
             @PathVariable Long petId,
             @Valid @RequestBody PetUpdateRequest request
     ) {
         Long userId = securityUtil.currentUserId();
         petService.update(userId, petId, request);
-        return ApiResponse.success(null);
+        return ApiResponse.success(petService.getMe(userId));
     }
 
     /**
@@ -77,10 +78,9 @@ public class PetController {
      *   (soft delete 필요 시: is_deleted/status 컬럼 추가 후 delete 로직 변경)
      */
     @DeleteMapping("/{petId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public ApiResponse<Void> delete(@PathVariable Long petId) {
+    public ApiResponse<MessageResponse> delete(@PathVariable Long petId) {
         Long userId = securityUtil.currentUserId();
         petService.delete(userId, petId);
-        return ApiResponse.success(null);
+        return ApiResponse.success(new MessageResponse("PET_DELETED"));
     }
 }

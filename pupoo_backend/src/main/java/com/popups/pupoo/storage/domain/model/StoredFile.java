@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/storage/domain/model/StoredFile.java
 package com.popups.pupoo.storage.domain.model;
 
 import jakarta.persistence.*;

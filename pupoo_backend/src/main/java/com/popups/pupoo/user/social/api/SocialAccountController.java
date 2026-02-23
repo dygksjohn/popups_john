@@ -1,7 +1,8 @@
-// 파일 위치: src/main/java/com/popups/pupoo/user/social/api/SocialAccountController.java
+// file: src/main/java/com/popups/pupoo/user/social/api/SocialAccountController.java
 package com.popups.pupoo.user.social.api;
 
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.user.social.application.SocialAccountService;
 import com.popups.pupoo.user.social.dto.SocialAccountResponse;
 import com.popups.pupoo.user.social.dto.SocialLinkRequest;
@@ -48,11 +49,11 @@ public class SocialAccountController {
      * 🔹 소셜 계정 해제
      */
     @DeleteMapping("/unlink")
-    public ApiResponse<Void> unlinkSocialAccount(
+    public ApiResponse<MessageResponse> unlinkSocialAccount(
             @RequestBody SocialUnlinkRequest request
     ) {
         Long userId = securityUtil.getCurrentUserId();
         socialAccountService.unlink(userId, request);
-        return ApiResponse.success(null);
+        return ApiResponse.success(new MessageResponse("SOCIAL_UNLINKED"));
     }
 }

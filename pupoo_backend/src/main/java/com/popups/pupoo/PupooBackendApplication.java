@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/PupooBackendApplication.java
 package com.popups.pupoo;
 
 import com.popups.pupoo.payment.infrastructure.KakaoPayProperties;

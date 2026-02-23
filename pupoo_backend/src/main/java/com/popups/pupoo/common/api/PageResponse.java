@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/common/api/PageResponse.java
+// file: src/main/java/com/popups/pupoo/common/api/PageResponse.java
 package com.popups.pupoo.common.api;
 
 import org.springframework.data.domain.Page;

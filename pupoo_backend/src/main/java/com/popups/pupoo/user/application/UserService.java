@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/user/application/UserService.java
+// file: src/main/java/com/popups/pupoo/user/application/UserService.java
 package com.popups.pupoo.user.application;
 
 import com.popups.pupoo.user.domain.enums.RoleName;
@@ -117,5 +117,43 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
 
         user.setStatus(UserStatus.INACTIVE);
+    }
+
+    /**
+     * 회원가입 세션(OTP 선검증) 기반 사용자 생성
+     * - passwordHash는 이미 BCrypt 해시된 값이어야 한다.
+     * - 본 메서드는 해시를 재인코딩하지 않는다.
+     */
+    @Transactional
+    public User createWithPasswordHash(UserCreateRequest req, String passwordHash) {
+
+        if (userRepository.existsByEmail(req.getEmail())) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+        if (userRepository.existsByPhone(req.getPhone())) {
+            throw new IllegalArgumentException("Phone already exists");
+        }
+        if (userRepository.existsByNickname(req.getNickname())) {
+            throw new IllegalArgumentException("Nickname already exists");
+        }
+
+        if (passwordHash == null || passwordHash.isBlank()) {
+            throw new IllegalArgumentException("Password hash missing");
+        }
+
+        User user = new User();
+        user.setEmail(req.getEmail());
+        user.setPassword(passwordHash);
+        user.setNickname(req.getNickname());
+        user.setPhone(req.getPhone());
+
+        user.setStatus(UserStatus.ACTIVE);
+        user.setRoleName(RoleName.USER);
+
+        user.setShowAge(req.isShowAge());
+        user.setShowGender(req.isShowGender());
+        user.setShowPet(req.isShowPet());
+
+        return userRepository.save(user);
     }
 }

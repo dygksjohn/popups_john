@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/auth/domain/model/RefreshToken.java
 package com.popups.pupoo.auth.domain.model;
 
 import jakarta.persistence.*;
