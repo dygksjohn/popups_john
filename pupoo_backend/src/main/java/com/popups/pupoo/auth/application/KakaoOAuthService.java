@@ -14,13 +14,9 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import java.util.Map;
 
-
-
 @Slf4j
 @Service
 public class KakaoOAuthService {
-	
-	
 
     private final WebClient webClient;
 
@@ -37,18 +33,42 @@ public class KakaoOAuthService {
         this.webClient = builder.build();
     }
 
-    public KakaoExchangeResponse exchange(String code) {
+    
+    
+    public KakaoExchangeResponse exchange(String code) {	
+    	
+    	// ✅ 배포/반영 확인용 (한 번만 확인 후 제거)
+        log.warn("[KAKAO][DEPLOY] KakaoOAuthService.exchange invoked");
+
+        // ✅ 설정값 디버깅 (민감정보 최소 노출)    	
+    	log.warn("[KAKAO][DEBUG] props check: clientIdPrefix={}, redirectUri={}, secretLen={}, secretHead={}",
+                mask(clientId, 6),
+                redirectUri,
+                clientSecret == null ? 0 : clientSecret.length(),
+                clientSecret == null ? "null" : mask(clientSecret, 4)
+        );
+    	
         if (code == null || code.isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
-        // ✅ 설정값 검증 (초기 미스 방지)
         if (clientId == null || clientId.isBlank()) {
+            log.warn("[KAKAO] clientId is blank");
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         }
         if (redirectUri == null || redirectUri.isBlank()) {
+            log.warn("[KAKAO] redirectUri is blank");
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        }     
+        
+        final String secret = (clientSecret == null) ? "" : clientSecret.trim();
+        log.warn("[KAKAO][DEBUG] token req: clientIdPrefix={}, redirectUri={}, hasSecret={}, secretLenTrim={}",
+                mask(clientId, 6),
+                redirectUri,
+                !secret.isBlank(),
+                secret.length()
+        );
+        
 
         try {
             // 1) code -> token
@@ -58,9 +78,9 @@ public class KakaoOAuthService {
                     .with("redirect_uri", redirectUri)
                     .with("code", code);
 
-            // ✅ client_secret은 "있을 때만" 전송 (빈값 전송 금지)
-            if (clientSecret != null && !clientSecret.isBlank()) {
-                form = form.with("client_secret", clientSecret);
+            // ✅ client_secret은 "있을 때만" 전송
+            if (!secret.isBlank()) {
+                form = form.with("client_secret", secret);
             }
 
             Map<String, Object> token = webClient.post()
@@ -73,6 +93,7 @@ public class KakaoOAuthService {
 
             String accessToken = token == null ? null : (String) token.get("access_token");
             if (accessToken == null || accessToken.isBlank()) {
+                log.warn("[KAKAO] token api returned empty access_token. token={}", safeBody(String.valueOf(token)));
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
 
@@ -85,6 +106,7 @@ public class KakaoOAuthService {
                     .block();
 
             if (me == null || me.get("id") == null) {
+                log.warn("[KAKAO] me api returned null or missing id. me={}", safeBody(String.valueOf(me)));
                 throw new BusinessException(ErrorCode.INVALID_REQUEST);
             }
 
@@ -105,11 +127,9 @@ public class KakaoOAuthService {
             return new KakaoExchangeResponse(providerUid, email, nickname);
 
         } catch (WebClientResponseException e) {
-            // ✅ 카카오 응답 오류를 우리 도메인 오류로 변환
-            log.warn("[KAKAO] token/user api failed: status={}, body={}",
+            // ✅ token/me 호출 실패를 "상태코드 + 바디"로 기록
+            log.warn("[KAKAO] api failed: status={}, body={}",
                     e.getStatusCode(), safeBody(e.getResponseBodyAsString()));
-
-            // 401/400 대부분은 client_id(REST키), redirect_uri 불일치, code 만료/재사용 등이 원인
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
 
         } catch (BusinessException e) {
@@ -123,7 +143,12 @@ public class KakaoOAuthService {
 
     private String safeBody(String body) {
         if (body == null) return null;
-        // 너무 길면 로그 폭주 방지
-        return body.length() > 300 ? body.substring(0, 300) + "..." : body;
+        return body.length() > 500 ? body.substring(0, 500) + "..." : body;
+    }
+
+    private String mask(String s, int head) {
+        if (s == null) return null;
+        int n = Math.min(head, s.length());
+        return s.substring(0, n) + "***";
     }
 }

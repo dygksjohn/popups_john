@@ -74,12 +74,14 @@ export default function JoinSelect() {
     // Kakao SDK가 index.html에 로드되어 있어야 함
     if (!window.Kakao) return;
     if (!window.Kakao.isInitialized()) {
-      window.Kakao.init(import.meta.env.VITE_KAKAO_JS_KEY);
+      window.Kakao.init(import.meta.env.VITE_KAKAO_REST_KEY);
     }
   }, []);
 
   const handleKakaoContinue = () => {
     const clientId = import.meta.env.VITE_KAKAO_REST_KEY;
+    console.log("KAKAO REST KEY:", clientId); // ✅ 디버깅용
+
     const redirectUri = "http://localhost:5173/auth/kakao/callback";
 
     const url =
@@ -88,7 +90,11 @@ export default function JoinSelect() {
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&response_type=code`;
 
-    window.location.href = url;
+    window.location.href =
+      "https://kauth.kakao.com/oauth/authorize" +
+      `?client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&response_type=code`;
   };
 
   return (

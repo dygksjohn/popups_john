@@ -1,44 +1,43 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "./api/authApi";
 
 export default function KakaoCallback() {
   const navigate = useNavigate();
+  const didRun = useRef(false);
 
   useEffect(() => {
+    if (didRun.current) return;
+    didRun.current = true;
+
     const run = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
+      const code = new URLSearchParams(window.location.search).get("code");
 
       if (!code) {
-        alert("카카오 인증 code가 없습니다.");
-        navigate("/auth/join/joinselect");
+        console.error("Kakao callback: code 없음", window.location.href);
+        navigate("/auth/join/joinselect", { replace: true });
         return;
       }
 
       try {
-        // ✅ authApi는 unwrap된 "data"를 바로 반환함
         const data = await authApi.kakaoExchange({ code });
+        const { providerUid, email, nickname } = data || {};
 
-        // ✅ 방어 로직(여기서 죽지 않게)
-        if (!data || !data.providerUid) {
-          console.error("kakaoExchange response =", data);
-          alert("카카오 인증 응답이 비정상입니다. (providerUid 없음)");
-          navigate("/auth/join/joinselect");
+        if (!providerUid) {
+          console.error("Kakao exchange 성공했는데 providerUid 없음", data);
+          navigate("/auth/join/joinselect", { replace: true });
           return;
         }
 
-        sessionStorage.setItem("kakao_provider_uid", data.providerUid);
-        sessionStorage.setItem("kakao_email", data.email ?? "");
-        sessionStorage.setItem("kakao_nickname", data.nickname ?? "");
+        // ✅ KakaoJoin이 기대하는 키로 저장
+        sessionStorage.setItem("kakao_provider_uid", providerUid);
+        sessionStorage.setItem("kakao_email", email ?? "");
+        sessionStorage.setItem("kakao_nickname", nickname ?? "");
 
-        navigate("/auth/join/kakao");
+        navigate("/auth/join/kakao", { replace: true });
       } catch (e) {
-        console.error(e);
-        alert(
-          e?.response?.data?.message ?? e?.message ?? "카카오 인증 처리 실패",
-        );
-        navigate("/auth/join/joinselect");
+        console.error("exchange 실패", e);
+        navigate("/auth/join/joinselect", { replace: true });
       }
     };
 

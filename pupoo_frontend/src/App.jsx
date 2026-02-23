@@ -18,7 +18,8 @@ import JoinSocial from "./pages/site/auth/join/JoinSocial";
 
 /* Kakao */
 import KakaoCallback from "./pages/site/auth/KakaoCallback";
-import KakaoJoin from "./pages/site/auth/join/KakaoJoin.jsx";
+import KakaoJoin from "./pages/site/auth/join/KakaoJoin";
+import KakaoOtp from "./pages/site/auth/join/KakaoOtp";
 
 /* Event */
 import Current from "./pages/site/event/Current";
@@ -101,6 +102,7 @@ export default function App() {
           {/* Kakao */}
           <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
           <Route path="/auth/join/kakao" element={<KakaoJoin />} />
+          <Route path="/auth/join/kakao/otp" element={<KakaoOtp />} />
           {/* Alias (짧은 경로 지원) */}
           <Route path="/join" element={<JoinSelect />} />
           <Route path="/join/select" element={<JoinSelect />} />

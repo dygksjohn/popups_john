@@ -24,18 +24,17 @@ export default function KakaoJoin() {
       setError("카카오 정보가 없습니다. 다시 시도해주세요.");
       return;
     }
-    if (!kakao.email) {
-      setError(
-        "카카오 이메일이 없습니다. 카카오 동의항목(account_email) 확인 또는 이메일 입력 UI가 필요합니다.",
-      );
-      return;
-    }
 
     const normalized = phone.replace(/[^0-9]/g, "");
     if (normalized.length < 10) {
       setError("휴대폰 번호를 입력해주세요.");
       return;
     }
+
+    const emailToUse =
+      kakao.email && kakao.email.trim()
+        ? kakao.email.trim()
+        : `${kakao.providerUid}@kakao.local`;
 
     try {
       setLoading(true);
@@ -44,24 +43,28 @@ export default function KakaoJoin() {
         signupType: "SOCIAL",
         socialProvider: "KAKAO",
         socialProviderUid: kakao.providerUid,
-        email: kakao.email,
+        email: emailToUse,
         nickname: kakao.nickname || "kakao_user",
         phone: normalized,
       });
 
-      const data = res?.data?.data ?? res?.data;
-      const signupKey = data?.signupKey;
-      const devOtp = data?.devOtp;
+      const signupKey = res?.signupKey;
+      const devOtp = res?.devOtp;
+      const otpCooldownSeconds = res?.otpCooldownSeconds;
 
       if (!signupKey) {
         setError("signupKey가 없습니다. 응답 구조 확인 필요");
         return;
       }
 
-      // ✅ 다음은 OTP 입력 화면으로 이동해야 함
-      // 너희 기존 OTP 입력이 JoinNormal에 붙어있다면 JoinNormal로 넘기자.
-      navigate("/auth/join/joinnormal", {
-        state: { signupKey, phone: normalized, devOtp },
+      sessionStorage.setItem(
+        "kakao_signup_ctx",
+        JSON.stringify({ signupKey, phone: normalized, devOtp,})
+      );
+
+      navigate("/auth/join/kakao/otp", {
+        state: { signupKey, phone: normalized, devOtp, otpCooldownSeconds },
+        replace: true,
       });
     } catch (e) {
       console.error(e);
