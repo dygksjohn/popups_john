@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/event/domain/model/Event.java
 package com.popups.pupoo.event.domain.model;
 
 import com.popups.pupoo.event.domain.enums.EventStatus;
@@ -46,7 +47,7 @@ public class Event {
     private String location;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 20, columnDefinition = "ENUM('PLANNED','ONGOING','ENDED','CANCELLED')")
     private EventStatus status;
 
     @Column(name = "round_no")

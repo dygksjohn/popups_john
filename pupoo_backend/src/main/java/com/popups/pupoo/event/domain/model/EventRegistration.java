@@ -1,5 +1,8 @@
+// file: src/main/java/com/popups/pupoo/event/domain/model/EventRegistration.java
 package com.popups.pupoo.event.domain.model;
 
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.event.domain.enums.RegistrationStatus;
 import jakarta.persistence.*;
 
@@ -68,12 +71,55 @@ public class EventRegistration {
 
     /** 신청 취소 */
     public void cancel() {
+        // 정책: APPLIED/APPROVED 상태에서만 CANCELLED 전이가 가능하다.
+        if (this.status == RegistrationStatus.CANCELLED) {
+            return;
+        }
+        if (this.status != RegistrationStatus.APPLIED && this.status != RegistrationStatus.APPROVED) {
+            throw new BusinessException(ErrorCode.EVENT_REGISTRATION_INVALID_STATUS);
+        }
         this.status = RegistrationStatus.CANCELLED;
     }
     
     /** 결제 승인 후 자동 승인 */
     public void approve() {
+        // 정책: APPLIED 상태에서만 APPROVED 전이가 가능하다.
+        if (this.status == RegistrationStatus.APPROVED) {
+            return;
+        }
+        if (this.status != RegistrationStatus.APPLIED) {
+            throw new BusinessException(ErrorCode.EVENT_REGISTRATION_INVALID_STATUS);
+        }
         this.status = RegistrationStatus.APPROVED;
+    }
+
+    /**
+     * 관리자 거절 처리
+     * - 정책: APPLIED 상태에서만 REJECTED 전이가 가능하다.
+     */
+    public void reject() {
+        if (this.status == RegistrationStatus.REJECTED) {
+            return;
+        }
+        if (this.status != RegistrationStatus.APPLIED) {
+            throw new BusinessException(ErrorCode.EVENT_REGISTRATION_INVALID_STATUS);
+        }
+        this.status = RegistrationStatus.REJECTED;
+    }
+
+    /**
+     * 재신청 처리
+     * - UNIQUE(event_id, user_id) 구조이므로 row를 새로 만들지 않고 상태를 되돌린다.
+     */
+    public void reapply() {
+        if (this.status == RegistrationStatus.APPLIED) {
+            return;
+        }
+        if (this.status != RegistrationStatus.CANCELLED && this.status != RegistrationStatus.REJECTED) {
+            throw new BusinessException(ErrorCode.EVENT_REGISTRATION_INVALID_STATUS);
+        }
+        this.status = RegistrationStatus.APPLIED;
+        this.appliedAt = LocalDateTime.now();
     }
 
 

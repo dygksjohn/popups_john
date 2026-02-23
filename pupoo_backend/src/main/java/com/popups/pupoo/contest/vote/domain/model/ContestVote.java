@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/contest/vote/domain/model/ContestVote.java
 package com.popups.pupoo.contest.vote.domain.model;
 
 import com.popups.pupoo.contest.vote.domain.enums.VoteStatus;

@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/gallery/domain/enums/GalleryImageMimeType.java
 package com.popups.pupoo.gallery.domain.enums;
 
 /**

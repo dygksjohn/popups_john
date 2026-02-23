@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/common/config/StaticResourceConfig.java
 package com.popups.pupoo.common.config;
 
 import org.springframework.beans.factory.annotation.Value;

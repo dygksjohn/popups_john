@@ -1,9 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/notice/domain/model/Notice.java
- * 목적: notices 테이블 엔티티 매핑
- * 주의:
- *  - file_attached, status는 MySQL ENUM이므로 columnDefinition으로 DB 정합성(validate) 보장
- *  - is_pinned는 TINYINT(0/1) 컬럼이므로 columnDefinition으로 타입 정합성(validate) 보장
- */
+// file: src/main/java/com/popups/pupoo/notice/domain/model/Notice.java
 package com.popups.pupoo.notice.domain.model;
 
 import com.popups.pupoo.notice.domain.enums.NoticeStatus;

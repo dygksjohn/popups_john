@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/payment/infrastructure/KakaoPayClient.java
+// file: src/main/java/com/popups/pupoo/payment/infrastructure/KakaoPayClient.java
 package com.popups.pupoo.payment.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -7,6 +7,9 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
+
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 
 @Profile("!test")
 @Component
@@ -37,10 +40,8 @@ public class KakaoPayClient {
 
             //  부팅은 허용, 호출 시점에만 막는다.
             if (secret == null || secret.isBlank() || secret.contains("$") || "__MISSING__".equals(secret)) {
-                throw new IllegalStateException(
-                        "KakaoPay secretKey is missing or not resolved. " +
-                        "Set `kakaopay.secret-key` or env `KAKAOPAY_SECRET_KEY_DEV` before calling payment APIs."
-                );
+                // 기능: PG 시크릿 미설정(운영/로컬 설정 오류)
+                throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR);
             }
 
             String auth = props.authorizationPrefix() + secret;
@@ -108,5 +109,18 @@ public class KakaoPayClient {
     public String toJson(Object o) {
         try { return objectMapper.writeValueAsString(o); }
         catch (Exception e) { return "{\"_error\":\"json serialize failed\"}"; }
+    }
+
+    /**
+     * ready 원문(JSON) -> KakaoPayReadyResponse 역직렬화
+     * - 멱등 ready 응답을 재구성할 때 사용한다.
+     */
+    public KakaoPayReadyResponse parseReadyResponse(String rawJson) {
+        try {
+            return objectMapper.readValue(rawJson, KakaoPayReadyResponse.class);
+        } catch (Exception e) {
+            // 기능: 원문 JSON 파싱 실패는 운영상 PG 오류로 취급
+            throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR);
+        }
     }
 }

@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/qr/persistence/QrCheckinRepository.java
 package com.popups.pupoo.qr.persistence;
 
 import com.popups.pupoo.qr.domain.model.QrCheckin;

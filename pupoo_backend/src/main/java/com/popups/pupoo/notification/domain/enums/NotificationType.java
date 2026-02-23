@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/notification/domain/enums/NotificationType.java
 package com.popups.pupoo.notification.domain.enums;
 
 public enum NotificationType {

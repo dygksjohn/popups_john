@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/event/application/EventService.java
 package com.popups.pupoo.event.application;
 
 import com.popups.pupoo.common.exception.BusinessException;
@@ -32,7 +33,9 @@ public class EventService {
     public Page<EventResponse> getEvents(Pageable pageable, String keyword, EventStatus status,
                                          LocalDateTime fromAt, LocalDateTime toAt) {
 
-        return eventRepository.search(keyword, status, fromAt, toAt, pageable)
+        // 공개 조회 정책: CANCELLED는 노출하지 않는다.
+        EventStatus safeStatus = (status == EventStatus.CANCELLED) ? null : status;
+        return eventRepository.searchPublic(keyword, safeStatus, fromAt, toAt, pageable)
                 .map(EventResponse::from);
     }
 

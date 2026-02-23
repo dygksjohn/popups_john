@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/program/apply/dto/ProgramApplyRequest.java
 package com.popups.pupoo.program.apply.dto;
 
 import lombok.Getter;

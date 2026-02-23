@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/gallery/api/GalleryController.java
- * 목적: 갤러리 API 컨트롤러
- */
+// file: src/main/java/com/popups/pupoo/gallery/api/GalleryController.java
 package com.popups.pupoo.gallery.api;
 
 import com.popups.pupoo.gallery.application.GalleryAdminService;

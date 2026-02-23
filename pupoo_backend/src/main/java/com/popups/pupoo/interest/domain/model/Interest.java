@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/interest/domain/model/Interest.java
 package com.popups.pupoo.interest.domain.model;
 
 import com.popups.pupoo.interest.domain.enums.InterestName;
@@ -32,7 +33,7 @@ public class Interest {
     private Long interestId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "interest_name", nullable = false, length = 50)
+    @Column(name = "interest_name", nullable = false, length = 50, columnDefinition = "ENUM('EVENT','SESSION','EXPERIENCE','BOOTH','CONTEST','NOTICE','SNACK','BATH_SUPPLIES','GROOMING','TOY','CLOTHING','HEALTH','TRAINING','WALK','SUPPLEMENTS','ACCESSORIES','OTHERS')")
     private InterestName interestName;
 
     @Enumerated(EnumType.STRING)

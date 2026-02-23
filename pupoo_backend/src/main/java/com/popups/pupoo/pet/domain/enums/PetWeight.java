@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/pet/domain/enums/PetWeight.java
 // com/popups/pupoo/pet/domain/enums/PetWeight.java
 package com.popups.pupoo.pet.domain.enums;
 

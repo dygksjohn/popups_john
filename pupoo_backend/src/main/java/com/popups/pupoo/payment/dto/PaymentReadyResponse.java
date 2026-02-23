@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/payment/dto/PaymentReadyResponse.java
 package com.popups.pupoo.payment.dto;
 
 public record PaymentReadyResponse(

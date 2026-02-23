@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/auth/dto/LoginResponse.java
 package com.popups.pupoo.auth.dto;
 
 import lombok.AllArgsConstructor;

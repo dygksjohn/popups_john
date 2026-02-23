@@ -1,9 +1,8 @@
+// file: src/main/java/com/popups/pupoo/event/persistence/EventRepository.java
 package com.popups.pupoo.event.persistence;
 
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.model.Event;
-import com.popups.pupoo.event.domain.model.EventRegistration;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,8 +10,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
-
 /**
  * EventRepository (v2.5 기준)
  *
@@ -25,7 +22,32 @@ import java.util.Optional;
  */
 public interface EventRepository extends JpaRepository<Event, Long> {
 
+        /**
+     * 공개 조회용: CANCELLED 제외
+     */
     @Query("""
+        SELECT e
+        FROM Event e
+        WHERE e.status <> com.popups.pupoo.event.domain.enums.EventStatus.CANCELLED
+          AND (:status IS NULL OR e.status = :status)
+          AND (
+                :keyword IS NULL OR :keyword = ''
+                OR e.eventName LIKE CONCAT('%', :keyword, '%')
+                OR e.description LIKE CONCAT('%', :keyword, '%')
+          )
+          AND (:fromAt IS NULL OR e.startAt >= :fromAt)
+          AND (:toAt IS NULL OR e.startAt <= :toAt)
+        ORDER BY e.startAt DESC, e.eventId DESC
+    """)
+    Page<Event> searchPublic(
+            @Param("keyword") String keyword,
+            @Param("status") EventStatus status,
+            @Param("fromAt") LocalDateTime fromAt,
+            @Param("toAt") LocalDateTime toAt,
+            Pageable pageable
+    );
+
+@Query("""
         SELECT e
         FROM Event e
         WHERE (:status IS NULL OR e.status = :status)

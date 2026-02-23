@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/contest/vote/persistence/ContestVoteRepository.java
 package com.popups.pupoo.contest.vote.persistence;
 
 import com.popups.pupoo.contest.vote.domain.enums.VoteStatus;

@@ -1,7 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/gallery/domain/model/Gallery.java
- * 목적: galleries 테이블 엔티티 매핑
- * 주의: gallery_status는 MySQL ENUM이므로 columnDefinition으로 DB 정합성(validate) 보장
- */
+// file: src/main/java/com/popups/pupoo/gallery/domain/model/Gallery.java
 package com.popups.pupoo.gallery.domain.model;
 
 import com.popups.pupoo.gallery.domain.enums.GalleryStatus;

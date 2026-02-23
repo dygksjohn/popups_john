@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/board/post/domain/model/Post.java
 package com.popups.pupoo.board.post.domain.model;
 
 import com.popups.pupoo.board.boardinfo.domain.model.Board;
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder(toBuilder = true)
+@Builder
 public class Post {
 
     @Id
@@ -30,7 +31,6 @@ public class Post {
     @Column(name = "post_title", nullable = false, length = 255)
     private String postTitle;
 
-    // ✅ validate 정합성: DB가 TEXT면 여기서 TEXT로 고정하는 게 가장 안전
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
@@ -56,22 +56,56 @@ public class Post {
     @Column(name = "is_comment_enabled", nullable = false, columnDefinition = "TINYINT(1)")
     private boolean commentEnabled;
 
-    public Post updateTitleAndContent(String title, String content) {
-        return this.toBuilder()
-                .postTitle(title)
-                .content(content)
-                .build();
+    @PrePersist
+    void prePersist() {
+        LocalDateTime now = LocalDateTime.now();
+        if (this.createdAt == null) this.createdAt = now;
+        if (this.updatedAt == null) this.updatedAt = now;
+        if (this.fileAttached == null) this.fileAttached = "N";
+        if (this.status == null) this.status = PostStatus.PUBLISHED;
     }
 
-    public Post markDeleted() {
-        return this.toBuilder()
-                .deleted(true)
-                .build();
+    @PreUpdate
+    void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 
-    public Post close() {
-        return this.toBuilder()
-                .status(PostStatus.HIDDEN)
-                .build();
+    public void updateTitleAndContent(String title, String content) {
+        this.postTitle = title;
+        this.content = content;
+    }
+
+    public void markDeleted() {
+        this.deleted = true;
+    }
+
+    /**
+     * 관리자 모더레이션용: soft delete.
+     */
+    public void softDelete() {
+        this.deleted = true;
+    }
+
+    /**
+     * 관리자 모더레이션용: 게시글 블라인드.
+     */
+    public void hide() {
+        this.status = PostStatus.HIDDEN;
+    }
+
+    /**
+     * 관리자 모더레이션용: 게시글 복구.
+     */
+    public void restore() {
+        this.deleted = false;
+        this.status = PostStatus.PUBLISHED;
+    }
+
+    public void close() {
+        this.status = PostStatus.HIDDEN;
+    }
+
+    public void setFileAttached(boolean attached) {
+        this.fileAttached = attached ? "Y" : "N";
     }
 }

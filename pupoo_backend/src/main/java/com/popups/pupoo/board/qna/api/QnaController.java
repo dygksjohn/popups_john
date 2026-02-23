@@ -1,7 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/board/qna/api/QnaController.java
- * 목적: QnA API 컨트롤러
- * 주의: 프로젝트 표준(SecurityUtil) 적용 전 임시로 X-USER-ID 헤더를 사용한다.
- */
+// file: src/main/java/com/popups/pupoo/board/qna/api/QnaController.java
 package com.popups.pupoo.board.qna.api;
 
 import com.popups.pupoo.board.qna.application.QnaService;

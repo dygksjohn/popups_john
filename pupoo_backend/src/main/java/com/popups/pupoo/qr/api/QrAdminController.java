@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/qr/api/QrAdminController.java
 package com.popups.pupoo.qr.api;
 
 import com.popups.pupoo.common.api.ApiResponse;
@@ -22,7 +23,7 @@ public class QrAdminController {
             @PathVariable(name = "boothId") Long boothId,
             @RequestBody QrAdminRequest request
     ) {
-        return ApiResponse.success(qrAdminService.checkIn(eventId, boothId, request.getQrId()));
+        return ApiResponse.success(qrAdminService.checkIn(eventId, boothId, request.getQrId(), request.getProgramApplyId()));
     }
 
     @PostMapping("/events/{eventId}/booths/{boothId}/qr/check-out")
@@ -31,6 +32,6 @@ public class QrAdminController {
             @PathVariable(name = "boothId") Long boothId,
             @RequestBody QrAdminRequest request
     ) {
-        return ApiResponse.success(qrAdminService.checkOut(eventId, boothId, request.getQrId()));
+        return ApiResponse.success(qrAdminService.checkOut(eventId, boothId, request.getQrId(), request.getProgramApplyId()));
     }
 }

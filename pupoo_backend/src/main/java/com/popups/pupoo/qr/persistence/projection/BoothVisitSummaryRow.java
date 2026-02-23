@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/qr/persistence/projection/BoothVisitSummaryRow.java
 package com.popups.pupoo.qr.persistence.projection;
 
 import java.sql.Timestamp;

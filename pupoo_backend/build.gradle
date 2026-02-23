@@ -14,6 +14,25 @@ java {
 	}
 }
 
+/* =========================
+ * 프로젝트 전체 인코딩 명시 
+ * ========================= */
+compileJava.options.encoding = 'UTF-8'
+compileTestJava.options.encoding = 'UTF-8'
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.compilerArgs += ["-parameters"]  // 메서드 파라미터 이름 보존
+}
+
+tasks.withType(Javadoc).configureEach {
+	options.encoding = 'UTF-8'
+}
+
+tasks.withType(ProcessResources).configureEach {
+	filteringCharset = 'UTF-8'
+}
+
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
@@ -34,6 +53,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
 
 	/* =========================
 	 * JWT (JJWT 0.11.5)
@@ -61,8 +81,7 @@ dependencies {
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
 	/* =========================
-	 * AWS S3 (향후 전환 대비)
-	 * 현재는 LocalStorage만 사용해도 무관
+	 * AWS S3
 	 * ========================= */
 	implementation 'software.amazon.awssdk:s3:2.25.21'
 
@@ -77,14 +96,6 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-
-/* =========================
- * UTF-8 인코딩 설정
- * ========================= */
-tasks.withType(JavaCompile).configureEach {
-	options.encoding = 'UTF-8'
-	options.compilerArgs += ["-parameters"]  // 메서드 파라미터 이름 보존
 }
 
 tasks.named('test') {

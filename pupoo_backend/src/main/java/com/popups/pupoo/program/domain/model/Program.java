@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/program/domain/model/Program.java
 package com.popups.pupoo.program.domain.model;
 
 import com.popups.pupoo.program.domain.enums.ProgramCategory;
@@ -23,7 +24,7 @@ public class Program {
 	private Long eventId;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "category", nullable = false)
+	@Column(name = "category", nullable = false, columnDefinition = "ENUM('CONTEST','SESSION','EXPERIENCE')")
 	private ProgramCategory category;
 
 	@Column(name = "program_title", nullable = false, length = 255)

@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/booth/persistence/BoothRepository.java
 package com.popups.pupoo.booth.persistence;
 
 import com.popups.pupoo.booth.domain.enums.BoothStatus;

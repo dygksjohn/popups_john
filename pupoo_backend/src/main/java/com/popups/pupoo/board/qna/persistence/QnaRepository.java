@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/board/qna/persistence/QnaRepository.java
- * 목적: QnA는 posts 테이블 기반이므로 Post 엔티티를 대상으로 조회한다.
- */
+// file: src/main/java/com/popups/pupoo/board/qna/persistence/QnaRepository.java
 package com.popups.pupoo.board.qna.persistence;
 
 import com.popups.pupoo.board.post.domain.model.Post;

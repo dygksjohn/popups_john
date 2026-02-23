@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/qr/application/QrAdminService.java
 package com.popups.pupoo.qr.application;
 
 import com.popups.pupoo.booth.domain.model.Booth;
@@ -8,6 +9,15 @@ import com.popups.pupoo.qr.domain.model.QrCode;
 import com.popups.pupoo.qr.dto.QrCheckinResponse;
 import com.popups.pupoo.qr.persistence.QrCheckinRepository;
 import com.popups.pupoo.qr.persistence.QrCodeRepository;
+import com.popups.pupoo.event.domain.model.EventHistory;
+import com.popups.pupoo.event.persistence.EventHistoryRepository;
+import com.popups.pupoo.program.apply.domain.enums.ApplyStatus;
+import com.popups.pupoo.program.apply.domain.model.ProgramApply;
+import com.popups.pupoo.program.apply.domain.model.ProgramParticipationStat;
+import com.popups.pupoo.program.apply.persistence.ProgramApplyRepository;
+import com.popups.pupoo.program.apply.persistence.ProgramParticipationStatRepository;
+import com.popups.pupoo.program.domain.model.Program;
+import com.popups.pupoo.program.persistence.ProgramRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,23 +32,36 @@ public class QrAdminService {
     private final QrCheckinRepository qrCheckinRepository;
     private final BoothRepository boothRepository;
 
+    private final ProgramApplyRepository programApplyRepository;
+    private final ProgramRepository programRepository;
+    private final EventHistoryRepository eventHistoryRepository;
+    private final ProgramParticipationStatRepository programParticipationStatRepository;
+
     public QrAdminService(QrCodeRepository qrCodeRepository,
                           QrCheckinRepository qrCheckinRepository,
-                          BoothRepository boothRepository) {
+                          BoothRepository boothRepository,
+                          ProgramApplyRepository programApplyRepository,
+                          ProgramRepository programRepository,
+                          EventHistoryRepository eventHistoryRepository,
+                          ProgramParticipationStatRepository programParticipationStatRepository) {
         this.qrCodeRepository = qrCodeRepository;
         this.qrCheckinRepository = qrCheckinRepository;
         this.boothRepository = boothRepository;
+        this.programApplyRepository = programApplyRepository;
+        this.programRepository = programRepository;
+        this.eventHistoryRepository = eventHistoryRepository;
+        this.programParticipationStatRepository = programParticipationStatRepository;
     }
 
-    public QrCheckinResponse checkIn(Long eventId, Long boothId, Long qrId) {
-        return process(eventId, boothId, qrId, QrCheckType.CHECKIN);
+    public QrCheckinResponse checkIn(Long eventId, Long boothId, Long qrId, Long programApplyId) {
+        return process(eventId, boothId, qrId, QrCheckType.CHECKIN, programApplyId);
     }
 
-    public QrCheckinResponse checkOut(Long eventId, Long boothId, Long qrId) {
-        return process(eventId, boothId, qrId, QrCheckType.CHECKOUT);
+    public QrCheckinResponse checkOut(Long eventId, Long boothId, Long qrId, Long programApplyId) {
+        return process(eventId, boothId, qrId, QrCheckType.CHECKOUT, programApplyId);
     }
 
-    private QrCheckinResponse process(Long eventId, Long boothId, Long qrId, QrCheckType type) {
+    private QrCheckinResponse process(Long eventId, Long boothId, Long qrId, QrCheckType type, Long programApplyId) {
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -105,11 +128,65 @@ public class QrAdminService {
 
         qrCheckinRepository.save(log);
 
+        // 6) (선택) 프로그램 참여 확정
+        // - 운영 QR 스캔 시 "티켓(program_apply_id)"를 함께 받으면, 참여 이력(event_history) + 집계(program_participation_stats) 갱신
+        // - CHECKIN에서만 확정 처리한다.
+        if (type == QrCheckType.CHECKIN && programApplyId != null) {
+            confirmProgramParticipation(eventId, qr, programApplyId, now);
+        }
+
         return QrCheckinResponse.builder()
                 .qrId(qrId)
                 .boothId(boothId)
                 .checkType(type.name())
                 .checkedAt(now)
                 .build();
+    }
+
+    private void confirmProgramParticipation(Long eventId, QrCode qr, Long programApplyId, LocalDateTime now) {
+
+        // 1) programApply 로드
+        ProgramApply apply = programApplyRepository.findById(programApplyId)
+                .orElseThrow(() -> new IllegalArgumentException("PROGRAM_APPLY_NOT_FOUND"));
+
+        // 2) user 정합(해당 QR 소유자만 처리)
+        if (!Objects.equals(apply.getUserId(), qr.getUser().getUserId())) {
+            throw new IllegalArgumentException("PROGRAM_APPLY_USER_MISMATCH");
+        }
+
+        // 3) program/event 정합
+        Program program = programRepository.findById(apply.getProgramId())
+                .orElseThrow(() -> new IllegalArgumentException("PROGRAM_NOT_FOUND"));
+
+        if (!Objects.equals(program.getEventId(), eventId)) {
+            throw new IllegalArgumentException("PROGRAM_APPLY_EVENT_MISMATCH");
+        }
+
+        // 4) 상태 정책
+        // - 참여 확정은 APPROVED 또는 WAITING(현장 확정)까지 허용
+        if (!(apply.getStatus() == ApplyStatus.APPROVED || apply.getStatus() == ApplyStatus.WAITING)) {
+            throw new IllegalStateException("PROGRAM_APPLY_STATUS_NOT_CONFIRMABLE");
+        }
+
+        // 5) 참여 확정 처리 (티켓 재활용)
+        // - CHECKED_IN으로 전환 + checked_in_at 기록
+        apply.markCheckedIn(now);
+
+        // 6) event_history 누적 기록 (중복/다회 참여 허용)
+        EventHistory history = EventHistory.builder()
+                .userId(apply.getUserId())
+                .eventId(eventId)
+                .programId(apply.getProgramId())
+                .joinedAt(now)
+                .build();
+        eventHistoryRepository.save(history);
+
+        // 7) 집계(upsert)
+        // - user_id + program_id로 카운트를 유지
+        ProgramParticipationStat stat = programParticipationStatRepository.findByUserIdAndProgramId(apply.getUserId(), apply.getProgramId())
+                .orElseGet(() -> ProgramParticipationStat.create(apply.getUserId(), apply.getProgramId()));
+
+        stat.increase(now);
+        programParticipationStatRepository.save(stat);
     }
 }

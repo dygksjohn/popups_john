@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/auth/security/handler/JwtAccessDeniedHandler.java
+// file: src/main/java/com/popups/pupoo/auth/security/handler/JwtAccessDeniedHandler.java
 package com.popups.pupoo.auth.security.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;

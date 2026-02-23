@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/interest/domain/enums/InterestType.java
 package com.popups.pupoo.interest.domain.enums;
 
 /**

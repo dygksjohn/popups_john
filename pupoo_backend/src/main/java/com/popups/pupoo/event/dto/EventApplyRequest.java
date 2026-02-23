@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/event/dto/EventApplyRequest.java
 package com.popups.pupoo.event.dto;
 
 /** POST /api/event-registrations 요청 DTO */

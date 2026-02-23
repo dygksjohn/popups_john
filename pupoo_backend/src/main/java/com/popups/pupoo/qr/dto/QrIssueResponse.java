@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/qr/dto/QrIssueResponse.java
 package com.popups.pupoo.qr.dto;
 
 import com.popups.pupoo.qr.domain.model.QrCode;

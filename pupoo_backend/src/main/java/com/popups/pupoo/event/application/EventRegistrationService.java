@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/event/application/EventRegistrationService.java
 package com.popups.pupoo.event.application;
 
 import com.popups.pupoo.common.exception.BusinessException;
@@ -41,39 +42,42 @@ public class EventRegistrationService {
 
         // 1) 행사 존재 + 상태 검증
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "존재하지 않는 행사입니다. eventId=" + eventId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.EVENT_NOT_FOUND));
 
         // 사용자 신청 가능 상태 정책(필요시 PLANNED도 허용 등 팀 정책으로 조절)
         if (event.getStatus() != EventStatus.ONGOING && event.getStatus() != EventStatus.PLANNED) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "현재 신청 가능한 행사가 아닙니다. status=" + event.getStatus());
+            throw new BusinessException(ErrorCode.EVENT_NOT_APPLICABLE);
         }
 
-        // 2) 중복 신청 선체크 (APPLIED 상태만 중복으로 본다)
-        boolean alreadyApplied = registrationRepository.existsByEventIdAndUserIdAndStatus(
-                eventId, userId, RegistrationStatus.APPLIED
-        );
-        if (alreadyApplied) {
-            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "이미 참가 신청한 행사입니다.");
+        // 2) 기존 신청 존재 시 상태 전이로 처리(재신청 지원)
+        EventRegistration existing = registrationRepository.findByEventIdAndUserIdForUpdate(eventId, userId).orElse(null);
+        if (existing != null) {
+            // APPLIED/APPROVED면 중복 신청 금지
+            if (existing.getStatus() == RegistrationStatus.APPLIED || existing.getStatus() == RegistrationStatus.APPROVED) {
+                throw new BusinessException(ErrorCode.EVENT_REGISTRATION_DUPLICATE);
+            }
+            // CANCELLED/REJECTED면 재신청으로 상태 전이
+            existing.reapply();
+            return EventRegistrationResponse.from(existing);
         }
 
+        // 3) 신규 신청 생성 (DB UNIQUE가 최종 방어)
         try {
-            // 3) 저장 (DB UNIQUE가 최종 방어)
             EventRegistration saved = registrationRepository.save(EventRegistration.create(eventId, userId));
             return EventRegistrationResponse.from(saved);
-
         } catch (DataIntegrityViolationException e) {
-            // 동시성(거의 동시에 2번 신청)에서 exists를 통과할 수 있으므로 최종 캐치
-            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "이미 참가 신청한 행사입니다.");
+            // 동시성에서 UNIQUE 충돌 가능
+            throw new BusinessException(ErrorCode.EVENT_REGISTRATION_DUPLICATE);
         }
     }
 
     @Transactional
     public void cancel(Long applyId, Long userId) {
         EventRegistration reg = registrationRepository.findById(applyId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "존재하지 않는 신청입니다. applyId=" + applyId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.EVENT_REGISTRATION_NOT_FOUND));
 
         if (!reg.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "본인 신청만 취소할 수 있습니다.");
+            throw new BusinessException(ErrorCode.EVENT_REGISTRATION_ACCESS_DENIED);
         }
 
         if (reg.getStatus() == RegistrationStatus.CANCELLED) {
@@ -81,12 +85,12 @@ public class EventRegistrationService {
             return;
         }
 
-        // 정책상 APPLIED만 취소 가능(필요시 APPROVED도 취소 허용 등 조절)
+        // 정책: 사용자 취소는 APPLIED 상태에서만 가능하다.
         if (reg.getStatus() != RegistrationStatus.APPLIED) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "현재 상태에서는 취소할 수 없습니다. status=" + reg.getStatus());
+            throw new BusinessException(ErrorCode.EVENT_REGISTRATION_INVALID_STATUS);
         }
         
-     // 상태 변경
+        // 상태 변경
         reg.cancel();
 
         //  확정 저장 (Update SQL 강제)

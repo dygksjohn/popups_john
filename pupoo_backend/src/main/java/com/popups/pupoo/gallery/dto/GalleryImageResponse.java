@@ -1,7 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/gallery/dto/GalleryImageResponse.java
- * 목적: 갤러리 이미지 응답 DTO
- * 주의: 기존 코드에서 Date/Enum 타입 불일치가 발생하여 LocalDateTime/String 기반으로 정리한다.
- */
+// file: src/main/java/com/popups/pupoo/gallery/dto/GalleryImageResponse.java
 package com.popups.pupoo.gallery.dto;
 
 import lombok.Builder;

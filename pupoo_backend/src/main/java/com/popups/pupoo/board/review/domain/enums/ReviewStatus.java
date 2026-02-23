@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/board/review/domain/enums/ReviewStatus.java
- * 목적: reviews.review_status(MySQL ENUM) 매핑용 후기 상태 정의
- */
+// file: src/main/java/com/popups/pupoo/board/review/domain/enums/ReviewStatus.java
 package com.popups.pupoo.board.review.domain.enums;
 
 public enum ReviewStatus {

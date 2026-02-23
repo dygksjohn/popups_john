@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/gallery/application/GalleryService.java
- * 목적: 갤러리 조회/좋아요 등 일반 서비스
- */
+// file: src/main/java/com/popups/pupoo/gallery/application/GalleryService.java
 package com.popups.pupoo.gallery.application;
 
 import com.popups.pupoo.gallery.domain.model.*;

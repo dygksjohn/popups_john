@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/program/speaker/dto/SpeakerResponse.java
 package com.popups.pupoo.program.speaker.dto;
 
 import com.popups.pupoo.program.speaker.domain.model.Speaker;

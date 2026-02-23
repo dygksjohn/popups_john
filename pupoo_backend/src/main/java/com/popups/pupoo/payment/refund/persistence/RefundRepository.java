@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/payment/refund/persistence/RefundRepository.java
 package com.popups.pupoo.payment.refund.persistence;
 
 import com.popups.pupoo.payment.refund.domain.enums.RefundStatus;
@@ -23,6 +24,8 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     Optional<Refund> findByPayment_PaymentId(Long paymentId);
 
     Page<Refund> findByPayment_UserId(Long userId, Pageable pageable);
+
+    Page<Refund> findByStatus(RefundStatus status, Pageable pageable);
 
     boolean existsByPayment_PaymentId(Long paymentId);
 

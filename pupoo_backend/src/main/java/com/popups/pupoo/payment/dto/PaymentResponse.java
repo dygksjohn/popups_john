@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/payment/dto/PaymentResponse.java
 package com.popups.pupoo.payment.dto;
 
 import com.popups.pupoo.payment.domain.enums.PaymentProvider;

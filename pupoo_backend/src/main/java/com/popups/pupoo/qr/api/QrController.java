@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/qr/api/QrController.java
 package com.popups.pupoo.qr.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;

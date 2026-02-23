@@ -1,3 +1,4 @@
+/* file: src/main/java/com/popups/pupoo/program/apply/dto/ProgramApplyResponse.java */
 package com.popups.pupoo.program.apply.dto;
 
 import com.popups.pupoo.program.apply.domain.enums.ApplyStatus;
@@ -17,20 +18,30 @@ public class ProgramApplyResponse {
 
     private ApplyStatus status;
 
+    private String ticketNo;
+    private Integer etaMin;
+    private LocalDateTime notifiedAt;
+    private LocalDateTime checkedInAt;
+
     /**
      * DB 컬럼 created_at 기준: "최초 신청 레코드 생성 시각"
-     * (방법 B: REJECTED row 재활용 시에도 createdAt은 변하지 않음)
      */
     private LocalDateTime createdAt;
 
     public static ProgramApplyResponse from(ProgramApply a) {
-        if (a == null) return null;
+        if (a == null) {
+            throw new IllegalArgumentException("ProgramApply is null");
+        }
 
         return ProgramApplyResponse.builder()
                 .programApplyId(a.getProgramApplyId())
                 .programId(a.getProgramId())
                 .userId(a.getUserId())
                 .status(a.getStatus())
+                .ticketNo(a.getTicketNo())
+                .etaMin(a.getEtaMin())
+                .notifiedAt(a.getNotifiedAt())
+                .checkedInAt(a.getCheckedInAt())
                 .createdAt(a.getCreatedAt())
                 .build();
     }

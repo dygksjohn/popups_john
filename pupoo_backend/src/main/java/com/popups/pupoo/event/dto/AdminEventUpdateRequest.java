@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/event/dto/AdminEventUpdateRequest.java
 package com.popups.pupoo.event.dto;
 
 import com.popups.pupoo.event.domain.enums.EventStatus;

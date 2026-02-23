@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/pet/domain/enums/AnimalType.java
+// file: src/main/java/com/popups/pupoo/pet/domain/enums/AnimalType.java
 package com.popups.pupoo.pet.domain.enums;
 
 /**

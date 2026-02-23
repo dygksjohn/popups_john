@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/booth/dto/BoothCongestionResponse.java
 package com.popups.pupoo.booth.dto;
 
 import java.time.LocalDateTime;

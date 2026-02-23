@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/event/domain/enums/RegistrationStatus.java
 package com.popups.pupoo.event.domain.enums;
 
 /**

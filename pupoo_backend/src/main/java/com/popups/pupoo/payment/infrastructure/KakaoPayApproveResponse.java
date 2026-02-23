@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/payment/infrastructure/KakaoPayApproveResponse.java
 package com.popups.pupoo.payment.infrastructure;
 
 public record KakaoPayApproveResponse(

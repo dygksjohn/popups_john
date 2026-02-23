@@ -1,5 +1,8 @@
+// file: src/main/java/com/popups/pupoo/payment/refund/application/RefundService.java
 package com.popups.pupoo.payment.refund.application;
 
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.payment.domain.enums.PaymentStatus;
 import com.popups.pupoo.payment.domain.model.Payment;
 import com.popups.pupoo.payment.persistence.PaymentRepository;
@@ -27,33 +30,31 @@ public class RefundService {
     /**
      * 환불 가능 검증 → 환불요청 생성(REQUESTED)
      * - refunds는 payment_id UNIQUE: 결제 1건당 환불 1건
-     * - refundAmount 미전달 시 결제금액 전액 환불로 처리
+     * - 정책: 전액환불만 허용한다(부분환불 금지)
      */
     @Transactional
     public RefundResponse requestRefund(Long userId, RefundRequest req) {
 
         Payment payment = paymentRepository.findById(req.paymentId())
-                .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + req.paymentId()));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
 
         if (!payment.getUserId().equals(userId)) {
-            throw new IllegalStateException("Not your payment");
+            throw new BusinessException(ErrorCode.REFUND_ACCESS_DENIED);
         }
         if (payment.getStatus() != PaymentStatus.APPROVED) {
-            throw new IllegalStateException("Refund allowed only when payment is APPROVED");
+            throw new BusinessException(ErrorCode.REFUND_NOT_ALLOWED);
         }
         if (refundRepository.existsByPayment_PaymentId(payment.getPaymentId())) {
-            throw new IllegalStateException("Refund already exists for this payment");
+            throw new BusinessException(ErrorCode.REFUND_ALREADY_EXISTS);
         }
 
-        //  refundAmount 기본값: 결제금액(전액 환불)
-        BigDecimal refundAmount = (req.refundAmount() == null) ? payment.getAmount() : req.refundAmount();
-
-        //  검증
+        // 정책: 전액환불만 허용
+        BigDecimal refundAmount = payment.getAmount();
+        if (req.refundAmount() != null && req.refundAmount().compareTo(refundAmount) != 0) {
+            throw new BusinessException(ErrorCode.REFUND_FULL_ONLY);
+        }
         if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("refundAmount must be positive");
-        }
-        if (refundAmount.compareTo(payment.getAmount()) > 0) {
-            throw new IllegalArgumentException("refundAmount cannot exceed payment amount");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
 
         Refund refund = Refund.requested(payment, refundAmount, req.reason());

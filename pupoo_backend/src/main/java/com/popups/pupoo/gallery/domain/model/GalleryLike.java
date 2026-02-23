@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/gallery/domain/model/GalleryLike.java
- * 목적: gallery_likes 테이블 엔티티 매핑
- */
+// file: src/main/java/com/popups/pupoo/gallery/domain/model/GalleryLike.java
 package com.popups.pupoo.gallery.domain.model;
 
 import jakarta.persistence.*;

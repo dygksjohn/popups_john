@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/gallery/persistence/GalleryRepository.java
- * 목적: galleries 접근(JPA)
- */
+// file: src/main/java/com/popups/pupoo/gallery/persistence/GalleryRepository.java
 package com.popups.pupoo.gallery.persistence;
 
 import com.popups.pupoo.gallery.domain.model.Gallery;

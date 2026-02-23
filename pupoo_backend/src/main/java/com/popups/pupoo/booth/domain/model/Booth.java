@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/booth/domain/model/Booth.java
 package com.popups.pupoo.booth.domain.model;
 
 import com.popups.pupoo.booth.domain.enums.BoothStatus;
@@ -23,7 +24,7 @@ public class Booth {
     private String placeName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, length = 30)
+    @Column(name = "type", nullable = false, length = 30, columnDefinition = "ENUM('BOOTH_COMPANY','BOOTH_EXPERIENCE','BOOTH_SALE','BOOTH_FOOD','BOOTH_INFO','BOOTH_SPONSOR','SESSION_ROOM','CONTEST_ZONE','STAGE','ETC')")
     private BoothType type;
 
     @Column(name = "description", length = 1000)
@@ -33,11 +34,11 @@ public class Booth {
     private String company;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "zone", nullable = false, length = 20)
+    @Column(name = "zone", nullable = false, length = 20, columnDefinition = "ENUM('ZONE_A','ZONE_B','ZONE_C','OTHER')")
     private BoothZone zone;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 20, columnDefinition = "ENUM('OPEN','CLOSED','PAUSED')")
     private BoothStatus status;
 
     @Column(name = "created_at", nullable = false)

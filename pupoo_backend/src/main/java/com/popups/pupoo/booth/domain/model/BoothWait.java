@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/booth/domain/model/BoothWait.java
 package com.popups.pupoo.booth.domain.model;
 
 import jakarta.persistence.*;

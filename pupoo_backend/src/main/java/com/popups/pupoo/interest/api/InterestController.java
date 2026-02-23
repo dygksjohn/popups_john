@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/interest/api/InterestController.java
 package com.popups.pupoo.interest.api;
 
 import com.popups.pupoo.common.api.ApiResponse;

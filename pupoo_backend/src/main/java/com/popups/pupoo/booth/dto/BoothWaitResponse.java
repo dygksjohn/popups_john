@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/booth/dto/BoothWaitResponse.java
 package com.popups.pupoo.booth.dto;
 
 import com.popups.pupoo.booth.domain.model.BoothWait;

@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/notice/dto/NoticeResponse.java
- * 목적: 공지 응답 DTO
- */
+// file: src/main/java/com/popups/pupoo/notice/dto/NoticeResponse.java
 package com.popups.pupoo.notice.dto;
 
 import com.popups.pupoo.notice.domain.enums.NoticeStatus;
@@ -23,7 +21,6 @@ public class NoticeResponse {
     private boolean pinned;
     private NoticeStatus status;
 
-    private Long createdByAdminId;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/payment/infrastructure/KakaoPayProperties.java
 package com.popups.pupoo.payment.infrastructure;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;

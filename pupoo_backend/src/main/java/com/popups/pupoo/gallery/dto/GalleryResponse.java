@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/gallery/dto/GalleryResponse.java
- * 목적: 갤러리 응답 DTO
- */
+// file: src/main/java/com/popups/pupoo/gallery/dto/GalleryResponse.java
 package com.popups.pupoo.gallery.dto;
 
 import com.popups.pupoo.gallery.domain.enums.GalleryStatus;

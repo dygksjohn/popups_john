@@ -1,9 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/board/boardinfo/domain/model/Board.java
- * 목적: boards 테이블 엔티티 매핑
- * 주의:
- *  - board_type은 MySQL ENUM이므로 columnDefinition으로 DB 정합성(validate) 보장
- *  - is_active는 TINYINT(0/1) 컬럼이므로 columnDefinition으로 타입 정합성(validate) 보장
- */
+// file: src/main/java/com/popups/pupoo/board/boardinfo/domain/model/Board.java
 package com.popups.pupoo.board.boardinfo.domain.model;
 
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
@@ -37,4 +32,19 @@ public class Board {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @PrePersist
+    void prePersist() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+    }
+
+    public void updateBoardName(String boardName) {
+        this.boardName = boardName;
+    }
+
+    public void changeActive(boolean active) {
+        this.active = active;
+    }
 }

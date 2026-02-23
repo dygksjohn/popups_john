@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/board/qna/dto/QnaResponse.java
- * 목적: QnA 응답 DTO
- */
+// file: src/main/java/com/popups/pupoo/board/qna/dto/QnaResponse.java
 package com.popups.pupoo.board.qna.dto;
 
 import com.popups.pupoo.board.qna.domain.enums.QnaStatus;

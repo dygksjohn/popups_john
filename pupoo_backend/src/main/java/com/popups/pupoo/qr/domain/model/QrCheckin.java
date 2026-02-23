@@ -1,15 +1,17 @@
+// file: src/main/java/com/popups/pupoo/qr/domain/model/QrCheckin.java
 package com.popups.pupoo.qr.domain.model;
 
 import com.popups.pupoo.booth.domain.model.Booth;
 import com.popups.pupoo.qr.domain.enums.QrCheckType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
 @Entity
@@ -38,12 +40,20 @@ public class QrCheckin {
             foreignKey = @ForeignKey(name = "fk_qr_logs_booth"))
     private Booth booth;
 
-    // DB: ENUM('CHECKIN','CHECKOUT') NOT NULL
+    /**
+     * DB: ENUM('CHECKIN','CHECKOUT') NOT NULL
+     * 목적: 출입 유형
+     * 주의: ddl-auto=validate 환경에서 DB ENUM(Types#CHAR)과 엔티티 기대 타입을 일치시켜야 한다.
+     */
     @Enumerated(EnumType.STRING)
-    @Column(name = "check_type", nullable = false, length = 10)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(
+        name = "check_type",
+        nullable = false,
+        columnDefinition = "ENUM('CHECKIN','CHECKOUT')"
+    )
     private QrCheckType checkType;
 
-    // DB: checked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     @Column(name = "checked_at", nullable = false)
     private LocalDateTime checkedAt;
 

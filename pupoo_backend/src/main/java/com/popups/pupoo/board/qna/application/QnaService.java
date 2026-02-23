@@ -1,9 +1,8 @@
-/* file: src/main/java/com/popups/pupoo/board/qna/application/QnaService.java
- * 목적: QnA 기능 구현(posts 기반)
- * 주의: QnA 전용 테이블(qnas)은 사용하지 않는다.
- */
+// file: src/main/java/com/popups/pupoo/board/qna/application/QnaService.java
 package com.popups.pupoo.board.qna.application;
 
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.domain.model.Board;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
@@ -30,7 +29,7 @@ public class QnaService {
     @Transactional
     public QnaResponse create(Long userId, QnaCreateRequest request) {
         Board qnaBoard = boardRepository.findByBoardType(BoardType.QNA)
-                .orElseThrow(() -> new IllegalStateException("QNA 게시판(board_type=QNA)이 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QNA 게시판(board_type=QNA)이 존재하지 않습니다."));
 
         Post post = Post.builder()
                 .board(qnaBoard)
@@ -51,11 +50,12 @@ public class QnaService {
 
     public QnaResponse get(Long qnaId) {
         Post post = qnaRepository.findQnaById(qnaId)
-                .orElseThrow(() -> new IllegalArgumentException("QnA가 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
         return toResponse(post);
     }
 
     public Page<QnaResponse> list(int page, int size) {
+        validatePageRequest(page, size);
         Page<Post> result = qnaRepository.findAllQna(PageRequest.of(page, size));
         return result.map(this::toResponse);
     }
@@ -63,45 +63,60 @@ public class QnaService {
     @Transactional
     public QnaResponse update(Long userId, Long qnaId, QnaUpdateRequest request) {
         Post post = qnaRepository.findQnaById(qnaId)
-                .orElseThrow(() -> new IllegalArgumentException("QnA가 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
 
         if (!post.getUserId().equals(userId)) {
-            throw new SecurityException("수정 권한이 없습니다.");
+            throw new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다.");
         }
 
-        Post updated = post.updateTitleAndContent(request.getTitle(), request.getContent())
-                .toBuilder()
-                .updatedAt(LocalDateTime.now())
-                .build();
+        post.updateTitleAndContent(request.getTitle(), request.getContent());
 
-        return toResponse(qnaRepository.save(updated));
-    }
+        // 운영안정(v2): mutating + dirty checking 기반으로 updatedAt은 @PreUpdate에서 자동 반영된다.
+        return toResponse(qnaRepository.save(post));
+}
 
     @Transactional
     public void delete(Long userId, Long qnaId) {
         Post post = qnaRepository.findQnaById(qnaId)
-                .orElseThrow(() -> new IllegalArgumentException("QnA가 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
 
         if (!post.getUserId().equals(userId)) {
-            throw new SecurityException("삭제 권한이 없습니다.");
+            throw new BusinessException(ErrorCode.FORBIDDEN, "삭제 권한이 없습니다.");
         }
 
-        qnaRepository.save(post.markDeleted().toBuilder().updatedAt(LocalDateTime.now()).build());
+        post.markDeleted();
+        qnaRepository.save(post);
     }
 
     @Transactional
     public void close(Long userId, Long qnaId) {
         Post post = qnaRepository.findQnaById(qnaId)
-                .orElseThrow(() -> new IllegalArgumentException("QnA가 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
 
         if (!post.getUserId().equals(userId)) {
-            throw new SecurityException("마감 권한이 없습니다.");
+            throw new BusinessException(ErrorCode.FORBIDDEN, "마감 권한이 없습니다.");
         }
 
-        qnaRepository.save(post.close().toBuilder().updatedAt(LocalDateTime.now()).build());
+        post.close();
+        qnaRepository.save(post);
     }
 
-    private QnaResponse toResponse(Post post) {
+    
+
+/**
+ * 운영 환경에서 과도한 페이징 요청으로 DB 부하가 커지는 것을 방지하기 위해,
+ * page/size 범위를 서비스 레이어에서 한번 더 제한한다.
+ */
+private void validatePageRequest(int page, int size) {
+    if (page < 0) {
+        throw new BusinessException(ErrorCode.INVALID_REQUEST, "page는 0 이상이어야 합니다.");
+    }
+    if (size < 1 || size > 100) {
+        throw new BusinessException(ErrorCode.INVALID_REQUEST, "size는 1~100 범위여야 합니다.");
+    }
+}
+
+private QnaResponse toResponse(Post post) {
         return QnaResponse.builder()
                 .qnaId(post.getPostId())
                 .boardId(post.getBoard().getBoardId())

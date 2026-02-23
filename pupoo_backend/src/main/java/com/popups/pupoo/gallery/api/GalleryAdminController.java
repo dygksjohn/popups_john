@@ -1,6 +1,8 @@
+// file: src/main/java/com/popups/pupoo/gallery/api/GalleryAdminController.java
 package com.popups.pupoo.gallery.api;
 
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.IdResponse;
 import com.popups.pupoo.gallery.application.GalleryAdminService;
 import com.popups.pupoo.gallery.dto.GalleryCreateRequest;
 import com.popups.pupoo.gallery.dto.GalleryResponse;
@@ -37,8 +39,8 @@ public class GalleryAdminController {
     }
 
     @DeleteMapping("/{galleryId}")
-    public ApiResponse<Void> delete(@PathVariable("galleryId") Long galleryId) {
+    public ApiResponse<IdResponse> delete(@PathVariable("galleryId") Long galleryId) {
         galleryAdminService.delete(galleryId);
-        return ApiResponse.success(null);
+        return ApiResponse.success(new IdResponse(galleryId));
     }
 }

@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/program/dto/ProgramResponse.java
 package com.popups.pupoo.program.dto;
 
 import com.popups.pupoo.program.domain.enums.ProgramCategory;
@@ -29,7 +30,7 @@ public class ProgramResponse {
 
     public static ProgramResponse from(Program p) {
         if (p == null) {
-            return null;
+            throw new IllegalArgumentException("Program is null");
         }
 
         return ProgramResponse.builder()

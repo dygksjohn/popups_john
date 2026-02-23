@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/qr/application/QrService.java
 package com.popups.pupoo.qr.application;
 
 import com.popups.pupoo.booth.domain.model.Booth;
@@ -66,7 +67,8 @@ public class QrService {
                             .user(user)
                             .event(event)
                             .originalUrl(buildQrUrl(userId, eventId))
-                            .mimeType(QrMimeType.png)
+                            // enum 상수는 대문자, DB 저장은 Converter가 소문자로 변환한다.
+                            .mimeType(QrMimeType.PNG)
                             .issuedAt(now)
                             .expiredAt(expiredAt)
                             .build();

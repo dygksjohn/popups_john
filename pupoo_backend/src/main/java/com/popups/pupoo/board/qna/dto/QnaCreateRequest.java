@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/board/qna/dto/QnaCreateRequest.java
- * 목적: QnA 생성 요청 DTO
- */
+// file: src/main/java/com/popups/pupoo/board/qna/dto/QnaCreateRequest.java
 package com.popups.pupoo.board.qna.dto;
 
 import jakarta.validation.constraints.NotBlank;

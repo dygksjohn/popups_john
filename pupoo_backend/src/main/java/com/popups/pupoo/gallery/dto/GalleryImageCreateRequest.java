@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/gallery/dto/GalleryImageCreateRequest.java
 package com.popups.pupoo.gallery.dto;
 
 import com.popups.pupoo.gallery.domain.enums.GalleryImageMimeType;

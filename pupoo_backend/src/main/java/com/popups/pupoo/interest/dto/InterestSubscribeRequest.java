@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/interest/dto/InterestSubscribeRequest.java
 package com.popups.pupoo.interest.dto;
 
 import jakarta.validation.constraints.NotNull;

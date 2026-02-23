@@ -1,6 +1,9 @@
+// file: src/main/java/com/popups/pupoo/payment/api/PaymentController.java
 package com.popups.pupoo.payment.api;
 
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.payment.application.PaymentService;
 import com.popups.pupoo.payment.dto.PaymentCreateRequest;
 import com.popups.pupoo.payment.dto.PaymentReadyResponse;
@@ -19,7 +22,8 @@ public class PaymentController {
     private Long currentUserId() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getPrincipal() == null) {
-            throw new IllegalStateException("Unauthenticated");
+            // 기능: 미인증 요청 차단
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
         Object principal = auth.getPrincipal();
         if (principal instanceof Long id) return id;
@@ -27,7 +31,8 @@ public class PaymentController {
         // 혹시 문자열로 들어오는 케이스 방어
         if (principal instanceof String s) return Long.valueOf(s);
 
-        throw new IllegalStateException("Unexpected principal type: " + principal.getClass());
+        // 기능: principal 타입 비정상(표준: userId(Long) 또는 String)
+        throw new BusinessException(ErrorCode.UNAUTHORIZED);
     }
 
 

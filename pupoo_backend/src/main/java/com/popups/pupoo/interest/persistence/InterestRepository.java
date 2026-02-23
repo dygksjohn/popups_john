@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/interest/persistence/InterestRepository.java
 package com.popups.pupoo.interest.persistence;
 
 import com.popups.pupoo.interest.domain.enums.InterestType;

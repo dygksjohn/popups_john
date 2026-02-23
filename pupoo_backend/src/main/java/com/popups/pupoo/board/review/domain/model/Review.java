@@ -1,11 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/board/review/domain/model/Review.java
- * 목적: reviews 테이블 엔티티 매핑
- * 주의:
- *  - review_status는 MySQL ENUM이므로 columnDefinition으로 DB 정합성(validate) 보장
- *  - is_deleted는 TINYINT(0/1) 컬럼이므로 columnDefinition으로 타입 정합성(validate) 보장
- *  - rating은 TINYINT 컬럼이므로 byte로 매핑 + columnDefinition 명시
- *  - content는 DB TEXT 타입이므로 columnDefinition으로 타입 정합성(validate) 보장
- */
+// file: src/main/java/com/popups/pupoo/board/review/domain/model/Review.java
 package com.popups.pupoo.board.review.domain.model;
 
 import com.popups.pupoo.board.review.domain.enums.ReviewStatus;
@@ -61,4 +54,37 @@ public class Review {
             columnDefinition = "ENUM('PUBLIC','REPORTED','BLINDED','DELETED')"
     )
     private ReviewStatus reviewStatus;
+
+    /**
+     * 관리자 모더레이션: 블라인드 처리.
+     */
+    public void blind() {
+        this.reviewStatus = ReviewStatus.BLINDED;
+    }
+
+    /**
+     * 사용자 신고 접수.
+     * - 정책: 신고 접수 시 PUBLIC -> REPORTED로 전환(이미 BLINDED/DELETED면 변경하지 않음)
+     */
+    public void report() {
+        if (this.deleted) return;
+        if (this.reviewStatus == ReviewStatus.BLINDED || this.reviewStatus == ReviewStatus.DELETED) return;
+        this.reviewStatus = ReviewStatus.REPORTED;
+    }
+
+    /**
+     * 관리자 모더레이션: 복구 처리.
+     */
+    public void restore() {
+        this.deleted = false;
+        this.reviewStatus = ReviewStatus.PUBLIC;
+    }
+
+    /**
+     * 관리자 모더레이션: soft delete.
+     */
+    public void softDelete() {
+        this.deleted = true;
+        this.reviewStatus = ReviewStatus.DELETED;
+    }
 }

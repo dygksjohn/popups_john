@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/auth/dto/PhoneVerificationConfirmRequest.java
+// file: src/main/java/com/popups/pupoo/auth/dto/PhoneVerificationConfirmRequest.java
 package com.popups.pupoo.auth.dto;
 
 import jakarta.validation.constraints.NotBlank;

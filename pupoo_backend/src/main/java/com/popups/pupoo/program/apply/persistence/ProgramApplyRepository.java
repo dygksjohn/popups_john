@@ -1,8 +1,8 @@
+// file: src/main/java/com/popups/pupoo/program/apply/persistence/ProgramApplyRepository.java
 package com.popups.pupoo.program.apply.persistence;
 
 import com.popups.pupoo.program.apply.domain.enums.ApplyStatus;
 import com.popups.pupoo.program.apply.domain.model.ProgramApply;
-import com.popups.pupoo.program.domain.model.Program;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

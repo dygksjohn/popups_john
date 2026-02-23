@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/payment/persistence/PaymentTransactionRepository.java
 package com.popups.pupoo.payment.persistence;
 
 import com.popups.pupoo.payment.domain.model.PaymentTransaction;

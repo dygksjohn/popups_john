@@ -1,10 +1,15 @@
-/* file: src/main/java/com/popups/pupoo/notice/application/NoticeAdminService.java
- * 목적: 공지 관리자용 생성/수정/삭제 서비스
- */
+// file: src/main/java/com/popups/pupoo/notice/application/NoticeAdminService.java
 package com.popups.pupoo.notice.application;
 
+import com.popups.pupoo.common.audit.application.AdminLogService;
+import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.notice.domain.enums.NoticeStatus;
 import com.popups.pupoo.notice.domain.model.Notice;
-import com.popups.pupoo.notice.dto.*;
+import com.popups.pupoo.notice.dto.NoticeCreateRequest;
+import com.popups.pupoo.notice.dto.NoticeResponse;
+import com.popups.pupoo.notice.dto.NoticeUpdateRequest;
 import com.popups.pupoo.notice.persistence.NoticeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,7 +23,11 @@ import java.time.LocalDateTime;
 public class NoticeAdminService {
 
     private final NoticeRepository noticeRepository;
+    private final AdminLogService adminLogService;
 
+    /**
+     * 공지사항 생성(관리자)
+     */
     @Transactional
     public NoticeResponse create(Long adminUserId, NoticeCreateRequest request) {
         Notice notice = Notice.builder()
@@ -34,13 +43,18 @@ public class NoticeAdminService {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        return toResponse(noticeRepository.save(notice));
+        Notice saved = noticeRepository.save(notice);
+        adminLogService.write("NOTICE_CREATE", AdminTargetType.NOTICE, saved.getNoticeId());
+        return toResponse(saved);
     }
 
+    /**
+     * 공지사항 수정(관리자)
+     */
     @Transactional
     public NoticeResponse update(Long noticeId, NoticeUpdateRequest request) {
         Notice notice = noticeRepository.findById(noticeId)
-                .orElseThrow(() -> new IllegalArgumentException("공지사항이 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "공지사항이 존재하지 않습니다."));
 
         Notice updated = notice.toBuilder()
                 .noticeTitle(request.getTitle())
@@ -50,15 +64,32 @@ public class NoticeAdminService {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        return toResponse(noticeRepository.save(updated));
+        Notice saved = noticeRepository.save(updated);
+        adminLogService.write("NOTICE_UPDATE", AdminTargetType.NOTICE, noticeId);
+        return toResponse(saved);
     }
 
+    /**
+     * 공지사항 삭제(관리자)
+     * - 운영 안정성을 위해 물리 삭제 대신 상태를 HIDDEN으로 변경한다.
+     */
     @Transactional
     public void delete(Long noticeId) {
-        noticeRepository.deleteById(noticeId);
+        Notice notice = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "공지사항이 존재하지 않습니다."));
+
+        Notice updated = notice.toBuilder()
+                .status(NoticeStatus.HIDDEN)
+                .pinned(false)
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        noticeRepository.save(updated);
+        adminLogService.write("NOTICE_DELETE_SOFT", AdminTargetType.NOTICE, noticeId);
     }
 
     private NoticeResponse toResponse(Notice n) {
+        // PUBLIC 조회 정책에 따라 createdByAdminId는 응답에 포함하지 않는다.
         return NoticeResponse.builder()
                 .noticeId(n.getNoticeId())
                 .scope(n.getScope())
@@ -67,7 +98,6 @@ public class NoticeAdminService {
                 .content(n.getContent())
                 .pinned(n.isPinned())
                 .status(n.getStatus())
-                .createdByAdminId(n.getCreatedByAdminId())
                 .createdAt(n.getCreatedAt())
                 .updatedAt(n.getUpdatedAt())
                 .build();

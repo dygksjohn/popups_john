@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/contest/vote/application/ContestVoteService.java
 package com.popups.pupoo.contest.vote.application;
 
 import java.time.LocalDateTime;
@@ -17,6 +18,8 @@ import com.popups.pupoo.program.apply.domain.model.ProgramApply;
 import com.popups.pupoo.program.apply.persistence.ProgramApplyRepository;
 import com.popups.pupoo.program.domain.enums.ProgramCategory;
 import com.popups.pupoo.program.persistence.ProgramRepository;
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 
 @Service
 public class ContestVoteService {
@@ -39,30 +42,36 @@ public class ContestVoteService {
     public ContestVoteCreateResponse vote(Long programId, Long userId, ContestVoteRequest req) {
 
         var program = programRepository.findById(programId)
-                .orElseThrow(() -> new IllegalArgumentException("PROGRAM_NOT_FOUND"));
+                // 기능: 경연 프로그램 조회
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         if (program.getCategory() != ProgramCategory.CONTEST) {
-            throw new IllegalArgumentException("PROGRAM_NOT_CONTEST");
+            // 기능: 경연 프로그램 여부 검증
+            throw new BusinessException(ErrorCode.CONTEST_NOT_CONTEST);
         }
 
         validateVotePeriod(program.getStartAt(), program.getEndAt());
 
         ProgramApply apply = programApplyRepository.findById(req.programApplyId())
-                .orElseThrow(() -> new IllegalArgumentException("PROGRAM_APPLY_NOT_FOUND"));
+                // 기능: 참가 신청 조회
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         // 1️⃣ 해당 프로그램 소속 참가자인지
         if (!apply.getProgramId().equals(programId)) {
-            throw new IllegalArgumentException("PROGRAM_APPLY_NOT_MATCHED");
+            // 기능: 프로그램-참가신청 매칭 검증
+            throw new BusinessException(ErrorCode.CONTEST_APPLY_NOT_MATCHED);
         }
 
         // 2️⃣ APPROVED 상태만 투표 허용 (강력 추천)
         if (apply.getStatus() != ApplyStatus.APPROVED) {
-            throw new IllegalArgumentException("INVALID_VOTE_TARGET");
+            // 기능: 승인된 참가자만 투표 허용
+            throw new BusinessException(ErrorCode.CONTEST_TARGET_INVALID);
         }
 
         // 3️⃣ 자기 자신에게 투표 금지 (정책 선택)
         if (apply.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("CANNOT_VOTE_SELF");
+            // 기능: 본인 투표 금지
+            throw new BusinessException(ErrorCode.CONTEST_CANNOT_VOTE_SELF);
         }
 
         try {
@@ -78,7 +87,7 @@ public class ContestVoteService {
 
         } catch (DataIntegrityViolationException e) {
             // UNIQUE(program_id, user_id, active_flag) 충돌
-            throw new IllegalStateException("ALREADY_VOTED");
+            throw new BusinessException(ErrorCode.CONTEST_VOTE_ALREADY);
         }
     }
 
@@ -86,10 +95,12 @@ public class ContestVoteService {
     @Transactional
     public void cancel(Long programId, Long userId) {
         var program = programRepository.findById(programId)
-                .orElseThrow(() -> new IllegalArgumentException("PROGRAM_NOT_FOUND"));
+                // 기능: 경연 프로그램 조회
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         if (program.getCategory() != ProgramCategory.CONTEST) {
-            throw new IllegalArgumentException("PROGRAM_NOT_CONTEST");
+            // 기능: 경연 프로그램 여부 검증
+            throw new BusinessException(ErrorCode.CONTEST_NOT_CONTEST);
         }
 
         // 정책:
@@ -99,16 +110,19 @@ public class ContestVoteService {
 
         int updated = voteRepository.cancelActiveVote(programId, userId);
         if (updated == 0) {
-            throw new IllegalArgumentException("VOTE_NOT_FOUND");
+            // 기능: 취소할 투표 미존재
+            throw new BusinessException(ErrorCode.CONTEST_VOTE_NOT_FOUND);
         }
     }
 
     @Transactional(readOnly = true)
     public ContestVoteResultResponse result(Long programId, Long userId) {
         var program = programRepository.findById(programId)
-                .orElseThrow(() -> new IllegalArgumentException("PROGRAM_NOT_FOUND"));
+                // 기능: 경연 프로그램 조회
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         if (program.getCategory() != ProgramCategory.CONTEST) {
-            throw new IllegalArgumentException("PROGRAM_NOT_CONTEST");
+            // 기능: 경연 프로그램 여부 검증
+            throw new BusinessException(ErrorCode.CONTEST_NOT_CONTEST);
         }
 
         long total = voteRepository.countActiveVotes(programId);
@@ -129,25 +143,8 @@ public class ContestVoteService {
     private void validateVotePeriod(LocalDateTime startAt, LocalDateTime endAt) {
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(startAt) || now.isAfter(endAt)) {
-            throw new IllegalStateException("VOTE_PERIOD_CLOSED");
+            // 기능: 투표 기간 검증
+            throw new BusinessException(ErrorCode.CONTEST_VOTE_PERIOD_CLOSED);
         }
-    }
-    
-    @Transactional(readOnly = true)
-    public ContestVoteResultResponse resultPublic(Long programId) {
-        var program = programRepository.findById(programId)
-                .orElseThrow(() -> new IllegalArgumentException("PROGRAM_NOT_FOUND"));
-        if (program.getCategory() != ProgramCategory.CONTEST) {
-            throw new IllegalArgumentException("PROGRAM_NOT_CONTEST");
-        }
-
-        long total = voteRepository.countActiveVotes(programId);
-
-        var items = voteRepository.countActiveVotesByProgramApply(programId).stream()
-                .map(v -> new ContestVoteResultResponse.Item(v.getProgramApplyId(), v.getVoteCount()))
-                .toList();
-
-        // ✅ 비로그인 공개용이므로 내 투표(myProgramApplyId)는 null
-        return new ContestVoteResultResponse(programId, total, items, null);
     }
 }

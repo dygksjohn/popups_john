@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/auth/dto/TokenResponse.java
+// file: src/main/java/com/popups/pupoo/auth/dto/TokenResponse.java
 package com.popups.pupoo.auth.dto;
 
 import lombok.AllArgsConstructor;

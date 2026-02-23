@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/payment/domain/model/Payment.java
 package com.popups.pupoo.payment.domain.model;
 
 import com.popups.pupoo.payment.domain.enums.PaymentProvider;

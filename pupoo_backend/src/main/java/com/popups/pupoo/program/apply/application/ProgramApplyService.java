@@ -1,6 +1,9 @@
+// file: src/main/java/com/popups/pupoo/program/apply/application/ProgramApplyService.java
 package com.popups.pupoo.program.apply.application;
 
 import com.popups.pupoo.common.api.PageResponse;
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.model.Event;
 import com.popups.pupoo.event.persistence.EventRepository;
@@ -11,7 +14,6 @@ import com.popups.pupoo.program.apply.dto.ProgramApplyResponse;
 import com.popups.pupoo.program.apply.persistence.ProgramApplyRepository;
 import com.popups.pupoo.program.domain.model.Program;
 import com.popups.pupoo.program.persistence.ProgramRepository;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
@@ -43,7 +45,7 @@ public class ProgramApplyService {
     @Transactional(readOnly = true)
     public ProgramApplyResponse getApply(Long userId, Long id) {
         ProgramApply apply = programApplyRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("PROGRAM_APPLY_NOT_FOUND"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROGRAM_APPLY_NOT_FOUND));
 
         validateOwner(userId, apply);
         return ProgramApplyResponse.from(apply);
@@ -51,19 +53,19 @@ public class ProgramApplyService {
 
     public ProgramApplyResponse create(Long userId, ProgramApplyRequest req) {
         Program program = programRepository.findById(req.getProgramId())
-                .orElseThrow(() -> new EntityNotFoundException("PROGRAM_NOT_FOUND"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROGRAM_NOT_FOUND));
 
         Event event = eventRepository.findById(program.getEventId())
-                .orElseThrow(() -> new EntityNotFoundException("EVENT_NOT_FOUND"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.EVENT_NOT_FOUND));
 
         // 1) 행사 상태 검증
         if (event.getStatus() == EventStatus.ENDED || event.getStatus() == EventStatus.CANCELLED) {
-            throw new IllegalStateException("EVENT_NOT_APPLICABLE");
+            throw new BusinessException(ErrorCode.PROGRAM_APPLY_EVENT_NOT_APPLICABLE);
         }
 
         // 2) 신청 가능 시간 검증
         if (!program.isApplyAllowed()) {
-            throw new IllegalStateException("PROGRAM_APPLY_TIME_CLOSED");
+            throw new BusinessException(ErrorCode.PROGRAM_APPLY_TIME_CLOSED);
         }
 
         // 3) 중복 신청 검증 (활성 상태만 차단)
@@ -74,7 +76,7 @@ public class ProgramApplyService {
         );
 
         if (existsActive) {
-            throw new IllegalStateException("PROGRAM_APPLY_DUPLICATED");
+            throw new BusinessException(ErrorCode.PROGRAM_APPLY_DUPLICATE);
         }
 
         // 4) 저장 (REJECTED/CANCELLED 이력은 남기고, 재신청은 새 row INSERT)
@@ -85,28 +87,28 @@ public class ProgramApplyService {
             return ProgramApplyResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
             // 동시성(더블클릭/중복요청)에서 DB 유니크에 걸릴 수 있음
-            throw new IllegalStateException("PROGRAM_APPLY_DUPLICATED");
+            throw new BusinessException(ErrorCode.PROGRAM_APPLY_DUPLICATE);
         }
     }
 
     public void cancel(Long userId, Long id) {
         ProgramApply apply = programApplyRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("PROGRAM_APPLY_NOT_FOUND"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROGRAM_APPLY_NOT_FOUND));
 
         validateOwner(userId, apply);
 
-        // 이미 취소면 중복 취소 방지(선택)
-        if (apply.getStatus() == ApplyStatus.CANCELLED) {
-            throw new IllegalStateException("ALREADY_CANCELLED");
+        // 정책: 활성 상태(APPLIED/WAITING/APPROVED)에서만 취소 가능
+        if (!apply.isActive()) {
+            // CHECKED_IN/REJECTED/CANCELLED 등
+            throw new BusinessException(ErrorCode.PROGRAM_APPLY_INVALID_STATUS);
         }
 
-        // 승인/대기/접수 상태에서만 취소 허용 같은 정책이 있으면 여기서 추가 가능
-        apply.cancel(); //  status=CANCELLED + cancelledAt=now()
+        apply.cancel(); // status=CANCELLED + cancelledAt=now()
     }
 
     private void validateOwner(Long userId, ProgramApply apply) {
         if (!apply.getUserId().equals(userId)) {
-            throw new SecurityException("FORBIDDEN");
+            throw new BusinessException(ErrorCode.PROGRAM_APPLY_ACCESS_DENIED);
         }
     }
 }

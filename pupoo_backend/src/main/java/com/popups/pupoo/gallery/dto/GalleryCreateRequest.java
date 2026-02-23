@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/gallery/dto/GalleryCreateRequest.java
- * 목적: 갤러리 생성 요청 DTO
- */
+// file: src/main/java/com/popups/pupoo/gallery/dto/GalleryCreateRequest.java
 package com.popups.pupoo.gallery.dto;
 
 import jakarta.validation.constraints.NotBlank;

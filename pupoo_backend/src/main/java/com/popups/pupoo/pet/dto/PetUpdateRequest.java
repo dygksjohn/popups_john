@@ -1,4 +1,4 @@
-// 파일 위치: src/main/java/com/popups/pupoo/pet/dto/PetUpdateRequest.java
+// file: src/main/java/com/popups/pupoo/pet/dto/PetUpdateRequest.java
 package com.popups.pupoo.pet.dto;
 
 import com.popups.pupoo.pet.domain.enums.AnimalType;

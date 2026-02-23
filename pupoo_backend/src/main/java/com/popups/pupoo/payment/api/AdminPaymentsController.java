@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/payment/api/AdminPaymentsController.java
 package com.popups.pupoo.payment.api;
 
 import com.popups.pupoo.common.api.ApiResponse;

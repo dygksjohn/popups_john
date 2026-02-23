@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/event/persistence/EventRegistrationRepository.java
 package com.popups.pupoo.event.persistence;
 
 import com.popups.pupoo.event.domain.enums.RegistrationStatus;
@@ -19,6 +20,28 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     boolean existsByEventIdAndUserIdAndStatus(Long eventId, Long userId, RegistrationStatus status);
 
     Page<EventRegistration> findByUserId(Long userId, Pageable pageable);
+
+    /**
+     * 참가 신청 단건 조회
+     * - UNIQUE(event_id, user_id) 구조이므로 최대 1건이다.
+     */
+    Optional<EventRegistration> findByEventIdAndUserId(Long eventId, Long userId);
+
+    /**
+     * 참가 신청 단건 조회(락)
+     * - 재신청(취소 -> 신청) 같은 상태 전이에서 동시성 정합성 확보
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        select er
+        from EventRegistration er
+        where er.eventId = :eventId
+          and er.userId = :userId
+    """)
+    Optional<EventRegistration> findByEventIdAndUserIdForUpdate(
+            @Param("eventId") Long eventId,
+            @Param("userId") Long userId
+    );
 
     /**
      *  결제 승인 시 자동 승인용: APPLIED 상태 row를 락으로 잡고 가져오기
@@ -55,4 +78,13 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
             @Param("userId") Long userId,
             @Param("statuses") Collection<RegistrationStatus> statuses
     );
+
+    /** 관리자 처리용: applyId 기준 락 조회 */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        select er
+        from EventRegistration er
+        where er.applyId = :applyId
+    """)
+    Optional<EventRegistration> findByApplyIdForUpdate(@Param("applyId") Long applyId);
 }

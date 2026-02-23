@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/payment/domain/model/PaymentTransaction.java
 package com.popups.pupoo.payment.domain.model;
 
 import com.popups.pupoo.payment.domain.enums.PaymentTransactionStatus;
@@ -149,4 +150,6 @@ public class PaymentTransaction {
     public String getPgTid() { return pgTid; }
     public String getPgToken() { return pgToken; }
     public PaymentTransactionStatus getStatus() { return status; }
+
+    public String getRawReady() { return rawReady; }
 }

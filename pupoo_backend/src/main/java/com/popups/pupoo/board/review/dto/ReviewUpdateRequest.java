@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/board/review/dto/ReviewUpdateRequest.java
- * 목적: 후기 수정 요청 DTO
- */
+// file: src/main/java/com/popups/pupoo/board/review/dto/ReviewUpdateRequest.java
 package com.popups.pupoo.board.review.dto;
 
 import jakarta.validation.constraints.Max;

@@ -1,8 +1,7 @@
-/* file: src/main/java/com/popups/pupoo/board/review/dto/ReviewResponse.java
- * 목적: 후기 응답 DTO
- */
+// file: src/main/java/com/popups/pupoo/board/review/dto/ReviewResponse.java
 package com.popups.pupoo.board.review.dto;
 
+import com.popups.pupoo.board.review.domain.model.Review;
 import com.popups.pupoo.board.review.domain.enums.ReviewStatus;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,4 +24,18 @@ public class ReviewResponse {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    public static ReviewResponse from(Review review) {
+        return ReviewResponse.builder()
+                .reviewId(review.getReviewId())
+                .eventId(review.getEventId())
+                .userId(review.getUserId())
+                .rating(review.getRating())
+                .content(review.getContent())
+                .viewCount(review.getViewCount())
+                .status(review.getReviewStatus())
+                .createdAt(review.getCreatedAt())
+                .updatedAt(review.getUpdatedAt())
+                .build();
+    }
 }

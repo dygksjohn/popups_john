@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/program/speaker/domain/model/Speaker.java
 package com.popups.pupoo.program.speaker.domain.model;
 
 import jakarta.persistence.*;

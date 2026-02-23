@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/gallery/persistence/GalleryLikeRepository.java
- * 목적: gallery_likes 접근(JPA)
- */
+// file: src/main/java/com/popups/pupoo/gallery/persistence/GalleryLikeRepository.java
 package com.popups.pupoo.gallery.persistence;
 
 import com.popups.pupoo.gallery.domain.model.GalleryLike;

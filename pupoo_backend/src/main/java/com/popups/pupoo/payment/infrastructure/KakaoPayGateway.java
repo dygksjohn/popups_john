@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/payment/infrastructure/KakaoPayGateway.java
 package com.popups.pupoo.payment.infrastructure;
 
 import com.popups.pupoo.payment.domain.enums.PaymentProvider;
@@ -9,6 +10,8 @@ import com.popups.pupoo.payment.dto.PaymentReadyRequest;
 import com.popups.pupoo.payment.dto.PaymentReadyResponse;
 import com.popups.pupoo.payment.persistence.PaymentTransactionRepository;
 import com.popups.pupoo.payment.port.PaymentGateway;
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
@@ -43,11 +46,27 @@ public class KakaoPayGateway implements PaymentGateway {
     public PaymentReadyResponse ready(Payment payment, PaymentReadyRequest req) {
         validateKakaoPay(payment);
 
-        // 이미 tx 있으면 재생성 방지 (중복 ready 호출 방지)
-        txRepository.findByPaymentId(payment.getPaymentId()).ifPresent(tx -> {
-            throw new IllegalStateException("PaymentTransaction already exists. paymentId=" + payment.getPaymentId()
-                    + ", txStatus=" + tx.getStatus());
-        });
+        // 멱등: 이미 tx가 있으면 raw_ready로 동일 응답을 재구성하여 반환한다.
+        // - READY/APPROVED는 "이미 ready가 한번 수행된 결제"로 보고 그대로 반환한다.
+        // - CANCELLED/FAILED는 재-ready를 허용하지 않는다(결제는 새로 생성해야 함)
+        PaymentTransaction existing = txRepository.findByPaymentIdForUpdate(payment.getPaymentId()).orElse(null);
+        if (existing != null) {
+            if ("READY".equals(existing.getStatus().name()) || "APPROVED".equals(existing.getStatus().name())) {
+                if (existing.getRawReady() == null || existing.getRawReady().isBlank()) {
+                    throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR);
+                }
+                KakaoPayReadyResponse raw = client.parseReadyResponse(existing.getRawReady());
+                return new PaymentReadyResponse(
+                        payment.getPaymentId(),
+                        payment.getOrderNo(),
+                        existing.getPgTid(),
+                        raw.next_redirect_pc_url(),
+                        raw.next_redirect_mobile_url()
+                );
+            }
+            // 기능: READY 재호출 불가 상태
+            throw new BusinessException(ErrorCode.PAYMENT_TX_INVALID_STATUS);
+        }
 
         // URL 확정 (paymentId 치환)
         String approvalUrl = props.approvalUrl().replace("{paymentId}", String.valueOf(payment.getPaymentId()));
@@ -55,12 +74,13 @@ public class KakaoPayGateway implements PaymentGateway {
         String failUrl = props.failUrl().replace("{paymentId}", String.valueOf(payment.getPaymentId()));
 
         // === 요청값 기본 검증(카카오가 500으로 뭉개는 케이스 예방) ===
-        if (req.quantity() <= 0) throw new IllegalArgumentException("quantity must be >= 1");
-        if (req.itemName() == null || req.itemName().isBlank()) throw new IllegalArgumentException("itemName is required");
+        // 기능: 결제 요청값 검증
+        if (req.quantity() <= 0) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        if (req.itemName() == null || req.itemName().isBlank()) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
 
         int totalAmount = toIntAmount(payment.getAmount()); // 카카오: 보통 정수 금액
         int taxFree = Math.max(req.taxFreeAmount(), 0);
-        if (taxFree > totalAmount) throw new IllegalArgumentException("taxFreeAmount must be <= totalAmount");
+        if (taxFree > totalAmount) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
 
         KakaoPayReadyRequest readyReq = new KakaoPayReadyRequest(
                 props.cid(),
@@ -125,17 +145,26 @@ public class KakaoPayGateway implements PaymentGateway {
         validateKakaoPay(payment);
 
         if (payment.getStatus() != PaymentStatus.REQUESTED) {
-            throw new IllegalStateException("Payment not REQUESTED. status=" + payment.getStatus());
+            // 기능: 결제 승인 상태 전이 검증
+            throw new BusinessException(ErrorCode.PAYMENT_INVALID_STATUS);
         }
         if (req.pgToken() == null || req.pgToken().isBlank()) {
-            throw new IllegalArgumentException("pg_token is required");
+            // 기능: pg_token 필수
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
         PaymentTransaction tx = txRepository.findByPaymentIdForUpdate(payment.getPaymentId())
-                .orElseThrow(() -> new IllegalArgumentException("PaymentTransaction not found. paymentId=" + payment.getPaymentId()));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_TX_NOT_FOUND));
 
+        // 멱등: 이미 승인된 트랜잭션이면 true 반환
+        if ("APPROVED".equals(tx.getStatus().name())) {
+            return true;
+        }
+
+        // 승인 요청은 READY 상태에서만 허용
         if (!"READY".equals(tx.getStatus().name())) {
-            throw new IllegalStateException("TX not READY. status=" + tx.getStatus());
+            // 기능: 트랜잭션 상태 전이 검증
+            throw new BusinessException(ErrorCode.PAYMENT_TX_INVALID_STATUS);
         }
 
         tx.setPgToken(req.pgToken());
@@ -174,20 +203,28 @@ public class KakaoPayGateway implements PaymentGateway {
     @Transactional
     public boolean cancel(Payment payment) {
         if (payment.getPaymentMethod() != PaymentProvider.KAKAOPAY) {
-            throw new IllegalStateException("cancel() is only for KAKAOPAY. method=" + payment.getPaymentMethod());
+            // 기능: 결제수단 검증
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
 
         // 결제 취소/환불은 승인된 결제만 가능(정책)
         if (payment.getStatus() != PaymentStatus.APPROVED) {
-            throw new IllegalStateException("Cancel allowed only when payment is APPROVED. status=" + payment.getStatus());
+            // 기능: 결제 취소 상태 전이 검증
+            throw new BusinessException(ErrorCode.PAYMENT_INVALID_STATUS);
         }
 
         PaymentTransaction tx = txRepository.findByPaymentIdForUpdate(payment.getPaymentId())
-                .orElseThrow(() -> new IllegalArgumentException("PaymentTransaction not found. paymentId=" + payment.getPaymentId()));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_TX_NOT_FOUND));
+
+        // 멱등: 이미 CANCELLED면 true 반환
+        if ("CANCELLED".equals(tx.getStatus().name())) {
+            return true;
+        }
 
         // APPROVED 상태의 트랜잭션만 취소 가능(정책)
         if (!"APPROVED".equals(tx.getStatus().name())) {
-            throw new IllegalStateException("TX not APPROVED. status=" + tx.getStatus());
+            // 기능: 트랜잭션 상태 전이 검증
+            throw new BusinessException(ErrorCode.PAYMENT_TX_INVALID_STATUS);
         }
 
         int cancelAmount = payment.getAmount().intValue(); // 현재 금액이 정수라는 전제(테스트)
@@ -221,7 +258,8 @@ public class KakaoPayGateway implements PaymentGateway {
 
     private void validateKakaoPay(Payment payment) {
         if (payment.getPaymentMethod() != PaymentProvider.KAKAOPAY) {
-            throw new IllegalStateException("KAKAOPAY only. method=" + payment.getPaymentMethod());
+            // 기능: 결제수단 검증
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -230,9 +268,10 @@ public class KakaoPayGateway implements PaymentGateway {
      * - 소수점이 들어오면 예외로 막아버림(정책). 필요하면 반올림/절삭 정책으로 바꿔.
      */
     private int toIntAmount(BigDecimal amount) {
-        if (amount == null) throw new IllegalArgumentException("amount is null");
+        // 기능: 금액 검증
+        if (amount == null) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         if (amount.scale() > 0 && amount.stripTrailingZeros().scale() > 0) {
-            throw new IllegalArgumentException("amount must be integer for KakaoPay. amount=" + amount);
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
         return amount.intValueExact();
     }

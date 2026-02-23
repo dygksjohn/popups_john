@@ -1,5 +1,8 @@
+// file: src/main/java/com/popups/pupoo/event/application/EventAdminService.java
 package com.popups.pupoo.event.application;
 
+import com.popups.pupoo.common.audit.application.AdminLogService;
+import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.event.domain.model.Event;
@@ -31,15 +34,18 @@ public class EventAdminService {
     private final EventRepository eventRepository;
     private final EventInterestMapRepository eventInterestMapRepository;
     private final NotificationService notificationService;
+    private final AdminLogService adminLogService;
 
     public EventAdminService(
             EventRepository eventRepository,
             EventInterestMapRepository eventInterestMapRepository,
-            NotificationService notificationService
+            NotificationService notificationService,
+            AdminLogService adminLogService
     ) {
         this.eventRepository = eventRepository;
         this.eventInterestMapRepository = eventInterestMapRepository;
         this.notificationService = notificationService;
+        this.adminLogService = adminLogService;
     }
 
     /** 행사 등록(관리자) */
@@ -67,6 +73,9 @@ public class EventAdminService {
                 InboxTargetType.EVENT,
                 saved.getEventId()
         );
+
+        // 관리자 로그 적재
+        adminLogService.write("EVENT_CREATE", AdminTargetType.EVENT, saved.getEventId());
 
         return EventResponse.from(saved);
     }
@@ -98,6 +107,8 @@ public class EventAdminService {
                 InboxTargetType.EVENT,
                 eventId
         );
+
+        adminLogService.write("EVENT_UPDATE", AdminTargetType.EVENT, eventId);
 
         return EventResponse.from(event);
     }

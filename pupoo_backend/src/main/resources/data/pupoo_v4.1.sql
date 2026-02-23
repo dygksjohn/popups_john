@@ -1,6 +1,6 @@
 -- =========================================================
 -- Pupoo DB Schema (MySQL 8.x / InnoDB / utf8mb4)
--- version_pupoo_v3.5
+-- version_pupoo_v4.0
 -- 기준: 사용자 제공 "테이블 상세 명세" (최신 컬럼명 반영)
 -- =========================================================
 
@@ -181,14 +181,19 @@ CREATE TABLE event_program_apply (
   program_id       BIGINT   NOT NULL COMMENT '프로그램 ID',
   user_id          BIGINT   NOT NULL COMMENT '사용자 ID',
 
-  status           ENUM('APPLIED','WAITING','APPROVED','REJECTED','CANCELLED')
-                   NOT NULL COMMENT '상태(접수, 대기, 승인, 반려, 취소)',
+  status           ENUM('APPLIED','WAITING','APPROVED','REJECTED','CANCELLED','CHECKED_IN')
+                   NOT NULL COMMENT '상태(접수, 대기, 승인, 반려, 취소, 참여확정)',
+
+  -- 티켓(대기) 재활용 필드
+  ticket_no        VARCHAR(30) NULL COMMENT '현장 티켓번호(표시용)',
+  eta_min          INT NULL COMMENT '예상 대기시간(분)',
+  notified_at      DATETIME NULL COMMENT '10분 전 알림 발송 시점(추후 SMS/PUSH 연동)',
+  checked_in_at    DATETIME NULL COMMENT '참여 확정(체크인) 시점',
 
   created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
-
   cancelled_at     DATETIME NULL COMMENT '취소일시',
 
-  -- ✅ 활성 상태 = APPLIED/WAITING/APPROVED (REJECTED/CANCELLED는 비활성 → 재신청 가능)
+  -- ✅ 활성 상태 = APPLIED/WAITING/APPROVED (REJECTED/CANCELLED/CHECKED_IN는 비활성 → 재신청 가능)
   active_flag      TINYINT
                    GENERATED ALWAYS AS (
                      CASE
@@ -204,6 +209,7 @@ CREATE TABLE event_program_apply (
 
   KEY ix_event_program_apply_program_id (program_id),
   KEY ix_event_program_apply_user_id (user_id),
+  KEY ix_event_program_apply_checked_in_at (checked_in_at),
 
   CONSTRAINT fk_event_program_apply_program
     FOREIGN KEY (program_id) REFERENCES event_program(program_id)
@@ -222,8 +228,6 @@ CREATE TABLE event_program_apply (
     )
 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-
 
 -- 8. event_history
 CREATE TABLE event_history (
@@ -245,6 +249,30 @@ CREATE TABLE event_history (
   CONSTRAINT fk_event_history_program
     FOREIGN KEY (program_id) REFERENCES event_program(program_id)
     ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+-- [ADD] program_participation_stats
+-- 목적: (user_id, program_id) 참여 횟수 집계(조회 최적화)
+CREATE TABLE program_participation_stats (
+  user_id              BIGINT NOT NULL COMMENT '사용자 ID',
+  program_id           BIGINT NOT NULL COMMENT '프로그램 ID',
+  participate_count    BIGINT NOT NULL DEFAULT 0 COMMENT '참여 횟수',
+  last_participated_at DATETIME NULL COMMENT '마지막 참여 시각',
+
+  PRIMARY KEY (user_id, program_id),
+
+  KEY ix_pps_user_id (user_id),
+  KEY ix_pps_program_id (program_id),
+
+  CONSTRAINT fk_pps_users
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+
+  CONSTRAINT fk_pps_program
+    FOREIGN KEY (program_id) REFERENCES event_program(program_id)
+    ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 9. contest_votes (revised: history preserve + re-vote)
@@ -500,8 +528,7 @@ CREATE TABLE boards (
   PRIMARY KEY (board_id)  
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-
--- 20. posts
+-- posts
 CREATE TABLE posts (
   post_id             BIGINT        NOT NULL AUTO_INCREMENT COMMENT '게시글 ID',
   board_id            BIGINT        NOT NULL COMMENT '게시판 ID',
@@ -525,6 +552,7 @@ CREATE TABLE posts (
   is_comment_enabled  TINYINT       NOT NULL DEFAULT 1 COMMENT '댓글 사용 여부(0,1)',
 
   PRIMARY KEY (post_id),
+
   KEY ix_posts_board_id (board_id),
   KEY ix_posts_user_id (user_id),
   KEY ix_posts_status_created_at (status, created_at),
@@ -536,6 +564,7 @@ CREATE TABLE posts (
   CONSTRAINT fk_posts_users
     FOREIGN KEY (user_id) REFERENCES users(user_id)
     ON DELETE CASCADE ON UPDATE CASCADE
+
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
@@ -663,6 +692,43 @@ CREATE TABLE board_banned_words (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
+-- 23-1. content_reports (신고)
+CREATE TABLE content_reports (
+  report_id            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '신고 ID',
+  reporter_user_id     BIGINT       NOT NULL COMMENT '신고자 사용자 ID',
+
+  target_type          ENUM('POST','REVIEW','POST_COMMENT','REVIEW_COMMENT')  NOT NULL COMMENT '신고 대상 타입',
+  target_id            BIGINT       NOT NULL COMMENT '신고 대상 ID',
+
+  reason_code          ENUM('SPAM','ABUSE','HATE','SEXUAL','VIOLENCE','PRIVACY','FRAUD','COPYRIGHT','OTHER')  NOT NULL COMMENT '신고 사유 코드',
+  reason_detail        VARCHAR(255) NULL COMMENT '신고 사유 상세(선택)',
+  reason               VARCHAR(255) NOT NULL COMMENT '사유(legacy: 관리자 빠른 조회용)',
+
+  status               ENUM('PENDING','ACCEPTED','REJECTED')  NOT NULL DEFAULT 'PENDING' COMMENT '처리 상태(PENDING/ACCEPTED/REJECTED)',
+
+  created_at           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '신고 일시',
+  resolved_at          DATETIME     NULL COMMENT '처리 일시',
+  resolved_by_admin_id BIGINT       NULL COMMENT '처리 관리자 ID',
+
+  PRIMARY KEY (report_id),
+
+  UNIQUE KEY uk_report_unique (reporter_user_id, target_type, target_id),
+
+  KEY ix_reports_target (target_type, target_id, status),
+  KEY ix_reports_status_created_at (status, created_at),
+  KEY ix_reports_reporter (reporter_user_id),
+  KEY ix_reports_resolved_by (resolved_by_admin_id),
+
+  CONSTRAINT fk_content_reports_reporter_user
+    FOREIGN KEY (reporter_user_id) REFERENCES users(user_id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+
+  CONSTRAINT fk_content_reports_resolved_admin
+    FOREIGN KEY (resolved_by_admin_id) REFERENCES users(user_id)
+    ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
 -- 24. reviews (fix: review_status NOT NULL DEFAULT, null-safety, checks)
 CREATE TABLE reviews (
   review_id     BIGINT   NOT NULL AUTO_INCREMENT COMMENT '후기 ID',
@@ -671,6 +737,7 @@ CREATE TABLE reviews (
 
   rating        TINYINT  NOT NULL COMMENT '별점',
   content       TEXT     NULL COMMENT '후기 내용',
+
   view_count    INT      NOT NULL DEFAULT 0 COMMENT '조회수',
 
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '작성일시',
@@ -684,19 +751,18 @@ CREATE TABLE reviews (
 
   PRIMARY KEY (review_id),
 
-  -- 행사 1건당 사용자 1건 후기(정책)
+  -- 행사 1건당 사용자 1건 후기 정책
   UNIQUE KEY uk_reviews_event_user (event_id, user_id),
 
   KEY ix_reviews_event_id (event_id),
   KEY ix_reviews_user_id (user_id),
   KEY ix_reviews_status (review_status),
-  KEY ix_reviews_event_user (event_id, user_id),  -- 조회 최적화(겸용)
 
-  -- 별점 범위(1~5) 강제 (정책에 맞게 0 허용이면 조건 수정)
+  -- 별점 범위 강제
   CONSTRAINT ck_reviews_rating
     CHECK (rating BETWEEN 1 AND 5),
 
-  -- is_deleted와 review_status 정합성(삭제면 DELETED)
+  -- 삭제 상태 정합성 강제
   CONSTRAINT ck_reviews_delete_consistency
     CHECK (
       (is_deleted = 1 AND review_status = 'DELETED')
@@ -711,6 +777,7 @@ CREATE TABLE reviews (
   CONSTRAINT fk_reviews_users
     FOREIGN KEY (user_id) REFERENCES users(user_id)
     ON DELETE CASCADE ON UPDATE CASCADE
+
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
@@ -1024,8 +1091,11 @@ CREATE TABLE admin_logs (
   log_id      BIGINT       NOT NULL AUTO_INCREMENT COMMENT '관리자 로그 ID',
   admin_id    BIGINT       NOT NULL COMMENT '관리자 ID',
   action      VARCHAR(255) NOT NULL COMMENT '작업 내용',
-  target_type ENUM('EVENT','NOTICE','POST','REVIEW','PAYMENT','REFUND','QR','USER','OTHER') NULL COMMENT '작업 대상의 유형',
+  target_type ENUM('USER','EVENT','PROGRAM','BOOTH','NOTICE','PAYMENT','REFUND','REVIEW','POST','QNA','INQUIRY','GALLERY','QR','SYSTEM','OTHER') NULL COMMENT '작업 대상의 유형',
   target_id   BIGINT       NULL COMMENT '작업 대상의 ID',
+  ip_address  VARCHAR(50)  NULL COMMENT '요청 IP',
+  result       ENUM('SUCCESS','FAIL') NOT NULL DEFAULT 'SUCCESS' COMMENT 'SUCCESS / FAIL',
+  error_code  VARCHAR(50)  NULL COMMENT '실패 시 에러코드',
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '작업 수행일시',
   PRIMARY KEY (log_id),
   KEY ix_admin_logs_admin_id (admin_id),
@@ -1053,22 +1123,27 @@ CREATE TABLE refresh_token (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 40. payment_transactions (PG transaction metadata)
-CREATE TABLE payment_transactions (
+CREATE TABLE IF NOT EXISTS payment_transactions (
   tx_id           BIGINT        NOT NULL AUTO_INCREMENT COMMENT 'PG 트랜잭션 ID',
   payment_id      BIGINT        NOT NULL COMMENT '결제 ID (payments.payment_id)',
   pg_provider     ENUM('KAKAOPAY') NOT NULL COMMENT 'PG 제공자',
   pg_tid          VARCHAR(100)  NOT NULL COMMENT 'PG 거래ID(tid)',
   pg_token        VARCHAR(100)  NULL COMMENT '승인 토큰(pg_token) - 리다이렉트로 수신',
+
   status          ENUM('READY','APPROVED','CANCELLED','FAILED')
                   NOT NULL DEFAULT 'READY' COMMENT 'PG 트랜잭션 상태',
+
   idempotency_key VARCHAR(64)   NULL COMMENT '멱등키(선택)',
+
   raw_ready       JSON          NULL COMMENT 'ready 원문 응답(JSON)',
   raw_approve     JSON          NULL COMMENT 'approve 원문 응답(JSON)',
   raw_cancel      JSON          NULL COMMENT 'cancel 원문 응답(JSON)',
+
   requested_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'ready 요청일시',
   approved_at     DATETIME      NULL COMMENT '승인일시',
   cancelled_at    DATETIME      NULL COMMENT '취소/환불일시',
   failed_at       DATETIME      NULL COMMENT '실패일시',
+
   created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
   updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
                                 ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시',
@@ -1088,7 +1163,7 @@ CREATE TABLE payment_transactions (
     FOREIGN KEY (payment_id) REFERENCES payments(payment_id)
     ON DELETE CASCADE ON UPDATE CASCADE,
 
-  -- approved 상태일 때 approved_at 필수, cancel 상태일 때 cancelled_at 필수 등
+  -- status-일시 정합성
   CONSTRAINT ck_payment_transactions_status_datetime
     CHECK (
       (status = 'READY'     AND approved_at IS NULL AND cancelled_at IS NULL AND failed_at IS NULL)
@@ -1100,6 +1175,78 @@ CREATE TABLE payment_transactions (
       (status = 'FAILED'    AND failed_at IS NOT NULL)
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- 1) raw_ready JSON 타입 보정 (운영 패치)
+SET @sql := NULL;
+
+SELECT
+  CASE
+    WHEN COUNT(*) = 0 THEN NULL
+    WHEN MAX(data_type) <> 'json' THEN
+      'ALTER TABLE payment_transactions MODIFY COLUMN raw_ready JSON NULL COMMENT ''ready 원문 응답(JSON)'';'
+    ELSE NULL
+  END
+INTO @sql
+FROM information_schema.columns
+WHERE table_schema = DATABASE()
+  AND table_name = 'payment_transactions'
+  AND column_name = 'raw_ready';
+
+SELECT @sql AS alter_payment_raw_ready;
+
+SET @stmt := IFNULL(@sql, 'SELECT ''SKIP: raw_ready already JSON'' AS msg;');
+PREPARE stmt FROM @stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+
+-- 2) raw_approve JSON 타입 보정 (운영 패치)
+SET @sql := NULL;
+
+SELECT
+  CASE
+    WHEN COUNT(*) = 0 THEN NULL
+    WHEN MAX(data_type) <> 'json' THEN
+      'ALTER TABLE payment_transactions MODIFY COLUMN raw_approve JSON NULL COMMENT ''approve 원문 응답(JSON)'';'
+    ELSE NULL
+  END
+INTO @sql
+FROM information_schema.columns
+WHERE table_schema = DATABASE()
+  AND table_name = 'payment_transactions'
+  AND column_name = 'raw_approve';
+
+SELECT @sql AS alter_payment_raw_approve;
+
+SET @stmt := IFNULL(@sql, 'SELECT ''SKIP: raw_approve already JSON'' AS msg;');
+PREPARE stmt FROM @stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+
+-- 3) raw_cancel JSON 타입 보정 (운영 패치)
+SET @sql := NULL;
+
+SELECT
+  CASE
+    WHEN COUNT(*) = 0 THEN NULL
+    WHEN MAX(data_type) <> 'json' THEN
+      'ALTER TABLE payment_transactions MODIFY COLUMN raw_cancel JSON NULL COMMENT ''cancel 원문 응답(JSON)'';'
+    ELSE NULL
+  END
+INTO @sql
+FROM information_schema.columns
+WHERE table_schema = DATABASE()
+  AND table_name = 'payment_transactions'
+  AND column_name = 'raw_cancel';
+
+SELECT @sql AS alter_payment_raw_cancel;
+
+SET @stmt := IFNULL(@sql, 'SELECT ''SKIP: raw_cancel already JSON'' AS msg;');
+PREPARE stmt FROM @stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- 41. event_interest_map
 CREATE TABLE event_interest_map (
@@ -1162,6 +1309,53 @@ CREATE TABLE phone_verification_token (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+
+-- ------------------------------------------------------------
+-- signup_sessions (v4.0)
+-- 목적: OTP 선검증 회원가입 세션(3-step signup)
+-- 주의: JPA(EnumType.STRING) 정합성 위해 ENUM 대신 VARCHAR 사용
+-- ------------------------------------------------------------
+CREATE TABLE signup_sessions (
+  signup_session_id      BIGINT NOT NULL AUTO_INCREMENT COMMENT '회원가입 세션 PK',
+  signup_key             VARCHAR(36) NOT NULL COMMENT '외부 노출용 UUID(클라이언트 보관)',
+
+  signup_type            ENUM('EMAIL','SOCIAL') NOT NULL COMMENT '가입 타입(EMAIL/SOCIAL)',
+  social_provider        VARCHAR(30) NULL COMMENT 'SOCIAL 제공자(KAKAO/GOOGLE/APPLE 등)',
+  social_provider_uid    VARCHAR(255) NULL COMMENT 'SOCIAL 제공자 UID',
+
+  email                  VARCHAR(255) NULL COMMENT 'EMAIL 가입 이메일(소셜도 보유 가능)',
+  password_hash          VARCHAR(255) NULL COMMENT '가입 단계에서만 저장되는 비밀번호 해시(BCrypt)',
+  nickname               VARCHAR(30)  NOT NULL COMMENT '닉네임',
+  phone                  VARCHAR(30)  NOT NULL COMMENT '휴대폰 번호(숫자만 저장 권장)',
+
+  otp_status             ENUM('PENDING','VERIFIED','EXPIRED') NOT NULL DEFAULT 'PENDING' COMMENT 'OTP 상태(PENDING/VERIFIED/EXPIRED)',
+  otp_verified_at        DATETIME NULL COMMENT 'OTP 인증 완료 시각',
+  otp_last_sent_at       DATETIME NULL COMMENT '마지막 OTP 발송 시각',
+  otp_code_hash          VARCHAR(128) NULL COMMENT 'OTP 코드 해시(SHA-256 hex)',
+  otp_expires_at         DATETIME NULL COMMENT 'OTP 만료 시각',
+  otp_fail_count         INT NOT NULL DEFAULT 0 COMMENT 'OTP 검증 실패 횟수',
+  otp_blocked_until      DATETIME NULL COMMENT 'OTP 검증 차단 종료 시각',
+
+  email_status           ENUM('PENDING','VERIFIED','NOT_REQUIRED') NOT NULL DEFAULT 'PENDING' COMMENT '이메일 인증 상태(PENDING/VERIFIED/NOT_REQUIRED)',
+  email_verified_at      DATETIME NULL COMMENT '이메일 인증 완료 시각',
+  email_code_hash        VARCHAR(128) NULL COMMENT '이메일 인증코드 해시(SHA-256 hex)',
+  email_expires_at       DATETIME NULL COMMENT '이메일 인증코드 만료 시각',
+  email_last_sent_at     DATETIME NULL COMMENT '이메일 인증 메일 발송 시각',
+  email_fail_count       INT NOT NULL DEFAULT 0 COMMENT '이메일 인증 실패 횟수',
+
+  expires_at             DATETIME NOT NULL COMMENT '세션 만료(예: 생성 후 30분)',
+  created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성 시각',
+  updated_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 시각',
+
+  PRIMARY KEY (signup_session_id),
+  UNIQUE KEY uk_signup_sessions_signup_key (signup_key),
+  KEY idx_signup_sessions_phone (phone),
+  KEY idx_signup_sessions_email (email),
+  KEY idx_signup_sessions_otp_last_sent_at (otp_last_sent_at),
+  KEY idx_signup_sessions_expires_at (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='OTP 선검증 회원가입 세션';
+
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- =========================================================
@@ -1204,6 +1398,11 @@ INSERT INTO `users` (`user_id`, `email`, `password`, `nickname`, `phone`, `statu
   (28, 'user028@pupoo.io', '$2a$10$samplehash28', '탄이_28', '010-1949-4946', 'ACTIVE', '2025-10-29 00:00:00', '2026-02-02 04:00:00', '2026-01-23 00:00:00', 'USER', 0, 0, 1),
   (29, 'user029@pupoo.io', '$2a$10$samplehash29', '모찌_29', '010-2133-9727', 'ACTIVE', '2025-10-30 00:00:00', '2026-02-02 05:00:00', '2026-01-24 00:00:00', 'USER', 0, 0, 1),
   (30, 'user030@pupoo.io', '$2a$10$samplehash30', '뭉치_30', '010-3705-5342', 'ACTIVE', '2025-10-31 00:00:00', '2026-02-02 06:00:00', '2026-01-15 00:00:00', 'USER', 1, 0, 0);
+
+-- 개발/테스트 편의를 위해 샘플 사용자들은 인증 완료로 세팅한다.
+UPDATE users
+SET email_verified = 1,
+    phone_verified = 1;
 
 -- event
 INSERT INTO `event` (`event_id`, `event_name`, `description`, `start_at`, `end_at`, `location`, `status`, `round_no`) VALUES
@@ -1282,27 +1481,27 @@ INSERT INTO `inquiries` (`inquiry_id`, `user_id`, `category`, `inquiry_title`, `
   (15, 20, 'OTHER', '첨부파일 업로드 문의', '결제가 완료됐는데 신청 내역에 표시가 안 돼요.', 'OPEN', '2026-01-25 00:00:00');
 
 -- admin_logs
-INSERT INTO `admin_logs` (`log_id`, `admin_id`, `action`, `target_type`, `target_id`, `created_at`) VALUES
-  (1, 2, 'UPDATE', 'NOTICE', 30, '2026-01-04 00:00:00'),
-  (2, 2, 'UPDATE', 'PAYMENT', 21, '2026-01-30 00:00:00'),
-  (3, 2, 'PUBLISH', 'USER', 49, '2026-01-18 00:00:00'),
-  (4, 2, 'PUBLISH', 'USER', 6, '2026-01-02 00:00:00'),
-  (5, 1, 'CREATE', 'USER', 15, '2026-01-03 00:00:00'),
-  (6, 1, 'CREATE', 'NOTICE', 13, '2026-02-09 00:00:00'),
-  (7, 1, 'PUBLISH', 'NOTICE', 9, '2026-01-08 00:00:00'),
-  (8, 1, 'DELETE', 'PAYMENT', 45, '2026-01-24 00:00:00'),
-  (9, 1, 'CREATE', 'OTHER', 39, '2026-01-11 00:00:00'),
-  (10, 2, 'CREATE', 'EVENT', 38, '2026-01-20 00:00:00'),
-  (11, 2, 'UPDATE', 'PAYMENT', 46, '2026-01-05 00:00:00'),
-  (12, 1, 'DELETE', 'EVENT', 45, '2026-02-08 00:00:00'),
-  (13, 1, 'DELETE', 'OTHER', 3, '2026-02-04 00:00:00'),
-  (14, 2, 'HIDE', 'USER', 5, '2026-01-22 00:00:00'),
-  (15, 1, 'CREATE', 'PAYMENT', 32, '2026-01-28 00:00:00'),
-  (16, 2, 'UPDATE', 'PAYMENT', 46, '2026-01-28 00:00:00'),
-  (17, 1, 'DELETE', 'OTHER', 42, '2026-02-09 00:00:00'),
-  (18, 2, 'HIDE', 'PAYMENT', 28, '2026-01-18 00:00:00'),
-  (19, 2, 'DELETE', 'NOTICE', 6, '2026-01-29 00:00:00'),
-  (20, 1, 'HIDE', 'PAYMENT', 37, '2026-01-25 00:00:00');
+INSERT INTO `admin_logs` (`log_id`, `admin_id`, `action`, `target_type`, `target_id`, `ip_address`, `result`, `error_code`, `created_at`) VALUES
+  (1, 2, 'UPDATE', 'NOTICE', 30, '127.0.0.1', 'SUCCESS', NULL, '2026-01-04 00:00:00'),
+  (2, 2, 'UPDATE', 'PAYMENT', 21, '127.0.0.1', 'SUCCESS', NULL, '2026-01-30 00:00:00'),
+  (3, 2, 'PUBLISH', 'USER', 49, '127.0.0.1', 'SUCCESS', NULL, '2026-01-18 00:00:00'),
+  (4, 2, 'PUBLISH', 'USER', 6, '127.0.0.1', 'SUCCESS', NULL, '2026-01-02 00:00:00'),
+  (5, 1, 'CREATE', 'USER', 15, '127.0.0.1', 'SUCCESS', NULL, '2026-01-03 00:00:00'),
+  (6, 1, 'CREATE', 'NOTICE', 13, '127.0.0.1', 'SUCCESS', NULL, '2026-02-09 00:00:00'),
+  (7, 1, 'PUBLISH', 'NOTICE', 9, '127.0.0.1', 'SUCCESS', NULL, '2026-01-08 00:00:00'),
+  (8, 1, 'DELETE', 'PAYMENT', 45, '127.0.0.1', 'SUCCESS', NULL, '2026-01-24 00:00:00'),
+  (9, 1, 'CREATE', 'OTHER', 39, '127.0.0.1', 'SUCCESS', NULL, '2026-01-11 00:00:00'),
+  (10, 2, 'CREATE', 'EVENT', 38, '127.0.0.1', 'SUCCESS', NULL, '2026-01-20 00:00:00'),
+  (11, 2, 'UPDATE', 'PAYMENT', 46, '127.0.0.1', 'SUCCESS', NULL, '2026-01-05 00:00:00'),
+  (12, 1, 'DELETE', 'EVENT', 45, '127.0.0.1', 'SUCCESS', NULL, '2026-02-08 00:00:00'),
+  (13, 1, 'DELETE', 'OTHER', 3, '127.0.0.1', 'SUCCESS', NULL, '2026-02-04 00:00:00'),
+  (14, 2, 'HIDE', 'USER', 5, '127.0.0.1', 'SUCCESS', NULL, '2026-01-22 00:00:00'),
+  (15, 1, 'CREATE', 'PAYMENT', 32, '127.0.0.1', 'SUCCESS', NULL, '2026-01-28 00:00:00'),
+  (16, 2, 'UPDATE', 'PAYMENT', 46, '127.0.0.1', 'SUCCESS', NULL, '2026-01-28 00:00:00'),
+  (17, 1, 'DELETE', 'OTHER', 42, '127.0.0.1', 'FAIL', 'VALIDATION_FAILED', '2026-02-09 00:00:00'),
+  (18, 2, 'HIDE', 'PAYMENT', 28, '127.0.0.1', 'SUCCESS', NULL, '2026-01-18 00:00:00'),
+  (19, 2, 'DELETE', 'NOTICE', 6, '127.0.0.1', 'SUCCESS', NULL, '2026-01-29 00:00:00'),
+  (20, 1, 'HIDE', 'PAYMENT', 37, '127.0.0.1', 'SUCCESS', NULL, '2026-01-25 00:00:00');
 
 INSERT INTO `qr_codes`
 (`qr_id`, `user_id`, `event_id`, `original_url`, `mime_type`, `issued_at`, `expired_at`) VALUES
@@ -1441,6 +1640,16 @@ INSERT INTO `posts` (`post_id`, `board_id`, `user_id`, `post_title`, `content`, 
   (23, 2, 6, '노즈워크 장난감 후기', '이번 주말에 갈 만한 산책 코스 있을까요? 주차 가능하면 좋겠어요.', 'N', 'HIDDEN', 27, '2026-01-27 00:00:00', '2026-01-28 00:00:00', 0, 1),
   (24, 2, 19, '노즈워크 장난감 후기', '행사장 주변 주차장이 만차라 셔틀 이용했어요.', 'N', 'HIDDEN', 104, '2026-01-04 00:00:00', '2026-01-06 00:00:00', 0, 1),
   (25, 1, 20, '알러지 간식 추천', '행사장 주변 주차장이 만차라 셔틀 이용했어요.', 'N', 'HIDDEN', 14, '2026-01-08 00:00:00', '2026-01-13 00:00:00', 0, 1);
+
+
+-- content_reports (신고) - 데모 데이터
+INSERT INTO `content_reports`
+  (`report_id`, `reporter_user_id`, `target_type`, `target_id`, `reason_code`, `reason_detail`, `reason`, `status`, `created_at`, `resolved_at`, `resolved_by_admin_id`)
+VALUES
+  (1, 22, 'POST',         3,  'SPAM',     NULL,                    '스팸/광고/도배',            'PENDING',  '2026-02-10 10:00:00', NULL,                   NULL),
+  (2, 12, 'POST_COMMENT', 1,  'ABUSE',    NULL,                    '욕설/비방/괴롭힘',          'ACCEPTED', '2026-02-11 09:10:00', '2026-02-11 12:00:00', 1),
+  (3, 20, 'REVIEW',       5,  'FRAUD',    '구매 유도 링크 포함',    '사기/사칭/허위정보 | 구매 유도 링크 포함', 'REJECTED', '2026-02-12 13:20:00', '2026-02-12 15:40:00', 1);
+
 
 -- notification_settings
 INSERT INTO `notification_settings` (`user_id`, `allow_marketing`, `updated_at`) VALUES

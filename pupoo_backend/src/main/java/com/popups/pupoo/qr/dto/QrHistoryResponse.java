@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/qr/dto/QrHistoryResponse.java
 package com.popups.pupoo.qr.dto;
 
 import lombok.*;

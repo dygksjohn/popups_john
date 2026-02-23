@@ -1,7 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/gallery/domain/model/GalleryImage.java
- * 목적: gallery_images 테이블 엔티티 매핑
- * 주의: mime_type은 MySQL ENUM 컬럼이며, 프로젝트에서는 문자열로 처리한다.
- */
+// file: src/main/java/com/popups/pupoo/gallery/domain/model/GalleryImage.java
 package com.popups.pupoo.gallery.domain.model;
 
 import jakarta.persistence.*;

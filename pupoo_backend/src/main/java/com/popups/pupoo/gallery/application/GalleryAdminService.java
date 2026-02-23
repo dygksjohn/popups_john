@@ -1,8 +1,8 @@
-/* file: src/main/java/com/popups/pupoo/gallery/application/GalleryAdminService.java
- * 목적: 갤러리 관리자 생성/수정/삭제 등 관리 서비스
- */
+// file: src/main/java/com/popups/pupoo/gallery/application/GalleryAdminService.java
 package com.popups.pupoo.gallery.application;
 
+import com.popups.pupoo.common.audit.application.AdminLogService;
+import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.gallery.domain.enums.GalleryStatus;
 import com.popups.pupoo.gallery.domain.model.*;
 import com.popups.pupoo.gallery.dto.*;
@@ -21,6 +21,7 @@ public class GalleryAdminService {
 
     private final GalleryRepository galleryRepository;
     private final GalleryImageRepository galleryImageRepository;
+    private final AdminLogService adminLogService;
 
     @Transactional
     public GalleryResponse create(GalleryCreateRequest request) {
@@ -36,6 +37,8 @@ public class GalleryAdminService {
                 .build();
 
         Gallery saved = galleryRepository.save(g);
+
+        adminLogService.write("GALLERY_CREATE", AdminTargetType.OTHER, saved.getGalleryId());
 
         List<String> urls = request.getImageUrls() == null ? List.of() : request.getImageUrls();
         int order = 1;
@@ -89,6 +92,8 @@ public class GalleryAdminService {
                 .updatedAt(LocalDateTime.now())
                 .build());
 
+        adminLogService.write("GALLERY_UPDATE", AdminTargetType.OTHER, galleryId);
+
         List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
                 .stream().map(GalleryImage::getOriginalUrl).toList();
 
@@ -109,5 +114,6 @@ public class GalleryAdminService {
     @Transactional
     public void delete(Long galleryId) {
         galleryRepository.deleteById(galleryId);
+        adminLogService.write("GALLERY_DELETE", AdminTargetType.OTHER, galleryId);
     }
 }

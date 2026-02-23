@@ -1,7 +1,9 @@
+// file: src/main/java/com/popups/pupoo/program/apply/api/ProgramApplyController.java
 package com.popups.pupoo.program.apply.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.IdResponse;
 import com.popups.pupoo.common.api.PageResponse;
 import com.popups.pupoo.program.apply.application.ProgramApplyService;
 import com.popups.pupoo.program.apply.dto.ProgramApplyRequest;
@@ -31,10 +33,10 @@ public class ProgramApplyController {
     }
 
     @PatchMapping("/{id}/cancel")
-    public ApiResponse<Void> cancel(@PathVariable("id") Long id) {
+    public ApiResponse<IdResponse> cancel(@PathVariable("id") Long id) {
         Long userId = securityUtil.currentUserId();
         programApplyService.cancel(userId, id);
-        return ApiResponse.success((Void) null);
+        return ApiResponse.success(new IdResponse(id));
 
     }
 

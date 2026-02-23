@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/interest/domain/model/UserInterestSubscription.java
 package com.popups.pupoo.interest.domain.model;
 
 import com.popups.pupoo.interest.domain.enums.SubscriptionStatus;

@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/payment/refund/domain/model/Refund.java
 package com.popups.pupoo.payment.refund.domain.model;
 
 import com.popups.pupoo.payment.domain.model.Payment;
@@ -99,6 +100,11 @@ public class Refund {
     }
 
     // 상태 전이 (정책: 승인=즉시 완료는 서비스에서 completeNow() 호출)
+    public void approve() {
+        if (status != RefundStatus.REQUESTED) throw new IllegalStateException("approve only when REQUESTED");
+        this.status = RefundStatus.APPROVED;
+    }
+
     public void reject() {
         if (status != RefundStatus.REQUESTED) throw new IllegalStateException("reject only when REQUESTED");
         this.status = RefundStatus.REJECTED;

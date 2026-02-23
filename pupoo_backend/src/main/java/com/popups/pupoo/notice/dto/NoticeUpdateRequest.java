@@ -1,6 +1,4 @@
-/* file: src/main/java/com/popups/pupoo/notice/dto/NoticeUpdateRequest.java
- * 목적: 공지 수정 요청 DTO
- */
+// file: src/main/java/com/popups/pupoo/notice/dto/NoticeUpdateRequest.java
 package com.popups.pupoo.notice.dto;
 
 import com.popups.pupoo.notice.domain.enums.NoticeStatus;

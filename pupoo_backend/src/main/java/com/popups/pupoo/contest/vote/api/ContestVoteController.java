@@ -1,9 +1,11 @@
+// file: src/main/java/com/popups/pupoo/contest/vote/api/ContestVoteController.java
 package com.popups.pupoo.contest.vote.api;
 
 import org.springframework.web.bind.annotation.*;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.contest.vote.application.ContestVoteService;
 import com.popups.pupoo.contest.vote.dto.ContestVoteCreateResponse;
 import com.popups.pupoo.contest.vote.dto.ContestVoteRequest;
@@ -26,29 +28,25 @@ public class ContestVoteController {
             @PathVariable("programId") Long programId,
             @RequestBody ContestVoteRequest req
     ) {
-    	Long userId = securityUtil.currentUserId(); // ✅ 투표: 로그인 필요
+        Long userId = securityUtil.currentUserId();
         return ApiResponse.success(contestVoteService.vote(programId, userId, req));
     }
 
     @DeleteMapping
-    public ApiResponse<Void> cancel(
+    public ApiResponse<MessageResponse> cancel(
             @PathVariable("programId") Long programId
     ) {
-    	Long userId = securityUtil.currentUserId(); // ✅ 취소: 로그인 필요
+        Long userId = securityUtil.currentUserId();
         contestVoteService.cancel(programId, userId);
-        return ApiResponse.success(null);
+        return ApiResponse.success(new MessageResponse("VOTE_CANCELED"));
     }
 
-    /**
-     * ✅ 결과: 비로그인 허용
-     * 최종 URL: GET /api/programs/{programId}/votes/result
-     */
     @GetMapping("/result")
     public ApiResponse<ContestVoteResultResponse> result(
             @PathVariable("programId") Long programId
     ) {
-    	// ✅ 로그인 요구하면 안 됨 (공개)
-        return ApiResponse.success(contestVoteService.resultPublic(programId));
+        Long userId = securityUtil.currentUserId();
+        return ApiResponse.success(contestVoteService.result(programId, userId));
     }
 
 }

@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/event/domain/model/EventInterestMap.java
 package com.popups.pupoo.event.domain.model;
 
 import jakarta.persistence.*;
