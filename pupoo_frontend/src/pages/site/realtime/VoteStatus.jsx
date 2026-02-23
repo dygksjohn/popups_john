@@ -1,529 +1,373 @@
-import { useState, useEffect } from "react";
-import { Heart } from "lucide-react";
+import { useState } from "react";
+import PageHeader from "../components/PageHeader";
+import {
+  Vote,
+  Trophy,
+  Users,
+  ChevronUp,
+  CheckCircle2,
+  BarChart2,
+  PieChart,
+} from "lucide-react";
 
-const initialDogs = [
-  {
-    id: 1,
-    name: "체리",
-    album: "공주같이 자는 개 보셨어요?",
-    votes: 1768,
-    img: "http://kgj.dothome.co.kr/pupoo/cherry.png",
-  },
-  {
-    id: 2,
-    name: "체리",
-    album: "쟤가 쟤에요",
-    votes: 1316,
-    img: "http://kgj.dothome.co.kr/pupoo/cherry2.png",
-  },
-  {
-    id: 3,
-    name: "도도",
-    album: "산책 마스터",
-    votes: 489,
-    img: "https://images.unsplash.com/photo-1558788353-f76d92427f16?w=400&h=400&fit=crop",
-  },
-  {
-    id: 4,
-    name: "초코",
-    album: "애교 폭발 모드",
-    votes: 455,
-    img: "https://images.unsplash.com/photo-1504595403659-9088ce801e29?w=400&h=400&fit=crop",
-  },
-  {
-    id: 5,
-    name: "모치",
-    album: "솜사탕 털뭉치",
-    votes: 376,
-    img: "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?w=400&h=400&fit=crop",
-  },
-  {
-    id: 6,
-    name: "마리",
-    album: "간식 앞에 진심",
-    votes: 375,
-    img: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&h=400&fit=crop",
-  },
-  {
-    id: 7,
-    name: "요한",
-    album: "공놀이 국가대표",
-    votes: 375,
-    img: "https://images.unsplash.com/photo-1477884213360-7e9d7dcc1e48?w=400&h=400&fit=crop",
-  },
-  {
-    id: 8,
-    name: "코기",
-    album: "심쿵 눈빛 장착",
-    votes: 362,
-    img: "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&h=400&fit=crop",
-  },
+const styles = `
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
+
+  .vt-root {
+    box-sizing: border-box;
+    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+    background: #f8f9fc;
+    min-height: 100vh;
+  }
+  .vt-root *, .vt-root *::before, .vt-root *::after { box-sizing: border-box; font-family: inherit; }
+  .vt-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  .rt-live-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca;
+    border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444;
+    margin-bottom: 20px;
+  }
+  .rt-live-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #ef4444;
+    animation: vt-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes vt-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* Stat row */
+  .vt-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .vt-stat-card {
+    background: #fff; border: 1px solid #e9ecef; border-radius: 13px;
+    padding: 22px 24px; display: flex; align-items: center; gap: 14px;
+  }
+  .vt-stat-icon { width: 44px; height: 44px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .vt-stat-label { font-size: 12px; color: #6b7280; font-weight: 500; }
+  .vt-stat-value { font-size: 22px; font-weight: 800; color: #111827; }
+
+  /* Card */
+  .vt-card { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 24px 28px; margin-bottom: 16px; }
+  .vt-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid #f1f3f5; }
+  .vt-card-title { font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin: 0; }
+  .vt-card-title-icon { width: 24px; height: 24px; border-radius: 6px; background: #f5f3ff; display: flex; align-items: center; justify-content: center; }
+  .vt-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
+
+  /* Vote tabs */
+  .vt-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
+  .vt-tab {
+    padding: 7px 16px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff;
+    font-size: 13px; font-weight: 500; color: #6b7280; cursor: pointer; font-family: inherit; transition: all 0.15s;
+  }
+  .vt-tab.active { border-color: #8b5cf6; background: #f5f3ff; color: #7c3aed; font-weight: 600; }
+  .vt-tab:hover:not(.active) { border-color: #c4b5fd; color: #7c3aed; }
+  .vt-tab-badge {
+    display: inline-block; padding: 1px 7px; border-radius: 100px;
+    font-size: 10px; font-weight: 700; background: #ede9fe; color: #7c3aed; margin-left: 5px;
+  }
+  .vt-tab.active .vt-tab-badge { background: #7c3aed; color: #fff; }
+
+  /* Vote item */
+  .vt-vote-list { display: flex; flex-direction: column; gap: 12px; }
+  .vt-vote-item {
+    border: 1.5px solid #e9ecef; border-radius: 11px; padding: 18px 20px;
+    transition: border-color 0.15s;
+  }
+  .vt-vote-item.leading { border-color: #c4b5fd; background: #faf9ff; }
+  .vt-vote-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .vt-vote-rank {
+    width: 28px; height: 28px; border-radius: 8px; background: #f3f4f6;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: #6b7280; flex-shrink: 0;
+  }
+  .vt-vote-rank.first { background: #fef3c7; color: #d97706; }
+  .vt-vote-rank.second { background: #f1f5f9; color: #64748b; }
+  .vt-vote-rank.third { background: #fff7ed; color: #c2410c; }
+  .vt-vote-name { font-size: 14px; font-weight: 700; color: #111827; flex: 1; }
+  .vt-vote-count { font-size: 13px; font-weight: 600; color: #7c3aed; display: flex; align-items: center; gap: 4px; }
+  .vt-vote-pct { font-size: 13px; font-weight: 700; color: #374151; min-width: 36px; text-align: right; }
+  .vt-bar-track { height: 8px; background: #f1f3f5; border-radius: 100px; overflow: hidden; }
+  .vt-bar-fill { height: 100%; border-radius: 100px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+
+  /* Two col */
+  .vt-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* Opinion items */
+  .vt-opinion-list { display: flex; flex-direction: column; gap: 8px; }
+  .vt-opinion-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 16px; border-radius: 9px; border: 1px solid #e9ecef;
+  }
+  .vt-opinion-bar-wrap { flex: 1; }
+  .vt-opinion-label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+  .vt-opinion-track { height: 6px; background: #f1f3f5; border-radius: 100px; overflow: hidden; }
+  .vt-opinion-fill { height: 100%; border-radius: 100px; }
+  .vt-opinion-val { font-size: 14px; font-weight: 800; color: #111827; min-width: 36px; text-align: right; }
+
+  /* History */
+  .vt-history-list { display: flex; flex-direction: column; gap: 0; }
+  .vt-history-item {
+    display: flex; align-items: center; gap: 12px; padding: 11px 0;
+    border-bottom: 1px solid #f9fafb; font-size: 13px;
+  }
+  .vt-history-item:last-child { border-bottom: none; }
+  .vt-history-dot { width: 7px; height: 7px; border-radius: 50%; background: #8b5cf6; flex-shrink: 0; }
+  .vt-history-time { font-size: 11.5px; color: #9ca3af; min-width: 44px; }
+  .vt-history-name { color: #374151; }
+  .vt-history-choice { font-weight: 600; color: #7c3aed; }
+
+  @media (max-width: 900px) {
+    .vt-stat-grid { grid-template-columns: 1fr 1fr 1fr; }
+    .vt-two-col { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .vt-container { padding: 20px 16px 48px; }
+    .vt-stat-grid { grid-template-columns: 1fr 1fr; }
+  }
+`;
+
+export const SERVICE_CATEGORIES = [
+  { label: "대시보드", path: "/realtime/dashboard" },
+  { label: "체크인 현황", path: "/realtime/checkinstatus" },
+  { label: "투표 현황", path: "/realtime/votestatus" },
+  { label: "대기 현황", path: "/realtime/waitingstatus" },
 ];
 
-function formatVotes(n) {
-  return n.toLocaleString();
-}
+export const SUBTITLE_MAP = {
+  "/realtime/dashboard": "행사 전체 현황을 실시간으로 모니터링합니다",
+  "/realtime/checkinstatus": "참가자 체크인 현황을 실시간으로 확인합니다",
+  "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 확인합니다",
+  "/realtime/waitingstatus": "대기열 현황을 실시간으로 확인합니다",
+};
 
-function calcPercentages(dogs) {
-  const total = dogs.reduce((s, d) => s + d.votes, 0);
-  return dogs.map((d) => ({
-    ...d,
-    pct: total ? ((d.votes / total) * 100).toFixed(2) : "0.00",
-  }));
-}
+const VOTES = {
+  best: {
+    title: "올해의 반려견상",
+    total: 512,
+    status: "진행 중",
+    items: [
+      { name: "코코 (골든 리트리버)", votes: 184, color: "#8b5cf6" },
+      { name: "초코 (말티즈)", votes: 147, color: "#a78bfa" },
+      { name: "두부 (포메라니안)", votes: 98, color: "#c4b5fd" },
+      { name: "하루 (시바이누)", votes: 53, color: "#ddd6fe" },
+      { name: "별이 (비숑)", votes: 30, color: "#ede9fe" },
+    ],
+  },
+  satisfaction: {
+    title: "행사 만족도 조사",
+    total: 389,
+    status: "진행 중",
+    items: [
+      { name: "매우 만족", votes: 212, color: "#10b981" },
+      { name: "만족", votes: 118, color: "#34d399" },
+      { name: "보통", votes: 41, color: "#fbbf24" },
+      { name: "불만족", votes: 18, color: "#f87171" },
+    ],
+  },
+};
 
-export default function VoteStatus() {
-  const [dogs, setDogs] = useState(() => calcPercentages(initialDogs));
-  const [modal, setModal] = useState(null); // { dog }
-  const [voted, setVoted] = useState(null); // id of recently voted
-  const [badge, setBadge] = useState(null); // id showing badge
+const RECENT_VOTES = [
+  { time: "14:31", name: "홍*동", choice: "코코 (골든 리트리버)" },
+  { time: "14:30", name: "이*연", choice: "초코 (말티즈)" },
+  { time: "14:29", name: "김*수", choice: "두부 (포메라니안)" },
+  { time: "14:27", name: "박*희", choice: "코코 (골든 리트리버)" },
+  { time: "14:26", name: "최*혁", choice: "하루 (시바이누)" },
+  { time: "14:24", name: "정*아", choice: "코코 (골든 리트리버)" },
+];
 
-  const openModal = (dog) => setModal({ dog });
-  const closeModal = () => setModal(null);
+const OPINION_DATA = [
+  { label: "프로그램 구성", pct: 88, color: "#8b5cf6" },
+  { label: "부스 운영", pct: 75, color: "#1a4fd6" },
+  { label: "음식/간식", pct: 92, color: "#10b981" },
+  { label: "시설 환경", pct: 68, color: "#f59e0b" },
+  { label: "전반적 만족", pct: 84, color: "#ef4444" },
+];
 
-  const confirmVote = () => {
-    const id = modal.dog.id;
-    closeModal();
-    setDogs((prev) => {
-      const updated = prev.map((d) =>
-        d.id === id ? { ...d, votes: d.votes + 1 } : d,
-      );
-      return calcPercentages(updated);
-    });
-    setVoted(id);
-    setBadge(id);
-    setTimeout(() => setVoted(null), 1200);
-    setTimeout(() => setBadge(null), 2200);
-  };
+function VoteContent() {
+  const [activeVote, setActiveVote] = useState("best");
+  const data = VOTES[activeVote];
+  const maxVotes = data.items[0].votes;
 
   return (
     <>
-      <style>{`
-       @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
-       * {
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-}
-        .vote-root {
-          min-height: 100vh;
-          background: #f0f0f5;
-          font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-          padding: 40px 0;
+      <div className="rt-live-badge">
+        <div className="rt-live-dot" />
+        LIVE
+      </div>
 
-        }
-
-        .vote-container {
-          max-width: 1370px;
-          width: 100%;
-          margin: 0 auto;
-          padding: 0 24px;
-          box-sizing: border-box;
-           
-        }
-
-        .vote-header {
-          text-align: center;
-          margin-bottom: 36px;
-        }
-
-        .vote-header h1 {
-         
-          font-size: 3rem;
-          letter-spacing: 0.08em;
-          color: #1a1a2e;
-        }
-
-        .vote-header p {
-          color: #666;
-          font-size: 0.95rem;
-          margin-top: 6px;
-        }
-
-        .vote-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 20px;
-        }
-
-        @media (max-width: 900px) {
-          .vote-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (max-width: 520px) {
-          .vote-grid { grid-template-columns: 1fr; }
-        }
-
-        .card {
-          background: #fff;
-          border-radius: 5px;
-          overflow: hidden;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-          transition: transform 0.2s, box-shadow 0.2s, outline 0.1s;
-          position: relative;
-        }
-
-        .card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 8px 30px rgba(0,0,0,0.13);
-        }
-
-        .card.glowing {
-  outline: 3px solid #006BF0;
-  box-shadow: 0 0 0 6px rgba(0,107,240,0.18), 0 8px 30px rgba(0,0,0,0.13);
-  animation: glowPulse 1.2s ease forwards;
-}
-
-        @keyframes glowPulse {
-          0% { outline-color: #969696; }
-          60% { outline-color: #c1c1c1; }
-          100% { outline-color: transparent; outline-width: 0; }
-        }
-
-        .rank-badge {
-          position: absolute;
-          top: 0;
-          left: 0;
-          background: #006BF0;
-          color: #fff;
-         
-          font-size: 1.1rem;
-          width: 32px;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 10;
-          letter-spacing: 0.02em;
-        }
-
-        .card-img-wrap {
-          position: relative;
-          width: 100%;
-          padding-top: 100%;
-          overflow: hidden;
-          background: #e5e5ef;
-        }
-
-        .card-img-wrap img {
-          position: absolute;
-          top: 0; left: 0;
-          width: 100%; height: 100%;
-          object-fit: cover;
-          display: block;
-          transition: transform 0.4s;
-        }
-
-        .card:hover .card-img-wrap img {
-          transform: scale(1.04);
-        }
-
-        .vote-badge {
-          position: absolute;
-          bottom: 8px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: #006BF0;
-          color: white;
-          font-size: 0.7rem;
-          font-weight: 600;
-          padding: 4px 12px;
-          border-radius: 20px;
-          white-space: nowrap;
-          animation: badgePop 2.2s ease forwards;
-          z-index: 20;
-          letter-spacing: 0.04em;
-        }
-
-        @keyframes badgePop {
-          0% { opacity: 0; transform: translateX(-50%) scale(0.7); }
-          15% { opacity: 1; transform: translateX(-50%) scale(1.05); }
-          20% { transform: translateX(-50%) scale(1); }
-          80% { opacity: 1; }
-          100% { opacity: 0; transform: translateX(-50%) scale(0.8); }
-        }
-
-        .card-body {
-          padding: 14px 16px 16px;
-        }
-
-        .dog-album {
-    font-size: 12px;
-    font-weight: 400;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: #a1a1a1;
-    margin-bottom: 3px;
-}
-
-       .dog-name {
-    font-size: 27px;
-    color: #333333;
-    letter-spacing: 0.01px;
-    line-height: 1;
-    margin-bottom: 10px;
-    font-weight: 700;
-}
-
-        .vote-row {
-          display: flex;
-          align-items: baseline;
-          gap: 10px;
-          margin-bottom: 8px;
-        }
-
-        .vote-count {
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: #1a1a2e;
-        }
-
-        .vote-count span {
-          font-size: 0.72rem;
-          font-weight: 400;
-          color: #999;
-          margin-left: 2px;
-        }
-
-        .vote-pct {
-          font-size: 0.82rem;
-          font-weight: 600;
-          color: #006BF0;
-          margin-left: auto;
-        }
-
-        .progress-bg {
-          height: 4px;
-          background: #ede9fe;
-          border-radius: 99px;
-          overflow: hidden;
-          margin-bottom: 14px;
-        }
-
-        .progress-bar {
-          height: 100%;
-          background: linear-gradient(90deg, #006BF0, #8bbffa);
-          border-radius: 99px;
-          transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-       .vote-btn {
-  width: 100%;
-  padding: 9px 0;
-  background: #006BF0;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-family: 'Pretendard', sans-serif;
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-        .vote-btn:hover {
-          background: #147eff;
-        }
-
-        .vote-btn:active {
-          transform: scale(0.97);
-        }
-
-        /* Modal */
-        .modal-backdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(15, 10, 30, 0.6);
-          backdrop-filter: blur(4px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          animation: fadeIn 0.2s ease;
-            z-index: 9999;     
-  overflow: hidden;  
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        .modal-box {
-          background: #fff;
-          border-radius: 20px;
-          padding: 40px 36px 32px;
-          max-width: 380px;
-          width: 90%;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-          animation: slideUp 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-          text-align: center;
-        }
-
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(30px) scale(0.95); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .modal-icon {
-          width: 60px;
-          height: 60px;
-          border-radius: 50%;
-          object-fit: cover;
-          border: 3px solid #ede9fe;
-          margin: 0 auto 16px;
-          display: block;
-        }
-
-        .modal-title {
-         
-          font-size: 22px;
-          color: #1a1a2e;
-          letter-spacing: 0.04em;
-          margin-bottom: 8px;
-          font-weight:700;
-        }
-
-        .modal-sub {
-          font-size: 0.9rem;
-          color: #777;
-          margin-bottom: 28px;
-          line-height: 1.5;
-        }
-
-        .modal-sub strong {
-          color: #006BF0;
-        }
-
-        .modal-actions {
-          display: flex;
-          gap: 12px;
-        }
-
-        .btn-cancel {
-          flex: 1;
-          padding: 12px 0;
-          border: 2px solid #e5e7eb;
-          background: transparent;
-          border-radius: 10px;
-          
-          font-size: 0.9rem;
-          font-weight: 600;
-          color: #666;
-          cursor: pointer;
-          transition: border-color 0.2s, color 0.2s;
-        }
-
-        .btn-cancel:hover {
-          border-color: #d1d5db;
-          color: #333;
-        }
-
-        .btn-confirm {
-          flex: 1;
-          padding: 12px 0;
-          background: linear-gradient(135deg, #006BF0, #3a43ed);
-          color: white;
-          border: none;
-          border-radius: 10px;
-          
-          font-size: 0.9rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: opacity 0.2s, transform 0.1s;
-        }
-
-        .btn-confirm:hover {
-          opacity: 0.9;
-        }
-
-        .btn-confirm:active {
-          transform: scale(0.97);
-        }
-      `}</style>
-
-      <div className="vote-root">
-        <div className="vote-container">
-          <div className="section-title-wrap">
-            <h1 className="section-title">고객상담 프로세스</h1>
-            <p className="section-subtitle">
-              <strong>오뚜기</strong>는 언제나 고객의 소리에 귀기울여 듣고
-              있습니다
-            </p>
+      {/* Stats */}
+      <div className="vt-stat-grid">
+        {[
+          {
+            label: "총 투표 참여",
+            value: "512명",
+            icon: <Vote size={20} color="#8b5cf6" />,
+            bg: "#f5f3ff",
+          },
+          {
+            label: "진행 중 투표",
+            value: "2건",
+            icon: <BarChart2 size={20} color="#1a4fd6" />,
+            bg: "#eff4ff",
+          },
+          {
+            label: "완료된 투표",
+            value: "1건",
+            icon: <CheckCircle2 size={20} color="#10b981" />,
+            bg: "#ecfdf5",
+          },
+        ].map((s) => (
+          <div key={s.label} className="vt-stat-card">
+            <div className="vt-stat-icon" style={{ background: s.bg }}>
+              {s.icon}
+            </div>
+            <div>
+              <div className="vt-stat-label">{s.label}</div>
+              <div className="vt-stat-value">{s.value}</div>
+            </div>
           </div>
+        ))}
+      </div>
 
-          <div className="vote-grid">
-            {dogs.map((dog, i) => (
-              <div
-                key={dog.id}
-                className={`card${voted === dog.id ? " glowing" : ""}`}
-              >
-                <div className="rank-badge">{i + 1}</div>
-                <div className="card-img-wrap">
-                  <img src={dog.img} alt={dog.name} loading="lazy" />
-                  {badge === dog.id && (
-                    <div className="vote-badge">✓ Vote Completed!</div>
-                  )}
-                </div>
-                <div className="card-body">
-                  <div className="dog-album">{dog.album}</div>
-                  <div className="dog-name">{dog.name}</div>
-                  <div className="vote-row">
-                    <div className="vote-count">
-                      {formatVotes(dog.votes)}
-                      <span>표</span>
-                    </div>
-                    <div className="vote-pct">{dog.pct}%</div>
-                  </div>
-                  <div className="progress-bg">
+      {/* Vote tabs */}
+      <div className="vt-tabs">
+        {Object.entries(VOTES).map(([key, v]) => (
+          <button
+            key={key}
+            className={`vt-tab${activeVote === key ? " active" : ""}`}
+            onClick={() => setActiveVote(key)}
+          >
+            {v.title}
+            <span className="vt-tab-badge">{v.status}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="vt-two-col">
+        {/* Vote results */}
+        <div className="vt-card">
+          <div className="vt-card-header">
+            <div className="vt-card-title">
+              <div className="vt-card-title-icon">
+                <Trophy size={14} color="#7c3aed" />
+              </div>
+              {data.title}
+            </div>
+            <span className="vt-card-tag">
+              총 {data.total.toLocaleString()}표
+            </span>
+          </div>
+          <div className="vt-vote-list">
+            {data.items.map((item, i) => {
+              const pct = Math.round((item.votes / data.total) * 100);
+              return (
+                <div
+                  key={item.name}
+                  className={`vt-vote-item${i === 0 ? " leading" : ""}`}
+                >
+                  <div className="vt-vote-header">
                     <div
-                      className="progress-bar"
-                      style={{ width: `${dog.pct}%` }}
+                      className={`vt-vote-rank${i === 0 ? " first" : i === 1 ? " second" : i === 2 ? " third" : ""}`}
+                    >
+                      {i + 1}
+                    </div>
+                    <span className="vt-vote-name">{item.name}</span>
+                    <span className="vt-vote-count">
+                      {i === 0 && <ChevronUp size={13} />}
+                      {item.votes.toLocaleString()}표
+                    </span>
+                    <span className="vt-vote-pct">{pct}%</span>
+                  </div>
+                  <div className="vt-bar-track">
+                    <div
+                      className="vt-bar-fill"
+                      style={{
+                        width: `${(item.votes / maxVotes) * 100}%`,
+                        background: item.color,
+                      }}
                     />
                   </div>
-                  <button className="vote-btn" onClick={() => openModal(dog)}>
-                    <Heart size={16} strokeWidth={2.5} />
-                    투표하기
-                  </button>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Opinion */}
+          <div className="vt-card">
+            <div className="vt-card-header">
+              <div className="vt-card-title">
+                <div className="vt-card-title-icon">
+                  <PieChart size={14} color="#7c3aed" />
+                </div>
+                항목별 만족도
               </div>
-            ))}
+              <span className="vt-card-tag">평균 점수</span>
+            </div>
+            <div className="vt-opinion-list">
+              {OPINION_DATA.map((o) => (
+                <div key={o.label} className="vt-opinion-item">
+                  <div className="vt-opinion-bar-wrap">
+                    <div className="vt-opinion-label">{o.label}</div>
+                    <div className="vt-opinion-track">
+                      <div
+                        className="vt-opinion-fill"
+                        style={{ width: `${o.pct}%`, background: o.color }}
+                      />
+                    </div>
+                  </div>
+                  <span className="vt-opinion-val">{o.pct}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent votes */}
+          <div className="vt-card">
+            <div className="vt-card-header">
+              <div className="vt-card-title">
+                <div className="vt-card-title-icon">
+                  <Users size={14} color="#7c3aed" />
+                </div>
+                최근 투표 현황
+              </div>
+            </div>
+            <div className="vt-history-list">
+              {RECENT_VOTES.map((v, i) => (
+                <div key={i} className="vt-history-item">
+                  <div className="vt-history-dot" />
+                  <span className="vt-history-time">{v.time}</span>
+                  <span className="vt-history-name">{v.name}님이</span>
+                  <span className="vt-history-choice">{v.choice}</span>
+                  <span style={{ color: "#9ca3af", fontSize: 12 }}>선택</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-
-      {modal && (
-        <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <img
-              className="modal-icon"
-              src={modal.dog.img}
-              alt={modal.dog.name}
-            />
-            <div className="modal-title">최종 투표 확인</div>
-            <div className="modal-sub">
-              <strong>
-                #{dogs.findIndex((d) => d.id === modal.dog.id) + 1}{" "}
-                {modal.dog.name}
-              </strong>{" "}
-              에게 투표 하시겠습니까?
-              <br />
-              투표 시 1표가 추가됩니다.
-            </div>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={closeModal}>
-                취소
-              </button>
-              <button className="btn-confirm" onClick={confirmVote}>
-                투표하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
+  );
+}
+
+export default function VoteStatus() {
+  const [currentPath, setCurrentPath] = useState("/realtime/vote");
+
+  return (
+    <div className="vt-root">
+      <style>{styles}</style>
+      <PageHeader
+        title="실시간 현황"
+        subtitle={SUBTITLE_MAP[currentPath]}
+        categories={SERVICE_CATEGORIES}
+        currentPath={currentPath}
+        onNavigate={setCurrentPath}
+      />
+      <main className="vt-container">
+        <VoteContent />
+      </main>
+    </div>
   );
 }

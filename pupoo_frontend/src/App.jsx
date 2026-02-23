@@ -69,6 +69,7 @@ import EventSketch from "./pages/site/gallery/eventsketch";
 import Operation from "./pages/site/guide/Operation";
 import LocationPage from "./pages/site/guide/location";
 import Timetable from "./pages/site/guide/Timetable";
+import CheckinStatus from "./pages/site/realtime/CheckinStatus";
 
 export default function App() {
   return (
@@ -118,6 +119,7 @@ export default function App() {
           <Route path="/realtime/waitingstatus" element={<WaitingStatus />} />
           <Route path="/realtime/votestatus" element={<VoteStatus />} />
           <Route path="/realtime/dashboard" element={<RealtimeDashboard />} />
+          <Route path="/realtime/checkinstatus" element={<CheckinStatus />} />
 
           {/* Community */}
           <Route path="/community/freeboard" element={<FreeBoard />} />

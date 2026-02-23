@@ -1,13 +1,31 @@
 import { useState } from "react";
 import PageHeader from "../components/PageHeader";
-import { CreditCard, Banknote, CheckCircle2, Receipt } from "lucide-react";
-import { SERVICE_CATEGORIES, SUBTITLE_MAP } from "./Apply";
+import {
+  CreditCard,
+  Banknote,
+  CheckCircle2,
+  Receipt,
+  ChevronDown,
+} from "lucide-react";
+export const SERVICE_CATEGORIES = [
+  { label: "행사 참가 신청", path: "/registration/apply" },
+  { label: "신청 내역 조회", path: "/registration/applyhistory" },
+  { label: "결제 내역", path: "/registration/paymenthistory" },
+  {
+    label: "QR 체크인",
+    path: "/registration/qrcheckin",
+  },
+];
 
+export const SUBTITLE_MAP = {
+  "/registration/apply": "행사에 참가 신청하세요",
+  "/registration/applyhistory": "나의 행사 참가 신청 이력을 확인하세요",
+  "/registration/paymenthistory": "결제 완료된 내역을 확인하세요",
+  "/registration/qrcheckin": "내 QR 코드를 확인하세요",
+};
 /* ─────────────────────────────────────────────
-   카드사 / 결제수단 SVG 아이콘
+   카드사 / 결제수단 SVG 아이콘 (유지)
 ───────────────────────────────────────────── */
-
-// KB국민카드
 const KBCardSVG = () => (
   <svg
     width="28"
@@ -30,8 +48,6 @@ const KBCardSVG = () => (
     </text>
   </svg>
 );
-
-// 신한카드
 const ShinhanCardSVG = () => (
   <svg
     width="28"
@@ -55,8 +71,6 @@ const ShinhanCardSVG = () => (
     />
   </svg>
 );
-
-// 삼성카드
 const SamsungCardSVG = () => (
   <svg
     width="28"
@@ -79,8 +93,6 @@ const SamsungCardSVG = () => (
     </text>
   </svg>
 );
-
-// 현대카드
 const HyundaiCardSVG = () => (
   <svg
     width="28"
@@ -103,8 +115,6 @@ const HyundaiCardSVG = () => (
     </text>
   </svg>
 );
-
-// 롯데카드
 const LotteCardSVG = () => (
   <svg
     width="28"
@@ -127,8 +137,6 @@ const LotteCardSVG = () => (
     </text>
   </svg>
 );
-
-// 하나카드
 const HanaCardSVG = () => (
   <svg
     width="28"
@@ -151,8 +159,6 @@ const HanaCardSVG = () => (
     </text>
   </svg>
 );
-
-// 우리카드
 const WooriCardSVG = () => (
   <svg
     width="28"
@@ -175,8 +181,6 @@ const WooriCardSVG = () => (
     </text>
   </svg>
 );
-
-// NH농협카드
 const NHCardSVG = () => (
   <svg
     width="28"
@@ -199,8 +203,6 @@ const NHCardSVG = () => (
     </text>
   </svg>
 );
-
-// IBK기업은행카드
 const IBKCardSVG = () => (
   <svg
     width="28"
@@ -223,8 +225,6 @@ const IBKCardSVG = () => (
     </text>
   </svg>
 );
-
-// BC카드
 const BCCardSVG = () => (
   <svg
     width="28"
@@ -247,8 +247,6 @@ const BCCardSVG = () => (
     </text>
   </svg>
 );
-
-// 카카오페이
 const KakaoPaySVG = () => (
   <svg
     width="28"
@@ -264,8 +262,6 @@ const KakaoPaySVG = () => (
     />
   </svg>
 );
-
-// 네이버페이
 const NaverPaySVG = () => (
   <svg
     width="28"
@@ -278,8 +274,6 @@ const NaverPaySVG = () => (
     <path d="M9 8H12.2L15.1 13.2V8H19V20H15.8L12.9 14.8V20H9V8Z" fill="white" />
   </svg>
 );
-
-// 토스페이
 const TossPaySVG = () => (
   <svg
     width="28"
@@ -294,16 +288,14 @@ const TossPaySVG = () => (
       y="19"
       textAnchor="middle"
       fontSize="9"
-      fontWeight="700"
+      fontWeight="800"
       fill="white"
       fontFamily="Arial,sans-serif"
     >
-      toss
+      TOSS
     </text>
   </svg>
 );
-
-// 페이코
 const PaycoSVG = () => (
   <svg
     width="28"
@@ -312,13 +304,13 @@ const PaycoSVG = () => (
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <rect width="28" height="28" rx="6" fill="#FF4B12" />
+    <rect width="28" height="28" rx="6" fill="#FF0000" />
     <text
       x="14"
       y="19"
       textAnchor="middle"
-      fontSize="8"
-      fontWeight="700"
+      fontSize="8.5"
+      fontWeight="800"
       fill="white"
       fontFamily="Arial,sans-serif"
     >
@@ -326,8 +318,6 @@ const PaycoSVG = () => (
     </text>
   </svg>
 );
-
-// 삼성페이
 const SamsungPaySVG = () => (
   <svg
     width="28"
@@ -341,7 +331,7 @@ const SamsungPaySVG = () => (
       x="14"
       y="16"
       textAnchor="middle"
-      fontSize="6"
+      fontSize="5.5"
       fontWeight="700"
       fill="white"
       fontFamily="Arial,sans-serif"
@@ -353,7 +343,7 @@ const SamsungPaySVG = () => (
       y="22"
       textAnchor="middle"
       fontSize="7"
-      fontWeight="700"
+      fontWeight="800"
       fill="white"
       fontFamily="Arial,sans-serif"
     >
@@ -361,8 +351,6 @@ const SamsungPaySVG = () => (
     </text>
   </svg>
 );
-
-// 애플페이
 const ApplePaySVG = () => (
   <svg
     width="28"
@@ -382,8 +370,6 @@ const ApplePaySVG = () => (
     />
   </svg>
 );
-
-// 계좌이체
 const BankTransferSVG = () => (
   <svg
     width="28"
@@ -399,9 +385,6 @@ const BankTransferSVG = () => (
   </svg>
 );
 
-/* ─────────────────────────────────────────────
-   METHOD_ICON MAP
-───────────────────────────────────────────── */
 const METHOD_ICON = {
   kb: <KBCardSVG />,
   shinhan: <ShinhanCardSVG />,
@@ -467,73 +450,80 @@ const styles = `
   .pay-root {
     box-sizing: border-box;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    background: #f8f9fc;
-    min-height: 100vh;
+    background: #F5F6FA; min-height: 100vh;
   }
   .pay-root *, .pay-root *::before, .pay-root *::after { box-sizing: border-box; font-family: inherit; }
-  .pay-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+  .pay-container { max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; }
 
-  .pay-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+  /* Stats */
+  .pay-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
   .pay-stat {
-    background: #fff; border: 1px solid #e9ecef; border-radius: 12px;
-    padding: 18px 20px; display: flex; align-items: center; gap: 14px;
+    background: #fff; border: 1px solid #EBEBEB; border-radius: 16px;
+    padding: 20px 18px; display: flex; flex-direction: column; gap: 4px;
   }
-  .pay-stat-icon {
-    width: 42px; height: 42px; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
+  .pay-stat-icon-wrap {
+    width: 38px; height: 38px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 8px;
   }
-  .pay-stat-icon.blue  { background: #eff4ff; color: #1a4fd6; }
-  .pay-stat-icon.green { background: #ecfdf5; color: #059669; }
-  .pay-stat-icon.amber { background: #fffbeb; color: #d97706; }
-  .pay-stat-value { font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.5px; line-height: 1.1; }
-  .pay-stat-label { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+  .pay-stat-icon-wrap.blue  { background: #EEF2FF; color: #1B50D9; }
+  .pay-stat-icon-wrap.green { background: #DCFCE7; color: #15803D; }
+  .pay-stat-icon-wrap.amber { background: #FEF3C7; color: #B45309; }
+  .pay-stat-value { font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.8px; line-height: 1; }
+  .pay-stat-label { font-size: 12px; color: #9CA3AF; font-weight: 500; margin-top: 3px; }
 
-  .pay-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-  .pay-title { font-size: 16px; font-weight: 700; color: #111827; }
-  .pay-sub   { font-size: 13px; color: #9ca3af; margin-top: 2px; }
+  /* Toolbar */
+  .pay-toolbar { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
+  .pay-title { font-size: 17px; font-weight: 800; color: #111827; letter-spacing: -0.3px; }
+  .pay-sub { font-size: 13px; color: #9CA3AF; margin-top: 3px; }
 
-  .pay-table-wrap {
-    background: #fff; border: 1px solid #e9ecef; border-radius: 13px; overflow: hidden;
-  }
-  .pay-table { width: 100%; border-collapse: collapse; }
-  .pay-table thead tr { background: #f9fafb; }
-  .pay-table th {
-    padding: 13px 20px; font-size: 11.5px; font-weight: 700; color: #9ca3af;
-    text-align: left; border-bottom: 1px solid #e9ecef;
-    letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap;
-  }
-  .pay-table td {
-    padding: 17px 20px; font-size: 13.5px; color: #4b5563;
-    border-bottom: 1px solid #f1f3f5; vertical-align: middle;
-  }
-  .pay-table tbody tr:last-child td { border-bottom: none; }
-  .pay-table tbody tr:hover td { background: #fafbff; }
+  /* List */
+  .pay-list { display: flex; flex-direction: column; gap: 10px; }
 
-  .pay-id { font-size: 11.5px; color: #9ca3af; font-family: 'Courier New', monospace; }
-  .pay-event { font-size: 14px; font-weight: 600; color: #111827; }
-  .pay-method-row { display: flex; align-items: center; gap: 8px; }
-  .pay-amount { font-size: 15px; font-weight: 800; color: #1a4fd6; }
-  .pay-date-main { font-size: 13px; font-weight: 500; color: #374151; }
-  .pay-date-time { font-size: 11.5px; color: #9ca3af; margin-top: 2px; }
+  /* Card */
+  .pay-card {
+    background: #fff; border: 1px solid #EBEBEB; border-radius: 16px;
+    overflow: hidden; transition: box-shadow 0.2s;
+  }
+  .pay-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.07); }
+  .pay-card-body { padding: 18px 20px; display: flex; align-items: center; gap: 16px; }
+  .pay-card-method { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .pay-card-method-name { font-size: 13.5px; color: #374151; font-weight: 500; white-space: nowrap; }
+  .pay-card-info { flex: 1; min-width: 0; }
+  .pay-card-event { font-size: 14px; font-weight: 700; color: #111827; line-height: 1.4; }
+  .pay-card-id { font-size: 11px; color: #C9CDD4; font-family: 'Courier New', monospace; margin-top: 3px; }
+  .pay-card-right { text-align: right; flex-shrink: 0; }
+  .pay-card-amount { font-size: 17px; font-weight: 800; color: #1B50D9; letter-spacing: -0.5px; }
+  .pay-card-date { font-size: 12px; color: #9CA3AF; margin-top: 3px; }
+
+  .pay-card-footer {
+    padding: 12px 20px; background: #FAFAFA; border-top: 1px solid #F3F4F6;
+    display: flex; align-items: center; justify-content: space-between;
+  }
   .pay-status-badge {
-    padding: 3px 10px; border-radius: 100px;
-    font-size: 11px; font-weight: 600;
-    background: #ecfdf5; color: #059669; white-space: nowrap;
-    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: 700;
+    background: #DCFCE7; color: #15803D;
+    display: inline-flex; align-items: center; gap: 5px;
   }
-
-  .pay-footer {
-    padding: 16px 20px; background: #f9fafb; border-top: 1px solid #e9ecef;
-    display: flex; justify-content: flex-end; align-items: center; gap: 12px;
+  .pay-receipt-btn {
+    padding: 6px 14px; font-size: 12px; font-weight: 600;
+    border: 1.5px solid #EBEBEB; border-radius: 8px; background: #fff;
+    color: #6B7280; cursor: pointer; font-family: inherit; transition: all 0.15s;
+    display: flex; align-items: center; gap: 5px;
   }
-  .pay-footer-label { font-size: 13px; color: #6b7280; font-weight: 600; }
-  .pay-footer-amount { font-size: 17px; font-weight: 800; color: #1a4fd6; }
+  .pay-receipt-btn:hover { border-color: #9CA3AF; color: #374151; }
 
-  @media (max-width: 768px) {
+  /* Total row */
+  .pay-total-card {
+    background: #EEF2FF; border: 1.5px solid #C7D2FA; border-radius: 16px;
+    padding: 18px 20px; display: flex; align-items: center; justify-content: space-between;
+    margin-top: 16px;
+  }
+  .pay-total-label { font-size: 14px; font-weight: 700; color: #374151; }
+  .pay-total-amount { font-size: 22px; font-weight: 800; color: #1B50D9; letter-spacing: -0.8px; }
+
+  @media (max-width: 640px) {
     .pay-stats { grid-template-columns: 1fr; }
-    .pay-container { padding: 20px 16px 48px; }
-    .pay-table th, .pay-table td { padding: 12px 14px; }
+    .pay-container { padding: 20px 16px 64px; }
   }
 `;
 
@@ -541,7 +531,7 @@ const styles = `
    COMPONENT
 ───────────────────────────────────────────── */
 export default function PaymentHistory({ onNavigate }) {
-  const currentPath = "/registration/payment";
+  const currentPath = "/registration/paymenthistory";
   const totalAmount = PAYMENTS.reduce((acc, p) => acc + p.amount, 0);
 
   return (
@@ -557,39 +547,37 @@ export default function PaymentHistory({ onNavigate }) {
       />
 
       <main className="pay-container">
-        {/* 통계 카드 */}
+        {/* Stats */}
         <div className="pay-stats">
           {[
             {
-              icon: <CreditCard size={20} />,
+              icon: <CreditCard size={18} />,
               label: "총 결제 횟수",
               value: `${PAYMENTS.length}회`,
               cls: "blue",
             },
             {
-              icon: <Banknote size={20} />,
+              icon: <Banknote size={18} />,
               label: "누적 결제 금액",
               value: `${totalAmount.toLocaleString()}원`,
               cls: "green",
             },
             {
-              icon: <CheckCircle2 size={20} />,
+              icon: <CheckCircle2 size={18} />,
               label: "결제 완료",
               value: `${PAYMENTS.length}건`,
               cls: "amber",
             },
           ].map((s) => (
             <div key={s.label} className="pay-stat">
-              <div className={`pay-stat-icon ${s.cls}`}>{s.icon}</div>
-              <div>
-                <div className="pay-stat-value">{s.value}</div>
-                <div className="pay-stat-label">{s.label}</div>
-              </div>
+              <div className={`pay-stat-icon-wrap ${s.cls}`}>{s.icon}</div>
+              <div className="pay-stat-value">{s.value}</div>
+              <div className="pay-stat-label">{s.label}</div>
             </div>
           ))}
         </div>
 
-        {/* 툴바 */}
+        {/* Toolbar */}
         <div className="pay-toolbar">
           <div>
             <div className="pay-title">결제 내역</div>
@@ -599,64 +587,45 @@ export default function PaymentHistory({ onNavigate }) {
           </div>
         </div>
 
-        {/* 테이블 */}
-        <div className="pay-table-wrap">
-          <table className="pay-table">
-            <thead>
-              <tr>
-                {[
-                  "결제번호",
-                  "행사명",
-                  "결제 수단",
-                  "금액",
-                  "결제 일시",
-                  "상태",
-                ].map((h) => (
-                  <th key={h}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {PAYMENTS.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    <div className="pay-id">{p.id}</div>
-                  </td>
-                  <td>
-                    <div className="pay-event">{p.event}</div>
-                  </td>
-                  <td>
-                    <div className="pay-method-row">
-                      {METHOD_ICON[p.methodType] || <BankTransferSVG />}
-                      <span style={{ fontSize: 13 }}>{p.method}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="pay-amount">
-                      ₩ {p.amount.toLocaleString()}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="pay-date-main">{p.date}</div>
-                    <div className="pay-date-time">{p.time}</div>
-                  </td>
-                  <td>
-                    <span className="pay-status-badge">
-                      <CheckCircle2 size={11} />
-                      결제 완료
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* List */}
+        <div className="pay-list">
+          {PAYMENTS.map((p) => (
+            <div key={p.id} className="pay-card">
+              <div className="pay-card-body">
+                <div className="pay-card-method">
+                  {METHOD_ICON[p.methodType] || <BankTransferSVG />}
+                  <span className="pay-card-method-name">{p.method}</span>
+                </div>
+                <div className="pay-card-info">
+                  <div className="pay-card-event">{p.event}</div>
+                  <div className="pay-card-id">{p.id}</div>
+                </div>
+                <div className="pay-card-right">
+                  <div className="pay-card-amount">
+                    ₩{p.amount.toLocaleString()}
+                  </div>
+                  <div className="pay-card-date">
+                    {p.date} {p.time}
+                  </div>
+                </div>
+              </div>
+              <div className="pay-card-footer">
+                <span className="pay-status-badge">
+                  <CheckCircle2 size={11} /> 결제 완료
+                </span>
+                <button className="pay-receipt-btn">
+                  <Receipt size={12} /> 영수증
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
 
-          {/* 합계 */}
-          <div className="pay-footer">
-            <span className="pay-footer-label">합계</span>
-            <span className="pay-footer-amount">
-              ₩ {totalAmount.toLocaleString()}
-            </span>
+        {/* Total */}
+        <div className="pay-total-card">
+          <div className="pay-total-label">총 결제 금액</div>
+          <div className="pay-total-amount">
+            ₩ {totalAmount.toLocaleString()}
           </div>
         </div>
       </main>

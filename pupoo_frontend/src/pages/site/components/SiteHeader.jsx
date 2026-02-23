@@ -259,6 +259,7 @@ const megaMenuData = {
         items: [
           { label: "통합 현황", href: "/realtime/dashboard" },
           { label: "입장 대기", href: "/realtime/waitingstatus" },
+          { label: "체크인 현황", href: "/realtime/checkinstatus" },
           { label: "투표 현황", href: "/realtime/votestatus" },
         ],
       },
