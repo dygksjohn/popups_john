@@ -21,6 +21,9 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.*;
+import com.popups.pupoo.auth.dto.KakaoExchangeRequest;
+import com.popups.pupoo.auth.dto.KakaoExchangeResponse;
+import com.popups.pupoo.auth.application.KakaoOAuthService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,10 +33,13 @@ public class AuthController {
 
     private final AuthService authService;
     private final SignupSessionService signupSessionService;
+    
+    private final KakaoOAuthService kakaoOAuthService;
 
-    public AuthController(AuthService authService, SignupSessionService signupSessionService) {
+    public AuthController(AuthService authService, SignupSessionService signupSessionService, KakaoOAuthService kakaoOAuthService) {
         this.authService = authService;
         this.signupSessionService = signupSessionService;
+        this.kakaoOAuthService = kakaoOAuthService;
     }
 
     /**
@@ -85,6 +91,15 @@ public class AuthController {
     public ApiResponse<LoginResponse> signupComplete(@RequestBody SignupCompleteRequest req, HttpServletResponse response) {
         return ApiResponse.success(signupSessionService.complete(req, response));
     }
+    
+    /**
+     * Kakao 로그인
+     */ 
+    @PostMapping("/oauth/kakao/exchange")
+    public ApiResponse<KakaoExchangeResponse> kakaoExchange(@RequestBody KakaoExchangeRequest req) {
+        return ApiResponse.success(kakaoOAuthService.exchange(req.getCode()));
+    }
+    
 
     /**
      * 로그인

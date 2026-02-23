@@ -71,8 +71,6 @@ public enum ErrorCode {
     // =========================
     // Program Apply - 400/403/404/409
     // =========================
-    PROGRAM_NOT_FOUND(HttpStatus.NOT_FOUND, "G4041", "Program not found"),
-    PROGRAM_APPLY_NOT_FOUND(HttpStatus.NOT_FOUND, "G4042", "Program apply not found"),
     PROGRAM_APPLY_DUPLICATE(HttpStatus.CONFLICT, "G4091", "Program apply already exists"),
     PROGRAM_APPLY_TIME_CLOSED(HttpStatus.CONFLICT, "G4092", "Program apply time closed"),
     PROGRAM_APPLY_INVALID_STATUS(HttpStatus.CONFLICT, "G4093", "Program apply status transition not allowed"),

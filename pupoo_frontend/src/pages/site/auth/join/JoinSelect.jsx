@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 /* ───────────────── ICONS ───────────────── */
@@ -69,6 +69,27 @@ const socialProviders = [
 export default function JoinSelect() {
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(null);
+
+  useEffect(() => {
+    // Kakao SDK가 index.html에 로드되어 있어야 함
+    if (!window.Kakao) return;
+    if (!window.Kakao.isInitialized()) {
+      window.Kakao.init(import.meta.env.VITE_KAKAO_JS_KEY);
+    }
+  }, []);
+
+  const handleKakaoContinue = () => {
+    const clientId = import.meta.env.VITE_KAKAO_REST_KEY;
+    const redirectUri = "http://localhost:5173/auth/kakao/callback";
+
+    const url =
+      "https://kauth.kakao.com/oauth/authorize" +
+      `?client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&response_type=code`;
+
+    window.location.href = url;
+  };
 
   return (
     <div
@@ -147,7 +168,10 @@ export default function JoinSelect() {
           return (
             <button
               key={p.id}
-              onClick={() => alert("준비 중")}
+              onClick={() => {
+                if (p.id === "kakao") return handleKakaoContinue();
+                alert("준비 중");
+              }}
               onMouseEnter={() => setHovered(p.id)}
               onMouseLeave={() => setHovered(null)}
               style={{

@@ -12,12 +12,29 @@ export function attachInterceptors(instance) {
 
   instance.interceptors.response.use(
     (res) => res,
-    (err) => {
-      if (err?.response?.status === 401) {
-        // token expired / invalid - drop tokens
+
+    async (err) => {
+      const status = err?.response?.status;
+      const original = err?.config;
+
+      if (!original) return Promise.reject(err);
+
+      // auth endpoint 제외
+      const url = original?.url || "";
+      const isAuth = url.includes("/api/auth/");
+
+      //url.includes("/api/auth/login") ||
+      //url.includes("/api/auth/signup") ||
+      //url.includes("/api/auth/refresh") ||
+      //url.includes("/api/auth/logout");
+
+      if (status !== 401 || isAuth) {
+        return Promise.reject(err);
+      }
+
+      if (original._retry) {
         tokenStore.clear();
       }
-      return Promise.reject(err);
-    }
+    },
   );
 }

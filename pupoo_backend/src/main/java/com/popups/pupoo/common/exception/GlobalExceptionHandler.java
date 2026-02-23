@@ -28,8 +28,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e, HttpServletRequest request) {
+
+        e.printStackTrace();
+
         ErrorCode ec = e.getErrorCode();
-        ErrorResponse body = new ErrorResponse(ec.getCode(), e.getMessage(), ec.getStatus().value(), request.getRequestURI());
+        ErrorResponse body = new ErrorResponse(
+                ec.getCode(),
+                e.getMessage(),
+                ec.getStatus().value(),
+                request.getRequestURI()
+        );
         return ResponseEntity.status(ec.getStatus()).body(ApiResponse.fail(body));
     }
 
@@ -140,6 +148,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnknown(Exception e, HttpServletRequest request) {
+    	e.printStackTrace();
         ErrorResponse body = new ErrorResponse(
                 ErrorCode.INTERNAL_ERROR.getCode(),
                 ErrorCode.INTERNAL_ERROR.getMessage(),

@@ -32,6 +32,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * 회원가입 세션 기반 가입 처리 서비스
  *
@@ -41,6 +43,7 @@ import java.util.UUID;
  * - email/request, email/confirm: EMAIL 가입용 이메일 인증 처리
  * - complete: OTP(필수) + EMAIL 가입이면 email_status=VERIFIED 조건을 만족해야 users 생성 + 토큰 발급
  */
+@Slf4j
 @Service
 public class SignupSessionService {
 
@@ -128,14 +131,20 @@ public class SignupSessionService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
-        if (isBlank(request.getEmail()) || isBlank(request.getPassword())) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
-        }
-
-        if (request.getSignupType() == SignupType.SOCIAL) {
+        // ✅ 타입별 필수값 검증
+        if (request.getSignupType() == SignupType.EMAIL) {
+            if (isBlank(request.getEmail()) || isBlank(request.getPassword())) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+            }
+        } else if (request.getSignupType() == SignupType.SOCIAL) {
             if (isBlank(request.getSocialProvider()) || isBlank(request.getSocialProviderUid())) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED);
             }
+            // ✅ 권장 정책: 소셜도 email은 받는다(카카오에서 못 받으면 프론트에서 추가 입력)
+            if (isBlank(request.getEmail())) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+            }
+            // password는 소셜에서 필수가 아님 (무시)
         }
 
         // 휴대폰 기준: 60초 쿨다운
@@ -158,14 +167,21 @@ public class SignupSessionService {
         session.setSignupKey(UUID.randomUUID().toString());
         session.setSignupType(request.getSignupType());
         session.setEmail(safeTrim(request.getEmail()));
-        session.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         session.setNickname(nickname);
         session.setPhone(phone);
+
+        // ✅ passwordHash 세팅 분기
+        if (request.getSignupType() == SignupType.SOCIAL) {
+            // 소셜은 비밀번호 입력 없이 가입 → 랜덤 값으로 해시만 채움
+            session.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+        } else {
+            session.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        }
 
         if (request.getSignupType() == SignupType.SOCIAL) {
             session.setSocialProvider(safeTrim(request.getSocialProvider()));
             session.setSocialProviderUid(safeTrim(request.getSocialProviderUid()));
-            session.setEmailStatus(EmailSessionStatus.NOT_REQUIRED);
+            session.setEmailStatus(EmailSessionStatus.NOT_REQUIRED); // ✅ 소셜은 이메일 인증 면제 정책 유지
         } else {
             session.setEmailStatus(EmailSessionStatus.PENDING);
         }
@@ -188,7 +204,13 @@ public class SignupSessionService {
         notificationSender.sendSms(List.of(phone), text);
 
         int remaining = Math.max(0, otpDailyLimit - (int) (sentToday + 1));
-        return new SignupStartResponse(saved.getSignupKey(), otpCooldownSeconds, remaining, saved.getExpiresAt(), exposeDevCode ? otp : null);
+        return new SignupStartResponse(
+                saved.getSignupKey(),
+                otpCooldownSeconds,
+                remaining,
+                saved.getExpiresAt(),
+                exposeDevCode ? otp : null
+        );
     }
 
     /**
@@ -262,6 +284,9 @@ public class SignupSessionService {
         }
 
         String code = generateSixDigitCode();
+        // email 로그인 테스트 배포시 삭제 해야함
+        log.info("[DEV] signupKey={} email={} emailCode={}", session.getSignupKey(), session.getEmail(), code);
+        // ---------------------------------
         session.setEmailCodeHash(HashUtil.sha256Hex(code + hashSalt));
         session.setEmailExpiresAt(LocalDateTime.now().plusMinutes(emailTtlMinutes));
         session.setEmailLastSentAt(LocalDateTime.now());

@@ -1,5 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { authApi } from "../api/authApi";
+import { tokenStore } from "../../../../app/http/tokenStore";
+import { useAuth } from "../AuthProvider";
 
+/**
+ * ✅ JoinNormal (EMAIL 회원가입)
+ * - FORM -> OTP -> COMPLETE(이메일 인증) -> 가입완료 & 자동로그인
+ * - 오늘 작업 내용(OTP/이메일 인증/자동로그인) 누락 없이 포함
+ */
+
+// 스타일은 기존(압축형) 유지. (멀티라인 버전 원하면 나중에 교체 가능)
 const styles = `
 
   body {
@@ -402,17 +413,56 @@ const styles = `
     background: #666;
   }
 `;
-
 export default function JoinNormal() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
+  const [memberType, setMemberType] = useState("individual");
+
+  const [form, setForm] = useState({
+    id: "",
+    password: "",
+    passwordConfirm: "",
+    nickname: "",
+    name: "",
+    email: "",
+    tel1: "02",
+    tel2: "",
+    tel3: "",
+    mobile1: "010",
+    mobile2: "",
+    mobile3: "",
+    postcode: "",
+    address: "",
+    addressDetail: "",
+    employeeId: "",
+  });
+
+  const [pets, setPets] = useState([{ type: "dog", age: "" }]);
+  const [error, setError] = useState("");
+
+  // ✅ 회원가입 플로우 상태
+  const [step, setStep] = useState("FORM"); // FORM -> OTP -> COMPLETE
+  const [signupKey, setSignupKey] = useState(null);
+  const [otpCode, setOtpCode] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // ✅ EMAIL 가입: 이메일 인증 상태
+  const [emailRequested, setEmailRequested] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [emailCode, setEmailCode] = useState("");
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleNumberOnlyChange = (e) => {
     const { name, value } = e.target;
     const onlyNumber = value.replace(/[^0-9]/g, "");
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: onlyNumber,
-    }));
+    setForm((prev) => ({ ...prev, [name]: onlyNumber }));
   };
+
   const openPostcode = () => {
     new window.daum.Postcode({
       oncomplete: function (data) {
@@ -420,9 +470,7 @@ export default function JoinNormal() {
         let extraAddress = "";
 
         if (data.addressType === "R") {
-          if (data.bname !== "") {
-            extraAddress += data.bname;
-          }
+          if (data.bname !== "") extraAddress += data.bname;
           if (data.buildingName !== "") {
             extraAddress +=
               extraAddress !== ""
@@ -441,32 +489,6 @@ export default function JoinNormal() {
     }).open();
   };
 
-  const [memberType, setMemberType] = useState("individual");
-  const [form, setForm] = useState({
-    id: "",
-    password: "",
-    passwordConfirm: "",
-    name: "",
-    email: "",
-    tel1: "02",
-    tel2: "",
-    tel3: "",
-    mobile1: "010",
-    mobile2: "",
-    mobile3: "",
-    postcode: "",
-    address: "",
-    addressDetail: "",
-    employeeId: "",
-  });
-
-  const [pets, setPets] = useState([{ type: "dog", age: "" }]);
-
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handlePetChange = (index, field, value) => {
     setPets((prev) => {
       const updated = [...prev];
@@ -475,20 +497,194 @@ export default function JoinNormal() {
     });
   };
 
-  const addPet = () => {
-    setPets((prev) => [...prev, { type: "dog", age: "" }]);
-  };
+  const addPet = () => setPets((prev) => [...prev, { type: "dog", age: "" }]);
 
   const removePet = (index) => {
     if (pets.length === 1) return;
     setPets((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const phoneTel = useMemo(() => {
+    const t2 = (form.tel2 || "").trim();
+    const t3 = (form.tel3 || "").trim();
+    if (!t2 && !t3) return "";
+    return `${form.tel1}-${t2}-${t3}`;
+  }, [form.tel1, form.tel2, form.tel3]);
+
+  const phoneMobile = useMemo(() => {
+    const m2 = (form.mobile2 || "").trim();
+    const m3 = (form.mobile3 || "").trim();
+    if (!m2 || !m3) return "";
+    return `${form.mobile1}-${m2}-${m3}`;
+  }, [form.mobile1, form.mobile2, form.mobile3]);
+
+  // ✅ 1) Start (가입 세션 + OTP 발송)
+  const signupStart = async () => {
+    if (!form.email.trim()) throw new Error("이메일을 입력하세요.");
+    if (!form.password) throw new Error("비밀번호를 입력하세요.");
+    if (form.password !== form.passwordConfirm)
+      throw new Error("비밀번호가 일치하지 않습니다.");
+    if (!form.nickname?.trim()) throw new Error("닉네임을 입력하세요.");
+    if (!phoneMobile) throw new Error("휴대전화 번호를 완성해주세요.");
+
+    setLoading(true);
+    try {
+      const res = await authApi.signupStart({
+        signupType: "EMAIL",
+        email: form.email.trim(),
+        password: form.password,
+        nickname: form.nickname.trim(),
+        phone: phoneMobile,
+      });
+
+      const key = res?.signupKey;
+      if (!key) throw new Error("signupStart 응답에 signupKey가 없습니다.");
+
+      setSignupKey(key);
+      setStep("OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ 2) Verify OTP
+  const verifyOtp = async () => {
+    if (!signupKey) throw new Error("signupKey가 없습니다. 다시 시도해주세요.");
+    if (!otpCode.trim()) throw new Error("인증번호(OTP)를 입력하세요.");
+    if (!phoneMobile) throw new Error("휴대전화 번호를 완성해주세요.");
+
+    setLoading(true);
+    try {
+      await authApi.signupVerifyOtp({
+        signupKey,
+        phone: phoneMobile,
+        otpCode: otpCode.trim(),
+      });
+
+      // ✅ OTP 성공 → 이메일 인증/완료 단계로 이동
+      setStep("COMPLETE");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ 3) 이메일 인증 메일 요청
+  const requestEmailVerification = async () => {
+    if (!signupKey) return setError("signupKey가 없습니다.");
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await authApi.signupEmailRequest({ signupKey });
+
+      // ✅ 백엔드가 devCode 내려주는 경우를 대비
+      const devCode =
+        res?.data?.data?.devCode ||
+        res?.data?.devCode ||
+        res?.data?.data?.code ||
+        "";
+
+      if (devCode) {
+        setEmailCode(devCode);
+      }
+
+      setEmailRequested(true);
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ?? err?.message ?? "이메일 인증 요청 실패",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ 4) 이메일 인증 확인
+  const confirmEmailVerification = async () => {
+    if (!signupKey) return setError("signupKey가 없습니다.");
+    if (!emailCode.trim()) return setError("이메일 인증 코드를 입력하세요.");
+
+    setError("");
+    setLoading(true);
+    try {
+      await authApi.signupEmailConfirm({
+        signupKey,
+        code: emailCode.trim(),
+      });
+      setEmailVerified(true);
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ?? err?.message ?? "이메일 인증 확인 실패",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ 5) Complete (users 생성 + 토큰 발급)
+  const completeSignup = async () => {
+    if (!signupKey) throw new Error("signupKey가 없습니다. 다시 시도해주세요.");
+
+    setLoading(true);
+    try {
+      const res = await authApi.signupComplete({ signupKey });
+
+      const accessToken = res?.accessToken;
+      if (!accessToken)
+        throw new Error("회원가입 완료 응답에 accessToken이 없습니다.");
+
+      tokenStore.setAccess(accessToken);
+      login();
+      navigate("/");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Submit: step에 따라 실행만 분기
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    try {
+      if (step === "FORM") {
+        await signupStart();
+        return;
+      }
+      if (step === "OTP") {
+        await verifyOtp();
+        return;
+      }
+      if (step === "COMPLETE") {
+        if (!emailVerified) throw new Error("이메일 인증을 완료해주세요.");
+        await completeSignup();
+        return;
+      }
+    } catch (err) {
+      setError(err?.response?.data?.message ?? err?.message ?? "회원가입 실패");
+    }
+  };
+
+  const stepTitle = useMemo(() => {
+    if (step === "FORM") return "회원가입 정보 입력";
+    if (step === "OTP") return "휴대폰 인증(OTP)";
+    return "가입 완료";
+  }, [step]);
+
   return (
     <>
       <style>{styles}</style>
-      <div className="signup-wrap">
+
+      <form className="signup-wrap" onSubmit={handleSubmit}>
         <h1 className="signup-title">회원가입</h1>
+
+        <div style={{ marginBottom: 20, color: "#666", fontSize: 13 }}>
+          현재 단계: <b>{stepTitle}</b>
+          {signupKey && (
+            <span style={{ marginLeft: 10, color: "#999" }}>
+              (signupKey: {String(signupKey).slice(0, 8)}…)
+            </span>
+          )}
+        </div>
 
         {/* 회원구분 */}
         <p className="section-title">회원구분</p>
@@ -505,6 +701,7 @@ export default function JoinNormal() {
                       value="individual"
                       checked={memberType === "individual"}
                       onChange={() => setMemberType("individual")}
+                      disabled={loading || step !== "FORM"}
                     />
                     개인회원
                   </label>
@@ -515,6 +712,7 @@ export default function JoinNormal() {
                       value="business"
                       checked={memberType === "business"}
                       onChange={() => setMemberType("business")}
+                      disabled={loading || step !== "FORM"}
                     />
                     사업자회원
                   </label>
@@ -524,9 +722,12 @@ export default function JoinNormal() {
             <tr>
               <th>회원인증</th>
               <td>
-                <button className="identity-btn">본인인증</button>
+                <button type="button" className="identity-btn" disabled>
+                  본인인증
+                </button>
                 <span className="identity-note">
-                  본인 명의의 휴대폰으로 본인인증을 진행합니다.
+                  (현재는 OTP로 인증합니다) 본인 명의의 휴대폰으로 인증을
+                  진행합니다.
                 </span>
               </td>
             </tr>
@@ -545,12 +746,11 @@ export default function JoinNormal() {
             <span>*</span> 표시는 반드시 입력하셔야 합니다.
           </span>
         </div>
+
         <table className="form-table" style={{ borderTop: "2px solid #333" }}>
           <tbody>
             <tr>
-              <th>
-                아이디 <span className="req">*</span>
-              </th>
+              <th>아이디</th>
               <td>
                 <input
                   className="form-input"
@@ -558,10 +758,12 @@ export default function JoinNormal() {
                   name="id"
                   value={form.id}
                   onChange={handleFormChange}
-                  placeholder="영문 소문자/숫자 조합, 4~16자"
+                  placeholder="(미사용) 이메일이 로그인 ID 역할"
+                  disabled
                 />
               </td>
             </tr>
+
             <tr>
               <th>
                 비밀번호 <span className="req">*</span>
@@ -573,10 +775,12 @@ export default function JoinNormal() {
                   name="password"
                   value={form.password}
                   onChange={handleFormChange}
-                  placeholder="대소문자/숫자/특수문자 중 3가지 이상 조합, 8자~16자"
+                  placeholder="8~16자"
+                  disabled={loading || step !== "FORM"}
                 />
               </td>
             </tr>
+
             <tr>
               <th>
                 비밀번호 확인 <span className="req">*</span>
@@ -588,19 +792,37 @@ export default function JoinNormal() {
                   name="passwordConfirm"
                   value={form.passwordConfirm}
                   onChange={handleFormChange}
+                  disabled={loading || step !== "FORM"}
                 />
               </td>
             </tr>
+
             <tr>
               <th>
-                이름 <span className="req">*</span>
+                닉네임 <span className="req">*</span>
               </th>
+              <td>
+                <input
+                  className="form-input"
+                  type="text"
+                  name="nickname"
+                  value={form.nickname || ""}
+                  onChange={handleFormChange}
+                  placeholder="닉네임을 입력하세요"
+                  disabled={loading || step !== "FORM"}
+                />
+              </td>
+            </tr>
+
+            <tr>
+              <th>이름</th>
               <td>
                 <span className="auto-fill-note">
                   ※ 본인인증 후 자동 입력 됩니다.
                 </span>
               </td>
             </tr>
+
             <tr>
               <th>
                 이메일 <span className="req">*</span>
@@ -612,9 +834,11 @@ export default function JoinNormal() {
                   name="email"
                   value={form.email}
                   onChange={handleFormChange}
+                  disabled={loading || step !== "FORM"}
                 />
               </td>
             </tr>
+
             <tr>
               <th>일반전화</th>
               <td>
@@ -623,9 +847,8 @@ export default function JoinNormal() {
                     className="phone-select"
                     name="tel1"
                     value={form.tel1}
-                    onChange={handleNumberOnlyChange}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                    onChange={handleFormChange}
+                    disabled={loading || step !== "FORM"}
                   >
                     <option value="02">02</option>
                     <option value="031">031</option>
@@ -644,29 +867,36 @@ export default function JoinNormal() {
                     <option value="063">063</option>
                     <option value="064">064</option>
                   </select>
+
+                  {/* ✅ 치명적 오타 수정: tel2/tel3 */}
                   <input
                     className="phone-input"
                     type="text"
-                    name="mobile3"
-                    value={form.mobile3}
+                    name="tel2"
+                    value={form.tel2}
                     onChange={handleNumberOnlyChange}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
                     maxLength={4}
+                    disabled={loading || step !== "FORM"}
                   />
                   <input
                     className="phone-input"
                     type="text"
-                    name="mobile3"
-                    value={form.mobile3}
+                    name="tel3"
+                    value={form.tel3}
                     onChange={handleNumberOnlyChange}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
                     maxLength={4}
+                    disabled={loading || step !== "FORM"}
                   />
                 </div>
+
+                {phoneTel && (
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
+                    입력된 전화: {phoneTel}
+                  </div>
+                )}
               </td>
             </tr>
+
             <tr>
               <th>
                 휴대전화 <span className="req">*</span>
@@ -677,9 +907,8 @@ export default function JoinNormal() {
                     className="phone-select"
                     name="mobile1"
                     value={form.mobile1}
-                    onChange={handleNumberOnlyChange}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                    onChange={handleFormChange}
+                    disabled={loading || step !== "FORM"}
                   >
                     <option value="010">010</option>
                     <option value="011">011</option>
@@ -688,25 +917,35 @@ export default function JoinNormal() {
                     <option value="018">018</option>
                     <option value="019">019</option>
                   </select>
+
                   <input
                     className="phone-input"
                     type="text"
                     name="mobile2"
                     value={form.mobile2}
-                    onChange={handleFormChange}
+                    onChange={handleNumberOnlyChange}
                     maxLength={4}
+                    disabled={loading || step !== "FORM"}
                   />
                   <input
                     className="phone-input"
                     type="text"
                     name="mobile3"
                     value={form.mobile3}
-                    onChange={handleFormChange}
+                    onChange={handleNumberOnlyChange}
                     maxLength={4}
+                    disabled={loading || step !== "FORM"}
                   />
                 </div>
+
+                {phoneMobile && (
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
+                    입력된 휴대전화: {phoneMobile}
+                  </div>
+                )}
               </td>
             </tr>
+
             <tr>
               <th>주소</th>
               <td>
@@ -717,17 +956,20 @@ export default function JoinNormal() {
                       type="text"
                       name="postcode"
                       value={form.postcode}
-                      onChange={handleFormChange}
+                      onChange={handleNumberOnlyChange}
                       style={{ maxWidth: 160 }}
+                      disabled={loading || step !== "FORM"}
                     />
                     <button
                       type="button"
                       className="btn-postcode"
                       onClick={openPostcode}
+                      disabled={loading || step !== "FORM"}
                     >
                       우편번호
                     </button>
                   </div>
+
                   <input
                     className="address-input"
                     type="text"
@@ -735,6 +977,7 @@ export default function JoinNormal() {
                     value={form.address}
                     onChange={handleFormChange}
                     placeholder="기본주소"
+                    disabled={loading || step !== "FORM"}
                   />
                   <input
                     className="address-input"
@@ -743,12 +986,128 @@ export default function JoinNormal() {
                     value={form.addressDetail}
                     onChange={handleFormChange}
                     placeholder="나머지주소"
+                    disabled={loading || step !== "FORM"}
                   />
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
+
+        {/* ✅ OTP 단계 UI */}
+        {step === "OTP" && (
+          <div style={{ marginTop: 10, marginBottom: 30 }}>
+            <p className="section-title">휴대폰 인증(OTP)</p>
+            <div
+              style={{
+                marginTop: 12,
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <input
+                className="form-input"
+                style={{ maxWidth: 260 }}
+                type="text"
+                value={otpCode}
+                onChange={(e) =>
+                  setOtpCode(e.target.value.replace(/[^0-9]/g, ""))
+                }
+                placeholder="인증번호 6자리"
+                maxLength={6}
+                inputMode="numeric"
+                disabled={loading}
+              />
+              <button type="submit" className="btn-submit" disabled={loading}>
+                {loading ? "검증 중..." : "OTP 검증"}
+              </button>
+
+              <button
+                type="button"
+                className="btn-cancel"
+                disabled={loading}
+                onClick={() => {
+                  setStep("FORM");
+                  setSignupKey(null);
+                  setOtpCode("");
+                  setEmailRequested(false);
+                  setEmailVerified(false);
+                  setEmailCode("");
+                }}
+              >
+                처음으로
+              </button>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
+              가입 시작 시 입력한 휴대폰으로 인증번호가 발송됩니다.
+            </div>
+          </div>
+        )}
+
+        {/* ✅ COMPLETE 단계: 이메일 인증 + 가입 완료 */}
+        {step === "COMPLETE" && (
+          <div style={{ marginTop: 10, marginBottom: 30 }}>
+            <p className="section-title">가입 완료</p>
+
+            <div
+              style={{
+                marginTop: 12,
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={requestEmailVerification}
+                disabled={loading || emailRequested}
+              >
+                {emailRequested ? "메일 요청 완료" : "이메일 인증 메일 요청"}
+              </button>
+
+              <input
+                className="form-input"
+                style={{ maxWidth: 260 }}
+                type="text"
+                value={emailCode}
+                onChange={(e) => setEmailCode(e.target.value)}
+                placeholder="이메일 인증 코드 입력"
+                disabled={loading || !emailRequested || emailVerified}
+              />
+
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={confirmEmailVerification}
+                disabled={loading || !emailRequested || emailVerified}
+              >
+                {emailVerified ? "이메일 인증 완료" : "이메일 인증 확인"}
+              </button>
+
+              <button
+                type="submit"
+                className="btn-submit"
+                disabled={loading || !emailVerified}
+                title={
+                  !emailVerified
+                    ? "이메일 인증을 완료해야 가입이 완료됩니다."
+                    : ""
+                }
+              >
+                {loading ? "처리 중..." : "가입 완료 & 로그인"}
+              </button>
+            </div>
+
+            <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
+              OTP 검증이 완료되었습니다. EMAIL 가입은 이메일 인증 후 가입을
+              완료할 수 있습니다.
+            </div>
+          </div>
+        )}
 
         {/* 추가정보 */}
         <p className="section-title">추가정보</p>
@@ -761,16 +1120,19 @@ export default function JoinNormal() {
                   {pets.map((pet, index) => (
                     <div className="pet-row" key={index}>
                       <span className="pet-label">Pet {index + 1}</span>
+
                       <select
                         className="pet-select"
                         value={pet.type}
                         onChange={(e) =>
                           handlePetChange(index, "type", e.target.value)
                         }
+                        disabled={loading}
                       >
                         <option value="dog">🐶 강아지 (Dog)</option>
                         <option value="cat">🐱 고양이 (Cat)</option>
                       </select>
+
                       <input
                         className="pet-age-input"
                         type="number"
@@ -781,19 +1143,24 @@ export default function JoinNormal() {
                           handlePetChange(index, "age", e.target.value)
                         }
                         placeholder="나이"
+                        disabled={loading}
                       />
                       <span className="pet-age-unit">살</span>
+
                       <button
+                        type="button"
                         className="btn-remove-pet"
                         onClick={() => removePet(index)}
-                        disabled={pets.length === 1}
+                        disabled={loading || pets.length === 1}
                         title="반려동물 삭제"
                       >
                         −
                       </button>
                       <button
+                        type="button"
                         className="btn-add-pet"
                         onClick={addPet}
+                        disabled={loading}
                         title="반려동물 추가"
                       >
                         +
@@ -801,16 +1168,50 @@ export default function JoinNormal() {
                     </div>
                   ))}
                 </div>
+                <div style={{ marginTop: 8, fontSize: 12, color: "#777" }}>
+                  ※ 반려동물 정보는 현재 가입 플로우에 포함되지 않습니다(추후
+                  mypage/pet 등록으로 확장).
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
 
+        {error && <div className="error-text">{error}</div>}
+
         <div className="submit-wrap">
-          <button className="btn-cancel">취소</button>
-          <button className="btn-submit">가입하기</button>
+          <button
+            type="button"
+            className="btn-cancel"
+            onClick={() => window.history.back()}
+            disabled={loading}
+          >
+            취소
+          </button>
+
+          {step === "FORM" && (
+            <button type="submit" className="btn-submit" disabled={loading}>
+              {loading ? "처리 중..." : "가입 시작(OTP 발송)"}
+            </button>
+          )}
+
+          {step === "OTP" && (
+            <button type="submit" className="btn-submit" disabled={loading}>
+              {loading ? "검증 중..." : "OTP 검증"}
+            </button>
+          )}
+
+          {step === "COMPLETE" && (
+            <button
+              type="submit"
+              className="btn-submit"
+              disabled={loading || !emailVerified}
+            >
+              {loading ? "처리 중..." : "가입 완료 & 로그인"}
+            </button>
+          )}
         </div>
-      </div>
+      </form>
     </>
   );
 }

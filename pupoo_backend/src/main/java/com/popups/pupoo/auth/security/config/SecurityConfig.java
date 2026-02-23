@@ -72,11 +72,14 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> auth
             //  CORS Preflight 허용(프론트 연동 시 403 방지)
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            
+            .requestMatchers("/api/auth/**").permitAll()
 
             // 인증/회원가입(인증 기능은 예외적으로 공개)
             .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/signup/**").permitAll()
 
             // 운영/문서
