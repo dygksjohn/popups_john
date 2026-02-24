@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 /* ───────────────── ICONS ───────────────── */
@@ -70,31 +70,31 @@ export default function JoinSelect() {
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(null);
 
-  useEffect(() => {
-    // Kakao SDK가 index.html에 로드되어 있어야 함
-    if (!window.Kakao) return;
-    if (!window.Kakao.isInitialized()) {
-      window.Kakao.init(import.meta.env.VITE_KAKAO_REST_KEY);
-    }
-  }, []);
+  // ✅ JS SDK 필요 없음. OAuth 인가코드 방식은 REST 키 + redirect만으로 충분
+  const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
+  const KAKAO_REDIRECT_URI =
+    import.meta.env.VITE_KAKAO_REDIRECT_URI ||
+    "http://localhost:5173/auth/kakao/callback";
 
   const handleKakaoContinue = () => {
-    const clientId = import.meta.env.VITE_KAKAO_REST_KEY;
-    console.log("KAKAO REST KEY:", clientId); // ✅ 디버깅용
+    // ✅ 카카오 플로우 시작 전 세션 초기화
+    sessionStorage.removeItem("kakao_auth_code");
+    sessionStorage.removeItem("kakao_provider_uid");
+    sessionStorage.removeItem("kakao_email");
+    sessionStorage.removeItem("kakao_nickname");
+    if (!KAKAO_REST_KEY) {
+      alert("VITE_KAKAO_REST_KEY가 설정되지 않았습니다.");
+      return;
+    }
 
-    const redirectUri = "http://localhost:5173/auth/kakao/callback";
+    const params = new URLSearchParams({
+      response_type: "code",
+      client_id: KAKAO_REST_KEY,
+      redirect_uri: KAKAO_REDIRECT_URI,
+      prompt: "login",
+    });
 
-    const url =
-      "https://kauth.kakao.com/oauth/authorize" +
-      `?client_id=${encodeURIComponent(clientId)}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&response_type=code`;
-
-    window.location.href =
-      "https://kauth.kakao.com/oauth/authorize" +
-      `?client_id=${encodeURIComponent(clientId)}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&response_type=code`;
+    window.location.href = `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
   };
 
   return (
@@ -119,7 +119,6 @@ export default function JoinSelect() {
           textAlign: "center",
         }}
       >
-        {/* 로고 정확히 중앙 */}
         <div
           style={{
             display: "flex",
@@ -130,10 +129,7 @@ export default function JoinSelect() {
           <img
             src="/logo_blue.png"
             alt="logo"
-            style={{
-              width: 120,
-              display: "block",
-            }}
+            style={{ width: 120, display: "block" }}
           />
         </div>
 
@@ -143,7 +139,6 @@ export default function JoinSelect() {
           기존 소셜 계정으로 빠르게 가입하세요.
         </p>
 
-        {/* 일반 회원가입 */}
         <button
           onClick={() => navigate("/auth/join/joinnormal")}
           style={{
@@ -168,7 +163,6 @@ export default function JoinSelect() {
 
         <div style={{ height: 1, background: "#e8eaed", margin: "16px 0" }} />
 
-        {/* 소셜 버튼들 */}
         {socialProviders.map((p) => {
           const Icon = p.icon;
           return (

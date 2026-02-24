@@ -1,4 +1,3 @@
-// file: src/main/java/com/popups/pupoo/auth/application/SignupSessionService.java
 package com.popups.pupoo.auth.application;
 
 import com.popups.pupoo.auth.domain.enums.EmailSessionStatus;
@@ -16,9 +15,11 @@ import com.popups.pupoo.notification.port.NotificationSender;
 import com.popups.pupoo.user.application.UserService;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.dto.UserCreateRequest;
-import com.popups.pupoo.user.social.application.SocialAccountService;
-import com.popups.pupoo.user.social.dto.SocialLinkRequest;
+import com.popups.pupoo.user.social.domain.enums.SocialProvider;
+import com.popups.pupoo.user.social.domain.model.SocialAccount;
+import com.popups.pupoo.user.social.persistence.SocialAccountRepository;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -31,8 +32,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * 회원가입 세션 기반 가입 처리 서비스
@@ -52,7 +51,10 @@ public class SignupSessionService {
 
     private final SignupSessionRepository signupSessionRepository;
     private final UserService userService;
-    private final SocialAccountService socialAccountService;
+
+    // ✅ SOCIAL 가입 시 소셜 계정 저장용(회원가입은 비인증 상태이므로 repository 직접 저장 권장)
+    private final SocialAccountRepository socialAccountRepository;
+
     private final RefreshTokenRepository refreshTokenRepository;
     private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
@@ -74,7 +76,7 @@ public class SignupSessionService {
     public SignupSessionService(
             SignupSessionRepository signupSessionRepository,
             UserService userService,
-            SocialAccountService socialAccountService,
+            SocialAccountRepository socialAccountRepository,
             RefreshTokenRepository refreshTokenRepository,
             TokenService tokenService,
             PasswordEncoder passwordEncoder,
@@ -93,7 +95,7 @@ public class SignupSessionService {
     ) {
         this.signupSessionRepository = signupSessionRepository;
         this.userService = userService;
-        this.socialAccountService = socialAccountService;
+        this.socialAccountRepository = socialAccountRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.tokenService = tokenService;
         this.passwordEncoder = passwordEncoder;
@@ -172,7 +174,6 @@ public class SignupSessionService {
 
         // ✅ passwordHash 세팅 분기
         if (request.getSignupType() == SignupType.SOCIAL) {
-            // 소셜은 비밀번호 입력 없이 가입 → 랜덤 값으로 해시만 채움
             session.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
         } else {
             session.setPasswordHash(passwordEncoder.encode(request.getPassword()));
@@ -284,9 +285,8 @@ public class SignupSessionService {
         }
 
         String code = generateSixDigitCode();
-        // email 로그인 테스트 배포시 삭제 해야함
         log.info("[DEV] signupKey={} email={} emailCode={}", session.getSignupKey(), session.getEmail(), code);
-        // ---------------------------------
+
         session.setEmailCodeHash(HashUtil.sha256Hex(code + hashSalt));
         session.setEmailExpiresAt(LocalDateTime.now().plusMinutes(emailTtlMinutes));
         session.setEmailLastSentAt(LocalDateTime.now());
@@ -378,7 +378,6 @@ public class SignupSessionService {
         try {
             saved = userService.createWithPasswordHash(ucr, session.getPasswordHash());
         } catch (IllegalArgumentException e) {
-            // UserService의 IllegalArgumentException을 표준 ErrorCode로 변환한다.
             String msg = e.getMessage();
             if (msg != null && msg.contains("Email")) {
                 throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
@@ -392,12 +391,32 @@ public class SignupSessionService {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
         }
 
-        // SOCIAL 가입이면 소셜 계정 연동
+        // ✅ SOCIAL 가입이면 소셜 계정 연동 (회원가입 시점: 비인증 상태이므로 repository 직접 저장)
         if (session.getSignupType() == SignupType.SOCIAL) {
-            SocialLinkRequest link = new SocialLinkRequest();
-            link.setProvider(session.getSocialProvider());
-            link.setProviderUid(session.getSocialProviderUid());
-            socialAccountService.link(saved.getUserId(), link);
+
+            String providerStr = session.getSocialProvider();
+            String providerUid = session.getSocialProviderUid();
+
+            if (providerStr == null || providerStr.isBlank() || providerUid == null || providerUid.isBlank()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+            }
+
+            final SocialProvider provider;
+            try {
+                provider = SocialProvider.valueOf(providerStr.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+            }
+
+            if (socialAccountRepository.findByProviderAndProviderUid(provider, providerUid).isPresent()) {
+                throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
+            }
+
+            if (socialAccountRepository.existsByUserIdAndProvider(saved.getUserId(), provider)) {
+                throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
+            }
+
+            socialAccountRepository.save(new SocialAccount(saved.getUserId(), provider, providerUid));
         }
 
         Long userId = saved.getUserId();

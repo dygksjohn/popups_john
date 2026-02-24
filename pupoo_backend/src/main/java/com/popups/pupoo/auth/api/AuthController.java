@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.*;
 import com.popups.pupoo.auth.dto.KakaoExchangeRequest;
 import com.popups.pupoo.auth.dto.KakaoExchangeResponse;
 import com.popups.pupoo.auth.application.KakaoOAuthService;
+import com.popups.pupoo.auth.dto.KakaoOauthLoginRequest;
+import com.popups.pupoo.auth.dto.KakaoOauthLoginResponse;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -98,6 +100,19 @@ public class AuthController {
     @PostMapping("/oauth/kakao/exchange")
     public ApiResponse<KakaoExchangeResponse> kakaoExchange(@RequestBody KakaoExchangeRequest req) {
         return ApiResponse.success(kakaoOAuthService.exchange(req.getCode()));
+    }
+    
+    /**
+     * Kakao 로그인 (토큰 발급)
+     * - 기존 회원: accessToken(body) + refreshToken(HttpOnly 쿠키)
+     * - 신규 회원: 200 OK + newUser=true + 프리필드 반환
+     */
+    @PostMapping("/oauth/kakao/login")
+    public ApiResponse<KakaoOauthLoginResponse> kakaoLogin(
+            @RequestBody KakaoOauthLoginRequest req,
+            HttpServletResponse response
+    ) {
+        return ApiResponse.success(kakaoOAuthService.login(req.getCode(), response));
     }
     
 

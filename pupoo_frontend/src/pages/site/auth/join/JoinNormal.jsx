@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "../api/authApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
@@ -520,22 +520,45 @@ export default function JoinNormal() {
 
   // ✅ 1) Start (가입 세션 + OTP 발송)
   const signupStart = async () => {
-    if (!form.email.trim()) throw new Error("이메일을 입력하세요.");
-    if (!form.password) throw new Error("비밀번호를 입력하세요.");
-    if (form.password !== form.passwordConfirm)
-      throw new Error("비밀번호가 일치하지 않습니다.");
+    // ✅ 공통: 닉네임 + 휴대폰 필수
     if (!form.nickname?.trim()) throw new Error("닉네임을 입력하세요.");
     if (!phoneMobile) throw new Error("휴대전화 번호를 완성해주세요.");
 
+    // ✅ EMAIL 가입일 때만 password 검증
+    if (!isSocial) {
+      if (!form.email.trim()) throw new Error("이메일을 입력하세요.");
+      if (!form.password) throw new Error("비밀번호를 입력하세요.");
+      if (form.password !== form.passwordConfirm)
+        throw new Error("비밀번호가 일치하지 않습니다.");
+    } else {
+      // ✅ SOCIAL은 email이 필요(너희 start()에서 SOCIAL도 email 필수)
+      if (!form.email.trim()) throw new Error("이메일을 입력하세요.");
+      if (!socialState?.socialProviderUid)
+        throw new Error(
+          "소셜 UID가 없습니다. 카카오 콜백부터 다시 진행해주세요.",
+        );
+    }
+
     setLoading(true);
     try {
-      const res = await authApi.signupStart({
-        signupType: "EMAIL",
-        email: form.email.trim(),
-        password: form.password,
-        nickname: form.nickname.trim(),
-        phone: phoneMobile,
-      });
+      const payload = isSocial
+        ? {
+            signupType: "SOCIAL",
+            socialProvider: socialState.socialProvider ?? "KAKAO",
+            socialProviderUid: socialState.socialProviderUid,
+            email: form.email.trim(),
+            nickname: form.nickname.trim(),
+            phone: phoneMobile,
+          }
+        : {
+            signupType: "EMAIL",
+            email: form.email.trim(),
+            password: form.password,
+            nickname: form.nickname.trim(),
+            phone: phoneMobile,
+          };
+
+      const res = await authApi.signupStart(payload);
 
       const key = res?.signupKey;
       if (!key) throw new Error("signupStart 응답에 signupKey가 없습니다.");
@@ -561,7 +584,21 @@ export default function JoinNormal() {
         otpCode: otpCode.trim(),
       });
 
-      // ✅ OTP 성공 → 이메일 인증/완료 단계로 이동
+      // ✅ SOCIAL이면 이메일 인증 없이 바로 가입 완료
+      if (isSocial) {
+        const res = await authApi.signupComplete({ signupKey });
+
+        const accessToken = res?.accessToken;
+        if (!accessToken)
+          throw new Error("회원가입 완료 응답에 accessToken이 없습니다.");
+
+        tokenStore.setAccess(accessToken);
+        login();
+        navigate("/");
+        return;
+      }
+
+      // ✅ EMAIL이면 COMPLETE 단계로 (이메일 인증 필요)
       setStep("COMPLETE");
     } finally {
       setLoading(false);
@@ -640,7 +677,51 @@ export default function JoinNormal() {
     }
   };
 
-  // ✅ Submit: step에 따라 실행만 분기
+  const location = useLocation();
+
+  // 1) 라우터 state 우선
+  const socialStateFromRoute =
+    location.state && location.state.signupType === "SOCIAL"
+      ? location.state
+      : null;
+
+  // 2) 없으면 sessionStorage에서 복원
+  const socialStateFromStorage = (() => {
+    const uid = sessionStorage.getItem("kakao_provider_uid");
+    if (!uid) return null;
+
+    return {
+      signupType: "SOCIAL",
+      socialProvider: "KAKAO",
+      socialProviderUid: uid,
+      email: sessionStorage.getItem("kakao_email") ?? "",
+      nickname: sessionStorage.getItem("kakao_nickname") ?? "",
+      phone: "", // phone은 JoinNormal 입력값으로 받을거면 비워도 됨
+    };
+  })();
+
+  const socialState = socialStateFromRoute ?? socialStateFromStorage;
+  const isSocial = socialState?.signupType === "SOCIAL";
+
+  useEffect(() => {
+    if (!isSocial) return;
+
+    const digits = (socialState?.phone ?? "").replace(/[^0-9]/g, "");
+    const mobile2 = digits.length >= 7 ? digits.slice(3, 7) : "";
+    const mobile3 = digits.length >= 11 ? digits.slice(7, 11) : "";
+
+    setForm((prev) => ({
+      ...prev,
+      email: socialState.email ?? prev.email,
+      nickname: socialState.nickname ?? prev.nickname,
+      mobile1: digits.startsWith("010") ? "010" : prev.mobile1,
+      mobile2: mobile2 || prev.mobile2,
+      mobile3: mobile3 || prev.mobile3,
+    }));
+  }, [isSocial, socialState]);
+
+  // ✅ Submit: step에 따라 실행만 분기(여기서 JSX 절대 금지)
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -655,7 +736,11 @@ export default function JoinNormal() {
         return;
       }
       if (step === "COMPLETE") {
-        if (!emailVerified) throw new Error("이메일 인증을 완료해주세요.");
+        if (!isSocial) {
+          // EMAIL 가입은 이메일 인증 필수
+          if (!emailVerified) throw new Error("이메일 인증을 완료해주세요.");
+        }
+
         await completeSignup();
         return;
       }
@@ -764,39 +849,42 @@ export default function JoinNormal() {
               </td>
             </tr>
 
-            <tr>
-              <th>
-                비밀번호 <span className="req">*</span>
-              </th>
-              <td>
-                <input
-                  className="form-input"
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleFormChange}
-                  placeholder="8~16자"
-                  disabled={loading || step !== "FORM"}
-                />
-              </td>
-            </tr>
+            {!isSocial && (
+              <>
+                <tr>
+                  <th>
+                    비밀번호 <span className="req">*</span>
+                  </th>
+                  <td>
+                    <input
+                      className="form-input"
+                      type="password"
+                      name="password"
+                      value={form.password}
+                      onChange={handleFormChange}
+                      placeholder="8~16자"
+                      disabled={loading || step !== "FORM"}
+                    />
+                  </td>
+                </tr>
 
-            <tr>
-              <th>
-                비밀번호 확인 <span className="req">*</span>
-              </th>
-              <td>
-                <input
-                  className="form-input"
-                  type="password"
-                  name="passwordConfirm"
-                  value={form.passwordConfirm}
-                  onChange={handleFormChange}
-                  disabled={loading || step !== "FORM"}
-                />
-              </td>
-            </tr>
-
+                <tr>
+                  <th>
+                    비밀번호 확인 <span className="req">*</span>
+                  </th>
+                  <td>
+                    <input
+                      className="form-input"
+                      type="password"
+                      name="passwordConfirm"
+                      value={form.passwordConfirm}
+                      onChange={handleFormChange}
+                      disabled={loading || step !== "FORM"}
+                    />
+                  </td>
+                </tr>
+              </>
+            )}
             <tr>
               <th>
                 닉네임 <span className="req">*</span>
@@ -1046,8 +1134,18 @@ export default function JoinNormal() {
           </div>
         )}
 
-        {/* ✅ COMPLETE 단계: 이메일 인증 + 가입 완료 */}
-        {step === "COMPLETE" && (
+        {/* ✅ COMPLETE 단계: SOCIAL은 안내만 */}
+        {step === "COMPLETE" && isSocial && (
+          <div style={{ marginTop: 10, marginBottom: 30 }}>
+            <p className="section-title">가입 완료</p>
+            <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
+              휴대폰 인증이 완료되었습니다. 가입을 완료합니다.
+            </div>
+          </div>
+        )}
+
+        {/* ✅ COMPLETE 단계: EMAIL만 이메일 인증 UI 표시 */}
+        {step === "COMPLETE" && !isSocial && (
           <div style={{ marginTop: 10, marginBottom: 30 }}>
             <p className="section-title">가입 완료</p>
 
@@ -1092,11 +1190,6 @@ export default function JoinNormal() {
                 type="submit"
                 className="btn-submit"
                 disabled={loading || !emailVerified}
-                title={
-                  !emailVerified
-                    ? "이메일 인증을 완료해야 가입이 완료됩니다."
-                    : ""
-                }
               >
                 {loading ? "처리 중..." : "가입 완료 & 로그인"}
               </button>
@@ -1205,7 +1298,7 @@ export default function JoinNormal() {
             <button
               type="submit"
               className="btn-submit"
-              disabled={loading || !emailVerified}
+              disabled={loading || (!isSocial && !emailVerified)}
             >
               {loading ? "처리 중..." : "가입 완료 & 로그인"}
             </button>

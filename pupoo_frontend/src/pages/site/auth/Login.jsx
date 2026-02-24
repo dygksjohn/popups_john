@@ -86,6 +86,25 @@ const FloatingShape = ({ style }) => (
 
 // ── Main LoginPage component ──────────────────────────────────────────────────
 const LoginPage = ({ leftBgImage = null }) => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
+  const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
+  const KAKAO_REDIRECT_URI = import.meta.env.VITE_KAKAO_REDIRECT_URI;
+
+  const handleKakaoLogin = () => {
+    if (!KAKAO_REST_KEY || !KAKAO_REDIRECT_URI) {
+      console.error("Kakao env missing");
+      return;
+    }
+    const params = new URLSearchParams({
+      response_type: "code",
+      client_id: KAKAO_REST_KEY,
+      redirect_uri: KAKAO_REDIRECT_URI,
+    });
+    window.location.href = `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
+  };
+
   useEffect(() => {
     document.body.classList.add("light-header");
 
@@ -490,11 +509,8 @@ const LoginPage = ({ leftBgImage = null }) => {
                 style={{ display: "flex", flexDirection: "column", gap: 10 }}
               >
                 <SocialButton
-                  onClick={() => console.log("Kakao login")}
-                  style={{
-                    background: "#FEE500",
-                    color: "#3C1E1E",
-                  }}
+                  onClick={handleKakaoLogin}
+                  style={{ background: "#FEE500", color: "#3C1E1E" }}
                 >
                   <KakaoIcon />
                   <span>카카오로 로그인</span>

@@ -1,4 +1,3 @@
-// file: src/main/java/com/popups/pupoo/auth/application/AuthService.java
 package com.popups.pupoo.auth.application;
 
 import com.popups.pupoo.auth.domain.model.RefreshToken;
@@ -21,6 +20,9 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 
 import java.time.LocalDateTime;
 
@@ -65,6 +67,14 @@ public class AuthService {
     }
 
     /**
+     * ✅ 외부(Service)에서 사용자 상태 검증을 재사용할 수 있도록 공개 래퍼 제공
+     * - KakaoOAuthService에서 "자동 연동 insert 전에" 차단할 때 사용
+     */
+    public void validateUserStatusForAuthPublic(User user) {
+        validateUserStatusForAuth(user);
+    }
+
+    /**
      * 회원가입 + 자동 로그인
      * - 사용자 생성은 user 도메인(UserService)을 통해 처리한다.
      * - 토큰 발급/refresh 저장/쿠키 세팅은 auth 도메인에서 처리한다.
@@ -74,31 +84,30 @@ public class AuthService {
 
         User saved = userService.create(req);
 
+        // ✅ 가입 직후 상태 검증도 일관성 유지(정책상 보통 ACTIVE로 생성되겠지만 방어)
+        validateUserStatusForAuth(saved);
+
+        // ✅ 토큰 발급 + 쿠키 세팅 공통 처리
+        LoginResponse lr = issueTokensAndSetCookie(saved, response);
+
         Long userId = saved.getUserId();
-        String roleName = saved.getRoleName().name();
 
-        String access = tokenService.createAccessToken(userId, roleName);
-        String refresh = tokenService.createRefreshToken(userId);
 
-        RefreshToken rt = new RefreshToken();
-        rt.setUserId(userId);
-        rt.setToken(refresh);
-        rt.setCreatedAt(LocalDateTime.now());
-        rt.setExpiredAt(LocalDateTime.now().plusSeconds(refreshCookieMaxAgeSeconds));
-        refreshTokenRepository.save(rt);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        emailVerificationService.requestEmailVerification(userId);
+                    } catch (Throwable t) {
+                        t.printStackTrace();
+                    }
+                }
+            });
 
-        setRefreshCookie(response, refresh);
-
-        // local(email/password) 가입에만 이메일 인증을 요구한다.
-        // 소셜 가입은 별도 플로우에서 처리하며, 이메일 인증을 생략한다.
-        try {
-            emailVerificationService.requestEmailVerification(userId);
-        } catch (Exception ignored) {
-            // 이메일 발송/검증 설정이 아직 준비되지 않은 환경에서도 회원가입은 진행 가능해야 한다.
-            // 운영에서는 반드시 verification.hash.salt 및 이메일 발송 구현을 활성화한다.
         }
 
-        return new LoginResponse(access, userId, roleName);
+        return lr;
     }
 
     /**
@@ -109,35 +118,34 @@ public class AuthService {
     @Transactional
     public LoginResponse login(LoginRequest req, HttpServletResponse response) {
         User user = userRepository.findByEmail(req.getEmail())
-                // 기능: 로그인 대상 사용자 조회
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         validateUserStatusForAuth(user);
 
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
-            // 기능: 로그인 실패(자격 증명 불일치)
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
 
-        Long userId = user.getUserId();
-        String roleName = user.getRoleName().name();
+        return issueTokensAndSetCookie(user, response);
+    }
 
-        String access = tokenService.createAccessToken(userId, roleName);
-        String refresh = tokenService.createRefreshToken(userId);
+    /**
+     * 소셜 로그인 등 "이미 인증된 User"를 기반으로 로그인 처리
+     * - accessToken: body
+     * - refreshToken: HttpOnly 쿠키
+     */
+    @Transactional
+    public LoginResponse loginByUser(User user, HttpServletResponse response) {
 
-        RefreshToken rt = new RefreshToken();
-        rt.setUserId(userId);
-        rt.setToken(refresh);
-        rt.setCreatedAt(LocalDateTime.now());
-        rt.setExpiredAt(LocalDateTime.now().plusSeconds(refreshCookieMaxAgeSeconds));
-        refreshTokenRepository.save(rt);
+        validateUserStatusForAuth(user);
 
-        setRefreshCookie(response, refresh);
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
 
-        return new LoginResponse(access, userId, roleName);
+        return issueTokensAndSetCookie(user, response);
     }
 
     /**
@@ -147,12 +155,10 @@ public class AuthService {
     @Transactional
     public TokenResponse refreshToken(String refreshToken, HttpServletResponse response) {
         if (refreshToken == null || refreshToken.isBlank()) {
-            // 기능: refresh cookie 미존재
             throw new BusinessException(ErrorCode.REFRESH_TOKEN_MISSING);
         }
 
         RefreshToken stored = refreshTokenRepository.findByToken(refreshToken)
-                // 기능: refresh token 저장소 미존재
                 .orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_INVALID));
 
         jwtProvider.validateRefreshToken(refreshToken);
@@ -160,7 +166,6 @@ public class AuthService {
         Long userId = jwtProvider.getUserId(refreshToken);
 
         User user = userRepository.findById(userId)
-                // 기능: refresh 대상 사용자 조회
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         validateUserStatusForAuth(user);
@@ -202,21 +207,40 @@ public class AuthService {
     }
 
     /**
+     * ✅ 공통: access/refresh 발급 + refresh 저장 + 쿠키 세팅
+     */
+    private LoginResponse issueTokensAndSetCookie(User user, HttpServletResponse response) {
+        Long userId = user.getUserId();
+        String roleName = user.getRoleName().name();
+
+        String access = tokenService.createAccessToken(userId, roleName);
+        String refresh = tokenService.createRefreshToken(userId);
+
+        RefreshToken rt = new RefreshToken();
+        rt.setUserId(userId);
+        rt.setToken(refresh);
+        rt.setCreatedAt(LocalDateTime.now());
+        rt.setExpiredAt(LocalDateTime.now().plusSeconds(refreshCookieMaxAgeSeconds));
+        refreshTokenRepository.save(rt);
+
+        setRefreshCookie(response, refresh);
+
+        return new LoginResponse(access, userId, roleName);
+    }
+
+    /**
      * 인증/인가 흐름에서 허용하지 않는 사용자 상태를 차단한다.
      */
     private void validateUserStatusForAuth(User user) {
         UserStatus status = user.getStatus();
         if (status == null) {
-            // 기능: 사용자 상태값 비정상
             throw new BusinessException(ErrorCode.USER_STATUS_INVALID);
         }
 
         if (status == UserStatus.INACTIVE) {
-            // 기능: 비활성 사용자 접근 차단
             throw new BusinessException(ErrorCode.USER_INACTIVE);
         }
         if (status == UserStatus.SUSPENDED) {
-            // 기능: 정지 사용자 접근 차단
             throw new BusinessException(ErrorCode.USER_SUSPENDED);
         }
     }

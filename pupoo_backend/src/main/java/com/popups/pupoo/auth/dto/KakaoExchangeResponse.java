@@ -1,8 +1,12 @@
-// KakaoExchangeResponse.java
 package com.popups.pupoo.auth.dto;
 
-public record KakaoExchangeResponse(
-        String providerUid,
-        String email,
-        String nickname
-) {}
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
+public class KakaoExchangeResponse {
+    private String providerUid;
+    private String email;
+    private String nickname;
+}
