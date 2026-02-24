@@ -2,130 +2,97 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const styles = {
-  container: {
-    maxWidth: "1400px",
+  pageHeader: {
+    backgroundColor: "#fff",
+    borderBottom: "1px solid #e9ecef",
+    paddingTop: 100,
+  },
+  inner: {
+    maxWidth: 1400,
     margin: "0 auto",
-    width: "100%",
-  },
-  page: {
-    fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif",
-  },
-  header: {
-    padding: "56px 80px 40px",
+    padding: "0 24px",
   },
   title: {
-    fontSize: "48px",
-    fontWeight: "900",
-    color: "#111",
-    margin: "0 0 12px 0",
-    letterSpacing: "-1px",
-    lineHeight: 1.1,
+    fontSize: 22,
+    fontWeight: 800,
+    color: "#111827",
+    margin: "0 0 4px",
   },
   subtitle: {
-    fontSize: "22px",
-    fontWeight: "400",
-    color: "#333",
-    margin: 0,
-    letterSpacing: "-0.3px",
-  },
-  tabsWrapper: {
-    padding: "32px 80px 0",
+    fontSize: 13.5,
+    color: "#6b7280",
+    fontWeight: 400,
+    margin: "0 0 20px",
   },
   tabs: {
     display: "flex",
-    flexWrap: "wrap",
-    gap: "10px",
-    alignItems: "center",
+    gap: 0,
   },
   tabBase: {
-    padding: "12px 22px",
-    borderRadius: "999px",
+    padding: "10px 20px",
+    fontSize: 13.5,
+    fontWeight: 600,
+    background: "none",
     border: "none",
     cursor: "pointer",
-    fontSize: "15px",
-    fontWeight: "500",
-    letterSpacing: "-0.2px",
-    transition: "background 0.18s ease, color 0.18s ease, transform 0.12s ease",
-    outline: "none",
-    whiteSpace: "nowrap",
+    borderBottom: "2.5px solid transparent",
+    transition: "all 0.15s",
+    fontFamily: "inherit",
   },
   tabDefault: {
-    backgroundColor: "#e4e4e4",
-    color: "#222",
+    color: "#6b7280",
   },
   tabActive: {
-    backgroundColor: "#111",
-    color: "#fff",
+    color: "#1a4fd6",
+    borderBottomColor: "#1a4fd6",
   },
   tabHover: {
-    backgroundColor: "#d0d0d0",
-    color: "#111",
+    color: "#1a4fd6",
   },
 };
 
-export default function PageHeader({
-  title,
-  subtitle,
-  categories,
-  currentPath,
-  onNavigate,
-}) {
+export default function PageHeader({ title, subtitle, categories }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   return (
-    <div style={styles.page}>
-      <header
-        style={{
-          ...styles.header,
-          maxWidth: "1400px",
-          margin: "80px auto 0",
-          padding: "56px 24px 40px",
-        }}
-      >
+    <div style={styles.pageHeader}>
+      <div style={styles.inner}>
         <h1 style={styles.title}>{title}</h1>
-        <p style={styles.subtitle}>{subtitle}</p>
-      </header>
+        {subtitle && <p style={styles.subtitle}>{subtitle}</p>}
 
-      <nav
-        style={{
-          ...styles.tabsWrapper,
-          maxWidth: "1400px",
-          margin: "0 auto",
-          padding: "32px 24px 0",
-        }}
-      >
-        <div style={styles.tabs}>
-          {categories.map((cat, i) => {
-            const isActive = location.pathname === cat.path;
-            const isHovered = hoveredIdx === i;
+        {categories && categories.length > 0 && (
+          <div style={styles.tabs}>
+            {categories.map((cat, i) => {
+              const isActive = location.pathname === cat.path;
+              const isHovered = hoveredIdx === i;
 
-            let btnStyle = { ...styles.tabBase };
+              let btnStyle = { ...styles.tabBase };
+              if (isActive) {
+                btnStyle = { ...btnStyle, ...styles.tabActive };
+              } else if (isHovered) {
+                btnStyle = { ...btnStyle, ...styles.tabHover };
+              } else {
+                btnStyle = { ...btnStyle, ...styles.tabDefault };
+              }
 
-            if (isActive) {
-              btnStyle = { ...btnStyle, ...styles.tabActive };
-            } else if (isHovered) {
-              btnStyle = { ...btnStyle, ...styles.tabHover };
-            } else {
-              btnStyle = { ...btnStyle, ...styles.tabDefault };
-            }
-
-            return (
-              <button
-                key={cat.path}
-                style={btnStyle}
-                onClick={() => navigate(cat.path)}
-                onMouseEnter={() => setHoveredIdx(i)}
-                onMouseLeave={() => setHoveredIdx(null)}
-                aria-current={isActive ? "page" : undefined}
-              >
-                {cat.label}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+              return (
+                <button
+                  key={cat.path}
+                  style={btnStyle}
+                  onClick={() => navigate(cat.path)}
+                  onMouseEnter={() => setHoveredIdx(i)}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

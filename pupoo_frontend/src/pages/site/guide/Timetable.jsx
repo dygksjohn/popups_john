@@ -9,7 +9,8 @@ import {
   ShoppingBag,
   Mic2,
   AlertTriangle,
-  LayoutList,
+  Coffee,
+  Sparkles,
 } from "lucide-react";
 
 const GUIDE_CATEGORIES = [
@@ -28,116 +29,224 @@ const GUIDE_SUBTITLE_MAP = {
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&display=swap');
 
   .tt-root {
     box-sizing: border-box;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    background: #f8f9fc; min-height: 100vh;
+    background: #f8f9fc;;
+    min-height: 100vh;
   }
-  .tt-root *, .tt-root *::before, .tt-root *::after { box-sizing: border-box; font-family: inherit; }
-  .tt-container { max-width: 860px; margin: 0 auto; padding: 32px 24px 64px; }
+  .tt-root *, .tt-root *::before, .tt-root *::after {
+    box-sizing: border-box; font-family: inherit;
+  }
+  .tt-container {
+    max-width: 920px; margin: 0 auto;
+    padding: 48px 32px 80px;
+  }
 
-  /* ── 날짜 탭 ── */
-  .tt-top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
-  .tt-tabs { display: flex; gap: 6px; }
-  .tt-tab {
-    padding: 9px 20px; border-radius: 100px;
-    font-size: 13px; font-weight: 700; cursor: pointer;
-    border: 1.5px solid #e2e8f0; background: #fff; color: #6b7280;
-    font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+  /* ── 상단 바 ── */
+  .tt-controls {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 32px; flex-wrap: wrap; gap: 16px;
   }
-  .tt-tab:hover { border-color: #c7d7fb; color: #1a4fd6; }
-  .tt-tab.active { background: #eff4ff; border-color: #1a4fd6; color: #1a4fd6; }
 
-  /* ── 범례 ── */
-  .tt-legend { display: flex; gap: 10px; flex-wrap: wrap; }
-  .tt-legend-item {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12px; color: #4b5563; font-weight: 600;
-    padding: 5px 12px; border-radius: 100px; background: #fff;
-    border: 1px solid #e9ecef;
+  /* 날짜 탭 */
+  .tt-day-tabs { display: flex; gap: 8px; }
+  .tt-day-btn {
+    padding: 12px 28px;
+    border-radius: 100px;
+    font-size: 13.5px; font-weight: 700;
+    font-family: inherit;
+    border: 1.5px solid #d9cfc2;
+    background: #fff;
+    color: #8a8078;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 8px;
   }
-  .tt-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tt-day-btn:hover {
+    border-color: #c97a3e; color: #c97a3e;
+  }
+  .tt-day-btn.active {
+    background: #1a1a18;
+    border-color: #1a1a18;
+    color: #faf5ee;
+  }
 
-  /* ── 타임테이블 카드 ── */
-  .tt-table-wrap {
-    background: #fff; border: 1px solid #e9ecef; border-radius: 14px; overflow: hidden;
-    margin-bottom: 20px;
+  /* 범례 */
+  .tt-legend { display: flex; gap: 14px; flex-wrap: wrap; }
+  .tt-legend-chip {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 600; color: #5c5549;
   }
-  .tt-table { width: 100%; border-collapse: collapse; }
-  .tt-table thead tr { background: #f8f9fc; }
-  .tt-table th {
-    padding: 13px 18px; font-size: 11.5px; font-weight: 700; color: #6b7280;
-    border-bottom: 1px solid #e9ecef; text-align: left; letter-spacing: 0.3px;
+  .tt-legend-bar {
+    width: 14px; height: 4px; border-radius: 2px;
   }
-  .tt-table th:first-child { width: 88px; }
 
-  /* 시간 행 */
-  .tt-row { border-bottom: 1px solid #f1f3f5; transition: background 0.1s; }
-  .tt-row:last-child { border-bottom: none; }
-  .tt-row:hover { background: #fafbff; }
-  .tt-time-cell {
-    padding: 16px 18px; vertical-align: top;
-    border-right: 1px solid #f1f3f5; white-space: nowrap;
+  /* ── 타임라인 ── */
+  .tt-timeline {
+    position: relative;
+    margin-bottom: 40px;
   }
-  .tt-time-chip {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 13px; font-weight: 800; color: #374151;
+  .tt-timeline::before {
+    content: '';
+    position: absolute;
+    left: 44px; top: 0; bottom: 0;
+    width: 1.5px;
+    background: #e0d9ce;
   }
-  .tt-time-icon { color: #9ca3af; }
-  .tt-event-cell { padding: 10px 14px; vertical-align: top; }
+
+  /* 시간 블록 */
+  .tt-block {
+    position: relative;
+    padding-left: 100px;
+    margin-bottom: 8px;
+  }
+
+  .tt-time-mark {
+    position: absolute; left: 0; top: 0;
+    display: flex; align-items: center; gap: 0;
+  }
+  .tt-time-label {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px; font-weight: 700;
+    color: #1a1a18;
+    width: 32px; text-align: right;
+    line-height: 1;
+  }
+  .tt-time-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2.5px solid #e3874c;
+    background: #f8f9fc;;
+    margin-left: 10px;
+    position: relative;
+    z-index: 1;
+  }
 
   /* 이벤트 카드 */
-  .tt-event {
-    border-radius: 10px; padding: 11px 15px; margin: 4px 0;
-    transition: box-shadow 0.15s; display: flex; gap: 12px; align-items: flex-start;
+  .tt-events { display: flex; flex-direction: column; gap: 8px; padding-bottom: 24px; }
+  .tt-event-card {
+    border-radius: 14px;
+    padding: 18px 22px;
+    display: flex; align-items: flex-start; gap: 14px;
+    transition: all 0.2s;
+    border: 1px solid transparent;
   }
-  .tt-event:first-child { margin-top: 0; }
-  .tt-event:hover { box-shadow: 0 3px 14px rgba(0,0,0,0.07); }
-  .tt-event.main   { background: #eff4ff; border-left: 3px solid #1a4fd6; }
-  .tt-event.sub    { background: #ecfdf5; border-left: 3px solid #059669; }
-  .tt-event.kids   { background: #fff7ed; border-left: 3px solid #f59e0b; }
-  .tt-event.food   { background: #fef2f2; border-left: 3px solid #ef4444; }
-  .tt-event-icon-wrap {
-    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  .tt-event-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.05);
   }
-  .tt-event.main  .tt-event-icon-wrap { background: #dbeafe; color: #1a4fd6; }
-  .tt-event.sub   .tt-event-icon-wrap { background: #d1fae5; color: #059669; }
-  .tt-event.kids  .tt-event-icon-wrap { background: #fde68a; color: #b45309; }
-  .tt-event.food  .tt-event-icon-wrap { background: #fee2e2; color: #dc2626; }
-  .tt-event-body { flex: 1; }
-  .tt-event-badge {
-    display: inline-block; padding: 2px 8px; border-radius: 100px;
-    font-size: 10px; font-weight: 700; margin-bottom: 5px;
+  .tt-event-card.main {
+    background: #fff;
+    border-color: #ebe6dd;
   }
-  .tt-event.main .tt-event-badge { background: #dbeafe; color: #1d4ed8; }
-  .tt-event.sub  .tt-event-badge { background: #d1fae5; color: #059669; }
-  .tt-event.kids .tt-event-badge { background: #fde68a; color: #b45309; }
-  .tt-event.food .tt-event-badge { background: #fee2e2; color: #dc2626; }
-  .tt-event-name { font-size: 13.5px; font-weight: 700; color: #111827; margin-bottom: 3px; }
-  .tt-event-meta { font-size: 12px; color: #6b7280; }
+  .tt-event-card.sub {
+    background: linear-gradient(135deg, #f0f6ec 0%, #eef4ea 100%);
+    border-color: #d5e4cd;
+  }
+  .tt-event-card.kids {
+    background: linear-gradient(135deg, #fdf5ec 0%, #fdf0e4 100%);
+    border-color: #ecd9c0;
+  }
+  .tt-event-card.food {
+    background: linear-gradient(135deg, #fdf0ec 0%, #fce8e4 100%);
+    border-color: #f0d0c8;
+  }
 
-  /* 휴식 행 */
-  .tt-break { background: #f8f9fc; }
-  .tt-break-cell {
-    padding: 13px 18px; text-align: center;
-    font-size: 12.5px; color: #9ca3af; font-weight: 600;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
+  .tt-ev-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .tt-event-card.main .tt-ev-icon { background: #1a1a18; color: #faf5ee; }
+  .tt-event-card.sub  .tt-ev-icon { background: #5a8a4c; color: #fff; }
+  .tt-event-card.kids .tt-ev-icon { background: #c97a3e; color: #fff; }
+  .tt-event-card.food .tt-ev-icon { background: #c0504d; color: #fff; }
+
+  .tt-ev-body { flex: 1; }
+  .tt-ev-tag {
+    display: inline-block;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  .tt-event-card.main .tt-ev-tag { color: #8a8078; }
+  .tt-event-card.sub  .tt-ev-tag { color: #5a8a4c; }
+  .tt-event-card.kids .tt-ev-tag { color: #c97a3e; }
+  .tt-event-card.food .tt-ev-tag { color: #c0504d; }
+
+  .tt-ev-name {
+    font-size: 14.5px; font-weight: 700;
+    color: #1a1a18; margin-bottom: 4px;
+  }
+  .tt-ev-meta {
+    font-size: 12.5px; color: #8a8078;
+  }
+
+  /* 휴식 구분선 */
+  .tt-break-row {
+    position: relative;
+    padding-left: 100px;
+    margin: 12px 0 20px;
+  }
+  .tt-break-line {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 0;
+  }
+  .tt-break-line::before, .tt-break-line::after {
+    content: '';
+    flex: 1; height: 1px;
+    background: repeating-linear-gradient(90deg, #d9cfc2 0, #d9cfc2 4px, transparent 4px, transparent 8px);
+  }
+  .tt-break-text {
+    font-size: 12.5px; font-weight: 600;
+    color: #b5a99a;
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap;
   }
 
   /* 공지 */
-  .tt-notice {
-    background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px;
-    padding: 15px 20px; display: flex; gap: 12px; align-items: flex-start;
+  .tt-alert {
+    background: #1a1a18;
+    border-radius: 16px;
+    padding: 24px 28px;
+    display: flex; align-items: flex-start; gap: 16px;
+    position: relative; overflow: hidden;
   }
-  .tt-notice-icon { color: #d97706; flex-shrink: 0; margin-top: 1px; }
-  .tt-notice-title { font-size: 13px; font-weight: 700; color: #78350f; margin-bottom: 3px; }
-  .tt-notice-text { font-size: 13px; color: #92400e; line-height: 1.65; }
+  .tt-alert::before {
+    content: '';
+    position: absolute; top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: #e3874c;
+  }
+  .tt-alert-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(227,135,76,0.15);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; color: #e3874c;
+  }
+  .tt-alert-title {
+    font-size: 14px; font-weight: 700;
+    color: #faf5ee; margin-bottom: 5px;
+  }
+  .tt-alert-text {
+    font-size: 13px; color: rgba(250,245,238,0.6);
+    line-height: 1.7;
+  }
 
-  @media (max-width: 768px) {
-    .tt-container { padding: 20px 16px 48px; }
-    .tt-top-bar { flex-direction: column; align-items: flex-start; }
+  @media (max-width: 640px) {
+    .tt-container { padding: 32px 20px 56px; }
+    .tt-controls { flex-direction: column; align-items: flex-start; }
+    .tt-timeline::before { left: 20px; }
+    .tt-block { padding-left: 56px; }
+    .tt-break-row { padding-left: 56px; }
+    .tt-time-label { font-size: 15px; width: 24px; }
+    .tt-time-dot { margin-left: 6px; }
   }
 `;
 
@@ -147,13 +256,12 @@ const DAYS = [
 ];
 
 const STAGES = [
-  { key: "main", label: "메인 스테이지", color: "#1a4fd6" },
-  { key: "sub", label: "체험 부스", color: "#059669" },
-  { key: "kids", label: "키즈 존", color: "#f59e0b" },
-  { key: "food", label: "푸드 코트", color: "#ef4444" },
+  { key: "main", label: "메인 스테이지", color: "#1a1a18" },
+  { key: "sub", label: "체험 부스", color: "#5a8a4c" },
+  { key: "kids", label: "키즈 존", color: "#c97a3e" },
+  { key: "food", label: "푸드 코트", color: "#c0504d" },
 ];
 
-// stage → lucide 아이콘 매핑
 const STAGE_ICON = {
   main: Mic2,
   sub: Star,
@@ -344,25 +452,25 @@ export default function Timetable({ onNavigate }) {
         onNavigate={onNavigate}
       />
       <main className="tt-container">
-        {/* 날짜 탭 + 범례 */}
-        <div className="tt-top-bar">
-          <div className="tt-tabs">
+        {/* 컨트롤 */}
+        <div className="tt-controls">
+          <div className="tt-day-tabs">
             {DAYS.map((d) => (
               <button
                 key={d.key}
-                className={`tt-tab${day === d.key ? " active" : ""}`}
+                className={`tt-day-btn${day === d.key ? " active" : ""}`}
                 onClick={() => setDay(d.key)}
               >
-                <CalendarDays size={13} />
+                <CalendarDays size={14} />
                 {d.label}
               </button>
             ))}
           </div>
           <div className="tt-legend">
             {STAGES.map((s) => (
-              <div key={s.key} className="tt-legend-item">
+              <div key={s.key} className="tt-legend-chip">
                 <div
-                  className="tt-legend-dot"
+                  className="tt-legend-bar"
                   style={{ background: s.color }}
                 />
                 {s.label}
@@ -371,63 +479,54 @@ export default function Timetable({ onNavigate }) {
           </div>
         </div>
 
-        {/* 테이블 */}
-        <div className="tt-table-wrap">
-          <table className="tt-table">
-            <thead>
-              <tr>
-                <th>시간</th>
-                <th>프로그램</th>
-              </tr>
-            </thead>
-            <tbody>
-              {schedule.map((row, i) =>
-                row.break ? (
-                  <tr key={i} className="tt-break">
-                    <td colSpan={2} style={{ padding: 0 }}>
-                      <div className="tt-break-cell">
-                        <Utensils size={13} color="#9ca3af" />
-                        {row.label}
+        {/* 타임라인 */}
+        <div className="tt-timeline">
+          {schedule.map((row, i) =>
+            row.break ? (
+              <div key={i} className="tt-break-row">
+                <div className="tt-break-line">
+                  <span className="tt-break-text">
+                    <Coffee size={13} />
+                    {row.label}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div key={i} className="tt-block">
+                <div className="tt-time-mark">
+                  <div className="tt-time-label">{row.time}</div>
+                  <div className="tt-time-dot" />
+                </div>
+                <div className="tt-events">
+                  {row.events.map((ev, j) => {
+                    const IconComp = STAGE_ICON[ev.stage] || Star;
+                    return (
+                      <div key={j} className={`tt-event-card ${ev.stage}`}>
+                        <div className="tt-ev-icon">
+                          <IconComp size={16} />
+                        </div>
+                        <div className="tt-ev-body">
+                          <div className="tt-ev-tag">{ev.badge}</div>
+                          <div className="tt-ev-name">{ev.name}</div>
+                          <div className="tt-ev-meta">{ev.meta}</div>
+                        </div>
                       </div>
-                    </td>
-                  </tr>
-                ) : (
-                  <tr key={i} className="tt-row">
-                    <td className="tt-time-cell">
-                      <div className="tt-time-chip">
-                        <Clock size={12} className="tt-time-icon" />
-                        {row.time}
-                      </div>
-                    </td>
-                    <td className="tt-event-cell">
-                      {row.events.map((ev, j) => {
-                        const IconComp = STAGE_ICON[ev.stage] || Star;
-                        return (
-                          <div key={j} className={`tt-event ${ev.stage}`}>
-                            <div className="tt-event-icon-wrap">
-                              <IconComp size={14} />
-                            </div>
-                            <div className="tt-event-body">
-                              <div className="tt-event-badge">{ev.badge}</div>
-                              <div className="tt-event-name">{ev.name}</div>
-                              <div className="tt-event-meta">{ev.meta}</div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </td>
-                  </tr>
-                ),
-              )}
-            </tbody>
-          </table>
+                    );
+                  })}
+                </div>
+              </div>
+            ),
+          )}
         </div>
 
-        <div className="tt-notice">
-          <AlertTriangle size={17} className="tt-notice-icon" />
+        {/* 공지 */}
+        <div className="tt-alert">
+          <div className="tt-alert-icon">
+            <AlertTriangle size={18} />
+          </div>
           <div>
-            <div className="tt-notice-title">안내</div>
-            <div className="tt-notice-text">
+            <div className="tt-alert-title">안내</div>
+            <div className="tt-alert-text">
               모든 프로그램 일정은 운영 상황에 따라 변경될 수 있습니다. 변경
               사항은 공식 홈페이지 및 현장 안내판을 통해 공지됩니다.
             </div>

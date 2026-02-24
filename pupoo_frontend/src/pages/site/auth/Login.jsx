@@ -1,15 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { authApi } from "./api/authApi";
-import { tokenStore } from "../../../app/http/tokenStore";
-import { useAuth } from "./AuthProvider";
 
 // ── Social button (reusable) ──────────────────────────────────────────────────
 const SocialButton = ({ onClick, style, children }) => {
   const [hovered, setHovered] = useState(false);
   return (
     <button
-      type="button"
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -91,56 +86,21 @@ const FloatingShape = ({ style }) => (
 
 // ── Main LoginPage component ──────────────────────────────────────────────────
 const LoginPage = ({ leftBgImage = null }) => {
-  const navigate = useNavigate();
-  const { login } = useAuth();
-
   useEffect(() => {
     document.body.classList.add("light-header");
+
     return () => {
       document.body.classList.remove("light-header");
     };
   }, []);
 
-  const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleLogin = async () => {
-    if (loading) return;
-
-    setError("");
-
-    if (!email.trim()) return setError("이메일을 입력하세요.");
-    if (!password) return setError("비밀번호를 입력하세요.");
-
-    setLoading(true);
-    try {
-      const res = await authApi.login({ email, password });
-      const accessToken = res?.accessToken;
-
-      if (!accessToken) {
-        throw new Error("로그인 응답에 accessToken이 없습니다.");
-      }
-
-      tokenStore.setAccess(accessToken);
-      login();            // ✅ 전역 인증 상태 true -> 헤더 즉시 전환
-      navigate("/");
-    } catch (e) {
-      setError(e?.response?.data?.message ?? e?.message ?? "로그인 실패");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleLogin();
-    }
+  const handleLogin = () => {
+    console.log("Login attempt:", { userId, rememberMe });
   };
 
   const inputStyle = (fieldName) => ({
@@ -161,6 +121,9 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   return (
     <>
+      {/* Google Fonts */}
+
+      {/* ── Page wrapper ── */}
       <div
         style={{
           minHeight: "100vh",
@@ -173,6 +136,7 @@ const LoginPage = ({ leftBgImage = null }) => {
         }}
       >
         <div style={{ width: "100%", maxWidth: 860 }}>
+          {/* ── Card ── */}
           <div
             className="login-card card-enter"
             style={{
@@ -186,7 +150,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               marginTop: 100,
             }}
           >
-            {/* LEFT PANEL */}
+            {/* ════════════════ LEFT PANEL ════════════════ */}
             <div
               className="left-panel"
               style={{
@@ -204,6 +168,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 borderRadius: "20px 0 0 20px",
               }}
             >
+              {/* Geometric decorative shapes */}
               <FloatingShape
                 style={{
                   width: 140,
@@ -216,6 +181,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                   backdropFilter: "blur(2px)",
                   border: "1px solid rgba(255,255,255,0.2)",
                 }}
+                className="shape-a"
               />
               <FloatingShape
                 style={{
@@ -228,6 +194,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                     "linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.04))",
                   border: "1px solid rgba(255,255,255,0.15)",
                 }}
+                className="shape-b"
               />
               <FloatingShape
                 style={{
@@ -240,6 +207,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                     "linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.06))",
                   border: "1px solid rgba(255,255,255,0.2)",
                 }}
+                className="shape-c"
               />
               <FloatingShape
                 style={{
@@ -256,6 +224,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 }}
               />
 
+              {/* Overlay gradient for text legibility */}
               <div
                 style={{
                   position: "absolute",
@@ -266,6 +235,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 }}
               />
 
+              {/* Text content */}
               <div style={{ position: "relative", zIndex: 2 }}>
                 <h1
                   style={{
@@ -300,7 +270,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               </div>
             </div>
 
-            {/* RIGHT PANEL */}
+            {/* ════════════════ RIGHT PANEL ════════════════ */}
             <div
               className="right-panel"
               style={{
@@ -322,6 +292,10 @@ const LoginPage = ({ leftBgImage = null }) => {
                     gap: 8,
                   }}
                 >
+                  {/* IMQA circle icon */}
+                  <div style={{}}>
+                    <div />
+                  </div>
                   <span>
                     <img
                       src="/logo_blue.png"
@@ -335,22 +309,21 @@ const LoginPage = ({ leftBgImage = null }) => {
                 </div>
               </div>
 
-              {/* Email input */}
+              {/* ─── ID input ─── */}
               <div style={{ marginBottom: 12 }}>
                 <input
-                  type="email"
-                  placeholder="이메일을 입력하세요."
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onFocus={() => setFocusedField("email")}
+                  type="text"
+                  placeholder="아이디를 입력하세요."
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  onFocus={() => setFocusedField("id")}
                   onBlur={() => setFocusedField(null)}
-                  onKeyDown={handleKeyDown}
-                  style={inputStyle("email")}
+                  style={inputStyle("id")}
                 />
               </div>
 
-              {/* Password input */}
-              <div style={{ marginBottom: 12 }}>
+              {/* ─── Password input ─── */}
+              <div style={{ marginBottom: 16 }}>
                 <input
                   type="password"
                   placeholder="비밀번호를 입력하세요."
@@ -358,19 +331,11 @@ const LoginPage = ({ leftBgImage = null }) => {
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setFocusedField("pw")}
                   onBlur={() => setFocusedField(null)}
-                  onKeyDown={handleKeyDown}
                   style={inputStyle("pw")}
                 />
               </div>
 
-              {/* Error */}
-              {error && (
-                <div style={{ color: "#d33", fontSize: 13, marginBottom: 12 }}>
-                  {error}
-                </div>
-              )}
-
-              {/* Remember me */}
+              {/* ─── Remember me ─── */}
               <label
                 style={{
                   display: "flex",
@@ -397,12 +362,10 @@ const LoginPage = ({ leftBgImage = null }) => {
                 아이디 저장
               </label>
 
-              {/* Login button */}
+              {/* ─── Login button ─── */}
               <button
-                type="button"
                 className="login-btn"
                 onClick={handleLogin}
-                disabled={loading}
                 style={{
                   width: "100%",
                   padding: "13px",
@@ -414,18 +377,17 @@ const LoginPage = ({ leftBgImage = null }) => {
                   fontSize: 15,
                   fontWeight: 600,
                   fontFamily: "'Noto Sans KR', sans-serif",
-                  cursor: loading ? "not-allowed" : "pointer",
+                  cursor: "pointer",
                   letterSpacing: "1px",
                   transition: "filter 0.2s, transform 0.15s",
                   boxShadow: "0 4px 14px rgba(74,130,232,0.35)",
                   marginBottom: 16,
-                  opacity: loading ? 0.75 : 1,
                 }}
               >
-                {loading ? "로그인 중..." : "로그인"}
+                로그인
               </button>
 
-              {/* Sign-up / Find password links */}
+              {/* ─── Sign-up / Find password links ─── */}
               <div
                 style={{
                   display: "flex",
@@ -438,7 +400,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    navigate("/auth/join/joinselect"); // ✅ 라우트에 맞게 조정
+                    console.log("Sign up clicked");
                   }}
                   style={{
                     fontSize: 13,
@@ -467,7 +429,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 </a>
               </div>
 
-              {/* Divider */}
+              {/* ─── Divider ─── */}
               <div
                 style={{
                   display: "flex",
@@ -489,16 +451,27 @@ const LoginPage = ({ leftBgImage = null }) => {
                 <div style={{ flex: 1, height: 1, background: "#E8EDF5" }} />
               </div>
 
-              {/* Social buttons */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* ─── Social buttons ─── */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                {/* Kakao */}
                 <SocialButton
                   onClick={() => console.log("Kakao login")}
-                  style={{ background: "#FEE500", color: "#3C1E1E" }}
+                  style={{
+                    background: "#FEE500",
+                    color: "#3C1E1E",
+                  }}
                 >
                   <KakaoIcon />
                   <span>카카오로 로그인</span>
                 </SocialButton>
 
+                {/* Google */}
                 <SocialButton
                   onClick={() => console.log("Google login")}
                   style={{
@@ -512,9 +485,13 @@ const LoginPage = ({ leftBgImage = null }) => {
                   <span>Google로 로그인</span>
                 </SocialButton>
 
+                {/* Apple */}
                 <SocialButton
                   onClick={() => console.log("Apple login")}
-                  style={{ background: "#000000", color: "#FFFFFF" }}
+                  style={{
+                    background: "#000000",
+                    color: "#FFFFFF",
+                  }}
                 >
                   <AppleIcon />
                   <span>Apple로 로그인</span>
@@ -523,7 +500,7 @@ const LoginPage = ({ leftBgImage = null }) => {
             </div>
           </div>
 
-          {/* Footer */}
+          {/* ── Footer ── */}
           <div
             style={{
               textAlign: "center",

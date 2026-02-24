@@ -39,7 +39,7 @@ export const SERVICE_CATEGORIES = [
   { label: "결제 내역", path: "/registration/paymenthistory" },
   {
     label: "QR 체크인",
-    path: "registration/qrcheckin/registration/qrcheckin",
+    path: "/registration/qrcheckin",
   },
 ];
 

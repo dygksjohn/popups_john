@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
+import RealtimeEventSelector from "./RealtimeEventSelector";
 import {
   Users,
   CheckCircle2,
@@ -11,7 +13,16 @@ import {
   ArrowDownRight,
   BarChart2,
   Radio,
+  RefreshCw,
 } from "lucide-react";
+import {
+  useCountUp,
+  useRefresh,
+  useStaggerIn,
+  useAutoRefresh,
+  useBarAnimate,
+  SHARED_ANIM_STYLES,
+} from "./useRealtimeAnimations";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -88,26 +99,45 @@ const styles = `
   .rt-progress-label-name { font-weight: 600; color: #374151; }
   .rt-progress-label-val { color: #6b7280; }
   .rt-progress-track { height: 8px; background: #f1f3f5; border-radius: 100px; overflow: hidden; }
-  .rt-progress-fill { height: 100%; border-radius: 100px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+  .rt-progress-fill { height: 100%; border-radius: 100px; }
 
   /* Timeline */
   .rt-timeline { display: flex; flex-direction: column; gap: 0; }
   .rt-timeline-item { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px solid #f9fafb; }
   .rt-timeline-item:last-child { border-bottom: none; }
-  .rt-timeline-dot {
-    width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0;
-  }
+  .rt-timeline-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
   .rt-timeline-time { font-size: 11.5px; color: #9ca3af; min-width: 44px; padding-top: 1px; }
   .rt-timeline-text { font-size: 13px; color: #374151; line-height: 1.5; }
-  .rt-timeline-name { font-weight: 600; color: #111827; }
 
-  /* Heatmap-like row */
+  /* Heatmap */
   .rt-hour-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; }
   .rt-hour-cell {
     aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center;
     justify-content: center; font-size: 9px; color: #fff; font-weight: 700;
     cursor: default;
   }
+
+  /* Live header bar */
+  .rt-live-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .rt-live-header-right {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .rt-timestamp {
+    font-size: 12px; color: #9ca3af; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .rt-refresh-btn {
+    width: 34px; height: 34px; border-radius: 8px;
+    border: 1px solid #e2e8f0; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: #6b7280;
+    transition: all 0.15s;
+  }
+  .rt-refresh-btn:hover { border-color: #1a4fd6; color: #1a4fd6; background: #f5f8ff; }
+  .rt-refresh-btn:active { transform: scale(0.93); }
 
   @media (max-width: 900px) {
     .rt-stat-grid { grid-template-columns: repeat(2, 1fr); }
@@ -120,23 +150,22 @@ const styles = `
 `;
 
 export const SERVICE_CATEGORIES = [
-  { label: "대시보드", path: "/realtime/dashboard" },
+  { label: "통합 현황", path: "/realtime/dashboard" },
+  { label: "대기 현황", path: "/realtime/waitingstatus" },
   { label: "체크인 현황", path: "/realtime/checkinstatus" },
   { label: "투표 현황", path: "/realtime/votestatus" },
-  { label: "대기 현황", path: "/realtime/waitingstatus" },
 ];
-
 export const SUBTITLE_MAP = {
   "/realtime/dashboard": "행사 전체 현황을 실시간으로 모니터링합니다",
+  "/realtime/waitingstatus": "대기열 현황을 실시간으로 확인합니다",
   "/realtime/checkinstatus": "참가자 체크인 현황을 실시간으로 확인합니다",
   "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 확인합니다",
-  "/realtime/waitingstatus": "대기열 현황을 실시간으로 확인합니다",
 };
 
 const STATS = [
   {
     label: "총 참가 신청",
-    value: "1,284",
+    rawValue: 1284,
     sub: "전일 대비 +38명",
     up: true,
     icon: <Users size={18} color="#1a4fd6" />,
@@ -145,7 +174,7 @@ const STATS = [
   },
   {
     label: "체크인 완료",
-    value: "847",
+    rawValue: 847,
     sub: "전체의 65.9%",
     up: true,
     icon: <CheckCircle2 size={18} color="#10b981" />,
@@ -154,7 +183,7 @@ const STATS = [
   },
   {
     label: "투표 참여",
-    value: "512",
+    rawValue: 512,
     sub: "참여율 60.4%",
     up: true,
     icon: <Vote size={18} color="#8b5cf6" />,
@@ -163,7 +192,7 @@ const STATS = [
   },
   {
     label: "현재 대기",
-    value: "23",
+    rawValue: 23,
     sub: "평균 대기 8분",
     up: false,
     icon: <Clock size={18} color="#f59e0b" />,
@@ -196,6 +225,13 @@ const RECENT_ACTIVITIES = [
   { time: "14:20", text: "정*아님이 체크인을 완료했습니다.", color: "#10b981" },
 ];
 
+const PROGRESS_DATA = [
+  { name: "체크인 완료", val: 847, total: 1284, color: "#10b981" },
+  { name: "투표 참여", val: 512, total: 847, color: "#8b5cf6" },
+  { name: "프로그램 참여", val: 390, total: 847, color: "#1a4fd6" },
+  { name: "굿즈 수령", val: 234, total: 847, color: "#f59e0b" },
+];
+
 const getHeatColor = (pct) => {
   if (pct === 0) return "#f1f3f5";
   if (pct < 30) return "#bfdbfe";
@@ -204,46 +240,154 @@ const getHeatColor = (pct) => {
   return "#1a4fd6";
 };
 
-function DashboardContent() {
-  const [tick, setTick] = useState(0);
+/* ── Animated stat card ── */
+function AnimatedStatCard({ stat, index }) {
+  const count = useCountUp(stat.rawValue, 1200, index * 120);
+  const [visible, setVisible] = useState(false);
+
   useEffect(() => {
-    const t = setInterval(() => setTick((v) => v + 1), 5000);
-    return () => clearInterval(t);
-  }, []);
+    const t = setTimeout(() => setVisible(true), index * 100 + 50);
+    return () => clearTimeout(t);
+  }, [index]);
+
+  return (
+    <div className={`rt-stat-card anim-pop ${visible ? "visible" : ""}`}>
+      <div className="rt-stat-icon" style={{ background: stat.iconBg }}>
+        {stat.icon}
+      </div>
+      <div className="rt-stat-label">{stat.label}</div>
+      <div className="rt-stat-value">{count.toLocaleString()}</div>
+      <div className="rt-stat-sub">
+        {stat.up ? (
+          <ArrowUpRight size={12} className="rt-stat-up" />
+        ) : (
+          <ArrowDownRight size={12} className="rt-stat-down" />
+        )}
+        <span className={stat.up ? "rt-stat-up" : "rt-stat-down"}>
+          {stat.sub}
+        </span>
+      </div>
+      <div className="rt-stat-bg" style={{ background: stat.barColor }} />
+    </div>
+  );
+}
+
+/* ── Animated progress bar ── */
+function AnimatedProgress({ item, index }) {
+  const [width, setWidth] = useState(0);
+  const pct = Math.round((item.val / item.total) * 100);
+  const animatedVal = useCountUp(item.val, 900, index * 150 + 400);
+
+  useEffect(() => {
+    const t = setTimeout(() => setWidth(pct), index * 150 + 400);
+    return () => clearTimeout(t);
+  }, [pct, index]);
+
+  return (
+    <div className="rt-progress-wrap">
+      <div className="rt-progress-label">
+        <span className="rt-progress-label-name">{item.name}</span>
+        <span className="rt-progress-label-val">
+          {animatedVal.toLocaleString()} / {item.total.toLocaleString()}명
+        </span>
+      </div>
+      <div className="rt-progress-track">
+        <div
+          className="rt-progress-fill anim-progress-fill"
+          style={{ width: `${width}%`, background: item.color }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ── Animated heatmap cell ── */
+function AnimatedHeatCell({ h, index }) {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShow(true), index * 60 + 200);
+    return () => clearTimeout(t);
+  }, [index]);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 5,
+      }}
+    >
+      <div
+        className="rt-hour-cell"
+        style={{
+          background: show ? getHeatColor(h.pct) : "#f1f3f5",
+          width: "100%",
+          fontSize: h.pct > 0 ? 9 : 8,
+          color: show && h.pct > 50 ? "#fff" : "#9ca3af",
+          transition: "background 0.5s ease, color 0.5s ease",
+          transform: show ? "scale(1)" : "scale(0.8)",
+          transitionProperty: "background, color, transform",
+          transitionDuration: "0.5s",
+        }}
+        title={`${h.h}시 ${h.v}명`}
+      >
+        {show && h.v > 0 ? h.v : ""}
+      </div>
+      <div style={{ fontSize: 9, color: "#9ca3af", textAlign: "center" }}>
+        {h.h}시
+      </div>
+    </div>
+  );
+}
+
+/* ── Main content ── */
+function DashboardContent() {
+  const { tick, lastUpdated } = useAutoRefresh(5000);
+  const { spinning, refresh } = useRefresh(() => {}, 800);
+  const timelineVisible = useStaggerIn(RECENT_ACTIVITIES.length, 100);
+  const [flashKey, setFlashKey] = useState(0);
+
+  // Flash timestamp on auto-refresh
+  useEffect(() => {
+    setFlashKey((k) => k + 1);
+  }, [tick]);
 
   return (
     <>
-      <div className="rt-live-badge">
-        <div className="rt-live-dot" />
-        LIVE
+      {/* Live header with refresh */}
+      <div className="rt-live-header">
+        <div className="rt-live-badge anim-glow">
+          <div className="rt-live-dot" />
+          LIVE
+        </div>
+        <div className="rt-live-header-right">
+          <span key={flashKey} className="rt-timestamp anim-flash">
+            마지막 갱신: {lastUpdated}
+          </span>
+          <button className="rt-refresh-btn" onClick={refresh} title="새로고침">
+            <RefreshCw
+              size={14}
+              style={{
+                animation: spinning
+                  ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)"
+                  : "none",
+              }}
+            />
+          </button>
+        </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats — count up + pop in */}
       <div className="rt-stat-grid">
-        {STATS.map((s) => (
-          <div key={s.label} className="rt-stat-card">
-            <div className="rt-stat-icon" style={{ background: s.iconBg }}>
-              {s.icon}
-            </div>
-            <div className="rt-stat-label">{s.label}</div>
-            <div className="rt-stat-value">{s.value}</div>
-            <div className="rt-stat-sub">
-              {s.up ? (
-                <ArrowUpRight size={12} className="rt-stat-up" />
-              ) : (
-                <ArrowDownRight size={12} className="rt-stat-down" />
-              )}
-              <span className={s.up ? "rt-stat-up" : "rt-stat-down"}>
-                {s.sub}
-              </span>
-            </div>
-            <div className="rt-stat-bg" style={{ background: s.barColor }} />
-          </div>
+        {STATS.map((s, i) => (
+          <AnimatedStatCard key={s.label} stat={s} index={i} />
         ))}
       </div>
 
       <div className="rt-two-col">
-        {/* 시간대별 체크인 */}
+        {/* 시간대별 체크인 — heatmap cells animate in */}
         <div className="rt-card">
           <div className="rt-card-header">
             <div className="rt-card-title">
@@ -255,34 +399,8 @@ function DashboardContent() {
             <span className="rt-card-tag">오늘</span>
           </div>
           <div className="rt-hour-grid">
-            {HOUR_DATA.map((h) => (
-              <div
-                key={h.h}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 5,
-                }}
-              >
-                <div
-                  className="rt-hour-cell"
-                  style={{
-                    background: getHeatColor(h.pct),
-                    width: "100%",
-                    fontSize: h.pct > 0 ? 9 : 8,
-                    color: h.pct > 50 ? "#fff" : "#9ca3af",
-                  }}
-                  title={`${h.h}시 ${h.v}명`}
-                >
-                  {h.v > 0 ? h.v : ""}
-                </div>
-                <div
-                  style={{ fontSize: 9, color: "#9ca3af", textAlign: "center" }}
-                >
-                  {h.h}시
-                </div>
-              </div>
+            {HOUR_DATA.map((h, i) => (
+              <AnimatedHeatCell key={h.h} h={h} index={i} />
             ))}
           </div>
           <div
@@ -309,7 +427,7 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* 참가 현황 진행률 */}
+        {/* 참가 현황 — progress bars animate in */}
         <div className="rt-card">
           <div className="rt-card-header">
             <div className="rt-card-title">
@@ -320,34 +438,13 @@ function DashboardContent() {
             </div>
             <span className="rt-card-tag">실시간</span>
           </div>
-          {[
-            { name: "체크인 완료", val: 847, total: 1284, color: "#10b981" },
-            { name: "투표 참여", val: 512, total: 847, color: "#8b5cf6" },
-            { name: "프로그램 참여", val: 390, total: 847, color: "#1a4fd6" },
-            { name: "굿즈 수령", val: 234, total: 847, color: "#f59e0b" },
-          ].map((item) => (
-            <div key={item.name} className="rt-progress-wrap">
-              <div className="rt-progress-label">
-                <span className="rt-progress-label-name">{item.name}</span>
-                <span className="rt-progress-label-val">
-                  {item.val.toLocaleString()} / {item.total.toLocaleString()}명
-                </span>
-              </div>
-              <div className="rt-progress-track">
-                <div
-                  className="rt-progress-fill"
-                  style={{
-                    width: `${Math.round((item.val / item.total) * 100)}%`,
-                    background: item.color,
-                  }}
-                />
-              </div>
-            </div>
+          {PROGRESS_DATA.map((item, i) => (
+            <AnimatedProgress key={item.name} item={item} index={i} />
           ))}
         </div>
       </div>
 
-      {/* 최근 활동 */}
+      {/* 최근 활동 — stagger slide-in */}
       <div className="rt-card">
         <div className="rt-card-header">
           <div className="rt-card-title">
@@ -360,7 +457,10 @@ function DashboardContent() {
         </div>
         <div className="rt-timeline">
           {RECENT_ACTIVITIES.map((a, i) => (
-            <div key={i} className="rt-timeline-item">
+            <div
+              key={i}
+              className={`rt-timeline-item anim-slide-right ${timelineVisible.includes(i) ? "visible" : ""}`}
+            >
               <div
                 className="rt-timeline-dot"
                 style={{ background: a.color }}
@@ -376,20 +476,43 @@ function DashboardContent() {
 }
 
 export default function Dashboard() {
+  const { eventId } = useParams();
+  const navigate = useNavigate();
   const [currentPath, setCurrentPath] = useState("/realtime/dashboard");
+
+  const handleSelectEvent = (id) => {
+    navigate(`/realtime/dashboard/${id}`);
+  };
+
+  const handleNavigate = (path) => {
+    setCurrentPath(path);
+    if (eventId) {
+      navigate(`${path}/${eventId}`);
+    } else {
+      navigate(path);
+    }
+  };
 
   return (
     <div className="rt-root">
       <style>{styles}</style>
+      <style>{SHARED_ANIM_STYLES}</style>
       <PageHeader
-        title="대시보드"
+        title="통합 현황"
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
-        onNavigate={setCurrentPath}
+        onNavigate={handleNavigate}
       />
       <main className="rt-container">
-        <DashboardContent />
+        {eventId ? (
+          <DashboardContent />
+        ) : (
+          <RealtimeEventSelector
+            onSelectEvent={handleSelectEvent}
+            pageTitle="통합 현황"
+          />
+        )}
       </main>
     </div>
   );

@@ -11,6 +11,7 @@ import Home from "./pages/site/home/Home";
 
 /* Auth */
 import Login from "./pages/site/auth/Login";
+import Mypage from "./pages/site/auth/mypage";
 import JoinSelect from "./pages/site/auth/join/JoinSelect";
 import JoinNormal from "./pages/site/auth/join/JoinNormal";
 import JoinSocial from "./pages/site/auth/join/JoinSocial";
@@ -20,7 +21,7 @@ import Current from "./pages/site/event/Current";
 import Upcoming from "./pages/site/event/Upcoming";
 import Closed from "./pages/site/event/Closed";
 import PreRegister from "./pages/site/event/PreRegister";
-import Detail from "./pages/site/event/Detail";
+import EventSchedule from "./pages/site/event/EventSchedule";
 
 /* Program */
 import Experience from "./pages/site/program/Experience";
@@ -28,6 +29,7 @@ import Session from "./pages/site/program/Session";
 import Booth from "./pages/site/program/Booth";
 import Contest from "./pages/site/program/Contest";
 import Schedule from "./pages/site/program/Schedule";
+import VoteResult from "./pages/site/program/VoteResult";
 
 /* Registration */
 import Apply from "./pages/site/registration/Apply";
@@ -85,33 +87,29 @@ export default function App() {
         <Route element={<SiteLayout />}>
           {/* Home */}
           <Route path="/" element={<Home />} />
-
-          {/* Auth */}          
+          {/* Auth */}
           <Route path="/auth/login" element={<Login />} />
+          <Route path="/auth/mypage" element={<Mypage />} />
+          <Route path="/mypage" element={<Mypage />} /> {/* 추가 */}
           <Route path="/auth/join/joinselect" element={<JoinSelect />} />
           <Route path="/auth/join/joinnormal" element={<JoinNormal />} />
           <Route path="/auth/join/joinsocial" element={<JoinSocial />} />
-
-          {/* Alias (짧은 경로 지원) */}
-          <Route path="/join" element={<JoinSelect />} />
-          <Route path="/join/select" element={<JoinSelect />} />
-          <Route path="/join/normal" element={<JoinNormal />} />
-          <Route path="/join/social" element={<JoinSocial />} />
-
           {/* Event */}
           <Route path="/event/current" element={<Current />} />
           <Route path="/event/upcoming" element={<Upcoming />} />
           <Route path="/event/closed" element={<Closed />} />
           <Route path="/event/preregister" element={<PreRegister />} />
-          <Route path="/event/detail" element={<Detail />} />
-
+          <Route path="/event/eventschedule" element={<EventSchedule />} />
           {/* Program */}
-          <Route path="/program/experience" element={<Experience />} />
-          <Route path="/program/session" element={<Session />} />
-          <Route path="/program/booth" element={<Booth />} />
-          <Route path="/program/contest" element={<Contest />} />
-          <Route path="/program/schedule" element={<Schedule />} />
-
+          {/* 중요 (뒤에 /:eventId? 만 추가 */}
+          <Route
+            path="/program/experience/:eventId?"
+            element={<Experience />}
+          />
+          <Route path="/program/session/:eventId?" element={<Session />} />
+          <Route path="/program/schedule/:eventId?" element={<Schedule />} />
+          <Route path="/program/contest/:eventId?" element={<Contest />} />
+          <Route path="/program/booth/:eventId?" element={<Booth />} />
           {/* Registration */}
           <Route path="/registration/apply" element={<Apply />} />
           <Route path="/registration/applyhistory" element={<ApplyHistory />} />
@@ -120,38 +118,43 @@ export default function App() {
             element={<PaymentHistory />}
           />
           <Route path="/registration/qrcheckin" element={<QRCheckin />} />
-
           {/* Realtime */}
-          <Route path="/realtime/waitingstatus" element={<WaitingStatus />} />
-          <Route path="/realtime/votestatus" element={<VoteStatus />} />
-          <Route path="/realtime/dashboard" element={<RealtimeDashboard />} />
-          <Route path="/realtime/checkinstatus" element={<CheckinStatus />} />
-
+          <Route
+            path="/realtime/dashboard/:eventId?"
+            element={<RealtimeDashboard />}
+          />
+          <Route
+            path="/realtime/checkinstatus/:eventId?"
+            element={<CheckinStatus />}
+          />
+          <Route
+            path="/realtime/votestatus/:eventId?"
+            element={<VoteStatus />}
+          />
+          <Route
+            path="/realtime/waitingstatus/:eventId?"
+            element={<WaitingStatus />}
+          />
           {/* Community */}
           <Route path="/community/freeboard" element={<FreeBoard />} />
           <Route path="/community/review" element={<Review />} />
           <Route path="/community/gallery" element={<Gallery />} />
           <Route path="/community/qna" element={<QnA />} />
           <Route path="/community/notice" element={<Notice />} />
-
           {/* Info */}
           <Route path="/info/intro" element={<PlatformIntro />} />
-
           <Route path="/info/faq" element={<FAQ />} />
           <Route path="/info/inquiry" element={<Inquiry />} />
           <Route path="/info/location" element={<Location />} />
-
           {/* Policy */}
           <Route path="/policy/aboutus" element={<AboutUs />} />
           <Route path="/policy/privacypolicy" element={<PrivacyPolicy />} />
           <Route path="/policy/serviceguide" element={<ServiceGuide />} />
           <Route path="/policy/termsofservice" element={<TermsOfService />} />
           <Route path="/policy/eftterms" element={<EFTTerms />} />
-
           {/*gallery*/}
           <Route path="/gallery/eventgallery" element={<EventGallery />} />
           <Route path="/gallery/eventsketch" element={<EventSketch />} />
-
           {/* guide */}
           <Route path="/guide/location" element={<LocationPage />} />
           <Route path="/guide/operation" element={<Operation />} />

@@ -1,9 +1,7 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { authApi } from "../api/authApi";
-import { tokenStore } from "../../../../app/http/tokenStore";
+import { useState } from "react";
 
 const styles = `
+
   body {
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     background: #fff;
@@ -193,17 +191,18 @@ const styles = `
     background: #666;
   }
 
-  .address-input {
-    flex: 1;
-    height: 48px;
-    line-height: 48px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 0 14px;
-    font-size: 14px;
-    color: #333;
-    outline: none;
-  }
+.address-input {
+  flex: 1;
+  height: 48px;              
+  line-height: 48px;         
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 0 14px;           
+  font-size: 14px;
+  color: #333;
+  outline: none;
+}
+
 
   .address-input:focus {
     border-color: #1a9ac9;
@@ -240,6 +239,7 @@ const styles = `
     color: #1a9ac9;
   }
 
+  /* Pet section */
   .pet-rows {
     display: flex;
     flex-direction: column;
@@ -250,6 +250,7 @@ const styles = `
     display: flex;
     align-items: center;
     gap: 10px;
+    // flex-wrap: wrap;
   }
 
   .pet-label {
@@ -340,6 +341,26 @@ const styles = `
     cursor: not-allowed;
   }
 
+  .add-pet-row {
+    margin-top: 6px;
+  }
+
+  .employee-input {
+    width: 100%;
+    max-width: 500px;
+    height: 42px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 0 12px;
+    font-size: 14px;
+    color: #333;
+    outline: none;
+  }
+
+  .employee-input:focus {
+    border-color: #1a9ac9;
+  }
+
   .submit-wrap {
     text-align: center;
     margin-top: 20px;
@@ -380,21 +401,51 @@ const styles = `
   .btn-cancel:hover {
     background: #666;
   }
-
-  .error-text {
-    margin-top: 8px;
-    font-size: 13px;
-    color: #d33;
-  }
 `;
 
 export default function JoinNormal() {
+  const handleNumberOnlyChange = (e) => {
+    const { name, value } = e.target;
+    const onlyNumber = value.replace(/[^0-9]/g, "");
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: onlyNumber,
+    }));
+  };
+  const openPostcode = () => {
+    new window.daum.Postcode({
+      oncomplete: function (data) {
+        let fullAddress = data.address;
+        let extraAddress = "";
+
+        if (data.addressType === "R") {
+          if (data.bname !== "") {
+            extraAddress += data.bname;
+          }
+          if (data.buildingName !== "") {
+            extraAddress +=
+              extraAddress !== ""
+                ? `, ${data.buildingName}`
+                : data.buildingName;
+          }
+          fullAddress += extraAddress !== "" ? ` (${extraAddress})` : "";
+        }
+
+        setForm((prev) => ({
+          ...prev,
+          postcode: data.zonecode,
+          address: fullAddress,
+        }));
+      },
+    }).open();
+  };
+
   const [memberType, setMemberType] = useState("individual");
   const [form, setForm] = useState({
     id: "",
     password: "",
     passwordConfirm: "",
-    nickname: "",
     name: "",
     email: "",
     tel1: "02",
@@ -409,42 +460,11 @@ export default function JoinNormal() {
     employeeId: "",
   });
 
-  const navigate = useNavigate();
   const [pets, setPets] = useState([{ type: "dog", age: "" }]);
-  const [error, setError] = useState("");
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleNumberOnlyChange = (e) => {
-    const { name, value } = e.target;
-    const onlyNumber = value.replace(/[^0-9]/g, "");
-    setForm((prev) => ({ ...prev, [name]: onlyNumber }));
-  };
-
-  const openPostcode = () => {
-    new window.daum.Postcode({
-      oncomplete: function (data) {
-        let fullAddress = data.address;
-        let extraAddress = "";
-
-        if (data.addressType === "R") {
-          if (data.bname !== "") extraAddress += data.bname;
-          if (data.buildingName !== "") {
-            extraAddress += extraAddress !== "" ? `, ${data.buildingName}` : data.buildingName;
-          }
-          fullAddress += extraAddress !== "" ? ` (${extraAddress})` : "";
-        }
-
-        setForm((prev) => ({
-          ...prev,
-          postcode: data.zonecode,
-          address: fullAddress,
-        }));
-      },
-    }).open();
   };
 
   const handlePetChange = (index, field, value) => {
@@ -455,83 +475,19 @@ export default function JoinNormal() {
     });
   };
 
-  const addPet = () => setPets((prev) => [...prev, { type: "dog", age: "" }]);
+  const addPet = () => {
+    setPets((prev) => [...prev, { type: "dog", age: "" }]);
+  };
 
   const removePet = (index) => {
     if (pets.length === 1) return;
     setPets((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const phoneTel = useMemo(() => {
-    // tel2/tel3 없으면 빈 문자열 처리
-    const t2 = (form.tel2 || "").trim();
-    const t3 = (form.tel3 || "").trim();
-    if (!t2 && !t3) return "";
-    return `${form.tel1}-${t2}-${t3}`;
-  }, [form.tel1, form.tel2, form.tel3]);
-
-  const phoneMobile = useMemo(() => {
-    const m2 = (form.mobile2 || "").trim();
-    const m3 = (form.mobile3 || "").trim();
-    if (!m2 || !m3) return "";
-    return `${form.mobile1}-${m2}-${m3}`;
-  }, [form.mobile1, form.mobile2, form.mobile3]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    console.log("tokenStore module =", tokenStore);
-    console.log("typeof tokenStore.setAccess =", typeof tokenStore?.setAccess);
-    console.log("tokenStore keys =", Object.keys(tokenStore || {}));
-
-    if (!form.email.trim()) return setError("이메일을 입력하세요.");
-    if (!form.password) return setError("비밀번호를 입력하세요.");
-    if (form.password !== form.passwordConfirm)
-      return setError("비밀번호가 일치하지 않습니다.");
-    if (!form.nickname?.trim())
-      return setError("닉네임을 입력하세요.");
-    if (!phoneMobile)
-      return setError("휴대전화 번호를 완성해주세요.");
-
-    const signupPayload = {
-      email: form.email,
-      password: form.password,
-      nickname: form.nickname,
-      phone: phoneMobile,
-
-      // 기본값 설정
-      showAge: false,
-      showGender: false,
-      showPet: false,
-    };
-
-    try {
-      const res = await authApi.signup(signupPayload);
-
-      const accessToken = res?.accessToken;
-      if (!accessToken)
-        throw new Error("회원가입 응답에 accessToken이 없습니다.");
-
-      tokenStore.setAccess(accessToken);
-
-      // 자동 로그인 완료
-      navigate("/");
-    } catch (err) {
-      setError(
-        err?.response?.data?.message ??
-        err?.message ??
-        "회원가입 실패"
-      );
-    }
-  };
-
   return (
     <>
       <style>{styles}</style>
-
-      {/* ✅ 전체를 form으로 감싸고 onSubmit 연결 */}
-      <form className="signup-wrap" onSubmit={handleSubmit}>
+      <div className="signup-wrap">
         <h1 className="signup-title">회원가입</h1>
 
         {/* 회원구분 */}
@@ -568,11 +524,10 @@ export default function JoinNormal() {
             <tr>
               <th>회원인증</th>
               <td>
-                {/* ✅ submit 방지 */}
-                <button type="button" className="identity-btn">
-                  본인인증
-                </button>
-                <span className="identity-note">본인 명의의 휴대폰으로 본인인증을 진행합니다.</span>
+                <button className="identity-btn">본인인증</button>
+                <span className="identity-note">
+                  본인 명의의 휴대폰으로 본인인증을 진행합니다.
+                </span>
               </td>
             </tr>
           </tbody>
@@ -580,14 +535,16 @@ export default function JoinNormal() {
 
         {/* 가입정보 */}
         <div className="section-header">
-          <span className="section-title" style={{ borderBottom: "none", paddingBottom: 0 }}>
+          <span
+            className="section-title"
+            style={{ borderBottom: "none", paddingBottom: 0 }}
+          >
             가입정보
           </span>
           <span className="required-note">
             <span>*</span> 표시는 반드시 입력하셔야 합니다.
           </span>
         </div>
-
         <table className="form-table" style={{ borderTop: "2px solid #333" }}>
           <tbody>
             <tr>
@@ -605,7 +562,6 @@ export default function JoinNormal() {
                 />
               </td>
             </tr>
-
             <tr>
               <th>
                 비밀번호 <span className="req">*</span>
@@ -621,7 +577,6 @@ export default function JoinNormal() {
                 />
               </td>
             </tr>
-
             <tr>
               <th>
                 비밀번호 확인 <span className="req">*</span>
@@ -636,32 +591,16 @@ export default function JoinNormal() {
                 />
               </td>
             </tr>
-
-            <tr>
-              <th>
-                닉네임 <span className="req">*</span>
-              </th>
-              <td>
-                <input
-                  className="form-input"
-                  type="text"
-                  name="nickname"
-                  value={form.nickname || ""}
-                  onChange={handleFormChange}
-                  placeholder="닉네임을 입력하세요"
-                />
-              </td>
-            </tr>
-
             <tr>
               <th>
                 이름 <span className="req">*</span>
               </th>
               <td>
-                <span className="auto-fill-note">※ 본인인증 후 자동 입력 됩니다.</span>
+                <span className="auto-fill-note">
+                  ※ 본인인증 후 자동 입력 됩니다.
+                </span>
               </td>
             </tr>
-
             <tr>
               <th>
                 이메일 <span className="req">*</span>
@@ -676,7 +615,6 @@ export default function JoinNormal() {
                 />
               </td>
             </tr>
-
             <tr>
               <th>일반전화</th>
               <td>
@@ -685,7 +623,9 @@ export default function JoinNormal() {
                     className="phone-select"
                     name="tel1"
                     value={form.tel1}
-                    onChange={handleFormChange}
+                    onChange={handleNumberOnlyChange}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                   >
                     <option value="02">02</option>
                     <option value="031">031</option>
@@ -704,13 +644,11 @@ export default function JoinNormal() {
                     <option value="063">063</option>
                     <option value="064">064</option>
                   </select>
-
-                  {/* ✅ tel2 / tel3로 정상 분리 */}
                   <input
                     className="phone-input"
                     type="text"
-                    name="tel2"
-                    value={form.tel2}
+                    name="mobile3"
+                    value={form.mobile3}
                     onChange={handleNumberOnlyChange}
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -719,8 +657,8 @@ export default function JoinNormal() {
                   <input
                     className="phone-input"
                     type="text"
-                    name="tel3"
-                    value={form.tel3}
+                    name="mobile3"
+                    value={form.mobile3}
                     onChange={handleNumberOnlyChange}
                     inputMode="numeric"
                     pattern="[0-9]*"
@@ -729,7 +667,6 @@ export default function JoinNormal() {
                 </div>
               </td>
             </tr>
-
             <tr>
               <th>
                 휴대전화 <span className="req">*</span>
@@ -740,7 +677,9 @@ export default function JoinNormal() {
                     className="phone-select"
                     name="mobile1"
                     value={form.mobile1}
-                    onChange={handleFormChange}
+                    onChange={handleNumberOnlyChange}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                   >
                     <option value="010">010</option>
                     <option value="011">011</option>
@@ -749,38 +688,25 @@ export default function JoinNormal() {
                     <option value="018">018</option>
                     <option value="019">019</option>
                   </select>
-
-                  {/* ✅ 숫자만 */}
                   <input
                     className="phone-input"
                     type="text"
                     name="mobile2"
                     value={form.mobile2}
-                    onChange={handleNumberOnlyChange}
+                    onChange={handleFormChange}
                     maxLength={4}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
                   />
                   <input
                     className="phone-input"
                     type="text"
                     name="mobile3"
                     value={form.mobile3}
-                    onChange={handleNumberOnlyChange}
+                    onChange={handleFormChange}
                     maxLength={4}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
                   />
                 </div>
-
-                {phoneMobile && (
-                  <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
-                    입력된 휴대전화: {phoneMobile}
-                  </div>
-                )}
               </td>
             </tr>
-
             <tr>
               <th>주소</th>
               <td>
@@ -791,16 +717,17 @@ export default function JoinNormal() {
                       type="text"
                       name="postcode"
                       value={form.postcode}
-                      onChange={handleNumberOnlyChange}
+                      onChange={handleFormChange}
                       style={{ maxWidth: 160 }}
-                      inputMode="numeric"
-                      pattern="[0-9]*"
                     />
-                    <button type="button" className="btn-postcode" onClick={openPostcode}>
+                    <button
+                      type="button"
+                      className="btn-postcode"
+                      onClick={openPostcode}
+                    >
                       우편번호
                     </button>
                   </div>
-
                   <input
                     className="address-input"
                     type="text"
@@ -834,30 +761,29 @@ export default function JoinNormal() {
                   {pets.map((pet, index) => (
                     <div className="pet-row" key={index}>
                       <span className="pet-label">Pet {index + 1}</span>
-
                       <select
                         className="pet-select"
                         value={pet.type}
-                        onChange={(e) => handlePetChange(index, "type", e.target.value)}
+                        onChange={(e) =>
+                          handlePetChange(index, "type", e.target.value)
+                        }
                       >
                         <option value="dog">🐶 강아지 (Dog)</option>
                         <option value="cat">🐱 고양이 (Cat)</option>
                       </select>
-
                       <input
                         className="pet-age-input"
                         type="number"
                         min="0"
                         max="30"
                         value={pet.age}
-                        onChange={(e) => handlePetChange(index, "age", e.target.value)}
+                        onChange={(e) =>
+                          handlePetChange(index, "age", e.target.value)
+                        }
                         placeholder="나이"
                       />
                       <span className="pet-age-unit">살</span>
-
-                      {/* ✅ submit 방지 */}
                       <button
-                        type="button"
                         className="btn-remove-pet"
                         onClick={() => removePet(index)}
                         disabled={pets.length === 1}
@@ -866,7 +792,6 @@ export default function JoinNormal() {
                         −
                       </button>
                       <button
-                        type="button"
                         className="btn-add-pet"
                         onClick={addPet}
                         title="반려동물 추가"
@@ -881,20 +806,11 @@ export default function JoinNormal() {
           </tbody>
         </table>
 
-        {error && <div className="error-text">{error}</div>}
-
         <div className="submit-wrap">
-          {/* ✅ 취소 버튼: submit 방지 */}
-          <button type="button" className="btn-cancel" onClick={() => window.history.back()}>
-            취소
-          </button>
-
-          {/* ✅ 가입하기 버튼: submit */}
-          <button type="submit" className="btn-submit">
-            가입하기
-          </button>
+          <button className="btn-cancel">취소</button>
+          <button className="btn-submit">가입하기</button>
         </div>
-      </form>
+      </div>
     </>
   );
 }

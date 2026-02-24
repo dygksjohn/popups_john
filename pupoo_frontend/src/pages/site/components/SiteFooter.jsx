@@ -86,14 +86,14 @@ const Footer = () => {
               />
 
               {/* 텍스트 */}
-              <span
+              {/* <span
                 className="text-[#8f949b] text-sm
                transition-colors duration-300
                group-hover:text-[#006BF0]
                whitespace-nowrap"
               >
                 관리자센터
-              </span>
+              </span> */}
             </a>
           </div>
 
