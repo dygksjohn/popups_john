@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 @Table(
         name = "payment_transactions",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_payment_transactions_payment_id", columnNames = "payment_id"),
                 @UniqueConstraint(name = "uk_payment_transactions_provider_tid", columnNames = {"pg_provider", "pg_tid"})
         },
         indexes = {

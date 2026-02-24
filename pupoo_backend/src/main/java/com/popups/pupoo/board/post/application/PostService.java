@@ -3,6 +3,7 @@ package com.popups.pupoo.board.post.application;
 
 import com.popups.pupoo.board.boardinfo.domain.model.Board;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
+import com.popups.pupoo.board.bannedword.application.BannedWordService;
 import com.popups.pupoo.board.post.domain.enums.PostStatus;
 import com.popups.pupoo.board.post.domain.model.Post;
 import com.popups.pupoo.board.post.dto.PostCreateRequest;
@@ -24,6 +25,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final BoardRepository boardRepository;
+    private final BannedWordService bannedWordService;
 
     public Page<PostResponse> getPosts(Long boardId, String keyword, PostStatus status, Pageable pageable) {
         if (boardId == null) {
@@ -90,6 +92,9 @@ public class PostService {
         Board board = boardRepository.findById(req.getBoardId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시판이 존재하지 않습니다."));
 
+        // 금칙어 검증 (DB: board_banned_words)
+        bannedWordService.validate(board.getBoardId(), req.getPostTitle(), req.getContent());
+
         Post post = Post.builder()
                 .board(board)
                 .userId(userId)
@@ -115,6 +120,9 @@ public class PostService {
         if (req.getPostTitle() == null || req.getPostTitle().isBlank() || req.getContent() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content는 필수입니다.");
         }
+
+        // 금칙어 검증 (게시글 수정 포함)
+        bannedWordService.validate(post.getBoard().getBoardId(), req.getPostTitle(), req.getContent());
 
         post.updateTitleAndContent(req.getPostTitle(), req.getContent());
     }

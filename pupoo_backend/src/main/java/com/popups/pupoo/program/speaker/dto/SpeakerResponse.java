@@ -10,7 +10,6 @@ import lombok.Getter;
 public class SpeakerResponse {
 
     private Long speakerId;
-    private Long programId;
     private String speakerName;
     private String speakerBio;
     private String speakerEmail;
@@ -19,7 +18,6 @@ public class SpeakerResponse {
     public static SpeakerResponse from(Speaker s) {
         return SpeakerResponse.builder()
                 .speakerId(s.getSpeakerId())
-                .programId(s.getProgramId())
                 .speakerName(s.getSpeakerName())
                 .speakerBio(s.getSpeakerBio())
                 .speakerEmail(s.getSpeakerEmail())

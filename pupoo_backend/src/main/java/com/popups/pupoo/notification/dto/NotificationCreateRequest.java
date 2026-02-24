@@ -2,10 +2,14 @@
 package com.popups.pupoo.notification.dto;
 
 import com.popups.pupoo.notification.domain.enums.InboxTargetType;
+import com.popups.pupoo.notification.domain.enums.NotificationChannel;
 import com.popups.pupoo.notification.domain.enums.NotificationType;
+import com.popups.pupoo.notification.domain.enums.RecipientScope;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
+
+import java.util.List;
 
 @Getter
 public class NotificationCreateRequest {
@@ -29,8 +33,18 @@ public class NotificationCreateRequest {
     private Long targetId;
 
     /**
-     * interest 기반 fan-out을 위한 이벤트 ID
+     * interest/참가자/예매자 기반 fan-out을 위한 이벤트 ID
      */
     @NotNull
     private Long eventId;
+
+    /**
+     * 발송 채널(미지정 시 APP)
+     */
+    private List<NotificationChannel> channels;
+
+    /**
+     * 발송 대상 범위(미지정 시 INTEREST_SUBSCRIBERS)
+     */
+    private RecipientScope recipientScope;
 }

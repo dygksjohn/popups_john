@@ -56,7 +56,13 @@ public class PaymentService {
         paymentRepository.save(payment);
 
         //  ready 호출 (카카오페이 결제창 URL 내려줌)
-        return paymentGateway.ready(payment, new PaymentReadyRequest("Pupoo 결제", 1, 0));
+        PaymentReadyResponse ready = paymentGateway.ready(payment, new PaymentReadyRequest("Pupoo 결제", 1, 0));
+
+        // DB 우선 정책: payment_transactions 테이블에 READY 트랜잭션을 적재한다.
+        PaymentTransaction readyTx = PaymentTransaction.ready(payment.getPaymentId(), ready.tid(), null);
+        paymentTransactionRepository.save(readyTx);
+
+        return ready;
     }
 
     /**
@@ -72,7 +78,8 @@ public class PaymentService {
          * 기능: 결제 승인(approve) 멱등 + 상태 동기화
          * - payment.status와 payment_transactions.status가 어긋나는 경우(중간 장애/재시도)도 안전하게 수렴시킨다.
          */
-        PaymentTransaction tx = paymentTransactionRepository.findByPaymentIdForUpdate(paymentId)
+        PaymentTransaction tx = paymentTransactionRepository.findLatestByPaymentIdForUpdate(paymentId, PageRequest.of(0, 1))
+                .stream().findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_TX_NOT_FOUND));
 
         // 이미 승인 완료된 트랜잭션이면, payment도 승인 상태로 수렴시킨다(멱등)
@@ -125,7 +132,8 @@ public class PaymentService {
          * 기능: 결제 취소(cancel) 멱등 + 상태 동기화
          * - 트랜잭션이 이미 취소된 경우 payment를 CANCELLED로 수렴시킨다.
          */
-        PaymentTransaction tx = paymentTransactionRepository.findByPaymentIdForUpdate(paymentId)
+        PaymentTransaction tx = paymentTransactionRepository.findLatestByPaymentIdForUpdate(paymentId, PageRequest.of(0, 1))
+                .stream().findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_TX_NOT_FOUND));
 
         if (tx.getStatus() == PaymentTransactionStatus.CANCELLED) {

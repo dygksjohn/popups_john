@@ -101,7 +101,7 @@ public class EventAdminService {
         // 행사 정보 변경 알림
         notificationService.publishEventInterestNotification(
                 eventId,
-                NotificationType.EVENT_INFO,
+                NotificationType.EVENT,
                 "행사 정보가 업데이트되었어요",
                 event.getEventName(),
                 InboxTargetType.EVENT,

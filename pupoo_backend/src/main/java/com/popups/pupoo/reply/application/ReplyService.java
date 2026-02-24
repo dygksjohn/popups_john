@@ -1,6 +1,11 @@
 // file: src/main/java/com/popups/pupoo/reply/application/ReplyService.java
 package com.popups.pupoo.reply.application;
 
+import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
+import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
+import com.popups.pupoo.board.post.domain.model.Post;
+import com.popups.pupoo.board.post.persistence.PostRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.reply.domain.enums.ReplyStatus;
@@ -26,18 +31,30 @@ public class ReplyService {
     private final PostCommentRepository postCommentRepository;
     private final ReviewCommentRepository reviewCommentRepository;
     private final ReplyTargetValidator targetValidator;
+    private final PostRepository postRepository;
+    private final BoardRepository boardRepository;
+    private final BannedWordService bannedWordService;
 
     public ReplyService(PostCommentRepository postCommentRepository,
                         ReviewCommentRepository reviewCommentRepository,
-                        ReplyTargetValidator targetValidator) {
+                        ReplyTargetValidator targetValidator,
+                        PostRepository postRepository,
+                        BoardRepository boardRepository,
+                        BannedWordService bannedWordService) {
         this.postCommentRepository = postCommentRepository;
         this.reviewCommentRepository = reviewCommentRepository;
         this.targetValidator = targetValidator;
+        this.postRepository = postRepository;
+        this.boardRepository = boardRepository;
+        this.bannedWordService = bannedWordService;
     }
 
     @Transactional
     public ReplyResponse create(Long userId, ReplyCreateRequest request) {
         targetValidator.validate(request.getTargetType(), request.getTargetId());
+
+        // 금칙어 검증 (댓글 작성 포함)
+        validateBannedWordsForReplyTarget(request.getTargetType(), request.getTargetId(), request.getContent());
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -92,9 +109,14 @@ public class ReplyService {
     public ReplyResponse update(Long userId, ReplyTargetType targetType, Long replyId, ReplyUpdateRequest request) {
         LocalDateTime now = LocalDateTime.now();
 
+        // 금칙어 검증 (댓글 수정 포함)
+        // - update에서는 replyId만으로는 targetId를 알기 어려우므로, 실제 엔티티에서 targetId를 꺼내서 검증한다.
+
         if (targetType == ReplyTargetType.POST) {
             PostComment comment = postCommentRepository.findByCommentIdAndDeletedFalse(replyId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "댓글이 존재하지 않습니다."));
+
+            validateBannedWordsForReplyTarget(ReplyTargetType.POST, comment.getPostId(), request.getContent());
 
             if (!comment.getUserId().equals(userId)) {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다.");
@@ -107,6 +129,8 @@ public class ReplyService {
         if (targetType == ReplyTargetType.REVIEW) {
             ReviewComment comment = reviewCommentRepository.findByCommentIdAndDeletedFalse(replyId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "댓글이 존재하지 않습니다."));
+
+            validateBannedWordsForReplyTarget(ReplyTargetType.REVIEW, comment.getReviewId(), request.getContent());
 
             if (!comment.getUserId().equals(userId)) {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다.");
@@ -186,6 +210,30 @@ public class ReplyService {
         }
         if (size < 1 || size > 100) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "size는 1~100 범위여야 합니다.");
+        }
+    }
+
+    /**
+     * 댓글 대상별로 게시판을 식별하여 금칙어 검증을 수행한다.
+     * - POST 댓글: post.board_id 기준
+     * - REVIEW 댓글: boards(board_type=REVIEW) 기준
+     */
+    private void validateBannedWordsForReplyTarget(ReplyTargetType targetType, Long targetId, String content) {
+        if (content == null) return;
+
+        if (targetType == ReplyTargetType.POST) {
+            Post post = postRepository.findByPostIdAndDeletedFalse(targetId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글이 존재하지 않습니다."));
+            bannedWordService.validate(post.getBoard().getBoardId(), content);
+            return;
+        }
+
+        if (targetType == ReplyTargetType.REVIEW) {
+            Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "REVIEW 게시판(board_type=REVIEW)이 존재하지 않습니다."))
+                    .getBoardId();
+            bannedWordService.validate(reviewBoardId, content);
+            return;
         }
     }
 }

@@ -7,7 +7,6 @@ import com.popups.pupoo.user.social.domain.enums.SocialProvider;
 import com.popups.pupoo.user.social.domain.model.SocialAccount;
 import com.popups.pupoo.user.social.dto.SocialAccountResponse;
 import com.popups.pupoo.user.social.dto.SocialLinkRequest;
-import com.popups.pupoo.user.social.dto.SocialUnlinkRequest;
 import com.popups.pupoo.user.social.persistence.SocialAccountRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,10 +23,7 @@ public class SocialAccountService {
     }
 
     /**
-     *  내 소셜 계정 목록 조회
-     *
-     * Repository에 아래 메서드가 필요:
-     *   List findAllByUserId(Long userId);
+     * 내 소셜 계정 목록 조회
      */
     @Transactional(readOnly = true)
     public List<SocialAccountResponse> getMySocialAccounts(Long userId) {
@@ -38,7 +34,7 @@ public class SocialAccountService {
     }
 
     /**
-     *  소셜 계정 연동(원본 메서드)
+     * 소셜 계정 연동
      */
     @Transactional
     public SocialAccountResponse createMySocialAccount(Long userId, SocialLinkRequest request) {
@@ -61,7 +57,7 @@ public class SocialAccountService {
     }
 
     /**
-     *  소셜 계정 해제(원본 메서드)
+     * 소셜 계정 해제
      */
     @Transactional
     public void unlinkByProvider(Long userId, String providerValue) {
@@ -69,25 +65,5 @@ public class SocialAccountService {
         SocialAccount socialAccount = socialAccountRepository.findByUserIdAndProvider(userId, provider)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SOCIAL_ACCOUNT_NOT_FOUND));
         socialAccountRepository.delete(socialAccount);
-    }
-
-    /* =========================================================
-     *  컨트롤러/기존 코드 호환용 alias 메서드
-     * ========================================================= */
-
-    /**
-     * 컨트롤러에서 link(userId, request)로 호출하는 경우 호환.
-     */
-    @Transactional
-    public SocialAccountResponse link(Long userId, SocialLinkRequest request) {
-        return createMySocialAccount(userId, request);
-    }
-
-    /**
-     * 컨트롤러에서 unlink(userId, request)로 호출하는 경우 호환.
-     */
-    @Transactional
-    public void unlink(Long userId, SocialUnlinkRequest request) {
-        unlinkByProvider(userId, request.getProvider());
     }
 }

@@ -31,25 +31,17 @@ public class ProgramApplyService {
     private final ProgramRepository programRepository;
     private final EventRepository eventRepository;
 
-    /**
-     * 활성 상태(= 중복 차단): APPLIED / WAITING / APPROVED
-     * (DB active_flag 정의와 반드시 동일해야 함)
-     */
+    //  활성 상태(= 중복 차단): APPLIED / WAITING / APPROVED
+    // (DB active_flag 정의와 반드시 동일해야 함)
     private static final EnumSet<ApplyStatus> ACTIVE_STATUSES =
             EnumSet.of(ApplyStatus.APPLIED, ApplyStatus.WAITING, ApplyStatus.APPROVED);
 
-    /**
-     * 내 신청 목록
-     */
     @Transactional(readOnly = true)
     public PageResponse<ProgramApplyResponse> getMyApplies(Long userId, Pageable pageable) {
         var page = programApplyRepository.findByUserId(userId, pageable);
         return PageResponse.from(page.map(ProgramApplyResponse::from));
     }
 
-    /**
-     * 내 신청 단건 조회
-     */
     @Transactional(readOnly = true)
     public ProgramApplyResponse getApply(Long userId, Long id) {
         ProgramApply apply = programApplyRepository.findById(id)
@@ -59,20 +51,6 @@ public class ProgramApplyService {
         return ProgramApplyResponse.from(apply);
     }
 
-    /**
-     * ✅ (추가) 후보 목록 조회: APPROVED만 반환
-     * - 콘테스트 투표 후보는 APPROVED만 노출하는 정책
-     * - 컨트롤러: GET /api/program-applies/programs/{programId}/candidates
-     */
-    @Transactional(readOnly = true)
-    public PageResponse<ProgramApplyResponse> getApprovedCandidates(Long programId, Pageable pageable) {
-        var page = programApplyRepository.findByProgramIdAndStatus(programId, ApplyStatus.APPROVED, pageable);
-        return PageResponse.from(page.map(ProgramApplyResponse::from));
-    }
-
-    /**
-     * 신청 생성
-     */
     public ProgramApplyResponse create(Long userId, ProgramApplyRequest req) {
         Program program = programRepository.findById(req.getProgramId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROGRAM_NOT_FOUND));
@@ -113,9 +91,6 @@ public class ProgramApplyService {
         }
     }
 
-    /**
-     * 신청 취소
-     */
     public void cancel(Long userId, Long id) {
         ProgramApply apply = programApplyRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROGRAM_APPLY_NOT_FOUND));

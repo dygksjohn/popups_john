@@ -62,4 +62,112 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Page<User> search(@Param("status") com.popups.pupoo.user.domain.enums.UserStatus status,
                       @Param("keyword") String keyword,
                       Pageable pageable);
+
+    /**
+     * [EMAIL] interest 구독자 + 마케팅 수신 동의 사용자 이메일 목록
+     */
+    @Query(value = """
+            select distinct u.email
+              from users u
+              join notification_settings ns
+                on ns.user_id = u.user_id
+               and ns.allow_marketing = 1
+              join user_interest_subscriptions s
+                on s.user_id = u.user_id
+               and s.status = 'ACTIVE'
+               and s.allow_email = 1
+              join event_interest_map eim
+                on eim.interest_id = s.interest_id
+               and eim.event_id = :eventId
+             where u.status = 'ACTIVE'
+            """, nativeQuery = true)
+    java.util.List<String> findDistinctMarketingEmailsForEventInterest(@Param("eventId") Long eventId);
+
+    /**
+     * [SMS] interest 구독자 + 마케팅 수신 동의 사용자 전화번호 목록
+     */
+    @Query(value = """
+            select distinct u.phone
+              from users u
+              join notification_settings ns
+                on ns.user_id = u.user_id
+               and ns.allow_marketing = 1
+              join user_interest_subscriptions s
+                on s.user_id = u.user_id
+               and s.status = 'ACTIVE'
+               and s.allow_sms = 1
+              join event_interest_map eim
+                on eim.interest_id = s.interest_id
+               and eim.event_id = :eventId
+             where u.status = 'ACTIVE'
+            """, nativeQuery = true)
+    java.util.List<String> findDistinctMarketingPhonesForEventInterest(@Param("eventId") Long eventId);
+
+    /**
+     * [EMAIL] 이벤트 참가자(APPROVED) + 마케팅 수신 동의 사용자 이메일 목록
+     */
+    @Query(value = """
+            select distinct u.email
+              from users u
+              join notification_settings ns
+                on ns.user_id = u.user_id
+               and ns.allow_marketing = 1
+              join event_apply ea
+                on ea.user_id = u.user_id
+               and ea.event_id = :eventId
+               and ea.status = 'APPROVED'
+             where u.status = 'ACTIVE'
+            """, nativeQuery = true)
+    java.util.List<String> findDistinctMarketingEmailsForEventRegistrants(@Param("eventId") Long eventId);
+
+    /**
+     * [SMS] 이벤트 참가자(APPROVED) + 마케팅 수신 동의 사용자 전화번호 목록
+     */
+    @Query(value = """
+            select distinct u.phone
+              from users u
+              join notification_settings ns
+                on ns.user_id = u.user_id
+               and ns.allow_marketing = 1
+              join event_apply ea
+                on ea.user_id = u.user_id
+               and ea.event_id = :eventId
+               and ea.status = 'APPROVED'
+             where u.status = 'ACTIVE'
+            """, nativeQuery = true)
+    java.util.List<String> findDistinctMarketingPhonesForEventRegistrants(@Param("eventId") Long eventId);
+
+    /**
+     * [EMAIL] 이벤트 결제완료(APPROVED) + 마케팅 수신 동의 사용자 이메일 목록
+     */
+    @Query(value = """
+            select distinct u.email
+              from users u
+              join notification_settings ns
+                on ns.user_id = u.user_id
+               and ns.allow_marketing = 1
+              join payments p
+                on p.user_id = u.user_id
+               and p.event_id = :eventId
+               and p.status = 'APPROVED'
+             where u.status = 'ACTIVE'
+            """, nativeQuery = true)
+    java.util.List<String> findDistinctMarketingEmailsForEventPayers(@Param("eventId") Long eventId);
+
+    /**
+     * [SMS] 이벤트 결제완료(APPROVED) + 마케팅 수신 동의 사용자 전화번호 목록
+     */
+    @Query(value = """
+            select distinct u.phone
+              from users u
+              join notification_settings ns
+                on ns.user_id = u.user_id
+               and ns.allow_marketing = 1
+              join payments p
+                on p.user_id = u.user_id
+               and p.event_id = :eventId
+               and p.status = 'APPROVED'
+             where u.status = 'ACTIVE'
+            """, nativeQuery = true)
+    java.util.List<String> findDistinctMarketingPhonesForEventPayers(@Param("eventId") Long eventId);
 }

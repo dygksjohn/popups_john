@@ -4,7 +4,7 @@ package com.popups.pupoo.user.domain.enums;
 public enum UserStatus {
 
     ACTIVE,      // 정상
-    INACTIVE,    // 탈퇴
-    SUSPENDED    // 정지
+    SUSPENDED,   // 정지
+    DELETED      // 탈퇴(종단 상태)
 
 }

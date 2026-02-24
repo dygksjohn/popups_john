@@ -13,6 +13,4 @@ import lombok.Setter;
 @NoArgsConstructor
 public class SignupCompleteRequest {
     private String signupKey;
-    private String socialProvider;   // "KAKAO"
-    private String socialProviderUid; // kakao user id
 }

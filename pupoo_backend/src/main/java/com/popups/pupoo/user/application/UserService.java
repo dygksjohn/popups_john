@@ -116,7 +116,8 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
 
-        user.setStatus(UserStatus.INACTIVE);
+        // 정책: 탈퇴는 DELETED(종단 상태)로 전이
+        user.setStatus(UserStatus.DELETED);
     }
 
     /**

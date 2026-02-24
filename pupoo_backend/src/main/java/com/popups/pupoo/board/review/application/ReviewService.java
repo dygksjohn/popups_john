@@ -1,6 +1,9 @@
 // file: src/main/java/com/popups/pupoo/board/review/application/ReviewService.java
 package com.popups.pupoo.board.review.application;
 
+import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
+import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
 import com.popups.pupoo.board.review.domain.enums.ReviewStatus;
 import com.popups.pupoo.board.review.domain.model.Review;
 import com.popups.pupoo.board.review.dto.*;
@@ -20,9 +23,18 @@ import java.time.LocalDateTime;
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
+    private final BoardRepository boardRepository;
+    private final BannedWordService bannedWordService;
 
     @Transactional
     public ReviewResponse create(Long userId, ReviewCreateRequest request) {
+        Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "REVIEW 게시판(board_type=REVIEW)이 존재하지 않습니다."))
+                .getBoardId();
+
+        // 금칙어 검증 (리뷰 작성 포함)
+        bannedWordService.validate(reviewBoardId, request.getContent());
+
         Review review = Review.builder()
                 .eventId(request.getEventId())
                 .userId(userId)
@@ -58,6 +70,13 @@ public class ReviewService {
         if (!review.getUserId().equals(userId)) {
             throw new SecurityException("수정 권한이 없습니다.");
         }
+
+        Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "REVIEW 게시판(board_type=REVIEW)이 존재하지 않습니다."))
+                .getBoardId();
+
+        // 금칙어 검증 (리뷰 수정 포함)
+        bannedWordService.validate(reviewBoardId, request.getContent());
 
         Review updated = Review.builder()
                 .reviewId(review.getReviewId())
