@@ -4,8 +4,26 @@ import SiteLayout from "./layouts/SiteLayout";
 import ScrollToTop from "./ScrollToTop";
 
 /* admin */
-import Intro from "./pages/admin/intro";
-import AdminDashboard from "./pages/admin/dashboard";
+import Dashboard from "./pages/admin/dashboard/Dashboard";
+import BoardManage from "./pages/admin/board/boardManage";
+import ForumHistory from "./pages/admin/board/ForumHistory";
+import NoticeManage from "./pages/admin/board/Notice";
+import EventManage from "./pages/admin/event/eventManage";
+import ProgramManage from "./pages/admin/program/programManage";
+import RealtimeData from "./pages/admin/realtime/RealtimeData.jsx";
+import PastEvents from "./pages/admin/past/PastEvents";
+import ZoneManage from "./pages/admin/zone/zoneManage";
+import ContestManage from "./pages/admin/contest/contestManage";
+import SessionManage from "./pages/admin/session/sessionManage";
+import Reviews from "./pages/admin/community/Reviews";
+import GalleryManage from "./pages/admin/gallery/Gallery";
+import ParticipantList from "./pages/admin/participant/ParticipantList";
+import ParticipantDetail from "./pages/admin/participant/ParticipantDetail";
+import CheckinManage from "./pages/admin/participant/CheckinManage";
+import SessionParticipation from "./pages/admin/participant/SessionParticipation";
+import PaymentManage from "./pages/admin/participant/PaymentManage";
+import AlertManage from "./pages/admin/participant/AlertManage";
+import ParticipantStats from "./pages/admin/participant/ParticipantStats";
 
 /* Home */
 import Home from "./pages/site/home/Home";
@@ -99,8 +117,40 @@ export default function App() {
 
       <Routes>
         {/* ---------------- 관리자 전용 ---------------- */}
-        <Route path="/admin/intro" element={<Intro />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/dashboard" element={<Dashboard />} />
+
+        <Route path="/admin/board" element={<BoardManage />} />
+        <Route path="/admin/board/history" element={<ForumHistory />} />
+        <Route path="/admin/board/notice" element={<NoticeManage />} />
+
+        <Route path="/admin/event" element={<EventManage />} />
+        <Route path="/admin/program" element={<ProgramManage />} />
+        <Route path="/admin/realtime" element={<RealtimeData />} />
+
+        <Route path="/admin/past" element={<PastEvents />} />
+        <Route path="/admin/zone" element={<ZoneManage />} />
+        <Route path="/admin/contest" element={<ContestManage />} />
+        <Route path="/admin/session" element={<SessionManage />} />
+        <Route path="/admin/community/reviews" element={<Reviews />} />
+        <Route path="/admin/gallery" element={<GalleryManage />} />
+
+        <Route path="/admin/participant" element={<ParticipantList />} />
+        <Route
+          path="/admin/participant/detail"
+          element={<ParticipantDetail />}
+        />
+        <Route
+          path="/admin/participant/detail/:id"
+          element={<ParticipantDetail />}
+        />
+        <Route path="/admin/participant/checkin" element={<CheckinManage />} />
+        <Route
+          path="/admin/participant/session"
+          element={<SessionParticipation />}
+        />
+        <Route path="/admin/participant/payment" element={<PaymentManage />} />
+        <Route path="/admin/participant/alert" element={<AlertManage />} />
+        <Route path="/admin/participant/stats" element={<ParticipantStats />} />
 
         {/* ---------------- 일반 사이트 ---------------- */}
         <Route element={<SiteLayout />}>
