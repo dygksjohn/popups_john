@@ -58,7 +58,7 @@ export default function KakaoJoin() {
     // ✅ 콜백에서 신규로 판단된 경우에만 여기로 오므로
     // providerUid 없으면 잘못된 진입
     if (!providerUid) {
-      navigate("/auth/join/joinselect", { replace: true });
+      navigate("/", { replace: true });
       return;
     }
 

@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "./pages/site/auth/AuthProvider";
 import SiteLayout from "./layouts/SiteLayout";
 import ScrollToTop from "./ScrollToTop";
 
@@ -78,6 +79,19 @@ import LocationPage from "./pages/site/guide/location";
 import Timetable from "./pages/site/guide/Timetable";
 import CheckinStatus from "./pages/site/realtime/CheckinStatus";
 
+function PublicOnly({ children }) {
+  const { isAuthed } = useAuth();
+  const location = useLocation();
+
+  // 로그인 상태면 public page(로그인/가입) 접근 금지 → 홈으로
+  if (isAuthed) {
+    // 원하면 "/" 대신 "/mypage"로 바꿔도 됨
+    return <Navigate to="/" replace state={{ from: location.pathname }} />;
+  }
+
+  return children;
+}
+
 export default function App() {
   return (
     <>
@@ -96,13 +110,55 @@ export default function App() {
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/mypage" element={<Mypage />} />
           <Route path="/mypage" element={<Mypage />} /> {/* 추가 */}
-          <Route path="/auth/join/joinselect" element={<JoinSelect />} />
-          <Route path="/auth/join/joinnormal" element={<JoinNormal />} />
-          <Route path="/auth/join/joinsocial" element={<JoinSocial />} />
+          <Route
+            path="/auth/join/joinselect"
+            element={
+              <PublicOnly>
+                <JoinSelect />
+              </PublicOnly>
+            }
+          />
+          <Route
+            path="/auth/join/joinnormal"
+            element={
+              <PublicOnly>
+                <JoinNormal />
+              </PublicOnly>
+            }
+          />
+          <Route
+            path="/auth/join/joinsocial"
+            element={
+              <PublicOnly>
+                <JoinSocial />
+              </PublicOnly>
+            }
+          />
           {/* Kakao */}
-          <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
-          <Route path="/auth/join/kakao" element={<KakaoJoin />} />
-          <Route path="/auth/join/kakao/otp" element={<KakaoOtp />} />
+          <Route
+            path="/auth/kakao/callback"
+            element={
+              <PublicOnly>
+                <KakaoCallback />
+              </PublicOnly>
+            }
+          />
+          <Route
+            path="/auth/join/kakao"
+            element={
+              <PublicOnly>
+                <KakaoJoin />
+              </PublicOnly>
+            }
+          />
+          <Route
+            path="/auth/join/kakao/otp"
+            element={
+              <PublicOnly>
+                <KakaoOtp />
+              </PublicOnly>
+            }
+          />
           {/* Alias (짧은 경로 지원) */}
           <Route path="/join" element={<JoinSelect />} />
           <Route path="/join/select" element={<JoinSelect />} />

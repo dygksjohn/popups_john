@@ -1,4 +1,8 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { authApi } from "./api/authApi";
+import { tokenStore } from "../../../app/http/tokenStore";
+import { useAuth } from "./AuthProvider";
 
 // ── Social button (reusable) ──────────────────────────────────────────────────
 const SocialButton = ({ onClick, style, children }) => {
@@ -87,6 +91,7 @@ const FloatingShape = ({ style }) => (
 // ── Main LoginPage component ──────────────────────────────────────────────────
 const LoginPage = ({ leftBgImage = null }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
 
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
@@ -97,6 +102,17 @@ const LoginPage = ({ leftBgImage = null }) => {
       console.error("Kakao env missing");
       return;
     }
+
+    // ✅ 로그인 성공 후 돌아갈 경로 저장
+    // 1순위: ProtectedRoute가 넘겨준 from
+    // 2순위: 직전 저장 값
+    // 3순위: 기본 홈
+    const redirectTo =
+      location.state?.from ||
+      sessionStorage.getItem("post_login_redirect") ||
+      "/";
+    sessionStorage.setItem("post_login_redirect", redirectTo);
+
     const params = new URLSearchParams({
       response_type: "code",
       client_id: KAKAO_REST_KEY,
@@ -126,6 +142,7 @@ const LoginPage = ({ leftBgImage = null }) => {
 
     setError("");
 
+    const email = (userId || "").trim(); // ✅ userId를 email로 사용
     if (!email.trim()) return setError("이메일을 입력하세요.");
     if (!password) return setError("비밀번호를 입력하세요.");
 
@@ -140,8 +157,12 @@ const LoginPage = ({ leftBgImage = null }) => {
 
       tokenStore.setAccess(accessToken);
       login(); // ✅ 전역 인증 상태 true -> 헤더 즉시 전환
-
-      navigate("/");
+      const redirectTo =
+        location.state?.from ||
+        sessionStorage.getItem("post_login_redirect") ||
+        "/";
+      sessionStorage.removeItem("post_login_redirect");
+      navigate(redirectTo, { replace: true });
     } catch (e) {
       setError(e?.response?.data?.message ?? e?.message ?? "로그인 실패");
     } finally {
@@ -372,6 +393,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                   onFocus={() => setFocusedField("id")}
                   onBlur={() => setFocusedField(null)}
                   style={inputStyle("id")}
+                  onKeyDown={handleKeyDown}
                 />
               </div>
 
@@ -385,6 +407,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                   onFocus={() => setFocusedField("pw")}
                   onBlur={() => setFocusedField(null)}
                   style={inputStyle("pw")}
+                  onKeyDown={handleKeyDown}
                 />
               </div>
 

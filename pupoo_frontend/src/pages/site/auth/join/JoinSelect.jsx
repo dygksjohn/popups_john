@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { tokenStore } from "../../../../app/http/tokenStore";
 
 /* ───────────────── ICONS ───────────────── */
 
@@ -70,18 +71,21 @@ export default function JoinSelect() {
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(null);
 
-  // ✅ JS SDK 필요 없음. OAuth 인가코드 방식은 REST 키 + redirect만으로 충분
+  // 🔥 여기로 이동 (handle 함수보다 위에!)
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
   const KAKAO_REDIRECT_URI =
     import.meta.env.VITE_KAKAO_REDIRECT_URI ||
     "http://localhost:5173/auth/kakao/callback";
 
   const handleKakaoContinue = () => {
-    // ✅ 카카오 플로우 시작 전 세션 초기화
+    tokenStore.clear(); // ✅ 이전 로그인 토큰 제거 (중요)
+    console.log("KAKAO_REST_KEY?", !!KAKAO_REST_KEY);
+    console.log("KAKAO_REDIRECT_URI =", KAKAO_REDIRECT_URI);
     sessionStorage.removeItem("kakao_auth_code");
     sessionStorage.removeItem("kakao_provider_uid");
     sessionStorage.removeItem("kakao_email");
     sessionStorage.removeItem("kakao_nickname");
+
     if (!KAKAO_REST_KEY) {
       alert("VITE_KAKAO_REST_KEY가 설정되지 않았습니다.");
       return;
@@ -140,7 +144,14 @@ export default function JoinSelect() {
         </p>
 
         <button
-          onClick={() => navigate("/auth/join/joinnormal")}
+          onClick={() => {
+            console.log(
+              "AUTHTOKEN",
+              localStorage.getItem("pupoo_access_token"),
+            );
+
+            navigate("/auth/join/joinnormal");
+          }}
           style={{
             width: "100%",
             height: 52,

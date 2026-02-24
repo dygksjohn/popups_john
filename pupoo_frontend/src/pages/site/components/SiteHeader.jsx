@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
 import { LogIn, UserPlus, UserCircle } from "lucide-react";
 
 /* ─────────────────────────────────────────────
@@ -521,6 +522,8 @@ const NavItem = ({
    MAIN HEADER
 ───────────────────────────────────────────── */
 export default function pupooHeader() {
+  const navigate = useNavigate();
+  const { isAuthed, logoutLocal } = useAuth();
   const [activeMenu, setActiveMenu] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef(null);
@@ -661,20 +664,47 @@ export default function pupooHeader() {
 
             {/* Right: Icons */}
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <IconButtonWithTooltip to="/auth/login" tooltip="로그인">
-                <LogIn size={23} color={iconColor} strokeWidth={1.5} />
-              </IconButtonWithTooltip>
+              {!isAuthed ? (
+                <>
+                  <IconButtonWithTooltip to="/auth/login" tooltip="로그인">
+                    <LogIn size={23} color={iconColor} strokeWidth={1.5} />
+                  </IconButtonWithTooltip>
 
-              <IconButtonWithTooltip
-                to="/auth/join/joinselect"
-                tooltip="회원가입"
-              >
-                <UserPlus size={23} color={iconColor} strokeWidth={1.5} />
-              </IconButtonWithTooltip>
+                  <IconButtonWithTooltip
+                    to="/auth/join/joinselect"
+                    tooltip="회원가입"
+                  >
+                    <UserPlus size={23} color={iconColor} strokeWidth={1.5} />
+                  </IconButtonWithTooltip>
+                </>
+              ) : (
+                <>
+                  {/* ✅ 로그아웃: Link로 하면 GET 이동이라 비추. 버튼으로 처리 */}
+                  <div style={{ display: "inline-block" }}>
+                    <button
+                      className="pupoo-icon-btn"
+                      onClick={() => {
+                        logoutLocal(); // 토큰 제거 + isAuthed false
+                        navigate("/", { replace: true });
+                      }}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px",
+                      }}
+                      title="로그아웃"
+                    >
+                      {/* LogIn 아이콘을 로그아웃처럼 쓰기 싫으면 lucide의 LogOut import 추천 */}
+                      <LogIn size={23} color={iconColor} strokeWidth={1.5} />
+                    </button>
+                  </div>
 
-              <IconButtonWithTooltip to="/mypage" tooltip="마이페이지">
-                <UserCircle size={23} color={iconColor} strokeWidth={1.5} />
-              </IconButtonWithTooltip>
+                  <IconButtonWithTooltip to="/mypage" tooltip="마이페이지">
+                    <UserCircle size={23} color={iconColor} strokeWidth={1.5} />
+                  </IconButtonWithTooltip>
+                </>
+              )}
             </div>
           </div>
         </header>
