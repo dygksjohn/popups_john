@@ -1,4 +1,4 @@
-
+// file: src/main/java/com/popups/pupoo/auth/application/EmailVerificationService.java
 package com.popups.pupoo.auth.application;
 
 import com.popups.pupoo.auth.domain.model.EmailVerificationToken;
@@ -35,7 +35,7 @@ public class EmailVerificationService {
             UserRepository userRepository,
             EmailVerificationTokenRepository tokenRepository,
             NotificationSender notificationSender,
-            @Value("${verification.hash.salt:}") String hashSalt,  // 기본값 빈문자열로 변경
+            @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
             @Value("${verification.email.base-url:http://localhost:8080}") String baseUrl,
             @Value("${verification.email.ttl-hours:24}") int tokenTtlHours,
             @Value("${verification.request.cooldown-seconds:60}") int requestCooldownSeconds,
@@ -51,15 +51,18 @@ public class EmailVerificationService {
         this.exposeDevToken = exposeDevToken;
     }
 
+    /**
+     * 이메일 인증 메일 발송(재발송 포함)
+     *
+     * 정책
+     * - local(email/password) 가입 사용자 대상.
+     * - email_verified=true면 멱등 처리 대신 409로 응답한다.
+     * - 토큰은 SHA-256 해시만 저장하고, 원문은 반환하지 않는다(운영).
+     */
     @Transactional
     public EmailVerificationRequestResponse requestEmailVerification(Long userId) {
-
-        // ✅ 개발환경에서는 hashSalt 없으면 그냥 스킵
-        if (hashSalt == null || hashSalt.isBlank()) {
-            return new EmailVerificationRequestResponse(
-                    LocalDateTime.now().plusHours(tokenTtlHours),
-                    null
-            );
+        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         }
 
         User user = userRepository.findById(userId)
@@ -84,8 +87,7 @@ public class EmailVerificationService {
 
         String verifyUrl = baseUrl + "/api/auth/email/verification/confirm?token=" + token;
         String subject = "POPUPS 이메일 인증";
-        String body = "이메일 인증을 완료하려면 아래 링크를 클릭하세요.\n\n" +
-                verifyUrl + "\n\n" +
+        String body = "이메일 인증을 완료하려면 아래 링크를 클릭하세요.\n\n" + verifyUrl + "\n\n" +
                 "이 링크는 " + tokenTtlHours + "시간 동안 유효합니다.";
 
         notificationSender.sendEmail(List.of(user.getEmail()), subject, body);
@@ -93,10 +95,12 @@ public class EmailVerificationService {
         return new EmailVerificationRequestResponse(expiresAt, exposeDevToken ? token : null);
     }
 
+    /**
+     * 이메일 인증 토큰 검증 및 사용자 상태 갱신
+     */
     @Transactional
     public void confirmEmailVerification(String token) {
-
-        if (hashSalt == null || hashSalt.isBlank()) {
+        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         }
 
