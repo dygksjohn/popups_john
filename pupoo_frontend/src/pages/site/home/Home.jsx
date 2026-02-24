@@ -1,8 +1,51 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
+// ================= 스크롤 reveal 훅 =================
+function useScrollReveal(options = {}) {
+  const { threshold = 0.15, rootMargin = "0px 0px -60px 0px" } = options;
+  const ref = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.unobserve(el);
+        }
+      },
+      { threshold, rootMargin },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold, rootMargin]);
+
+  return [ref, isVisible];
+}
+
+// 자식 요소들이 순차적으로 나타나는 stagger용
+function RevealSection({ children, className = "", delay = 0 }) {
+  const [ref, isVisible] = useScrollReveal();
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? "translateY(0)" : "translateY(40px)",
+        transition: `opacity 0.7s cubic-bezier(0.16,1,0.3,1) ${delay}s, transform 0.7s cubic-bezier(0.16,1,0.3,1) ${delay}s`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ================= EVENT SECTION =================
 function EventSection() {
   const [hoveredCard, setHoveredCard] = useState(null);
-
   const events = {
     left: {
       date: "2026.02.28(수)",
@@ -49,87 +92,60 @@ function EventSection() {
       ],
     },
   };
-
   return (
     <section className="w-full bg-gradient-to-b from-gray-50 to-white py-16 px-6">
       <div className="max-w-[1400px] mx-auto px-6">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">
-            2026 애견 행사 진행 안내
-          </p>
-
-          <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">
-            현재 진행 중인 반려견 행사
-          </h2>
-
-          <button className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300">
-            자세히 보기
-          </button>
-        </div>
-
-        {/* Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 relative">
-          {/* Divider */}
-          <div className="hidden lg:block absolute left-1/2 top-6 bottom-0 -translate-x-1/2">
-            <div
-              className="w-px h-full"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle, #d1d5db 1px, transparent 1px)",
-                backgroundSize: "1px 5px",
-                backgroundPosition: "center",
-              }}
-            />
+        <RevealSection>
+          <div className="text-center mb-10">
+            <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">
+              2026 애견 행사 진행 안내
+            </p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">
+              현재 진행 중인 반려견 행사
+            </h2>
+            <button className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300">
+              자세히 보기
+            </button>
           </div>
-
-          {/* Left */}
-          <div className="space-y-4">
-            <div
-              className={`${events.left.dateColor} ${events.left.dateTextColor} text-center py-3 rounded-xl font-semibold text-sm`}
-            >
-              {events.left.date}
+        </RevealSection>
+        <RevealSection delay={0.15}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 relative">
+            <div className="hidden lg:block absolute left-1/2 top-6 bottom-0 -translate-x-1/2">
+              <div
+                className="w-px h-full"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle, #d1d5db 1px, transparent 1px)",
+                  backgroundSize: "1px 5px",
+                }}
+              />
             </div>
-
-            <div className="space-y-4">
-              {events.left.items.map((event, idx) => (
-                <EventCard
-                  key={`left-${idx}`}
-                  event={event}
-                  isHovered={hoveredCard === `left-${idx}`}
-                  onHover={() => setHoveredCard(`left-${idx}`)}
-                  onLeave={() => setHoveredCard(null)}
-                />
-              ))}
-            </div>
+            {["left", "right"].map((side) => (
+              <div key={side} className="space-y-4">
+                <div
+                  className={`${events[side].dateColor} ${events[side].dateTextColor} text-center py-3 rounded-xl font-semibold text-sm`}
+                >
+                  {events[side].date}
+                </div>
+                <div className="space-y-4">
+                  {events[side].items.map((event, idx) => (
+                    <EventCard
+                      key={`${side}-${idx}`}
+                      event={event}
+                      isHovered={hoveredCard === `${side}-${idx}`}
+                      onHover={() => setHoveredCard(`${side}-${idx}`)}
+                      onLeave={() => setHoveredCard(null)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-
-          {/* Right */}
-          <div className="space-y-4">
-            <div
-              className={`${events.right.dateColor} ${events.right.dateTextColor} text-center py-3 rounded-xl font-semibold text-sm`}
-            >
-              {events.right.date}
-            </div>
-
-            <div className="space-y-4">
-              {events.right.items.map((event, idx) => (
-                <EventCard
-                  key={`right-${idx}`}
-                  event={event}
-                  isHovered={hoveredCard === `right-${idx}`}
-                  onHover={() => setHoveredCard(`right-${idx}`)}
-                  onLeave={() => setHoveredCard(null)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+        </RevealSection>
       </div>
     </section>
   );
 }
-
 function EventCard({ event, isHovered, onHover, onLeave }) {
   return (
     <div
@@ -138,31 +154,22 @@ function EventCard({ event, isHovered, onHover, onLeave }) {
       onMouseLeave={onLeave}
     >
       <div
-        className={`rounded-xl p-5 border border-gray-200 transition-all duration-300
-        ${
-          isHovered
-            ? "bg-gray-100 shadow-[0_6px_18px_rgba(0,0,0,0.08)] border-gray-300"
-            : "bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)]"
-        }`}
+        className={`rounded-xl p-5 border border-gray-200 transition-all duration-300 ${isHovered ? "bg-gray-100 border-gray-300" : "bg-white"}`}
       >
         <div className="text-center">
           <h3 className="text-base font-semibold text-gray-900 mb-1">
             {event.title}
           </h3>
-
           <p className="text-[13px] text-gray-600 leading-tight">
             {event.time}
           </p>
           <p className="text-[13px] text-gray-600 leading-tight">
             {event.location}
           </p>
-
-          {/* 🔥 버튼 영역 */}
           <div
-            className={`overflow-hidden transition-all duration-300 ease-out
-  ${isHovered ? "max-h-16 mt-3" : "max-h-0 mt-0"}`}
+            className={`overflow-hidden transition-all duration-300 ease-out ${isHovered ? "max-h-16 mt-3" : "max-h-0 mt-0"}`}
           >
-            <button className="bg-blue-600 text-white text-xs font-semibold px-4 py-1.5 transition-all duration-300 rounded-full">
+            <button className="bg-blue-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full">
               자세히 보기
             </button>
           </div>
@@ -172,6 +179,306 @@ function EventCard({ event, isHovered, onHover, onLeave }) {
   );
 }
 
+// ================= 무한루프 훅 =================
+function useInfiniteSlider(itemCount, slideSize) {
+  const CLONES = 15;
+  const CENTER = itemCount * 7;
+  const [index, setIndex] = useState(CENTER);
+  const [transition, setTransition] = useState(true);
+  const resetTimer = useRef(null);
+
+  const next = () => setIndex((p) => p + 1);
+  const prev = () => setIndex((p) => p - 1);
+  const goTo = (realIdx) => setIndex(CENTER + realIdx);
+
+  useEffect(() => {
+    clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(() => {
+      const mod = (((index - CENTER) % itemCount) + itemCount) % itemCount;
+      const target = CENTER + mod;
+      if (target !== index) {
+        setTransition(false);
+        setIndex(target);
+      }
+    }, 650);
+    return () => clearTimeout(resetTimer.current);
+  }, [index, itemCount]);
+
+  useEffect(() => {
+    if (!transition) {
+      const t = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setTransition(true));
+      });
+      return () => cancelAnimationFrame(t);
+    }
+  }, [transition]);
+
+  const realIndex = ((index % itemCount) + itemCount) % itemCount;
+  const offset = index * slideSize;
+
+  return {
+    index,
+    realIndex,
+    offset,
+    transition,
+    next,
+    prev,
+    goTo,
+    setIndex,
+    setTransition,
+    CLONES,
+  };
+}
+
+// ================= SPEAKER LINEUP =================
+const speakers = [
+  {
+    id: 1,
+    tag: "기조연설",
+    role: "수의학 박사 · 반려동물 행동 전문가",
+    image:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop",
+    name: "김도현 박사",
+  },
+  {
+    id: 2,
+    tag: "기조연설",
+    role: "서울대학교 동물학과 교수",
+    image:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=500&fit=crop",
+    name: "이준서 교수",
+  },
+  {
+    id: 3,
+    tag: "슈스등장",
+    role: "웰시코기 · 인스타 스타견",
+    image:
+      "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=500&fit=crop",
+    name: "콩이",
+  },
+  {
+    id: 4,
+    tag: "슈스등장",
+    role: "골든리트리버 · 세라피 도그",
+    image:
+      "https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=500&fit=crop",
+    name: "보리",
+  },
+  {
+    id: 5,
+    tag: "패널토론",
+    role: "펫 라이프스타일 에디터",
+    image:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop",
+    name: "박서연 에디터",
+  },
+  {
+    id: 6,
+    tag: "패널토론",
+    role: "동물복지 정책 연구원",
+    image:
+      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=500&fit=crop",
+    name: "최유진 연구원",
+  },
+];
+
+function SpeakerLineup() {
+  const GAP = 20;
+  const VISIBLE = 4;
+  const PEEK = 0.35;
+  const CARD_W = Math.floor((1400 - GAP * VISIBLE) / (VISIBLE + PEEK));
+  const SLIDE = CARD_W + GAP;
+
+  const slider = useInfiniteSlider(speakers.length, SLIDE);
+  const extended = Array.from({ length: slider.CLONES }, () => speakers).flat();
+
+  const [hovered, setHovered] = useState(null);
+  const dragRef = useRef({ startX: 0, currentX: 0, dragging: false });
+  const trackRef = useRef(null);
+
+  const onPointerDown = (e) => {
+    dragRef.current = {
+      startX: e.clientX,
+      currentX: e.clientX,
+      dragging: true,
+    };
+    slider.setTransition(false);
+  };
+  const onPointerMove = (e) => {
+    if (!dragRef.current.dragging) return;
+    dragRef.current.currentX = e.clientX;
+    const track = trackRef.current;
+    if (track) {
+      const delta = dragRef.current.currentX - dragRef.current.startX;
+      track.style.transform = `translate3d(${-slider.offset + delta}px, 0, 0)`;
+    }
+  };
+  const onPointerUp = () => {
+    if (!dragRef.current.dragging) return;
+    const delta = dragRef.current.currentX - dragRef.current.startX;
+    dragRef.current.dragging = false;
+    slider.setTransition(true);
+    if (delta < -50) slider.next();
+    else if (delta > 50) slider.prev();
+  };
+
+  const tagColor = {
+    기조연설: { bg: "bg-blue-600", text: "text-white" },
+    슈스등장: { bg: "bg-amber-500", text: "text-white" },
+    패널토론: { bg: "bg-violet-600", text: "text-white" },
+  };
+
+  return (
+    <div className="w-full bg-white py-20">
+      <div className="max-w-[1400px] mx-auto px-6">
+        <RevealSection>
+          <div className="text-center mb-10">
+            <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">
+              2026 애견 행사 진행 안내
+            </p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">
+              현재 진행 중인 반려견 행사
+            </h2>
+            <button className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300">
+              자세히 보기
+            </button>
+          </div>
+        </RevealSection>
+
+        <RevealSection delay={0.12}>
+          <div
+            className="overflow-hidden cursor-grab active:cursor-grabbing"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerLeave={onPointerUp}
+            style={{ userSelect: "none" }}
+          >
+            <div
+              ref={trackRef}
+              className="flex"
+              style={{
+                gap: GAP,
+                transform: `translate3d(-${slider.offset}px, 0, 0)`,
+                transition: slider.transition
+                  ? "transform 600ms cubic-bezier(0.16,1,0.3,1)"
+                  : "none",
+                willChange: "transform",
+              }}
+            >
+              {extended.map((speaker, i) => {
+                const isH = hovered === i;
+                const colors = tagColor[speaker.tag] || {
+                  bg: "bg-gray-600",
+                  text: "text-white",
+                };
+                return (
+                  <div
+                    key={i}
+                    style={{ width: CARD_W }}
+                    className="shrink-0"
+                    onMouseEnter={() => setHovered(i)}
+                    onMouseLeave={() => setHovered(null)}
+                  >
+                    <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-[3/4]">
+                      <img
+                        src={speaker.image}
+                        alt={speaker.name}
+                        className={`w-full h-full object-cover transition-all duration-700 ease-out ${isH ? "scale-105 grayscale-0" : "scale-100 grayscale"}`}
+                        draggable={false}
+                      />
+                      <div
+                        className="absolute inset-x-0 bottom-0 h-2/5"
+                        style={{
+                          background:
+                            "linear-gradient(to top, rgba(0,0,0,0.55), transparent)",
+                        }}
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 p-5">
+                        <p className="text-white font-bold text-lg">
+                          {speaker.name}
+                        </p>
+                        <p className="text-white/60 text-sm mt-0.5">
+                          {speaker.role}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <span
+                        className={`inline-block text-[11px] font-bold ${colors.bg} ${colors.text} px-2.5 py-1 rounded-md`}
+                      >
+                        {speaker.tag}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-8">
+            <div className="flex items-center gap-5">
+              <span className="text-sm font-bold tabular-nums text-gray-900">
+                {String(slider.realIndex + 1).padStart(2, "0")}
+                <span className="text-gray-300 mx-1.5">/</span>
+                {String(speakers.length).padStart(2, "0")}
+              </span>
+              <div className="flex gap-1.5">
+                {speakers.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => slider.goTo(i)}
+                    className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={slider.prev}
+                className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all duration-200 hover:border-gray-400 active:scale-95"
+              >
+                <svg
+                  className="w-4 h-4 text-gray-700"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+              <button
+                onClick={slider.next}
+                className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all duration-200 hover:border-gray-400 active:scale-95"
+              >
+                <svg
+                  className="w-4 h-4 text-gray-700"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </RevealSection>
+      </div>
+    </div>
+  );
+}
+
+// ================= RECOMMEND CAROUSEL =================
 function RecommendCarousel() {
   const items = [
     {
@@ -200,307 +507,159 @@ function RecommendCarousel() {
     },
   ];
 
-  const visibleCount = 4;
-  const cardWidth = 320;
-  const gap = 24;
-  const slideSize = cardWidth + gap;
-
-  // Clone entire items array on both sides for seamless infinite scroll
-  const extended = [...items, ...items, ...items];
-
-  const [index, setIndex] = useState(items.length);
-  const [transition, setTransition] = useState(true);
-
-  const next = () => setIndex((p) => p + 1);
-  const prev = () => setIndex((p) => p - 1);
-
-  const handleTransitionEnd = () => {
-    // If we've scrolled past the end of the second set, snap back to the first set
-    if (index >= items.length * 2) {
-      setTransition(false);
-      // Use double rAF for smoother reset
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIndex(items.length);
-        });
-      });
-      return;
-    }
-
-    // If we've scrolled before the start of the second set, snap to the end of second set
-    if (index < items.length) {
-      setTransition(false);
-      // Use double rAF for smoother reset
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIndex(items.length * 2 - 1);
-        });
-      });
-      return;
-    }
-  };
-
-  useEffect(() => {
-    if (!transition) {
-      // Re-enable transition after index reset
-      const timer = requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setTransition(true);
-        });
-      });
-      return () => cancelAnimationFrame(timer);
-    }
-  }, [transition]);
-
-  const realIndex = ((index % items.length) + items.length) % items.length;
-
-  return (
-    <div className="relative overflow-hidden w-full">
-      <div
-        className="flex"
-        style={{
-          gap: `${gap}px`,
-          transform: `translate3d(-${index * slideSize}px, 0, 0)`,
-          transition: transition
-            ? "transform 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-            : "none",
-          willChange: "transform",
-          backfaceVisibility: "hidden",
-          WebkitBackfaceVisibility: "hidden",
-          perspective: 1000,
-          WebkitPerspective: 1000,
-        }}
-        onTransitionEnd={handleTransitionEnd}
-      >
-        {extended.map((item, i) => (
-          <div key={i} className="w-[320px] shrink-0">
-            <img
-              src={item.img}
-              alt=""
-              className="h-[220px] w-full object-cover rounded-xl"
-            />
-            <div className="mt-4">
-              <div className="text-lg font-semibold">{item.title}</div>
-              <div className="text-sm text-gray-500 mt-1">{item.desc}</div>
-              <div className="inline-block mt-3 text-xs bg-gray-200 px-3 py-1 rounded-md">
-                {item.tag}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 하단 UI */}
-      <div className="flex items-center justify-between mt-10">
-        <div className="flex items-center gap-4">
-          <div className="text-sm font-semibold bg-black text-white px-3 py-1 rounded-full">
-            {realIndex + 1} / {items.length}
-          </div>
-
-          <div className="w-40 h-[4px] bg-gray-300 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-black transition-all duration-500"
-              style={{
-                width: `${((realIndex + 1) / items.length) * 100}%`,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* 버튼 */}
-        <div className="flex gap-4">
-          <button
-            onClick={prev}
-            className="group w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
-          >
-            <svg
-              className="w-5 h-5 text-gray-700 transition group-hover:text-black"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
-
-          <button
-            onClick={next}
-            className="group w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
-          >
-            <svg
-              className="w-5 h-5 text-gray-700 transition group-hover:text-black"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-/* */
-// ================= SPEAKER LINEUP =================
-const speakers = [
-  {
-    id: 1,
-    tag: "기조연설",
-    image:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop&grayscale",
-    name: "Speaker 1",
-  },
-  {
-    id: 2,
-    tag: "기조연설",
-    image:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=500&fit=crop&grayscale",
-    name: "Speaker 2",
-  },
-  {
-    id: 3,
-    tag: "슈스등장",
-    image:
-      "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=500&fit=crop&grayscale",
-    name: "Dog 1",
-  },
-  {
-    id: 4,
-    tag: "슈스등장",
-    image:
-      "https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=500&fit=crop&grayscale",
-    name: "Dog 2",
-  },
-  {
-    id: 5,
-    tag: "패널토론",
-    image:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop&grayscale",
-    name: "Speaker 3",
-  },
-  {
-    id: 6,
-    tag: "패널토론",
-    image:
-      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=500&fit=crop&grayscale",
-    name: "Speaker 4",
-  },
-];
-
-function SpeakerLineup() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  const TOTAL_WIDTH = 1400;
-  const VISIBLE_COUNT = 4;
   const GAP = 24;
+  const PEEK = 0.4;
+  const CARD_W = Math.floor((1400 - GAP * 3) / (3 + PEEK));
+  const SLIDE = CARD_W + GAP;
 
-  const CARD_WIDTH = (TOTAL_WIDTH - GAP * (VISIBLE_COUNT - 1)) / VISIBLE_COUNT;
+  const slider = useInfiniteSlider(items.length, SLIDE);
+  const extended = Array.from({ length: slider.CLONES }, () => items).flat();
 
-  const slideWidth = CARD_WIDTH + GAP;
-  const maxIndex = speakers.length - VISIBLE_COUNT;
+  const dragRef = useRef({ startX: 0, currentX: 0, dragging: false });
+  const trackRef = useRef(null);
 
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+  const onPointerDown = (e) => {
+    dragRef.current = {
+      startX: e.clientX,
+      currentX: e.clientX,
+      dragging: true,
+    };
+    slider.setTransition(false);
   };
-
-  const handlePrev = () => {
-    setCurrentIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
+  const onPointerMove = (e) => {
+    if (!dragRef.current.dragging) return;
+    dragRef.current.currentX = e.clientX;
+    const track = trackRef.current;
+    if (track) {
+      track.style.transform = `translate3d(${-slider.offset + (dragRef.current.currentX - dragRef.current.startX)}px, 0, 0)`;
+    }
+  };
+  const onPointerUp = () => {
+    if (!dragRef.current.dragging) return;
+    const delta = dragRef.current.currentX - dragRef.current.startX;
+    dragRef.current.dragging = false;
+    slider.setTransition(true);
+    if (delta < -50) slider.next();
+    else if (delta > 50) slider.prev();
   };
 
   return (
-    <div className="w-full bg-white py-16">
-      <div className="max-w-[1400px] mx-auto px-4 font-sans">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">
-            2026 애견 행사 진행 안내
-          </p>
-
-          <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">
-            현재 진행 중인 반려견 행사
-          </h2>
-
-          <button className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300">
-            자세히 보기
-          </button>
-        </div>
-
-        {/* Carousel */}
-        <div className="relative" style={{ width: TOTAL_WIDTH }}>
-          {/* 슬라이드 영역 */}
-          <div className="overflow-hidden">
-            <div
-              className="flex transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
-              style={{
-                gap: `${GAP}px`,
-                transform: `translateX(-${currentIndex * slideWidth}px)`,
-              }}
-            >
-              {speakers.map((speaker) => (
-                <div
-                  key={speaker.id}
-                  style={{ width: CARD_WIDTH }}
-                  className="shrink-0 flex flex-col"
-                >
-                  <span className="text-sm text-blue-600 font-semibold mb-2 pl-1">
-                    {speaker.tag}
-                  </span>
-
-                  <div className="relative overflow-hidden rounded-xl aspect-[3/4] bg-gray-200">
-                    <img
-                      src={speaker.image}
-                      alt={speaker.name}
-                      className="w-full h-full object-cover grayscale"
-                      draggable={false}
-                    />
-                  </div>
+    <div className="relative w-full">
+      <RevealSection>
+        <div
+          className="overflow-hidden cursor-grab active:cursor-grabbing"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerUp}
+          style={{ userSelect: "none" }}
+        >
+          <div
+            ref={trackRef}
+            className="flex"
+            style={{
+              gap: GAP,
+              transform: `translate3d(-${slider.offset}px, 0, 0)`,
+              transition: slider.transition
+                ? "transform 600ms cubic-bezier(0.16,1,0.3,1)"
+                : "none",
+              willChange: "transform",
+            }}
+          >
+            {extended.map((item, i) => (
+              <div key={i} style={{ width: CARD_W }} className="shrink-0 group">
+                <div className="relative overflow-hidden rounded-2xl">
+                  <img
+                    src={item.img}
+                    alt=""
+                    draggable={false}
+                    className="h-[260px] w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
+                <div className="mt-4">
+                  <div className="text-[17px] font-bold text-gray-900">
+                    {item.title}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1.5">
+                    {item.desc}
+                  </div>
+                  <span className="inline-block mt-3 text-xs font-medium bg-gray-200 text-gray-600 px-3 py-1 rounded-md">
+                    {item.tag}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-between mt-8">
+          <div className="flex items-center gap-5">
+            <span className="text-sm font-bold tabular-nums text-gray-900">
+              {String(slider.realIndex + 1).padStart(2, "0")}
+              <span className="text-gray-300 mx-1.5">/</span>
+              {String(items.length).padStart(2, "0")}
+            </span>
+            <div className="flex gap-1.5">
+              {items.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => slider.goTo(i)}
+                  className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`}
+                />
               ))}
             </div>
           </div>
-
-          {/* Left Button */}
-          <button
-            onClick={handlePrev}
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white border border-gray-300 shadow flex items-center justify-center hover:bg-gray-100 transition"
-          >
-            ‹
-          </button>
-
-          {/* Right Button */}
-          <button
-            onClick={handleNext}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white border border-gray-300 shadow flex items-center justify-center hover:bg-gray-100 transition"
-          >
-            ›
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={slider.prev}
+              className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all hover:border-gray-400 active:scale-95"
+            >
+              <svg
+                className="w-4 h-4 text-gray-700"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <button
+              onClick={slider.next}
+              className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all hover:border-gray-400 active:scale-95"
+            >
+              <svg
+                className="w-4 h-4 text-gray-700"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
-      </div>
+      </RevealSection>
     </div>
   );
 }
 
-/* */
-
+// ================= MAIN =================
 export default function Home() {
   const heroVideos = [
     "http://kgj.dothome.co.kr/pupoo/1.mov",
     "http://kgj.dothome.co.kr/pupoo/2.mov",
     "http://kgj.dothome.co.kr/pupoo/3.mp4",
   ];
-
-  // ================= HERO VIDEO =================
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [fade, setFade] = useState(true);
   const [progress, setProgress] = useState(0);
@@ -510,27 +669,20 @@ export default function Home() {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-
     const updateProgress = () => {
-      if (!video.duration) return;
-      setProgress((video.currentTime / video.duration) * 100);
+      if (video.duration)
+        setProgress((video.currentTime / video.duration) * 100);
     };
-
     const handleEnded = () => {
       setFade(false);
       setProgress(0);
-
       setTimeout(() => {
-        setCurrentVideoIndex((prev) =>
-          prev === heroVideos.length - 1 ? 0 : prev + 1,
-        );
+        setCurrentVideoIndex((p) => (p === heroVideos.length - 1 ? 0 : p + 1));
         setFade(true);
       }, 600);
     };
-
     video.addEventListener("timeupdate", updateProgress);
     video.addEventListener("ended", handleEnded);
-
     return () => {
       video.removeEventListener("timeupdate", updateProgress);
       video.removeEventListener("ended", handleEnded);
@@ -538,15 +690,15 @@ export default function Home() {
   }, [currentVideoIndex]);
 
   const togglePlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    isPlaying ? video.pause() : video.play();
+    const v = videoRef.current;
+    if (!v) return;
+    isPlaying ? v.pause() : v.play();
     setIsPlaying(!isPlaying);
   };
 
   return (
     <div>
-      {/* HERO */}
+      {/* HERO — 애니메이션 없음 */}
       <section className="relative h-screen w-full overflow-hidden">
         <video
           ref={videoRef}
@@ -555,9 +707,7 @@ export default function Home() {
           autoPlay
           muted
           playsInline
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
-            fade ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${fade ? "opacity-100" : "opacity-0"}`}
         />
         <div className="absolute inset-0 bg-black/40" />
         <div className="relative h-full flex items-center justify-center">
@@ -572,8 +722,6 @@ export default function Home() {
             </p>
           </div>
         </div>
-
-        {/* Progress + Controls */}
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[300px]">
           <div className="relative h-[2px] bg-white/30">
             <div
@@ -581,72 +729,76 @@ export default function Home() {
               style={{ width: `${progress}%` }}
             />
           </div>
-
           <div className="flex justify-between items-center mt-3 text-white text-sm">
             <span>
               {String(currentVideoIndex + 1).padStart(2, "0")} /{" "}
               {String(heroVideos.length).padStart(2, "0")}
             </span>
-
             <button type="button" onClick={togglePlay}>
               {isPlaying ? "❚❚" : "▶"}
             </button>
           </div>
         </div>
-      </section>{" "}
-      {/* 끝 */}
+      </section>
+
+      {/* 스크롤 시 착착 등장 */}
       <SpeakerLineup />
       <EventSection />
-      {/* RECOMMEND CAROUSEL */}
+
       <section className="bg-[#f4f5f7] py-24 overflow-hidden">
         <div className="max-w-[1400px] mx-auto px-6">
-          <h2 className="text-2xl md:text-3xl font-extrabold mb-8">
-            <span className="text-blue-600">당신이</span> 좋아할 만한 추천 행사
-          </h2>
-
-          <div className="bg-[#e9eaee] rounded-xl px-6 py-4 text-sm text-gray-700 mb-12">
-            ‘나의 성향에 따른 맞춤형 행사’가 추천되고 있습니다.
-          </div>
-
+          <RevealSection>
+            <h2 className="text-2xl md:text-3xl font-extrabold mb-8">
+              <span className="text-blue-600">당신이</span> 좋아할 만한 추천
+              행사
+            </h2>
+          </RevealSection>
+          <RevealSection delay={0.08}>
+            <div className="bg-[#e9eaee] rounded-xl px-6 py-4 text-sm text-gray-700 mb-12">
+              '나의 성향에 따른 맞춤형 행사'가 추천되고 있습니다.
+            </div>
+          </RevealSection>
           <RecommendCarousel />
         </div>
       </section>
+
       {/* NOTICE */}
       <section className="bg-black text-white py-24">
         <div className="max-w-[1400px] mx-auto px-6 grid md:grid-cols-2 gap-16">
           {["공지사항", "관련기사"].map((section, idx) => (
-            <div key={idx}>
-              <div className="flex justify-between items-center mb-10">
-                <h3 className="text-3xl font-extrabold">{section}</h3>
-                <button
-                  type="button"
-                  className="text-sm text-white/70 hover:text-white"
-                >
-                  more +
-                </button>
-              </div>
-
-              <div className="space-y-10">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="group cursor-pointer">
-                    <div className="flex justify-between">
-                      <div>
-                        <div className="text-lg font-semibold group-hover:text-gray-300 transition">
-                          샘플 제목 {i}
+            <RevealSection key={idx} delay={idx * 0.12}>
+              <div>
+                <div className="flex justify-between items-center mb-10">
+                  <h3 className="text-3xl font-extrabold">{section}</h3>
+                  <button
+                    type="button"
+                    className="text-sm text-white/70 hover:text-white"
+                  >
+                    more +
+                  </button>
+                </div>
+                <div className="space-y-10">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="group cursor-pointer">
+                      <div className="flex justify-between">
+                        <div>
+                          <div className="text-lg font-semibold group-hover:text-gray-300 transition">
+                            샘플 제목 {i}
+                          </div>
+                          <div className="mt-3 text-sm text-white/60">
+                            2026.02.12
+                          </div>
                         </div>
-                        <div className="mt-3 text-sm text-white/60">
-                          2026.02.12
+                        <div className="text-3xl text-white/60 group-hover:text-white transition">
+                          +
                         </div>
                       </div>
-                      <div className="text-3xl text-white/60 group-hover:text-white transition">
-                        +
-                      </div>
+                      <div className="mt-6 border-b border-white/20" />
                     </div>
-                    <div className="mt-6 border-b border-white/20" />
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            </RevealSection>
           ))}
         </div>
       </section>
