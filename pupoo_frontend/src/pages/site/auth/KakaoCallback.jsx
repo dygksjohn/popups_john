@@ -79,7 +79,7 @@ export default function KakaoCallback() {
         sessionStorage.setItem("kakao_email", data.email ?? "");
         sessionStorage.setItem("kakao_nickname", data.nickname ?? "");
 
-        navigate("/auth/join/joinnormal", {
+        navigate("/auth/join/kakao", {
           replace: true,
           state: {
             signupType: "SOCIAL",
