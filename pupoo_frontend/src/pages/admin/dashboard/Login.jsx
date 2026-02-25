@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { authApi, unwrap, setToken } from "../../../api/noticeApi";
 
 export default function AdminLogin() {
   useEffect(() => {
@@ -12,25 +13,42 @@ export default function AdminLogin() {
   const [pw, setPw] = useState("");
   const [accountType, setAccountType] = useState("admin");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // 🔹 Tab 자동 입력
+  // Tab 자동 입력
   const handleIdKeyDown = (e) => {
     if (e.key === "Tab") {
       e.preventDefault();
-      setId("admin");
-      setPw("1234");
+      setId("admin@pupoo.com");
+      setPw("admin1234");
     }
   };
 
-  // 🔹 로그인 검증
-  const handleLogin = (e) => {
+  // 실제 API 로그인
+  const handleLogin = async (e) => {
     e.preventDefault();
+    if (!id || !pw) {
+      setError("아이디와 비밀번호를 입력하세요.");
+      return;
+    }
 
-    if (id === "admin" && pw === "1234") {
-      setError("");
+    setLoading(true);
+    setError("");
+    try {
+      const res = await authApi.login(id, pw);
+      const data = unwrap(res);
+      const token = data?.accessToken || data?.token;
+      if (!token) {
+        setError("토큰을 받지 못했습니다.");
+        return;
+      }
+      setToken(token);
       navigate("/admin/dashboard");
-    } else {
+    } catch (err) {
+      console.error("[Login error]", err);
       setError("관리자 계정 정보가 올바르지 않습니다.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,7 +73,6 @@ export default function AdminLogin() {
           boxShadow: "0 25px 60px rgba(0,0,0,0.08)",
         }}
       >
-        {/* Logo */}
         <div
           style={{
             display: "flex",
@@ -66,14 +83,10 @@ export default function AdminLogin() {
           <img
             src="/logo_blue.png"
             alt="PUPU Logo"
-            style={{
-              height: "38px",
-              objectFit: "contain",
-            }}
+            style={{ height: "38px", objectFit: "contain" }}
           />
         </div>
 
-        {/* Custom Radio */}
         <div
           style={{
             display: "flex",
@@ -96,17 +109,15 @@ export default function AdminLogin() {
           />
         </div>
 
-        {/* Form */}
         <form onSubmit={handleLogin}>
           <input
             type="text"
-            placeholder="아이디"
+            placeholder="이메일"
             value={id}
             onChange={(e) => setId(e.target.value)}
             onKeyDown={handleIdKeyDown}
             style={pillInput}
           />
-
           <input
             type="password"
             placeholder="비밀번호"
@@ -130,6 +141,7 @@ export default function AdminLogin() {
 
           <button
             type="submit"
+            disabled={loading}
             style={{
               width: "100%",
               padding: "18px",
@@ -140,14 +152,14 @@ export default function AdminLogin() {
               background: "#006BF0",
               color: "#fff",
               marginTop: "16px",
-              cursor: "pointer",
+              cursor: loading ? "wait" : "pointer",
+              opacity: loading ? 0.7 : 1,
             }}
           >
-            관리자 로그인
+            {loading ? "로그인 중..." : "관리자 로그인"}
           </button>
         </form>
 
-        {/* Bottom Links */}
         <div
           style={{
             marginTop: "28px",
@@ -160,17 +172,13 @@ export default function AdminLogin() {
           찾기&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;관리자
           만들기
         </div>
-
-        {/* Notice Section (복구됨) */}
       </div>
     </div>
   );
 }
 
-/* Custom Radio Component */
 function Radio({ label, value, selected, onChange }) {
   const active = selected === value;
-
   return (
     <div
       onClick={() => onChange(value)}
@@ -201,7 +209,6 @@ function Radio({ label, value, selected, onChange }) {
   );
 }
 
-/* Input Style */
 const pillInput = {
   width: "100%",
   padding: "18px 22px",

@@ -26,6 +26,7 @@ export default function KakaoCallback() {
         });
         return;
       }
+
       if (!code) {
         navigate("/auth/login", {
           replace: true,
@@ -33,6 +34,11 @@ export default function KakaoCallback() {
         });
         return;
       }
+
+      // ✅ 이전 카카오 가입 세션 값 초기화(꼬임 방지)
+      sessionStorage.removeItem("kakao_provider_uid");
+      sessionStorage.removeItem("kakao_email");
+      sessionStorage.removeItem("kakao_nickname");
 
       try {
         const data = await authApi.kakaoLogin({ code });
@@ -49,21 +55,18 @@ export default function KakaoCallback() {
         // ✅ 기존회원: 즉시 로그인
         if (!data.newUser) {
           console.log("EXISTING USER BRANCH");
-          if (!data.accessToken) {
+
+          const accessToken = data.accessToken;
+          if (!accessToken) {
             navigate("/auth/login", {
               replace: true,
               state: { error: "accessToken이 없습니다." },
             });
             return;
           }
-          console.log("SETTING TOKEN", data.accessToken);
 
-          tokenStore.setAccess(data.accessToken);
+          tokenStore.setAccess(accessToken);
           login();
-          console.log(
-            "AFTER LOGIN isAuthed?",
-            localStorage.getItem("pupoo_access_token"),
-          );
 
           const redirectTo =
             sessionStorage.getItem("post_login_redirect") || "/";
@@ -72,23 +75,23 @@ export default function KakaoCallback() {
           return;
         }
 
-        // ✅ 신규회원: 가입 페이지로 이동(세션 저장)
+        // ✅ 신규회원: 카카오 가입 페이지로 이동 (정책 A: 이메일이 없으면 KakaoJoin에서 직접 입력)
         console.log("NEW USER BRANCH");
+
         const uid = data.socialProviderUid ?? "";
+        if (!uid) {
+          navigate("/auth/login", {
+            replace: true,
+            state: { error: "카카오 UID가 없습니다." },
+          });
+          return;
+        }
+
         sessionStorage.setItem("kakao_provider_uid", uid);
         sessionStorage.setItem("kakao_email", data.email ?? "");
         sessionStorage.setItem("kakao_nickname", data.nickname ?? "");
 
-        navigate("/auth/join/joinnormal", {
-          replace: true,
-          state: {
-            signupType: "SOCIAL",
-            socialProvider: "KAKAO",
-            socialProviderUid: uid,
-            email: data.email ?? "",
-            nickname: data.nickname ?? "",
-          },
-        });
+        navigate("/auth/join/kakao", { replace: true });
       } catch (e) {
         navigate("/auth/login", {
           replace: true,
