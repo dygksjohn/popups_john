@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { noticeApi, unwrap } from "../../../api/noticeApi";
 
 // ================= 스크롤 reveal 훅 =================
 function useScrollReveal(options = {}) {
   const { threshold = 0.15, rootMargin = "0px 0px -60px 0px" } = options;
   const ref = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
-
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -21,11 +22,9 @@ function useScrollReveal(options = {}) {
     observer.observe(el);
     return () => observer.disconnect();
   }, [threshold, rootMargin]);
-
   return [ref, isVisible];
 }
 
-// 자식 요소들이 순차적으로 나타나는 stagger용
 function RevealSection({ children, className = "", delay = 0 }) {
   const [ref, isVisible] = useScrollReveal();
   return (
@@ -186,11 +185,9 @@ function useInfiniteSlider(itemCount, slideSize) {
   const [index, setIndex] = useState(CENTER);
   const [transition, setTransition] = useState(true);
   const resetTimer = useRef(null);
-
   const next = () => setIndex((p) => p + 1);
   const prev = () => setIndex((p) => p - 1);
   const goTo = (realIdx) => setIndex(CENTER + realIdx);
-
   useEffect(() => {
     clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => {
@@ -203,7 +200,6 @@ function useInfiniteSlider(itemCount, slideSize) {
     }, 650);
     return () => clearTimeout(resetTimer.current);
   }, [index, itemCount]);
-
   useEffect(() => {
     if (!transition) {
       const t = requestAnimationFrame(() => {
@@ -212,10 +208,8 @@ function useInfiniteSlider(itemCount, slideSize) {
       return () => cancelAnimationFrame(t);
     }
   }, [transition]);
-
   const realIndex = ((index % itemCount) + itemCount) % itemCount;
   const offset = index * slideSize;
-
   return {
     index,
     realIndex,
@@ -288,14 +282,11 @@ function SpeakerLineup() {
   const PEEK = 0.35;
   const CARD_W = Math.floor((1400 - GAP * VISIBLE) / (VISIBLE + PEEK));
   const SLIDE = CARD_W + GAP;
-
   const slider = useInfiniteSlider(speakers.length, SLIDE);
   const extended = Array.from({ length: slider.CLONES }, () => speakers).flat();
-
   const [hovered, setHovered] = useState(null);
   const dragRef = useRef({ startX: 0, currentX: 0, dragging: false });
   const trackRef = useRef(null);
-
   const onPointerDown = (e) => {
     dragRef.current = {
       startX: e.clientX,
@@ -321,7 +312,6 @@ function SpeakerLineup() {
     if (delta < -50) slider.next();
     else if (delta > 50) slider.prev();
   };
-
   const tagColor = {
     기조연설: { bg: "bg-blue-600", text: "text-white" },
     슈스등장: { bg: "bg-amber-500", text: "text-white" },
@@ -344,7 +334,6 @@ function SpeakerLineup() {
             </button>
           </div>
         </RevealSection>
-
         <RevealSection delay={0.12}>
           <div
             className="overflow-hidden cursor-grab active:cursor-grabbing"
@@ -415,7 +404,6 @@ function SpeakerLineup() {
               })}
             </div>
           </div>
-
           <div className="flex items-center justify-between mt-8">
             <div className="flex items-center gap-5">
               <span className="text-sm font-bold tabular-nums text-gray-900">
@@ -506,18 +494,14 @@ function RecommendCarousel() {
       img: "https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=1200&q=80",
     },
   ];
-
   const GAP = 24;
   const PEEK = 0.4;
   const CARD_W = Math.floor((1400 - GAP * 3) / (3 + PEEK));
   const SLIDE = CARD_W + GAP;
-
   const slider = useInfiniteSlider(items.length, SLIDE);
   const extended = Array.from({ length: slider.CLONES }, () => items).flat();
-
   const dragRef = useRef({ startX: 0, currentX: 0, dragging: false });
   const trackRef = useRef(null);
-
   const onPointerDown = (e) => {
     dragRef.current = {
       startX: e.clientX,
@@ -653,6 +637,114 @@ function RecommendCarousel() {
   );
 }
 
+// ================= NOTICE SECTION (API 연동) =================
+function fmtDate(dt) {
+  if (!dt) return "-";
+  const d = new Date(dt);
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function NoticeSection() {
+  const navigate = useNavigate();
+  const [notices, setNotices] = useState([]);
+
+  useEffect(() => {
+    noticeApi
+      .list(1, 3)
+      .then((res) => {
+        const d = unwrap(res);
+        setNotices(d?.content?.slice(0, 3) || []);
+      })
+      .catch(() => setNotices([]));
+  }, []);
+
+  // 후기는 아직 API 없으므로 더미
+  const articles = [
+    { title: "반려동물 산업 2026 트렌드 분석", date: "2026.02.20" },
+    { title: "펫 테크 스타트업 투자 현황", date: "2026.02.18" },
+    { title: "반려동물 동반 여행 시장 성장세", date: "2026.02.15" },
+  ];
+
+  const sections = [
+    {
+      title: "공지사항",
+      items: notices.map((n) => ({
+        title: n.title,
+        date: fmtDate(n.createdAt),
+      })),
+      morePath: "/community/notice",
+    },
+    {
+      title: "후기 게시판",
+      items: articles,
+      morePath: "/community/review",
+    },
+  ];
+
+  return (
+    <section className="bg-black text-white py-24">
+      <div className="max-w-[1400px] mx-auto px-6 grid md:grid-cols-2 gap-16">
+        {sections.map((section, idx) => (
+          <RevealSection key={idx} delay={idx * 0.12}>
+            <div>
+              <div className="flex justify-between items-center mb-10">
+                <h3 className="text-3xl font-extrabold">{section.title}</h3>
+                <button
+                  type="button"
+                  className="text-sm text-white/70 hover:text-white transition"
+                  onClick={() => section.morePath && navigate(section.morePath)}
+                >
+                  more +
+                </button>
+              </div>
+              <div className="space-y-10">
+                {section.items.length > 0
+                  ? section.items.map((item, i) => (
+                      <div
+                        key={i}
+                        className="group cursor-pointer"
+                        onClick={() =>
+                          section.morePath && navigate(section.morePath)
+                        }
+                      >
+                        <div className="flex justify-between">
+                          <div>
+                            <div className="text-lg font-semibold group-hover:text-gray-300 transition">
+                              {item.title}
+                            </div>
+                            <div className="mt-3 text-sm text-white/60">
+                              {item.date}
+                            </div>
+                          </div>
+                          <div className="text-3xl text-white/60 group-hover:text-white transition">
+                            +
+                          </div>
+                        </div>
+                        <div className="mt-6 border-b border-white/20" />
+                      </div>
+                    ))
+                  : [1, 2, 3].map((i) => (
+                      <div key={i} className="group cursor-pointer">
+                        <div className="flex justify-between">
+                          <div>
+                            <div className="text-lg font-semibold text-white/30">
+                              불러오는 중...
+                            </div>
+                            <div className="mt-3 text-sm text-white/20">-</div>
+                          </div>
+                        </div>
+                        <div className="mt-6 border-b border-white/20" />
+                      </div>
+                    ))}
+              </div>
+            </div>
+          </RevealSection>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ================= MAIN =================
 export default function Home() {
   const heroVideos = [
@@ -698,7 +790,6 @@ export default function Home() {
 
   return (
     <div>
-      {/* HERO — 애니메이션 없음 */}
       <section className="relative h-screen w-full overflow-hidden">
         <video
           ref={videoRef}
@@ -741,7 +832,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 스크롤 시 착착 등장 */}
       <SpeakerLineup />
       <EventSection />
 
@@ -762,46 +852,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* NOTICE */}
-      <section className="bg-black text-white py-24">
-        <div className="max-w-[1400px] mx-auto px-6 grid md:grid-cols-2 gap-16">
-          {["공지사항", "관련기사"].map((section, idx) => (
-            <RevealSection key={idx} delay={idx * 0.12}>
-              <div>
-                <div className="flex justify-between items-center mb-10">
-                  <h3 className="text-3xl font-extrabold">{section}</h3>
-                  <button
-                    type="button"
-                    className="text-sm text-white/70 hover:text-white"
-                  >
-                    more +
-                  </button>
-                </div>
-                <div className="space-y-10">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="group cursor-pointer">
-                      <div className="flex justify-between">
-                        <div>
-                          <div className="text-lg font-semibold group-hover:text-gray-300 transition">
-                            샘플 제목 {i}
-                          </div>
-                          <div className="mt-3 text-sm text-white/60">
-                            2026.02.12
-                          </div>
-                        </div>
-                        <div className="text-3xl text-white/60 group-hover:text-white transition">
-                          +
-                        </div>
-                      </div>
-                      <div className="mt-6 border-b border-white/20" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </RevealSection>
-          ))}
-        </div>
-      </section>
+      <NoticeSection />
     </div>
   );
 }

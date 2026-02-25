@@ -1,76 +1,482 @@
 import { useState } from "react";
-import { MapPin } from "lucide-react";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  MapPin,
+  Users,
+  Activity,
+  Zap,
+  BarChart3,
+  ChevronRight,
+} from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
 } from "recharts";
-import ds, { cardStyle } from "../shared/designTokens";
-import { Bar2, ChartTip, DataTable, TRow, Td, MiniStat } from "../shared/Components";
+import ds from "../shared/designTokens";
 import DATA from "../shared/data";
 
+/* ── 커스텀 차트 툴팁 ── */
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #F1F5F9",
+        borderRadius: 8,
+        padding: "8px 12px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+        fontSize: 12,
+      }}
+    >
+      <div style={{ fontWeight: 700, color: ds.ink, marginBottom: 2 }}>
+        {label}
+      </div>
+      <div style={{ color: "#64748B" }}>{payload[0].value}%</div>
+    </div>
+  );
+}
+
+/* ── 스탯 카드 ── */
+function StatCard({ icon: I, label, value, sub }) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 10,
+        border: "1px solid #F1F5F9",
+        padding: 16,
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 9,
+          background: "#F8FAFC",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <I size={16} color="#64748B" />
+      </div>
+      <div>
+        <div
+          style={{
+            fontSize: 11,
+            color: "#94A3B8",
+            fontWeight: 600,
+            marginBottom: 2,
+          }}
+        >
+          {label}
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: ds.ink }}>
+          {value}
+        </div>
+        {sub && (
+          <div style={{ fontSize: 10.5, color: "#94A3B8", marginTop: 1 }}>
+            {sub}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── 미니 프로그레스 바 ── */
+function MiniProgress({ pct }) {
+  const color = pct >= 90 ? "#EF4444" : pct >= 70 ? "#F59E0B" : ds.brand;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div
+        style={{ flex: 1, height: 4, borderRadius: 2, background: "#F1F5F9" }}
+      >
+        <div
+          style={{
+            width: `${Math.min(pct, 100)}%`,
+            height: "100%",
+            borderRadius: 2,
+            background: color,
+            transition: "width .3s",
+          }}
+        />
+      </div>
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color,
+          minWidth: 32,
+          textAlign: "right",
+        }}
+      >
+        {pct}%
+      </span>
+    </div>
+  );
+}
+
 export default function PastEvents() {
-  const [selected, setSelected] = useState(null);
-  const ev = selected ? DATA.pastEvents.find(e => e.id === selected) : DATA.pastEvents[0];
+  const [selectedId, setSelectedId] = useState(null);
+  const events = DATA.pastEvents || [];
+  const ev = selectedId
+    ? events.find((e) => e.id === selectedId) || events[0]
+    : events[0];
+
+  if (!ev) return null;
+
+  const totalParticipants = events.reduce((a, b) => a + b.participants, 0);
+  const avgZoneUsage = Math.round(
+    events.reduce((a, b) => a + b.zoneUsage, 0) / events.length,
+  );
+  const avgEventRate = Math.round(
+    events.reduce((a, b) => a + b.eventRate, 0) / events.length,
+  );
+  const avgCongestion = Math.round(
+    events.reduce((a, b) => a + b.avgCongestion, 0) / events.length,
+  );
+  const capacityPct = Math.round((ev.participants / ev.capacity) * 100);
 
   return (
     <div>
-      {/* KPI 요약 */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 18 }}>
-        <MiniStat label="총 참가자 수" value={DATA.pastEvents.reduce((a, b) => a + b.participants, 0).toLocaleString()} sub="지난 5개 행사 합산" color={ds.brand} />
-        <MiniStat label="평균 체험 이용률" value={`${Math.round(DATA.pastEvents.reduce((a, b) => a + b.zoneUsage, 0) / DATA.pastEvents.length)}%`} sub="체험존 평균" color={ds.green} />
-        <MiniStat label="평균 이벤트 참여율" value={`${Math.round(DATA.pastEvents.reduce((a, b) => a + b.eventRate, 0) / DATA.pastEvents.length)}%`} sub="이벤트 참여 평균" color={ds.violet} />
-        <MiniStat label="평균 혼잡도" value={`${Math.round(DATA.pastEvents.reduce((a, b) => a + b.avgCongestion, 0) / DATA.pastEvents.length)}%`} sub="평균 피크 시간대" color={ds.amber} />
+      {/* KPI */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
+        <StatCard
+          icon={Users}
+          label="총 참가자 수"
+          value={totalParticipants.toLocaleString()}
+          sub={`지난 ${events.length}개 행사 합산`}
+        />
+        <StatCard
+          icon={Activity}
+          label="평균 체험 이용률"
+          value={`${avgZoneUsage}%`}
+          sub="체험존 평균"
+        />
+        <StatCard
+          icon={Zap}
+          label="평균 이벤트 참여율"
+          value={`${avgEventRate}%`}
+          sub="이벤트 참여 평균"
+        />
+        <StatCard
+          icon={BarChart3}
+          label="평균 혼잡도"
+          value={`${avgCongestion}%`}
+          sub="평균 피크 시간대"
+        />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 14 }}>
-        {/* 목록 테이블 */}
-        <DataTable title="지난 행사 목록" count={DATA.pastEvents.length}
-          columns={[{ label: "ID" }, { label: "행사명" }, { label: "일자" }, { label: "장소" }, { label: "참가자", align: "right" }, { label: "이용률", align: "right" }, { label: "참여율", align: "right" }]}
-          rows={DATA.pastEvents}
-          renderRow={r => (
-            <TRow key={r.id}>
-              <Td mono>{r.id}</Td>
-              <Td bold><span style={{ cursor: "pointer", color: ds.brand }} onClick={() => setSelected(r.id)}>{r.name}</span></Td>
-              <Td>{r.date}</Td>
-              <Td><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><MapPin size={12} />{r.location}</span></Td>
-              <Td align="right" bold>{r.participants.toLocaleString()}</Td>
-              <Td align="right">{r.zoneUsage}%</Td>
-              <Td align="right">{r.eventRate}%</Td>
-            </TRow>
-          )}
-        />
+      <div
+        style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 14 }}
+      >
+        {/* 테이블 */}
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 12,
+            border: "1px solid #F1F5F9",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "12px 20px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              borderBottom: "1px solid #F1F5F9",
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
+              지난 행사 목록
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
+              {events.length}건
+            </span>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #F1F5F9" }}>
+                {[
+                  "행사명",
+                  "일자",
+                  "장소",
+                  "참가자",
+                  "이용률",
+                  "참여율",
+                  "",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      padding: "10px 14px",
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      color: "#94A3B8",
+                      textAlign:
+                        h === "참가자" || h === "이용률" || h === "참여율"
+                          ? "right"
+                          : "left",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((r) => {
+                const active = ev.id === r.id;
+                return (
+                  <tr
+                    key={r.id}
+                    onClick={() => setSelectedId(r.id)}
+                    style={{
+                      borderBottom: "1px solid #F8FAFC",
+                      cursor: "pointer",
+                      transition: "background .1s",
+                      background: active ? `${ds.brand}04` : "transparent",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!active) e.currentTarget.style.background = "#F4F6F8";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!active)
+                        e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <td style={{ padding: "11px 14px" }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: active ? ds.brand : ds.ink,
+                        }}
+                      >
+                        {r.name}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "#94A3B8" }}>
+                        {r.id}
+                      </div>
+                    </td>
+                    <td
+                      style={{
+                        padding: "11px 14px",
+                        fontSize: 12.5,
+                        color: "#475569",
+                      }}
+                    >
+                      {r.date}
+                    </td>
+                    <td style={{ padding: "11px 14px" }}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 12.5,
+                          color: "#475569",
+                        }}
+                      >
+                        <MapPin size={11} color="#94A3B8" />
+                        {r.location}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        padding: "11px 14px",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: ds.ink,
+                        textAlign: "right",
+                      }}
+                    >
+                      {r.participants.toLocaleString()}
+                    </td>
+                    <td
+                      style={{
+                        padding: "11px 14px",
+                        fontSize: 12.5,
+                        color: "#475569",
+                        textAlign: "right",
+                      }}
+                    >
+                      {r.zoneUsage}%
+                    </td>
+                    <td
+                      style={{
+                        padding: "11px 14px",
+                        fontSize: 12.5,
+                        color: "#475569",
+                        textAlign: "right",
+                      }}
+                    >
+                      {r.eventRate}%
+                    </td>
+                    <td style={{ padding: "11px 14px", width: 28 }}>
+                      {active && <ChevronRight size={14} color={ds.brand} />}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
         {/* 우측 상세 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={cardStyle}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: ds.ink, marginBottom: 4 }}>{ev.name}</div>
-            <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 16 }}>{ev.date} · {ev.location}</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+          {/* 상세 카드 */}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              border: "1px solid #F1F5F9",
+              padding: 20,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 800,
+                color: ds.ink,
+                marginBottom: 3,
+              }}
+            >
+              {ev.name}
+            </div>
+            <div style={{ fontSize: 11.5, color: "#94A3B8", marginBottom: 18 }}>
+              {ev.date} · {ev.location}
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8,
+                marginBottom: 18,
+              }}
+            >
               {[
-                { l: "참가자", v: ev.participants.toLocaleString(), c: ds.brand },
-                { l: "수용 인원", v: ev.capacity.toLocaleString(), c: ds.ink3 },
-                { l: "체험 이용률", v: `${ev.zoneUsage}%`, c: ds.green },
-                { l: "이벤트 참여율", v: `${ev.eventRate}%`, c: ds.violet },
-              ].map(s => (
-                <div key={s.l} style={{ padding: 12, borderRadius: ds.rs, background: ds.bg }}>
-                  <div style={{ fontSize: 10.5, color: ds.ink4, marginBottom: 4 }}>{s.l}</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: s.c }}>{s.v}</div>
+                { l: "참가자", v: ev.participants.toLocaleString() },
+                { l: "수용 인원", v: ev.capacity.toLocaleString() },
+                { l: "체험 이용률", v: `${ev.zoneUsage}%` },
+                { l: "이벤트 참여율", v: `${ev.eventRate}%` },
+              ].map((s) => (
+                <div
+                  key={s.l}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    background: "#F8FAFC",
+                  }}
+                >
+                  <div
+                    style={{ fontSize: 10, color: "#94A3B8", marginBottom: 3 }}
+                  >
+                    {s.l}
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: ds.ink }}>
+                    {s.v}
+                  </div>
                 </div>
               ))}
             </div>
-            <Bar2 pct={Math.round(ev.participants / ev.capacity * 100)} color={ds.brand} h={6} />
-            <div style={{ fontSize: 11, color: ds.ink4, marginTop: 6, textAlign: "right" }}>수용률 {Math.round(ev.participants / ev.capacity * 100)}%</div>
+
+            <div style={{ marginBottom: 4 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 11,
+                  color: "#94A3B8",
+                  marginBottom: 6,
+                }}
+              >
+                <span>수용률</span>
+                <span style={{ fontWeight: 700 }}>{capacityPct}%</span>
+              </div>
+              <MiniProgress pct={capacityPct} />
+            </div>
           </div>
 
-          <div style={cardStyle}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: ds.ink, marginBottom: 14 }}>시간대별 혼잡도</div>
-            <ResponsiveContainer width="100%" height={160}>
+          {/* 혼잡도 차트 */}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              border: "1px solid #F1F5F9",
+              padding: 20,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 800,
+                color: ds.ink,
+                marginBottom: 16,
+              }}
+            >
+              시간대별 혼잡도
+            </div>
+            <ResponsiveContainer width="100%" height={150}>
               <AreaChart data={DATA.pastHourlyCongestion}>
-                <defs><linearGradient id="gCong" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={ds.amber} stopOpacity={0.2} /><stop offset="100%" stopColor={ds.amber} stopOpacity={0} /></linearGradient></defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={ds.lineSoft} vertical={false} />
-                <XAxis dataKey="time" tick={{ fontSize: 10, fill: ds.ink4 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: ds.ink4 }} axisLine={false} tickLine={false} width={28} tickFormatter={v => `${v}%`} domain={[0, 100]} />
-                <Tooltip content={<ChartTip />} />
-                <Area type="monotone" dataKey="value" stroke={ds.amber} strokeWidth={2} fill="url(#gCong)" dot={{ r: 3, fill: ds.amber, stroke: "#fff", strokeWidth: 2 }} />
+                <defs>
+                  <linearGradient id="gCong" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#94A3B8" stopOpacity={0.12} />
+                    <stop offset="100%" stopColor="#94A3B8" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#F1F5F9"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="time"
+                  tick={{ fontSize: 10, fill: "#94A3B8" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "#94A3B8" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                  tickFormatter={(v) => `${v}%`}
+                  domain={[0, 100]}
+                />
+                <Tooltip content={<ChartTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#64748B"
+                  strokeWidth={2}
+                  fill="url(#gCong)"
+                  dot={{
+                    r: 3,
+                    fill: "#64748B",
+                    stroke: "#fff",
+                    strokeWidth: 2,
+                  }}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>

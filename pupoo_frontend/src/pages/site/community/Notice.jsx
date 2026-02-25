@@ -1,7 +1,8 @@
-import { useState } from "react";
+// src/pages/site/community/Notice.jsx
+import { useState, useEffect, useCallback } from "react";
 import PageHeader from "../components/PageHeader";
-import { ChevronLeft, ChevronRight, ChevronDown, Search } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Search, Loader2, X } from "lucide-react";
+import { noticeApi, unwrap } from "../../../api/noticeApi";
 
 const SERVICE_CATEGORIES = [
   { label: "자유게시판", path: "/community/freeboard" },
@@ -9,52 +10,245 @@ const SERVICE_CATEGORIES = [
   { label: "행사후기", path: "/community/review" },
   { label: "질문/답변", path: "/community/qna" },
 ];
-const NOTICES = [
-  {
-    id: 1,
-    category: "pupoo",
-    type: "공지사항",
-    title: "플랫폼 운영과 관련된 주요 사항을 공지합니다.",
-    date: "2026.02.12",
-  },
-  {
-    id: 2,
-    category: "pupoo",
-    type: "공지사항",
-    title: "플랫폼 이용에 필요한 중요 공지 사항을 제공합니다.",
-    date: "2025.10.30",
-  },
-  {
-    id: 3,
-    category: "pupoo",
-    type: "공지사항",
-    title: "서비스 운영 및 관리와 관련된 공식 공지 사항을 게시합니다.",
-    date: "2025.10.29",
-  },
-];
 
-const FILTER_OPTIONS = [
-  "전체",
-  "자유게시판",
-  "공지사항",
-  "행사후기",
-  "질문답변",
-];
+function fmtDate(dt) {
+  if (!dt) return "-";
+  const d = new Date(dt);
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/* ── 상세보기 모달 ── */
+function DetailModal({ item, onClose }) {
+  if (!item) return null;
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 5000,
+          background: "rgba(0,0,0,0.4)",
+          backdropFilter: "blur(4px)",
+          animation: "fadeIn .15s ease",
+        }}
+      />
+      <style>{`
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+      `}</style>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 5001,
+          background: "#fff",
+          borderRadius: 16,
+          width: "90%",
+          maxWidth: 640,
+          maxHeight: "80vh",
+          overflow: "auto",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+          animation: "slideUp .25s ease",
+        }}
+      >
+        {/* 헤더 */}
+        <div
+          style={{
+            padding: "24px 28px 0",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+          }}
+        >
+          <div style={{ flex: 1, paddingRight: 16 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 8,
+              }}
+            >
+              {item.pinned && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#fff",
+                    background: "#EF4444",
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                  }}
+                >
+                  고정
+                </span>
+              )}
+              <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 500 }}>
+                {item.scope === "ALL" ? "전체 공지" : "이벤트 공지"}
+              </span>
+            </div>
+            <h2
+              style={{
+                fontSize: 20,
+                fontWeight: 800,
+                color: "#1E293B",
+                margin: 0,
+                lineHeight: 1.4,
+              }}
+            >
+              {item.title}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              border: "1px solid #E2E8F0",
+              background: "#fff",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <X size={16} color="#94A3B8" />
+          </button>
+        </div>
+
+        {/* 메타 정보 */}
+        <div
+          style={{
+            padding: "12px 28px 0",
+            display: "flex",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <span style={{ fontSize: 13, color: "#94A3B8" }}>
+            작성일 {fmtDate(item.createdAt)}
+          </span>
+          {item.updatedAt && item.updatedAt !== item.createdAt && (
+            <span style={{ fontSize: 13, color: "#94A3B8" }}>
+              수정일 {fmtDate(item.updatedAt)}
+            </span>
+          )}
+        </div>
+
+        {/* 구분선 */}
+        <div
+          style={{ margin: "16px 28px 0", borderBottom: "1px solid #E2E8F0" }}
+        />
+
+        {/* 본문 */}
+        <div style={{ padding: "20px 28px 28px" }}>
+          {item.content ? (
+            <p
+              style={{
+                fontSize: 15,
+                color: "#334155",
+                lineHeight: 1.75,
+                whiteSpace: "pre-wrap",
+                margin: 0,
+              }}
+            >
+              {item.content}
+            </p>
+          ) : (
+            <p
+              style={{
+                fontSize: 14,
+                color: "#CBD5E1",
+                fontStyle: "italic",
+                margin: 0,
+              }}
+            >
+              내용이 없습니다.
+            </p>
+          )}
+        </div>
+
+        {/* 하단 닫기 */}
+        <div
+          style={{
+            padding: "0 28px 24px",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              padding: "10px 40px",
+              borderRadius: 8,
+              border: "1px solid #E2E8F0",
+              background: "#fff",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              color: "#64748B",
+              transition: "all .15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#F8FAFC";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#fff";
+            }}
+          >
+            닫기
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
 
 export default function Notice() {
-  const [currentPath, setCurrentPath] = useState("/");
-  const [filter, setFilter] = useState("전체");
+  const [currentPath, setCurrentPath] = useState("/community/notice");
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(null); // 상세보기용
 
-  const filtered = NOTICES.filter((n) => {
-    const matchFilter =
-      filter === "전체" || n.category === filter || n.type === filter;
-    const matchSearch =
-      search === "" ||
-      n.title.includes(search) ||
-      n.category.includes(search) ||
-      n.type.includes(search);
-    return matchFilter && matchSearch;
+  const [notices, setNotices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const PAGE_SIZE = 10;
+
+  const fetchNotices = useCallback(async (p = 1) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await noticeApi.list(p, PAGE_SIZE);
+      const d = unwrap(res);
+      setNotices(d.content || []);
+      setTotalPages(d.totalPages || 0);
+      setTotalElements(d.totalElements ?? d.content?.length ?? 0);
+      setPage(p);
+    } catch (err) {
+      console.error("[Notice] fetch error:", err);
+      setError("공지사항을 불러오는데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotices(1);
+  }, [fetchNotices]);
+
+  const filtered = notices.filter((n) => {
+    if (!search) return true;
+    return n.title?.includes(search) || n.content?.includes(search);
   });
 
   return (
@@ -74,7 +268,6 @@ export default function Notice() {
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
-        {/* 상단 필터/검색 바 */}
         <div
           style={{
             display: "flex",
@@ -86,49 +279,9 @@ export default function Notice() {
           }}
         >
           <span style={{ fontSize: "15px", fontWeight: "600", color: "#222" }}>
-            총 {filtered.length}개
+            총 {totalElements}개
           </span>
-
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {/* 드롭다운 */}
-            <div style={{ position: "relative" }}>
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                style={{
-                  appearance: "none",
-                  WebkitAppearance: "none",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                  padding: "7px 32px 7px 12px",
-                  fontSize: "14px",
-                  color: "#333",
-                  background: "#fff",
-                  cursor: "pointer",
-                  outline: "none",
-                  minWidth: "80px",
-                }}
-              >
-                {FILTER_OPTIONS.map((opt) => (
-                  <option key={opt}>{opt}</option>
-                ))}
-              </select>
-              <span
-                style={{
-                  position: "absolute",
-                  right: "10px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  pointerEvents: "none",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <ChevronDown size={14} color="#666" />
-              </span>
-            </div>
-
-            {/* 검색창 */}
             <div
               style={{
                 display: "flex",
@@ -137,7 +290,6 @@ export default function Notice() {
                 borderRadius: "6px",
                 overflow: "hidden",
                 background: "#fff",
-                transition: "border 0.15s ease",
               }}
             >
               <input
@@ -155,7 +307,6 @@ export default function Notice() {
                   background: "transparent",
                 }}
               />
-
               <button
                 style={{
                   border: "none",
@@ -165,7 +316,6 @@ export default function Notice() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  transition: "background 0.15s ease",
                 }}
                 onMouseEnter={(e) =>
                   (e.currentTarget.style.background = "#f5f5f5")
@@ -180,131 +330,189 @@ export default function Notice() {
           </div>
         </div>
 
-        {/* 공지 목록 */}
-        <div>
-          {filtered.map((notice) => (
-            <div
-              key={notice.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                padding: "18px 4px",
-                borderBottom: "1px solid #e8e8e8",
-                cursor: "pointer",
-                transition: "background 0.15s",
-                gap: "0",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "#f9f9f9")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <span
-                style={{
-                  color: "#2d2d2d",
-                  fontWeight: "600",
-                  fontSize: "14px",
-                  minWidth: "64px",
-                }}
-              >
-                {notice.category}
-              </span>
-              <span
-                style={{
-                  color: "#565656",
-                  fontWeight: "400",
-                  fontSize: "14px",
-                  minWidth: "80px",
-                }}
-              >
-                {notice.type}
-              </span>
-              <span
-                style={{
-                  flex: 1,
-                  fontSize: "15px",
-                  color: "#222",
-                  fontWeight: "400",
-                }}
-              >
-                {notice.title}
-              </span>
-              <span
-                style={{
-                  fontSize: "13px",
-                  color: "#999",
-                  marginLeft: "16px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {notice.date}
-              </span>
-            </div>
-          ))}
+        {loading && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "80px 0",
+            }}
+          >
+            <Loader2
+              size={28}
+              color="#999"
+              style={{ animation: "spin 1s linear infinite" }}
+            />
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
-          {filtered.length === 0 && (
             <div
               style={{
-                textAlign: "center",
-                padding: "60px 0",
-                color: "#999",
+                marginTop: 12,
                 fontSize: "14px",
+                color: "#999",
               }}
             >
-              검색 결과가 없습니다.
+              최신 공지를 불러오고 있습니다.
             </div>
-          )}
-        </div>
+          </div>
+        )}
+        {!loading && error && (
+          <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <div style={{ fontSize: "14px", color: "#999", marginBottom: 12 }}>
+              {error}
+            </div>
+            <button
+              onClick={() => fetchNotices(page)}
+              style={{
+                padding: "8px 20px",
+                borderRadius: "6px",
+                border: "1px solid #ccc",
+                background: "#fff",
+                fontSize: "14px",
+                cursor: "pointer",
+                color: "#333",
+              }}
+            >
+              다시 시도
+            </button>
+          </div>
+        )}
 
-        {/* 페이지네이션 */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: "12px",
-            marginTop: "36px",
-          }}
-        >
-          <button
+        {!loading && !error && (
+          <div>
+            {filtered.map((notice) => (
+              <div
+                key={notice.noticeId}
+                onClick={() => setSelected(notice)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "18px 4px",
+                  borderBottom: "1px solid #e8e8e8",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "#f9f9f9")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
+              >
+                {notice.pinned && (
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: "700",
+                      color: "#EF4444",
+                      marginRight: 8,
+                      flexShrink: 0,
+                    }}
+                  >
+                    📌
+                  </span>
+                )}
+                <span
+                  style={{
+                    flex: 1,
+                    fontSize: "15px",
+                    color: "#222",
+                    fontWeight: "400",
+                  }}
+                >
+                  {notice.title}
+                </span>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    color: "#999",
+                    marginLeft: "16px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {fmtDate(notice.createdAt)}
+                </span>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "60px 0",
+                  color: "#999",
+                  fontSize: "14px",
+                }}
+              >
+                {search ? "검색 결과가 없습니다." : "공지사항이 없습니다."}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!loading && !error && totalPages > 1 && (
+          <div
             style={{
-              background: "none",
-              border: "none",
-              fontSize: "16px",
-              color: "#bbb",
-              cursor: "pointer",
-              padding: "4px 8px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: "8px",
+              marginTop: "36px",
             }}
           >
-            ‹
-          </button>
-          <span
-            style={{
-              fontSize: "14px",
-              color: "#333",
-              fontWeight: "500",
-              minWidth: "20px",
-              textAlign: "center",
-            }}
-          >
-            1
-          </span>
-          <button
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "16px",
-              color: "#bbb",
-              cursor: "pointer",
-              padding: "4px 8px",
-            }}
-          >
-            ›
-          </button>
-        </div>
+            <button
+              onClick={() => fetchNotices(page - 1)}
+              disabled={page <= 1}
+              style={{
+                background: "none",
+                border: "none",
+                color: page <= 1 ? "#ddd" : "#666",
+                cursor: page <= 1 ? "default" : "pointer",
+                padding: "4px 8px",
+              }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => fetchNotices(i + 1)}
+                style={{
+                  fontSize: "14px",
+                  fontWeight: i + 1 === page ? "700" : "500",
+                  color: i + 1 === page ? "#222" : "#999",
+                  background: i + 1 === page ? "#f0f0f0" : "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "4px 10px",
+                  borderRadius: "4px",
+                }}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => fetchNotices(page + 1)}
+              disabled={page >= totalPages}
+              style={{
+                background: "none",
+                border: "none",
+                color: page >= totalPages ? "#ddd" : "#666",
+                cursor: page >= totalPages ? "default" : "pointer",
+                padding: "4px 8px",
+              }}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
       </main>
+
+      {/* 상세보기 모달 */}
+      {selected && (
+        <DetailModal item={selected} onClose={() => setSelected(null)} />
+      )}
     </>
   );
 }

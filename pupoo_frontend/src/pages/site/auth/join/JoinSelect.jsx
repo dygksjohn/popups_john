@@ -150,11 +150,6 @@ export default function JoinSelect() {
               localStorage.getItem("pupoo_access_token"),
             );
 
-            sessionStorage.removeItem("kakao_auth_code");
-            sessionStorage.removeItem("kakao_provider_uid");
-            sessionStorage.removeItem("kakao_email");
-            sessionStorage.removeItem("kakao_nickname");
-
             navigate("/auth/join/joinnormal");
           }}
           style={{

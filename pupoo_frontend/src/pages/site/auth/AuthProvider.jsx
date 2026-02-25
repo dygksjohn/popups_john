@@ -5,11 +5,13 @@ import { authApi } from "./api/authApi";
 
 const AuthContext = createContext(null);
 
+const DEBUG_AUTH = false; // ← 디버깅 필요하면 true로 변경
+
 export function AuthProvider({ children }) {
   const [isAuthed, setIsAuthed] = useState(() => !!tokenStore.getAccess());
 
-  // ✅ 현재 토큰 상태 찍는 헬퍼
   const snapshot = (tag) => {
+    if (!DEBUG_AUTH) return;
     const access = tokenStore.getAccess();
     console.log(`[AuthProvider] ${tag}`, {
       isAuthed,
@@ -25,11 +27,11 @@ export function AuthProvider({ children }) {
 
     const sync = (reason) => {
       const has = !!tokenStore.getAccess();
-      console.log(`[AuthProvider] sync(${reason}) -> setIsAuthed(${has})`);
+      if (DEBUG_AUTH)
+        console.log(`[AuthProvider] sync(${reason}) -> setIsAuthed(${has})`);
       setIsAuthed(has);
     };
 
-    // mount 1회
     sync("mount");
 
     const onFocus = () => sync("focus");
@@ -37,18 +39,19 @@ export function AuthProvider({ children }) {
       if (document.visibilityState === "visible") sync("visibility");
     };
 
-    // (선택) 다른 탭/코드에서 localStorage 변하면 감지
     const onStorage = (e) => {
       if (e.key === "pupoo_access_token" || e.key === "pupoo_refresh_token") {
-        console.log("[AuthProvider] storage event", {
-          key: e.key,
-          oldValueHead: e.oldValue
-            ? String(e.oldValue).slice(0, 10) + "..."
-            : null,
-          newValueHead: e.newValue
-            ? String(e.newValue).slice(0, 10) + "..."
-            : null,
-        });
+        if (DEBUG_AUTH) {
+          console.log("[AuthProvider] storage event", {
+            key: e.key,
+            oldValueHead: e.oldValue
+              ? String(e.oldValue).slice(0, 10) + "..."
+              : null,
+            newValueHead: e.newValue
+              ? String(e.newValue).slice(0, 10) + "..."
+              : null,
+          });
+        }
         sync("storage");
       }
     };
@@ -61,38 +64,42 @@ export function AuthProvider({ children }) {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("storage", onStorage);
-      console.log("[AuthProvider] UNMOUNT");
+      if (DEBUG_AUTH) console.log("[AuthProvider] UNMOUNT");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ isAuthed 변경 감지 로그
   useEffect(() => {
     snapshot("STATE_CHANGE");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthed]);
 
-  // ✅ 토큰 저장 직후는 true로 강제
   const login = () => {
-    console.log("[AuthProvider] login() called -> setIsAuthed(true)");
+    if (DEBUG_AUTH)
+      console.log("[AuthProvider] login() called -> setIsAuthed(true)");
     setIsAuthed(true);
     snapshot("AFTER login()");
   };
 
   const logoutLocal = () => {
-    console.log("[AuthProvider] logoutLocal() called -> clear token");
+    if (DEBUG_AUTH)
+      console.log("[AuthProvider] logoutLocal() called -> clear token");
     tokenStore.clear();
     setIsAuthed(false);
     snapshot("AFTER logoutLocal()");
   };
 
   const logout = async () => {
-    console.log("[AuthProvider] logout() called -> call server");
+    if (DEBUG_AUTH)
+      console.log("[AuthProvider] logout() called -> call server");
     try {
       await authApi.logout();
-      console.log("[AuthProvider] logout() server OK");
     } catch (e) {
-      console.log("[AuthProvider] logout() server FAIL (ignored)", e?.message);
+      if (DEBUG_AUTH)
+        console.log(
+          "[AuthProvider] logout() server FAIL (ignored)",
+          e?.message,
+        );
     } finally {
       tokenStore.clear();
       setIsAuthed(false);
