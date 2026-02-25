@@ -54,20 +54,20 @@ public class QnaService {
     }
 
     public QnaResponse get(Long qnaId) {
-        Post post = qnaRepository.findQnaById(qnaId)
+        Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
         return toResponse(post);
     }
 
     public Page<QnaResponse> list(int page, int size) {
         validatePageRequest(page, size);
-        Page<Post> result = qnaRepository.findAllQna(PageRequest.of(page, size));
+        Page<Post> result = qnaRepository.findAllQnaPublished(PostStatus.PUBLISHED, PageRequest.of(page, size));
         return result.map(this::toResponse);
     }
 
     @Transactional
     public QnaResponse update(Long userId, Long qnaId, QnaUpdateRequest request) {
-        Post post = qnaRepository.findQnaById(qnaId)
+        Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
 
         if (!post.getUserId().equals(userId)) {
@@ -85,7 +85,7 @@ public class QnaService {
 
     @Transactional
     public void delete(Long userId, Long qnaId) {
-        Post post = qnaRepository.findQnaById(qnaId)
+        Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
 
         if (!post.getUserId().equals(userId)) {
@@ -98,7 +98,7 @@ public class QnaService {
 
     @Transactional
     public void close(Long userId, Long qnaId) {
-        Post post = qnaRepository.findQnaById(qnaId)
+        Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
 
         if (!post.getUserId().equals(userId)) {

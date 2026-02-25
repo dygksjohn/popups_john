@@ -107,6 +107,9 @@ public class ReplyService {
     public Page<ReplyResponse> list(ReplyTargetType targetType, Long targetId, int page, int size) {
         validatePageRequest(page, size);
 
+        // 공개 댓글 목록 조회 시 부모 컨텐츠 공개 상태 검증
+        targetValidator.validatePublicReadable(targetType, targetId);
+
         if (targetType == ReplyTargetType.POST) {
             return postCommentRepository
                     .findAllByPostIdAndDeletedFalseOrderByCreatedAtDesc(targetId, PageRequest.of(page, size))
