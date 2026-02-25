@@ -8,10 +8,12 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import PageHeader from "../components/PageHeader";
-import { useSearchParams } from "react-router-dom";
-import { galleryApi } from "../../../app/http/galleryApi";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { eventApi } from "../../../app/http/eventApi";
+import { galleryApi } from "../../../app/http/galleryApi";
+import PageHeader from "../components/PageHeader";
+import { useAuth } from "../auth/AuthProvider";
+import { userApi } from "../../../app/http/userApi";
 
 /* ─────────────────────────────────────────────
    STYLES
@@ -951,6 +953,54 @@ export default function EventGallery() {
 
   const [liked, setLiked] = useState({});
   const [viewer, setViewer] = useState(null);
+  const [viewerDetail, setViewerDetail] = useState(null); // 단건 조회 결과
+  const [meUserId, setMeUserId] = useState(null);
+  const navigate = useNavigate();
+  const { isAuthed } = useAuth();
+
+  // 로그인 시 /me 로 userId 확보 (좋아요용)
+  useEffect(() => {
+    if (!isAuthed) {
+      setMeUserId(null);
+      return;
+    }
+    userApi
+      .getMe()
+      .then((data) => {
+        if (data?.userId != null) setMeUserId(data.userId);
+      })
+      .catch(() => setMeUserId(null));
+  }, [isAuthed]);
+
+  // 모달 열린 갤러리 단건 조회 (최신 상세·조회수)
+  useEffect(() => {
+    if (!viewer?.card?.id) {
+      setViewerDetail(null);
+      return;
+    }
+    galleryApi
+      .getOne(viewer.card.id)
+      .then((res) => {
+        const g = res.data?.data ?? res.data;
+        if (!g) return;
+        setViewerDetail({
+          id: g.galleryId,
+          images: g.imageUrls ?? [],
+          comment: g.description ?? "",
+          tags: [],
+          author: "운영팀",
+          pet: "",
+          date: g.createdAt
+            ? new Date(g.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\. /g, ".").trim()
+            : "",
+          avatarColor: ["#e0e7ff", "#6366f1"],
+          initials: "갤",
+          likes: g.likeCount ?? 0,
+          views: g.viewCount ?? 0,
+        });
+      })
+      .catch(() => setViewerDetail(null));
+  }, [viewer?.card?.id]);
 
   // 행사 목록 로드
   useEffect(() => {
@@ -1009,7 +1059,51 @@ export default function EventGallery() {
     }
   };
 
-  const toggleLike = (id) => setLiked((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleLike = async (galleryId) => {
+    if (!isAuthed) {
+      if (window.confirm("좋아요는 로그인 후 이용할 수 있습니다. 로그인 페이지로 이동할까요?")) {
+        navigate("/auth/login", { state: { from: "/gallery/eventgallery" } });
+      }
+      return;
+    }
+    if (meUserId == null) {
+      // /me 아직 안 불러옴
+      const data = await userApi.getMe().catch(() => null);
+      const uid = data?.userId;
+      if (uid == null) return;
+      setMeUserId(uid);
+      await doLikeUnlike(galleryId, uid);
+    } else {
+      await doLikeUnlike(galleryId, meUserId);
+    }
+  };
+
+  const doLikeUnlike = async (galleryId, userId) => {
+    const currentlyLiked = liked[galleryId];
+    try {
+      if (currentlyLiked) {
+        await galleryApi.unlike(galleryId, userId);
+      } else {
+        await galleryApi.like(galleryId, userId);
+      }
+      setLiked((prev) => ({ ...prev, [galleryId]: !currentlyLiked }));
+      setGalleries((prev) =>
+        prev.map((g) =>
+          g.galleryId === galleryId
+            ? { ...g, likeCount: (g.likeCount ?? 0) + (currentlyLiked ? -1 : 1) }
+            : g
+        )
+      );
+      if (viewerDetail?.id === galleryId) {
+        setViewerDetail((d) => ({
+          ...d,
+          likes: (d.likes ?? 0) + (currentlyLiked ? -1 : 1),
+        }));
+      }
+    } catch (e) {
+      console.error("like/unlike failed", e);
+    }
+  };
   const handleEnlarge = (card, idx) => setViewer({ card, startIndex: idx });
 
   // API 응답 → 카드 형식 매핑 (기존 GALLERY_CARDS 구조에 맞춤)
@@ -1025,7 +1119,7 @@ export default function EventGallery() {
       : "",
     avatarColor: ["#e0e7ff", "#6366f1"],
     initials: "갤",
-    likes: 0,
+    likes: g.likeCount ?? 0,
     views: g.viewCount ?? 0,
   }));
 
@@ -1116,11 +1210,11 @@ export default function EventGallery() {
 
       {viewer && (
         <FullscreenViewer
-          card={viewer.card}
+          card={viewerDetail ?? viewer.card}
           startIndex={viewer.startIndex}
           liked={!!liked[viewer.card.id]}
           onToggleLike={() => toggleLike(viewer.card.id)}
-          onClose={() => setViewer(null)}
+          onClose={() => { setViewer(null); setViewerDetail(null); }}
         />
       )}
     </div>

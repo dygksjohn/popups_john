@@ -37,12 +37,15 @@ public class GalleryService {
         List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
                 .stream().map(GalleryImage::getOriginalUrl).toList();
 
+        long likeCount = galleryLikeRepository.countByGallery_GalleryId(galleryId);
+
         return GalleryResponse.builder()
                 .galleryId(g.getGalleryId())
                 .eventId(g.getEventId())
                 .title(g.getGalleryTitle())
                 .description(g.getDescription())
                 .viewCount(g.getViewCount())
+                .likeCount(likeCount)
                 .thumbnailImageId(g.getThumbnailImageId())
                 .status(g.getGalleryStatus())
                 .imageUrls(urls)
@@ -56,12 +59,14 @@ public class GalleryService {
                 .map(g -> {
                     List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
                             .stream().map(GalleryImage::getOriginalUrl).toList();
+                    long likeCount = galleryLikeRepository.countByGallery_GalleryId(g.getGalleryId());
                     return GalleryResponse.builder()
                             .galleryId(g.getGalleryId())
                             .eventId(g.getEventId())
                             .title(g.getGalleryTitle())
                             .description(g.getDescription())
                             .viewCount(g.getViewCount())
+                            .likeCount(likeCount)
                             .thumbnailImageId(g.getThumbnailImageId())
                             .status(g.getGalleryStatus())
                             .imageUrls(urls)
@@ -76,12 +81,14 @@ public class GalleryService {
                 .map(g -> {
                     List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
                             .stream().map(GalleryImage::getOriginalUrl).toList();
+                    long likeCount = galleryLikeRepository.countByGallery_GalleryId(g.getGalleryId());
                     return GalleryResponse.builder()
                             .galleryId(g.getGalleryId())
                             .eventId(g.getEventId())
                             .title(g.getGalleryTitle())
                             .description(g.getDescription())
                             .viewCount(g.getViewCount())
+                            .likeCount(likeCount)
                             .thumbnailImageId(g.getThumbnailImageId())
                             .status(g.getGalleryStatus())
                             .imageUrls(urls)
@@ -89,8 +96,7 @@ public class GalleryService {
                             .updatedAt(g.getUpdatedAt())
                             .build();
                 });
-    }
-
+        }
     @Transactional
     public GalleryLikeResponse like(Long userId, Long galleryId) {
         Gallery g = galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)

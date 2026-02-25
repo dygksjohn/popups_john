@@ -26,17 +26,19 @@ export const galleryApi = {
     return axiosInstance.get(`/api/galleries/${galleryId}`);
   },
 
-  // POST /api/galleries/{galleryId}/like — 좋아요 (로그인 사용자, X-USER-ID는 인터셉터에서 처리한다고 가정)
-  like: (galleryId) => {
+  // POST /api/galleries/{galleryId}/like — 좋아요 (로그인 사용자, X-USER-ID 필요)
+  like: (galleryId, userId) => {
     if (galleryId == null)
       throw new Error("galleryApi.like: galleryId is required");
-    return axiosInstance.post(`/api/galleries/${galleryId}/like`);
+    const headers = userId != null ? { "X-USER-ID": String(userId) } : {};
+    return axiosInstance.post(`/api/galleries/${galleryId}/like`, null, { headers });
   },
   // DELETE /api/galleries/{galleryId}/like — 좋아요 취소
-  unlike: (galleryId) => {
+  unlike: (galleryId, userId) => {
     if (galleryId == null)
       throw new Error("galleryApi.unlike: galleryId is required");
-    return axiosInstance.delete(`/api/galleries/${galleryId}/like`);
+    const headers = userId != null ? { "X-USER-ID": String(userId) } : {};
+    return axiosInstance.delete(`/api/galleries/${galleryId}/like`, { headers });
   },
 
   // =========================
