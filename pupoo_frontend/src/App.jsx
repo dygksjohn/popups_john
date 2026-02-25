@@ -5,6 +5,7 @@ import ScrollToTop from "./ScrollToTop";
 
 /* admin */
 import Dashboard from "./pages/admin/dashboard/Dashboard";
+import AdminLogin from "./pages/admin/dashboard/Login.jsx";
 import BoardManage from "./pages/admin/board/boardManage";
 
 import NoticeManage from "./pages/admin/board/Notice";
@@ -142,7 +143,7 @@ export default function App() {
       <Routes>
         {/* ---------------- 관리자 전용 ---------------- */}
         <Route path="/admin/dashboard" element={<Dashboard />} />
-
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/board" element={<BoardManage />} />
 
         <Route path="/admin/board/notice" element={<NoticeManage />} />
