@@ -104,4 +104,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         ApiResponse<Object> body = ApiResponse.fail(error);
         response.getWriter().write(objectMapper.writeValueAsString(body));
     }
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/api/auth/oauth/")
+            || path.startsWith("/api/auth/signup/")
+            || path.equals("/api/auth/login")
+            || path.equals("/api/auth/refresh")
+            || path.equals("/api/auth/logout");
+    }
 }
