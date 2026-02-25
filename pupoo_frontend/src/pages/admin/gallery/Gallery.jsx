@@ -489,26 +489,33 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
 }
 
 /* ── 슬라이드 패널 ── */
-function SlidePanel({ item, onSave, onClose, isEdit }) {
+function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
   const [form, setForm] = useState(
-    item || {
-      title: "",
-      content: "",
-      tab: "참가자",
-      author: "",
-      petInfo: "",
-      photos: 3,
-      thumbnail: "📸",
-      tags: [],
-      likes: 0,
-      views: 0,
-    },
+    item
+      ? { ...item, eventId: item.eventId ?? "" }
+      : {
+          eventId: "",
+          title: "",
+          content: "",
+          tab: "참가자",
+          author: "",
+          petInfo: "",
+          photos: 3,
+          thumbnail: "📸",
+          tags: [],
+          likes: 0,
+          views: 0,
+        },
   );
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const [err, setErr] = useState("");
   const [tagInput, setTagInput] = useState("");
 
   const handleSave = () => {
+    if (!isEdit && !form.eventId) {
+      setErr("행사를 선택해 주세요.");
+      return;
+    }
     if (!form.title) {
       setErr("제목은 필수입니다.");
       return;
@@ -610,6 +617,40 @@ function SlidePanel({ item, onSave, onClose, isEdit }) {
             >
               <AlertTriangle size={14} /> {err}
             </div>
+          )}
+          {!isEdit && (
+            <Field label="행사" required>
+              <div style={{ position: "relative" }}>
+                <select
+                  value={form.eventId ?? ""}
+                  onChange={(e) => set("eventId", e.target.value)}
+                  style={{
+                    ...inputStyle,
+                    appearance: "none",
+                    paddingRight: 32,
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="">행사 선택</option>
+                  {events.map((ev) => (
+                    <option key={ev.eventId} value={ev.eventId}>
+                      {ev.eventName ?? `행사 #${ev.eventId}`}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={14}
+                  color="#94A3B8"
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    pointerEvents: "none",
+                  }}
+                />
+              </div>
+            </Field>
           )}
 
           <Field label="제목" required>
@@ -1323,11 +1364,16 @@ useEffect(() => {
       </div>
 
       {panel?.type === "create" && (
-        <SlidePanel onSave={handleCreate} onClose={() => setPanel(null)} />
+        <SlidePanel
+          events={events}
+          onSave={handleCreate}
+          onClose={() => setPanel(null)}
+        />
       )}
       {panel?.type === "edit" && (
         <SlidePanel
           item={panel.item}
+          events={events}
           isEdit
           onSave={handleUpdate}
           onClose={() => setPanel(null)}
