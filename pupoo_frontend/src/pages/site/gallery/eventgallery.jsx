@@ -325,6 +325,11 @@ const styles = `
     color: #fff;
     font-weight: 600;
   }
+  .eg-page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  }
 
   /* ── FULLSCREEN MODAL ── */
   .eg-modal-overlay {
@@ -941,6 +946,7 @@ export default function EventGallery() {
   const [galleries, setGalleries] = useState([]);
   const [galleriesLoading, setGalleriesLoading] = useState(true);
   const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const size = 12;
 
   const [liked, setLiked] = useState({});
@@ -975,12 +981,14 @@ export default function EventGallery() {
       : galleryApi.getListByEvent(selectedEventId, { page, size });
 
     promise
-      .then((res) => {
-        if (cancelled) return;
-        const data = res.data?.data ?? res.data;
-        const list = data?.content ?? (Array.isArray(data) ? data : []);
-        setGalleries(Array.isArray(list) ? list : []);
-      })
+    .then((res) => {
+      if (cancelled) return;
+      const data = res.data?.data ?? res.data;
+      const list = data?.content ?? (Array.isArray(data) ? data : []);
+      setGalleries(Array.isArray(list) ? list : []);
+      const total = data?.totalPages ?? 0;
+      setTotalPages(typeof total === "number" ? total : 0);
+    })
       .catch(() => {
         if (!cancelled) setGalleries([]);
       })
@@ -1081,11 +1089,29 @@ export default function EventGallery() {
           )}
         </section>
 
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "6px", marginTop: "40px" }}>
-          <button type="button" className="eg-page-btn" onClick={() => setPage((p) => Math.max(0, p - 1))}>‹</button>
-          <button type="button" className="eg-page-btn active">{page + 1}</button>
-          <button type="button" className="eg-page-btn" onClick={() => setPage((p) => p + 1)}>›</button>
-        </div>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "40px", flexWrap: "wrap" }}>
+  <button
+    type="button"
+    className="eg-page-btn"
+    onClick={() => setPage((p) => Math.max(0, p - 1))}
+    disabled={page === 0}
+            aria-label="이전 페이지"
+  >
+    ‹
+  </button>
+  <span style={{ display: "inline-flex", alignItems: "center", fontSize: 13, color: "#6b7280", minWidth: "4ch" }}>
+            {totalPages > 0 ? `${page + 1} / ${totalPages}` : "1"}
+          </span>
+  <button
+    type="button"
+    className="eg-page-btn"
+    onClick={() => setPage((p) => p + 1)}
+    disabled={totalPages <= 0 || page >= totalPages - 1}
+            aria-label="다음 페이지"
+  >
+    ›
+  </button>
+</div>
       </main>
 
       {viewer && (
