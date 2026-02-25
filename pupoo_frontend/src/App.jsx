@@ -6,7 +6,7 @@ import ScrollToTop from "./ScrollToTop";
 /* admin */
 import Dashboard from "./pages/admin/dashboard/Dashboard";
 import BoardManage from "./pages/admin/board/boardManage";
-import ForumHistory from "./pages/admin/board/ForumHistory";
+
 import NoticeManage from "./pages/admin/board/Notice";
 import EventManage from "./pages/admin/event/eventManage";
 import ProgramManage from "./pages/admin/program/programManage";
@@ -18,12 +18,9 @@ import SessionManage from "./pages/admin/session/sessionManage";
 import Reviews from "./pages/admin/community/Reviews";
 import GalleryManage from "./pages/admin/gallery/Gallery";
 import ParticipantList from "./pages/admin/participant/ParticipantList";
-import ParticipantDetail from "./pages/admin/participant/ParticipantDetail";
-import CheckinManage from "./pages/admin/participant/CheckinManage";
-import SessionParticipation from "./pages/admin/participant/SessionParticipation";
+
 import PaymentManage from "./pages/admin/participant/PaymentManage";
 import AlertManage from "./pages/admin/participant/AlertManage";
-import ParticipantStats from "./pages/admin/participant/ParticipantStats";
 
 /* Home */
 import Home from "./pages/site/home/Home";
@@ -80,7 +77,7 @@ import FAQ from "./pages/site/info/FAQ";
 import Inquiry from "./pages/site/info/Inquiry";
 import Location from "./pages/site/info/Location";
 
-/* Policy (※ 파일명 대소문자 맞춤) */
+/* Policy */
 import AboutUs from "./pages/site/policy/aboutus";
 import PrivacyPolicy from "./pages/site/policy/privacypolicy";
 import ServiceGuide from "./pages/site/policy/serviceguide";
@@ -97,13 +94,40 @@ import LocationPage from "./pages/site/guide/location";
 import Timetable from "./pages/site/guide/Timetable";
 import CheckinStatus from "./pages/site/realtime/CheckinStatus";
 
+/* 준비중 플레이스홀더 */
+function ComingSoon() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "80px 20px",
+        color: "#94A3B8",
+      }}
+    >
+      <div style={{ fontSize: 40, marginBottom: 16 }}>🚧</div>
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          color: "#64748B",
+          marginBottom: 6,
+        }}
+      >
+        준비 중입니다
+      </div>
+      <div style={{ fontSize: 13 }}>해당 기능은 곧 추가될 예정입니다</div>
+    </div>
+  );
+}
+
 function PublicOnly({ children }) {
   const { isAuthed } = useAuth();
   const location = useLocation();
 
-  // 로그인 상태면 public page(로그인/가입) 접근 금지 → 홈으로
   if (isAuthed) {
-    // 원하면 "/" 대신 "/mypage"로 바꿔도 됨
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
   }
 
@@ -120,7 +144,7 @@ export default function App() {
         <Route path="/admin/dashboard" element={<Dashboard />} />
 
         <Route path="/admin/board" element={<BoardManage />} />
-        <Route path="/admin/board/history" element={<ForumHistory />} />
+
         <Route path="/admin/board/notice" element={<NoticeManage />} />
 
         <Route path="/admin/event" element={<EventManage />} />
@@ -135,22 +159,13 @@ export default function App() {
         <Route path="/admin/gallery" element={<GalleryManage />} />
 
         <Route path="/admin/participant" element={<ParticipantList />} />
-        <Route
-          path="/admin/participant/detail"
-          element={<ParticipantDetail />}
-        />
-        <Route
-          path="/admin/participant/detail/:id"
-          element={<ParticipantDetail />}
-        />
-        <Route path="/admin/participant/checkin" element={<CheckinManage />} />
-        <Route
-          path="/admin/participant/session"
-          element={<SessionParticipation />}
-        />
+        <Route path="/admin/participant/detail" element={<ComingSoon />} />
+        <Route path="/admin/participant/detail/:id" element={<ComingSoon />} />
+        <Route path="/admin/participant/checkin" element={<ComingSoon />} />
+        <Route path="/admin/participant/session" element={<ComingSoon />} />
         <Route path="/admin/participant/payment" element={<PaymentManage />} />
         <Route path="/admin/participant/alert" element={<AlertManage />} />
-        <Route path="/admin/participant/stats" element={<ParticipantStats />} />
+        <Route path="/admin/participant/stats" element={<ComingSoon />} />
 
         {/* ---------------- 일반 사이트 ---------------- */}
         <Route element={<SiteLayout />}>
@@ -159,7 +174,7 @@ export default function App() {
           {/* Auth */}
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/mypage" element={<Mypage />} />
-          <Route path="/mypage" element={<Mypage />} /> {/* 추가 */}
+          <Route path="/mypage" element={<Mypage />} />
           <Route
             path="/auth/join/joinselect"
             element={
@@ -221,7 +236,6 @@ export default function App() {
           <Route path="/event/preregister" element={<PreRegister />} />
           <Route path="/event/eventschedule" element={<EventSchedule />} />
           {/* Program */}
-          {/* 중요 (뒤에 /:eventId? 만 추가 */}
           <Route
             path="/program/experience/:eventId?"
             element={<Experience />}

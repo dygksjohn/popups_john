@@ -14,7 +14,6 @@ import {
   Image,
   CreditCard,
   Send,
-  BarChart3,
   Layers,
   Mic,
 } from "lucide-react";
@@ -50,7 +49,6 @@ import Gallery from "../gallery/Gallery";
 import ParticipantList from "../participant/ParticipantList";
 import PaymentManage from "../participant/PaymentManage";
 import AlertManage from "../participant/AlertManage";
-import ParticipantStats from "../participant/ParticipantStats";
 
 /* ═══════════════════════════════════════════════
    벨 애니메이션 CSS
@@ -166,13 +164,20 @@ const PAGE_TABS = {
   zoneManage: [{ id: "all", label: "체험존 목록" }],
   contestManage: [{ id: "all", label: "콘테스트 목록" }],
   sessionManage: [{ id: "all", label: "세션 목록" }],
-  boardManage: [{ id: "all", label: "전체 게시글", count: 5 }],
+  boardManage: [
+    { id: "free", label: "자유게시판" },
+    { id: "review", label: "행사후기" },
+    { id: "qna", label: "질문·답변" },
+  ],
   gallery: [{ id: "all", label: "갤러리" }],
   notice: [{ id: "all", label: "공지사항", count: 5 }],
-  participantList: [{ id: "all", label: "전체 참가자", count: 8 }],
+  participantList: [
+    { id: "list", label: "참가자 목록" },
+    { id: "checkin", label: "체크인 관리" },
+    { id: "session", label: "체험 세션" },
+  ],
   paymentManage: [{ id: "all", label: "결제 내역" }],
   alertManage: [{ id: "all", label: "알림 내역" }],
-  participantStats: [{ id: "all", label: "통계" }],
 };
 
 const PAGE_TITLES = {
@@ -189,7 +194,6 @@ const PAGE_TITLES = {
   participantList: "참가자 목록",
   paymentManage: "결제 관리",
   alertManage: "알림 관리",
-  participantStats: "통계/데이터",
 };
 
 /* ═══════════════════════════════════════════════
@@ -761,19 +765,17 @@ export default function Dashboard() {
       case "sessionManage":
         return <SessionManage />;
       case "boardManage":
-        return <BoardManage />;
+        return <BoardManage subTab={activeTab} />;
       case "notice":
         return <Notice />;
       case "gallery":
         return <Gallery />;
       case "participantList":
-        return <ParticipantList />;
+        return <ParticipantList subTab={activeTab} />;
       case "paymentManage":
         return <PaymentManage />;
       case "alertManage":
         return <AlertManage />;
-      case "participantStats":
-        return <ParticipantStats />;
       default:
         return <PageHome />;
     }
