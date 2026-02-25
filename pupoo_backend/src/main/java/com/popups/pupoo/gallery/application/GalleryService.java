@@ -90,7 +90,7 @@ public class GalleryService {
                             .build();
                 });
     }
-    
+
     @Transactional
     public GalleryLikeResponse like(Long userId, Long galleryId) {
         Gallery g = galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
@@ -110,5 +110,11 @@ public class GalleryService {
                 .userId(userId)
                 .createdAt(like.getCreatedAt())
                 .build();
+    }
+    @Transactional
+    public void unlike(Long userId, Long galleryId) {
+        galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
+                .orElseThrow(() -> new IllegalArgumentException("갤러리가 존재하지 않습니다."));
+        galleryLikeRepository.deleteByGallery_GalleryIdAndUserId(galleryId, userId);
     }
 }
