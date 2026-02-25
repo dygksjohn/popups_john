@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -84,4 +85,11 @@ public interface QrCheckinRepository extends JpaRepository<QrCheckin, Long> {
     // (C) 관리자 체크인/체크아웃 정책용: 마지막 로그 1건 조회 (가장 중요)
     // =========================
     Optional<QrCheckin> findTopByQrCode_QrIdAndBooth_BoothIdOrderByCheckedAtDesc(Long qrId, Long boothId);
+
+    /**
+     * 관리자 대시보드(실시간)용: 금일 체크인 로그 카운트
+     */
+    long countByCheckedAtBetween(LocalDateTime from, LocalDateTime to);
+
+    long countByQrCode_Event_EventId(Long eventId);
 }

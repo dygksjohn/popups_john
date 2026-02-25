@@ -4,10 +4,7 @@ package com.popups.pupoo.common.exception;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.ErrorResponse;
 import com.popups.pupoo.common.api.FieldErrorItem;
-
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
-
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,16 +25,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e, HttpServletRequest request) {
-
-        e.printStackTrace();
-
         ErrorCode ec = e.getErrorCode();
-        ErrorResponse body = new ErrorResponse(
-                ec.getCode(),
-                e.getMessage(),
-                ec.getStatus().value(),
-                request.getRequestURI()
-        );
+        ErrorResponse body = new ErrorResponse(ec.getCode(), e.getMessage(), ec.getStatus().value(), request.getRequestURI());
         return ResponseEntity.status(ec.getStatus()).body(ApiResponse.fail(body));
     }
 
@@ -148,7 +137,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnknown(Exception e, HttpServletRequest request) {
-    	e.printStackTrace();
         ErrorResponse body = new ErrorResponse(
                 ErrorCode.INTERNAL_ERROR.getCode(),
                 ErrorCode.INTERNAL_ERROR.getMessage(),
@@ -156,11 +144,6 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return ResponseEntity.status(ErrorCode.INTERNAL_ERROR.getStatus()).body(ApiResponse.fail(body));
-    }
-    
-    @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleEntityNotFound(EntityNotFoundException e, HttpServletRequest request) {
-        return build(request, ErrorCode.RESOURCE_NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND.getStatus(), e.getMessage());
     }
 
     private ResponseEntity<ApiResponse<Void>> build(HttpServletRequest request, ErrorCode ec, HttpStatus status, String msg) {

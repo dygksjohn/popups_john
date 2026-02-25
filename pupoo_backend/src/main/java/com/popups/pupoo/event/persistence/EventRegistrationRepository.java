@@ -17,6 +17,8 @@ import java.util.Optional;
  */
 public interface EventRegistrationRepository extends JpaRepository<EventRegistration, Long> {
 
+    long countByEventIdAndStatus(Long eventId, RegistrationStatus status);
+
     boolean existsByEventIdAndUserIdAndStatus(Long eventId, Long userId, RegistrationStatus status);
 
     Page<EventRegistration> findByUserId(Long userId, Pageable pageable);
@@ -87,4 +89,17 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
         where er.applyId = :applyId
     """)
     Optional<EventRegistration> findByApplyIdForUpdate(@Param("applyId") Long applyId);
+
+    /**
+     * 이벤트 참가자 userId 목록(중복 제거)
+     * - status=APPROVED
+     */
+    @Query("""
+        select distinct er.userId
+        from EventRegistration er
+        where er.eventId = :eventId
+          and er.status = :status
+    """)
+    java.util.List<Long> findDistinctUserIdsByEventIdAndStatus(@Param("eventId") Long eventId,
+                                                             @Param("status") RegistrationStatus status);
 }

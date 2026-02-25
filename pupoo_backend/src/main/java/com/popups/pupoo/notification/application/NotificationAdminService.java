@@ -6,9 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 관리자/시스템에서 interest 기반 알림 발행을 위한 오케스트레이션 서비스.
- *
- * (Admin 컨트롤러에서 호출할 용도)
+ * 관리자/시스템에서 알림 발행을 위한 오케스트레이션 서비스.
  */
 @Service
 public class NotificationAdminService {
@@ -20,14 +18,7 @@ public class NotificationAdminService {
     }
 
     @Transactional
-    public void publishByEventInterest(NotificationCreateRequest request) {
-        notificationService.publishEventInterestNotification(
-                request.getEventId(),
-                request.getType(),
-                request.getTitle(),
-                request.getContent(),
-                request.getTargetType(),
-                request.getTargetId()
-        );
+    public void publishByEvent(NotificationCreateRequest request, Long adminUserId) {
+        notificationService.publishAdminEventNotification(adminUserId, request);
     }
 }

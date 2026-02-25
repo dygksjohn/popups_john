@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/auth/application/AuthService.java
 package com.popups.pupoo.auth.application;
 
 import com.popups.pupoo.auth.domain.model.RefreshToken;
@@ -22,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-
 
 import java.time.LocalDateTime;
 
@@ -67,7 +67,7 @@ public class AuthService {
     }
 
     /**
-     * ✅ 외부(Service)에서 사용자 상태 검증을 재사용할 수 있도록 공개 래퍼 제공
+     * 외부(Service)에서 사용자 상태 검증을 재사용할 수 있도록 공개 래퍼 제공
      * - KakaoOAuthService에서 "자동 연동 insert 전에" 차단할 때 사용
      */
     public void validateUserStatusForAuthPublic(User user) {
@@ -76,23 +76,21 @@ public class AuthService {
 
     /**
      * 회원가입 + 자동 로그인
-     * - 사용자 생성은 user 도메인(UserService)을 통해 처리한다.
-     * - 토큰 발급/refresh 저장/쿠키 세팅은 auth 도메인에서 처리한다.
      */
     @Transactional
     public LoginResponse signup(UserCreateRequest req, HttpServletResponse response) {
 
         User saved = userService.create(req);
 
-        // ✅ 가입 직후 상태 검증도 일관성 유지(정책상 보통 ACTIVE로 생성되겠지만 방어)
+        // 가입 직후 상태 검증도 일관성 유지(정책상 보통 ACTIVE로 생성되겠지만 방어)
         validateUserStatusForAuth(saved);
 
-        // ✅ 토큰 발급 + 쿠키 세팅 공통 처리
+        // 토큰 발급 + 쿠키 세팅 공통 처리
         LoginResponse lr = issueTokensAndSetCookie(saved, response);
 
         Long userId = saved.getUserId();
 
-
+        // 가입 직후 인증메일 발송은 트랜잭션 커밋 이후 수행(실패해도 가입 자체는 성공)
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
@@ -104,7 +102,6 @@ public class AuthService {
                     }
                 }
             });
-
         }
 
         return lr;
@@ -134,8 +131,6 @@ public class AuthService {
 
     /**
      * 소셜 로그인 등 "이미 인증된 User"를 기반으로 로그인 처리
-     * - accessToken: body
-     * - refreshToken: HttpOnly 쿠키
      */
     @Transactional
     public LoginResponse loginByUser(User user, HttpServletResponse response) {
@@ -150,7 +145,6 @@ public class AuthService {
 
     /**
      * refresh (쿠키 기반)
-     * - rotation: 성공 시 기존 row 삭제 + 새 refresh 발급/저장 + 쿠키 교체
      */
     @Transactional
     public TokenResponse refreshToken(String refreshToken, HttpServletResponse response) {
@@ -174,6 +168,7 @@ public class AuthService {
 
         String newAccess = tokenService.createAccessToken(userId, roleName);
 
+        // rotation: 기존 refresh 제거 후 신규 발급
         refreshTokenRepository.delete(stored);
 
         String newRefresh = tokenService.createRefreshToken(userId);
@@ -192,8 +187,6 @@ public class AuthService {
 
     /**
      * 로그아웃 (디바이스 단위)
-     * - 쿠키의 refresh 토큰 1개만 DB에서 삭제
-     * - refresh 쿠키 만료
      */
     @Transactional
     public void logout(String refreshToken, HttpServletResponse response) {
@@ -207,7 +200,7 @@ public class AuthService {
     }
 
     /**
-     * ✅ 공통: access/refresh 발급 + refresh 저장 + 쿠키 세팅
+     * 공통: access/refresh 발급 + refresh 저장 + 쿠키 세팅
      */
     private LoginResponse issueTokensAndSetCookie(User user, HttpServletResponse response) {
         Long userId = user.getUserId();
@@ -230,6 +223,12 @@ public class AuthService {
 
     /**
      * 인증/인가 흐름에서 허용하지 않는 사용자 상태를 차단한다.
+     *
+     * 현재 UserStatus 정의
+     * - ACTIVE / SUSPENDED / DELETED
+     *
+     * 정책
+     * - DELETED(탈퇴)는 "비활성"으로 간주하여 로그인/토큰발급을 차단한다.
      */
     private void validateUserStatusForAuth(User user) {
         UserStatus status = user.getStatus();
@@ -237,7 +236,7 @@ public class AuthService {
             throw new BusinessException(ErrorCode.USER_STATUS_INVALID);
         }
 
-        if (status == UserStatus.INACTIVE) {
+        if (status == UserStatus.DELETED) {
             throw new BusinessException(ErrorCode.USER_INACTIVE);
         }
         if (status == UserStatus.SUSPENDED) {

@@ -16,7 +16,7 @@ public class AdminUserUpdateRequest {
     @Size(max = 30)
     private String phone;
 
-    private UserStatus status; // ACTIVE/SUSPENDED/INACTIVE
+    private UserStatus status; // ACTIVE/SUSPENDED/DELETED (관리자 변경은 ACTIVE<->SUSPENDED만 허용)
 
     private Boolean showAge;
     private Boolean showGender;

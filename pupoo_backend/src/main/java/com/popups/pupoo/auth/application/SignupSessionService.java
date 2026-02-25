@@ -1,3 +1,4 @@
+// file: src/main/java/com/popups/pupoo/auth/application/SignupSessionService.java
 package com.popups.pupoo.auth.application;
 
 import com.popups.pupoo.auth.domain.enums.EmailSessionStatus;
@@ -15,11 +16,9 @@ import com.popups.pupoo.notification.port.NotificationSender;
 import com.popups.pupoo.user.application.UserService;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.dto.UserCreateRequest;
-import com.popups.pupoo.user.social.domain.enums.SocialProvider;
-import com.popups.pupoo.user.social.domain.model.SocialAccount;
-import com.popups.pupoo.user.social.persistence.SocialAccountRepository;
+import com.popups.pupoo.user.social.application.SocialAccountService;
+import com.popups.pupoo.user.social.dto.SocialLinkRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -42,7 +41,6 @@ import java.util.UUID;
  * - email/request, email/confirm: EMAIL 가입용 이메일 인증 처리
  * - complete: OTP(필수) + EMAIL 가입이면 email_status=VERIFIED 조건을 만족해야 users 생성 + 토큰 발급
  */
-@Slf4j
 @Service
 public class SignupSessionService {
 
@@ -51,10 +49,7 @@ public class SignupSessionService {
 
     private final SignupSessionRepository signupSessionRepository;
     private final UserService userService;
-
-    // ✅ SOCIAL 가입 시 소셜 계정 저장용(회원가입은 비인증 상태이므로 repository 직접 저장 권장)
-    private final SocialAccountRepository socialAccountRepository;
-
+    private final SocialAccountService socialAccountService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
@@ -76,7 +71,7 @@ public class SignupSessionService {
     public SignupSessionService(
             SignupSessionRepository signupSessionRepository,
             UserService userService,
-            SocialAccountRepository socialAccountRepository,
+            SocialAccountService socialAccountService,
             RefreshTokenRepository refreshTokenRepository,
             TokenService tokenService,
             PasswordEncoder passwordEncoder,
@@ -95,7 +90,7 @@ public class SignupSessionService {
     ) {
         this.signupSessionRepository = signupSessionRepository;
         this.userService = userService;
-        this.socialAccountRepository = socialAccountRepository;
+        this.socialAccountService = socialAccountService;
         this.refreshTokenRepository = refreshTokenRepository;
         this.tokenService = tokenService;
         this.passwordEncoder = passwordEncoder;
@@ -133,20 +128,14 @@ public class SignupSessionService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
-        // ✅ 타입별 필수값 검증
-        if (request.getSignupType() == SignupType.EMAIL) {
-            if (isBlank(request.getEmail()) || isBlank(request.getPassword())) {
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED);
-            }
-        } else if (request.getSignupType() == SignupType.SOCIAL) {
+        if (isBlank(request.getEmail()) || isBlank(request.getPassword())) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+
+        if (request.getSignupType() == SignupType.SOCIAL) {
             if (isBlank(request.getSocialProvider()) || isBlank(request.getSocialProviderUid())) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED);
             }
-            // ✅ 권장 정책: 소셜도 email은 받는다(카카오에서 못 받으면 프론트에서 추가 입력)
-            if (isBlank(request.getEmail())) {
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED);
-            }
-            // password는 소셜에서 필수가 아님 (무시)
         }
 
         // 휴대폰 기준: 60초 쿨다운
@@ -169,20 +158,14 @@ public class SignupSessionService {
         session.setSignupKey(UUID.randomUUID().toString());
         session.setSignupType(request.getSignupType());
         session.setEmail(safeTrim(request.getEmail()));
+        session.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         session.setNickname(nickname);
         session.setPhone(phone);
-
-        // ✅ passwordHash 세팅 분기
-        if (request.getSignupType() == SignupType.SOCIAL) {
-            session.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
-        } else {
-            session.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        }
 
         if (request.getSignupType() == SignupType.SOCIAL) {
             session.setSocialProvider(safeTrim(request.getSocialProvider()));
             session.setSocialProviderUid(safeTrim(request.getSocialProviderUid()));
-            session.setEmailStatus(EmailSessionStatus.NOT_REQUIRED); // ✅ 소셜은 이메일 인증 면제 정책 유지
+            session.setEmailStatus(EmailSessionStatus.NOT_REQUIRED);
         } else {
             session.setEmailStatus(EmailSessionStatus.PENDING);
         }
@@ -200,18 +183,12 @@ public class SignupSessionService {
 
         SignupSession saved = signupSessionRepository.save(session);
 
-        // OTP 발송(구현체 없으면 default NO-OP)
+        // OTP 발송(로컬에서는 로그/DB로 처리)
         String text = "[POPUPS] 인증번호는 " + otp + " 입니다. (" + otpTtlMinutes + "분 이내 입력)";
         notificationSender.sendSms(List.of(phone), text);
 
         int remaining = Math.max(0, otpDailyLimit - (int) (sentToday + 1));
-        return new SignupStartResponse(
-                saved.getSignupKey(),
-                otpCooldownSeconds,
-                remaining,
-                saved.getExpiresAt(),
-                exposeDevCode ? otp : null
-        );
+        return new SignupStartResponse(saved.getSignupKey(), otpCooldownSeconds, remaining, saved.getExpiresAt(), exposeDevCode ? otp : null);
     }
 
     /**
@@ -285,8 +262,6 @@ public class SignupSessionService {
         }
 
         String code = generateSixDigitCode();
-        log.info("[DEV] signupKey={} email={} emailCode={}", session.getSignupKey(), session.getEmail(), code);
-
         session.setEmailCodeHash(HashUtil.sha256Hex(code + hashSalt));
         session.setEmailExpiresAt(LocalDateTime.now().plusMinutes(emailTtlMinutes));
         session.setEmailLastSentAt(LocalDateTime.now());
@@ -378,6 +353,7 @@ public class SignupSessionService {
         try {
             saved = userService.createWithPasswordHash(ucr, session.getPasswordHash());
         } catch (IllegalArgumentException e) {
+            // UserService의 IllegalArgumentException을 표준 ErrorCode로 변환한다.
             String msg = e.getMessage();
             if (msg != null && msg.contains("Email")) {
                 throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
@@ -391,32 +367,12 @@ public class SignupSessionService {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
         }
 
-        // ✅ SOCIAL 가입이면 소셜 계정 연동 (회원가입 시점: 비인증 상태이므로 repository 직접 저장)
+        // SOCIAL 가입이면 소셜 계정 연동
         if (session.getSignupType() == SignupType.SOCIAL) {
-
-            String providerStr = session.getSocialProvider();
-            String providerUid = session.getSocialProviderUid();
-
-            if (providerStr == null || providerStr.isBlank() || providerUid == null || providerUid.isBlank()) {
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED);
-            }
-
-            final SocialProvider provider;
-            try {
-                provider = SocialProvider.valueOf(providerStr.trim().toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED);
-            }
-
-            if (socialAccountRepository.findByProviderAndProviderUid(provider, providerUid).isPresent()) {
-                throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
-            }
-
-            if (socialAccountRepository.existsByUserIdAndProvider(saved.getUserId(), provider)) {
-                throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
-            }
-
-            socialAccountRepository.save(new SocialAccount(saved.getUserId(), provider, providerUid));
+            SocialLinkRequest link = new SocialLinkRequest();
+            link.setProvider(session.getSocialProvider());
+            link.setProviderUid(session.getSocialProviderUid());
+            socialAccountService.createMySocialAccount(saved.getUserId(), link);
         }
 
         Long userId = saved.getUserId();

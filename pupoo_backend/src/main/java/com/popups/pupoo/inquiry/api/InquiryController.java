@@ -11,7 +11,6 @@ import com.popups.pupoo.inquiry.dto.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -55,7 +54,6 @@ public class InquiryController {
         return ApiResponse.success(inquiryService.getMyInquiry(userId, inquiryId));
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @GetMapping("/api/admin/inquiries")
     public ApiResponse<Page<InquiryResponse>> getInquiries(@RequestParam(required = false) InquiryStatus status,
                                                            @RequestParam(required = false) String keyword,
@@ -63,7 +61,6 @@ public class InquiryController {
         return ApiResponse.success(inquiryAdminService.getInquiries(status, keyword, pageable));
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PutMapping("/api/admin/inquiries/{inquiryId}/answer")
     public ApiResponse<MessageResponse> answer(@PathVariable Long inquiryId, @RequestBody InquiryAnswerRequest req) {
         Long adminId = securityUtil.currentUserId();
@@ -71,7 +68,6 @@ public class InquiryController {
         return ApiResponse.success(new MessageResponse("ANSWER_SAVED"));
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PatchMapping("/api/admin/inquiries/{inquiryId}/status")
     public ApiResponse<MessageResponse> changeStatus(@PathVariable Long inquiryId, @RequestParam InquiryStatus status) {
         inquiryAdminService.changeStatus(inquiryId, status);

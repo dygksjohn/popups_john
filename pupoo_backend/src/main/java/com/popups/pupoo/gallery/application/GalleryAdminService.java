@@ -113,7 +113,14 @@ public class GalleryAdminService {
 
     @Transactional
     public void delete(Long galleryId) {
-        galleryRepository.deleteById(galleryId);
+        Gallery g = galleryRepository.findById(galleryId)
+                .orElseThrow(() -> new IllegalArgumentException("갤러리가 존재하지 않습니다."));
+
+        // DB 정책: 하드 삭제 금지 → 상태 전환으로 soft delete 처리
+        galleryRepository.save(g.toBuilder()
+                .galleryStatus(GalleryStatus.DELETED)
+                .updatedAt(LocalDateTime.now())
+                .build());
         adminLogService.write("GALLERY_DELETE", AdminTargetType.OTHER, galleryId);
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface NotificationInboxRepository extends JpaRepository<NotificationInbox, Long> {
@@ -77,4 +78,124 @@ public interface NotificationInboxRepository extends JpaRepository<NotificationI
                                    @Param("notificationId") Long notificationId,
                                    @Param("targetType") String targetType,
                                    @Param("targetId") Long targetId);
+
+    /**
+     * [INAPP Fan-out] 이벤트 신청자(event_apply) 기반 인박스 적재
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            INSERT INTO notification_inbox (user_id, notification_id, created_at, target_type, target_id)
+            SELECT DISTINCT
+                ea.user_id,
+                :notificationId,
+                NOW(),
+                :targetType,
+                :targetId
+            FROM event_apply ea
+            WHERE ea.event_id = :eventId
+              AND ea.status = 'APPLIED'
+            """, nativeQuery = true)
+    int fanoutInboxByEventRegistrants(@Param("eventId") Long eventId,
+                                     @Param("notificationId") Long notificationId,
+                                     @Param("targetType") String targetType,
+                                     @Param("targetId") Long targetId);
+
+    /**
+     * [INAPP Fan-out] 결제 완료자(payments) 기반 인박스 적재
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            INSERT INTO notification_inbox (user_id, notification_id, created_at, target_type, target_id)
+            SELECT DISTINCT
+                p.user_id,
+                :notificationId,
+                NOW(),
+                :targetType,
+                :targetId
+            FROM payments p
+            WHERE p.event_id = :eventId
+              AND p.status = 'APPROVED'
+            """, nativeQuery = true)
+    int fanoutInboxByEventPayers(@Param("eventId") Long eventId,
+                                @Param("notificationId") Long notificationId,
+                                @Param("targetType") String targetType,
+                                @Param("targetId") Long targetId);
+
+    /* =========================================================
+     * EMAIL/SMS 전송 대상 산정(로컬은 실제 발송 대신 send 테이블로 기록)
+     * - 수신허용(allow_email/allow_sms) 정책 강제
+     * - notification_send는 NotificationSendRepository에서 생성하지만,
+     *   대상자 선별은 DB 쿼리로 확정한다.
+     *
+     * 주의: notification_send는 (notification_id, sender_id, ...) 중심이라
+     *      "수신자별 기록"이 필요한 경우에는 별도 테이블 확장이 필요하다.
+     *      v1.0에서는 발송행위 로그(채널/발신자/알림ID)만 남긴다.
+     * ========================================================= */
+
+    @Query(value = """
+            SELECT DISTINCT u.email
+            FROM event_interest_map eim
+            JOIN user_interest_subscriptions uis
+              ON uis.interest_id = eim.interest_id
+            JOIN users u
+              ON u.user_id = uis.user_id
+            WHERE eim.event_id = :eventId
+              AND uis.status = 'ACTIVE'
+              AND uis.allow_email = 1
+            """, nativeQuery = true)
+    List<String> findEmailTargetsByEventInterest(@Param("eventId") Long eventId);
+
+    @Query(value = """
+            SELECT DISTINCT u.phone
+            FROM event_interest_map eim
+            JOIN user_interest_subscriptions uis
+              ON uis.interest_id = eim.interest_id
+            JOIN users u
+              ON u.user_id = uis.user_id
+            WHERE eim.event_id = :eventId
+              AND uis.status = 'ACTIVE'
+              AND uis.allow_sms = 1
+            """, nativeQuery = true)
+    List<String> findSmsTargetsByEventInterest(@Param("eventId") Long eventId);
+
+    @Query(value = """
+            SELECT DISTINCT u.email
+            FROM event_apply ea
+            JOIN users u
+              ON u.user_id = ea.user_id
+            WHERE ea.event_id = :eventId
+              AND ea.status = 'APPLIED'
+            """, nativeQuery = true)
+    List<String> findEmailTargetsByEventRegistrants(@Param("eventId") Long eventId);
+
+    @Query(value = """
+            SELECT DISTINCT u.phone
+            FROM event_apply ea
+            JOIN users u
+              ON u.user_id = ea.user_id
+            WHERE ea.event_id = :eventId
+              AND ea.status = 'APPLIED'
+            """, nativeQuery = true)
+    List<String> findSmsTargetsByEventRegistrants(@Param("eventId") Long eventId);
+
+    @Query(value = """
+            SELECT DISTINCT u.email
+            FROM payments p
+            JOIN users u
+              ON u.user_id = p.user_id
+            WHERE p.event_id = :eventId
+              AND p.status = 'APPROVED'
+            """, nativeQuery = true)
+    List<String> findEmailTargetsByEventPayers(@Param("eventId") Long eventId);
+
+    @Query(value = """
+            SELECT DISTINCT u.phone
+            FROM payments p
+            JOIN users u
+              ON u.user_id = p.user_id
+            WHERE p.event_id = :eventId
+              AND p.status = 'APPROVED'
+            """, nativeQuery = true)
+    List<String> findSmsTargetsByEventPayers(@Param("eventId") Long eventId);
+
 }

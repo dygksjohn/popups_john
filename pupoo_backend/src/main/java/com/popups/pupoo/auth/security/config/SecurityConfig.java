@@ -1,6 +1,5 @@
 // file: src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
 package com.popups.pupoo.auth.security.config;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popups.pupoo.auth.security.authentication.filter.JwtAuthenticationFilter;
 import com.popups.pupoo.auth.security.handler.JwtAccessDeniedHandler;
@@ -9,7 +8,6 @@ import com.popups.pupoo.auth.token.JwtProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -21,7 +19,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 @Configuration
-@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtProvider jwtProvider;
@@ -72,34 +69,23 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> auth
             //  CORS Preflight 허용(프론트 연동 시 403 방지)
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-            
-            .requestMatchers("/api/auth/**").permitAll()
 
             // 인증/회원가입(인증 기능은 예외적으로 공개)
             .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
-            .requestMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/signup/**").permitAll()
+
+            // OAuth(카카오 등) - 로그인 전 호출되는 엔드포인트
+            .requestMatchers(HttpMethod.POST, "/api/auth/oauth/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/auth/oauth/**").permitAll()
 
             // 운영/문서
             .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()
             .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
             .requestMatchers("/swagger-ui/**").permitAll()
             .requestMatchers("/v3/api-docs/**").permitAll()
-
-            // 비회원 조회 허용(조회만 공개)
-            .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/events/*").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/programs").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/programs/*").permitAll()
-
-            // 콘테스트 결과 공개 조회
-            .requestMatchers(HttpMethod.GET, "/api/programs/*/votes/result").permitAll()
             .requestMatchers("/error").permitAll()
-            
-            // Program 
-            .requestMatchers(HttpMethod.GET, "/api/program-applies/programs/*/candidates").permitAll()
 
             // PUBLIC(비인증) 허용 범위: 조회(GET)만 (목록/상세로 제한)
             .requestMatchers(HttpMethod.GET, "/api/posts").permitAll()
@@ -107,6 +93,9 @@ public class SecurityConfig {
 
             .requestMatchers(HttpMethod.GET, "/api/notices").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/notices/*").permitAll()
+
+            .requestMatchers(HttpMethod.GET, "/api/faqs").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/faqs/*").permitAll()
 
             .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events/*").permitAll()
@@ -120,17 +109,31 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/booths").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/booths/*").permitAll()
 
-            //  USER 가능
+            .requestMatchers(HttpMethod.GET, "/api/qnas").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/qnas/*").permitAll()
 
-            // DB에 ROLE_ROLE_USER가 들어가 있다면 아래처럼 둘 다 허용해야 함
+            .requestMatchers(HttpMethod.GET, "/api/galleries").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/galleries/*").permitAll()
+
+            .requestMatchers(HttpMethod.GET, "/api/replies").permitAll()
+
+            // ADMIN 전용
+            .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+            // USER 전용
+            .requestMatchers("/api/users/me/**").hasRole("USER")
+            .requestMatchers("/api/payments/**").hasRole("USER")
+            .requestMatchers("/api/refunds/**").hasRole("USER")
+            .requestMatchers("/api/notifications/**").hasRole("USER")
+
             .requestMatchers(HttpMethod.POST, "/api/event-registrations")
-                .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
+                .hasRole("USER")
             .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**")
-                .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
+                .hasRole("USER")
             .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations")
-                .hasAnyAuthority("ROLE_USER", "ROLE_ROLE_USER")
+                .hasRole("USER")
 
-            .anyRequest().authenticated()
+            .anyRequest().hasRole("USER")
         );
 
         http.addFilterBefore(

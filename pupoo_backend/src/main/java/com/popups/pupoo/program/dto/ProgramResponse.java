@@ -28,6 +28,12 @@ public class ProgramResponse {
     private boolean upcoming;
     private boolean ended;
 
+    /**
+     * 체험 대기열(선택)
+     * - DB: experience_waits
+     */
+    private ExperienceWaitResponse experienceWait;
+
     public static ProgramResponse from(Program p) {
         if (p == null) {
             throw new IllegalArgumentException("Program is null");
@@ -45,6 +51,7 @@ public class ProgramResponse {
                 .ongoing(p.isOngoing())
                 .upcoming(p.isUpcoming())
                 .ended(p.isEnded())
+                .experienceWait(null)
                 .build();
     }
 }

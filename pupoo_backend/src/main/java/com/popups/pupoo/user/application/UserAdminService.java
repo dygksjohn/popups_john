@@ -24,8 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
  * 관리자용 사용자 관리 서비스
  *
  * 정책
- * - 유저 탈퇴는 soft delete(status=INACTIVE)
- * - 유저 정지/해제는 status=SUSPENDED/ACTIVE
+ * - users.status는 DB ENUM('ACTIVE','SUSPENDED','DELETED') 기준
+ * - 관리자 상태 변경은 엄격 모드(STRICT)
+ *   - ACTIVE <-> SUSPENDED 만 허용
+ *   - DELETED는 관리자 변경 불가(종단 상태)
  */
 @Service
 @RequiredArgsConstructor
@@ -83,6 +85,11 @@ public class UserAdminService {
         User u = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "사용자가 존재하지 않습니다."));
 
+        // DELETED는 종단 상태로 간주한다.
+        if (u.getStatus() == UserStatus.DELETED) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "탈퇴(DELETED) 상태의 사용자는 변경할 수 없습니다.");
+        }
+
         if (req.getNickname() != null && !req.getNickname().isBlank()) {
             if (!req.getNickname().equals(u.getNickname()) && userRepository.existsByNickname(req.getNickname())) {
                 throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "이미 존재하는 닉네임입니다.");
@@ -98,7 +105,7 @@ public class UserAdminService {
         }
 
         if (req.getStatus() != null) {
-            u.setStatus(req.getStatus());
+            applyStrictStatusTransition(u, req.getStatus());
         }
         if (req.getShowAge() != null) u.setShowAge(req.getShowAge());
         if (req.getShowGender() != null) u.setShowGender(req.getShowGender());
@@ -110,12 +117,36 @@ public class UserAdminService {
 
     @Transactional
     public void delete(Long userId) {
-        User u = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "사용자가 존재하지 않습니다."));
+        // 정책(B): 관리자는 DELETED(탈퇴) 전이를 수행하지 않는다.
+        // - 운영 상 탈퇴 처리는 사용자 탈퇴 플로우에서만 수행
+        // - 관리자 API에서 호출되면 명시적으로 차단
+        throw new BusinessException(ErrorCode.INVALID_REQUEST, "관리자 기능으로는 탈퇴(DELETED) 처리할 수 없습니다.");
+    }
 
-        // 정책: soft delete
-        u.setStatus(UserStatus.INACTIVE);
-        adminLogService.write("USER_DELETE_SOFT", AdminTargetType.USER, userId);
+    /**
+     * 관리자 상태 변경(엄격 모드)
+     * - ACTIVE <-> SUSPENDED 만 허용
+     * - DELETED로의 변경은 불가
+     */
+    private static void applyStrictStatusTransition(User u, UserStatus next) {
+        UserStatus cur = u.getStatus();
+
+        if (next == UserStatus.DELETED) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "관리자 기능으로는 탈퇴(DELETED) 상태로 변경할 수 없습니다.");
+        }
+
+        // 동일 상태는 no-op
+        if (cur == next) return;
+
+        boolean allowed =
+                (cur == UserStatus.ACTIVE && next == UserStatus.SUSPENDED)
+                        || (cur == UserStatus.SUSPENDED && next == UserStatus.ACTIVE);
+
+        if (!allowed) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "허용되지 않은 사용자 상태 변경입니다.");
+        }
+
+        u.setStatus(next);
     }
 
     private static String trimToNull(String s) {

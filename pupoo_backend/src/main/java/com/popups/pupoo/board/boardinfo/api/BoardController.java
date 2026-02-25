@@ -7,7 +7,6 @@ import com.popups.pupoo.board.boardinfo.dto.BoardResponse;
 import com.popups.pupoo.board.boardinfo.dto.BoardUpdateRequest;
 import com.popups.pupoo.common.api.ApiResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,26 +22,22 @@ public class BoardController {
         return ApiResponse.success(boardService.getBoards(activeOnly));
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping("/api/admin/boards")
     public ApiResponse<Long> createBoard(@RequestBody BoardCreateRequest req) {
         return ApiResponse.success(boardService.createBoard(req));
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @GetMapping("/api/admin/boards/{boardId}")
     public ApiResponse<BoardResponse> getBoard(@PathVariable Long boardId) {
         return ApiResponse.success(boardService.getBoard(boardId));
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PutMapping("/api/admin/boards/{boardId}")
     public ApiResponse<BoardResponse> updateBoard(@PathVariable Long boardId, @RequestBody BoardUpdateRequest req) {
         boardService.updateBoard(boardId, req);
         return ApiResponse.success(boardService.getBoard(boardId));
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PatchMapping("/api/admin/boards/{boardId}/active")
     public ApiResponse<BoardResponse> changeActive(@PathVariable Long boardId, @RequestParam boolean active) {
         boardService.changeActive(boardId, active);

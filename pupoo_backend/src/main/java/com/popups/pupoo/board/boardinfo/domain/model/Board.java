@@ -24,7 +24,7 @@ public class Board {
     private String boardName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "board_type", nullable = false, columnDefinition = "ENUM('FREE','INFO','REVIEW','QNA')")
+    @Column(name = "board_type", nullable = false, columnDefinition = "ENUM('FREE','INFO','REVIEW','QNA','FAQ')")
     private BoardType boardType;
 
     @Column(name = "is_active", nullable = false, columnDefinition = "TINYINT(1)")

@@ -3,6 +3,8 @@ package com.popups.pupoo.storage.api;
 
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.IdResponse;
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.storage.application.StorageService;
 import com.popups.pupoo.storage.dto.FileResponse;
 import com.popups.pupoo.storage.dto.UploadRequest;
@@ -25,12 +27,12 @@ public class StorageController {
     }
 
     /**
-     * POST / NOTICE 첨부파일 업로드 (files 테이블에 저장).
+     * (유저) POST 첨부파일 업로드 (files 테이블에 저장).
      *
      * 요청 형식: multipart/form-data
      * - file: 업로드할 파일 (MultipartFile)
-     * - targetType: POST 또는 NOTICE
-     * - contentId: 게시글 ID 또는 공지 ID
+     * - targetType: POST (NOTICE는 어드민 전용)
+     * - contentId: 게시글 ID
      */
     @PostMapping
     public ApiResponse<UploadResponse> upload(
@@ -39,6 +41,22 @@ public class StorageController {
             @RequestParam("contentId") Long contentId
     ) {
         UploadRequest req = new UploadRequest(targetType, contentId);
+        // NOTICE 업로드는 어드민 전용 (enum 파싱을 통해 엄격하게 판별)
+        if (req.parsedTargetType() == com.popups.pupoo.storage.infrastructure.StorageKeyGenerator.UploadTargetType.NOTICE) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "notice file upload is admin-only");
+        }
+        return ApiResponse.success(storageService.uploadForFilesTable(file, req));
+    }
+
+    /**
+     * (어드민) NOTICE 첨부파일 업로드 (files 테이블에 저장).
+     */
+    @PostMapping("/admin/notice")
+    public ApiResponse<UploadResponse> uploadNoticeByAdmin(
+            @RequestPart("file") MultipartFile file,
+            @RequestParam("noticeId") Long noticeId
+    ) {
+        UploadRequest req = new UploadRequest("NOTICE", noticeId);
         return ApiResponse.success(storageService.uploadForFilesTable(file, req));
     }
 
@@ -66,13 +84,28 @@ public class StorageController {
     }
 
     /**
-     * 파일 삭제.
-     * - DB 레코드 삭제
-     * - 실제 저장된 파일 삭제
+     * (유저) 파일 삭제.
+     * - 작성자만 삭제 가능
+     * - NOTICE 첨부파일은 유저 삭제 불가
+     * - DB soft delete만 수행(오브젝트는 지연삭제 배치에서 제거)
      */
     @DeleteMapping("/{fileId}")
     public ApiResponse<IdResponse> delete(@PathVariable Long fileId) {
-        storageService.delete(fileId);
+        storageService.deleteByUser(fileId);
+        return ApiResponse.success(new IdResponse(fileId));
+    }
+
+    /**
+     * (어드민) 파일 강제 삭제.
+     * - POST/NOTICE 구분 없이 ADMIN은 삭제 가능
+     * - DB soft delete만 수행(오브젝트는 지연삭제 배치에서 제거)
+     */
+    @DeleteMapping("/admin/{fileId}")
+    public ApiResponse<IdResponse> deleteByAdmin(
+            @PathVariable Long fileId,
+            @RequestParam(value = "reason", required = false) String reason
+    ) {
+        storageService.deleteByAdmin(fileId, reason);
         return ApiResponse.success(new IdResponse(fileId));
     }
 }

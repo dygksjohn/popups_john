@@ -3,9 +3,11 @@ import { axiosInstance } from "../../../../app/http/axiosInstance";
 
 // ApiResponse<T> 래핑 해제
 function unwrap(apiResponse) {
-  return apiResponse?.data ?? apiResponse;
+  // axios 응답 -> ApiResponse<T>
+  const body = apiResponse?.data;
+  // ApiResponse<T>.data -> T
+  return body?.data ?? body;
 }
-
 /**
  * 공통 POST 헬퍼
  * - signal(AbortController) 지원
@@ -18,8 +20,8 @@ async function post(url, payload, config = {}) {
 
 export const authApi = {
   // 1) 회원가입 시작: signupKey 발급 + OTP 발송
-  signupStart: async (payload, config) => {
-    return post("/api/auth/signup/start", payload, config);
+  signupStart(payload) {
+    return axiosInstance.post("/api/auth/signup/start", payload).then(unwrap);
   },
 
   // 2) OTP 검증

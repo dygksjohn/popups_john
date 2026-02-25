@@ -1,6 +1,7 @@
 // file: src/main/java/com/popups/pupoo/board/qna/application/QnaService.java
 package com.popups.pupoo.board.qna.application;
 
+import com.popups.pupoo.board.bannedword.application.BannedWordService;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
@@ -25,11 +26,15 @@ public class QnaService {
 
     private final QnaRepository qnaRepository;
     private final BoardRepository boardRepository;
+    private final BannedWordService bannedWordService;
 
     @Transactional
     public QnaResponse create(Long userId, QnaCreateRequest request) {
         Board qnaBoard = boardRepository.findByBoardType(BoardType.QNA)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QNA 게시판(board_type=QNA)이 존재하지 않습니다."));
+
+        // 금칙어 검증 (QnA 작성 포함)
+        bannedWordService.validate(qnaBoard.getBoardId(), request.getTitle(), request.getContent());
 
         Post post = Post.builder()
                 .board(qnaBoard)
@@ -49,35 +54,38 @@ public class QnaService {
     }
 
     public QnaResponse get(Long qnaId) {
-        Post post = qnaRepository.findQnaById(qnaId)
+        Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
         return toResponse(post);
     }
 
     public Page<QnaResponse> list(int page, int size) {
         validatePageRequest(page, size);
-        Page<Post> result = qnaRepository.findAllQna(PageRequest.of(page, size));
+        Page<Post> result = qnaRepository.findAllQnaPublished(PostStatus.PUBLISHED, PageRequest.of(page, size));
         return result.map(this::toResponse);
     }
 
     @Transactional
     public QnaResponse update(Long userId, Long qnaId, QnaUpdateRequest request) {
-        Post post = qnaRepository.findQnaById(qnaId)
+        Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
 
         if (!post.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다.");
         }
 
+        // 금칙어 검증 (QnA 수정 포함)
+        bannedWordService.validate(post.getBoard().getBoardId(), request.getTitle(), request.getContent());
+
         post.updateTitleAndContent(request.getTitle(), request.getContent());
 
         // 운영안정(v2): mutating + dirty checking 기반으로 updatedAt은 @PreUpdate에서 자동 반영된다.
         return toResponse(qnaRepository.save(post));
-}
+    }
 
     @Transactional
     public void delete(Long userId, Long qnaId) {
-        Post post = qnaRepository.findQnaById(qnaId)
+        Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
 
         if (!post.getUserId().equals(userId)) {
@@ -90,7 +98,7 @@ public class QnaService {
 
     @Transactional
     public void close(Long userId, Long qnaId) {
-        Post post = qnaRepository.findQnaById(qnaId)
+        Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
 
         if (!post.getUserId().equals(userId)) {

@@ -1,6 +1,7 @@
 // file: src/main/java/com/popups/pupoo/storage/application/StorageService.java
 package com.popups.pupoo.storage.application;
 
+import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.storage.domain.model.StoredFile;
@@ -16,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDateTime;
 
 @Service
 public class StorageService {
@@ -25,36 +27,21 @@ public class StorageService {
     private final ObjectStoragePort objectStoragePort;
     private final StorageKeyGenerator keyGenerator;
     private final StoredFileRepository storedFileRepository;
+    private final SecurityUtil securityUtil;
 
     public StorageService(ObjectStoragePort objectStoragePort,
                           StorageKeyGenerator keyGenerator,
-                          StoredFileRepository storedFileRepository) {
+                          StoredFileRepository storedFileRepository,
+                          SecurityUtil securityUtil) {
         this.objectStoragePort = objectStoragePort;
         this.keyGenerator = keyGenerator;
         this.storedFileRepository = storedFileRepository;
+        this.securityUtil = securityUtil;
     }
 
     /**
      * POST/NOTICE 첨부파일 업로드 → files 테이블에 기록한다.
- *
- *
- * 외부 공개 접근은(로컬 파일 저장소 구성 기준) Nginx가 /static/** 경로로 정적 파일을 서빙하는 것을 전제로 한다.
- *
- *
- * 스토리지 구현체를 S3로 바꾸더라도, 이 서비스는 ObjectStoragePort만 호출하므로
-     * 도메인 로직/DB 로직은 그대로 유지된다.
- *
- *
- * 전환 메모(복붙용)
-     *
-     * - 로컬(Ubuntu/Nginx):
-     *   1) storage.local.base-path 를 서버 디렉토리로 지정
-     *   2) Nginx에서 /static/ 을 alias로 연결
-     *
-     * - S3:
-     *   1) ObjectStoragePort Bean을 S3ObjectStorageService로 교체
-     *   2) getPublicPath()가 S3/CloudFront URL을 리턴하도록 구현
-     *
+     * - 업로더(user_id)는 현재 로그인 사용자로 저장한다.
      */
     @Transactional
     public UploadResponse uploadForFilesTable(MultipartFile file, UploadRequest request) {
@@ -62,6 +49,8 @@ public class StorageService {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file is required");
         }
+
+        Long uploaderId = securityUtil.currentUserId();
 
         StorageKeyGenerator.UploadTargetType type = request.parsedTargetType();
         Long contentId = request.getContentId();
@@ -77,8 +66,8 @@ public class StorageService {
         }
 
         StoredFile storedFile = (type == StorageKeyGenerator.UploadTargetType.POST)
-                ? StoredFile.forPost(originalName, storedName, contentId)
-                : StoredFile.forNotice(originalName, storedName, contentId);
+                ? StoredFile.forPost(originalName, storedName, uploaderId, contentId)
+                : StoredFile.forNotice(originalName, storedName, uploaderId, contentId);
 
         StoredFile saved = storedFileRepository.save(storedFile);
         String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
@@ -88,7 +77,7 @@ public class StorageService {
 
     @Transactional(readOnly = true)
     public FileResponse getFile(Long fileId) {
-        StoredFile f = storedFileRepository.findById(fileId)
+        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
         String key = toKey(f);
         String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
@@ -97,19 +86,74 @@ public class StorageService {
 
     @Transactional(readOnly = true)
     public InputStream download(Long fileId) {
-        StoredFile f = storedFileRepository.findById(fileId)
+        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
         String key = toKey(f);
         return objectStoragePort.getObject(LOCAL_BUCKET_UNUSED, key);
     }
 
+    /**
+     * (유저) 파일 삭제
+     * - 작성자만 가능
+     * - NOTICE 첨부파일은 유저 삭제 불가
+     * - DB soft delete만 수행(오브젝트는 지연삭제 배치에서 제거)
+     */
     @Transactional
-    public void delete(Long fileId) {
-        StoredFile f = storedFileRepository.findById(fileId)
+    public void deleteByUser(Long fileId) {
+        Long currentUserId = securityUtil.currentUserId();
+
+        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
-        String key = toKey(f);
-        objectStoragePort.deleteObject(LOCAL_BUCKET_UNUSED, key);
-        storedFileRepository.delete(f);
+
+        if (f.getNoticeId() != null) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "notice file cannot be deleted by user");
+        }
+
+        if (!currentUserId.equals(f.getUserId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "only uploader can delete this file");
+        }
+
+        f.markDeleted(currentUserId, "USER_DELETE");
+    }
+
+    /**
+     * (어드민) 파일 강제 삭제
+     * - POST/NOTICE 구분 없이 가능
+     * - DB soft delete만 수행(오브젝트는 지연삭제 배치에서 제거)
+     */
+    @Transactional
+    public void deleteByAdmin(Long fileId, String reason) {
+        Long adminId = securityUtil.currentUserId();
+        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
+
+        String r = (reason == null || reason.isBlank()) ? "ADMIN_DELETE" : reason;
+        f.markDeleted(adminId, r);
+    }
+
+    /**
+     * 지연삭제 배치
+     * - soft delete 된 파일 중 retentionDays가 지난 오브젝트를 실제로 제거한다.
+     * - 삭제 성공 시 object_deleted_at을 세팅하여 멱등/재시도 가능
+     */
+    @Transactional
+    public int purgeDeletedObjects(int retentionDays) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
+        var targets = storedFileRepository
+                .findTop100ByDeletedAtIsNotNullAndObjectDeletedAtIsNullAndDeletedAtBefore(cutoff);
+
+        int deletedCount = 0;
+        for (StoredFile f : targets) {
+            try {
+                String key = toKey(f);
+                objectStoragePort.deleteObject(LOCAL_BUCKET_UNUSED, key);
+                f.markObjectDeleted();
+                deletedCount++;
+            } catch (Exception e) {
+                // 실패 시 다음 주기에 재시도 (objectDeletedAt 미세팅)
+            }
+        }
+        return deletedCount;
     }
 
     private String toKey(StoredFile f) {
@@ -124,7 +168,6 @@ public class StorageService {
 
     private static String safeOriginalName(String originalFilename) {
         if (originalFilename == null || originalFilename.isBlank()) return "file";
-        // 파일명에 경로가 섞여 들어오면(브라우저/OS별) 경로 부분을 제거한다.
         int idx1 = originalFilename.lastIndexOf('/');
         int idx2 = originalFilename.lastIndexOf('\\');
         int idx = Math.max(idx1, idx2);

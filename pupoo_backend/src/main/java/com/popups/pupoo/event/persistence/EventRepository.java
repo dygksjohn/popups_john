@@ -6,8 +6,10 @@ import com.popups.pupoo.event.domain.model.Event;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 /**
@@ -22,7 +24,9 @@ import java.time.LocalDateTime;
  */
 public interface EventRepository extends JpaRepository<Event, Long> {
 
-        /**
+    long countByStatus(EventStatus status);
+
+    /**
      * 공개 조회용: CANCELLED 제외
      */
     @Query("""
@@ -47,7 +51,10 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             Pageable pageable
     );
 
-@Query("""
+    /**
+     * 관리자/내부 조회용: 상태 전체 포함
+     */
+    @Query("""
         SELECT e
         FROM Event e
         WHERE (:status IS NULL OR e.status = :status)
@@ -66,6 +73,45 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             @Param("fromAt") LocalDateTime fromAt,
             @Param("toAt") LocalDateTime toAt,
             Pageable pageable
-    );       
+    );
 
+    /**
+     * 시작 전 → PLANNED
+     */
+    @Modifying
+    @Transactional
+    @Query(value = """
+        UPDATE event
+        SET status = 'PLANNED'
+        WHERE start_at > NOW()
+          AND status <> 'PLANNED'
+        """, nativeQuery = true)
+    int syncToPlanned();
+
+    /**
+     * 진행 중 → ONGOING
+     */
+    @Modifying
+    @Transactional
+    @Query(value = """
+        UPDATE event
+        SET status = 'ONGOING'
+        WHERE start_at <= NOW()
+          AND end_at >= NOW()
+          AND status <> 'ONGOING'
+        """, nativeQuery = true)
+    int syncToOngoing();
+
+    /**
+     * 종료 → ENDED
+     */
+    @Modifying
+    @Transactional
+    @Query(value = """
+        UPDATE event
+        SET status = 'ENDED'
+        WHERE end_at < NOW()
+          AND status <> 'ENDED'
+        """, nativeQuery = true)
+    int syncToEnded();
 }

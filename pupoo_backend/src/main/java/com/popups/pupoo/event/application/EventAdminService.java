@@ -7,6 +7,7 @@ import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.event.domain.model.Event;
 import com.popups.pupoo.event.domain.model.EventInterestMap;
+import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.dto.AdminEventCreateRequest;
 import com.popups.pupoo.event.dto.AdminEventUpdateRequest;
 import com.popups.pupoo.event.dto.EventResponse;
@@ -18,6 +19,11 @@ import com.popups.pupoo.notification.domain.enums.NotificationType;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDateTime;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -101,7 +107,7 @@ public class EventAdminService {
         // 행사 정보 변경 알림
         notificationService.publishEventInterestNotification(
                 eventId,
-                NotificationType.EVENT_INFO,
+                NotificationType.EVENT,
                 "행사 정보가 업데이트되었어요",
                 event.getEventName(),
                 InboxTargetType.EVENT,
@@ -110,6 +116,30 @@ public class EventAdminService {
 
         adminLogService.write("EVENT_UPDATE", AdminTargetType.EVENT, eventId);
 
+        return EventResponse.from(event);
+    }
+
+    /** 관리자용 행사 목록(검색 포함) */
+    public Page<EventResponse> list(String keyword, EventStatus status, LocalDateTime fromAt, LocalDateTime toAt, Pageable pageable) {
+        return eventRepository.search(keyword, status, fromAt, toAt, pageable).map(EventResponse::from);
+    }
+
+    /** 관리자용 행사 상세 */
+    public EventResponse get(Long eventId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "존재하지 않는 행사입니다. eventId=" + eventId));
+        return EventResponse.from(event);
+    }
+
+    /** 관리자용 행사 상태 변경(예: CANCELLED 전환) */
+    @Transactional
+    public EventResponse changeStatus(Long eventId, EventStatus status) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "존재하지 않는 행사입니다. eventId=" + eventId));
+
+        event.changeStatus(status);
+
+        adminLogService.write("EVENT_STATUS_CHANGE", AdminTargetType.EVENT, eventId);
         return EventResponse.from(event);
     }
 

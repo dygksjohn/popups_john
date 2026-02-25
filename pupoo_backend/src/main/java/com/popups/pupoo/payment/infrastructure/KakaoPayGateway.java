@@ -14,6 +14,7 @@ import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Component;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.web.client.HttpStatusCodeException;
 
 import java.math.BigDecimal;
@@ -35,6 +36,14 @@ public class KakaoPayGateway implements PaymentGateway {
         this.txRepository = txRepository;
     }
 
+
+private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
+    return txRepository.findLatestByPaymentIdForUpdate(paymentId, PageRequest.of(0, 1))
+            .stream()
+            .findFirst()
+            .orElse(null);
+}
+
     /**
      * KAKAOPAY ready
      * - payments: 이미 REQUESTED로 저장되어 있어야 함
@@ -49,7 +58,7 @@ public class KakaoPayGateway implements PaymentGateway {
         // 멱등: 이미 tx가 있으면 raw_ready로 동일 응답을 재구성하여 반환한다.
         // - READY/APPROVED는 "이미 ready가 한번 수행된 결제"로 보고 그대로 반환한다.
         // - CANCELLED/FAILED는 재-ready를 허용하지 않는다(결제는 새로 생성해야 함)
-        PaymentTransaction existing = txRepository.findByPaymentIdForUpdate(payment.getPaymentId()).orElse(null);
+        PaymentTransaction existing = findLatestTxForUpdate(payment.getPaymentId());
         if (existing != null) {
             if ("READY".equals(existing.getStatus().name()) || "APPROVED".equals(existing.getStatus().name())) {
                 if (existing.getRawReady() == null || existing.getRawReady().isBlank()) {
@@ -153,7 +162,7 @@ public class KakaoPayGateway implements PaymentGateway {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
-        PaymentTransaction tx = txRepository.findByPaymentIdForUpdate(payment.getPaymentId())
+        PaymentTransaction tx = txRepository.findLatestByPaymentIdForUpdate(payment.getPaymentId(), PageRequest.of(0, 1)).stream().findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_TX_NOT_FOUND));
 
         // 멱등: 이미 승인된 트랜잭션이면 true 반환
@@ -213,7 +222,7 @@ public class KakaoPayGateway implements PaymentGateway {
             throw new BusinessException(ErrorCode.PAYMENT_INVALID_STATUS);
         }
 
-        PaymentTransaction tx = txRepository.findByPaymentIdForUpdate(payment.getPaymentId())
+        PaymentTransaction tx = txRepository.findLatestByPaymentIdForUpdate(payment.getPaymentId(), PageRequest.of(0, 1)).stream().findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_TX_NOT_FOUND));
 
         // 멱등: 이미 CANCELLED면 true 반환
