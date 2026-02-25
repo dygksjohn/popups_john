@@ -19,6 +19,7 @@ public class GalleryResponse {
     private String description;
 
     private Integer viewCount;
+    private Long likeCount;
     private Long thumbnailImageId;
 
     private GalleryStatus status;
