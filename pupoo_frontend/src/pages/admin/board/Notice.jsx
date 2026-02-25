@@ -11,10 +11,14 @@ import {
   Check,
   Loader2,
   RefreshCw,
-  Eye,
 } from "lucide-react";
 import ds from "../shared/designTokens";
-import { adminNoticeApi, unwrap } from "../../../api/noticeApi";
+import {
+  adminNoticeApi,
+  unwrap,
+  getToken,
+  clearToken,
+} from "../../../api/noticeApi";
 
 const styles = `
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
@@ -638,7 +642,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, saving }) {
 }
 
 /* ═══════════════════════════════════════════
-   메인 컴포넌트
+   메인 컴포넌트 (로그인은 AdminLogin에서 처리)
    ═══════════════════════════════════════════ */
 export default function Notice() {
   const [items, setItems] = useState([]);
@@ -670,7 +674,11 @@ export default function Notice() {
       setPage(p);
     } catch (err) {
       console.error("[Notice] fetch error:", err);
-      setError("공지사항을 불러오는데 실패했습니다.");
+      if (err?.response?.status === 401) {
+        setError("로그인이 필요합니다. 로그인 페이지에서 다시 로그인해주세요.");
+      } else {
+        setError("공지사항을 불러오는데 실패했습니다.");
+      }
     } finally {
       setLoading(false);
     }
@@ -851,19 +859,7 @@ export default function Notice() {
         )}
 
         {!loading && error && (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "60px 20px",
-              minHeight: 300,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "40px 20px",
-              textAlign: "center",
-            }}
-          >
+          <div style={{ textAlign: "center", padding: "60px 20px" }}>
             <AlertTriangle
               size={36}
               color="#F59E0B"

@@ -804,12 +804,12 @@ export default function Home() {
         <div className="relative h-full flex items-center justify-center">
           <div className="max-w-[1400px] w-full px-6 text-white">
             <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
-              멍멍멍 왈왈왈왈 몰보냐
+              지금, 가장 즐거운
               <br />
-              우하하 테스트
+              반려견 페스티벌
             </h1>
             <p className="mt-6 text-lg md:text-xl text-white/90">
-              We Make Quality pupooooo.
+              참여 가능한 행사를 바로 확인하세요
             </p>
           </div>
         </div>
