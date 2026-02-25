@@ -12,11 +12,11 @@ import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.report.application.ReportService;
 import com.popups.pupoo.report.dto.ReportCreateRequest;
 import com.popups.pupoo.report.dto.ReportResponse;
+import com.popups.pupoo.common.search.SearchType;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -39,9 +39,10 @@ public class PostController {
      */
     @GetMapping
     public ApiResponse<Page<PostResponse>> getPosts(@RequestParam Long boardId,
+                                                    @RequestParam(required = false) String searchType,
                                                     @RequestParam(required = false) String keyword,
                                                     Pageable pageable) {
-        return ApiResponse.success(postService.getPublicPosts(boardId, keyword, pageable));
+        return ApiResponse.success(postService.getPublicPosts(boardId, SearchType.from(searchType), keyword, pageable));
     }
 
     /**
@@ -100,13 +101,5 @@ public class PostController {
         return ApiResponse.success(postService.getPublicPost(postId));
     }
 
-    /**
-     * 관리자 강제 삭제
-     */
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    @PatchMapping("/admin/{postId}/delete")
-    public ApiResponse<MessageResponse> adminDelete(@PathVariable Long postId) {
-        postService.adminDelete(postId);
-        return ApiResponse.success(new MessageResponse("ADMIN_DELETE_OK"));
-    }
+
 }

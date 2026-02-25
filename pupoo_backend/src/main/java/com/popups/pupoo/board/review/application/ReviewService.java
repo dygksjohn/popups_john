@@ -10,6 +10,7 @@ import com.popups.pupoo.board.review.dto.*;
 import com.popups.pupoo.board.review.persistence.ReviewRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.common.search.SearchType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -56,11 +57,32 @@ public class ReviewService {
         return toResponse(review);
     }
 
-    public Page<ReviewResponse> list(int page, int size) {
+    public Page<ReviewResponse> list(SearchType searchType, String keyword, int page, int size) {
         // 공개 조회 정책: PUBLIC + deleted=false만 반환한다.
         validatePageRequest(page, size);
-        return reviewRepository.findByDeletedFalseAndReviewStatus(ReviewStatus.PUBLIC, PageRequest.of(page, size))
-                .map(this::toResponse);
+
+        PageRequest pageable = PageRequest.of(page, size);
+        return switch (searchType) {
+            case WRITER -> {
+                Long writerId = parseLongOrNull(keyword);
+                yield reviewRepository.searchPublicByWriter(ReviewStatus.PUBLIC, writerId, pageable).map(this::toResponse);
+            }
+            case CONTENT, TITLE, TITLE_CONTENT -> reviewRepository.searchPublicByContent(ReviewStatus.PUBLIC, keyword, pageable)
+                    .map(this::toResponse);
+        };
+    }
+
+    public Page<ReviewResponse> list(int page, int size) {
+        return list(SearchType.TITLE_CONTENT, null, page, size);
+    }
+
+    private static Long parseLongOrNull(String keyword) {
+        if (keyword == null || keyword.isBlank()) return null;
+        try {
+            return Long.parseLong(keyword.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     @Transactional

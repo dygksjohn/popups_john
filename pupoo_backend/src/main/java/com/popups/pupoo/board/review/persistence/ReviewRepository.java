@@ -22,6 +22,30 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     // 공개 조회: 삭제되지 않고 PUBLIC 상태인 후기 목록 조회
     Page<Review> findByDeletedFalseAndReviewStatus(ReviewStatus reviewStatus, Pageable pageable);
 
+    @Query("""
+        select r
+        from Review r
+        where r.deleted = false
+          and r.reviewStatus = :status
+          and (:keyword is null or :keyword = '' or r.content like concat('%', :keyword, '%'))
+        order by r.createdAt desc, r.reviewId desc
+        """)
+    Page<Review> searchPublicByContent(@Param("status") ReviewStatus status,
+                                      @Param("keyword") String keyword,
+                                      Pageable pageable);
+
+    @Query("""
+        select r
+        from Review r
+        where r.deleted = false
+          and r.reviewStatus = :status
+          and (:writerId is null or r.userId = :writerId)
+        order by r.createdAt desc, r.reviewId desc
+        """)
+    Page<Review> searchPublicByWriter(@Param("status") ReviewStatus status,
+                                     @Param("writerId") Long writerId,
+                                     Pageable pageable);
+
     /**
      * 관리자 모더레이션 큐 조회용: 삭제/블라인드 포함 검색.
      */

@@ -7,7 +7,6 @@ import com.popups.pupoo.notification.application.NotificationAdminService;
 import com.popups.pupoo.notification.dto.NotificationCreateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -27,7 +26,6 @@ public class AdminNotificationController {
      * - channels: APP/EMAIL/SMS/PUSH (미지정 시 APP)
      * - recipientScope: INTEREST_SUBSCRIBERS/EVENT_REGISTRANTS/EVENT_PAYERS (미지정 시 INTEREST_SUBSCRIBERS)
      */
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping("/event")
     public ApiResponse<Void> publishEvent(@Valid @RequestBody NotificationCreateRequest request) {
         Long adminUserId = securityUtil.currentUserId();

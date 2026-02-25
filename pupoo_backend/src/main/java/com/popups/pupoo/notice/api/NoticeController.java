@@ -4,6 +4,7 @@ package com.popups.pupoo.notice.api;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.notice.application.NoticeService;
 import com.popups.pupoo.notice.dto.NoticeResponse;
+import com.popups.pupoo.common.search.SearchType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
@@ -23,9 +24,11 @@ public class NoticeController {
     @GetMapping
     public ApiResponse<Page<NoticeResponse>> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String searchType,
+            @RequestParam(required = false) String keyword
     ) {
-        return ApiResponse.success(noticeService.list(page, size));
+        return ApiResponse.success(noticeService.list(SearchType.from(searchType), keyword, page, size));
     }
 
     @GetMapping("/{noticeId}")

@@ -6,6 +6,7 @@ import com.popups.pupoo.board.review.application.ReviewService;
 import com.popups.pupoo.board.review.dto.*;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.MessageResponse;
+import com.popups.pupoo.common.search.SearchType;
 import com.popups.pupoo.report.application.ReportService;
 import com.popups.pupoo.report.dto.ReportCreateRequest;
 import com.popups.pupoo.report.dto.ReportResponse;
@@ -41,8 +42,10 @@ public class ReviewController {
 
     @GetMapping
     public ApiResponse<Page<ReviewResponse>> list(@RequestParam(defaultValue = "0") int page,
-                                                  @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.success(reviewService.list(page, size));
+                                                  @RequestParam(defaultValue = "10") int size,
+                                                  @RequestParam(required = false) String searchType,
+                                                  @RequestParam(required = false) String keyword) {
+        return ApiResponse.success(reviewService.list(SearchType.from(searchType), keyword, page, size));
     }
 
     @PatchMapping("/{reviewId}")

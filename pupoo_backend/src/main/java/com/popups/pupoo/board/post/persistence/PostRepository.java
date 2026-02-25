@@ -19,6 +19,45 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         from Post p
         where p.board.boardId = :boardId
           and p.deleted = false
+          and (:keyword is null or :keyword = '' or p.postTitle like concat('%', :keyword, '%'))
+          and (:status is null or p.status = :status)
+        """)
+    Page<Post> searchByTitle(@Param("boardId") Long boardId,
+                             @Param("keyword") String keyword,
+                             @Param("status") PostStatus status,
+                             Pageable pageable);
+
+    @Query("""
+        select p
+        from Post p
+        where p.board.boardId = :boardId
+          and p.deleted = false
+          and (:keyword is null or :keyword = '' or p.content like concat('%', :keyword, '%'))
+          and (:status is null or p.status = :status)
+        """)
+    Page<Post> searchByContent(@Param("boardId") Long boardId,
+                               @Param("keyword") String keyword,
+                               @Param("status") PostStatus status,
+                               Pageable pageable);
+
+    @Query("""
+        select p
+        from Post p
+        where p.board.boardId = :boardId
+          and p.deleted = false
+          and (:writerId is null or p.userId = :writerId)
+          and (:status is null or p.status = :status)
+        """)
+    Page<Post> searchByWriter(@Param("boardId") Long boardId,
+                              @Param("writerId") Long writerId,
+                              @Param("status") PostStatus status,
+                              Pageable pageable);
+
+    @Query("""
+        select p
+        from Post p
+        where p.board.boardId = :boardId
+          and p.deleted = false
           and (
                 :keyword is null
              or :keyword = ''

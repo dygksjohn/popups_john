@@ -17,6 +17,8 @@ import java.util.Optional;
  */
 public interface EventRegistrationRepository extends JpaRepository<EventRegistration, Long> {
 
+    long countByEventIdAndStatus(Long eventId, RegistrationStatus status);
+
     boolean existsByEventIdAndUserIdAndStatus(Long eventId, Long userId, RegistrationStatus status);
 
     Page<EventRegistration> findByUserId(Long userId, Pageable pageable);

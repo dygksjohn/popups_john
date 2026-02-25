@@ -12,7 +12,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -30,7 +29,6 @@ public class AdminUserController {
 
     private final UserAdminService userAdminService;
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @GetMapping
     public ApiResponse<Page<UserResponse>> list(
             @RequestParam(required = false) String keyword,
@@ -43,25 +41,21 @@ public class AdminUserController {
         return ApiResponse.success(userAdminService.list(cond, pageable));
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @GetMapping("/{id}")
     public ApiResponse<UserResponse> get(@PathVariable Long id) {
         return ApiResponse.success(userAdminService.get(id));
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping
     public ApiResponse<UserResponse> create(@Valid @RequestBody UserCreateRequest req) {
         return ApiResponse.success(userAdminService.create(req));
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PatchMapping("/{id}")
     public ApiResponse<UserResponse> update(@PathVariable Long id, @RequestBody AdminUserUpdateRequest req) {
         return ApiResponse.success(userAdminService.update(id, req));
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @DeleteMapping("/{id}")
     public ApiResponse<IdResponse> delete(@PathVariable Long id) {
         userAdminService.delete(id);

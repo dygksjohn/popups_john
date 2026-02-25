@@ -53,6 +53,11 @@ public class ReplyService {
     public ReplyResponse create(Long userId, ReplyCreateRequest request) {
         targetValidator.validate(request.getTargetType(), request.getTargetId());
 
+        // 댓글 정책: FAQ 및 댓글 비활성 게시글은 댓글 생성 불가
+        if (request.getTargetType() == ReplyTargetType.POST) {
+            validateReplyAllowedForPost(request.getTargetId());
+        }
+
         // 금칙어 검증 (댓글 작성 포함)
         validateBannedWordsForReplyTarget(request.getTargetType(), request.getTargetId(), request.getContent());
 
@@ -85,6 +90,18 @@ public class ReplyService {
         }
 
         throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 댓글 대상 타입입니다.");
+    }
+
+    private void validateReplyAllowedForPost(Long postId) {
+        Post post = postRepository.findByPostIdAndDeletedFalse(postId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글이 존재하지 않습니다."));
+
+        if (post.getBoard() != null && post.getBoard().getBoardType() == BoardType.FAQ) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "FAQ에는 댓글을 작성할 수 없습니다.");
+        }
+        if (!post.isCommentEnabled()) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "댓글이 비활성화된 게시글입니다.");
+        }
     }
 
     public Page<ReplyResponse> list(ReplyTargetType targetType, Long targetId, int page, int size) {

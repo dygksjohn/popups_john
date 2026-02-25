@@ -95,6 +95,13 @@ public class Event {
         this.roundNo = roundNo;
     }
 
+    /**
+     * 관리자 운영용 상태 전환
+     */
+    public void changeStatus(EventStatus status) {
+        this.status = status;
+    }
+
     // ===== Getter =====
     public Long getEventId() { return eventId; }
     public String getEventName() { return eventName; }
