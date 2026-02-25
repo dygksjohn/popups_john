@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import ds from "../shared/designTokens";
 import { Pill } from "../shared/Components";
-import DATA from "../shared/data";
+import { galleryApi } from "../../../app/http/galleryApi";
+import { eventApi } from "../../../app/http/eventApi";
 
 const styles = `
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
@@ -37,6 +38,36 @@ const GRADIENTS = [
   "linear-gradient(135deg, #fccb90, #d57eeb)",
   "linear-gradient(135deg, #e0c3fc, #8ec5fc)",
 ];
+
+/** API GalleryResponse → 카드/모달용 item */
+function mapApiToItem(api) {
+  const createdAt = api.createdAt
+    ? new Date(api.createdAt).toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+        .replace(/\. /g, ".")
+        .trim()
+    : "";
+  return {
+    id: api.galleryId,
+    galleryId: api.galleryId,
+    eventId: api.eventId,
+    title: api.title,
+    content: api.description ?? "",
+    tab: "참가자",
+    author: "운영팀",
+    date: createdAt,
+    photos: api.imageUrls?.length ?? 0,
+    likes: 0,
+    views: api.viewCount ?? 0,
+    thumbnail: "📸",
+    imageUrls: api.imageUrls ?? [],
+    tags: [],
+    _visible: true,
+  };
+}
 
 /* ── 공통 컴포넌트 ── */
 function Toast({ msg, type = "success", onDone }) {
@@ -1028,15 +1059,51 @@ function GalleryCard({ item, onClick, onEdit, onDelete }) {
    메인 컴포넌트
    ═══════════════════════════════════════════ */
 export default function Gallery() {
-  const [items, setItems] = useState(() =>
-    DATA.gallery.map((e) => ({ ...e, _visible: true })),
-  );
-  const [modal, setModal] = useState(null);
-  const [panel, setPanel] = useState(null);
-  const [toast, setToast] = useState(null);
-  const [tab, setTab] = useState("전체");
-  const [search, setSearch] = useState("");
-  const showToast = (msg, type = "success") => setToast({ msg, type });
+  const [items, setItems] = useState([]);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
+const [events, setEvents] = useState([]);
+const [modal, setModal] = useState(null);
+const [panel, setPanel] = useState(null);
+const [toast, setToast] = useState(null);
+const [tab, setTab] = useState("전체");
+const [search, setSearch] = useState("");
+const showToast = (msg, type = "success") => setToast({ msg, type });
+
+const fetchGalleries = async () => {
+  setLoading(true);
+  setError(null);
+  try {
+    const res = await galleryApi.getList({ page: 0, size: 500 });
+    const list = res.data?.content ?? res.data ?? [];
+    setItems(list.map(mapApiToItem));
+  } catch (e) {
+    const msg = e?.response?.data?.message ?? e?.message ?? "갤러리 목록 조회 실패";
+    setError(msg);
+    setItems([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+useEffect(() => {
+  fetchGalleries();
+}, []);
+
+useEffect(() => {
+  let cancelled = false;
+  eventApi
+    .getEvents({ page: 0, size: 200 })
+    .then((res) => {
+      if (cancelled) return;
+      const list = res.data?.data?.content ?? res.data?.content ?? [];
+      setEvents(Array.isArray(list) ? list : []);
+    })
+    .catch(() => {
+      if (!cancelled) setEvents([]);
+    });
+  return () => { cancelled = true; };
+}, []);
 
   const tabs = ["전체", "참가자", "현장"];
   const rows = items
@@ -1044,33 +1111,64 @@ export default function Gallery() {
     .filter((e) => tab === "전체" || e.tab === tab)
     .filter((e) => !search || e.title.includes(search));
 
-  const handleCreate = (f) => {
-    const d = new Date();
-    setItems((p) => [
-      {
-        ...f,
-        id: `GL-${String(p.length + 1).padStart(3, "0")}`,
-        date: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`,
-        _visible: true,
-      },
-      ...p,
-    ]);
-    setPanel(null);
-    showToast("갤러리가 등록되었습니다.");
-  };
-  const handleUpdate = (f) => {
-    setItems((p) => p.map((e) => (e.id === f.id ? { ...e, ...f } : e)));
+    const handleCreate = async (f) => {
+      if (f.eventId == null) {
+        showToast("행사를 선택해 주세요.", "error");
+        return;
+      }
+      try {
+        const payload = {
+          eventId: Number(f.eventId),
+          title: (f.title || "").trim(),
+          description: (f.content ?? f.description ?? "").trim() || null,
+          imageUrls: f.imageUrls?.length ? f.imageUrls : [],
+        };
+        const res = await galleryApi.create(payload);
+        const created = res.data?.data ?? res.data;
+        if (created) setItems((p) => [mapApiToItem(created), ...p]);
+        setPanel(null);
+        showToast("갤러리가 등록되었습니다.");
+      } catch (e) {
+        const msg = e?.response?.data?.message ?? e?.message ?? "등록에 실패했습니다.";
+        showToast(msg, "error");
+      }
+    };
+
+  const handleUpdate = async (f) => {
+  const galleryId = f.galleryId ?? f.id;
+  if (galleryId == null) return;
+  try {
+    const payload = {
+      title: (f.title || "").trim(),
+      description: (f.content ?? f.description ?? "").trim() || null,
+    };
+    const res = await galleryApi.update(galleryId, payload);
+    const updated = res.data?.data ?? res.data;
+    if (updated) {
+      setItems((p) =>
+        p.map((e) => (e.galleryId === galleryId ? mapApiToItem(updated) : e))
+      );
+    }
     setPanel(null);
     showToast("갤러리가 수정되었습니다.");
-  };
-  const handleDelete = () => {
-    const id = modal.item.id;
-    setModal(null);
-    setItems((p) =>
-      p.map((e) => (e.id === id ? { ...e, _visible: false } : e)),
-    );
+  } catch (e) {
+    const msg = e?.response?.data?.message ?? e?.message ?? "수정에 실패했습니다.";
+    showToast(msg, "error");
+  }
+};
+  const handleDelete = async () => {
+  const galleryId = modal.item.galleryId ?? modal.item.id;
+  setModal(null);
+  if (galleryId == null) return;
+  try {
+    await galleryApi.delete(galleryId);
+    setItems((p) => p.filter((e) => (e.galleryId ?? e.id) !== galleryId));
     showToast("갤러리가 삭제되었습니다.");
-  };
+  } catch (e) {
+    const msg = e?.response?.data?.message ?? e?.message ?? "삭제에 실패했습니다.";
+    showToast(msg, "error");
+  }
+};
 
   return (
     <div>
