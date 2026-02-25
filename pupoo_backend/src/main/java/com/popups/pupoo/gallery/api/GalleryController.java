@@ -51,4 +51,11 @@ public class GalleryController {
                                                     @PathVariable Long galleryId) {
         return ResponseEntity.ok(galleryService.like(userId, galleryId));
     }
+
+    @DeleteMapping("/{galleryId}/like")
+    public ResponseEntity<Void> unlike(@RequestHeader("X-USER-ID") Long userId,
+                                       @PathVariable Long galleryId) {
+        galleryService.unlike(userId, galleryId);
+        return ResponseEntity.noContent().build();
+    }
 }

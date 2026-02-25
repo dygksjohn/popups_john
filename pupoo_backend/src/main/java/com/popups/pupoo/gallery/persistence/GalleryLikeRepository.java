@@ -8,4 +8,5 @@ import java.util.Optional;
 
 public interface GalleryLikeRepository extends JpaRepository<GalleryLike, Long> {
     Optional<GalleryLike> findByGallery_GalleryIdAndUserId(Long galleryId, Long userId);
+    void deleteByGallery_GalleryIdAndUserId(Long galleryId, Long userId);
 }

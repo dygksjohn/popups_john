@@ -32,6 +32,12 @@ export const galleryApi = {
       throw new Error("galleryApi.like: galleryId is required");
     return axiosInstance.post(`/api/galleries/${galleryId}/like`);
   },
+  // DELETE /api/galleries/{galleryId}/like — 좋아요 취소
+  unlike: (galleryId) => {
+    if (galleryId == null)
+      throw new Error("galleryApi.unlike: galleryId is required");
+    return axiosInstance.delete(`/api/galleries/${galleryId}/like`);
+  },
 
   // =========================
   // 관리자 API (등록/수정/삭제)
