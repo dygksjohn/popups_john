@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogIn, UserPlus, UserCircle } from "lucide-react";
+import { LogIn, LogOut, UserPlus, UserCircle } from "lucide-react";
 
 /* ─────────────────────────────────────────────
    ICONS
@@ -680,25 +680,16 @@ export default function pupooHeader() {
               ) : (
                 <>
                   {/* ✅ 로그아웃: Link로 하면 GET 이동이라 비추. 버튼으로 처리 */}
-                  <div style={{ display: "inline-block" }}>
-                    <button
-                      className="pupoo-icon-btn"
-                      onClick={() => {
-                        logoutLocal(); // 토큰 제거 + isAuthed false
-                        navigate("/", { replace: true });
-                      }}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: "4px",
-                      }}
-                      title="로그아웃"
-                    >
-                      {/* LogIn 아이콘을 로그아웃처럼 쓰기 싫으면 lucide의 LogOut import 추천 */}
-                      <LogIn size={23} color={iconColor} strokeWidth={1.5} />
-                    </button>
-                  </div>
+                  <IconButtonWithTooltip
+                    tooltip="로그아웃"
+                    onClick={() => {
+                      logoutLocal(); // 토큰 제거 + isAuthed false
+                      navigate("/", { replace: true });
+                    }}
+                  >
+                    {/* 가능하면 LogOut 아이콘 추천 */}
+                    <LogOut size={23} color={iconColor} strokeWidth={1.5} />
+                  </IconButtonWithTooltip>
 
                   <IconButtonWithTooltip to="/mypage" tooltip="마이페이지">
                     <UserCircle size={23} color={iconColor} strokeWidth={1.5} />
