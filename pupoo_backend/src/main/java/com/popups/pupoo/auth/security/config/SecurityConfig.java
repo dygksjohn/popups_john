@@ -99,6 +99,7 @@ public class SecurityConfig {
 
             .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events/*").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/events/*/galleries").permitAll()
 
             .requestMatchers(HttpMethod.GET, "/api/programs").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/programs/*").permitAll()
