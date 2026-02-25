@@ -1,16 +1,25 @@
 // file: src/main/java/com/popups/pupoo/gallery/application/GalleryService.java
 package com.popups.pupoo.gallery.application;
 
-import com.popups.pupoo.gallery.domain.model.*;
-import com.popups.pupoo.gallery.dto.*;
-import com.popups.pupoo.gallery.persistence.*;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.*;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import com.popups.pupoo.gallery.domain.enums.GalleryStatus;
+import com.popups.pupoo.gallery.domain.model.Gallery;
+import com.popups.pupoo.gallery.domain.model.GalleryImage;
+import com.popups.pupoo.gallery.domain.model.GalleryLike;
+import com.popups.pupoo.gallery.dto.GalleryLikeResponse;
+import com.popups.pupoo.gallery.dto.GalleryResponse;
+import com.popups.pupoo.gallery.persistence.GalleryImageRepository;
+import com.popups.pupoo.gallery.persistence.GalleryLikeRepository;
+import com.popups.pupoo.gallery.persistence.GalleryRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -22,7 +31,7 @@ public class GalleryService {
     private final GalleryLikeRepository galleryLikeRepository;
 
     public GalleryResponse get(Long galleryId) {
-        Gallery g = galleryRepository.findById(galleryId)
+        Gallery g = galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
                 .orElseThrow(() -> new IllegalArgumentException("갤러리가 존재하지 않습니다."));
 
         List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
@@ -43,7 +52,7 @@ public class GalleryService {
     }
 
     public Page<GalleryResponse> list(int page, int size) {
-        return galleryRepository.findAll(PageRequest.of(page, size))
+        return galleryRepository.findByGalleryStatus(GalleryStatus.PUBLIC, PageRequest.of(page, size))
                 .map(g -> {
                     List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
                             .stream().map(GalleryImage::getOriginalUrl).toList();
@@ -64,7 +73,7 @@ public class GalleryService {
 
     @Transactional
     public GalleryLikeResponse like(Long userId, Long galleryId) {
-        Gallery g = galleryRepository.findById(galleryId)
+        Gallery g = galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
                 .orElseThrow(() -> new IllegalArgumentException("갤러리가 존재하지 않습니다."));
 
         GalleryLike like = galleryLikeRepository.findByGallery_GalleryIdAndUserId(galleryId, userId)
