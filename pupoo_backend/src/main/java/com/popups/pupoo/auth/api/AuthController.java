@@ -2,8 +2,13 @@
 package com.popups.pupoo.auth.api;
 
 import com.popups.pupoo.auth.application.AuthService;
+import com.popups.pupoo.auth.application.KakaoOAuthService;
 import com.popups.pupoo.auth.application.SignupSessionService;
 import com.popups.pupoo.auth.dto.EmailVerificationRequestResponse;
+import com.popups.pupoo.auth.dto.KakaoExchangeRequest;
+import com.popups.pupoo.auth.dto.KakaoExchangeResponse;
+import com.popups.pupoo.auth.dto.KakaoOauthLoginRequest;
+import com.popups.pupoo.auth.dto.KakaoOauthLoginResponse;
 import com.popups.pupoo.auth.dto.LoginRequest;
 import com.popups.pupoo.auth.dto.LoginResponse;
 import com.popups.pupoo.auth.dto.SignupCompleteRequest;
@@ -20,12 +25,11 @@ import com.popups.pupoo.common.exception.ErrorCode;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
-import com.popups.pupoo.auth.dto.KakaoExchangeRequest;
-import com.popups.pupoo.auth.dto.KakaoExchangeResponse;
-import com.popups.pupoo.auth.application.KakaoOAuthService;
-import com.popups.pupoo.auth.dto.KakaoOauthLoginRequest;
-import com.popups.pupoo.auth.dto.KakaoOauthLoginResponse;
+
+import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -35,10 +39,11 @@ public class AuthController {
 
     private final AuthService authService;
     private final SignupSessionService signupSessionService;
-    
     private final KakaoOAuthService kakaoOAuthService;
 
-    public AuthController(AuthService authService, SignupSessionService signupSessionService, KakaoOAuthService kakaoOAuthService) {
+    public AuthController(AuthService authService,
+                          SignupSessionService signupSessionService,
+                          KakaoOAuthService kakaoOAuthService) {
         this.authService = authService;
         this.signupSessionService = signupSessionService;
         this.kakaoOAuthService = kakaoOAuthService;
@@ -93,15 +98,15 @@ public class AuthController {
     public ApiResponse<LoginResponse> signupComplete(@RequestBody SignupCompleteRequest req, HttpServletResponse response) {
         return ApiResponse.success(signupSessionService.complete(req, response));
     }
-    
+
     /**
      * Kakao 로그인
-     */ 
+     */
     @PostMapping("/oauth/kakao/exchange")
     public ApiResponse<KakaoExchangeResponse> kakaoExchange(@RequestBody KakaoExchangeRequest req) {
         return ApiResponse.success(kakaoOAuthService.exchange(req.getCode()));
     }
-    
+
     /**
      * Kakao 로그인 (토큰 발급)
      * - 기존 회원: accessToken(body) + refreshToken(HttpOnly 쿠키)
@@ -114,7 +119,6 @@ public class AuthController {
     ) {
         return ApiResponse.success(kakaoOAuthService.login(req.getCode(), response));
     }
-    
 
     /**
      * 로그인
@@ -134,19 +138,32 @@ public class AuthController {
      */
     @PostMapping("/refresh")
     public ApiResponse<TokenResponse> refreshToken(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = readCookie(request, REFRESH_COOKIE_NAME);
+        String refreshToken = readCookieStrict(request, REFRESH_COOKIE_NAME);
         return ApiResponse.success(authService.refreshToken(refreshToken, response));
     }
 
     /**
-     * logout (디바이스 단위)
-     * - 현재 디바이스 refresh 쿠키의 토큰 1개만 DB에서 삭제
-     * - refresh 쿠키 만료
+     * ✅ logout (멱등)
+     * - 쿠키가 없어도 항상 200
+     * - 쿠키가 있으면 해당 토큰을 DB에서 삭제 시도
+     * - 항상 refresh 쿠키 만료(Set-Cookie Max-Age=0) 내려줌
      */
     @PostMapping("/logout")
     public ApiResponse<MessageResponse> logout(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = readCookie(request, REFRESH_COOKIE_NAME);
-        authService.logout(refreshToken, response);
+        String refreshToken = readCookieOptional(request, REFRESH_COOKIE_NAME);
+
+        try {
+            if (refreshToken != null && !refreshToken.isBlank()) {
+                // 기존 서비스 시그니처 유지: (token, response) 형태라면 그대로 호출
+                authService.logout(refreshToken, response);
+            }
+        } catch (Exception e) {
+            // 서버에서 DB 삭제 실패해도 클라이언트는 쿠키를 끊어야 함
+        } finally {
+            // ✅ 쿠키가 없더라도 무조건 만료 쿠키 내려주기(프론트/브라우저 상태 정리)
+            expireRefreshCookie(response);
+        }
+
         return ApiResponse.success(new MessageResponse("LOGOUT_OK"));
     }
 
@@ -159,7 +176,10 @@ public class AuthController {
         return ApiResponse.success("pong");
     }
 
-    private String readCookie(HttpServletRequest request, String name) {
+    /**
+     * 쿠키 읽기(필수): 없으면 예외 (refresh에는 유지)
+     */
+    private String readCookieStrict(HttpServletRequest request, String name) {
         Cookie[] cookies = request.getCookies();
         if (cookies == null) {
             throw new BusinessException(ErrorCode.REFRESH_TOKEN_MISSING);
@@ -168,5 +188,34 @@ public class AuthController {
             if (name.equals(c.getName())) return c.getValue();
         }
         throw new BusinessException(ErrorCode.REFRESH_TOKEN_MISSING);
+    }
+
+    /**
+     * 쿠키 읽기(선택): 없으면 null (logout은 멱등 처리)
+     */
+    private String readCookieOptional(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) return null;
+        for (Cookie c : cookies) {
+            if (name.equals(c.getName())) return c.getValue();
+        }
+        return null;
+    }
+
+    /**
+     * ✅ refresh_token 쿠키 만료를 ResponseCookie로 명시적으로 내려줌
+     * - Path는 "/"로 통일해야 브라우저에서 확실히 제거됨
+     * - 로컬 http 환경: secure=false
+     */
+    private void expireRefreshCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("Lax")
+                .path("/")               // 🔥 매우 중요
+                .maxAge(Duration.ZERO)
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }

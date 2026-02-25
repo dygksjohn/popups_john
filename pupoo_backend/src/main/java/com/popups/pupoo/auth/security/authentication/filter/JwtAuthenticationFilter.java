@@ -10,6 +10,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,6 +22,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
+
     /**
      * ObjectMapper는 반드시 Spring Boot가 관리하는 Bean(ObjectMapper)을 주입받아 사용한다.
      * - 이유: LocalDateTime 등 Java Time 직렬화 모듈(JSR-310)이 자동 등록된 ObjectMapper를 사용해야 한다.
@@ -60,12 +62,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } catch (Exception e) {
             SecurityContextHolder.clearContext();
-
-            // strict 401: Authorization 헤더가 존재하거나, 토큰 검증 중 예외 발생 시 즉시 401 반환
             writeUnauthorized(response, request);
         }
     }
 
+    /**
+     * Bearer 토큰 추출
+     * - Authorization 헤더 없으면 null (anonymous로 처리)
+     * - 헤더가 있는데 형식이 틀리면 strict 401
+     */
     private String resolveBearerToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
 
@@ -104,13 +109,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         ApiResponse<Object> body = ApiResponse.fail(error);
         response.getWriter().write(objectMapper.writeValueAsString(body));
     }
+
+    /**
+     * ✅ JWT 필터를 아예 타지 않아야 하는 경로들
+     * - /api/auth/** : 로그인/리프레시/로그아웃/회원가입/OAuth 등은 permitAll이며 쿠키 기반 처리도 포함
+     * - OPTIONS : 프리플라이트
+     * - swagger/actuator 등 운영 편의(선택)
+     */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/api/auth/oauth/")
-            || path.startsWith("/api/auth/signup/")
-            || path.equals("/api/auth/login")
-            || path.equals("/api/auth/refresh")
-            || path.equals("/api/auth/logout");
+
+        // Preflight
+        if (HttpMethod.OPTIONS.matches(request.getMethod())) {
+            return true;
+        }
+
+        // ✅ auth 전체 스킵 (logout 포함)
+        if (path.startsWith("/api/auth/")) {
+            return true;
+        }
+
+        // (선택) 문서/헬스체크 스킵
+        if (path.startsWith("/swagger-ui/")
+                || path.startsWith("/v3/api-docs/")
+                || path.equals("/actuator/health")
+                || path.equals("/api/ping")
+                || path.equals("/error")) {
+            return true;
+        }
+
+        return false;
     }
 }

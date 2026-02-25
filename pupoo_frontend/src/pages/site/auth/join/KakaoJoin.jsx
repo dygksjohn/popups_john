@@ -113,7 +113,7 @@ export default function KakaoJoin() {
         phone: phoneDigits,
       });
 
-      const key = res?.data?.signupKey;
+      const key = res?.signupKey;
 
       if (!key) {
         console.error("signupStart response =", res);
@@ -124,7 +124,7 @@ export default function KakaoJoin() {
       setSignupKey(key);
       setStep(STEP.OTP);
 
-      if (res?.data?.devOtp) {
+      if (res?.devOtp) {
         setOtpCode(String(res.data.devOtp));
       }
     } catch (e) {
