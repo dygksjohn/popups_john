@@ -71,6 +71,26 @@ public class GalleryService {
                 });
     }
 
+    public Page<GalleryResponse> listByEventId(Long eventId, int page, int size) {
+        return galleryRepository.findByEventIdAndGalleryStatus(eventId, GalleryStatus.PUBLIC, PageRequest.of(page, size))
+                .map(g -> {
+                    List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
+                            .stream().map(GalleryImage::getOriginalUrl).toList();
+                    return GalleryResponse.builder()
+                            .galleryId(g.getGalleryId())
+                            .eventId(g.getEventId())
+                            .title(g.getGalleryTitle())
+                            .description(g.getDescription())
+                            .viewCount(g.getViewCount())
+                            .thumbnailImageId(g.getThumbnailImageId())
+                            .status(g.getGalleryStatus())
+                            .imageUrls(urls)
+                            .createdAt(g.getCreatedAt())
+                            .updatedAt(g.getUpdatedAt())
+                            .build();
+                });
+    }
+    
     @Transactional
     public GalleryLikeResponse like(Long userId, Long galleryId) {
         Gallery g = galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)

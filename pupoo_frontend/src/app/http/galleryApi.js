@@ -10,6 +10,15 @@ export const galleryApi = {
   getList: ({ page = 0, size = 10 } = {}) =>
     axiosInstance.get("/api/galleries", { params: { page, size } }),
 
+  // GET /api/events/{eventId}/galleries — 행사별 갤러리 목록(페이징)
+  getListByEvent: (eventId, { page = 0, size = 10 } = {}) => {
+    if (eventId == null)
+      throw new Error("galleryApi.getListByEvent: eventId is required");
+    return axiosInstance.get(`/api/events/${eventId}/galleries`, {
+      params: { page, size },
+    });
+  },
+
   // GET /api/galleries/{galleryId} — 단건 조회
   getOne: (galleryId) => {
     if (galleryId == null)

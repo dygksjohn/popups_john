@@ -1,16 +1,22 @@
 // file: src/main/java/com/popups/pupoo/event/api/EventController.java
 package com.popups.pupoo.event.api;
 
+import java.time.LocalDateTime;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.PageResponse;
 import com.popups.pupoo.event.application.EventService;
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.dto.EventResponse;
-
-import org.springframework.data.domain.Pageable;
-import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
+import com.popups.pupoo.gallery.application.GalleryService;
+import com.popups.pupoo.gallery.dto.GalleryResponse;
 
 /**
  * 사용자용 행사 조회 API
@@ -22,11 +28,12 @@ import java.time.LocalDateTime;
 public class EventController {
 
     private final EventService eventService;
+    private final GalleryService galleryService;
 
-    public EventController(EventService eventService) {
+    public EventController(EventService eventService, GalleryService galleryService) {
         this.eventService = eventService;
+        this.galleryService = galleryService;
     }
-
     /**
      * 행사 목록 조회(키워드/상태/기간 + 페이징)
      *
@@ -52,4 +59,14 @@ public class EventController {
         return ApiResponse.success(eventService.getEvent(eventId));
     }
 
+    /** 행사별 갤러리 목록 조회(페이징) */
+    @GetMapping("/{eventId}/galleries")
+    public ApiResponse<PageResponse<GalleryResponse>> getEventGalleries(
+            @PathVariable("eventId") Long eventId,
+            Pageable pageable
+    ) {
+        return ApiResponse.success(
+                PageResponse.from(galleryService.listByEventId(eventId, pageable.getPageNumber(), pageable.getPageSize()))
+        );
+    }
 }

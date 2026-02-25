@@ -11,6 +11,8 @@ public interface GalleryRepository extends JpaRepository<Gallery, Long> {
 
 	Page<Gallery> findByEventId(Long eventId, Pageable pageable);
 
+	Page<Gallery> findByEventIdAndGalleryStatus(Long eventId, GalleryStatus galleryStatus, Pageable pageable);
+
     Page<Gallery> findByGalleryStatus(GalleryStatus galleryStatus, Pageable pageable);
 
     java.util.Optional<Gallery> findByGalleryIdAndGalleryStatus(Long galleryId, GalleryStatus galleryStatus);
