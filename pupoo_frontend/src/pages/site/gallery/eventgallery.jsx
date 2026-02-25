@@ -9,7 +9,6 @@ import {
   Eye,
   X,
 } from "lucide-react";
-import { galleryApi } from "../../../app/http/galleryApi";
 
 /* ─────────────────────────────────────────────
    STYLES
@@ -594,22 +593,6 @@ const SERVICE_CATEGORIES = [
   { label: "참가자 갤러리", path: "/gallery/eventgallery" },
   { label: "현장 스케치", path: "/gallery/eventsketch" },
 ];
-/* API 응답 한 건 → 카드용 객체 */
-function mapGalleryToCard(g) {
-  return {
-    id: g.galleryId,
-    images: g.imageUrls || [],
-    comment: g.description || "",
-    tags: [],
-    author: "",
-    pet: "",
-    date: g.createdAt ? new Date(g.createdAt).toLocaleDateString("ko-KR") : "",
-    likes: 0,
-    views: g.viewCount || 0,
-    avatarColor: ["#e5e7eb", "#9ca3af"],
-    initials: "?",
-  };
-}
 
 const GALLERY_CARDS = [
   {
@@ -1088,33 +1071,6 @@ export default function EventGallery() {
   const [liked, setLiked] = useState({});
   const [viewer, setViewer] = useState(null);
 
-  const [galleries, setGalleries] = useState([]);
-  const [page, setPage] = useState(0);
-  const [size] = useState(10);
-  const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const fetchGalleries = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await galleryApi.list(page, size);
-      const data = res.data;
-      setGalleries((data.content || []).map(mapGalleryToCard));
-      setTotalPages(data.totalPages ?? 0);
-    } catch (e) {
-      setError(e?.response?.data?.message || e?.message || "목록을 불러오지 못했습니다.");
-      setGalleries([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, size]);
-
-  useEffect(() => {
-    fetchGalleries();
-  }, [fetchGalleries]);
-
   const toggleLike = (id) => setLiked((prev) => ({ ...prev, [id]: !prev[id] }));
   const handleEnlarge = (card, idx) => setViewer({ card, startIndex: idx });
 
@@ -1132,58 +1088,32 @@ export default function EventGallery() {
 
       <main className="eg-container">
         <section style={{ marginBottom: "48px" }}>
-          {loading && (
-            <div style={{ textAlign: "center", padding: "48px 0", color: "#6b7280" }}>
-              불러오는 중...
-            </div>
-          )}
-          {error && (
-            <div style={{ textAlign: "center", padding: "48px 0", color: "#dc2626" }}>
-              {error}
-            </div>
-          )}
-          {!loading && !error && (
-            <div className="eg-masonry">
-              {galleries.map((card) => (
-                <GalleryCard
-                  key={card.id}
-                  card={card}
-                  liked={!!liked[card.id]}
-                  onToggleLike={() => toggleLike(card.id)}
-                  onEnlarge={handleEnlarge}
-                />
-              ))}
-            </div>
-          )}
+          <div className="eg-masonry">
+            {GALLERY_CARDS.map((card) => (
+              <GalleryCard
+                key={card.id}
+                card={card}
+                liked={!!liked[card.id]}
+                onToggleLike={() => toggleLike(card.id)}
+                onEnlarge={handleEnlarge}
+              />
+            ))}
+          </div>
         </section>
 
-        {!loading && !error && totalPages > 1 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: "6px",
-              marginTop: "40px",
-            }}
-          >
-            <button
-              className="eg-page-btn"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-            >
-              ‹
-            </button>
-            <button className="eg-page-btn active">{page + 1}</button>
-            <button
-              className="eg-page-btn"
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={page >= totalPages - 1}
-            >
-              ›
-            </button>
-          </div>
-        )}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "6px",
+            marginTop: "40px",
+          }}
+        >
+          <button className="eg-page-btn">‹</button>
+          <button className="eg-page-btn active">1</button>
+          <button className="eg-page-btn">›</button>
+        </div>
       </main>
 
       {viewer && (
