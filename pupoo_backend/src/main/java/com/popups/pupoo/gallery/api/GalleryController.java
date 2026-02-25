@@ -24,8 +24,9 @@ public class GalleryController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<GalleryResponse>> list(@RequestParam(defaultValue = "0") int page,
-                                                     @RequestParam(defaultValue = "10") int size) {
+    public ResponseEntity<Page<GalleryResponse>> list(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size) {
         return ResponseEntity.ok(galleryService.list(page, size));
     }
 
