@@ -26,7 +26,7 @@ public class Gallery {
     @Column(name = "gallery_title", nullable = false, length = 255)
     private String galleryTitle;
 
-    @Column(name = "description", length = 1000)
+    @Column(name = "gallery_description", length = 1000)
     private String description;
 
     @Column(name = "view_count")

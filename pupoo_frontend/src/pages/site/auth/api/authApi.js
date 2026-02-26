@@ -15,7 +15,7 @@ function unwrap(apiResponse) {
  */
 async function post(url, payload, config = {}) {
   const res = await axiosInstance.post(url, payload, config);
-  return unwrap(res.data);
+  return unwrap(res);
 }
 
 export const authApi = {
@@ -52,24 +52,22 @@ export const authApi = {
   refresh: async (config) => {
     // refresh는 보통 payload 없음
     const res = await axiosInstance.post("/api/auth/refresh", null, config);
-    return unwrap(res.data);
+    return unwrap(res);
   },
 
   logout: async (config) => {
     const res = await axiosInstance.post("/api/auth/logout", null, config);
-    return unwrap(res.data);
+    return unwrap(res);
   },
 
-  // ✅ 카카오 OAuth: code -> (BE) token 교환 + user/me 조회
+  // 카카오 OAuth: code를 전달해 백엔드에서 토큰 교환을 처리한다.
   kakaoExchange: async (payload, config) => {
     return post("/api/auth/oauth/kakao/exchange", payload, config);
   },
 
-  // ✅ 카카오 로그인(토큰 발급): 기존회원이면 access + refresh쿠키, 신규면 newUser=true
-  // ✅ config로 signal 전달 가능하게 변경
+  // 카카오 로그인(토큰 발급): 기존회원이면 access와 refresh 쿠키를 발급한다.
+  // config로 signal 전달이 가능하다.
   kakaoLogin: async (payload, config = {}) => {
-    // withCredentials는 axiosInstance에서 이미 true면 굳이 안 넣어도 됨.
-    // 다만 호출별로 강제하고 싶으면 아래처럼 merge:
     return post("/api/auth/oauth/kakao/login", payload, {
       withCredentials: true,
       ...config,
