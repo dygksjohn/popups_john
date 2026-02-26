@@ -49,4 +49,15 @@ public class SecurityUtil {
 
         throw new BusinessException(ErrorCode.INVALID_REQUEST);
     }
+    /**
+     * 현재 인증된 사용자가 ADMIN 역할인지 여부.
+     */
+    public boolean isAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return false;
+        }
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+    }    
 }

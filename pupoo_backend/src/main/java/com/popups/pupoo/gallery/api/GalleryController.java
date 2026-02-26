@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.PageResponse;
 import com.popups.pupoo.gallery.application.GalleryAdminService;
@@ -32,6 +33,7 @@ public class GalleryController {
 
     private final GalleryService galleryService;
     private final GalleryAdminService galleryAdminService;
+    private final SecurityUtil securityUtil;
 
     @GetMapping("/{galleryId}")
     public ResponseEntity<GalleryResponse> get(@PathVariable Long galleryId) {
@@ -49,18 +51,24 @@ public class GalleryController {
 
     @PostMapping
     public ResponseEntity<GalleryResponse> create(@Valid @RequestBody GalleryCreateRequest request) {
-        return ResponseEntity.ok(galleryAdminService.create(request));
+        Long userId = securityUtil.currentUserId();
+        return ResponseEntity.ok(galleryAdminService.createByUser(userId, request));
     }
 
     @PatchMapping("/{galleryId}")
     public ResponseEntity<GalleryResponse> update(@PathVariable Long galleryId,
                                                   @Valid @RequestBody GalleryUpdateRequest request) {
-        return ResponseEntity.ok(galleryAdminService.update(galleryId, request));
+        Long currentUserId = securityUtil.currentUserId();
+        boolean isAdmin = securityUtil.isAdmin();
+        return ResponseEntity.ok(
+                galleryAdminService.updateByAuthorOrAdmin(galleryId, request, currentUserId, isAdmin));
     }
 
     @DeleteMapping("/{galleryId}")
     public ResponseEntity<Void> delete(@PathVariable Long galleryId) {
-        galleryAdminService.delete(galleryId);
+        Long currentUserId = securityUtil.currentUserId();
+        boolean isAdmin = securityUtil.isAdmin();
+        galleryAdminService.deleteByAuthorOrAdmin(galleryId, currentUserId, isAdmin);
         return ResponseEntity.noContent().build();
     }
 
