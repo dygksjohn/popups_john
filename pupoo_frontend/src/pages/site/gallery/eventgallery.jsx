@@ -184,6 +184,19 @@ const styles = `
     flex-direction: column;
     flex: 1;
   }
+  
+  .eg-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111;
+    margin: 0 0 8px;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+  }  
 
   /* author row */
   .eg-card-author {
@@ -494,13 +507,21 @@ const styles = `
     width: 300px;
     flex-shrink: 0;
     background: #fff;
-    border-left: 1px solid #ececec;
+    border-left: 1px solid #e5e7eb;
     padding: 22px 20px 20px;
     color: #111;
     display: flex;
     flex-direction: column;
     overflow-y: auto;
     min-height: 0;
+  }
+  .eg-modal-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111;
+    margin: 0 0 14px;
+    line-height: 1.4;
+    word-break: break-word;
   }
   .eg-modal-author-row {
     display: flex;
@@ -853,6 +874,7 @@ const FullscreenViewer = ({
 
         {/* Info panel */}
         <div className="eg-modal-info" onClick={(e) => e.stopPropagation()}>
+          {card.title ? <h3 className="eg-modal-title">{card.title}</h3> : null}
           <div className="eg-modal-author-row">
             <div
               className="eg-modal-avatar"
@@ -943,6 +965,7 @@ const GalleryCard = ({ card, liked, onToggleLike, onEnlarge, isMine, onEdit, onD
       onEnlarge={(idx) => onEnlarge(card, idx)}
     />
     <div className="eg-card-body">
+      {card.title ? <h3 className="eg-card-title">{card.title}</h3> : null}
       <div className="eg-card-author">
         <div
           className="eg-avatar"
@@ -1168,6 +1191,7 @@ export default function EventGallery() {
         if (!g) return;
         setViewerDetail({
           id: g.galleryId,
+          title: g.title ?? "",
           images: g.imageUrls ?? [],
           comment: g.description ?? "",
           tags: [],
@@ -1297,6 +1321,7 @@ export default function EventGallery() {
   // API 응답 → 카드 형식 매핑 (기존 GALLERY_CARDS 구조에 맞춤)
   const cards = galleries.map((g) => ({
     id: g.galleryId,
+    title: g.title ?? "",
     userId: g.userId,
     images: g.imageUrls ?? [],
     comment: g.description ?? "",

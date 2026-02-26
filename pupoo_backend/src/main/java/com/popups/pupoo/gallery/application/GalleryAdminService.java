@@ -31,11 +31,13 @@ public class GalleryAdminService {
     private final GalleryImageRepository galleryImageRepository;
     private final AdminLogService adminLogService;
 
-    @Transactional
-    public GalleryResponse create(GalleryCreateRequest request) {
-        Gallery g = Gallery.builder()
+    /**
+ * 관리자 갤러리 등록. user_id에 현재 관리자 ID를 저장(DB NOT NULL 대응).
+ */
+@Transactional
+public GalleryResponse create(Long adminUserId, GalleryCreateRequest request) {Gallery g = Gallery.builder()
                 .eventId(request.getEventId())
-                .userId(null)
+                .userId(adminUserId) 
                 .galleryTitle(request.getTitle())
                 .description(request.getDescription())
                 .viewCount(0)
@@ -79,6 +81,7 @@ public class GalleryAdminService {
         return GalleryResponse.builder()
                 .galleryId(saved.getGalleryId())
                 .eventId(saved.getEventId())
+                .userId(saved.getUserId())
                 .title(saved.getGalleryTitle())
                 .description(saved.getDescription())
                 .viewCount(saved.getViewCount())
