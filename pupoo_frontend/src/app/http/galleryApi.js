@@ -42,6 +42,41 @@ export const galleryApi = {
   },
 
   // =========================
+  // 사용자 API (회원 갤러리 작성/수정/삭제 — 로그인 필요)
+  // =========================
+
+  // POST /api/galleries — 회원 갤러리 작성 (서버에서 user_id 설정)
+  createByUser: (payload) => {
+    if (!payload || payload.eventId == null)
+      throw new Error("galleryApi.createByUser: payload.eventId is required");
+    if (!payload?.title?.trim())
+      throw new Error("galleryApi.createByUser: payload.title is required");
+    return axiosInstance.post("/api/galleries", {
+      eventId: payload.eventId,
+      title: payload.title,
+      description: payload.description ?? "",
+      imageUrls: payload.imageUrls ?? [],
+    });
+  },
+
+  // PATCH /api/galleries/{galleryId} — 수정 (작성자 본인 또는 관리자)
+  updateOne: (galleryId, payload) => {
+    if (galleryId == null)
+      throw new Error("galleryApi.updateOne: galleryId is required");
+    return axiosInstance.patch(`/api/galleries/${galleryId}`, {
+      title: payload?.title ?? "",
+      description: payload?.description ?? "",
+    });
+  },
+
+  // DELETE /api/galleries/{galleryId} — 삭제/소프트삭제 (작성자 본인 또는 관리자)
+  deleteOne: (galleryId) => {
+    if (galleryId == null)
+      throw new Error("galleryApi.deleteOne: galleryId is required");
+    return axiosInstance.delete(`/api/galleries/${galleryId}`);
+  },
+
+  // =========================
   // 관리자 API (등록/수정/삭제)
   // =========================
 

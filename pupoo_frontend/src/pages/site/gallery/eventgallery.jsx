@@ -5,6 +5,8 @@ import {
   Heart,
   ImageOff,
   Maximize2,
+  Pencil,
+  Trash2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -891,7 +893,7 @@ const FullscreenViewer = ({
 /* ─────────────────────────────────────────────
    GALLERY CARD
 ───────────────────────────────────────────── */
-const GalleryCard = ({ card, liked, onToggleLike, onEnlarge }) => (
+const GalleryCard = ({ card, liked, onToggleLike, onEnlarge, isMine, onEdit, onDelete }) => (
   <div className="eg-card">
     <CardSlider
       images={card.images}
@@ -930,6 +932,40 @@ const GalleryCard = ({ card, liked, onToggleLike, onEnlarge }) => (
         <span className="eg-stat">
           <Eye size={12} strokeWidth={1.8} /> {card.views.toLocaleString()}
         </span>
+        {isMine && (
+          <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit?.(card.id); }}
+              title="수정"
+              style={{
+                padding: 4,
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                color: "#6b7280",
+                borderRadius: 4,
+              }}
+            >
+              <Pencil size={14} strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete?.(card.id); }}
+              title="삭제"
+              style={{
+                padding: 4,
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                color: "#dc2626",
+                borderRadius: 4,
+              }}
+            >
+              <Trash2 size={14} strokeWidth={2} />
+            </button>
+          </span>
+        )}
       </div>
     </div>
   </div>
@@ -958,6 +994,109 @@ export default function EventGallery() {
   const [meUserId, setMeUserId] = useState(null);
   const navigate = useNavigate();
   const { isAuthed } = useAuth();
+
+  // 글쓰기 모달
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({ eventId: "", title: "", description: "", imageUrlsText: "" });
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState(null);
+
+  // 수정 모달
+  const [editingGalleryId, setEditingGalleryId] = useState(null);
+  const [editForm, setEditForm] = useState({ title: "", description: "" });
+  const [editLoading, setEditLoading] = useState(false);
+
+  const refetchGalleries = useCallback(() => {
+    setGalleriesLoading(true);
+    setGalleriesError(null);
+    const promise = selectedEventId == null
+      ? galleryApi.getList({ page, size })
+      : galleryApi.getListByEvent(selectedEventId, { page, size });
+    promise
+      .then((res) => {
+        const data = res.data?.data ?? res.data;
+        const list = data?.content ?? (Array.isArray(data) ? data : []);
+        setGalleries(Array.isArray(list) ? list : []);
+        const total = data?.totalPages ?? 0;
+        setTotalPages(typeof total === "number" ? total : 0);
+      })
+      .catch((e) => {
+        setGalleries([]);
+        setGalleriesError(e?.response?.data?.message ?? e?.message ?? "갤러리를 불러오지 못했습니다.");
+      })
+      .finally(() => setGalleriesLoading(false));
+  }, [selectedEventId, page, size]);
+
+  const handleCreateSubmit = async () => {
+    const eventId = createForm.eventId === "" ? null : Number(createForm.eventId);
+    if (eventId == null) {
+      setCreateError("행사를 선택해 주세요.");
+      return;
+    }
+    if (!createForm.title?.trim()) {
+      setCreateError("제목을 입력해 주세요.");
+      return;
+    }
+    const imageUrls = createForm.imageUrlsText
+      ? createForm.imageUrlsText.split("\n").map((s) => s.trim()).filter(Boolean)
+      : [];
+    setCreateLoading(true);
+    setCreateError(null);
+    try {
+      await galleryApi.createByUser({
+        eventId,
+        title: createForm.title.trim(),
+        description: createForm.description?.trim() ?? "",
+        imageUrls,
+      });
+      setShowCreateModal(false);
+      setCreateForm({ eventId: "", title: "", description: "", imageUrlsText: "" });
+      refetchGalleries();
+    } catch (e) {
+      setCreateError(e?.response?.data?.error?.message ?? e?.message ?? "등록에 실패했습니다.");
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const handleEditClick = (galleryId) => {
+    const g = galleries.find((x) => x.galleryId === galleryId);
+    if (!g) return;
+    setEditForm({ title: g.title ?? "", description: g.description ?? "" });
+    setEditingGalleryId(galleryId);
+  };
+
+  const handleEditSubmit = async () => {
+    if (editingGalleryId == null) return;
+    setEditLoading(true);
+    try {
+      await galleryApi.updateOne(editingGalleryId, {
+        title: editForm.title?.trim() ?? "",
+        description: editForm.description?.trim() ?? "",
+      });
+      setEditingGalleryId(null);
+      refetchGalleries();
+      setViewer(null);
+      setViewerDetail(null);
+    } catch (e) {
+      console.error("수정 실패", e);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDeleteClick = async (galleryId) => {
+    if (!window.confirm("이 갤러리를 삭제할까요?")) return;
+    try {
+      await galleryApi.deleteOne(galleryId);
+      refetchGalleries();
+      setViewer(null);
+      setViewerDetail(null);
+      setEditingGalleryId(null);
+    } catch (e) {
+      console.error("삭제 실패", e);
+    }
+  };
 
   // 로그인 시 /me 로 userId 확보 (좋아요용)
   useEffect(() => {
@@ -1115,6 +1254,7 @@ export default function EventGallery() {
   // API 응답 → 카드 형식 매핑 (기존 GALLERY_CARDS 구조에 맞춤)
   const cards = galleries.map((g) => ({
     id: g.galleryId,
+    userId: g.userId,
     images: g.imageUrls ?? [],
     comment: g.description ?? "",
     tags: [],
@@ -1167,6 +1307,34 @@ export default function EventGallery() {
               </option>
             ))}
           </select>
+          {isAuthed && (
+            <button
+              type="button"
+              onClick={() => {
+                setCreateForm({
+                  eventId: selectedEventId ?? events[0]?.eventId ?? "",
+                  title: "",
+                  description: "",
+                  imageUrlsText: "",
+                });
+                setCreateError(null);
+                setShowCreateModal(true);
+              }}
+              style={{
+                marginLeft: 12,
+                padding: "8px 16px",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#fff",
+                background: "#1a4fd6",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+              }}
+            >
+              글쓰기
+            </button>
+          )}
         </section>
 
         <section style={{ marginBottom: "48px" }}>
@@ -1227,6 +1395,9 @@ export default function EventGallery() {
                   liked={!!liked[card.id]}
                   onToggleLike={() => toggleLike(card.id)}
                   onEnlarge={handleEnlarge}
+                  isMine={meUserId != null && card.userId === meUserId}
+                  onEdit={handleEditClick}
+                  onDelete={handleDeleteClick}
                 />
               ))}
             </div>
@@ -1256,9 +1427,169 @@ export default function EventGallery() {
     ›
   </button>
 </div>
-      </main>
+</main>
 
-      {viewer && (
+{/* 글쓰기 모달 */}
+{showCreateModal && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.5)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+    }}
+    onClick={() => !createLoading && setShowCreateModal(false)}
+  >
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        padding: 24,
+        width: "100%",
+        maxWidth: 420,
+        boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3 style={{ margin: "0 0 16px", fontSize: 18 }}>갤러리 글쓰기</h3>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ display: "block", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>행사</label>
+        <select
+          value={createForm.eventId}
+          onChange={(e) => setCreateForm((f) => ({ ...f, eventId: e.target.value }))}
+          style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db" }}
+        >
+          <option value="">선택</option>
+          {events.map((ev) => (
+            <option key={ev.eventId} value={ev.eventId}>
+              {ev.eventTitle ?? ev.title ?? `행사 ${ev.eventId}`}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ display: "block", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>제목</label>
+        <input
+          type="text"
+          value={createForm.title}
+          onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
+          placeholder="제목"
+          style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db" }}
+        />
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ display: "block", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>설명</label>
+        <textarea
+          value={createForm.description}
+          onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
+          placeholder="설명 (선택)"
+          rows={3}
+          style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", resize: "vertical" }}
+        />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "block", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>이미지 URL (한 줄에 하나씩)</label>
+        <textarea
+          value={createForm.imageUrlsText}
+          onChange={(e) => setCreateForm((f) => ({ ...f, imageUrlsText: e.target.value }))}
+          placeholder="https://..."
+          rows={3}
+          style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", resize: "vertical" }}
+        />
+      </div>
+      {createError && (
+        <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12 }}>{createError}</p>
+      )}
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          onClick={() => !createLoading && setShowCreateModal(false)}
+          style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" }}
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          onClick={handleCreateSubmit}
+          disabled={createLoading}
+          style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#1a4fd6", color: "#fff", cursor: createLoading ? "not-allowed" : "pointer" }}
+        >
+          {createLoading ? "등록 중..." : "등록"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* 수정 모달 */}
+{editingGalleryId != null && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.5)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+    }}
+    onClick={() => !editLoading && setEditingGalleryId(null)}
+  >
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        padding: 24,
+        width: "100%",
+        maxWidth: 420,
+        boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3 style={{ margin: "0 0 16px", fontSize: 18 }}>갤러리 수정</h3>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ display: "block", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>제목</label>
+        <input
+          type="text"
+          value={editForm.title}
+          onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+          style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db" }}
+        />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "block", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>설명</label>
+        <textarea
+          value={editForm.description}
+          onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+          rows={3}
+          style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", resize: "vertical" }}
+        />
+      </div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          onClick={() => !editLoading && setEditingGalleryId(null)}
+          style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" }}
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          onClick={handleEditSubmit}
+          disabled={editLoading}
+          style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#1a4fd6", color: "#fff", cursor: editLoading ? "not-allowed" : "pointer" }}
+        >
+          {editLoading ? "저장 중..." : "저장"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{viewer && (
         <FullscreenViewer
           card={viewerDetail ?? viewer.card}
           startIndex={viewer.startIndex}
