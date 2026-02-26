@@ -30,9 +30,15 @@ public class GalleryService {
     private final GalleryImageRepository galleryImageRepository;
     private final GalleryLikeRepository galleryLikeRepository;
 
+    @Transactional(readOnly = false)
     public GalleryResponse get(Long galleryId) {
         Gallery g = galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
                 .orElseThrow(() -> new IllegalArgumentException("갤러리가 존재하지 않습니다."));
+
+        Gallery updated = galleryRepository.save(g.toBuilder()
+                .viewCount(g.getViewCount() == null ? 1 : g.getViewCount() + 1)
+                .updatedAt(LocalDateTime.now())
+                .build());
 
         List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
                 .stream().map(GalleryImage::getOriginalUrl).toList();
@@ -40,17 +46,17 @@ public class GalleryService {
         long likeCount = galleryLikeRepository.countByGallery_GalleryId(galleryId);
 
         return GalleryResponse.builder()
-                .galleryId(g.getGalleryId())
-                .eventId(g.getEventId())
-                .title(g.getGalleryTitle())
-                .description(g.getDescription())
-                .viewCount(g.getViewCount())
+                .galleryId(updated.getGalleryId())
+                .eventId(updated.getEventId())
+                .title(updated.getGalleryTitle())
+                .description(updated.getDescription())
+                .viewCount(updated.getViewCount())
                 .likeCount(likeCount)
-                .thumbnailImageId(g.getThumbnailImageId())
-                .status(g.getGalleryStatus())
+                .thumbnailImageId(updated.getThumbnailImageId())
+                .status(updated.getGalleryStatus())
                 .imageUrls(urls)
-                .createdAt(g.getCreatedAt())
-                .updatedAt(g.getUpdatedAt())
+                .createdAt(updated.getCreatedAt())
+                .updatedAt(updated.getUpdatedAt())
                 .build();
     }
 

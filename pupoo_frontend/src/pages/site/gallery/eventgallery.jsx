@@ -947,6 +947,7 @@ export default function EventGallery() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [galleries, setGalleries] = useState([]);
   const [galleriesLoading, setGalleriesLoading] = useState(true);
+  const [galleriesError, setGalleriesError] = useState(null);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const size = 12;
@@ -1022,31 +1023,36 @@ export default function EventGallery() {
     return () => { cancelled = true; };
   }, []);
 
-  // 갤러리 목록 로드 (전체 vs 행사별)
-  useEffect(() => {
-    let cancelled = false;
-    setGalleriesLoading(true);
-    const promise = selectedEventId == null
-      ? galleryApi.getList({ page, size })
-      : galleryApi.getListByEvent(selectedEventId, { page, size });
-
-    promise
-    .then((res) => {
-      if (cancelled) return;
-      const data = res.data?.data ?? res.data;
-      const list = data?.content ?? (Array.isArray(data) ? data : []);
-      setGalleries(Array.isArray(list) ? list : []);
-      const total = data?.totalPages ?? 0;
-      setTotalPages(typeof total === "number" ? total : 0);
-    })
-      .catch(() => {
-        if (!cancelled) setGalleries([]);
-      })
-      .finally(() => {
-        if (!cancelled) setGalleriesLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [selectedEventId, page]);
+    // 갤러리 목록 로드 (전체 vs 행사별)
+    useEffect(() => {
+      let cancelled = false;
+      setGalleriesLoading(true);
+      setGalleriesError(null);
+      const promise = selectedEventId == null
+        ? galleryApi.getList({ page, size })
+        : galleryApi.getListByEvent(selectedEventId, { page, size });
+  
+      promise
+        .then((res) => {
+          if (cancelled) return;
+          const data = res.data?.data ?? res.data;
+          const list = data?.content ?? (Array.isArray(data) ? data : []);
+          setGalleries(Array.isArray(list) ? list : []);
+          const total = data?.totalPages ?? 0;
+          setTotalPages(typeof total === "number" ? total : 0);
+        })
+        .catch((e) => {
+          if (!cancelled) {
+            setGalleries([]);
+            const msg = e?.response?.data?.message ?? e?.message ?? "갤러리를 불러오지 못했습니다.";
+            setGalleriesError(msg);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setGalleriesLoading(false);
+        });
+      return () => { cancelled = true; };
+    }, [selectedEventId, page]);
 
   const handleEventChange = (e) => {
     const v = e.target.value;
@@ -1166,6 +1172,50 @@ export default function EventGallery() {
         <section style={{ marginBottom: "48px" }}>
           {galleriesLoading ? (
             <p style={{ color: "#6b7280", fontSize: 14 }}>갤러리를 불러오는 중...</p>
+          ) : galleriesError ? (
+            <div style={{ textAlign: "center", padding: "32px 16px" }}>
+              <p style={{ color: "#dc2626", fontSize: 14, marginBottom: 12 }}>
+                {galleriesError}
+              </p>
+              <p style={{ color: "#6b7280", fontSize: 13, marginBottom: 16 }}>
+                다시 시도해 주세요.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setGalleriesError(null);
+                  setGalleriesLoading(true);
+                  const promise = selectedEventId == null
+                    ? galleryApi.getList({ page, size })
+                    : galleryApi.getListByEvent(selectedEventId, { page, size });
+                  promise
+                    .then((res) => {
+                      const data = res.data?.data ?? res.data;
+                      const list = data?.content ?? (Array.isArray(data) ? data : []);
+                      setGalleries(Array.isArray(list) ? list : []);
+                      const total = data?.totalPages ?? 0;
+                      setTotalPages(typeof total === "number" ? total : 0);
+                    })
+                    .catch((e) => {
+                      setGalleries([]);
+                      setGalleriesError(e?.response?.data?.message ?? e?.message ?? "갤러리를 불러오지 못했습니다.");
+                    })
+                    .finally(() => setGalleriesLoading(false));
+                }}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#1a4fd6",
+                  background: "#fff",
+                  border: "1px solid #1a4fd6",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                }}
+              >
+                다시 시도
+              </button>
+            </div>
           ) : cards.length === 0 ? (
             <p style={{ color: "#6b7280", fontSize: 14 }}>등록된 갤러리가 없습니다.</p>
           ) : (

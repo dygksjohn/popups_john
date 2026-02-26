@@ -23,6 +23,9 @@ public class Gallery {
     @Column(name = "event_id", nullable = false)
     private Long eventId;
 
+    @Column(name = "user_id", nullable = true)
+    private Long userId;
+
     @Column(name = "gallery_title", nullable = false, length = 255)
     private String galleryTitle;
 
