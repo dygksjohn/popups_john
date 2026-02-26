@@ -1052,7 +1052,7 @@ export default function EventGallery() {
   const [galleriesError, setGalleriesError] = useState(null);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const size = 12;
+  const size = 4;
 
   const [liked, setLiked] = useState({});
   const [viewer, setViewer] = useState(null);

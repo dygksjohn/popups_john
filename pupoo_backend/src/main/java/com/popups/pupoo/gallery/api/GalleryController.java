@@ -36,7 +36,7 @@ public class GalleryController {
     private final SecurityUtil securityUtil;
 
     @GetMapping("/{galleryId}")
-    public ResponseEntity<GalleryResponse> get(@PathVariable Long galleryId) {
+    public ResponseEntity<GalleryResponse> get(@PathVariable("galleryId") Long galleryId) {
         return ResponseEntity.ok(galleryService.get(galleryId));
     }
 
@@ -56,7 +56,7 @@ public class GalleryController {
     }
 
     @PatchMapping("/{galleryId}")
-    public ResponseEntity<GalleryResponse> update(@PathVariable Long galleryId,
+    public ResponseEntity<GalleryResponse> update(@PathVariable("galleryId") Long galleryId,
                                                   @Valid @RequestBody GalleryUpdateRequest request) {
         Long currentUserId = securityUtil.currentUserId();
         boolean isAdmin = securityUtil.isAdmin();
@@ -65,7 +65,7 @@ public class GalleryController {
     }
 
     @DeleteMapping("/{galleryId}")
-    public ResponseEntity<Void> delete(@PathVariable Long galleryId) {
+    public ResponseEntity<Void> delete(@PathVariable("galleryId") Long galleryId) {
         Long currentUserId = securityUtil.currentUserId();
         boolean isAdmin = securityUtil.isAdmin();
         galleryAdminService.deleteByAuthorOrAdmin(galleryId, currentUserId, isAdmin);
@@ -74,13 +74,13 @@ public class GalleryController {
 
     @PostMapping("/{galleryId}/like")
     public ResponseEntity<GalleryLikeResponse> like(@RequestHeader("X-USER-ID") Long userId,
-                                                    @PathVariable Long galleryId) {
+    @PathVariable("galleryId") Long galleryId) {
         return ResponseEntity.ok(galleryService.like(userId, galleryId));
     }
 
     @DeleteMapping("/{galleryId}/like")
     public ResponseEntity<Void> unlike(@RequestHeader("X-USER-ID") Long userId,
-                                       @PathVariable Long galleryId) {
+    @PathVariable("galleryId") Long galleryId) {
         galleryService.unlike(userId, galleryId);
         return ResponseEntity.noContent().build();
     }
