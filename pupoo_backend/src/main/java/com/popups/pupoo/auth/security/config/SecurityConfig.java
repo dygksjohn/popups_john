@@ -115,6 +115,10 @@ public class SecurityConfig {
 
             .requestMatchers(HttpMethod.GET, "/api/galleries").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/galleries/*").permitAll()
+            // 갤러리 생성/수정/삭제 — 로그인(USER) 필요, 내부에서 작성자/관리자 검증
+            .requestMatchers(HttpMethod.POST, "/api/galleries").hasRole("USER")
+            .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasRole("USER")
+            .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasRole("USER")
 
             .requestMatchers(HttpMethod.GET, "/api/replies").permitAll()
 

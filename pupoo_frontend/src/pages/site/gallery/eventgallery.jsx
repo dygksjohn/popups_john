@@ -739,6 +739,9 @@ const FullscreenViewer = ({
   liked,
   onToggleLike,
   onClose,
+  isMine,
+  onEdit,
+  onDelete,
 }) => {
   const [index, setIndex] = useState(startIndex);
   const [closing, setClosing] = useState(false);
@@ -884,6 +887,46 @@ const FullscreenViewer = ({
               <Eye size={14} strokeWidth={1.8} /> {card.views.toLocaleString()}
             </span>
           </div>
+          {isMine && (
+            <div style={{ display: "flex", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid #f0f0f0" }}>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 14px",
+                  fontSize: 13,
+                  color: "#6b7280",
+                  background: "#f3f4f6",
+                  border: "none",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                }}
+              >
+                <Pencil size={14} strokeWidth={2} /> 수정
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 14px",
+                  fontSize: 13,
+                  color: "#dc2626",
+                  background: "#fef2f2",
+                  border: "none",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                }}
+              >
+                <Trash2 size={14} strokeWidth={2} /> 삭제
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1591,12 +1634,23 @@ export default function EventGallery() {
 
 {viewer && (
         <FullscreenViewer
-          card={viewerDetail ?? viewer.card}
-          startIndex={viewer.startIndex}
-          liked={!!liked[viewer.card.id]}
-          onToggleLike={() => toggleLike(viewer.card.id)}
-          onClose={() => { setViewer(null); setViewerDetail(null); }}
-        />
+        card={viewerDetail ?? viewer.card}
+        startIndex={viewer.startIndex}
+        liked={!!liked[viewer.card.id]}
+        onToggleLike={() => toggleLike(viewer.card.id)}
+        onClose={() => { setViewer(null); setViewerDetail(null); }}
+        isMine={meUserId != null && viewer.card.userId === meUserId}
+        onEdit={() => {
+          setViewer(null);
+          setViewerDetail(null);
+          handleEditClick(viewer.card.id);
+        }}
+        onDelete={() => {
+          setViewer(null);
+          setViewerDetail(null);
+          handleDeleteClick(viewer.card.id);
+        }}
+      />
       )}
     </div>
   );

@@ -60,7 +60,7 @@ function mapApiToItem(api) {
     author: "운영팀",
     date: createdAt,
     photos: api.imageUrls?.length ?? 0,
-    likes: 0,
+    likes: api.likeCount ?? 0,
     views: api.viewCount ?? 0,
     thumbnail: "📸",
     imageUrls: api.imageUrls ?? [],
