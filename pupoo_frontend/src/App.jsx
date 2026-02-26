@@ -172,6 +172,7 @@ export default function App() {
           {/* Home */}
           <Route path="/" element={<Home />} />
           {/* Auth */}
+          <Route path="/login" element={<Login />} />
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/mypage" element={<Mypage />} />
           <Route path="/mypage" element={<Mypage />} />

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import { Loader2, Search } from "lucide-react";
 import { qnaApi, unwrap } from "../../../api/qnaApi";
+import { useAuth } from "../auth/AuthProvider";
 
 const SERVICE_CATEGORIES = [
   { label: "자유게시판", path: "/community/freeboard" },
@@ -17,6 +19,8 @@ function fmtDate(dt) {
 }
 
 export default function QnA() {
+  const navigate = useNavigate();
+  const { isAuthed } = useAuth();
   const [currentPath, setCurrentPath] = useState("/community/qna");
   const [search, setSearch] = useState("");
   const [items, setItems] = useState([]);
@@ -46,6 +50,17 @@ export default function QnA() {
     if (!search) return true;
     return item.title?.includes(search) || item.content?.includes(search);
   });
+
+  const handleCreateQuestionClick = () => {
+    if (!isAuthed) {
+      navigate("/login", {
+        state: { from: "/community/qna" },
+      });
+      return;
+    }
+
+    navigate("/community/qna/new");
+  };
 
   return (
     <>
@@ -79,43 +94,62 @@ export default function QnA() {
             총 {filtered.length}개
           </span>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              border: "1px solid #ccc",
-              borderRadius: "6px",
-              overflow: "hidden",
-              background: "#fff",
-            }}
-          >
-            <input
-              type="text"
-              placeholder="검색어를 입력하세요."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              type="button"
+              onClick={handleCreateQuestionClick}
               style={{
-                border: "none",
-                outline: "none",
                 padding: "8px 12px",
                 fontSize: "14px",
-                color: "#333",
-                width: "240px",
-                background: "transparent",
-              }}
-            />
-            <button
-              style={{
+                fontWeight: "600",
+                color: "#fff",
+                background: "#2563EB",
                 border: "none",
-                background: "#fff",
-                padding: "8px 12px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                borderRadius: "6px",
+                cursor: "pointer",
               }}
             >
-              <Search size={16} strokeWidth={2} color="#555" />
+              질문 등록
             </button>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                border: "1px solid #ccc",
+                borderRadius: "6px",
+                overflow: "hidden",
+                background: "#fff",
+              }}
+            >
+              <input
+                type="text"
+                placeholder="검색어를 입력하세요."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  padding: "8px 12px",
+                  fontSize: "14px",
+                  color: "#333",
+                  width: "240px",
+                  background: "transparent",
+                }}
+              />
+              <button
+                style={{
+                  border: "none",
+                  background: "#fff",
+                  padding: "8px 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Search size={16} strokeWidth={2} color="#555" />
+              </button>
+            </div>
           </div>
         </div>
 
