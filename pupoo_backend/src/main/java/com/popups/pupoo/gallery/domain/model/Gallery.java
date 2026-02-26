@@ -23,13 +23,14 @@ public class Gallery {
     @Column(name = "event_id", nullable = false)
     private Long eventId;
 
-    @Column(name = "user_id", nullable = true)
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
     @Column(name = "gallery_title", nullable = false, length = 255)
     private String galleryTitle;
 
-    @Column(name = "description", length = 1000)
+    @Column(name = "gallery_description", length = 1000)
+
     private String description;
 
     @Column(name = "view_count")
