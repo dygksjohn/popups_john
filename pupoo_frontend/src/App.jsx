@@ -28,7 +28,7 @@ import Home from "./pages/site/home/Home";
 
 /* Auth */
 import Login from "./pages/site/auth/Login";
-import Mypage from "./pages/site/auth/mypage";
+import Mypage from "./pages/site/auth/Mypage";
 import JoinSelect from "./pages/site/auth/join/JoinSelect";
 import JoinNormal from "./pages/site/auth/join/JoinNormal";
 import JoinSocial from "./pages/site/auth/join/JoinSocial";
