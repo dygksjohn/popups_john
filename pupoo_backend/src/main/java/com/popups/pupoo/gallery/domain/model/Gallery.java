@@ -28,13 +28,7 @@ public class Gallery {
     @Column(name = "gallery_title", nullable = false, length = 255)
     private String galleryTitle;
 
-<<<<<<< Updated upstream
     @Column(name = "gallery_description", length = 1000)
-
-=======
-    // ✅ DB 컬럼명과 맞춤 (gallery_description → description)
-    @Column(name = "description", length = 1000)
->>>>>>> Stashed changes
     private String description;
 
     @Column(name = "view_count")
@@ -68,9 +62,4 @@ public class Gallery {
     public void softDelete() {
         this.galleryStatus = GalleryStatus.DELETED;
     }
-<<<<<<< Updated upstream
-
 }
-=======
-}
->>>>>>> Stashed changes

@@ -1,9 +1,6 @@
 // file: src/main/java/com/popups/pupoo/event/persistence/EventRepository.java
 package com.popups.pupoo.event.persistence;
 
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.model.Event;
 import org.springframework.data.domain.Page;
@@ -15,15 +12,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+
 /**
  * EventRepository (v2.5 기준)
- *
- * 목록 조회 요구:
- * - keyword(옵션): event_name / description LIKE
- * - status(옵션)
- * - 기간(옵션): start_at ~ end_at 범위 필터(단순 start_at 기준)
- *
- * created_at이 없으므로 정렬은 start_at/event_id 기준으로 처리
  */
 public interface EventRepository extends JpaRepository<Event, Long> {
 
@@ -76,38 +67,7 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             @Param("fromAt") LocalDateTime fromAt,
             @Param("toAt") LocalDateTime toAt,
             Pageable pageable
-<<<<<<< Updated upstream
     );
-=======
-    );       
-      @Modifying
-    @Transactional
-    @Query("""
-        UPDATE Event e
-        SET e.status = com.popups.pupoo.event.domain.enums.EventStatus.PLANNED
-        WHERE e.startAt > CURRENT_TIMESTAMP
-    """)
-    void syncToPlanned();
-
-    @Modifying
-    @Transactional
-    @Query("""
-        UPDATE Event e
-        SET e.status = com.popups.pupoo.event.domain.enums.EventStatus.ONGOING
-        WHERE e.startAt <= CURRENT_TIMESTAMP
-          AND e.endAt >= CURRENT_TIMESTAMP
-    """)
-    void syncToOngoing();
-
-    @Modifying
-    @Transactional
-    @Query("""
-        UPDATE Event e
-        SET e.status = com.popups.pupoo.event.domain.enums.EventStatus.ENDED
-        WHERE e.endAt < CURRENT_TIMESTAMP
-    """)
-    void syncToEnded();
->>>>>>> Stashed changes
 
     /**
      * 시작 전 → PLANNED

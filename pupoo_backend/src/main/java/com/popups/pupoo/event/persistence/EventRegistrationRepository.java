@@ -16,26 +16,20 @@ import java.util.Optional;
  * event_apply 접근 Repository (엔티티명은 EventRegistration)
  */
 public interface EventRegistrationRepository extends JpaRepository<EventRegistration, Long> {
-<<<<<<< Updated upstream
 
     long countByEventIdAndStatus(Long eventId, RegistrationStatus status);
 
-=======
-    
->>>>>>> Stashed changes
     boolean existsByEventIdAndUserIdAndStatus(Long eventId, Long userId, RegistrationStatus status);
 
     Page<EventRegistration> findByUserId(Long userId, Pageable pageable);
 
     /**
      * 참가 신청 단건 조회
-     * - UNIQUE(event_id, user_id) 구조이므로 최대 1건이다.
      */
     Optional<EventRegistration> findByEventIdAndUserId(Long eventId, Long userId);
 
     /**
      * 참가 신청 단건 조회(락)
-     * - 재신청(취소 -> 신청) 같은 상태 전이에서 동시성 정합성 확보
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -50,7 +44,7 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     );
 
     /**
-     *  결제 승인 시 자동 승인용: APPLIED 상태 row를 락으로 잡고 가져오기
+     * 결제 승인 시 자동 승인용
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -67,9 +61,7 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     );
 
     /**
-     *  환불 완료 시 자동 취소용:
-     * APPLIED/APPROVED 상태를 락으로 잡고 1건 가져오기
-     * (CANCELLED/REJECTED는 대상 아님 → 멱등)
+     * 환불 완료 시 자동 취소용
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -96,7 +88,6 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
 
     /**
      * 이벤트 참가자 userId 목록(중복 제거)
-     * - status=APPROVED
      */
     @Query("""
         select distinct er.userId
@@ -104,7 +95,8 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
         where er.eventId = :eventId
           and er.status = :status
     """)
-    java.util.List<Long> findDistinctUserIdsByEventIdAndStatus(@Param("eventId") Long eventId,
-                                                             @Param("status") RegistrationStatus status);
-    long countByEventIdAndStatus(Long eventId, RegistrationStatus status);
-                                                            }
+    java.util.List<Long> findDistinctUserIdsByEventIdAndStatus(
+            @Param("eventId") Long eventId,
+            @Param("status") RegistrationStatus status
+    );
+}

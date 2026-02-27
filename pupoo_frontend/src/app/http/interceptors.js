@@ -1,21 +1,4 @@
 import { tokenStore } from "./tokenStore";
-<<<<<<< Updated upstream
-
-// refresh는 인터셉터 없는 별도 axios로 호출(무한루프 방지)
-import axios from "axios";
-
-let isRefreshing = false;
-let refreshQueue = [];
-
-function resolveQueue(error, newAccessToken) {
-  refreshQueue.forEach(({ resolve, reject }) => {
-    if (error) reject(error);
-    else resolve(newAccessToken);
-  });
-  refreshQueue = [];
-}
-
-=======
 import axios from "axios";
 
 // JWT payload에서 userId 추출
@@ -41,7 +24,7 @@ function fireAuthExpired() {
   window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
 }
 
-// Single-flight refresh lock + queue (정책 필수)
+// Single-flight refresh lock + queue
 let isRefreshing = false;
 let refreshQueue = [];
 
@@ -53,7 +36,6 @@ function resolveQueue(error, newAccessToken) {
   refreshQueue = [];
 }
 
->>>>>>> Stashed changes
 function pickAccessTokenFromResponse(res) {
   return (
     res?.data?.data?.accessToken ??
@@ -62,18 +44,6 @@ function pickAccessTokenFromResponse(res) {
     res?.data?.access_token ??
     null
   );
-<<<<<<< Updated upstream
-}
-
-export function attachInterceptors(instance) {
-  instance.interceptors.request.use((config) => {
-    const url = config?.url || "";
-
-    // auth 계열은 Authorization을 붙이지 않는다(로그인/refresh/logout/signup/oauth)
-    if (url.includes("/api/auth/")) {
-      return config;
-    }
-=======
 }
 
 // HTTP 상태별 한국어 에러 메시지
@@ -104,53 +74,33 @@ export function attachInterceptors(instance) {
   instance.interceptors.request.use((config) => {
     const url = config?.url || "";
     if (url.includes("/api/auth/")) return config;
->>>>>>> Stashed changes
 
     const access = tokenStore.getAccess();
     if (access) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${access}`;
-<<<<<<< Updated upstream
-=======
       const userId = getUserIdFromToken(access);
       if (userId) config.headers["X-USER-ID"] = userId;
->>>>>>> Stashed changes
     }
     return config;
   });
 
-<<<<<<< Updated upstream
-=======
   // 응답 인터셉터
->>>>>>> Stashed changes
   instance.interceptors.response.use(
     (res) => res,
     async (err) => {
       const status = err?.response?.status;
       const original = err?.config;
-<<<<<<< Updated upstream
-=======
 
       if (!err.response) {
         showError("서버와 연결할 수 없습니다.");
         return Promise.reject(err);
       }
->>>>>>> Stashed changes
       if (!original) return Promise.reject(err);
 
       const url = String(original?.url || "");
       const isAuth = url.includes("/api/auth/");
 
-<<<<<<< Updated upstream
-      // 401이 아니거나 auth 요청이면 그대로 실패
-      if (status !== 401 || isAuth) {
-        return Promise.reject(err);
-      }
-
-      // 1회만 재시도
-      if (original._retry) {
-        tokenStore.clear();
-=======
       if (status !== 401 || isAuth) {
         if (status && status >= 400) {
           const serverMsg = err?.response?.data?.message || null;
@@ -163,15 +113,10 @@ export function attachInterceptors(instance) {
       if (original._retry) {
         tokenStore.clear();
         fireAuthExpired();
->>>>>>> Stashed changes
         return Promise.reject(err);
       }
       original._retry = true;
 
-<<<<<<< Updated upstream
-      // refresh 진행 중이면 대기열에 걸고 토큰 받으면 재시도
-=======
->>>>>>> Stashed changes
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           refreshQueue.push({
@@ -179,11 +124,8 @@ export function attachInterceptors(instance) {
               original.headers = original.headers || {};
               if (newAccessToken) {
                 original.headers.Authorization = `Bearer ${newAccessToken}`;
-<<<<<<< Updated upstream
-=======
                 const uid = getUserIdFromToken(newAccessToken);
                 if (uid) original.headers["X-USER-ID"] = uid;
->>>>>>> Stashed changes
               }
               resolve(instance(original));
             },
@@ -193,10 +135,6 @@ export function attachInterceptors(instance) {
       }
 
       isRefreshing = true;
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
       try {
         const baseURL = instance.defaults.baseURL || "";
         const refreshClient = axios.create({
@@ -208,33 +146,20 @@ export function attachInterceptors(instance) {
 
         const refreshRes = await refreshClient.post("/api/auth/refresh", null);
         const newAccessToken = pickAccessTokenFromResponse(refreshRes);
-<<<<<<< Updated upstream
-
-        if (!newAccessToken) {
-          throw new Error("Refresh succeeded but accessToken missing");
-        }
-=======
         if (!newAccessToken) throw new Error("Refresh succeeded but accessToken missing");
->>>>>>> Stashed changes
 
         tokenStore.setAccess(newAccessToken);
         resolveQueue(null, newAccessToken);
 
         original.headers = original.headers || {};
         original.headers.Authorization = `Bearer ${newAccessToken}`;
-<<<<<<< Updated upstream
-=======
         const uid = getUserIdFromToken(newAccessToken);
         if (uid) original.headers["X-USER-ID"] = uid;
->>>>>>> Stashed changes
         return instance(original);
       } catch (refreshErr) {
         tokenStore.clear();
         resolveQueue(refreshErr, null);
-<<<<<<< Updated upstream
-=======
         fireAuthExpired();
->>>>>>> Stashed changes
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;
