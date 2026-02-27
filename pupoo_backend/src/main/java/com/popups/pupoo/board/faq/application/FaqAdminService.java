@@ -38,14 +38,16 @@ public class FaqAdminService {
                 .userId(adminId)
                 .postTitle(req.getTitle())
                 .content(req.getContent())
+                .commentEnabled(false) // FAQ는 기본적으로 댓글 비활성
                 .fileAttached("N")
                 .status(PostStatus.PUBLISHED)
                 .viewCount(0)
                 .deleted(false)
-                .commentEnabled(false) // FAQ는 기본적으로 댓글 비활성
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
+
+        post.writeAnswer(req.getAnswerContent());
 
         return postRepository.save(post).getPostId();
     }
@@ -59,6 +61,7 @@ public class FaqAdminService {
         }
 
         post.updateTitleAndContent(req.getTitle(), req.getContent());
+        post.writeAnswer(req.getAnswerContent());
     }
 
     public void delete(Long postId) {
@@ -68,6 +71,8 @@ public class FaqAdminService {
         if (post.getBoard() == null || post.getBoard().getBoardType() != BoardType.FAQ) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "FAQ_NOT_FOUND");
         }
+
+        post.hide();
 
         post.softDelete();
     }

@@ -2,10 +2,11 @@ import axios from "axios";
 import { attachInterceptors } from "./interceptors";
 
 export function createAxiosInstance() {
-  // 끝 슬래시를 제거한 API baseURL을 사용한다.
-  const baseURL = (
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
-  ).replace(/\/+$/, "");
+  // baseURL 정책
+  // - VITE_API_BASE_URL이 있으면 사용 (예: http://localhost:8080)
+  // - 없으면 상대 경로로 호출(= Vite proxy 또는 same-origin 배포)
+  const envBase = String(import.meta.env.VITE_API_BASE_URL || "").trim();
+  const baseURL = envBase ? envBase.replace(/\/+$/, "") : "";
 
   const instance = axios.create({
     baseURL,
@@ -14,13 +15,7 @@ export function createAxiosInstance() {
     headers: { "Content-Type": "application/json" },
   });
 
-  // 공개 인증 엔드포인트에는 Authorization 헤더를 생략한다.
-  attachInterceptors(instance, {
-    publicPathPrefixes: [
-      "/api/auth/",
-      "/api/storage/presign",
-    ],
-  });
+  attachInterceptors(instance);
 
   return instance;
 }

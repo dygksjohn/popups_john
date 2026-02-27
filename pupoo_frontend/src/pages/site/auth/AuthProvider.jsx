@@ -8,6 +8,7 @@ const AuthContext = createContext(null);
 const DEBUG_AUTH = false; // ← 디버깅 필요하면 true로 변경
 
 export function AuthProvider({ children }) {
+  const [isBootstrapped, setIsBootstrapped] = useState(false);
   const [isAuthed, setIsAuthed] = useState(() => !!tokenStore.getAccess());
 
   const snapshot = (tag) => {
@@ -24,6 +25,29 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     snapshot("MOUNT");
+
+    // 새로고침/재진입 시 accessToken이 메모리에서 사라졌을 수 있으므로
+    // refresh_token(HttpOnly 쿠키)로 accessToken을 복구 시도한다.
+    const bootstrap = async () => {
+      try {
+        if (!tokenStore.getAccess()) {
+          const data = await authApi.refresh({ withCredentials: true });
+          const accessToken = data?.accessToken;
+          if (accessToken) {
+            tokenStore.setAccess(accessToken);
+            setIsAuthed(true);
+          }
+        }
+      } catch (e) {
+        // refresh 실패면 비로그인 상태 유지
+        tokenStore.clear();
+        setIsAuthed(false);
+      } finally {
+        setIsBootstrapped(true);
+      }
+    };
+
+    bootstrap();
 
     const sync = (reason) => {
       const has = !!tokenStore.getAccess();
@@ -108,8 +132,8 @@ export function AuthProvider({ children }) {
   };
 
   const value = useMemo(
-    () => ({ isAuthed, login, logout, logoutLocal }),
-    [isAuthed],
+    () => ({ isAuthed, isBootstrapped, login, logout, logoutLocal }),
+    [isAuthed, isBootstrapped],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

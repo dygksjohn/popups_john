@@ -6,8 +6,14 @@ import com.popups.pupoo.report.application.AdminReportService;
 import com.popups.pupoo.report.domain.enums.ReportStatus;
 import com.popups.pupoo.report.domain.enums.ReportTargetType;
 import com.popups.pupoo.report.dto.AdminReportDecisionRequest;
+import com.popups.pupoo.report.dto.AdminReportDetailResponse;
 import com.popups.pupoo.report.dto.ReportResponse;
 import com.popups.pupoo.report.persistence.ContentReportRepository;
+import com.popups.pupoo.board.post.persistence.PostRepository;
+import com.popups.pupoo.gallery.persistence.GalleryRepository;
+import com.popups.pupoo.board.review.persistence.ReviewRepository;
+import com.popups.pupoo.reply.persistence.PostCommentRepository;
+import com.popups.pupoo.reply.persistence.ReviewCommentRepository;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.*;
 import org.springframework.web.bind.annotation.*;
@@ -20,11 +26,26 @@ public class AdminReportController {
 
     private final ContentReportRepository reportRepository;
     private final AdminReportService adminReportService;
+    private final PostRepository postRepository;
+    private final GalleryRepository galleryRepository;
+    private final ReviewRepository reviewRepository;
+    private final PostCommentRepository postCommentRepository;
+    private final ReviewCommentRepository reviewCommentRepository;
 
     public AdminReportController(ContentReportRepository reportRepository,
-                                 AdminReportService adminReportService) {
+                                 AdminReportService adminReportService,
+                                 PostRepository postRepository,
+                                 GalleryRepository galleryRepository,
+                                 ReviewRepository reviewRepository,
+                                 PostCommentRepository postCommentRepository,
+                                 ReviewCommentRepository reviewCommentRepository) {
         this.reportRepository = reportRepository;
         this.adminReportService = adminReportService;
+        this.postRepository = postRepository;
+        this.galleryRepository = galleryRepository;
+        this.reviewRepository = reviewRepository;
+        this.postCommentRepository = postCommentRepository;
+        this.reviewCommentRepository = reviewCommentRepository;
     }
 
     /**
@@ -47,6 +68,55 @@ public class AdminReportController {
         }
 
         return ApiResponse.success(new PageImpl<>(items, pageable, page.getTotalElements()));
+    }
+
+    /**
+     * 신고 상세
+     * - 정책(A): 신고 대상의 현재 상태(targetStatus)를 포함한다.
+     */
+    @GetMapping("/{reportId}")
+    public ApiResponse<AdminReportDetailResponse> detail(@PathVariable Long reportId) {
+        com.popups.pupoo.report.domain.model.ContentReport r = reportRepository.findById(reportId)
+                .orElseThrow(() -> new com.popups.pupoo.common.exception.BusinessException(com.popups.pupoo.common.exception.ErrorCode.RESOURCE_NOT_FOUND));
+
+        String targetStatus = resolveTargetStatus(r.getTargetType(), r.getTargetId());
+        return ApiResponse.success(AdminReportDetailResponse.from(r, targetStatus));
+    }
+
+    private String resolveTargetStatus(ReportTargetType type, Long targetId) {
+        if (type == null || targetId == null) return "UNKNOWN";
+
+        if (type == ReportTargetType.POST) {
+            return postRepository.findById(targetId)
+                    .map(p -> p.getStatus().name())
+                    .orElse("DELETED");
+        }
+
+        if (type == ReportTargetType.REVIEW) {
+            return reviewRepository.findById(targetId)
+                    .map(rv -> rv.getReviewStatus().name())
+                    .orElse("DELETED");
+        }
+
+        if (type == ReportTargetType.GALLERY) {
+            return galleryRepository.findById(targetId)
+                    .map(g -> g.getGalleryStatus().name())
+                    .orElse("DELETED");
+        }
+
+        if (type == ReportTargetType.POST_COMMENT) {
+            return postCommentRepository.findById(targetId)
+                    .map(c -> c.isDeleted() ? "DELETED" : "ACTIVE")
+                    .orElse("DELETED");
+        }
+
+        if (type == ReportTargetType.REVIEW_COMMENT) {
+            return reviewCommentRepository.findById(targetId)
+                    .map(c -> c.isDeleted() ? "DELETED" : "ACTIVE")
+                    .orElse("DELETED");
+        }
+
+        return "UNKNOWN";
     }
 
     private Map<String, long[]> loadCounts(List<com.popups.pupoo.report.domain.model.ContentReport> reports) {

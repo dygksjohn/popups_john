@@ -33,22 +33,46 @@ public class FaqQueryService {
         String kw = (keyword == null) ? "" : keyword.trim();
 
         Page<Post> page = switch (type) {
-            case TITLE -> postRepository.searchByTitle(faqBoard.getBoardId(), kw, PostStatus.PUBLISHED, pageable);
-            case CONTENT -> postRepository.searchByContent(faqBoard.getBoardId(), kw, PostStatus.PUBLISHED, pageable);
+            case TITLE -> postRepository.searchByTitle(
+                    faqBoard.getBoardId(),
+                    kw,
+                    PostStatus.PUBLISHED,
+                    pageable
+            );
+            case CONTENT -> postRepository.searchByContent(
+                    faqBoard.getBoardId(),
+                    kw,
+                    PostStatus.PUBLISHED,
+                    pageable
+            );
             case WRITER -> {
                 Long writerId = parseLongOrNull(kw);
-                yield postRepository.searchByWriter(faqBoard.getBoardId(), writerId, PostStatus.PUBLISHED, pageable);
+                // writerId가 null이면 검색 결과가 비어야 정상.
+                // (Repository 구현이 null을 어떻게 처리하는지에 따라 결과가 달라질 수 있음)
+                yield postRepository.searchByWriter(
+                        faqBoard.getBoardId(),
+                        writerId,
+                        PostStatus.PUBLISHED,
+                        pageable
+                );
             }
-            case TITLE_CONTENT -> postRepository.search(faqBoard.getBoardId(), kw, PostStatus.PUBLISHED, pageable);
-            default -> postRepository.search(faqBoard.getBoardId(), kw, PostStatus.PUBLISHED, pageable);
+            case TITLE_CONTENT -> postRepository.search(
+                    faqBoard.getBoardId(),
+                    kw,
+                    PostStatus.PUBLISHED,
+                    pageable
+            );
+            default -> postRepository.search(
+                    faqBoard.getBoardId(),
+                    kw,
+                    PostStatus.PUBLISHED,
+                    pageable
+            );
         };
 
         return page.map(p -> new FaqListResponse(
                 p.getPostId(),
-                p.getPostTitle(),
-                preview(p.getContent()),
-                p.getUserId(),
-                p.getCreatedAt()
+                p.getPostTitle()
         ));
     }
 
@@ -63,10 +87,14 @@ public class FaqQueryService {
 
         postRepository.increaseViewCount(postId);
 
+        // 현재 구조상 FAQ는 일반 게시글 기반이므로
+        // answerContent / answeredAt 은 일단 null 처리
         return new FaqDetailResponse(
                 post.getPostId(),
                 post.getPostTitle(),
                 post.getContent(),
+                null,                       // answerContent
+                null,                       // answeredAt
                 post.getUserId(),
                 post.getViewCount() + 1,
                 post.getCreatedAt(),
@@ -82,12 +110,6 @@ public class FaqQueryService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "FAQ_BOARD_INACTIVE");
         }
         return board;
-    }
-
-    private static String preview(String content) {
-        if (content == null) return "";
-        String trimmed = content.trim();
-        return trimmed.length() <= 120 ? trimmed : trimmed.substring(0, 120);
     }
 
     private static Long parseLongOrNull(String keyword) {

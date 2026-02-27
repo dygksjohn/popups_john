@@ -96,8 +96,15 @@ public class ReplyService {
         Post post = postRepository.findByPostIdAndDeletedFalse(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글이 존재하지 않습니다."));
 
-        if (post.getBoard() != null && post.getBoard().getBoardType() == BoardType.FAQ) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "FAQ에는 댓글을 작성할 수 없습니다.");
+        // 정책: 숨김(HIDDEN) 게시글에는 댓글 작성 불가
+        if (post.getStatus() == com.popups.pupoo.board.post.domain.enums.PostStatus.HIDDEN) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "숨김 처리된 게시글에는 댓글을 작성할 수 없습니다.");
+        }
+
+        // 정책: 댓글은 FREE/INFO만 허용
+        BoardType bt = (post.getBoard() == null) ? null : post.getBoard().getBoardType();
+        if (bt != BoardType.FREE && bt != BoardType.INFO) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "해당 게시판에는 댓글을 작성할 수 없습니다.");
         }
         if (!post.isCommentEnabled()) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "댓글이 비활성화된 게시글입니다.");

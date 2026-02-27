@@ -45,8 +45,10 @@ public class AdminReportService {
         ContentReport report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
+        // 정책(B): 멱등 처리
+        // - 이미 처리된 신고에 동일 결정을 다시 요청하면, 에러가 아니라 "현재 상태"를 그대로 반환한다.
         if (report.getStatus() != ReportStatus.PENDING) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            return ReportResponse.from(report);
         }
 
         // 수용(ACCEPTED) 시점에 콘텐츠에 모더레이션을 적용한다.
@@ -66,8 +68,9 @@ public class AdminReportService {
         ContentReport report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
+        // 정책(B): 멱등 처리
         if (report.getStatus() != ReportStatus.PENDING) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            return ReportResponse.from(report);
         }
 
         report.reject(adminId);
@@ -79,6 +82,7 @@ public class AdminReportService {
     private AdminTargetType resolveAdminTargetType(ContentReport report) {
         if (report.getTargetType() == ReportTargetType.POST) return AdminTargetType.POST;
         if (report.getTargetType() == ReportTargetType.REVIEW) return AdminTargetType.REVIEW;
+        if (report.getTargetType() == ReportTargetType.GALLERY) return AdminTargetType.OTHER;
         // 댓글(POST_COMMENT/REVIEW_COMMENT)은 admin_logs enum에 REPLY가 없으므로 OTHER로 기록한다.
         return AdminTargetType.OTHER;
     }
@@ -119,6 +123,11 @@ public class AdminReportService {
 
         if (report.getTargetType() == ReportTargetType.REVIEW_COMMENT) {
             moderationService.hideReply(com.popups.pupoo.reply.domain.enums.ReplyTargetType.REVIEW, report.getTargetId(), r);
+            return;
+        }
+
+        if (report.getTargetType() == ReportTargetType.GALLERY) {
+            moderationService.blindGallery(report.getTargetId(), r);
         }
     }
 

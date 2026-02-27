@@ -1,16 +1,19 @@
 // file: src/main/java/com/popups/pupoo/board/boardinfo/application/AdminModerationService.java
 package com.popups.pupoo.board.boardinfo.application;
 
-import com.popups.pupoo.common.audit.application.AdminLogService;
-import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.board.post.domain.model.Post;
 import com.popups.pupoo.board.post.dto.PostResponse;
 import com.popups.pupoo.board.post.persistence.PostRepository;
 import com.popups.pupoo.board.review.domain.model.Review;
 import com.popups.pupoo.board.review.dto.ReviewResponse;
 import com.popups.pupoo.board.review.persistence.ReviewRepository;
+import com.popups.pupoo.common.audit.application.AdminLogService;
+import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.gallery.domain.model.Gallery;
+import com.popups.pupoo.gallery.persistence.GalleryRepository;
+import com.popups.pupoo.reply.domain.enums.ReplyStatus;
 import com.popups.pupoo.reply.domain.enums.ReplyTargetType;
 import com.popups.pupoo.reply.domain.model.PostComment;
 import com.popups.pupoo.reply.domain.model.ReviewComment;
@@ -31,6 +34,7 @@ import java.time.LocalDateTime;
  * - 게시글: hide(HIDDEN)/restore(PUBLISHED)/soft delete(is_deleted=true)/hard delete
  * - 리뷰: blind(BLINDED)/restore(PUBLIC)/soft delete(is_deleted=true, status=DELETED)/hard delete
  * - 댓글: hide(soft delete)/restore/ hard delete
+ * - 갤러리: blind/restore (신고 처리 연동 용도)
  */
 @Service
 @RequiredArgsConstructor
@@ -41,7 +45,12 @@ public class AdminModerationService {
     private final ReviewRepository reviewRepository;
     private final PostCommentRepository postCommentRepository;
     private final ReviewCommentRepository reviewCommentRepository;
+    private final GalleryRepository galleryRepository;
     private final AdminLogService adminLogService;
+
+    /* =========================
+     * Post moderation
+     * ========================= */
 
     @Transactional
     public PostResponse hidePost(Long postId, String reason) {
@@ -78,6 +87,10 @@ public class AdminModerationService {
         adminLogService.write("POST_DELETE_SOFT" + suffixReason(reason), AdminTargetType.POST, postId);
     }
 
+    /* =========================
+     * Review moderation
+     * ========================= */
+
     @Transactional
     public ReviewResponse blindReview(Long reviewId, String reason) {
         Review review = reviewRepository.findById(reviewId)
@@ -113,6 +126,33 @@ public class AdminModerationService {
         adminLogService.write("REVIEW_DELETE_SOFT" + suffixReason(reason), AdminTargetType.REVIEW, reviewId);
     }
 
+    /* =========================
+     * Gallery moderation (report flow)
+     * ========================= */
+
+    @Transactional
+    public void blindGallery(Long galleryId, String reason) {
+        Gallery gallery = galleryRepository.findById(galleryId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "갤러리가 존재하지 않습니다."));
+
+        gallery.blind();
+        // AdminTargetType에 GALLERY가 없으면 OTHER로 두되, 가능하면 enum에 GALLERY 추가 추천
+        adminLogService.write("GALLERY_BLIND" + suffixReason(reason), AdminTargetType.OTHER, galleryId);
+    }
+
+    @Transactional
+    public void restoreGallery(Long galleryId, String reason) {
+        Gallery gallery = galleryRepository.findById(galleryId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "갤러리가 존재하지 않습니다."));
+
+        gallery.restore();
+        adminLogService.write("GALLERY_RESTORE" + suffixReason(reason), AdminTargetType.OTHER, galleryId);
+    }
+
+    /* =========================
+     * Reply moderation
+     * ========================= */
+
     @Transactional
     public ReplyResponse hideReply(ReplyTargetType targetType, Long commentId, String reason) {
         LocalDateTime now = LocalDateTime.now();
@@ -121,14 +161,14 @@ public class AdminModerationService {
             PostComment comment = postCommentRepository.findById(commentId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "댓글이 존재하지 않습니다."));
             PostComment saved = postCommentRepository.save(comment.markDeleted(now));
-            adminLogService.write("REPLY_HIDE" + suffixReason(reason), AdminTargetType.POST, comment.getPostId());
+            adminLogService.write("REPLY_HIDE" + suffixReason(reason), AdminTargetType.POST, saved.getPostId());
             return ReplyResponse.builder()
                     .replyId(saved.getCommentId())
                     .targetType(targetType)
                     .targetId(saved.getPostId())
                     .userId(saved.getUserId())
                     .content(saved.getContent())
-                    .status(com.popups.pupoo.reply.domain.enums.ReplyStatus.DELETED)
+                    .status(ReplyStatus.DELETED)
                     .createdAt(saved.getCreatedAt())
                     .updatedAt(saved.getUpdatedAt())
                     .build();
@@ -138,14 +178,14 @@ public class AdminModerationService {
             ReviewComment comment = reviewCommentRepository.findById(commentId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "댓글이 존재하지 않습니다."));
             ReviewComment saved = reviewCommentRepository.save(comment.markDeleted(now));
-            adminLogService.write("REPLY_HIDE" + suffixReason(reason), AdminTargetType.REVIEW, comment.getReviewId());
+            adminLogService.write("REPLY_HIDE" + suffixReason(reason), AdminTargetType.REVIEW, saved.getReviewId());
             return ReplyResponse.builder()
                     .replyId(saved.getCommentId())
                     .targetType(targetType)
                     .targetId(saved.getReviewId())
                     .userId(saved.getUserId())
                     .content(saved.getContent())
-                    .status(com.popups.pupoo.reply.domain.enums.ReplyStatus.DELETED)
+                    .status(ReplyStatus.DELETED)
                     .createdAt(saved.getCreatedAt())
                     .updatedAt(saved.getUpdatedAt())
                     .build();
@@ -170,7 +210,7 @@ public class AdminModerationService {
                     .targetId(saved.getPostId())
                     .userId(saved.getUserId())
                     .content(saved.getContent())
-                    .status(com.popups.pupoo.reply.domain.enums.ReplyStatus.ACTIVE)
+                    .status(ReplyStatus.ACTIVE)
                     .createdAt(saved.getCreatedAt())
                     .updatedAt(saved.getUpdatedAt())
                     .build();
@@ -188,7 +228,7 @@ public class AdminModerationService {
                     .targetId(saved.getReviewId())
                     .userId(saved.getUserId())
                     .content(saved.getContent())
-                    .status(com.popups.pupoo.reply.domain.enums.ReplyStatus.ACTIVE)
+                    .status(ReplyStatus.ACTIVE)
                     .createdAt(saved.getCreatedAt())
                     .updatedAt(saved.getUpdatedAt())
                     .build();
@@ -200,7 +240,6 @@ public class AdminModerationService {
     @Transactional
     public void deleteReply(ReplyTargetType targetType, Long commentId, boolean hardDelete, String reason) {
         if (!hardDelete) {
-            // soft delete는 hide와 동일하게 처리
             hideReply(targetType, commentId, reason);
             return;
         }
@@ -230,7 +269,6 @@ public class AdminModerationService {
         if (reason == null || reason.isBlank()) {
             return "";
         }
-        // action 컬럼은 255 제한이 있으므로 길이는 짧게.
         String normalized = reason.trim();
         if (normalized.length() > 80) {
             normalized = normalized.substring(0, 80);

@@ -4,6 +4,7 @@ package com.popups.pupoo.auth.security.util;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
@@ -48,5 +49,22 @@ public class SecurityUtil {
         }
 
         throw new BusinessException(ErrorCode.INVALID_REQUEST);
+    }
+
+    /**
+     * 현재 인증 주체가 ADMIN 권한인지 확인한다.
+     * - JwtAuthenticationFilter에서 authorities = ROLE_<roleName> 형태로 세팅한다.
+     */
+    public boolean isAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return false;
+        }
+        for (GrantedAuthority a : auth.getAuthorities()) {
+            if (a != null && "ROLE_ADMIN".equals(a.getAuthority())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

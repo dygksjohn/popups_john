@@ -2,5 +2,6 @@
 package com.popups.pupoo.board.qna.domain.enums;
 
 public enum QnaStatus {
-    OPEN, CLOSED
+    WAITING,
+    ANSWERED
 }

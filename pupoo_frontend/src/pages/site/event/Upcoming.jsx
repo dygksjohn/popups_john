@@ -1,5 +1,7 @@
-import PageHeader from "../components/PageHeader";
-import { useState } from "react";
+﻿import PageHeader from "../components/PageHeader";
+import EventDetailModal from "./EventDetailModal";
+import { useEffect, useState } from "react";
+import { eventApi } from "../../../app/http/eventApi";
 import {
   Calendar,
   MapPin,
@@ -144,106 +146,115 @@ const CATEGORY_COLORS = {
   네트워킹: { bg: "#f0fdf4", color: "#16a34a" },
 };
 
-const EVENTS = [
-  {
-    id: 1,
-    category: "컨퍼런스",
-    title: "2026 클라우드 테크 서밋",
-    date: "2026.03.05",
-    month: "MAR",
-    day: "05",
-    dow: "목",
-    location: "코엑스 컨벤션홀, 서울",
-    time: "09:00 ~ 17:30",
-    capacity: 1200,
-    registered: 748,
-    dday: 10,
-  },
-  {
-    id: 2,
-    category: "워크샵",
-    title: "UI/UX 디자인 마스터클래스",
-    date: "2026.03.08",
-    month: "MAR",
-    day: "08",
-    dow: "일",
-    location: "강남 위워크, 서울",
-    time: "14:00 ~ 18:00",
-    capacity: 80,
-    registered: 62,
-    dday: 13,
-  },
-  {
-    id: 3,
-    category: "세미나",
-    title: "2026 블록체인 기술 동향 세미나",
-    date: "2026.03.12",
-    month: "MAR",
-    day: "12",
-    dow: "목",
-    location: "여의도 전경련회관, 서울",
-    time: "10:00 ~ 13:00",
-    capacity: 300,
-    registered: 189,
-    dday: 17,
-  },
-  {
-    id: 4,
-    category: "포럼",
-    title: "스마트시티 혁신 포럼 2026",
-    date: "2026.03.18",
-    month: "MAR",
-    day: "18",
-    dow: "수",
-    location: "세종 정부청사 대강당",
-    time: "09:00 ~ 18:00",
-    capacity: 500,
-    registered: 321,
-    dday: 23,
-  },
-  {
-    id: 5,
-    category: "전시",
-    title: "한국 로보틱스 & 자동화 엑스포",
-    date: "2026.03.25",
-    month: "MAR",
-    day: "25",
-    dow: "수",
-    location: "킨텍스 제2전시장, 일산",
-    time: "10:00 ~ 18:00",
-    capacity: 8000,
-    registered: 3240,
-    dday: 30,
-  },
-  {
-    id: 6,
-    category: "네트워킹",
-    title: "여성 테크 리더스 네트워킹",
-    date: "2026.04.02",
-    month: "APR",
-    day: "02",
-    dow: "목",
-    location: "성수 카우앤독, 서울",
-    time: "18:30 ~ 21:00",
-    capacity: 150,
-    registered: 87,
-    dday: 38,
-  },
-];
+function formatDate(value) {
+  if (!value) return "일정 미정";
+  const s = String(value);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return "일정 미정";
+  return `${m[1]}.${m[2]}.${m[3]}`;
+}
+
+function formatTime(startAt, endAt) {
+  const pick = (v) => {
+    if (!v) return "";
+    const m = String(v).match(/(\d{2}):(\d{2})/);
+    return m ? `${m[1]}:${m[2]}` : "";
+  };
+  const a = pick(startAt);
+  const b = pick(endAt);
+  if (a && b) return `${a} ~ ${b}`;
+  if (a || b) return a || b;
+  return "시간 미정";
+}
+
+function buildDateParts(startAt) {
+  if (!startAt) {
+    return { month: "", day: "", dow: "" };
+  }
+  const s = String(startAt);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) {
+    return { month: "", day: "", dow: "" };
+  }
+  const month = m[2];
+  const day = m[3];
+  return { month, day, dow: "" };
+}
+
+function mapEvent(raw) {
+  const eventId = raw?.eventId ?? raw?.id ?? null;
+  const title = raw?.eventName ?? raw?.title ?? "행사";
+  const category = raw?.category ?? raw?.eventCategory ?? "행사";
+  const location = raw?.location ?? raw?.place ?? "장소 미정";
+  const startAt = raw?.startAt ?? raw?.startDateTime ?? raw?.startDate ?? null;
+  const endAt = raw?.endAt ?? raw?.endDateTime ?? raw?.endDate ?? null;
+  const parts = buildDateParts(startAt);
+
+  return {
+    id: eventId,
+    category,
+    title,
+    date: formatDate(startAt),
+    month: parts.month,
+    day: parts.day,
+    dow: parts.dow,
+    location,
+    time: startAt || endAt ? formatTime(startAt, endAt) : "시간 미정",
+    capacity: 1,
+    registered: 0,
+    dday: 0,
+    fallback: "🐶",
+  };
+}
 
 export default function Upcoming() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [alarms, setAlarms] = useState({});
   const [currentPath, setCurrentPath] = useState("/event/upcoming");
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const filtered = EVENTS.filter((e) => {
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchEvents = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const res = await eventApi.getEvents({
+          status: "PLANNED",
+          page: 0,
+          size: 10,
+        });
+        const content = res.data.data.content;
+        const list = Array.isArray(content) ? content : [];
+        if (mounted) setEvents(list.map(mapEvent));
+      } catch (e) {
+        const msg =
+          e?.response?.data?.message || e?.message || "Failed to load events.";
+        if (mounted) setError(msg);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    fetchEvents();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filtered = events.filter((e) => {
     const matchQ = e.title.includes(query) || e.category.includes(query);
     const matchF = filter === "all" || e.category === filter;
     return matchQ && matchF;
   });
 
-  const categories = ["all", ...new Set(EVENTS.map((e) => e.category))];
+  const categories = ["all", ...new Set(events.map((e) => e.category))];
 
   return (
     <div className="up-root">
@@ -257,17 +268,25 @@ export default function Upcoming() {
       />
 
       <main className="up-container">
+        {loading ? (
+          <div className="up-stat-card">Loading...</div>
+        ) : error ? (
+          <div className="up-stat-card">{error}</div>
+        ) : null}
+
         <div className="up-stat-grid">
           {[
             {
               label: "예정 행사",
-              value: `${EVENTS.length}개`,
+              value: `${events.length}개`,
               icon: <Calendar size={20} color="#1a4fd6" />,
               bg: "#eff4ff",
             },
             {
               label: "총 사전등록",
-              value: `${EVENTS.reduce((a, e) => a + e.registered, 0).toLocaleString()}명`,
+              value: `${events
+                .reduce((a, e) => a + e.registered, 0)
+                .toLocaleString()}명`,
               icon: <Users size={20} color="#10b981" />,
               bg: "#ecfdf5",
             },
@@ -327,7 +346,11 @@ export default function Upcoming() {
             };
             const isOn = alarms[ev.id];
             return (
-              <div key={ev.id} className="up-event-card">
+              <div
+                key={ev.id}
+                className="up-event-card"
+                onClick={() => setSelectedEvent(ev)}
+              >
                 <div className="up-date-box">
                   <div className="up-date-month">{ev.month}</div>
                   <div className="up-date-day">{ev.day}</div>
@@ -364,6 +387,7 @@ export default function Upcoming() {
                     className={`up-alarm-btn ${isOn ? "on" : "off"}`}
                     onClick={(e) => {
                       e.stopPropagation();
+                      setSelectedEvent(ev);
                       setAlarms((a) => ({ ...a, [ev.id]: !a[ev.id] }));
                     }}
                   >
@@ -376,6 +400,14 @@ export default function Upcoming() {
           })}
         </div>
       </main>
+
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+        />
+      )}
     </div>
   );
 }
+

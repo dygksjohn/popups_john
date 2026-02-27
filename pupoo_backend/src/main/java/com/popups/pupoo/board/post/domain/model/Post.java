@@ -34,6 +34,12 @@ public class Post {
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "answer_content", columnDefinition = "TEXT")
+    private String answerContent;
+
+    @Column(name = "answered_at")
+    private LocalDateTime answeredAt;
+
     @Column(name = "file_attached", nullable = false, columnDefinition = "ENUM('Y','N')")
     private String fileAttached; // 'Y' 또는 'N'
 
@@ -103,6 +109,16 @@ public class Post {
 
     public void close() {
         this.status = PostStatus.HIDDEN;
+    }
+
+        public void writeAnswer(String answerContent) {
+        this.answerContent = answerContent;
+        this.answeredAt = LocalDateTime.now();
+    }
+
+    public void clearAnswer() {
+        this.answerContent = null;
+        this.answeredAt = null;
     }
 
     public void setFileAttached(boolean attached) {

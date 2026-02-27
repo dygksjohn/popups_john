@@ -23,10 +23,14 @@ public class Gallery {
     @Column(name = "event_id", nullable = false)
     private Long eventId;
 
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     @Column(name = "gallery_title", nullable = false, length = 255)
     private String galleryTitle;
 
     @Column(name = "gallery_description", length = 1000)
+
     private String description;
 
     @Column(name = "view_count")
@@ -44,4 +48,17 @@ public class Gallery {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public void blind() {
+        this.galleryStatus = GalleryStatus.BLINDED;
+    }
+
+    public void restore() {
+        this.galleryStatus = GalleryStatus.PUBLIC;
+    }
+
+    public void softDelete() {
+        this.galleryStatus = GalleryStatus.DELETED;
+    }
+
 }

@@ -1,4 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
+import { eventApi } from "../../../app/http/eventApi";
+import { axiosInstance } from "../../../app/http/axiosInstance";
+import { tokenStore } from "../../../app/http/tokenStore";
 import {
   X,
   MapPin,
@@ -24,166 +27,7 @@ import {
   CreditCard,
 } from "lucide-react";
 
-/* ─── mock detail data (would come from API) ─── */
-const DETAIL_DATA = {
-  1: {
-    description:
-      "국내 최대 규모의 스타트업 혁신 컨퍼런스로, 성공적인 창업 전략과 최신 기술 트렌드를 공유합니다. 국내외 유명 투자자, 유니콘 창업가, 기술 리더들이 한자리에 모여 미래 비즈니스를 논합니다.",
-    price: "일반 50,000원 · 학생 무료",
-    organizer: "한국스타트업진흥원",
-    contact: { phone: "02-1234-5678", email: "summit@startup.kr" },
-    schedule: [
-      { time: "09:00", title: "등록 및 네트워킹 커피", type: "break" },
-      {
-        time: "09:30",
-        title: "개회사",
-        speaker: "김태영",
-        role: "한국스타트업진흥원장",
-        type: "opening",
-      },
-      {
-        time: "10:00",
-        title: "키노트 — AI가 바꾸는 스타트업 생태계",
-        speaker: "박소연",
-        role: "딥마인드 코리아 총괄",
-        type: "keynote",
-      },
-      {
-        time: "11:00",
-        title: "패널 — VC가 보는 2026 투자 트렌드",
-        speaker: "4인 패널",
-        role: "주요 VC 대표",
-        type: "panel",
-      },
-      { time: "12:00", title: "점심 및 부스 관람", type: "break" },
-      {
-        time: "13:30",
-        title: "세션 A — 제로투원: MVP에서 PMF까지",
-        speaker: "이준혁",
-        role: "토스 공동창업자",
-        type: "session",
-      },
-      {
-        time: "14:30",
-        title: "세션 B — 글로벌 진출 전략 마스터클래스",
-        speaker: "Sarah Kim",
-        role: "Y Combinator 파트너",
-        type: "session",
-      },
-      {
-        time: "15:30",
-        title: "세션 C — 딥테크 스타트업의 성장 공식",
-        speaker: "정민수",
-        role: "리벨리온 CEO",
-        type: "session",
-      },
-      { time: "16:30", title: "네트워킹 브레이크", type: "break" },
-      {
-        time: "17:00",
-        title: "클로징 키노트 — 한국 스타트업의 미래",
-        speaker: "강한나",
-        role: "네이버 CTO",
-        type: "keynote",
-      },
-      { time: "18:00", title: "네트워킹 디너 & 폐회", type: "break" },
-    ],
-    speakers: [
-      {
-        name: "박소연",
-        role: "딥마인드 코리아 총괄",
-        topic: "AI가 바꾸는 스타트업 생태계",
-        avatar: "PS",
-        color: "#6366f1",
-      },
-      {
-        name: "이준혁",
-        role: "토스 공동창업자",
-        topic: "제로투원: MVP에서 PMF까지",
-        avatar: "LJ",
-        color: "#0891b2",
-      },
-      {
-        name: "Sarah Kim",
-        role: "Y Combinator 파트너",
-        topic: "글로벌 진출 전략 마스터클래스",
-        avatar: "SK",
-        color: "#e11d48",
-      },
-      {
-        name: "정민수",
-        role: "리벨리온 CEO",
-        topic: "딥테크 스타트업의 성장 공식",
-        avatar: "JM",
-        color: "#ea580c",
-      },
-      {
-        name: "강한나",
-        role: "네이버 CTO",
-        topic: "한국 스타트업의 미래",
-        avatar: "KH",
-        color: "#16a34a",
-      },
-    ],
-    transport: {
-      subway: "삼성역 5·6번 출구 도보 5분 / 봉은사역 7번 출구 도보 7분",
-      bus: "코엑스 정류장 하차 (3412, 4318, 9414)",
-      car: "코엑스 지하주차장 이용 (주차 4시간 무료 제공)",
-    },
-    mapEmbed:
-      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3165.3!2d127.058!3d37.5116!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x357ca4eff!2sCOEX!5e0!3m2!1sko!2skr",
-    files: [
-      { name: "행사 안내 브로셔.pdf", size: "2.4 MB" },
-      { name: "연사 프로필 목록.pdf", size: "1.1 MB" },
-    ],
-  },
-};
-
-/* ─── Fallback: generate detail data for events without explicit data ─── */
-function getDetailData(eventId) {
-  if (DETAIL_DATA[eventId]) return DETAIL_DATA[eventId];
-  return {
-    description:
-      "본 행사에 대한 상세 정보입니다. 다양한 세션과 네트워킹 기회가 준비되어 있으니 많은 참여 바랍니다.",
-    price: "무료",
-    organizer: "행사 주최측",
-    contact: { phone: "02-000-0000", email: "info@event.kr" },
-    schedule: [
-      { time: "09:00", title: "등록", type: "break" },
-      {
-        time: "09:30",
-        title: "개회사",
-        speaker: "대표 연사",
-        role: "주최 기관",
-        type: "opening",
-      },
-      {
-        time: "10:00",
-        title: "메인 세션",
-        speaker: "연사 미정",
-        role: "",
-        type: "keynote",
-      },
-      { time: "12:00", title: "점심 시간", type: "break" },
-      {
-        time: "13:30",
-        title: "오후 세션",
-        speaker: "연사 미정",
-        role: "",
-        type: "session",
-      },
-      { time: "17:00", title: "폐회", type: "break" },
-    ],
-    speakers: [],
-    transport: {
-      subway: "인근 지하철역 이용",
-      bus: "인근 버스 정류장 이용",
-      car: "건물 내 지하주차장 이용",
-    },
-    files: [],
-  };
-}
-
-/* ─── styles ─── */
+/* styles */
 const modalStyles = `
   /* Overlay */
   .evm-overlay {
@@ -487,15 +331,49 @@ const modalStyles = `
   }
 `;
 
+function formatDate(value) {
+  if (!value) return "일정 미정";
+  const s = String(value);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return "일정 미정";
+  return `${m[1]}.${m[2]}.${m[3]}`;
+}
+
+function formatTime(startAt, endAt) {
+  const pick = (v) => {
+    if (!v) return "";
+    const m = String(v).match(/(\d{2}):(\d{2})/);
+    return m ? `${m[1]}:${m[2]}` : "";
+  };
+  const a = pick(startAt);
+  const b = pick(endAt);
+  if (a && b) return `${a} ~ ${b}`;
+  if (a || b) return a || b;
+  return "시간 미정";
+}
+
 export default function EventDetailModal({ event, onClose }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [registered, setRegistered] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [detail, setDetail] = useState(null);
+  const [regStatus, setRegStatus] = useState("");
+  const [applyId, setApplyId] = useState(null);
+  const [regLoading, setRegLoading] = useState(false);
+  const [regError, setRegError] = useState("");
+  const [regLoaded, setRegLoaded] = useState(true);
   const overlayRef = useRef(null);
+  const lastAlertAtRef = useRef(0);
 
-  const detail = getDetailData(event.id);
-  const pct = Math.round((event.participants / event.capacity) * 100);
-  const remaining = event.capacity - event.participants;
+  const modalEventId = Number(event?.eventId ?? event?.id);
+  const hasToken = !!tokenStore.getAccess();
+  const RegistrationStatus = Object.freeze({
+    APPLIED: "APPLIED",
+    CANCELLED: "CANCELLED",
+    APPROVED: "APPROVED",
+    REJECTED: "REJECTED",
+  });
 
   useEffect(() => {
     requestAnimationFrame(() => setIsOpen(true));
@@ -505,6 +383,50 @@ export default function EventDetailModal({ event, onClose }) {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    if (!Number.isFinite(modalEventId)) {
+      setRegLoaded(true);
+      setDetail(null);
+      setError("이벤트 정보를 불러올 수 없습니다.");
+      setDetailLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    const fetchDetailAndRegistration = async () => {
+      setDetailLoading(true);
+      setError("");
+      setRegError("");
+      try {
+        const res = await eventApi.getEventDetail(modalEventId);
+        const data = res.data.data;
+        if (mounted) setDetail(data);
+        if (hasToken) {
+          try {
+            await fetchMyRegistrations();
+          } catch (e) {
+            if (e?.response?.status === 401) {
+              if (mounted) setRegError("로그인이 필요합니다.");
+            }
+          }
+        }
+      } catch (e) {
+        const msg =
+          e?.response?.data?.message || e?.message || "Failed to load detail.";
+        if (mounted) setError(msg);
+      } finally {
+        if (mounted) setDetailLoading(false);
+      }
+    };
+
+    fetchDetailAndRegistration();
+    return () => {
+      mounted = false;
+    };
+  }, [modalEventId]);
+
   const handleClose = () => {
     setIsOpen(false);
     setTimeout(onClose, 280);
@@ -512,6 +434,178 @@ export default function EventDetailModal({ event, onClose }) {
 
   const handleOverlayClick = (e) => {
     if (e.target === overlayRef.current) handleClose();
+  };
+
+  const alertLoginRequired = () => {
+    const now = Date.now();
+    if (now - lastAlertAtRef.current < 2000) return;
+    lastAlertAtRef.current = now;
+    window.alert("로그인이 필요합니다.");
+  };
+
+  const fetchMyRegistrations = async () => {
+    if (!hasToken || !Number.isFinite(modalEventId)) {
+      setRegLoaded(true);
+      return;
+    }
+    setRegLoading(true);
+    setRegLoaded(false);
+    try {
+      const regRes = await axiosInstance.get(
+        "/api/users/me/event-registrations",
+        { params: { page: 0, size: 50 } },
+      );
+      const regContent = regRes.data.data.content;
+      const regList = Array.isArray(regContent) ? regContent : [];
+      const matched = regList.find(
+        (r) => Number(r?.eventId) === modalEventId,
+      );
+      if (matched) {
+        setApplyId(matched?.applyId ?? null);
+        setRegStatus(matched?.status ?? "");
+      } else {
+        setApplyId(null);
+        setRegStatus("");
+      }
+      console.log(
+        "[reg] modalEventId",
+        modalEventId,
+        "len",
+        regList.length,
+        "matched",
+        matched ?? null,
+      );
+    } finally {
+      setRegLoading(false);
+      setRegLoaded(true);
+    }
+  };
+
+  const desc = detail?.description || "설명 없음";
+  const loc = detail?.location || "장소 미정";
+  const rawFee = detail?.baseFee;
+  const fee =
+    rawFee !== undefined && rawFee !== null ? Number(rawFee) : null;
+  const dateLabel = detail?.startAt ? formatDate(detail.startAt) : "일정 미정";
+  const timeLabel =
+    detail?.startAt || detail?.endAt
+      ? formatTime(detail?.startAt, detail?.endAt)
+      : "시간 미정";
+  const statusLabel = detail?.status || "-";
+  const roundLabel =
+    detail?.roundNo !== undefined && detail?.roundNo !== null
+      ? String(detail.roundNo)
+      : "-";
+
+  const safeParticipants = event?.participants ?? 0;
+  const safeCapacity = event?.capacity || 1;
+  const pct = Math.round((safeParticipants / safeCapacity) * 100);
+  const remaining = safeCapacity - safeParticipants;
+  const canCancel =
+    regStatus === RegistrationStatus.APPLIED ||
+    regStatus === RegistrationStatus.APPROVED;
+  const canApply = !regStatus || regStatus === RegistrationStatus.CANCELLED;
+
+  const handleApply = async () => {
+    if (!Number.isFinite(modalEventId) || regLoading) return;
+    if (!hasToken) {
+      setRegError("로그인이 필요합니다.");
+      alertLoginRequired();
+      return;
+    }
+    setRegLoading(true);
+    setRegError("");
+    try {
+      const res = await axiosInstance.post("/api/event-registrations", {
+        eventId: modalEventId,
+      });
+      const data = res.data.data;
+      const newApplyId =
+        data?.applyId ?? data?.eventRegistrationId ?? data?.id ?? null;
+      setApplyId(newApplyId);
+      setRegStatus(data?.status ?? RegistrationStatus.APPLIED);
+      if (hasToken) {
+        await fetchMyRegistrations();
+      }
+      if (fee > 0) {
+        try {
+          const payRes = await axiosInstance.post(
+            `/api/events/${modalEventId}/payments`,
+            { amount: detail?.baseFee ?? 0, paymentMethod: "KAKAOPAY" },
+          );
+          const payData = payRes.data.data;
+          const redirectPcUrl = payData?.redirectPcUrl;
+          if (redirectPcUrl) {
+            window.location.href = redirectPcUrl;
+          } else {
+            setRegError("결제 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+          }
+        } catch (e) {
+          if (e?.response?.status === 401) {
+            setRegError("로그인이 필요합니다.");
+            alertLoginRequired();
+          } else {
+            console.error(e);
+            setRegError("결제 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+          }
+        }
+      }
+    } catch (e) {
+      if (e?.response?.status === 409) {
+        setRegError("이미 신청된 행사입니다.");
+        setRegStatus(RegistrationStatus.APPLIED);
+        if (hasToken) {
+          try {
+            await fetchMyRegistrations();
+          } catch (err) {
+            if (err?.response?.status === 401) {
+              setRegError("로그인이 필요합니다.");
+              alertLoginRequired();
+            }
+          }
+        }
+      } else if (e?.response?.status === 401) {
+        setRegError("로그인이 필요합니다.");
+        alertLoginRequired();
+      } else {
+        console.error(e);
+        setRegError("신청에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      }
+    } finally {
+      setRegLoading(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (regLoading) return;
+    if (!applyId) {
+      setRegError("신청 정보를 찾을 수 없습니다.");
+      return;
+    }
+    if (!hasToken) {
+      setRegError("로그인이 필요합니다.");
+      alertLoginRequired();
+      return;
+    }
+    setRegLoading(true);
+    setRegError("");
+    try {
+      await axiosInstance.delete(`/api/event-registrations/${applyId}`);
+      setRegStatus(RegistrationStatus.CANCELLED);
+      if (hasToken) {
+        await fetchMyRegistrations();
+      }
+    } catch (e) {
+      if (e?.response?.status === 401) {
+        setRegError("로그인이 필요합니다.");
+        alertLoginRequired();
+      } else {
+        console.error(e);
+        setRegError("취소에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      }
+    } finally {
+      setRegLoading(false);
+    }
   };
 
   return (
@@ -523,7 +617,7 @@ export default function EventDetailModal({ event, onClose }) {
         onClick={handleOverlayClick}
       >
         <div className="evm-modal">
-          {/* ─── Hero ─── */}
+          {/* Hero */}
           <div className="evm-hero">
             {!imgError ? (
               <img
@@ -554,7 +648,7 @@ export default function EventDetailModal({ event, onClose }) {
                 LIVE
               </div>
               <div className="evm-hero-category">{event.category}</div>
-              <div className="evm-hero-title">{event.title}</div>
+              <div className="evm-hero-title">{detail?.eventName}</div>
             </div>
             <div className="evm-topbar">
               <button className="evm-icon-btn" title="공유">
@@ -573,8 +667,15 @@ export default function EventDetailModal({ event, onClose }) {
             </div>
           </div>
 
-          {/* ─── Body ─── */}
+          {/* Body */}
           <div className="evm-content">
+            {detailLoading && (
+              <div className="evm-desc">Loading...</div>
+            )}
+            {!detailLoading && error && (
+              <div className="evm-desc">{error}</div>
+            )}
+
             {/* Quick info */}
             <div className="evm-quick-info">
               <div className="evm-qi-item">
@@ -583,7 +684,7 @@ export default function EventDetailModal({ event, onClose }) {
                 </div>
                 <div>
                   <div className="evm-qi-label">일시</div>
-                  <div className="evm-qi-value">{event.date}</div>
+                  <div className="evm-qi-value">{dateLabel}</div>
                 </div>
               </div>
               <div className="evm-qi-item">
@@ -592,7 +693,7 @@ export default function EventDetailModal({ event, onClose }) {
                 </div>
                 <div>
                   <div className="evm-qi-label">시간</div>
-                  <div className="evm-qi-value">{event.time}</div>
+                  <div className="evm-qi-value">{timeLabel}</div>
                 </div>
               </div>
               <div className="evm-qi-item">
@@ -601,7 +702,7 @@ export default function EventDetailModal({ event, onClose }) {
                 </div>
                 <div>
                   <div className="evm-qi-label">장소</div>
-                  <div className="evm-qi-value">{event.location}</div>
+                  <div className="evm-qi-value">{loc}</div>
                 </div>
               </div>
             </div>
@@ -617,7 +718,7 @@ export default function EventDetailModal({ event, onClose }) {
                 </div>
                 <div className="evm-section-title">행사 소개</div>
               </div>
-              <div className="evm-desc">{detail.description}</div>
+              <div className="evm-desc">{desc}</div>
             </div>
 
             {/* Schedule */}
@@ -632,7 +733,7 @@ export default function EventDetailModal({ event, onClose }) {
                 <div className="evm-section-title">프로그램 타임테이블</div>
               </div>
               <div className="evm-schedule">
-                {detail.schedule.map((item, i) => (
+                {(detail?.schedule || []).map((item, i) => (
                   <div className="evm-sch-item" key={i}>
                     <div className="evm-sch-time-col">
                       <div className="evm-sch-time">{item.time}</div>
@@ -660,7 +761,7 @@ export default function EventDetailModal({ event, onClose }) {
             </div>
 
             {/* Speakers */}
-            {detail.speakers && detail.speakers.length > 0 && (
+            {detail?.speakers && detail.speakers.length > 0 && (
               <div className="evm-section">
                 <div className="evm-section-header">
                   <div
@@ -705,8 +806,8 @@ export default function EventDetailModal({ event, onClose }) {
               <div className="evm-participants-bar">
                 <div className="evm-part-header">
                   <div className="evm-part-count">
-                    {event.participants.toLocaleString()}
-                    <span> / {event.capacity.toLocaleString()}명</span>
+                    {(safeParticipants ?? 0).toLocaleString()}
+                    <span> / {(safeCapacity ?? 0).toLocaleString()}명</span>
                   </div>
                   <div className="evm-part-pct">{pct}%</div>
                 </div>
@@ -716,12 +817,11 @@ export default function EventDetailModal({ event, onClose }) {
                 <div className="evm-part-note">
                   {remaining > 0 ? (
                     <>
-                      잔여석 <strong>{remaining.toLocaleString()}석</strong>{" "}
-                      남음
+                      잔여 <strong>{(remaining ?? 0).toLocaleString()}명</strong> 있음
                     </>
                   ) : (
                     <>
-                      <strong>마감</strong> — 대기자 등록 가능
+                      <strong>마감</strong> 대기자 등록 가능
                     </>
                   )}
                 </div>
@@ -743,13 +843,13 @@ export default function EventDetailModal({ event, onClose }) {
               <div className="evm-map-placeholder">
                 <div className="evm-map-placeholder-inner">
                   <MapPin size={28} />
-                  지도 영역 (카카오맵 / 구글맵 연동)
+                  지도 영역 (카카오 / 구글 연동)
                 </div>
               </div>
 
               <div className="evm-address">
                 <MapPin size={14} color="#1a4fd6" />
-                {event.location}
+                {loc}
               </div>
 
               <div className="evm-transport">
@@ -763,7 +863,7 @@ export default function EventDetailModal({ event, onClose }) {
                   <div>
                     <strong style={{ fontSize: "12px" }}>지하철</strong>
                     <br />
-                    {detail.transport.subway}
+                    {detail?.transport?.subway || "정보 없음"}
                   </div>
                 </div>
                 <div className="evm-transport-row">
@@ -776,7 +876,7 @@ export default function EventDetailModal({ event, onClose }) {
                   <div>
                     <strong style={{ fontSize: "12px" }}>버스</strong>
                     <br />
-                    {detail.transport.bus}
+                    {detail?.transport?.bus || "정보 없음"}
                   </div>
                 </div>
                 <div className="evm-transport-row">
@@ -789,14 +889,14 @@ export default function EventDetailModal({ event, onClose }) {
                   <div>
                     <strong style={{ fontSize: "12px" }}>자가용</strong>
                     <br />
-                    {detail.transport.car}
+                    {detail?.transport?.car || "정보 없음"}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Files */}
-            {detail.files && detail.files.length > 0 && (
+            {detail?.files && detail.files.length > 0 && (
               <div className="evm-section">
                 <div className="evm-section-header">
                   <div
@@ -837,7 +937,7 @@ export default function EventDetailModal({ event, onClose }) {
                   marginBottom: "12px",
                 }}
               >
-                주최: <strong>{detail.organizer}</strong>
+                주최: <strong>{detail?.organizer || "정보 없음"}</strong>
               </div>
               <div className="evm-contact-grid">
                 <div className="evm-contact-item">
@@ -847,7 +947,7 @@ export default function EventDetailModal({ event, onClose }) {
                   <div>
                     <div className="evm-contact-label">전화</div>
                     <div className="evm-contact-value">
-                      {detail.contact.phone}
+                      {detail?.contact?.phone || "정보 없음"}
                     </div>
                   </div>
                 </div>
@@ -858,7 +958,7 @@ export default function EventDetailModal({ event, onClose }) {
                   <div>
                     <div className="evm-contact-label">이메일</div>
                     <div className="evm-contact-value">
-                      {detail.contact.email}
+                      {detail?.contact?.email || "정보 없음"}
                     </div>
                   </div>
                 </div>
@@ -866,38 +966,58 @@ export default function EventDetailModal({ event, onClose }) {
             </div>
           </div>
 
-          {/* ─── Sticky CTA ─── */}
+          {/* Sticky CTA */}
           <div className="evm-cta-bar">
             <div>
               <div className="evm-cta-price-label">참가비</div>
-              <div className="evm-cta-price">{detail.price}</div>
+              <div className="evm-cta-price">
+                {fee === null
+                  ? "정보 없음"
+                  : fee === 0
+                    ? "무료"
+                    : `${fee.toLocaleString()}원`}
+              </div>
+              {regError && (
+                <div style={{ fontSize: "12px", color: "#b91c1c", marginTop: 4 }}>
+                  {regError}
+                </div>
+              )}
             </div>
             <div className="evm-cta-actions">
               <button className="evm-btn-secondary">
                 <ExternalLink size={14} />
                 공유
               </button>
-              {!registered ? (
+              {regLoading ? (
                 <button
                   className="evm-btn-primary"
-                  onClick={() => setRegistered(true)}
+                  disabled={detailLoading || regLoading}
+                >
+                  로딩중
+                </button>
+              ) : canApply ? (
+                <button
+                  className="evm-btn-primary"
+                  onClick={handleApply}
+                  disabled={detailLoading || regLoading}
                 >
                   <Zap size={14} />
                   참가 신청
                 </button>
-              ) : (
+              ) : canCancel ? (
                 <button
                   className="evm-btn-primary"
                   style={{
                     background: "#10b981",
                     boxShadow: "0 2px 12px rgba(16,185,129,0.25)",
                   }}
-                  onClick={() => setRegistered(false)}
+                  onClick={handleCancel}
+                  disabled={detailLoading || regLoading}
                 >
                   <CheckCircle size={14} />
-                  신청 완료
+                  신청 취소
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   X,
@@ -12,9 +12,11 @@ import {
   Check,
   MessageCircle,
   HelpCircle,
+  Loader2,
 } from "lucide-react";
 import ds from "../shared/designTokens";
 import DATA from "../shared/data";
+import { adminQnaApi, unwrap } from "../../../api/qnaApi";
 
 const styles = `
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
@@ -22,6 +24,7 @@ const styles = `
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
 @keyframes rowFadeOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(-30px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 .row-removing{animation:rowFadeOut .3s ease forwards}
 .board-row:hover .board-actions{opacity:1}
 `;
@@ -72,6 +75,36 @@ const BOARD_CONFIG = {
     formSub: (edit) => (edit ? "질문을 수정합니다" : "새 질문을 등록합니다"),
   },
 };
+
+/* ── 날짜 포맷 ── */
+function fmtDate(dt) {
+  if (!dt) return "-";
+  const d = new Date(dt);
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/* ── API → 컴포넌트 데이터 매핑 ── */
+function mapQnaFromApi(item) {
+  const isClosed = item.status === "CLOSED";
+  return {
+    id: item.qnaId ?? item.inquiryId ?? item.id,
+    qnaId: item.qnaId ?? item.inquiryId ?? item.id,
+    title: item.title ?? item.inquiryTitle ?? "",
+    author: item.nickname ?? item.author ?? item.userName ?? "익명",
+    content: item.content ?? "",
+    status: isClosed ? "답변완료" : "대기중",
+    answer: item.answer ?? item.answerContent ?? "",
+    answerDate: item.answeredAt
+      ? fmtDate(item.answeredAt)
+      : item.answerDate
+        ? fmtDate(item.answerDate)
+        : "",
+    views: item.viewCount ?? item.views ?? 0,
+    date: fmtDate(item.createdAt ?? item.date),
+    _visible: true,
+    _raw: item, // 원본 보관
+  };
+}
 
 /* ── 공통 컴포넌트 ── */
 function Toast({ msg, type = "success", onDone }) {
@@ -139,7 +172,7 @@ function Overlay({ children, onClose }) {
     </div>
   );
 }
-function ConfirmModal({ title, msg, onConfirm, onCancel }) {
+function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
   return (
     <Overlay onClose={onCancel}>
       <div style={{ padding: "28px" }}>
@@ -184,6 +217,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button
             onClick={onCancel}
+            disabled={loading}
             style={{
               padding: "9px 20px",
               borderRadius: 8,
@@ -200,6 +234,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
           </button>
           <button
             onClick={onConfirm}
+            disabled={loading}
             style={{
               padding: "9px 20px",
               borderRadius: 8,
@@ -210,9 +245,10 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
               fontWeight: 700,
               cursor: "pointer",
               fontFamily: ds.ff,
+              opacity: loading ? 0.5 : 1,
             }}
           >
-            삭제
+            {loading ? "삭제 중..." : "삭제"}
           </button>
         </div>
       </div>
@@ -319,6 +355,7 @@ function DetailModal({
   onEdit,
   onDelete,
   onReply,
+  replyLoading,
 }) {
   const isQna = boardType === "qna";
   const isReview = boardType === "review";
@@ -329,7 +366,6 @@ function DetailModal({
   const handleSubmitReply = () => {
     if (!replyText.trim()) return;
     onReply(item, replyText.trim());
-    setIsReplying(false);
   };
 
   return (
@@ -459,7 +495,6 @@ function DetailModal({
 
         {/* ── 운영자 답변 영역 ── */}
         <div style={{ marginBottom: 20 }}>
-          {/* 기존 답변 표시 */}
           {hasReply && !isReplying && (
             <div
               style={{
@@ -537,8 +572,7 @@ function DetailModal({
             </div>
           )}
 
-          {/* 답변 작성/수정 폼 */}
-          {(isReplying || !hasReply) && (
+          {(isReplying || (!hasReply && isQna)) && (
             <div
               style={{
                 border: `1.5px solid ${isReplying ? ds.brand : "#E2E8F0"}`,
@@ -594,11 +628,6 @@ function DetailModal({
                   lineHeight: 1.6,
                   background: "#fff",
                 }}
-                onFocus={(e) =>
-                  e.target.closest("div[style]") &&
-                  (e.target.parentElement.parentElement.style.borderColor =
-                    ds.brand)
-                }
               />
               <div
                 style={{
@@ -633,21 +662,27 @@ function DetailModal({
                 )}
                 <button
                   onClick={handleSubmitReply}
-                  disabled={!replyText.trim()}
+                  disabled={!replyText.trim() || replyLoading}
                   style={{
                     padding: "6px 16px",
                     borderRadius: 6,
                     border: "none",
-                    background: replyText.trim() ? ds.brand : "#CBD5E1",
+                    background:
+                      replyText.trim() && !replyLoading ? ds.brand : "#CBD5E1",
                     color: "#fff",
                     fontSize: 12,
                     fontWeight: 700,
-                    cursor: replyText.trim() ? "pointer" : "default",
+                    cursor:
+                      replyText.trim() && !replyLoading ? "pointer" : "default",
                     fontFamily: ds.ff,
                     transition: "background .15s",
                   }}
                 >
-                  {hasReply ? "답변 수정" : "답변 등록"}
+                  {replyLoading
+                    ? "처리 중..."
+                    : hasReply
+                      ? "답변 수정"
+                      : "답변 등록"}
                 </button>
               </div>
             </div>
@@ -708,7 +743,15 @@ function DetailModal({
 /* ══════════════════════════════════════════════
    슬라이드 패널
    ══════════════════════════════════════════════ */
-function SlidePanel({ item, boardType, config, onSave, onClose, isEdit }) {
+function SlidePanel({
+  item,
+  boardType,
+  config,
+  onSave,
+  onClose,
+  isEdit,
+  saving,
+}) {
   const defaults = {
     free: { title: "", author: "", content: "", pinned: false, views: 0 },
     review: {
@@ -733,7 +776,12 @@ function SlidePanel({ item, boardType, config, onSave, onClose, isEdit }) {
   const [err, setErr] = useState("");
 
   const handleSave = () => {
-    if (!form.title || !form.author) {
+    if (!form.title) {
+      setErr("제목은 필수입니다.");
+      return;
+    }
+    // Q&A API 방식일 때는 author 필수 아님 (로그인 사용자 기반)
+    if (boardType !== "qna" && !form.author) {
       setErr("제목과 작성자는 필수입니다.");
       return;
     }
@@ -840,16 +888,20 @@ function SlidePanel({ item, boardType, config, onSave, onClose, isEdit }) {
               placeholder="제목을 입력하세요"
             />
           </Field>
-          <Field label="작성자" required>
-            <input
-              style={inputStyle}
-              value={form.author}
-              onChange={(e) => set("author", e.target.value)}
-              onFocus={inputFocus}
-              onBlur={inputBlur}
-              placeholder="작성자 이름"
-            />
-          </Field>
+
+          {/* Q&A는 작성자 필드 불필요 (API에서 로그인 사용자 기반) */}
+          {boardType !== "qna" && (
+            <Field label="작성자" required>
+              <input
+                style={inputStyle}
+                value={form.author}
+                onChange={(e) => set("author", e.target.value)}
+                onFocus={inputFocus}
+                onBlur={inputBlur}
+                placeholder="작성자 이름"
+              />
+            </Field>
+          )}
 
           {boardType === "free" && (
             <Field label="고정 글">
@@ -907,50 +959,6 @@ function SlidePanel({ item, boardType, config, onSave, onClose, isEdit }) {
             </>
           )}
 
-          {boardType === "qna" && (
-            <>
-              <Field label="답변 상태">
-                <div style={{ position: "relative" }}>
-                  <select
-                    value={form.status}
-                    onChange={(e) => set("status", e.target.value)}
-                    style={{
-                      ...inputStyle,
-                      appearance: "none",
-                      paddingRight: 32,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <option value="대기중">대기중</option>
-                    <option value="답변완료">답변완료</option>
-                  </select>
-                  <ChevronDown
-                    size={14}
-                    color="#94A3B8"
-                    style={{
-                      position: "absolute",
-                      right: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      pointerEvents: "none",
-                    }}
-                  />
-                </div>
-              </Field>
-              <Field label="답변 내용">
-                <textarea
-                  rows={3}
-                  style={{ ...inputStyle, resize: "vertical" }}
-                  value={form.answer || ""}
-                  onChange={(e) => set("answer", e.target.value)}
-                  onFocus={inputFocus}
-                  onBlur={inputBlur}
-                  placeholder="답변을 작성하세요"
-                />
-              </Field>
-            </>
-          )}
-
           <Field label="내용">
             <textarea
               rows={4}
@@ -974,6 +982,7 @@ function SlidePanel({ item, boardType, config, onSave, onClose, isEdit }) {
         >
           <button
             onClick={onClose}
+            disabled={saving}
             style={{
               flex: 1,
               padding: "11px 0",
@@ -991,6 +1000,7 @@ function SlidePanel({ item, boardType, config, onSave, onClose, isEdit }) {
           </button>
           <button
             onClick={handleSave}
+            disabled={saving}
             style={{
               flex: 1,
               padding: "11px 0",
@@ -1002,9 +1012,10 @@ function SlidePanel({ item, boardType, config, onSave, onClose, isEdit }) {
               fontWeight: 700,
               cursor: "pointer",
               fontFamily: ds.ff,
+              opacity: saving ? 0.5 : 1,
             }}
           >
-            {isEdit ? "수정 완료" : "등록하기"}
+            {saving ? "저장 중..." : isEdit ? "수정 완료" : "등록하기"}
           </button>
         </div>
       </div>
@@ -1233,90 +1244,234 @@ function BoardRow({ item, boardType, removing, onDetail, onEdit, onDelete }) {
   );
 }
 
+/* ══════════════════════════════════════════════
+   로딩 인디케이터
+   ══════════════════════════════════════════════ */
+function LoadingIndicator() {
+  return (
+    <div
+      style={{
+        textAlign: "center",
+        padding: "60px 0",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
+      <Loader2
+        size={28}
+        color="#94A3B8"
+        style={{ animation: "spin 1s linear infinite" }}
+      />
+      <span style={{ fontSize: 13, color: "#94A3B8" }}>불러오는 중...</span>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════
    메인 컴포넌트
    ═══════════════════════════════════════════ */
 export default function BoardManage({ subTab = "free" }) {
   const boardType = subTab || "free";
   const config = BOARD_CONFIG[boardType] || BOARD_CONFIG.free;
+  const isQna = boardType === "qna";
 
-  const [allData, setAllData] = useState(() => ({
+  /* ── 로컬 게시판 데이터 (free, review) ── */
+  const [localData, setLocalData] = useState(() => ({
     free: (DATA.boards || []).map((e) => ({ ...e, _visible: true })),
     review: (DATA.reviews || []).map((e) => ({ ...e, _visible: true })),
-    qna: (DATA.qna || []).map((e) => ({ ...e, _visible: true })),
   }));
+
+  /* ── Q&A API 상태 ── */
+  const [qnaItems, setQnaItems] = useState([]);
+  const [qnaLoading, setQnaLoading] = useState(false);
+  const [qnaError, setQnaError] = useState(null);
+  const [qnaPage, setQnaPage] = useState(1);
+  const [qnaTotalPages, setQnaTotalPages] = useState(0);
+  const [qnaTotalElements, setQnaTotalElements] = useState(0);
+  const QNA_PAGE_SIZE = 20;
+
+  /* ── 공통 UI 상태 ── */
   const [modal, setModal] = useState(null);
   const [panel, setPanel] = useState(null);
   const [toast, setToast] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [search, setSearch] = useState("");
+  const [saving, setSaving] = useState(false);
 
+  /* ── Q&A 목록 조회 ── */
+  const fetchQnaList = useCallback(async (page = 1) => {
+    setQnaLoading(true);
+    setQnaError(null);
+    try {
+      const res = await adminQnaApi.list(page, QNA_PAGE_SIZE);
+      const d = unwrap(res);
+      const mapped = (d.content || []).map(mapQnaFromApi);
+      setQnaItems(mapped);
+      setQnaTotalPages(d.totalPages || 0);
+      setQnaTotalElements(d.totalElements ?? mapped.length);
+      setQnaPage(page);
+    } catch (err) {
+      console.error("[BoardManage QnA] fetch error:", err);
+      setQnaError("질문 목록을 불러오는데 실패했습니다.");
+    } finally {
+      setQnaLoading(false);
+    }
+  }, []);
+
+  /* ── boardType이 qna로 전환되면 API 호출 ── */
   useEffect(() => {
     setSearch("");
     setModal(null);
     setPanel(null);
-  }, [boardType]);
+    if (isQna) {
+      fetchQnaList(1);
+    }
+  }, [boardType, isQna, fetchQnaList]);
 
-  const items = allData[boardType] || [];
+  /* ── 현재 보여줄 아이템 ── */
+  const items = isQna ? qnaItems : localData[boardType] || [];
   const rows = items
-    .filter((e) => e._visible)
+    .filter((e) => e._visible !== false)
     .filter(
-      (e) => !search || e.title.includes(search) || e.author.includes(search),
+      (e) => !search || e.title?.includes(search) || e.author?.includes(search),
     );
+  const totalCount = isQna ? qnaTotalElements : rows.length;
+
   const showToast = (msg, type = "success") => setToast({ msg, type });
 
+  /* ── 로컬 게시판 setter ── */
   const setBoard = (fn) =>
-    setAllData((prev) => ({ ...prev, [boardType]: fn(prev[boardType]) }));
+    setLocalData((prev) => ({ ...prev, [boardType]: fn(prev[boardType]) }));
 
-  const handleCreate = (f) => {
-    const d = new Date();
-    const newItem = {
-      ...f,
-      id: Math.max(0, ...items.map((x) => x.id)) + 1,
-      date: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`,
-      views: 0,
-      _visible: true,
-    };
-    setBoard((p) => [newItem, ...p]);
-    setPanel(null);
-    showToast(config.toastCreate);
+  /* ════════════════════════════════════════
+     CRUD 핸들러 — Q&A는 API, 나머지는 로컬
+     ════════════════════════════════════════ */
+
+  /* ── 등록 ── */
+  const handleCreate = async (f) => {
+    if (isQna) {
+      setSaving(true);
+      try {
+        await adminQnaApi.create({ title: f.title, content: f.content });
+        setPanel(null);
+        showToast(config.toastCreate);
+        fetchQnaList(1);
+      } catch (err) {
+        console.error("[BoardManage QnA] create error:", err);
+        showToast("등록에 실패했습니다.", "error");
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      const d = new Date();
+      const newItem = {
+        ...f,
+        id: Math.max(0, ...items.map((x) => x.id)) + 1,
+        date: fmtDate(d),
+        views: 0,
+        _visible: true,
+      };
+      setBoard((p) => [newItem, ...p]);
+      setPanel(null);
+      showToast(config.toastCreate);
+    }
   };
 
-  const handleUpdate = (f) => {
-    setBoard((p) => p.map((e) => (e.id === f.id ? { ...e, ...f } : e)));
-    setPanel(null);
-    showToast(config.toastUpdate);
+  /* ── 수정 ── */
+  const handleUpdate = async (f) => {
+    if (isQna) {
+      setSaving(true);
+      try {
+        const qnaId = f.qnaId ?? f.id;
+        await adminQnaApi.update(qnaId, { title: f.title, content: f.content });
+        setPanel(null);
+        showToast(config.toastUpdate);
+        fetchQnaList(qnaPage);
+      } catch (err) {
+        console.error("[BoardManage QnA] update error:", err);
+        showToast("수정에 실패했습니다.", "error");
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      setBoard((p) => p.map((e) => (e.id === f.id ? { ...e, ...f } : e)));
+      setPanel(null);
+      showToast(config.toastUpdate);
+    }
   };
 
-  const handleReply = (item, replyText) => {
-    const d = new Date();
-    const answerDate = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-    const updated = {
-      ...item,
-      answer: replyText,
-      answerDate,
-      ...(boardType === "qna" ? { status: "답변완료" } : {}),
-    };
-    setBoard((p) =>
-      p.map((e) => (e.id === item.id ? { ...e, ...updated } : e)),
-    );
-    setModal({ type: "detail", item: { ...updated, _visible: true } });
-    showToast("답변이 등록되었습니다.");
+  /* ── 삭제 ── */
+  const handleDelete = async () => {
+    const item = modal.item;
+    if (isQna) {
+      setSaving(true);
+      try {
+        const qnaId = item.qnaId ?? item.id;
+        await adminQnaApi.delete(qnaId);
+        setModal(null);
+        showToast(config.toastDelete);
+        fetchQnaList(qnaPage);
+      } catch (err) {
+        console.error("[BoardManage QnA] delete error:", err);
+        setModal(null);
+        showToast("삭제에 실패했습니다.", "error");
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      const id = item.id;
+      setModal(null);
+      setRemoving(id);
+      setTimeout(() => {
+        setBoard((p) =>
+          p.map((e) => (e.id === id ? { ...e, _visible: false } : e)),
+        );
+        setRemoving(null);
+        showToast(config.toastDelete);
+      }, 300);
+    }
   };
 
-  const handleDelete = () => {
-    const id = modal.item.id;
-    setModal(null);
-    setRemoving(id);
-    setTimeout(() => {
+  /* ── 운영자 답변 등록/수정 (Q&A API) ── */
+  const handleReply = async (item, replyText) => {
+    if (isQna) {
+      setSaving(true);
+      try {
+        const qnaId = item.qnaId ?? item.id;
+        // 운영자 답변 등록/수정
+        await adminQnaApi.answer(qnaId, replyText);
+        setModal(null);
+        showToast("답변이 등록되었습니다.");
+        fetchQnaList(qnaPage);
+      } catch (err) {
+        console.error("[BoardManage QnA] reply error:", err);
+        showToast("답변 처리에 실패했습니다.", "error");
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      // 로컬 방식 (free, review — 기존 코드)
+      const d = new Date();
+      const answerDate = fmtDate(d);
+      const updated = {
+        ...item,
+        answer: replyText,
+        answerDate,
+        ...(boardType === "qna" ? { status: "답변완료" } : {}),
+      };
       setBoard((p) =>
-        p.map((e) => (e.id === id ? { ...e, _visible: false } : e)),
+        p.map((e) => (e.id === item.id ? { ...e, ...updated } : e)),
       );
-      setRemoving(null);
-      showToast(config.toastDelete);
-    }, 300);
+      setModal({ type: "detail", item: { ...updated, _visible: true } });
+      showToast("답변이 등록되었습니다.");
+    }
   };
 
+  /* ════════════════════════════════════════
+     렌더링
+     ════════════════════════════════════════ */
   return (
     <div>
       <style>{styles}</style>
@@ -1344,7 +1499,7 @@ export default function BoardManage({ subTab = "free" }) {
               {config.title}
             </span>
             <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
-              총 {rows.length}개
+              총 {totalCount}개
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1407,20 +1562,64 @@ export default function BoardManage({ subTab = "free" }) {
           </div>
         </div>
 
-        {/* 리스트 */}
-        {rows.map((r) => (
-          <BoardRow
-            key={r.id}
-            item={r}
-            boardType={boardType}
-            removing={removing === r.id}
-            onDetail={() => setModal({ type: "detail", item: r })}
-            onEdit={() => setPanel({ type: "edit", item: r })}
-            onDelete={() => setModal({ type: "delete", item: r })}
-          />
-        ))}
+        {/* 로딩 (Q&A API) */}
+        {isQna && qnaLoading && <LoadingIndicator />}
 
-        {rows.length === 0 && (
+        {/* 에러 (Q&A API) */}
+        {isQna && !qnaLoading && qnaError && (
+          <div style={{ textAlign: "center", padding: "60px 0" }}>
+            <AlertTriangle
+              size={36}
+              color="#F59E0B"
+              style={{
+                marginBottom: 12,
+                display: "block",
+                margin: "0 auto 12px",
+              }}
+            />
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#64748B",
+                marginBottom: 8,
+              }}
+            >
+              {qnaError}
+            </div>
+            <button
+              onClick={() => fetchQnaList(qnaPage)}
+              style={{
+                padding: "8px 20px",
+                borderRadius: 8,
+                border: "1px solid #E2E8F0",
+                background: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                color: "#64748B",
+              }}
+            >
+              다시 시도
+            </button>
+          </div>
+        )}
+
+        {/* 리스트 */}
+        {!(isQna && (qnaLoading || qnaError)) &&
+          rows.map((r) => (
+            <BoardRow
+              key={r.id}
+              item={r}
+              boardType={boardType}
+              removing={removing === r.id}
+              onDetail={() => setModal({ type: "detail", item: r })}
+              onEdit={() => setPanel({ type: "edit", item: r })}
+              onDelete={() => setModal({ type: "delete", item: r })}
+            />
+          ))}
+
+        {!(isQna && (qnaLoading || qnaError)) && rows.length === 0 && (
           <div style={{ textAlign: "center", padding: "60px 20px" }}>
             {boardType === "qna" ? (
               <HelpCircle
@@ -1448,12 +1647,75 @@ export default function BoardManage({ subTab = "free" }) {
         )}
       </div>
 
+      {/* ── Q&A 페이지네이션 ── */}
+      {isQna && !qnaLoading && !qnaError && qnaTotalPages > 1 && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 20,
+          }}
+        >
+          <button
+            onClick={() => fetchQnaList(qnaPage - 1)}
+            disabled={qnaPage <= 1}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 16,
+              color: qnaPage <= 1 ? "#ddd" : "#888",
+              cursor: qnaPage <= 1 ? "default" : "pointer",
+              padding: "4px 8px",
+            }}
+          >
+            ‹
+          </button>
+          {Array.from({ length: qnaTotalPages }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => fetchQnaList(i + 1)}
+              style={{
+                fontSize: 14,
+                fontWeight: i + 1 === qnaPage ? 700 : 500,
+                color: i + 1 === qnaPage ? ds.brand : "#333",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "4px 8px",
+                minWidth: 20,
+                textAlign: "center",
+              }}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => fetchQnaList(qnaPage + 1)}
+            disabled={qnaPage >= qnaTotalPages}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 16,
+              color: qnaPage >= qnaTotalPages ? "#ddd" : "#888",
+              cursor: qnaPage >= qnaTotalPages ? "default" : "pointer",
+              padding: "4px 8px",
+            }}
+          >
+            ›
+          </button>
+        </div>
+      )}
+
+      {/* ── 슬라이드 패널 ── */}
       {panel?.type === "create" && (
         <SlidePanel
           boardType={boardType}
           config={config}
           onSave={handleCreate}
           onClose={() => setPanel(null)}
+          saving={saving}
         />
       )}
       {panel?.type === "edit" && (
@@ -1464,8 +1726,11 @@ export default function BoardManage({ subTab = "free" }) {
           isEdit
           onSave={handleUpdate}
           onClose={() => setPanel(null)}
+          saving={saving}
         />
       )}
+
+      {/* ── 상세 모달 ── */}
       {modal?.type === "detail" && (
         <DetailModal
           item={modal.item}
@@ -1478,16 +1743,22 @@ export default function BoardManage({ subTab = "free" }) {
           }}
           onDelete={(item) => setModal({ type: "delete", item })}
           onReply={handleReply}
+          replyLoading={saving}
         />
       )}
+
+      {/* ── 삭제 확인 모달 ── */}
       {modal?.type === "delete" && (
         <ConfirmModal
           title={config.deleteTitle}
           msg={`"${modal.item.title}" 을(를) 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
           onConfirm={handleDelete}
           onCancel={() => setModal(null)}
+          loading={saving}
         />
       )}
+
+      {/* ── 토스트 ── */}
       {toast && (
         <Toast
           msg={toast.msg}

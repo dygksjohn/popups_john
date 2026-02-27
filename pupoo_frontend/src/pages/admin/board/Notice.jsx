@@ -859,12 +859,15 @@ export default function Notice() {
         )}
 
         {!loading && error && (
-          <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <AlertTriangle
-              size={36}
-              color="#F59E0B"
-              style={{ marginBottom: 12 }}
-            />
+          <div
+            style={{
+              padding: "60px 20px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
             <div
               style={{
                 fontSize: 14,
@@ -1034,7 +1037,15 @@ export default function Notice() {
           ))}
 
         {!loading && !error && rows.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 20px" }}>
+          <div
+            style={{
+              padding: "60px 20px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
             <Search size={36} color="#CBD5E1" style={{ marginBottom: 12 }} />
             <div style={{ fontSize: 14, fontWeight: 600, color: "#64748B" }}>
               공지사항이 없습니다

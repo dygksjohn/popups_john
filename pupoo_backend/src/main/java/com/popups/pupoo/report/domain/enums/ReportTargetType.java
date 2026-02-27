@@ -9,5 +9,6 @@ public enum ReportTargetType {
     POST,
     REVIEW,
     POST_COMMENT,
-    REVIEW_COMMENT
+    REVIEW_COMMENT,
+    GALLERY
 }

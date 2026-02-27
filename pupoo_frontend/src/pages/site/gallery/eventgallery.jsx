@@ -1,19 +1,19 @@
+import { useState, useEffect, useCallback } from "react";
+import PageHeader from "../components/PageHeader";
 import {
   ChevronLeft,
   ChevronRight,
-  Eye,
-  Heart,
   ImageOff,
   Maximize2,
+  Heart,
+  Eye,
   X,
+  Search,
+  Plus,
+  ChevronDown,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { eventApi } from "../../../app/http/eventApi";
-import { galleryApi } from "../../../app/http/galleryApi";
-import PageHeader from "../components/PageHeader";
-import { useAuth } from "../auth/AuthProvider";
-import { userApi } from "../../../app/http/userApi";
 
 /* ─────────────────────────────────────────────
    STYLES
@@ -94,12 +94,8 @@ const styles = `
     color: #ced4da;
   }
 
-  /* slide nav — 카드에서는 숨김, 모달에서만 표시 */
-  .eg-slide-nav {
-    display: none;
-  }
+  .eg-slide-nav { display: none; }
 
-  /* slide dots */
   .eg-slide-dots {
     position: absolute;
     bottom: 8px;
@@ -125,7 +121,6 @@ const styles = `
     border-radius: 3px;
   }
 
-  /* Count badge */
   .eg-img-count {
     position: absolute;
     top: 8px;
@@ -142,7 +137,6 @@ const styles = `
     font-variant-numeric: tabular-nums;
   }
 
-  /* 확대하기 button overlay */
   .eg-enlarge-btn {
     position: absolute;
     bottom: 12px;
@@ -183,7 +177,6 @@ const styles = `
     flex: 1;
   }
 
-  /* author row */
   .eg-card-author {
     display: flex;
     align-items: center;
@@ -230,7 +223,6 @@ const styles = `
     flex-shrink: 0;
   }
 
-  /* comment */
   .eg-card-comment {
     font-size: 12.5px;
     color: #374151;
@@ -243,7 +235,6 @@ const styles = `
     word-break: break-word;
   }
 
-  /* tags */
   .eg-card-tags {
     display: flex;
     flex-wrap: wrap;
@@ -259,7 +250,6 @@ const styles = `
     font-weight: 500;
   }
 
-  /* stats row */
   .eg-card-meta {
     display: flex;
     align-items: center;
@@ -327,11 +317,6 @@ const styles = `
     color: #fff;
     font-weight: 600;
   }
-  .eg-page-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-  }
 
   /* ── FULLSCREEN MODAL ── */
   .eg-modal-overlay {
@@ -398,7 +383,6 @@ const styles = `
   }
   .eg-modal-close:hover { background: #fff; color: #111; }
 
-  /* 왼쪽: 이미지 */
   .eg-modal-img-wrap {
     flex: 1 1 0;
     min-width: 0;
@@ -445,7 +429,6 @@ const styles = `
   .eg-modal-nav.prev { left: 14px; }
   .eg-modal-nav.next { right: 14px; }
 
-  /* dot + counter — 이미지 하단 오버레이 */
   .eg-modal-footer {
     position: absolute;
     bottom: 14px;
@@ -487,7 +470,6 @@ const styles = `
     border-radius: 3px;
   }
 
-  /* 오른쪽: 정보 패널 — 화이트 테마 */
   .eg-modal-info {
     width: 300px;
     flex-shrink: 0;
@@ -576,7 +558,6 @@ const styles = `
     font-variant-numeric: tabular-nums;
   }
 
-  /* 모바일: 세로 레이아웃 */
   @media (max-width: 640px) {
     .eg-modal-inner {
       flex-direction: column;
@@ -604,6 +585,386 @@ const SERVICE_CATEGORIES = [
   { label: "현장 스케치", path: "/gallery/eventsketch" },
 ];
 
+const FILTER_OPTIONS = ["전체", "최신순", "인기순"];
+
+const GALLERY_CARDS = [
+  {
+    id: 1,
+    images: [
+      "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=480&h=520&fit=crop",
+      "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=480&h=380&fit=crop",
+    ],
+    comment:
+      "드디어 다녀왔어요! 뭉이가 너무 신나서 계속 뛰어다녔답니다 🐾 포토부스에서 찍은 사진이 너무 귀엽게 나왔어요",
+    tags: ["#봄페스티벌", "#말티즈", "#포토부스"],
+    author: "뭉이맘",
+    pet: "뭉이 (말티즈 3살)",
+    date: "2026.02.14",
+    avatarColor: ["#f9b4c8", "#e879a0"],
+    initials: "뭉",
+    likes: 47,
+    views: 312,
+  },
+  {
+    id: 2,
+    images: [
+      "https://images.unsplash.com/photo-1534361960057-19f4434a4a56?w=480&h=360&fit=crop",
+    ],
+    comment:
+      "처음 참가했는데 생각보다 훨씬 규모가 크고 즐거웠어요. 강연도 정말 유익했습니다!",
+    tags: ["#첫참가", "#골든리트리버"],
+    author: "해피아빠",
+    pet: "해피 (골든리트리버 2살)",
+    date: "2026.02.14",
+    avatarColor: ["#fde68a", "#f59e0b"],
+    initials: "해",
+    likes: 23,
+    views: 178,
+  },
+  {
+    id: 3,
+    images: [
+      "https://images.unsplash.com/photo-1601979031925-424e53b6caaa?w=480&h=620&fit=crop",
+      "https://images.unsplash.com/photo-1583511655826-05700d52f4d9?w=480&h=480&fit=crop",
+      "https://images.unsplash.com/photo-1560743641-3914f2c45636?w=480&h=400&fit=crop",
+    ],
+    comment:
+      "솜이가 처음에는 무서워했는데 나중에는 친구도 사귀고 너무 잘 놀았어요 ☁️ 내년에도 꼭 올게요!",
+    tags: ["#포메라니안", "#솜이", "#행복했어요"],
+    author: "솜이네",
+    pet: "솜이 (포메라니안 1살)",
+    date: "2026.02.13",
+    avatarColor: ["#c4b5fd", "#7c3aed"],
+    initials: "솜",
+    likes: 89,
+    views: 541,
+  },
+  {
+    id: 4,
+    images: [
+      "https://images.unsplash.com/photo-1544568100-847a948585b9?w=480&h=400&fit=crop",
+    ],
+    comment:
+      "시상식 현장에서 우리 코코가 무대에 올라가는 걸 봤는데 심장이 떨렸어요ㅠㅠ 비록 수상은 못했지만 너무 소중한 기억!",
+    tags: ["#시상식", "#코코", "#치와와"],
+    author: "코코엄마",
+    pet: "코코 (치와와 4살)",
+    date: "2026.02.13",
+    avatarColor: ["#fca5a5", "#ef4444"],
+    initials: "코",
+    likes: 61,
+    views: 408,
+  },
+  {
+    id: 5,
+    images: [
+      "https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=480&h=540&fit=crop",
+      "https://images.unsplash.com/photo-1558788353-f76d92427f16?w=480&h=500&fit=crop",
+    ],
+    comment:
+      "먹거리 존에서 강아지 케이크 사줬는데 순식간에 다 먹어버렸어요 😂 다음에는 두 개 사야할 것 같아요",
+    tags: ["#먹방", "#비숑", "#강아지케이크"],
+    author: "뽀식이",
+    pet: "뽀식 (비숑프리제 2살)",
+    date: "2026.02.12",
+    avatarColor: ["#a7f3d0", "#059669"],
+    initials: "뽀",
+    likes: 34,
+    views: 227,
+  },
+  {
+    id: 6,
+    images: [
+      "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?w=480&h=380&fit=crop",
+    ],
+    comment:
+      "전문 사진작가님이 찍어주신 사진 너무 잘 나왔어요! 프레임도 예쁘게 가져왔어요 🖼️",
+    tags: ["#사진촬영", "#기념", "#닥스훈트"],
+    author: "소세지아빠",
+    pet: "소세지 (닥스훈트 5살)",
+    date: "2026.02.12",
+    avatarColor: ["#fed7aa", "#ea580c"],
+    initials: "소",
+    likes: 18,
+    views: 143,
+  },
+  {
+    id: 7,
+    images: [
+      "https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=480&h=460&fit=crop",
+      "https://images.unsplash.com/photo-1552053831-71594a27632d?w=480&h=420&fit=crop",
+      "https://images.unsplash.com/photo-1568393691622-c7ba131d63b4?w=480&h=380&fit=crop",
+      "https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=480&h=440&fit=crop",
+    ],
+    comment:
+      "반려동물 건강검진 코너가 정말 유익했어요. 무료로 해주셨는데 담당 수의사 선생님이 너무 친절하셨어요.",
+    tags: ["#건강검진", "#수의사", "#라브라도"],
+    author: "초코러버",
+    pet: "초코 (라브라도 3살)",
+    date: "2026.02.11",
+    avatarColor: ["#d9f99d", "#65a30d"],
+    initials: "초",
+    likes: 52,
+    views: 389,
+  },
+  {
+    id: 8,
+    images: [
+      "https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=480&h=500&fit=crop",
+    ],
+    comment:
+      "입장할 때 받은 굿즈가 너무 귀엽네요 💝 반다나가 특히 마음에 들어서 바로 착용시켜줬어요",
+    tags: ["#굿즈", "#입장선물", "#진돗개"],
+    author: "순이댁",
+    pet: "순이 (진돗개 6살)",
+    date: "2026.02.11",
+    avatarColor: ["#bae6fd", "#0284c7"],
+    initials: "순",
+    likes: 29,
+    views: 196,
+  },
+];
+
+/* ─────────────────────────────────────────────
+   WRITE MODAL (등록하기)
+───────────────────────────────────────────── */
+function Overlay({ children, onClose }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 5000,
+        background: "rgba(0,0,0,0.32)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff",
+          borderRadius: 16,
+          width: 520,
+          maxHeight: "85vh",
+          overflow: "auto",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function WriteModal({ onClose }) {
+  const [form, setForm] = useState({ comment: "", tags: "" });
+  const [err, setErr] = useState("");
+
+  const handleSave = () => {
+    if (!form.comment.trim()) {
+      setErr("내용을 입력해주세요.");
+      return;
+    }
+    // TODO: API 연동
+    onClose();
+  };
+
+  return (
+    <Overlay onClose={onClose}>
+      <div style={{ padding: "28px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 24,
+          }}
+        >
+          <h3
+            style={{ fontSize: 18, fontWeight: 700, color: "#222", margin: 0 }}
+          >
+            사진 등록
+          </h3>
+          <button
+            onClick={onClose}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              border: "1px solid #eee",
+              background: "#fff",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <X size={14} color="#999" />
+          </button>
+        </div>
+
+        {err && (
+          <div
+            style={{
+              background: "#FEF2F2",
+              border: "1px solid #FECACA",
+              borderRadius: 8,
+              padding: "10px 14px",
+              fontSize: 13,
+              color: "#DC2626",
+              marginBottom: 18,
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <AlertTriangle size={14} /> {err}
+          </div>
+        )}
+
+        <div style={{ marginBottom: 18 }}>
+          <label
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#555",
+              marginBottom: 6,
+              display: "block",
+            }}
+          >
+            사진 첨부 <span style={{ color: "#EF4444" }}>*</span>
+          </label>
+          <div
+            style={{
+              border: "2px dashed #ddd",
+              borderRadius: 10,
+              padding: "28px 0",
+              textAlign: "center",
+              color: "#aaa",
+              fontSize: 13,
+              cursor: "pointer",
+              transition: "border-color 0.15s",
+            }}
+          >
+            클릭하여 사진을 업로드하세요
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <label
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#555",
+              marginBottom: 6,
+              display: "block",
+            }}
+          >
+            내용 <span style={{ color: "#EF4444" }}>*</span>
+          </label>
+          <textarea
+            rows={4}
+            value={form.comment}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, comment: e.target.value }))
+            }
+            placeholder="사진에 대한 설명을 입력하세요"
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              fontSize: 14,
+              color: "#222",
+              outline: "none",
+              boxSizing: "border-box",
+              resize: "vertical",
+              fontFamily: "'Pretendard Variable', sans-serif",
+              lineHeight: 1.6,
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "#1a4fd6")}
+            onBlur={(e) => (e.target.style.borderColor = "#ddd")}
+          />
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <label
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#555",
+              marginBottom: 6,
+              display: "block",
+            }}
+          >
+            태그
+          </label>
+          <input
+            value={form.tags}
+            onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
+            placeholder="#태그1 #태그2"
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              fontSize: 14,
+              color: "#222",
+              outline: "none",
+              boxSizing: "border-box",
+              fontFamily: "'Pretendard Variable', sans-serif",
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "#1a4fd6")}
+            onBlur={(e) => (e.target.style.borderColor = "#ddd")}
+          />
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1,
+              padding: "11px 0",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              background: "#fff",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              color: "#666",
+              fontFamily: "'Pretendard Variable', sans-serif",
+            }}
+          >
+            취소
+          </button>
+          <button
+            onClick={handleSave}
+            style={{
+              flex: 1,
+              padding: "11px 0",
+              borderRadius: 8,
+              border: "none",
+              background: "#1a4fd6",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "'Pretendard Variable', sans-serif",
+            }}
+          >
+            등록하기
+          </button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+
 /* ─────────────────────────────────────────────
    CARD IMAGE SLIDER
 ───────────────────────────────────────────── */
@@ -611,15 +972,6 @@ const CardSlider = ({ images, onEnlarge }) => {
   const [idx, setIdx] = useState(0);
   const [imgError, setImgError] = useState(false);
   const total = images.length;
-
-  const prev = (e) => {
-    e.stopPropagation();
-    setIdx((i) => (i - 1 + total) % total);
-  };
-  const next = (e) => {
-    e.stopPropagation();
-    setIdx((i) => (i + 1) % total);
-  };
 
   return (
     <div className="eg-card-img-wrap" onClick={() => onEnlarge(idx)}>
@@ -635,45 +987,26 @@ const CardSlider = ({ images, onEnlarge }) => {
           onError={() => setImgError(true)}
         />
       )}
-
       {total > 1 && (
         <span className="eg-img-count">
           {idx + 1} / {total}
         </span>
       )}
-
       {total > 1 && (
-        <>
-          <button
-            className="eg-slide-nav prev"
-            onClick={prev}
-            aria-label="이전"
-          >
-            <ChevronLeft size={14} />
-          </button>
-          <button
-            className="eg-slide-nav next"
-            onClick={next}
-            aria-label="다음"
-          >
-            <ChevronRight size={14} />
-          </button>
-          <div className="eg-slide-dots">
-            {images.map((_, i) => (
-              <button
-                key={i}
-                className={`eg-slide-dot${i === idx ? " active" : ""}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIdx(i);
-                }}
-                aria-label={`${i + 1}번`}
-              />
-            ))}
-          </div>
-        </>
+        <div className="eg-slide-dots">
+          {images.map((_, i) => (
+            <button
+              key={i}
+              className={`eg-slide-dot${i === idx ? " active" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIdx(i);
+              }}
+              aria-label={`${i + 1}번`}
+            />
+          ))}
+        </div>
       )}
-
       <button
         className="eg-enlarge-btn"
         onClick={(e) => {
@@ -748,7 +1081,6 @@ const FullscreenViewer = ({
     setClosing(true);
     setTimeout(onClose, 170);
   }, [onClose]);
-
   const prev = useCallback(
     (e) => {
       e?.stopPropagation();
@@ -757,7 +1089,6 @@ const FullscreenViewer = ({
     },
     [total],
   );
-
   const next = useCallback(
     (e) => {
       e?.stopPropagation();
@@ -791,7 +1122,6 @@ const FullscreenViewer = ({
       >
         <X size={16} />
       </button>
-
       <div className="eg-modal-inner" onClick={(e) => e.stopPropagation()}>
         <div className="eg-modal-img-wrap">
           <div className="eg-modal-img-inner">
@@ -845,8 +1175,6 @@ const FullscreenViewer = ({
             </div>
           )}
         </div>
-
-        {/* Info panel */}
         <div className="eg-modal-info" onClick={(e) => e.stopPropagation()}>
           <div className="eg-modal-author-row">
             <div
@@ -939,189 +1267,24 @@ const GalleryCard = ({ card, liked, onToggleLike, onEnlarge }) => (
    MAIN PAGE
 ───────────────────────────────────────────── */
 export default function EventGallery() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const eventIdParam = searchParams.get("eventId");
-  const selectedEventId = eventIdParam ? Number(eventIdParam) : null;
-
-  const [events, setEvents] = useState([]);
-  const [eventsLoading, setEventsLoading] = useState(true);
-  const [galleries, setGalleries] = useState([]);
-  const [galleriesLoading, setGalleriesLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const size = 12;
-
+  const [currentPath, setCurrentPath] = useState("/gallery/eventgallery");
   const [liked, setLiked] = useState({});
   const [viewer, setViewer] = useState(null);
-  const [viewerDetail, setViewerDetail] = useState(null); // 단건 조회 결과
-  const [meUserId, setMeUserId] = useState(null);
-  const navigate = useNavigate();
-  const { isAuthed } = useAuth();
+  const [filter, setFilter] = useState("전체");
+  const [search, setSearch] = useState("");
+  const [writeModal, setWriteModal] = useState(false);
 
-  // 로그인 시 /me 로 userId 확보 (좋아요용)
-  useEffect(() => {
-    if (!isAuthed) {
-      setMeUserId(null);
-      return;
-    }
-    userApi
-      .getMe()
-      .then((data) => {
-        if (data?.userId != null) setMeUserId(data.userId);
-      })
-      .catch(() => setMeUserId(null));
-  }, [isAuthed]);
-
-  // 모달 열린 갤러리 단건 조회 (최신 상세·조회수)
-  useEffect(() => {
-    if (!viewer?.card?.id) {
-      setViewerDetail(null);
-      return;
-    }
-    galleryApi
-      .getOne(viewer.card.id)
-      .then((res) => {
-        const g = res.data?.data ?? res.data;
-        if (!g) return;
-        setViewerDetail({
-          id: g.galleryId,
-          images: g.imageUrls ?? [],
-          comment: g.description ?? "",
-          tags: [],
-          author: "운영팀",
-          pet: "",
-          date: g.createdAt
-            ? new Date(g.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\. /g, ".").trim()
-            : "",
-          avatarColor: ["#e0e7ff", "#6366f1"],
-          initials: "갤",
-          likes: g.likeCount ?? 0,
-          views: g.viewCount ?? 0,
-        });
-      })
-      .catch(() => setViewerDetail(null));
-  }, [viewer?.card?.id]);
-
-  // 행사 목록 로드
-  useEffect(() => {
-    let cancelled = false;
-    setEventsLoading(true);
-    eventApi
-      .getEvents({ page: 0, size: 100 })
-      .then((res) => {
-        if (cancelled) return;
-        const list = res.data?.data?.content ?? res.data?.content ?? [];
-        setEvents(Array.isArray(list) ? list : []);
-      })
-      .catch(() => {
-        if (!cancelled) setEvents([]);
-      })
-      .finally(() => {
-        if (!cancelled) setEventsLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  // 갤러리 목록 로드 (전체 vs 행사별)
-  useEffect(() => {
-    let cancelled = false;
-    setGalleriesLoading(true);
-    const promise = selectedEventId == null
-      ? galleryApi.getList({ page, size })
-      : galleryApi.getListByEvent(selectedEventId, { page, size });
-
-    promise
-    .then((res) => {
-      if (cancelled) return;
-      const data = res.data?.data ?? res.data;
-      const list = data?.content ?? (Array.isArray(data) ? data : []);
-      setGalleries(Array.isArray(list) ? list : []);
-      const total = data?.totalPages ?? 0;
-      setTotalPages(typeof total === "number" ? total : 0);
-    })
-      .catch(() => {
-        if (!cancelled) setGalleries([]);
-      })
-      .finally(() => {
-        if (!cancelled) setGalleriesLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [selectedEventId, page]);
-
-  const handleEventChange = (e) => {
-    const v = e.target.value;
-    if (v === "" || v === "all") {
-      setSearchParams({});
-      setPage(0);
-    } else {
-      setSearchParams({ eventId: v });
-      setPage(0);
-    }
-  };
-
-  const toggleLike = async (galleryId) => {
-    if (!isAuthed) {
-      if (window.confirm("좋아요는 로그인 후 이용할 수 있습니다. 로그인 페이지로 이동할까요?")) {
-        navigate("/auth/login", { state: { from: "/gallery/eventgallery" } });
-      }
-      return;
-    }
-    if (meUserId == null) {
-      // /me 아직 안 불러옴
-      const data = await userApi.getMe().catch(() => null);
-      const uid = data?.userId;
-      if (uid == null) return;
-      setMeUserId(uid);
-      await doLikeUnlike(galleryId, uid);
-    } else {
-      await doLikeUnlike(galleryId, meUserId);
-    }
-  };
-
-  const doLikeUnlike = async (galleryId, userId) => {
-    const currentlyLiked = liked[galleryId];
-    try {
-      if (currentlyLiked) {
-        await galleryApi.unlike(galleryId, userId);
-      } else {
-        await galleryApi.like(galleryId, userId);
-      }
-      setLiked((prev) => ({ ...prev, [galleryId]: !currentlyLiked }));
-      setGalleries((prev) =>
-        prev.map((g) =>
-          g.galleryId === galleryId
-            ? { ...g, likeCount: (g.likeCount ?? 0) + (currentlyLiked ? -1 : 1) }
-            : g
-        )
-      );
-      if (viewerDetail?.id === galleryId) {
-        setViewerDetail((d) => ({
-          ...d,
-          likes: (d.likes ?? 0) + (currentlyLiked ? -1 : 1),
-        }));
-      }
-    } catch (e) {
-      console.error("like/unlike failed", e);
-    }
-  };
+  const toggleLike = (id) => setLiked((prev) => ({ ...prev, [id]: !prev[id] }));
   const handleEnlarge = (card, idx) => setViewer({ card, startIndex: idx });
 
-  // API 응답 → 카드 형식 매핑 (기존 GALLERY_CARDS 구조에 맞춤)
-  const cards = galleries.map((g) => ({
-    id: g.galleryId,
-    images: g.imageUrls ?? [],
-    comment: g.description ?? "",
-    tags: [],
-    author: "운영팀",
-    pet: "",
-    date: g.createdAt
-      ? new Date(g.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\. /g, ".").trim()
-      : "",
-    avatarColor: ["#e0e7ff", "#6366f1"],
-    initials: "갤",
-    likes: g.likeCount ?? 0,
-    views: g.viewCount ?? 0,
-  }));
+  const filtered = GALLERY_CARDS.filter((c) => {
+    const matchSearch =
+      !search ||
+      c.comment.includes(search) ||
+      c.author.includes(search) ||
+      c.tags.some((t) => t.includes(search));
+    return matchSearch;
+  });
 
   return (
     <div className="eg-root">
@@ -1131,46 +1294,149 @@ export default function EventGallery() {
         title="참가자 갤러리"
         subtitle="참가자들이 직접 공유한 행사 사진을 모아둔 공간입니다"
         categories={SERVICE_CATEGORIES}
-        currentPath="/gallery/eventgallery"
-        onNavigate={(path) => window.location.href = path}
+        currentPath={currentPath}
+        onNavigate={setCurrentPath}
       />
 
       <main className="eg-container">
-        {/* 행사 선택 */}
-        <section style={{ marginBottom: "24px" }}>
-          <label htmlFor="eg-event-select" style={{ marginRight: "8px", fontSize: 14, color: "#374151" }}>
-            행사 선택
-          </label>
-          <select
-            id="eg-event-select"
-            value={selectedEventId ?? ""}
-            onChange={handleEventChange}
-            disabled={eventsLoading}
-            style={{
-              padding: "8px 12px",
-              fontSize: 14,
-              border: "1px solid #d1d5db",
-              borderRadius: 8,
-              minWidth: 200,
-            }}
-          >
-            <option value="">전체 보기</option>
-            {events.map((ev) => (
-              <option key={ev.eventId} value={ev.eventId}>
-                {ev.eventTitle ?? ev.title ?? `행사 ${ev.eventId}`}
-              </option>
-            ))}
-          </select>
-        </section>
+        {/* ── 상단 필터/검색/등록 바 ── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingBottom: "16px",
+            borderBottom: "1px solid #e0e0e0",
+            marginBottom: "20px",
+          }}
+        >
+          <span style={{ fontSize: "15px", fontWeight: "600", color: "#222" }}>
+            총 {filtered.length}개
+          </span>
 
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {/* 드롭다운 */}
+            <div style={{ position: "relative" }}>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                style={{
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  padding: "7px 32px 7px 12px",
+                  fontSize: "14px",
+                  color: "#333",
+                  background: "#fff",
+                  cursor: "pointer",
+                  outline: "none",
+                  minWidth: "80px",
+                }}
+              >
+                {FILTER_OPTIONS.map((opt) => (
+                  <option key={opt}>{opt}</option>
+                ))}
+              </select>
+              <span
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <ChevronDown size={14} color="#666" />
+              </span>
+            </div>
+
+            {/* 검색창 */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                border: "1px solid #ccc",
+                borderRadius: "6px",
+                overflow: "hidden",
+                background: "#fff",
+              }}
+            >
+              <input
+                type="text"
+                placeholder="검색어를 입력하세요."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  padding: "8px 12px",
+                  fontSize: "14px",
+                  color: "#333",
+                  width: "240px",
+                  background: "transparent",
+                }}
+              />
+              <button
+                style={{
+                  border: "none",
+                  background: "#fff",
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background 0.15s ease",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "#f5f5f5")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "#fff")
+                }
+              >
+                <Search size={16} strokeWidth={2} color="#555" />
+              </button>
+            </div>
+
+            {/* 등록하기 버튼 */}
+            <button
+              onClick={() => setWriteModal(true)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "none",
+                background: "#1a4fd6",
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "'Pretendard Variable', sans-serif",
+                transition: "background .15s",
+                whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#153fb0")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "#1a4fd6")
+              }
+            >
+              <Plus size={14} strokeWidth={2.5} /> 등록하기
+            </button>
+          </div>
+        </div>
+
+        {/* ── 갤러리 ── */}
         <section style={{ marginBottom: "48px" }}>
-          {galleriesLoading ? (
-            <p style={{ color: "#6b7280", fontSize: 14 }}>갤러리를 불러오는 중...</p>
-          ) : cards.length === 0 ? (
-            <p style={{ color: "#6b7280", fontSize: 14 }}>등록된 갤러리가 없습니다.</p>
-          ) : (
+          {filtered.length > 0 ? (
             <div className="eg-masonry">
-              {cards.map((card) => (
+              {filtered.map((card) => (
                 <GalleryCard
                   key={card.id}
                   card={card}
@@ -1180,43 +1446,46 @@ export default function EventGallery() {
                 />
               ))}
             </div>
+          ) : (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "60px 0",
+                color: "#999",
+                fontSize: "14px",
+              }}
+            >
+              검색 결과가 없습니다.
+            </div>
           )}
         </section>
 
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "40px", flexWrap: "wrap" }}>
-  <button
-    type="button"
-    className="eg-page-btn"
-    onClick={() => setPage((p) => Math.max(0, p - 1))}
-    disabled={page === 0}
-            aria-label="이전 페이지"
-  >
-    ‹
-  </button>
-  <span style={{ display: "inline-flex", alignItems: "center", fontSize: 13, color: "#6b7280", minWidth: "4ch" }}>
-            {totalPages > 0 ? `${page + 1} / ${totalPages}` : "1"}
-          </span>
-  <button
-    type="button"
-    className="eg-page-btn"
-    onClick={() => setPage((p) => p + 1)}
-    disabled={totalPages <= 0 || page >= totalPages - 1}
-            aria-label="다음 페이지"
-  >
-    ›
-  </button>
-</div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "6px",
+            marginTop: "40px",
+          }}
+        >
+          <button className="eg-page-btn">‹</button>
+          <button className="eg-page-btn active">1</button>
+          <button className="eg-page-btn">›</button>
+        </div>
       </main>
 
       {viewer && (
         <FullscreenViewer
-          card={viewerDetail ?? viewer.card}
+          card={viewer.card}
           startIndex={viewer.startIndex}
           liked={!!liked[viewer.card.id]}
           onToggleLike={() => toggleLike(viewer.card.id)}
-          onClose={() => { setViewer(null); setViewerDetail(null); }}
+          onClose={() => setViewer(null)}
         />
       )}
+
+      {writeModal && <WriteModal onClose={() => setWriteModal(false)} />}
     </div>
   );
 }

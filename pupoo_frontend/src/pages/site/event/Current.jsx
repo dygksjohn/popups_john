@@ -1,6 +1,7 @@
-import PageHeader from "../components/PageHeader";
+﻿import PageHeader from "../components/PageHeader";
 import EventDetailModal from "./EventDetailModal";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { eventApi } from "../../../app/http/eventApi";
 import {
   Play,
   MapPin,
@@ -96,108 +97,61 @@ const styles = `
   @media (max-width: 700px) { .ev-grid { grid-template-columns: 1fr; } .ev-stat-grid { grid-template-columns: repeat(3, 1fr); } }
 `;
 
-const EVENTS = [
-  {
-    id: 1,
-    category: "컨퍼런스",
-    title: "2026 스타트업 이노베이션 서밋",
-    location: "코엑스 그랜드볼룸, 서울",
-    time: "09:00 ~ 18:00",
-    date: "2026.02.23",
-    participants: 1240,
-    capacity: 1500,
-    image:
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&auto=format&fit=crop&q=80",
-    fallback: "🚀",
-  },
-  {
-    id: 2,
-    category: "워크샵",
-    title: "AI & 머신러닝 실전 워크샵",
-    location: "강남 D.CAMP, 서울",
-    time: "13:00 ~ 17:00",
-    date: "2026.02.23",
-    participants: 87,
-    capacity: 100,
-    image:
-      "https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=600&auto=format&fit=crop&q=80",
-    fallback: "🤖",
-  },
-  {
-    id: 3,
-    category: "네트워킹",
-    title: "테크 스타트업 네트워킹 나이트",
-    location: "성수 헤이그라운드, 서울",
-    time: "18:00 ~ 21:00",
-    date: "2026.02.23",
-    participants: 210,
-    capacity: 250,
-    image:
-      "https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=600&auto=format&fit=crop&q=80",
-    fallback: "🤝",
-  },
-  {
-    id: 4,
-    category: "세미나",
-    title: "디지털 마케팅 전략 세미나 2026",
-    location: "여의도 IFC, 서울",
-    time: "10:00 ~ 16:00",
-    date: "2026.02.23",
-    participants: 310,
-    capacity: 400,
-    image:
-      "https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?w=600&auto=format&fit=crop&q=80",
-    fallback: "📊",
-  },
-  {
-    id: 5,
-    category: "포럼",
-    title: "ESG 경영 혁신 포럼",
-    location: "롯데월드타워, 서울",
-    time: "09:30 ~ 12:30",
-    date: "2026.02.23",
-    participants: 445,
-    capacity: 600,
-    image:
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&auto=format&fit=crop&q=80",
-    fallback: "🌱",
-  },
-  {
-    id: 6,
-    category: "전시",
-    title: "한국 핀테크 기술 박람회",
-    location: "킨텍스 제1전시장, 일산",
-    time: "10:00 ~ 18:00",
-    date: "2026.02.23",
-    participants: 3200,
-    capacity: 5000,
-    image:
-      "https://images.unsplash.com/photo-1559526324-593bc073d938?w=600&auto=format&fit=crop&q=80",
-    fallback: "💳",
-  },
-];
+function formatDate(value) {
+  if (!value) return "일정 미정";
+  const s = String(value);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return "일정 미정";
+  return `${m[1]}.${m[2]}.${m[3]}`;
+}
+
+function formatTime(startAt, endAt) {
+  const pick = (v) => {
+    if (!v) return "";
+    const m = String(v).match(/(\d{2}):(\d{2})/);
+    return m ? `${m[1]}:${m[2]}` : "";
+  };
+  const a = pick(startAt);
+  const b = pick(endAt);
+  if (a && b) return `${a} ~ ${b}`;
+  if (a || b) return a || b;
+  return "일정 미정";
+}
+
+function mapEvent(raw) {
+  const eventId = raw?.eventId ?? raw?.id ?? null;
+  const eventName = raw?.eventName ?? raw?.title ?? "행사";
+  const category = raw?.category ?? raw?.eventCategory ?? "행사";
+  const location = raw?.location ?? raw?.place ?? "장소 미정";
+  const startAt = raw?.startAt ?? raw?.startDateTime ?? raw?.startDate ?? null;
+  const endAt = raw?.endAt ?? raw?.endDateTime ?? raw?.endDate ?? null;
+  const participants = raw?.participants ?? raw?.appliedCount ?? 0;
+  const capacity = raw?.capacity ?? raw?.maxParticipants ?? 1;
+
+  return {
+    id: eventId,
+    title: eventName,
+    category,
+    location,
+    time: startAt || endAt ? formatTime(startAt, endAt) : "일정 미정",
+    date: startAt ? formatDate(startAt) : "일정 미정",
+    participants,
+    capacity,
+    fallback: "🐶",
+  };
+}
 
 function EventThumb({ ev }) {
-  const [imgError, setImgError] = useState(false);
   return (
     <div className="ev-card-thumb">
-      {!imgError ? (
-        <img
-          src={ev.image}
-          alt={ev.title}
-          onError={() => setImgError(true)}
-          loading="lazy"
-        />
-      ) : (
-        <div
-          className="ev-card-thumb-fallback"
-          style={{
-            background: "linear-gradient(135deg, #1a4fd6 0%, #6366f1 100%)",
-          }}
-        >
-          {ev.fallback}
-        </div>
-      )}
+      <div
+        className="ev-card-thumb-fallback"
+        style={{
+          background: "linear-gradient(135deg, #1a4fd6 0%, #6366f1 100%)",
+        }}
+      >
+        {ev.fallback}
+      </div>
       <div className="ev-card-thumb-overlay" />
       <div className="ev-card-thumb-label">
         <Zap size={10} />
@@ -211,13 +165,66 @@ export default function Current() {
   const [query, setQuery] = useState("");
   const [currentPath, setCurrentPath] = useState("/event/current");
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const filtered = EVENTS.filter(
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchEvents = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const res = await eventApi.getEvents({
+          status: "ONGOING",
+          page: 0,
+          size: 10,
+        });
+        const content = res.data.data.content;
+        const list = Array.isArray(content) ? content : [];
+        if (mounted) setEvents(list.map(mapEvent));
+      } catch (e) {
+        const msg =
+          e?.response?.data?.message || e?.message || "Failed to load events.";
+        if (mounted) setError(msg);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    fetchEvents();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filtered = events.filter(
     (e) =>
       e.title.includes(query) ||
       e.category.includes(query) ||
       e.location.includes(query),
   );
+
+  const totalParticipants = events.reduce(
+    (a, e) => a + (e.participants ?? 0),
+    0,
+  );
+  const avgRate =
+    events.length === 0
+      ? 0
+      : Math.round(
+          (events.reduce(
+            (a, e) =>
+              a +
+              ((e.participants ?? 0) /
+                (e.capacity && e.capacity > 0 ? e.capacity : 1)),
+            0,
+          ) /
+            events.length) *
+            100,
+        );
 
   return (
     <div className="ev-root">
@@ -231,28 +238,34 @@ export default function Current() {
       />
 
       <main className="ev-container">
-        <div className="ev-live-badge">
-          <div className="ev-live-dot" />
-          LIVE · {EVENTS.length}개 행사 진행 중
-        </div>
+        {loading ? (
+          <div className="ev-live-badge">Loading...</div>
+        ) : error ? (
+          <div className="ev-live-badge">{error}</div>
+        ) : (
+          <div className="ev-live-badge">
+            <div className="ev-live-dot" />
+            LIVE · {events.length}개 행사 진행 중
+          </div>
+        )}
 
         <div className="ev-stat-grid">
           {[
             {
               label: "진행 중 행사",
-              value: `${EVENTS.length}개`,
+              value: `${events.length}개`,
               icon: <Play size={20} color="#1a4fd6" />,
               bg: "#eff4ff",
             },
             {
               label: "총 참가자",
-              value: `${EVENTS.reduce((a, e) => a + e.participants, 0).toLocaleString()}명`,
+              value: `${totalParticipants.toLocaleString()}명`,
               icon: <Users size={20} color="#10b981" />,
               bg: "#ecfdf5",
             },
             {
               label: "평균 참석률",
-              value: `${Math.round((EVENTS.reduce((a, e) => a + e.participants / e.capacity, 0) / EVENTS.length) * 100)}%`,
+              value: `${avgRate}%`,
               icon: <TrendingUp size={20} color="#f59e0b" />,
               bg: "#fffbeb",
             },
@@ -283,7 +296,9 @@ export default function Current() {
 
         <div className="ev-grid">
           {filtered.map((ev) => {
-            const pct = Math.round((ev.participants / ev.capacity) * 100);
+            const safeCapacity = ev.capacity && ev.capacity > 0 ? ev.capacity : 1;
+            const safeParticipants = ev.participants ?? 0;
+            const pct = Math.round((safeParticipants / safeCapacity) * 100);
             return (
               <div
                 key={ev.id}

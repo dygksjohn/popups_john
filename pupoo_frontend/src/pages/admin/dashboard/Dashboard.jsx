@@ -49,6 +49,8 @@ import Gallery from "../gallery/Gallery";
 import ParticipantList from "../participant/ParticipantList";
 import PaymentManage from "../participant/PaymentManage";
 import AlertManage from "../participant/AlertManage";
+/**/
+import AdminAuthGuard from "../shared/AdminAuthGuard";
 
 /* ═══════════════════════════════════════════════
    벨 애니메이션 CSS
@@ -782,325 +784,335 @@ export default function Dashboard() {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        fontFamily: ds.ff,
-        background: ds.bg,
-        overflow: "hidden",
-      }}
-    >
-      <style>{globalStyles}</style>
-
-      {/* ─── SIDEBAR ─── */}
-      <aside
+    <AdminAuthGuard>
+      <div
         style={{
-          width: 240,
-          background: ds.sidebar,
           display: "flex",
-          flexDirection: "column",
-          flexShrink: 0,
+          height: "100vh",
+          fontFamily: ds.ff,
+          background: ds.bg,
+          overflow: "hidden",
         }}
       >
-        {/* 로고 */}
-        <div
+        <style>{globalStyles}</style>
+
+        {/* ─── SIDEBAR ─── */}
+        <aside
           style={{
-            padding: "22px 18px 16px",
+            width: 240,
+            background: ds.sidebar,
             display: "flex",
-            alignItems: "center",
-            gap: 10,
+            flexDirection: "column",
+            flexShrink: 0,
           }}
         >
+          {/* 로고 */}
           <div
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: 9,
-              background: "linear-gradient(135deg, #4361EE, #7C3AED)",
+              padding: "22px 18px 16px",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 2px 10px rgba(67,97,238,0.3)",
+              gap: 10,
             }}
           >
-            <PawPrint size={18} color="#fff" strokeWidth={2.5} />
-          </div>
-          <div>
             <div
               style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: ds.inkW,
-                letterSpacing: -0.5,
+                width: 34,
+                height: 34,
+                borderRadius: 9,
+                background: "linear-gradient(135deg, #4361EE, #7C3AED)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 2px 10px rgba(67,97,238,0.3)",
               }}
             >
-              pupoo
+              <PawPrint size={18} color="#fff" strokeWidth={2.5} />
             </div>
-            <div
-              style={{
-                fontSize: 9,
-                fontWeight: 600,
-                color: ds.inkWG,
-                letterSpacing: 1.2,
-                textTransform: "uppercase",
-              }}
-            >
-              Admin Console
-            </div>
-          </div>
-        </div>
-
-        {/* 메뉴 그룹 */}
-        <nav style={{ flex: 1, padding: "0 10px", overflow: "auto" }}>
-          {NAV.map((group) => (
-            <div key={group.section}>
+            <div>
               <div
                 style={{
-                  fontSize: 9.5,
-                  fontWeight: 700,
+                  fontSize: 16,
+                  fontWeight: 800,
+                  color: ds.inkW,
+                  letterSpacing: -0.5,
+                }}
+              >
+                pupoo
+              </div>
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 600,
                   color: ds.inkWG,
                   letterSpacing: 1.2,
                   textTransform: "uppercase",
-                  padding: "14px 10px 6px",
                 }}
               >
-                {group.section}
+                Admin Console
               </div>
-              {group.items.map((item) => {
-                const on = nav === item.id;
-                const I = item.icon;
+            </div>
+          </div>
+
+          {/* 메뉴 그룹 */}
+          <nav style={{ flex: 1, padding: "0 10px", overflow: "auto" }}>
+            {NAV.map((group) => (
+              <div key={group.section}>
+                <div
+                  style={{
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    color: ds.inkWG,
+                    letterSpacing: 1.2,
+                    textTransform: "uppercase",
+                    padding: "14px 10px 6px",
+                  }}
+                >
+                  {group.section}
+                </div>
+                {group.items.map((item) => {
+                  const on = nav === item.id;
+                  const I = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNav(item.id)}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 9,
+                        padding: "8px 10px",
+                        borderRadius: ds.rs,
+                        border: "none",
+                        cursor: "pointer",
+                        fontFamily: ds.ff,
+                        fontSize: 13,
+                        background: on ? ds.sideActive : "transparent",
+                        color: on ? ds.inkW : ds.inkWD,
+                        fontWeight: on ? 700 : 500,
+                        marginBottom: 1,
+                        transition: "all .08s",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!on)
+                          e.currentTarget.style.background = ds.sideHover;
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!on)
+                          e.currentTarget.style.background = "transparent";
+                      }}
+                    >
+                      <I size={16} strokeWidth={on ? 2.2 : 1.8} />
+                      <span style={{ flex: 1, textAlign: "left" }}>
+                        {item.label}
+                      </span>
+                      {item.badge && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: "1px 6px",
+                            borderRadius: 9,
+                            background: on
+                              ? ds.brand
+                              : "rgba(255,255,255,0.12)",
+                            color: "#fff",
+                            lineHeight: "15px",
+                          }}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+
+          {/* 유저 */}
+          <div
+            style={{
+              padding: "12px 14px 16px",
+              borderTop: `1px solid ${ds.lineD}`,
+              display: "flex",
+              alignItems: "center",
+              gap: 9,
+            }}
+          >
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                background: "linear-gradient(135deg, #818CF8, #7C3AED)",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
+              김
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: ds.inkW }}>
+                김관리
+              </div>
+              <div style={{ fontSize: 10.5, color: ds.inkWG }}>Super Admin</div>
+            </div>
+            <Settings
+              size={14}
+              color={ds.inkWG}
+              style={{ cursor: "pointer" }}
+            />
+          </div>
+        </aside>
+
+        {/* ─── MAIN ─── */}
+        <main
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          {/* 헤더 */}
+          <header
+            style={{
+              background: ds.card,
+              padding: "0 28px",
+              height: 52,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              borderBottom: `1px solid ${ds.line}`,
+            }}
+          >
+            <h1
+              style={{
+                fontSize: 17,
+                fontWeight: 800,
+                margin: 0,
+                color: ds.ink,
+                letterSpacing: -0.3,
+              }}
+            >
+              {PAGE_TITLES[nav] || "대시보드"}
+            </h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {/* ── 오늘 날짜 + 인사말 ── */}
+              <TodayGreeting />
+
+              {/* 벨 아이콘 */}
+              <div
+                style={{ position: "relative" }}
+                onMouseEnter={() => setBellAnim(true)}
+                onAnimationEnd={() => setBellAnim(false)}
+              >
+                <button
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: ds.rs,
+                    border: `1px solid ${ds.line}`,
+                    background: ds.card,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transformOrigin: "top center",
+                    animation: bellAnim ? "bellRing 0.8s ease-in-out" : "none",
+                  }}
+                >
+                  <Bell size={15} color={ds.ink3} />
+                </button>
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 5,
+                    right: 5,
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: ds.red,
+                    border: "2px solid #fff",
+                  }}
+                />
+              </div>
+            </div>
+          </header>
+
+          {/* 탭 (2개 이상일 때만 표시) */}
+          {tabs.length > 1 && (
+            <div
+              style={{
+                background: ds.card,
+                padding: "0 28px",
+                borderBottom: `1px solid ${ds.line}`,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              {tabs.map((t) => {
+                const on = activeTab === t.id;
                 return (
                   <button
-                    key={item.id}
-                    onClick={() => handleNav(item.id)}
+                    key={t.id}
+                    onClick={() => setSubTab(t.id)}
                     style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 9,
-                      padding: "8px 10px",
-                      borderRadius: ds.rs,
+                      padding: "10px 16px",
                       border: "none",
                       cursor: "pointer",
-                      fontFamily: ds.ff,
+                      background: "none",
                       fontSize: 13,
-                      background: on ? ds.sideActive : "transparent",
-                      color: on ? ds.inkW : ds.inkWD,
                       fontWeight: on ? 700 : 500,
-                      marginBottom: 1,
-                      transition: "all .08s",
+                      color: on ? ds.brand : ds.ink4,
+                      borderBottom: `2px solid ${on ? ds.brand : "transparent"}`,
+                      transition: "all .1s",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontFamily: ds.ff,
                     }}
                     onMouseEnter={(e) => {
-                      if (!on) e.currentTarget.style.background = ds.sideHover;
+                      if (!on) e.currentTarget.style.color = ds.ink3;
                     }}
                     onMouseLeave={(e) => {
-                      if (!on) e.currentTarget.style.background = "transparent";
+                      if (!on) e.currentTarget.style.color = ds.ink4;
                     }}
                   >
-                    <I size={16} strokeWidth={on ? 2.2 : 1.8} />
-                    <span style={{ flex: 1, textAlign: "left" }}>
-                      {item.label}
-                    </span>
-                    {item.badge && (
+                    {t.label}
+                    {t.count != null && (
                       <span
                         style={{
                           fontSize: 10,
                           fontWeight: 700,
-                          padding: "1px 6px",
+                          padding: "0 6px",
                           borderRadius: 9,
-                          background: on ? ds.brand : "rgba(255,255,255,0.12)",
-                          color: "#fff",
-                          lineHeight: "15px",
+                          lineHeight: "17px",
+                          background: on ? ds.brandSoft : ds.lineSoft,
+                          color: on ? ds.brand : ds.ink4,
                         }}
                       >
-                        {item.badge}
+                        {t.count}
                       </span>
                     )}
                   </button>
                 );
               })}
             </div>
-          ))}
-        </nav>
+          )}
 
-        {/* 유저 */}
-        <div
-          style={{
-            padding: "12px 14px 16px",
-            borderTop: `1px solid ${ds.lineD}`,
-            display: "flex",
-            alignItems: "center",
-            gap: 9,
-          }}
-        >
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              background: "linear-gradient(135deg, #818CF8, #7C3AED)",
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 11,
-              fontWeight: 800,
-            }}
-          >
-            김
+          {/* 페이지 콘텐츠 */}
+          <div style={{ flex: 1, overflow: "auto", padding: "20px 28px 28px" }}>
+            {renderPage()}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: ds.inkW }}>
-              김관리
-            </div>
-            <div style={{ fontSize: 10.5, color: ds.inkWG }}>Super Admin</div>
-          </div>
-          <Settings size={14} color={ds.inkWG} style={{ cursor: "pointer" }} />
-        </div>
-      </aside>
-
-      {/* ─── MAIN ─── */}
-      <main
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        {/* 헤더 */}
-        <header
-          style={{
-            background: ds.card,
-            padding: "0 28px",
-            height: 52,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: `1px solid ${ds.line}`,
-          }}
-        >
-          <h1
-            style={{
-              fontSize: 17,
-              fontWeight: 800,
-              margin: 0,
-              color: ds.ink,
-              letterSpacing: -0.3,
-            }}
-          >
-            {PAGE_TITLES[nav] || "대시보드"}
-          </h1>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* ── 오늘 날짜 + 인사말 ── */}
-            <TodayGreeting />
-
-            {/* 벨 아이콘 */}
-            <div
-              style={{ position: "relative" }}
-              onMouseEnter={() => setBellAnim(true)}
-              onAnimationEnd={() => setBellAnim(false)}
-            >
-              <button
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: ds.rs,
-                  border: `1px solid ${ds.line}`,
-                  background: ds.card,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transformOrigin: "top center",
-                  animation: bellAnim ? "bellRing 0.8s ease-in-out" : "none",
-                }}
-              >
-                <Bell size={15} color={ds.ink3} />
-              </button>
-              <span
-                style={{
-                  position: "absolute",
-                  top: 5,
-                  right: 5,
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: ds.red,
-                  border: "2px solid #fff",
-                }}
-              />
-            </div>
-          </div>
-        </header>
-
-        {/* 탭 (2개 이상일 때만 표시) */}
-        {tabs.length > 1 && (
-          <div
-            style={{
-              background: ds.card,
-              padding: "0 28px",
-              borderBottom: `1px solid ${ds.line}`,
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            {tabs.map((t) => {
-              const on = activeTab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setSubTab(t.id)}
-                  style={{
-                    padding: "10px 16px",
-                    border: "none",
-                    cursor: "pointer",
-                    background: "none",
-                    fontSize: 13,
-                    fontWeight: on ? 700 : 500,
-                    color: on ? ds.brand : ds.ink4,
-                    borderBottom: `2px solid ${on ? ds.brand : "transparent"}`,
-                    transition: "all .1s",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontFamily: ds.ff,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!on) e.currentTarget.style.color = ds.ink3;
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!on) e.currentTarget.style.color = ds.ink4;
-                  }}
-                >
-                  {t.label}
-                  {t.count != null && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        padding: "0 6px",
-                        borderRadius: 9,
-                        lineHeight: "17px",
-                        background: on ? ds.brandSoft : ds.lineSoft,
-                        color: on ? ds.brand : ds.ink4,
-                      }}
-                    >
-                      {t.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* 페이지 콘텐츠 */}
-        <div style={{ flex: 1, overflow: "auto", padding: "20px 28px 28px" }}>
-          {renderPage()}
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </AdminAuthGuard>
   );
 }

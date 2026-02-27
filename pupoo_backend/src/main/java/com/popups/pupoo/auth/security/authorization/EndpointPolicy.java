@@ -43,7 +43,6 @@ public class EndpointPolicy {
      */
     private static final List<Pattern> PUBLIC_GET_PATTERNS = List.of(
             Pattern.compile("^/api/posts(?:/\\d+)?$"),
-            Pattern.compile("^/api/qnas(?:/\\d+)?$"),
             Pattern.compile("^/api/notices(?:/\\d+)?$"),
             Pattern.compile("^/api/events(?:/\\d+)?$"),
             Pattern.compile("^/api/programs(?:/\\d+)?$"),

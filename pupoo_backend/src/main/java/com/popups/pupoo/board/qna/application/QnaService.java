@@ -47,7 +47,7 @@ public class QnaService {
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .deleted(false)
-                .commentEnabled(true)
+                .commentEnabled(false)
                 .build();
 
         return toResponse(qnaRepository.save(post));
@@ -92,6 +92,7 @@ public class QnaService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "삭제 권한이 없습니다.");
         }
 
+        post.hide();
         post.markDeleted();
         qnaRepository.save(post);
     }
@@ -131,7 +132,9 @@ private QnaResponse toResponse(Post post) {
                 .userId(post.getUserId())
                 .title(post.getPostTitle())
                 .content(post.getContent())
-                .status(post.getStatus() == PostStatus.HIDDEN ? QnaStatus.CLOSED : QnaStatus.OPEN)
+                .status(post.getAnsweredAt() == null ? QnaStatus.WAITING : QnaStatus.ANSWERED)
+                .answerContent(post.getAnswerContent())
+                .answeredAt(post.getAnsweredAt())
                 .viewCount(post.getViewCount())
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())

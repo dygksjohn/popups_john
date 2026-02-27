@@ -1,28 +1,33 @@
-const ACCESS_KEY = "pupoo_access_token";
-const REFRESH_KEY = "pupoo_refresh_token";
+// Access Token은 메모리에만 보관한다.
+// - refresh_token은 HttpOnly 쿠키로 유지(자바스크립트에서 접근 불가)
+// - 새로고침 시에는 /api/auth/refresh로 accessToken을 복구한다.
+
+let accessTokenMemory = null;
 
 export const tokenStore = {
   getAccess() {
-    return localStorage.getItem(ACCESS_KEY);
+    return accessTokenMemory;
   },
+
+  // refresh token은 HttpOnly 쿠키이므로 여기서는 다루지 않는다.
   getRefresh() {
-    return localStorage.getItem(REFRESH_KEY);
+    return null;
   },
 
-  // ✅ 호환용 추가 (기존 코드 유지)
   setAccess(accessToken) {
-    if (accessToken) localStorage.setItem(ACCESS_KEY, accessToken);
-  },
-  setRefresh(refreshToken) {
-    if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+    accessTokenMemory = accessToken || null;
   },
 
-  setTokens({ accessToken, refreshToken }) {
-    if (accessToken) localStorage.setItem(ACCESS_KEY, accessToken);
-    if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+  // 호환용(호출부 유지)
+  setRefresh() {
+    // no-op
   },
+
+  setTokens({ accessToken }) {
+    accessTokenMemory = accessToken || null;
+  },
+
   clear() {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
+    accessTokenMemory = null;
   },
 };

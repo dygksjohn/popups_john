@@ -6,6 +6,8 @@ import {
   ImageOff,
   Maximize2,
   X,
+  Search,
+  ChevronDown,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────
@@ -106,7 +108,6 @@ const styles = `
     font-variant-numeric: tabular-nums;
   }
 
-  /* 확대하기 button overlay */
   .es-enlarge-btn {
     position: absolute;
     bottom: 12px;
@@ -245,7 +246,6 @@ const styles = `
     to   { opacity: 0; }
   }
 
-  /* modal wrapper */
   .es-modal-inner {
     position: relative;
     display: flex;
@@ -261,7 +261,6 @@ const styles = `
     to   { opacity: 1; transform: scale(1); }
   }
 
-  /* close button */
   .es-modal-close {
     position: fixed;
     top: 20px;
@@ -285,7 +284,6 @@ const styles = `
     border-color: rgba(255,255,255,0.32);
   }
 
-  /* image area */
   .es-modal-img-wrap {
     width: 100%;
     display: flex;
@@ -315,7 +313,6 @@ const styles = `
     to   { opacity: 1; }
   }
 
-  /* nav arrows */
   .es-modal-nav {
     position: absolute;
     top: 50%;
@@ -343,7 +340,6 @@ const styles = `
   .es-modal-nav.prev { left: 18px; }
   .es-modal-nav.next { right: 18px; }
 
-  /* footer: title + dots */
   .es-modal-footer {
     display: flex;
     align-items: center;
@@ -410,6 +406,8 @@ const SERVICE_CATEGORIES = [
   { label: "참가자 갤러리", path: "/gallery/eventgallery" },
   { label: "현장 스케치", path: "/gallery/eventsketch" },
 ];
+
+const FILTER_OPTIONS = ["전체", "최신순"];
 
 const GALLERY_CARDS = [
   {
@@ -480,7 +478,6 @@ const FullscreenViewer = ({ card, startIndex, onClose }) => {
     setClosing(true);
     setTimeout(onClose, 170);
   }, [onClose]);
-
   const prev = useCallback(
     (e) => {
       e?.stopPropagation();
@@ -489,7 +486,6 @@ const FullscreenViewer = ({ card, startIndex, onClose }) => {
     },
     [total],
   );
-
   const next = useCallback(
     (e) => {
       e?.stopPropagation();
@@ -524,9 +520,7 @@ const FullscreenViewer = ({ card, startIndex, onClose }) => {
       >
         <X size={15} strokeWidth={2} />
       </button>
-
       <div className="es-modal-inner" onClick={(e) => e.stopPropagation()}>
-        {/* Image */}
         <div className="es-modal-img-wrap">
           <div className="es-modal-img-inner">
             {total > 1 && (
@@ -555,8 +549,6 @@ const FullscreenViewer = ({ card, startIndex, onClose }) => {
             )}
           </div>
         </div>
-
-        {/* Footer */}
         <div className="es-modal-footer" onClick={(e) => e.stopPropagation()}>
           <div className="es-modal-meta-info">
             <span className="es-modal-title">{card.title}</span>
@@ -631,7 +623,6 @@ const GalleryCard = ({ card, onEnlarge }) => {
           확대하기
         </button>
       </div>
-
       <div className="es-card-body">
         <span className="es-card-badge">{card.category}</span>
         <h3 className="es-card-title">{card.title}</h3>
@@ -651,10 +642,21 @@ const GalleryCard = ({ card, onEnlarge }) => {
 export default function EventSketch() {
   const [currentPath, setCurrentPath] = useState("/gallery/eventsketch");
   const [viewer, setViewer] = useState(null);
+  const [filter, setFilter] = useState("전체");
+  const [search, setSearch] = useState("");
 
   const handleEnlarge = (card) => {
     setViewer({ card, startIndex: 0 });
   };
+
+  const filtered = GALLERY_CARDS.filter((c) => {
+    const matchSearch =
+      !search ||
+      c.title.includes(search) ||
+      c.description.includes(search) ||
+      c.author.includes(search);
+    return matchSearch;
+  });
 
   return (
     <div className="es-root">
@@ -669,25 +671,134 @@ export default function EventSketch() {
       />
 
       <main className="es-container">
-        <section style={{ marginBottom: "48px" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: "20px",
-            }}
-          ></div>
+        {/* ── 상단 필터/검색 바 (등록하기 없음) ── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingBottom: "16px",
+            borderBottom: "1px solid #e0e0e0",
+            marginBottom: "20px",
+          }}
+        >
+          <span style={{ fontSize: "15px", fontWeight: "600", color: "#222" }}>
+            총 {filtered.length}개
+          </span>
 
-          <div className="es-gallery-grid">
-            {GALLERY_CARDS.map((card) => (
-              <GalleryCard
-                key={card.id}
-                card={card}
-                onEnlarge={handleEnlarge}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {/* 드롭다운 */}
+            <div style={{ position: "relative" }}>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                style={{
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  padding: "7px 32px 7px 12px",
+                  fontSize: "14px",
+                  color: "#333",
+                  background: "#fff",
+                  cursor: "pointer",
+                  outline: "none",
+                  minWidth: "80px",
+                }}
+              >
+                {FILTER_OPTIONS.map((opt) => (
+                  <option key={opt}>{opt}</option>
+                ))}
+              </select>
+              <span
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <ChevronDown size={14} color="#666" />
+              </span>
+            </div>
+
+            {/* 검색창 */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                border: "1px solid #ccc",
+                borderRadius: "6px",
+                overflow: "hidden",
+                background: "#fff",
+              }}
+            >
+              <input
+                type="text"
+                placeholder="검색어를 입력하세요."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  padding: "8px 12px",
+                  fontSize: "14px",
+                  color: "#333",
+                  width: "240px",
+                  background: "transparent",
+                }}
               />
-            ))}
+              <button
+                style={{
+                  border: "none",
+                  background: "#fff",
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background 0.15s ease",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "#f5f5f5")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "#fff")
+                }
+              >
+                <Search size={16} strokeWidth={2} color="#555" />
+              </button>
+            </div>
           </div>
+        </div>
+
+        {/* ── 갤러리 ── */}
+        <section style={{ marginBottom: "48px" }}>
+          {filtered.length > 0 ? (
+            <div className="es-gallery-grid">
+              {filtered.map((card) => (
+                <GalleryCard
+                  key={card.id}
+                  card={card}
+                  onEnlarge={handleEnlarge}
+                />
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "60px 0",
+                color: "#999",
+                fontSize: "14px",
+              }}
+            >
+              검색 결과가 없습니다.
+            </div>
+          )}
         </section>
 
         <div

@@ -1,5 +1,6 @@
-import PageHeader from "../components/PageHeader";
-import { useState } from "react";
+﻿import PageHeader from "../components/PageHeader";
+import { useEffect, useState } from "react";
+import { eventApi } from "../../../app/http/eventApi";
 import {
   Archive,
   MapPin,
@@ -129,99 +130,59 @@ const CATEGORY_COLORS = {
   세미나: { bg: "#ecfdf5", color: "#059669" },
   포럼: { bg: "#fff7ed", color: "#d97706" },
   전시: { bg: "#fef2f2", color: "#dc2626" },
-  해커톤: { bg: "#f0fdf4", color: "#16a34a" },
+  데모데이: { bg: "#f0fdf4", color: "#16a34a" },
 };
 
-const EVENTS = [
-  {
-    id: 1,
-    category: "컨퍼런스",
-    title: "2025 한국 AI 컨퍼런스",
-    date: "2025.11.14",
-    location: "코엑스, 서울",
-    participants: 1380,
-    capacity: 1500,
-    rating: 4.7,
-    year: 2025,
-  },
-  {
-    id: 2,
-    category: "워크샵",
-    title: "스타트업 법무 워크샵",
-    date: "2025.10.22",
-    location: "강남 WeWork, 서울",
-    participants: 74,
-    capacity: 80,
-    rating: 4.5,
-    year: 2025,
-  },
-  {
-    id: 3,
-    category: "세미나",
-    title: "디지털 전환 리더십 세미나",
-    date: "2025.09.18",
-    location: "여의도 전경련, 서울",
-    participants: 260,
-    capacity: 300,
-    rating: 4.3,
-    year: 2025,
-  },
-  {
-    id: 4,
-    category: "포럼",
-    title: "2025 헬스케어 이노베이션 포럼",
-    date: "2025.08.07",
-    location: "삼성서울병원, 서울",
-    participants: 480,
-    capacity: 500,
-    rating: 4.8,
-    year: 2025,
-  },
-  {
-    id: 5,
-    category: "전시",
-    title: "K-스마트팜 기술 박람회",
-    date: "2025.07.23",
-    location: "aT센터, 서울",
-    participants: 4200,
-    capacity: 5000,
-    rating: 4.2,
-    year: 2025,
-  },
-  {
-    id: 6,
-    category: "해커톤",
-    title: "공공 데이터 해커톤 2025",
-    date: "2025.06.14",
-    location: "판교 현대차 제로원, 경기",
-    participants: 320,
-    capacity: 320,
-    rating: 4.9,
-    year: 2025,
-  },
-  {
-    id: 7,
-    category: "컨퍼런스",
-    title: "2024 블록체인 서밋 코리아",
-    date: "2024.11.09",
-    location: "코엑스, 서울",
-    participants: 920,
-    capacity: 1000,
-    rating: 4.4,
-    year: 2024,
-  },
-  {
-    id: 8,
-    category: "세미나",
-    title: "2024 ESG 기업 경영 세미나",
-    date: "2024.09.03",
-    location: "롯데월드타워, 서울",
-    participants: 388,
-    capacity: 400,
-    rating: 4.1,
-    year: 2024,
-  },
-];
+function formatDate(value) {
+  if (!value) return "일정 미정";
+  const s = String(value);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return "일정 미정";
+  return `${m[1]}.${m[2]}.${m[3]}`;
+}
+
+function formatTime(startAt, endAt) {
+  const pick = (v) => {
+    if (!v) return "";
+    const m = String(v).match(/(\d{2}):(\d{2})/);
+    return m ? `${m[1]}:${m[2]}` : "";
+  };
+  const a = pick(startAt);
+  const b = pick(endAt);
+  if (a && b) return `${a} ~ ${b}`;
+  if (a || b) return a || b;
+  return "시간 미정";
+}
+
+function extractYear(startAt) {
+  if (!startAt) return "";
+  const s = String(startAt);
+  const m = s.match(/^(\d{4})-/);
+  return m ? m[1] : "";
+}
+
+function mapEvent(raw) {
+  const eventId = raw?.eventId ?? raw?.id ?? null;
+  const title = raw?.eventName ?? raw?.title ?? "행사";
+  const category = raw?.category ?? raw?.eventCategory ?? "행사";
+  const location = raw?.location ?? raw?.place ?? "장소 미정";
+  const startAt = raw?.startAt ?? raw?.startDateTime ?? raw?.startDate ?? null;
+  const endAt = raw?.endAt ?? raw?.endDateTime ?? raw?.endDate ?? null;
+
+  return {
+    id: eventId,
+    category,
+    title,
+    date: formatDate(startAt),
+    location,
+    time: startAt || endAt ? formatTime(startAt, endAt) : "시간 미정",
+    participants: 0,
+    capacity: 1,
+    rating: 0,
+    year: extractYear(startAt),
+    fallback: "🐶",
+  };
+}
 
 function StarRating({ val }) {
   return (
@@ -245,23 +206,61 @@ export default function Closed() {
   const [query, setQuery] = useState("");
   const [year, setYear] = useState("all");
   const [currentPath, setCurrentPath] = useState("/event/closed");
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchEvents = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const res = await eventApi.getEvents({
+          status: "ENDED",
+          page: 0,
+          size: 10,
+        });
+        const content = res.data.data.content;
+        const list = Array.isArray(content) ? content : [];
+        if (mounted) setEvents(list.map(mapEvent));
+      } catch (e) {
+        const msg =
+          e?.response?.data?.message || e?.message || "Failed to load events.";
+        if (mounted) setError(msg);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    fetchEvents();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const years = ["all", "2025", "2024"];
-  const filtered = EVENTS.filter((e) => {
+  const filtered = events.filter((e) => {
     const matchQ = e.title.includes(query) || e.category.includes(query);
     const matchY = year === "all" || String(e.year) === year;
     return matchQ && matchY;
   });
 
-  const totalParticipants = EVENTS.reduce((a, e) => a + e.participants, 0);
-  const avgRating = (
-    EVENTS.reduce((a, e) => a + e.rating, 0) / EVENTS.length
-  ).toFixed(1);
-  const avgRate = Math.round(
-    (EVENTS.reduce((a, e) => a + e.participants / e.capacity, 0) /
-      EVENTS.length) *
-      100,
-  );
+  const totalParticipants = events.reduce((a, e) => a + e.participants, 0);
+  const avgRating =
+    events.length === 0
+      ? "0.0"
+      : (events.reduce((a, e) => a + e.rating, 0) / events.length).toFixed(1);
+  const avgRate =
+    events.length === 0
+      ? 0
+      : Math.round(
+          (events.reduce((a, e) => a + e.participants / e.capacity, 0) /
+            events.length) *
+            100,
+        );
 
   return (
     <div className="cl-root">
@@ -275,11 +274,17 @@ export default function Closed() {
       />
 
       <main className="cl-container">
+        {loading ? (
+          <div className="cl-stat-card">Loading...</div>
+        ) : error ? (
+          <div className="cl-stat-card">{error}</div>
+        ) : null}
+
         <div className="cl-stat-grid">
           {[
             {
               label: "종료 행사 수",
-              value: `${EVENTS.length}개`,
+              value: `${events.length}개`,
               icon: <Archive size={20} color="#6b7280" />,
               bg: "#f3f4f6",
             },
