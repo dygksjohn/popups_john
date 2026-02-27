@@ -9,80 +9,103 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+/**
+ * EventRepository (v2.5 기준)
+ */
 public interface EventRepository extends JpaRepository<Event, Long> {
 
-    /**
-     * 공개 조회: CANCELLED는 노출하지 않음 (Service에서 status를 null로 넘김)
-     */
-    @Query("""
-        select e
-        from Event e
-        where (:keyword is null or :keyword = '' or e.eventName like concat('%', :keyword, '%') or e.location like concat('%', :keyword, '%'))
-          and (:status is null or e.status = :status)
-          and (:fromAt is null or e.startAt >= :fromAt)
-          and (:toAt is null or e.endAt <= :toAt)
-        order by e.startAt desc, e.eventId desc
-        """)
-    Page<Event> searchPublic(@Param("keyword") String keyword,
-                             @Param("status") EventStatus status,
-                             @Param("fromAt") LocalDateTime fromAt,
-                             @Param("toAt") LocalDateTime toAt,
-                             Pageable pageable);
+    long countByStatus(EventStatus status);
 
     /**
-     * 관리자 조회: 모든 상태 포함
+     * 공개 조회용: CANCELLED 제외
      */
     @Query("""
-        select e
-        from Event e
-        where (:keyword is null or :keyword = '' or e.eventName like concat('%', :keyword, '%') or e.location like concat('%', :keyword, '%'))
-          and (:status is null or e.status = :status)
-          and (:fromAt is null or e.startAt >= :fromAt)
-          and (:toAt is null or e.endAt <= :toAt)
-        order by e.startAt desc, e.eventId desc
-        """)
-    Page<Event> search(@Param("keyword") String keyword,
-                       @Param("status") EventStatus status,
-                       @Param("fromAt") LocalDateTime fromAt,
-                       @Param("toAt") LocalDateTime toAt,
-                       Pageable pageable);
+        SELECT e
+        FROM Event e
+        WHERE e.status <> com.popups.pupoo.event.domain.enums.EventStatus.CANCELLED
+          AND (:status IS NULL OR e.status = :status)
+          AND (
+                :keyword IS NULL OR :keyword = ''
+                OR e.eventName LIKE CONCAT('%', :keyword, '%')
+                OR e.description LIKE CONCAT('%', :keyword, '%')
+          )
+          AND (:fromAt IS NULL OR e.startAt >= :fromAt)
+          AND (:toAt IS NULL OR e.startAt <= :toAt)
+        ORDER BY e.startAt DESC, e.eventId DESC
+    """)
+    Page<Event> searchPublic(
+            @Param("keyword") String keyword,
+            @Param("status") EventStatus status,
+            @Param("fromAt") LocalDateTime fromAt,
+            @Param("toAt") LocalDateTime toAt,
+            Pageable pageable
+    );
 
     /**
-     * 상태 동기화: PLANNED / ONGOING / ENDED
+     * 관리자/내부 조회용: 상태 전체 포함
+     */
+    @Query("""
+        SELECT e
+        FROM Event e
+        WHERE (:status IS NULL OR e.status = :status)
+          AND (
+                :keyword IS NULL OR :keyword = ''
+                OR e.eventName LIKE CONCAT('%', :keyword, '%')
+                OR e.description LIKE CONCAT('%', :keyword, '%')
+          )
+          AND (:fromAt IS NULL OR e.startAt >= :fromAt)
+          AND (:toAt IS NULL OR e.startAt <= :toAt)
+        ORDER BY e.startAt DESC, e.eventId DESC
+    """)
+    Page<Event> search(
+            @Param("keyword") String keyword,
+            @Param("status") EventStatus status,
+            @Param("fromAt") LocalDateTime fromAt,
+            @Param("toAt") LocalDateTime toAt,
+            Pageable pageable
+    );
+
+    /**
+     * 시작 전 → PLANNED
      */
     @Modifying
-    @Query("""
-        update Event e
-        set e.status = com.popups.pupoo.event.domain.enums.EventStatus.PLANNED
-        where e.startAt > current_timestamp
-          and e.status <> com.popups.pupoo.event.domain.enums.EventStatus.PLANNED
-          and e.status <> com.popups.pupoo.event.domain.enums.EventStatus.CANCELLED
-        """)
+    @Transactional
+    @Query(value = """
+        UPDATE event
+        SET status = 'PLANNED'
+        WHERE start_at > NOW()
+          AND status <> 'PLANNED'
+        """, nativeQuery = true)
     int syncToPlanned();
 
+    /**
+     * 진행 중 → ONGOING
+     */
     @Modifying
-    @Query("""
-        update Event e
-        set e.status = com.popups.pupoo.event.domain.enums.EventStatus.ONGOING
-        where e.startAt <= current_timestamp
-          and e.endAt >= current_timestamp
-          and e.status <> com.popups.pupoo.event.domain.enums.EventStatus.ONGOING
-          and e.status <> com.popups.pupoo.event.domain.enums.EventStatus.CANCELLED
-        """)
+    @Transactional
+    @Query(value = """
+        UPDATE event
+        SET status = 'ONGOING'
+        WHERE start_at <= NOW()
+          AND end_at >= NOW()
+          AND status <> 'ONGOING'
+        """, nativeQuery = true)
     int syncToOngoing();
 
+    /**
+     * 종료 → ENDED
+     */
     @Modifying
-    @Query("""
-        update Event e
-        set e.status = com.popups.pupoo.event.domain.enums.EventStatus.ENDED
-        where e.endAt < current_timestamp
-          and e.status <> com.popups.pupoo.event.domain.enums.EventStatus.ENDED
-          and e.status <> com.popups.pupoo.event.domain.enums.EventStatus.CANCELLED
-        """)
+    @Transactional
+    @Query(value = """
+        UPDATE event
+        SET status = 'ENDED'
+        WHERE end_at < NOW()
+          AND status <> 'ENDED'
+        """, nativeQuery = true)
     int syncToEnded();
-
-	long countByStatus(EventStatus cancelled);
 }

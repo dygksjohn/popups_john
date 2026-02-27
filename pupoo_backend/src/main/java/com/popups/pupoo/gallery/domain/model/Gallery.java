@@ -1,4 +1,3 @@
-// file: src/main/java/com/popups/pupoo/gallery/domain/model/Gallery.java
 package com.popups.pupoo.gallery.domain.model;
 
 import com.popups.pupoo.gallery.domain.enums.GalleryStatus;
