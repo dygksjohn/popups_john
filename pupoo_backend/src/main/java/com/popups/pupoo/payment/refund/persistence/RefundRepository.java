@@ -12,8 +12,6 @@ import java.util.Optional;
 
 public interface RefundRepository extends JpaRepository<Refund, Long> {
 
-    Page<Refund> findAll(Pageable pageable);
-
     @Query("select r from Refund r join fetch r.payment p where r.refundId = :refundId")
     Optional<Refund> findDetail(@Param("refundId") Long refundId);
 

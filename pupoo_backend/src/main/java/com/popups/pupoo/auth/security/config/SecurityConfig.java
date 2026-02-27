@@ -1,5 +1,6 @@
 // file: src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
 package com.popups.pupoo.auth.security.config;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popups.pupoo.auth.security.authentication.filter.JwtAuthenticationFilter;
 import com.popups.pupoo.auth.security.handler.JwtAccessDeniedHandler;
@@ -37,6 +38,7 @@ public class SecurityConfig {
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
         config.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
@@ -57,13 +59,10 @@ public class SecurityConfig {
         );
 
         http.authorizeHttpRequests(auth -> auth
-<<<<<<< Updated upstream
-            //  CORS Preflight 허용(프론트 연동 시 403 방지)
-=======
->>>>>>> Stashed changes
+            // CORS Preflight 허용(프론트 연동 시 403 방지)
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-            // Auth endpoints
+            // Auth endpoints (로그인 전 호출)
             .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
@@ -72,76 +71,58 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/auth/oauth/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/auth/email/verification/confirm").permitAll()
 
-<<<<<<< Updated upstream
-            // OAuth(카카오 등) - 로그인 전 호출되는 엔드포인트
-            .requestMatchers(HttpMethod.POST, "/api/auth/oauth/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/auth/oauth/**").permitAll()
-
-            // 운영/문서
-=======
             // Ops/docs
->>>>>>> Stashed changes
             .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()
             .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
             .requestMatchers("/swagger-ui/**").permitAll()
             .requestMatchers("/v3/api-docs/**").permitAll()
             .requestMatchers("/error").permitAll()
 
-            // Public GET: posts, notices, faq, events, programs, speakers, booths, qnas, galleries, reviews, replies
+            // Public GET
             .requestMatchers(HttpMethod.GET, "/api/posts").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/posts/*").permitAll()
+
             .requestMatchers(HttpMethod.GET, "/api/notices").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/notices/*").permitAll()
-<<<<<<< Updated upstream
 
             .requestMatchers(HttpMethod.GET, "/api/faqs").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/faqs/*").permitAll()
 
-            .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/events/*").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/events/*/galleries").permitAll()
-
-=======
-            .requestMatchers(HttpMethod.GET, "/api/faqs").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/faqs/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events/*/galleries").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events/*/programs").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events/*/booths").permitAll()
->>>>>>> Stashed changes
+
             .requestMatchers(HttpMethod.GET, "/api/programs").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/programs/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/programs/*/speakers").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/programs/*/speakers/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/programs/*/votes/result").permitAll()
+
             .requestMatchers(HttpMethod.GET, "/api/speakers").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/speakers/*").permitAll()
+
             .requestMatchers(HttpMethod.GET, "/api/booths").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/booths/*").permitAll()
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes
             .requestMatchers(HttpMethod.GET, "/api/qnas").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/qnas/*").permitAll()
+
             .requestMatchers(HttpMethod.GET, "/api/galleries").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/galleries/*").permitAll()
+
             .requestMatchers(HttpMethod.GET, "/api/reviews").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/reviews/*").permitAll()
+
             .requestMatchers(HttpMethod.GET, "/api/replies").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/report-reasons").permitAll()
+
             .requestMatchers(HttpMethod.GET, "/api/files/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/files/*/download").permitAll()
             .requestMatchers("/uploads/**").permitAll()
 
-<<<<<<< Updated upstream
-            .requestMatchers(HttpMethod.GET, "/api/galleries").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/galleries/*").permitAll()
-
-            .requestMatchers(HttpMethod.GET, "/api/replies").permitAll()
-
-            // ADMIN 전용
+            // ADMIN 전용 (정책: ADMIN은 /api/admin/** 만)
             .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
             // USER 전용
@@ -150,26 +131,11 @@ public class SecurityConfig {
             .requestMatchers("/api/refunds/**").hasRole("USER")
             .requestMatchers("/api/notifications/**").hasRole("USER")
 
-            .requestMatchers(HttpMethod.POST, "/api/event-registrations")
-                .hasRole("USER")
-            .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**")
-                .hasRole("USER")
-            .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations")
-                .hasRole("USER")
-=======
-            // ADMIN
-            .requestMatchers("/api/admin/**").hasRole("ADMIN")
-
-            // USER
-            .requestMatchers("/api/users/me/**").hasRole("USER")
-            .requestMatchers("/api/payments/**").hasRole("USER")
-            .requestMatchers("/api/refunds/**").hasRole("USER")
-            .requestMatchers("/api/notifications/**").hasRole("USER")
             .requestMatchers(HttpMethod.POST, "/api/event-registrations").hasRole("USER")
             .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**").hasRole("USER")
             .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations").hasRole("USER")
->>>>>>> Stashed changes
 
+            // 그 외는 인증 필요(유저)
             .anyRequest().hasRole("USER")
         );
 
