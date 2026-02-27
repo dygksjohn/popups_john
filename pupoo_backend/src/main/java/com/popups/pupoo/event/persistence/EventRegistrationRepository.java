@@ -16,9 +16,13 @@ import java.util.Optional;
  * event_apply 접근 Repository (엔티티명은 EventRegistration)
  */
 public interface EventRegistrationRepository extends JpaRepository<EventRegistration, Long> {
+<<<<<<< Updated upstream
 
     long countByEventIdAndStatus(Long eventId, RegistrationStatus status);
 
+=======
+    
+>>>>>>> Stashed changes
     boolean existsByEventIdAndUserIdAndStatus(Long eventId, Long userId, RegistrationStatus status);
 
     Page<EventRegistration> findByUserId(Long userId, Pageable pageable);
@@ -102,4 +106,5 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     """)
     java.util.List<Long> findDistinctUserIdsByEventIdAndStatus(@Param("eventId") Long eventId,
                                                              @Param("status") RegistrationStatus status);
-}
+    long countByEventIdAndStatus(Long eventId, RegistrationStatus status);
+                                                            }

@@ -1,4 +1,3 @@
-// file: src/main/java/com/popups/pupoo/gallery/domain/model/Gallery.java
 package com.popups.pupoo.gallery.domain.model;
 
 import com.popups.pupoo.gallery.domain.enums.GalleryStatus;
@@ -29,8 +28,13 @@ public class Gallery {
     @Column(name = "gallery_title", nullable = false, length = 255)
     private String galleryTitle;
 
+<<<<<<< Updated upstream
     @Column(name = "gallery_description", length = 1000)
 
+=======
+    // ✅ DB 컬럼명과 맞춤 (gallery_description → description)
+    @Column(name = "description", length = 1000)
+>>>>>>> Stashed changes
     private String description;
 
     @Column(name = "view_count")
@@ -40,7 +44,11 @@ public class Gallery {
     private Long thumbnailImageId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "gallery_status", nullable = false, columnDefinition = "ENUM('PUBLIC','PRIVATE','BLINDED','DELETED')")
+    @Column(
+        name = "gallery_status",
+        nullable = false,
+        columnDefinition = "ENUM('PUBLIC','PRIVATE','BLINDED','DELETED')"
+    )
     private GalleryStatus galleryStatus;
 
     @Column(name = "created_at", nullable = false)
@@ -60,5 +68,9 @@ public class Gallery {
     public void softDelete() {
         this.galleryStatus = GalleryStatus.DELETED;
     }
+<<<<<<< Updated upstream
 
 }
+=======
+}
+>>>>>>> Stashed changes
