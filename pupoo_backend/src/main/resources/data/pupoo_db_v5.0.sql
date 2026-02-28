@@ -986,7 +986,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ---------------------------------------------------------
 INSERT INTO users (user_id, email, password, nickname, phone, status, role_name, show_age, show_gender, show_pet, email_verified, phone_verified) VALUES
 (1, 'admin@pupoo.com', '$2a$10$9SFUWtS0qjzjRdZXSQbGPeEaAHjmxHbdTuSb/TxPLu.sNqJfuix6K', '푸푸관리자', '010-0000-0001', 'ACTIVE', 'ADMIN', 0, 0, 0, 1, 1),
-(2, 'user@pupoo.com', '$2a$10$9SFUWtS0qjzjRdZXSQbGPeEaAHjmxHbdTuSb/TxPLu.sNqJfuix6K', '남광우', '010-1234-5678', 'ACTIVE', 'USER', 1, 1, 1, 1, 1),
+(2, 'kw.nam92@example.com', '$2a$10$abcdefghijklmnopqrstuv', '남광우', '010-1234-5678', 'ACTIVE', 'USER', 1, 1, 1, 1, 1),
 (3, 'choco@example.com', '$2a$10$abcdefghijklmnopqrstuv', '초코맘', '010-1111-2222', 'ACTIVE', 'USER', 0, 1, 1, 1, 1),
 (4, 'dangdang@example.com', '$2a$10$abcdefghijklmnopqrstuv', '댕댕파파', '010-3333-4444', 'ACTIVE', 'USER', 1, 0, 1, 1, 1),
 (5, 'bori@example.com', '$2a$10$abcdefghijklmnopqrstuv', '보리언니', '010-5555-6666', 'ACTIVE', 'USER', 1, 1, 1, 1, 1);
