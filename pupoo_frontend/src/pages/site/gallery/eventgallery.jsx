@@ -1875,8 +1875,6 @@ export default function EventGallery() {
         }}
       />
       )}
-
-      {writeModal && <WriteModal onClose={() => setWriteModal(false)} />}
     </div>
   );
 }
