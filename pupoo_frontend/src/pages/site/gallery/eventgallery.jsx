@@ -14,7 +14,7 @@ import {
   AlertTriangle,
   Loader2,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { eventApi } from "../../../app/http/eventApi";
 import { galleryApi } from "../../../app/http/galleryApi";
@@ -1259,11 +1259,21 @@ export default function EventGallery() {
   const navigate = useNavigate();
   const { isAuthed } = useAuth();
 
+  // 상대 경로 이미지 → API 서버 base URL 붙여서 표시 (미리보기·카드·상세 공통, 기본값 8080)
+  const getImageSrc = (url) => {
+    if (!url) return "";
+    if (url.startsWith("http")) return url;
+    const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/+$/, "");
+    return base + (url.startsWith("/") ? url : "/" + url);
+  };
+
   // 글쓰기 모달
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState({ eventId: "", title: "", description: "", imageUrlsText: "" });
+  const [createForm, setCreateForm] = useState({ eventId: "", title: "", description: "", imageUrls: [] });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState(null);
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const fileInputRef = useRef(null);
 
   // 수정 모달
   const [editingGalleryId, setEditingGalleryId] = useState(null);
@@ -1301,9 +1311,6 @@ export default function EventGallery() {
       setCreateError("제목을 입력해 주세요.");
       return;
     }
-    const imageUrls = createForm.imageUrlsText
-      ? createForm.imageUrlsText.split("\n").map((s) => s.trim()).filter(Boolean)
-      : [];
     setCreateLoading(true);
     setCreateError(null);
     try {
@@ -1311,16 +1318,71 @@ export default function EventGallery() {
         eventId,
         title: createForm.title.trim(),
         description: createForm.description?.trim() ?? "",
-        imageUrls,
+        imageUrls: createForm.imageUrls ?? [],
       });
       setShowCreateModal(false);
-      setCreateForm({ eventId: "", title: "", description: "", imageUrlsText: "" });
+      setCreateForm({ eventId: "", title: "", description: "", imageUrls: [] });
       refetchGalleries();
     } catch (e) {
       setCreateError(e?.response?.data?.error?.message ?? e?.message ?? "등록에 실패했습니다.");
     } finally {
       setCreateLoading(false);
     }
+  };
+
+  const handleFileSelect = async (files) => {
+    if (!files?.length) return;
+    const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (list.length === 0) {
+      setCreateError("이미지 파일만 업로드할 수 있습니다.");
+      return;
+    }
+    setCreateError(null);
+    setUploadingCount((c) => c + list.length);
+    for (const file of list) {
+      try {
+        const res = await galleryApi.uploadImage(file);
+        const publicPath = res.data?.data?.publicPath ?? res.data?.publicPath;
+        if (publicPath) {
+          setCreateForm((f) => ({ ...f, imageUrls: [...(f.imageUrls ?? []), publicPath] }));
+        }
+      } catch (e) {
+        setCreateError(e?.response?.data?.message ?? e?.message ?? "업로드에 실패했습니다.");
+      } finally {
+        setUploadingCount((c) => Math.max(0, c - 1));
+      }
+    }
+  };
+
+  const removeUploadedImage = (index) => {
+    setCreateForm((f) => ({
+      ...f,
+      imageUrls: (f.imageUrls ?? []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const [draggedImageIndex, setDraggedImageIndex] = useState(null);
+
+  const handleImageDragStart = (index) => {
+    setDraggedImageIndex(index);
+  };
+  const handleImageDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+  const handleImageDrop = (e, dropIndex) => {
+    e.preventDefault();
+    if (draggedImageIndex == null) return;
+    setCreateForm((f) => {
+      const urls = [...(f.imageUrls ?? [])];
+      const [removed] = urls.splice(draggedImageIndex, 1);
+      urls.splice(dropIndex, 0, removed);
+      return { ...f, imageUrls: urls };
+    });
+    setDraggedImageIndex(null);
+  };
+  const handleImageDragEnd = () => {
+    setDraggedImageIndex(null);
   };
 
   const handleEditClick = (galleryId) => {
@@ -1390,7 +1452,7 @@ export default function EventGallery() {
         setViewerDetail({
           id: g.galleryId,
           title: g.title ?? "",
-          images: g.imageUrls ?? [],
+          images: (g.imageUrls ?? []).map((u) => getImageSrc(u)),
           comment: g.description ?? "",
           tags: [],
           author: "운영팀",
@@ -1516,12 +1578,12 @@ export default function EventGallery() {
   };
   const handleEnlarge = (card, idx) => setViewer({ card, startIndex: idx });
 
-  // API 응답 → 카드 형식 매핑 (기존 GALLERY_CARDS 구조에 맞춤)
+  // API 응답 → 카드 형식 매핑 (기존 GALLERY_CARDS 구조에 맞춤, 상대 경로는 getImageSrc로 표시용 URL로 변환)
   const cards = galleries.map((g) => ({
     id: g.galleryId,
     title: g.title ?? "",
     userId: g.userId,
-    images: g.imageUrls ?? [],
+    images: (g.imageUrls ?? []).map((u) => getImageSrc(u)),
     comment: g.description ?? "",
     tags: [],
     author: "운영팀",
@@ -1581,7 +1643,7 @@ export default function EventGallery() {
                   eventId: selectedEventId ?? events[0]?.eventId ?? "",
                   title: "",
                   description: "",
-                  imageUrlsText: "",
+                  imageUrls: [],
                 });
                 setCreateError(null);
                 setShowCreateModal(true);
@@ -1757,14 +1819,122 @@ export default function EventGallery() {
         />
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: "block", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>이미지 URL (한 줄에 하나씩)</label>
-        <textarea
-          value={createForm.imageUrlsText}
-          onChange={(e) => setCreateForm((f) => ({ ...f, imageUrlsText: e.target.value }))}
-          placeholder="https://..."
-          rows={3}
-          style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", resize: "vertical" }}
+        <label style={{ display: "block", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>이미지</label>
+        <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 8px" }}>
+          첫 번째 이미지가 대표 이미지로 사용됩니다. 드래그하여 순서를 변경할 수 있습니다.
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => {
+            handleFileSelect(e.target.files);
+            e.target.value = "";
+          }}
         />
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleFileSelect(e.dataTransfer?.files);
+          }}
+          style={{
+            border: "2px dashed #d1d5db",
+            borderRadius: 10,
+            padding: "24px 16px",
+            textAlign: "center",
+            color: "#6b7280",
+            fontSize: 13,
+            cursor: "pointer",
+            background: "#f9fafb",
+            marginBottom: 12,
+          }}
+        >
+          {uploadingCount > 0 ? "업로드 중..." : "클릭하거나 이미지를 여기에 놓으세요"}
+        </div>
+        {(createForm.imageUrls ?? []).length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {(createForm.imageUrls ?? []).map((url, i) => (
+              <div
+                key={url}
+                draggable
+                onDragStart={() => handleImageDragStart(i)}
+                onDragOver={handleImageDragOver}
+                onDrop={(e) => handleImageDrop(e, i)}
+                onDragEnd={handleImageDragEnd}
+                style={{
+                  position: "relative",
+                  width: 64,
+                  height: 64,
+                  borderRadius: 8,
+                  overflow: "hidden",
+                  border: "1px solid #e5e7eb",
+                  cursor: uploadingCount > 0 ? "default" : "grab",
+                  opacity: draggedImageIndex === i ? 0.6 : 1,
+                  boxShadow: draggedImageIndex === i ? "0 4px 12px rgba(0,0,0,0.15)" : "none",
+                }}
+                title="드래그하여 순서 변경"
+              >
+                {i === 0 && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      left: 2,
+                      fontSize: 9,
+                      fontWeight: 700,
+                      background: "#1a4fd6",
+                      color: "#fff",
+                      padding: "2px 4px",
+                      borderRadius: 4,
+                      zIndex: 2,
+                    }}
+                  >
+                    대표
+                  </span>
+                )}
+                <img
+                  src={getImageSrc(url)}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }}
+                  draggable={false}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); removeUploadedImage(i); }}
+                  disabled={uploadingCount > 0}
+                  aria-label="삭제"
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    right: 2,
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    border: "none",
+                    background: "rgba(0,0,0,0.6)",
+                    color: "#fff",
+                    cursor: uploadingCount > 0 ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    zIndex: 2,
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       {createError && (
         <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12 }}>{createError}</p>

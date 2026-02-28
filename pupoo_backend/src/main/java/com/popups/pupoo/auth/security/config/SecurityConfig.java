@@ -103,6 +103,8 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/galleries/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/reviews").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/reviews/*").permitAll()
+            // 갤러리 이미지 업로드 — 로그인(USER) 필요
+            .requestMatchers(HttpMethod.POST, "/api/galleries/image/upload").hasRole("USER")
             // 갤러리 생성/수정/삭제 — 로그인(USER) 필요, 내부에서 작성자/관리자 검증
             .requestMatchers(HttpMethod.POST, "/api/galleries").hasRole("USER")
             .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasRole("USER")
@@ -113,6 +115,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/files/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/files/*/download").permitAll()
             .requestMatchers("/uploads/**").permitAll()
+            .requestMatchers("/static/**").permitAll()
 
             // ADMIN
             .requestMatchers("/api/admin/**").hasRole("ADMIN")

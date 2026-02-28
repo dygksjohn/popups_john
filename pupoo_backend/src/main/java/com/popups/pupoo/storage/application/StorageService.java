@@ -75,6 +75,26 @@ public class StorageService {
         return UploadResponse.of(saved.getFileId(), saved.getOriginalName(), saved.getStoredName(), publicPath);
     }
 
+    /**
+     * 갤러리 이미지 임시 업로드. files 테이블에 저장하지 않고 스토리지(로컬 디스크)에만 저장 후 publicPath 반환.
+     */
+    public UploadResponse uploadForGalleryTemp(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file is required");
+        }
+        Long userId = securityUtil.currentUserId();
+        String originalName = safeOriginalName(file.getOriginalFilename());
+        String key = keyGenerator.generateKeyForGalleryTemp(userId, originalName);
+        String storedName = key.substring(key.lastIndexOf('/') + 1);
+        try {
+            objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload bytes: " + e.getMessage());
+        }
+        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
+        return UploadResponse.of(0L, originalName, storedName, publicPath);
+    }
+
     @Transactional(readOnly = true)
     public FileResponse getFile(Long fileId) {
         StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
