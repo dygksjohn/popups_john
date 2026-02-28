@@ -62,4 +62,5 @@ public class Gallery {
     public void softDelete() {
         this.galleryStatus = GalleryStatus.DELETED;
     }
+
 }
