@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
-import { ChevronLeft, ChevronRight, Search, Loader2, X, Edit2, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Loader2, X, Edit2, Trash2, MessageCircle, Pencil, Send } from "lucide-react";
 import { boardApi } from "../../../app/http/boardApi";
 import { postApi } from "../../../app/http/postApi";
+import { postReplyApi } from "../../../app/http/replyApi";
 import { userApi } from "../../../app/http/userApi";
 import { useAuth } from "../auth/AuthProvider";
 
@@ -28,9 +29,56 @@ function fmtDate(dt) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/* ── 상세보기 모달 ── */
-function DetailModal({ item, isMine, onClose, onEdit, onDelete }) {
+/* ── 상세보기 모달 (댓글 포함) ── */
+function DetailModal({
+  item,
+  isMine,
+  replies,
+  replyLoading,
+  meUserId,
+  isAuthed,
+  onClose,
+  onEdit,
+  onDelete,
+  onCreateReply,
+  onUpdateReply,
+  onDeleteReply,
+}) {
+  const [replyText, setReplyText] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
+  const [editingReplyId, setEditingReplyId] = useState(null);
+  const [editingReplyContent, setEditingReplyContent] = useState("");
+
   if (!item) return null;
+
+  const replyList = Array.isArray(replies) ? replies : replies?.content ?? [];
+  const activeReplies = replyList.filter((r) => r.status !== "DELETED");
+  const handleSubmitReply = (e) => {
+    e.preventDefault();
+    if (!replyText.trim() || !onCreateReply) return;
+    setSubmittingReply(true);
+    onCreateReply(replyText.trim(), () => {
+      setReplyText("");
+      setSubmittingReply(false);
+    }).catch(() => setSubmittingReply(false));
+  };
+
+  const startEdit = (reply) => {
+    setEditingReplyId(reply.replyId);
+    setEditingReplyContent(reply.content ?? "");
+  };
+  const cancelEdit = () => {
+    setEditingReplyId(null);
+    setEditingReplyContent("");
+  };
+  const saveEdit = () => {
+    if (editingReplyId == null || !onUpdateReply) return;
+    onUpdateReply(editingReplyId, editingReplyContent.trim()).then(() => {
+      setEditingReplyId(null);
+      setEditingReplyContent("");
+    });
+  };
+
   return (
     <>
       <div
@@ -143,7 +191,7 @@ function DetailModal({ item, isMine, onClose, onEdit, onDelete }) {
           <span style={{ fontSize: 13, color: "#94A3B8" }}>조회 {item.viewCount ?? 0}</span>
         </div>
         <div style={{ margin: "16px 28px 0", borderBottom: "1px solid #E2E8F0" }} />
-        <div style={{ padding: "20px 28px 28px" }}>
+        <div style={{ padding: "20px 28px 16px" }}>
           {item.content ? (
             <p style={{ fontSize: 15, color: "#334155", lineHeight: 1.75, whiteSpace: "pre-wrap", margin: 0 }}>
               {item.content}
@@ -152,6 +200,70 @@ function DetailModal({ item, isMine, onClose, onEdit, onDelete }) {
             <p style={{ fontSize: 14, color: "#CBD5E1", fontStyle: "italic", margin: 0 }}>내용이 없습니다.</p>
           )}
         </div>
+
+        {/* 댓글 */}
+        <div style={{ padding: "0 28px 24px", borderTop: "1px solid #E2E8F0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 16, marginBottom: 12 }}>
+            <MessageCircle size={18} color="#64748B" />
+            <span style={{ fontSize: 14, fontWeight: 600, color: "#475569" }}>댓글 {activeReplies.length}개</span>
+          </div>
+          {replyLoading && (
+            <div style={{ padding: "12px 0", display: "flex", alignItems: "center", gap: 8 }}>
+              <Loader2 size={18} color="#94A3B8" style={{ animation: "spin 1s linear infinite" }} />
+              <span style={{ fontSize: 13, color: "#94A3B8" }}>댓글 불러오는 중…</span>
+            </div>
+          )}
+          {!replyLoading && activeReplies.length > 0 && (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {activeReplies.map((r) => (
+                <li key={r.replyId} style={{ padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}>
+                  {editingReplyId === r.replyId ? (
+                    <div>
+                      <textarea
+                        value={editingReplyContent}
+                        onChange={(e) => setEditingReplyContent(e.target.value)}
+                        rows={2}
+                        style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, resize: "vertical", boxSizing: "border-box" }}
+                      />
+                      <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                        <button type="button" onClick={saveEdit} style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "#1a4fd6", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>저장</button>
+                        <button type="button" onClick={cancelEdit} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", fontSize: 13, cursor: "pointer", color: "#666" }}>취소</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ fontSize: 14, color: "#334155", margin: 0, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{r.content}</p>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+                        <span style={{ fontSize: 12, color: "#94A3B8" }}>{fmtDate(r.createdAt)}</span>
+                        {meUserId != null && r.userId === meUserId && onUpdateReply && onDeleteReply && (
+                          <span style={{ display: "flex", gap: 8 }}>
+                            <button type="button" onClick={() => startEdit(r)} style={{ padding: 0, border: "none", background: "none", fontSize: 12, color: "#64748B", cursor: "pointer", display: "flex", alignItems: "center", gap: 2 }}><Pencil size={12} /> 수정</button>
+                            <button type="button" onClick={() => window.confirm("댓글을 삭제하시겠습니까?") && onDeleteReply(r.replyId)} style={{ padding: 0, border: "none", background: "none", fontSize: 12, color: "#DC2626", cursor: "pointer", display: "flex", alignItems: "center", gap: 2 }}><Trash2 size={12} /> 삭제</button>
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {isAuthed && onCreateReply && (
+            <form onSubmit={handleSubmitReply} style={{ marginTop: 16 }}>
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="댓글을 입력하세요."
+                rows={3}
+                style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, resize: "vertical", boxSizing: "border-box" }}
+              />
+              <button type="submit" disabled={submittingReply || !replyText.trim()} style={{ marginTop: 8, padding: "8px 16px", borderRadius: 8, border: "none", background: "#1a4fd6", color: "#fff", fontSize: 13, fontWeight: 600, cursor: submittingReply ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                <Send size={14} /> {submittingReply ? "등록 중…" : "댓글 등록"}
+              </button>
+            </form>
+          )}
+        </div>
+
         <div style={{ padding: "0 28px 24px", display: "flex", justifyContent: "center" }}>
           <button
             type="button"
@@ -344,6 +456,8 @@ export default function FreeBoard() {
   const [searchInput, setSearchInput] = useState("");
 
   const [selectedPost, setSelectedPost] = useState(null);
+  const [replies, setReplies] = useState([]);
+  const [replyLoading, setReplyLoading] = useState(false);
   const [showWriteModal, setShowWriteModal] = useState(false);
   const [editPost, setEditPost] = useState(null);
   const [meUserId, setMeUserId] = useState(null);
@@ -436,6 +550,51 @@ export default function FreeBoard() {
     setShowWriteModal(false);
     fetchPosts(1);
   };
+
+  const loadReplies = useCallback((postId) => {
+    if (postId == null) return;
+    setReplyLoading(true);
+    postReplyApi
+      .list(postId, 0, 100)
+      .then((data) => setReplies(data?.content ?? data ?? []))
+      .catch(() => setReplies([]))
+      .finally(() => setReplyLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (selectedPost?.postId) loadReplies(selectedPost.postId);
+    else setReplies([]);
+  }, [selectedPost?.postId, loadReplies]);
+
+  const handleCreateReply = useCallback(
+    (content, onDone) => {
+      if (!selectedPost?.postId) return Promise.reject();
+      return postReplyApi
+        .create(selectedPost.postId, content)
+        .then(() => loadReplies(selectedPost.postId))
+        .then(() => { if (typeof onDone === "function") onDone(); })
+        .catch((err) => {
+          console.error("[FreeBoard] create reply error:", err);
+          alert(err?.response?.data?.error?.message ?? "댓글 등록에 실패했습니다.");
+          throw err;
+        });
+    },
+    [selectedPost?.postId, loadReplies]
+  );
+
+  const handleUpdateReply = useCallback(
+    (replyId, content) => {
+      return postReplyApi.update(replyId, content).then(() => loadReplies(selectedPost?.postId));
+    },
+    [selectedPost?.postId, loadReplies]
+  );
+
+  const handleDeleteReply = useCallback(
+    (replyId) => {
+      return postReplyApi.delete(replyId).then(() => loadReplies(selectedPost?.postId));
+    },
+    [selectedPost?.postId, loadReplies]
+  );
 
   useEffect(() => {
     if (isAuthed) {
@@ -709,9 +868,16 @@ export default function FreeBoard() {
         <DetailModal
           item={selectedPost}
           isMine={meUserId != null && selectedPost.userId === meUserId}
+          replies={replies}
+          replyLoading={replyLoading}
+          meUserId={meUserId}
+          isAuthed={isAuthed}
           onClose={() => setSelectedPost(null)}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onCreateReply={isAuthed ? handleCreateReply : undefined}
+          onUpdateReply={handleUpdateReply}
+          onDeleteReply={handleDeleteReply}
         />
       )}
 
