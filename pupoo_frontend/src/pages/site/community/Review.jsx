@@ -1,7 +1,11 @@
-import { useState } from "react";
-import PageHeader from "../components/PageHeader";
-import { ChevronLeft, ChevronRight, ChevronDown, Search } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import PageHeader from "../components/PageHeader";
+import { ChevronLeft, ChevronRight, Search, Loader2, X, Edit2, Trash2, Star } from "lucide-react";
+import { reviewApi } from "../../../app/http/reviewApi";
+import { eventApi } from "../../../app/http/eventApi";
+import { userApi } from "../../../app/http/userApi";
+import { useAuth } from "../auth/AuthProvider";
 
 const SERVICE_CATEGORIES = [
   { label: "자유게시판", path: "/community/freeboard" },
@@ -9,53 +13,508 @@ const SERVICE_CATEGORIES = [
   { label: "행사후기", path: "/community/review" },
   { label: "질문/답변", path: "/community/qna" },
 ];
-const NOTICES = [
-  {
-    id: 1,
-    category: "pupoo",
-    type: "일상공유",
-    title: "체험 프로그램 중심으로 참여한 후기",
-    date: "2026.02.12",
-  },
-  {
-    id: 2,
-    category: "pupoo",
-    type: "일상공유",
-    title: "행사장에서 구매한 간식 후기",
-    date: "2025.10.30",
-  },
-  {
-    id: 3,
-    category: "pupoo",
-    type: "일상공유",
-    title: "2026 봄 반려동물 페스티벌 방문 후기",
-    date: "2025.10.29",
-  },
+
+const PAGE_SIZE = 10;
+const SEARCH_TYPES = [
+  { value: "TITLE_CONTENT", label: "제목+내용" },
+  { value: "CONTENT", label: "내용" },
+  { value: "WRITER", label: "작성자" },
 ];
 
-const FILTER_OPTIONS = [
-  "전체",
-  "자유게시판",
-  "공지사항",
-  "행사후기",
-  "질문답변",
-];
+function unwrap(res) {
+  const body = res?.data;
+  return body?.data ?? body;
+}
 
-export default function Notice() {
-  const [currentPath, setCurrentPath] = useState("/");
-  const [filter, setFilter] = useState("전체");
-  const [search, setSearch] = useState("");
+function fmtDate(dt) {
+  if (!dt) return "-";
+  const d = new Date(dt);
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
 
-  const filtered = NOTICES.filter((n) => {
-    const matchFilter =
-      filter === "전체" || n.category === filter || n.type === filter;
-    const matchSearch =
-      search === "" ||
-      n.title.includes(search) ||
-      n.category.includes(search) ||
-      n.type.includes(search);
-    return matchFilter && matchSearch;
-  });
+function RatingStars({ rating }) {
+  const r = Number(rating) || 0;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          size={14}
+          fill={i <= r ? "#f59e0b" : "transparent"}
+          stroke={i <= r ? "#f59e0b" : "#d1d5db"}
+          strokeWidth={1.5}
+        />
+      ))}
+    </span>
+  );
+}
+
+/* ── 상세보기 모달 ── */
+function DetailModal({ item, eventName, isMine, onClose, onEdit, onDelete }) {
+  if (!item) return null;
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 5000,
+          background: "rgba(0,0,0,0.4)",
+          backdropFilter: "blur(4px)",
+          animation: "fadeIn .15s ease",
+        }}
+      />
+      <style>{`
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+      `}</style>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 5001,
+          background: "#fff",
+          borderRadius: 16,
+          width: "90%",
+          maxWidth: 560,
+          maxHeight: "80vh",
+          overflow: "auto",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+          animation: "slideUp .25s ease",
+        }}
+      >
+        <div style={{ padding: "24px 28px 0", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div style={{ flex: 1, paddingRight: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <RatingStars rating={item.rating} />
+              {eventName && (
+                <span style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>{eventName}</span>
+              )}
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {isMine && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onEdit(item)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #E2E8F0",
+                    background: "#fff",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#64748B",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Edit2 size={14} /> 수정
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(item)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #FEE2E2",
+                    background: "#fff",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#DC2626",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Trash2 size={14} /> 삭제
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                border: "1px solid #E2E8F0",
+                background: "#fff",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <X size={16} color="#94A3B8" />
+            </button>
+          </div>
+        </div>
+        <div style={{ padding: "12px 28px 0", display: "flex", gap: 16, flexWrap: "wrap", fontSize: 13, color: "#94A3B8" }}>
+          <span>작성일 {fmtDate(item.createdAt)}</span>
+          {item.updatedAt && item.updatedAt !== item.createdAt && <span>수정일 {fmtDate(item.updatedAt)}</span>}
+          <span>조회 {item.viewCount ?? 0}</span>
+        </div>
+        <div style={{ margin: "16px 28px 0", borderBottom: "1px solid #E2E8F0" }} />
+        <div style={{ padding: "20px 28px 28px" }}>
+          {item.content ? (
+            <p style={{ fontSize: 15, color: "#334155", lineHeight: 1.75, whiteSpace: "pre-wrap", margin: 0 }}>
+              {item.content}
+            </p>
+          ) : (
+            <p style={{ fontSize: 14, color: "#CBD5E1", fontStyle: "italic", margin: 0 }}>내용이 없습니다.</p>
+          )}
+        </div>
+        <div style={{ padding: "0 28px 24px", display: "flex", justifyContent: "center" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: "10px 40px",
+              borderRadius: 8,
+              border: "1px solid #E2E8F0",
+              background: "#fff",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              color: "#64748B",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#F8FAFC"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
+          >
+            닫기
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ── 글쓰기/수정 모달 ── */
+function WriteModal({ events, initial, onClose, onSuccess }) {
+  const [eventId, setEventId] = useState(initial?.eventId ?? (events?.[0]?.eventId ?? ""));
+  const [rating, setRating] = useState(initial?.rating ?? 5);
+  const [content, setContent] = useState(initial?.content ?? "");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const isEdit = !!initial?.reviewId;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!isEdit && !eventId) {
+      setError("행사를 선택하세요.");
+      return;
+    }
+    const ratingNum = Number(rating);
+    if (ratingNum < 1 || ratingNum > 5) {
+      setError("평점은 1~5 사이로 선택하세요.");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      if (isEdit) {
+        await reviewApi.update(initial.reviewId, { rating: ratingNum, content: content ?? "" });
+      } else {
+        await reviewApi.create({ eventId: Number(eventId), rating: ratingNum, content: content ?? "" });
+      }
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      const msg = err?.response?.data?.error?.message ?? err?.message ?? "저장에 실패했습니다.";
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 5000,
+          background: "rgba(0,0,0,0.4)",
+          backdropFilter: "blur(4px)",
+        }}
+      />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 5001,
+          background: "#fff",
+          borderRadius: 16,
+          width: "90%",
+          maxWidth: 520,
+          maxHeight: "85vh",
+          overflow: "auto",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+        }}
+      >
+        <div style={{ padding: "24px 24px 16px", borderBottom: "1px solid #E2E8F0" }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1E293B" }}>
+            {isEdit ? "후기 수정" : "후기 작성"}
+          </h2>
+        </div>
+        <form onSubmit={handleSubmit} style={{ padding: 24 }}>
+          {error && (
+            <div style={{ marginBottom: 12, padding: "10px 12px", background: "#FEE2E2", color: "#DC2626", borderRadius: 8, fontSize: 14 }}>
+              {error}
+            </div>
+          )}
+          {!isEdit && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", marginBottom: 6, fontSize: 14, fontWeight: 600, color: "#334155" }}>행사</label>
+              <select
+                value={eventId}
+                onChange={(e) => setEventId(e.target.value)}
+                required
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 8,
+                  fontSize: 15,
+                  boxSizing: "border-box",
+                }}
+              >
+                <option value="">행사를 선택하세요</option>
+                {(events || []).map((ev) => (
+                  <option key={ev.eventId} value={ev.eventId}>{ev.eventName || `행사 #${ev.eventId}`}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", marginBottom: 6, fontSize: 14, fontWeight: 600, color: "#334155" }}>평점 (1~5)</label>
+            <select
+              value={rating}
+              onChange={(e) => setRating(Number(e.target.value))}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                border: "1px solid #E2E8F0",
+                borderRadius: 8,
+                fontSize: 15,
+                boxSizing: "border-box",
+              }}
+            >
+              {[5, 4, 3, 2, 1].map((n) => (
+                <option key={n} value={n}>{n}점</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: "block", marginBottom: 6, fontSize: 14, fontWeight: 600, color: "#334155" }}>내용</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="후기를 입력하세요"
+              rows={6}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                border: "1px solid #E2E8F0",
+                borderRadius: 8,
+                fontSize: 15,
+                resize: "vertical",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: "10px 20px",
+                borderRadius: 8,
+                border: "1px solid #E2E8F0",
+                background: "#fff",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                color: "#64748B",
+              }}
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                padding: "10px 24px",
+                borderRadius: 8,
+                border: "none",
+                background: "#1a4fd6",
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: submitting ? "not-allowed" : "pointer",
+              }}
+            >
+              {submitting ? "저장 중…" : isEdit ? "수정" : "등록"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+}
+
+export default function Review() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname;
+  const { isAuthed } = useAuth();
+
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [searchType, setSearchType] = useState("TITLE_CONTENT");
+  const [keyword, setKeyword] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+
+  const [selectedReview, setSelectedReview] = useState(null);
+  const [eventNames, setEventNames] = useState({});
+  const [showWriteModal, setShowWriteModal] = useState(false);
+  const [editReview, setEditReview] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [meUserId, setMeUserId] = useState(null);
+
+  const fetchReviews = useCallback(
+    async (p = 1, searchOverrides = {}) => {
+      const kw = searchOverrides.keyword !== undefined ? searchOverrides.keyword : keyword;
+      const st = searchOverrides.searchType !== undefined ? searchOverrides.searchType : searchType;
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await reviewApi.list({
+          page: p - 1,
+          size: PAGE_SIZE,
+          searchType: kw?.trim() ? st : undefined,
+          keyword: kw?.trim() || undefined,
+        });
+        setReviews(data?.content ?? []);
+        setTotalPages(data?.totalPages ?? 0);
+        setTotalElements(data?.totalElements ?? 0);
+        setPage(p);
+      } catch (err) {
+        console.error("[Review] fetch error:", err);
+        setError("후기 목록을 불러오는데 실패했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [keyword, searchType]
+  );
+
+  useEffect(() => {
+    fetchReviews(1);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadEvents = useCallback(async () => {
+    try {
+      const res = await eventApi.getEvents({ page: 0, size: 100 });
+      const data = unwrap(res);
+      setEvents(data?.content ?? []);
+    } catch (err) {
+      console.error("[Review] events fetch error:", err);
+      setEvents([]);
+    }
+  }, []);
+
+  const handleSearch = () => {
+    const nextKeyword = searchInput.trim();
+    setKeyword(nextKeyword);
+    fetchReviews(1, { keyword: nextKeyword, searchType });
+  };
+
+  const handlePageChange = (p) => {
+    if (p >= 1 && p <= totalPages) fetchReviews(p);
+  };
+
+  const openDetail = async (review) => {
+    try {
+      const detail = await reviewApi.get(review.reviewId);
+      setSelectedReview(detail);
+    } catch (err) {
+      console.error("[Review] detail error:", err);
+    }
+  };
+
+  const handleEdit = (item) => {
+    setSelectedReview(null);
+    setEditReview(item);
+    setShowWriteModal(true);
+  };
+
+  const handleDelete = async (item) => {
+    if (!window.confirm("이 후기를 삭제하시겠습니까?")) return;
+    try {
+      await reviewApi.delete(item.reviewId);
+      setSelectedReview(null);
+      fetchReviews(page);
+    } catch (err) {
+      console.error("[Review] delete error:", err);
+      alert(err?.response?.data?.error?.message ?? "삭제에 실패했습니다.");
+    }
+  };
+
+  const handleWriteSuccess = () => {
+    setEditReview(null);
+    setShowWriteModal(false);
+    fetchReviews(1);
+  };
+
+  useEffect(() => {
+    if (isAuthed) {
+      userApi.getMe().then((me) => setMeUserId(me?.userId ?? null)).catch(() => setMeUserId(null));
+    } else {
+      setMeUserId(null);
+    }
+  }, [isAuthed]);
+
+  useEffect(() => {
+    if (showWriteModal && events.length === 0 && !editReview) loadEvents();
+    if (showWriteModal && editReview) setEvents([]);
+  }, [showWriteModal, editReview, events.length, loadEvents]);
+
+  useEffect(() => {
+    const ids = [...new Set(reviews.map((r) => r.eventId).filter(Boolean))];
+    if (ids.length === 0) return;
+    const needed = ids.filter((id) => !eventNames[id]);
+    if (needed.length === 0) return;
+    Promise.all(
+      needed.map((eventId) =>
+        eventApi.getEventDetail(eventId).then((res) => ({ eventId, name: unwrap(res)?.eventName }))
+      )
+    ).then((results) => {
+      setEventNames((prev) => {
+        const next = { ...prev };
+        results.forEach(({ eventId, name }) => { if (name) next[eventId] = name; });
+        return next;
+      });
+    }).catch(() => {});
+  }, [reviews, eventNames]);
 
   return (
     <>
@@ -64,7 +523,7 @@ export default function Notice() {
         subtitle="자유롭게 의견을 나누고 일상을 공유하는 공간입니다."
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
-        onNavigate={setCurrentPath}
+        onNavigate={(path) => navigate(path)}
       />
       <main
         style={{
@@ -74,237 +533,182 @@ export default function Notice() {
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
-        {/* 상단 필터/검색 바 */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
             paddingBottom: "16px",
             borderBottom: "1px solid #e0e0e0",
             marginBottom: "8px",
           }}
         >
-          <span style={{ fontSize: "15px", fontWeight: "600", color: "#222" }}>
-            총 {filtered.length}개
-          </span>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {/* 드롭다운 */}
-            <div style={{ position: "relative" }}>
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                style={{
-                  appearance: "none",
-                  WebkitAppearance: "none",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                  padding: "7px 32px 7px 12px",
-                  fontSize: "14px",
-                  color: "#333",
-                  background: "#fff",
-                  cursor: "pointer",
-                  outline: "none",
-                  minWidth: "80px",
-                }}
-              >
-                {FILTER_OPTIONS.map((opt) => (
-                  <option key={opt}>{opt}</option>
-                ))}
-              </select>
-              <span
-                style={{
-                  position: "absolute",
-                  right: "10px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  pointerEvents: "none",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <ChevronDown size={14} color="#666" />
-              </span>
-            </div>
-
-            {/* 검색창 */}
-            <div
+          <span style={{ fontSize: "15px", fontWeight: "600", color: "#222" }}>총 {totalElements}개</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <select
+              value={searchType}
+              onChange={(e) => setSearchType(e.target.value)}
               style={{
-                display: "flex",
-                alignItems: "center",
                 border: "1px solid #ccc",
-                borderRadius: "6px",
-                overflow: "hidden",
+                borderRadius: "4px",
+                padding: "7px 32px 7px 12px",
+                fontSize: "14px",
+                color: "#333",
                 background: "#fff",
-                transition: "border 0.15s ease",
+                cursor: "pointer",
+                minWidth: "100px",
               }}
             >
+              {SEARCH_TYPES.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <div style={{ display: "flex", alignItems: "center", border: "1px solid #ccc", borderRadius: "6px", overflow: "hidden", background: "#fff" }}>
               <input
                 type="text"
                 placeholder="검색어를 입력하세요."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  border: "none",
-                  outline: "none",
-                  padding: "8px 12px",
-                  fontSize: "14px",
-                  color: "#333",
-                  width: "240px",
-                  background: "transparent",
-                }}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                style={{ border: "none", outline: "none", padding: "8px 12px", fontSize: "14px", color: "#333", width: "200px", background: "transparent" }}
               />
-
               <button
-                style={{
-                  border: "none",
-                  background: "#fff",
-                  padding: "8px 12px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "background 0.15s ease",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#f5f5f5")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "#fff")
-                }
+                type="button"
+                onClick={handleSearch}
+                style={{ border: "none", background: "#fff", padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
               >
                 <Search size={16} strokeWidth={2} color="#555" />
               </button>
             </div>
+            {isAuthed && (
+              <button
+                type="button"
+                onClick={() => { setEditReview(null); setShowWriteModal(true); loadEvents(); }}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  border: "none",
+                  background: "#1a4fd6",
+                  color: "#fff",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                후기 작성
+              </button>
+            )}
           </div>
         </div>
 
-        {/* 공지 목록 */}
-        <div>
-          {filtered.map((notice) => (
-            <div
-              key={notice.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                padding: "18px 4px",
-                borderBottom: "1px solid #e8e8e8",
-                cursor: "pointer",
-                transition: "background 0.15s",
-                gap: "0",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "#f9f9f9")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <span
-                style={{
-                  color: "#2d2d2d",
-                  fontWeight: "600",
-                  fontSize: "14px",
-                  minWidth: "64px",
-                }}
-              >
-                {notice.category}
-              </span>
-              <span
-                style={{
-                  color: "#565656",
-                  fontWeight: "400",
-                  fontSize: "14px",
-                  minWidth: "80px",
-                }}
-              >
-                {notice.type}
-              </span>
-              <span
-                style={{
-                  flex: 1,
-                  fontSize: "15px",
-                  color: "#222",
-                  fontWeight: "400",
-                }}
-              >
-                {notice.title}
-              </span>
-              <span
-                style={{
-                  fontSize: "13px",
-                  color: "#999",
-                  marginLeft: "16px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {notice.date}
-              </span>
-            </div>
-          ))}
+        {loading && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0" }}>
+            <Loader2 size={28} color="#999" style={{ animation: "spin 1s linear infinite" }} />
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            <div style={{ marginTop: 12, fontSize: "14px", color: "#999" }}>후기 목록을 불러오는 중입니다.</div>
+          </div>
+        )}
 
-          {filtered.length === 0 && (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "60px 0",
-                color: "#999",
-                fontSize: "14px",
-              }}
+        {!loading && error && (
+          <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <div style={{ fontSize: "14px", color: "#999", marginBottom: 12 }}>{error}</div>
+            <button
+              type="button"
+              onClick={() => fetchReviews(page)}
+              style={{ padding: "8px 20px", borderRadius: "6px", border: "1px solid #ccc", background: "#fff", fontSize: "14px", cursor: "pointer", color: "#333" }}
             >
-              검색 결과가 없습니다.
-            </div>
-          )}
-        </div>
+              다시 시도
+            </button>
+          </div>
+        )}
 
-        {/* 페이지네이션 */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: "12px",
-            marginTop: "36px",
-          }}
-        >
-          <button
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "16px",
-              color: "#bbb",
-              cursor: "pointer",
-              padding: "4px 8px",
-            }}
-          >
-            ‹
-          </button>
-          <span
-            style={{
-              fontSize: "14px",
-              color: "#333",
-              fontWeight: "500",
-              minWidth: "20px",
-              textAlign: "center",
-            }}
-          >
-            1
-          </span>
-          <button
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "16px",
-              color: "#bbb",
-              cursor: "pointer",
-              padding: "4px 8px",
-            }}
-          >
-            ›
-          </button>
-        </div>
+        {!loading && !error && (
+          <div>
+            {reviews.map((review) => (
+              <div
+                key={review.reviewId}
+                onClick={() => openDetail(review)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "18px 4px",
+                  borderBottom: "1px solid #e8e8e8",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                  gap: 16,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#f9f9f9")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <RatingStars rating={review.rating} />
+                <span style={{ flex: 1, fontSize: "14px", color: "#555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 320 }}>
+                  {review.content ? (review.content.length > 60 ? review.content.slice(0, 60) + "…" : review.content) : "—"}
+                </span>
+                <span style={{ fontSize: "13px", color: "#999", minWidth: 90 }}>{eventNames[review.eventId] || `행사 #${review.eventId}`}</span>
+                <span style={{ fontSize: "13px", color: "#999", minWidth: 90 }}>{fmtDate(review.createdAt)}</span>
+                <span style={{ fontSize: "13px", color: "#999", minWidth: 44 }}>{review.viewCount ?? 0}</span>
+              </div>
+            ))}
+            {reviews.length === 0 && (
+              <div style={{ textAlign: "center", padding: "60px 0", color: "#999", fontSize: "14px" }}>
+                {keyword ? "검색 결과가 없습니다." : "등록된 후기가 없습니다."}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!loading && !error && totalPages > 1 && (
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "36px" }}>
+            <button type="button" onClick={() => handlePageChange(page - 1)} disabled={page <= 1} style={{ background: "none", border: "none", color: page <= 1 ? "#ddd" : "#666", cursor: page <= 1 ? "default" : "pointer", padding: "4px 8px" }}>
+              <ChevronLeft size={16} />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handlePageChange(i + 1)}
+                style={{
+                  fontSize: "14px",
+                  fontWeight: i + 1 === page ? "700" : "500",
+                  color: i + 1 === page ? "#222" : "#999",
+                  background: i + 1 === page ? "#f0f0f0" : "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "4px 10px",
+                  borderRadius: "4px",
+                }}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button type="button" onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages} style={{ background: "none", border: "none", color: page >= totalPages ? "#ddd" : "#666", cursor: page >= totalPages ? "default" : "pointer", padding: "4px 8px" }}>
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
       </main>
+
+      {selectedReview && (
+        <DetailModal
+          item={selectedReview}
+          eventName={eventNames[selectedReview.eventId] || (selectedReview.eventId ? `행사 #${selectedReview.eventId}` : null)}
+          isMine={meUserId != null && selectedReview.userId === meUserId}
+          onClose={() => setSelectedReview(null)}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
+
+      {showWriteModal && (
+        <WriteModal
+          events={events}
+          initial={editReview}
+          onClose={() => { setShowWriteModal(false); setEditReview(null); }}
+          onSuccess={handleWriteSuccess}
+        />
+      )}
     </>
   );
 }
