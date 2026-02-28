@@ -84,6 +84,20 @@ public class StorageService {
         return FileResponse.of(f.getFileId(), f.getOriginalName(), publicPath);
     }
 
+    /**
+     * 게시글(postId)에 연결된 첨부파일 메타 조회. 없으면 null.
+     */
+    @Transactional(readOnly = true)
+    public FileResponse getFileByPostId(Long postId) {
+        return storedFileRepository.findByPostIdAndDeletedAtIsNull(postId)
+                .map(f -> {
+                    String key = toKey(f);
+                    String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
+                    return FileResponse.of(f.getFileId(), f.getOriginalName(), publicPath);
+                })
+                .orElse(null);
+    }
+
     @Transactional(readOnly = true)
     public InputStream download(Long fileId) {
         StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)

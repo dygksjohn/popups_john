@@ -111,6 +111,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/replies").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/report-reasons").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/files/*").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/files/by-post/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/files/*/download").permitAll()
             .requestMatchers("/uploads/**").permitAll()
 

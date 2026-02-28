@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
-import { ChevronLeft, ChevronRight, Search, Loader2, X, Edit2, Trash2, MessageCircle, Pencil, Send } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Loader2, X, Edit2, Trash2, MessageCircle, Pencil, Send, Paperclip, Download } from "lucide-react";
 import { boardApi } from "../../../app/http/boardApi";
 import { postApi } from "../../../app/http/postApi";
 import { postReplyApi } from "../../../app/http/replyApi";
+import { fileApi } from "../../../app/http/fileApi";
 import { userApi } from "../../../app/http/userApi";
 import { useAuth } from "../auth/AuthProvider";
 
@@ -37,9 +38,12 @@ function DetailModal({
   replyLoading,
   meUserId,
   isAuthed,
+  attachment,
+  attachmentLoading,
   onClose,
   onEdit,
   onDelete,
+  onDeleteAttachment,
   onCreateReply,
   onUpdateReply,
   onDeleteReply,
@@ -95,6 +99,7 @@ function DetailModal({
       <style>{`
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
       `}</style>
       <div
         onClick={(e) => e.stopPropagation()}
@@ -201,6 +206,39 @@ function DetailModal({
           )}
         </div>
 
+        {/* 첨부파일 */}
+        <div style={{ padding: "0 28px 16px" }}>
+          {attachmentLoading && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#94A3B8" }}>
+              <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+              <span>첨부파일 확인 중…</span>
+            </div>
+          )}
+          {!attachmentLoading && attachment && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <Paperclip size={16} color="#64748B" />
+              <a
+                href={fileApi.getDownloadUrl(attachment.fileId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: 14, color: "#1a4fd6", textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}
+              >
+                <Download size={14} />
+                {attachment.originalName}
+              </a>
+              {isMine && onDeleteAttachment && (
+                <button
+                  type="button"
+                  onClick={() => window.confirm("첨부파일을 삭제하시겠습니까?") && onDeleteAttachment()}
+                  style={{ padding: "2px 8px", border: "none", background: "none", fontSize: 12, color: "#DC2626", cursor: "pointer", display: "flex", alignItems: "center", gap: 2 }}
+                >
+                  <Trash2 size={12} /> 삭제
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* 댓글 */}
         <div style={{ padding: "0 28px 24px", borderTop: "1px solid #E2E8F0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 16, marginBottom: 12 }}>
@@ -294,6 +332,7 @@ function DetailModal({
 function WriteModal({ boardId, initial, onClose, onSuccess }) {
   const [postTitle, setPostTitle] = useState(initial?.postTitle ?? "");
   const [content, setContent] = useState(initial?.content ?? "");
+  const [selectedFile, setSelectedFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const isEdit = !!initial?.postId;
@@ -310,7 +349,15 @@ function WriteModal({ boardId, initial, onClose, onSuccess }) {
       if (isEdit) {
         await postApi.update(initial.postId, { postTitle: postTitle.trim(), content: content ?? "" });
       } else {
-        await postApi.create({ boardId, postTitle: postTitle.trim(), content: content ?? "" });
+        const postId = await postApi.create({ boardId, postTitle: postTitle.trim(), content: content ?? "" });
+        if (selectedFile && postId != null) {
+          try {
+            await fileApi.upload(selectedFile, "POST", postId);
+          } catch (upErr) {
+            console.error("[FreeBoard] file upload error:", upErr);
+            alert("글은 등록되었으나 첨부파일 업로드에 실패했습니다.");
+          }
+        }
       }
       onSuccess?.();
       onClose();
@@ -398,6 +445,20 @@ function WriteModal({ boardId, initial, onClose, onSuccess }) {
               }}
             />
           </div>
+          {!isEdit && (
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", marginBottom: 6, fontSize: 14, fontWeight: 600, color: "#334155" }}>첨부파일 (선택, 1개)</label>
+              <input
+                type="file"
+                accept="*/*"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                style={{ fontSize: 14, color: "#334155" }}
+              />
+              {selectedFile && (
+                <span style={{ marginLeft: 8, fontSize: 13, color: "#64748B" }}>{selectedFile.name}</span>
+              )}
+            </div>
+          )}
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             <button
               type="button"
@@ -456,6 +517,8 @@ export default function FreeBoard() {
   const [searchInput, setSearchInput] = useState("");
 
   const [selectedPost, setSelectedPost] = useState(null);
+  const [attachment, setAttachment] = useState(null);
+  const [attachmentLoading, setAttachmentLoading] = useState(false);
   const [replies, setReplies] = useState([]);
   const [replyLoading, setReplyLoading] = useState(false);
   const [showWriteModal, setShowWriteModal] = useState(false);
@@ -565,6 +628,38 @@ export default function FreeBoard() {
     if (selectedPost?.postId) loadReplies(selectedPost.postId);
     else setReplies([]);
   }, [selectedPost?.postId, loadReplies]);
+
+  const loadAttachment = useCallback((postId) => {
+    if (postId == null) {
+      setAttachment(null);
+      return;
+    }
+    setAttachmentLoading(true);
+    setAttachment(null);
+    fileApi
+      .getByPostId(postId)
+      .then((file) => setAttachment(file))
+      .catch(() => setAttachment(null))
+      .finally(() => setAttachmentLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (selectedPost?.postId) loadAttachment(selectedPost.postId);
+    else setAttachment(null);
+  }, [selectedPost?.postId, loadAttachment]);
+
+  const handleDeleteAttachment = useCallback(() => {
+    if (!attachment?.fileId || !selectedPost?.postId) return;
+    fileApi
+      .delete(attachment.fileId)
+      .then(() => {
+        setAttachment(null);
+      })
+      .catch((err) => {
+        console.error("[FreeBoard] delete attachment error:", err);
+        alert(err?.response?.data?.error?.message ?? "첨부파일 삭제에 실패했습니다.");
+      });
+  }, [attachment?.fileId, selectedPost?.postId]);
 
   const handleCreateReply = useCallback(
     (content, onDone) => {
@@ -870,11 +965,14 @@ export default function FreeBoard() {
           isMine={meUserId != null && selectedPost.userId === meUserId}
           replies={replies}
           replyLoading={replyLoading}
+          attachment={attachment}
+          attachmentLoading={attachmentLoading}
           meUserId={meUserId}
           isAuthed={isAuthed}
           onClose={() => setSelectedPost(null)}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onDeleteAttachment={attachment ? handleDeleteAttachment : undefined}
           onCreateReply={isAuthed ? handleCreateReply : undefined}
           onUpdateReply={handleUpdateReply}
           onDeleteReply={handleDeleteReply}

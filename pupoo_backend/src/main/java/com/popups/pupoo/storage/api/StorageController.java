@@ -61,6 +61,18 @@ public class StorageController {
     }
 
     /**
+     * 게시글(postId)에 연결된 첨부파일 조회. 없으면 404.
+     */
+    @GetMapping("/by-post/{postId}")
+    public ApiResponse<FileResponse> getByPostId(@PathVariable Long postId) {
+        FileResponse file = storageService.getFileByPostId(postId);
+        if (file == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "no file for this post");
+        }
+        return ApiResponse.success(file);
+    }
+
+    /**
      * 파일 메타데이터 조회.
      * (DB에 저장된 파일 정보 반환)
      */
