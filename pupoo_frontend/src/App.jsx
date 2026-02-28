@@ -38,6 +38,10 @@ import KakaoCallback from "./pages/site/auth/KakaoCallback";
 import KakaoJoin from "./pages/site/auth/join/KakaoJoin";
 import KakaoOtp from "./pages/site/auth/join/KakaoOtp";
 
+/* Kakao */
+import Checkout from "./pages/site/payment/Checkout";
+import PaymentApprove from "./pages/site/payment/PaymentApprove";
+
 /* Event */
 import Current from "./pages/site/event/Current";
 import Upcoming from "./pages/site/event/Upcoming";
@@ -236,6 +240,12 @@ export default function App() {
           <Route path="/event/closed" element={<Closed />} />
           <Route path="/event/preregister" element={<PreRegister />} />
           <Route path="/event/eventschedule" element={<EventSchedule />} />
+
+          {/* Payment */}
+          <Route path="/payment/checkout" element={<Checkout />} />
+          <Route path="/payment/approve" element={<PaymentApprove />} />
+
+
           {/* Program */}
           <Route
             path="/program/experience/:eventId?"

@@ -1,37 +1,45 @@
 // file: src/main/java/com/popups/pupoo/payment/application/PaymentService.java
 package com.popups.pupoo.payment.application;
 
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.event.domain.enums.RegistrationStatus;
 import com.popups.pupoo.event.domain.model.EventRegistration;
 import com.popups.pupoo.event.persistence.EventRegistrationRepository;
 import com.popups.pupoo.payment.domain.enums.PaymentStatus;
+import com.popups.pupoo.payment.domain.enums.PaymentTransactionStatus;
 import com.popups.pupoo.payment.domain.model.Payment;
+import com.popups.pupoo.payment.domain.model.PaymentTransaction;
 import com.popups.pupoo.payment.dto.*;
 import com.popups.pupoo.payment.persistence.PaymentRepository;
 import com.popups.pupoo.payment.persistence.PaymentTransactionRepository;
-import com.popups.pupoo.payment.domain.model.PaymentTransaction;
-import com.popups.pupoo.payment.domain.enums.PaymentTransactionStatus;
 import com.popups.pupoo.payment.port.PaymentGateway;
-import com.popups.pupoo.common.exception.BusinessException;
-import com.popups.pupoo.common.exception.ErrorCode;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientResponseException;
 
+import java.util.EnumSet;
 import java.util.UUID;
 
 @Service
 public class PaymentService {
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
 
     private final PaymentRepository paymentRepository;
     private final PaymentGateway paymentGateway;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final EventRegistrationRepository eventRegistrationRepository;
 
-    public PaymentService(PaymentRepository paymentRepository,
-                          PaymentGateway paymentGateway,
-                          PaymentTransactionRepository paymentTransactionRepository,
-                          EventRegistrationRepository eventRegistrationRepository) {
+    public PaymentService(
+            PaymentRepository paymentRepository,
+            PaymentGateway paymentGateway,
+            PaymentTransactionRepository paymentTransactionRepository,
+            EventRegistrationRepository eventRegistrationRepository
+    ) {
         this.paymentRepository = paymentRepository;
         this.paymentGateway = paymentGateway;
         this.paymentTransactionRepository = paymentTransactionRepository;
@@ -43,11 +51,30 @@ public class PaymentService {
      */
     @Transactional
     public PaymentReadyResponse requestPayment(Long userId, Long eventId, PaymentCreateRequest req) {
+        if (req == null) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        if (req.amount() == null || req.amount().compareTo(java.math.BigDecimal.ZERO) <= 0)
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        if (req.paymentMethod() == null) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        if (eventId == null) throw new BusinessException(ErrorCode.INVALID_REQUEST);
+
+        EventRegistration apply = eventRegistrationRepository
+                .findByEventIdAndUserIdAndStatusForUpdate(eventId, userId, RegistrationStatus.APPLIED)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EVENT_REGISTRATION_NOT_FOUND));
+
+        Long applyId = apply.getApplyId();
+        if (applyId == null) throw new BusinessException(ErrorCode.EVENT_REGISTRATION_NOT_FOUND);
+
+        boolean activeExists = paymentRepository
+                .findActiveByEventApplyIdForUpdate(applyId, EnumSet.of(PaymentStatus.REQUESTED, PaymentStatus.APPROVED))
+                .isPresent();
+        if (activeExists) throw new BusinessException(ErrorCode.PAYMENT_DUPLICATE_ACTIVE);
+
         String orderNo = "P" + UUID.randomUUID().toString().replace("-", "").substring(0, 20);
 
         Payment payment = Payment.requested(
                 userId,
                 eventId,
+                applyId,
                 orderNo,
                 req.amount(),
                 req.paymentMethod()
@@ -55,40 +82,56 @@ public class PaymentService {
 
         paymentRepository.save(payment);
 
-        //  ready 호출 (카카오페이 결제창 URL 내려줌)
-        PaymentReadyResponse ready = paymentGateway.ready(payment, new PaymentReadyRequest("Pupoo 결제", 1, 0));
+        log.info("[Payment][AFTER_SAVE] paymentId={}, orderNo={}, userId={}, eventId={}, applyId={}",
+                payment.getPaymentId(), payment.getOrderNo(), userId, eventId, applyId);
 
-        // DB 우선 정책: payment_transactions 테이블에 READY 트랜잭션을 적재한다.
-        PaymentTransaction readyTx = PaymentTransaction.ready(payment.getPaymentId(), ready.tid(), null);
-        paymentTransactionRepository.save(readyTx);
+        try {
+            log.info("[Payment][READY] paymentId={}, orderNo={}, eventId={}, userId={}, amount={}, method={}",
+                    payment.getPaymentId(),
+                    payment.getOrderNo(),
+                    payment.getEventId(),
+                    payment.getUserId(),
+                    req.amount(),
+                    req.paymentMethod());
 
-        return ready;
+            return paymentGateway.ready(payment, new PaymentReadyRequest("Pupoo 결제", 1, req.amount(), 0));
+
+        } catch (BusinessException e) {
+            log.warn("[Payment][READY][BIZ] {}", e.getMessage());
+            throw e;
+
+        } catch (RestClientResponseException e) {
+            log.error("[Payment][READY][HTTP] status={}, body={}", e.getRawStatusCode(), e.getResponseBodyAsString(), e);
+            throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, e.getResponseBodyAsString());
+
+        } catch (Exception e) {
+            log.error("[Payment][READY][UNEXPECTED]", e);
+            throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, e.toString());
+        }
     }
 
     /**
      * 결제 승인 콜백/처리 (카카오페이: pg_token 필수)
-     *  승인 성공 시 event_apply(EventRegistration) 자동 APPROVED 처리
+     * 승인 성공 시 event_registration 자동 APPROVED 처리
      */
     @Transactional
     public PaymentResponse approvePayment(Long paymentId, String pgToken) {
         Payment payment = paymentRepository.findByIdForUpdate(paymentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
 
-        /*
-         * 기능: 결제 승인(approve) 멱등 + 상태 동기화
-         * - payment.status와 payment_transactions.status가 어긋나는 경우(중간 장애/재시도)도 안전하게 수렴시킨다.
-         */
-        PaymentTransaction tx = paymentTransactionRepository.findLatestByPaymentIdForUpdate(paymentId, PageRequest.of(0, 1))
-                .stream().findFirst()
+        PaymentTransaction tx = paymentTransactionRepository
+                .findLatestByPaymentIdForUpdate(paymentId, PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_TX_NOT_FOUND));
 
-        // 이미 승인 완료된 트랜잭션이면, payment도 승인 상태로 수렴시킨다(멱등)
+        // tx 멱등
         if (tx.getStatus() == PaymentTransactionStatus.APPROVED) {
             if (payment.getStatus() != PaymentStatus.APPROVED) {
                 payment.markApproved();
                 autoApproveEventApply(payment);
             }
-            return PaymentResponse.from(payment);
+            return toResponseWithEvent(paymentId, payment);
         }
 
         // 취소/실패 트랜잭션은 승인 불가
@@ -98,10 +141,9 @@ public class PaymentService {
 
         // payment 멱등
         if (payment.getStatus() == PaymentStatus.APPROVED) {
-            return PaymentResponse.from(payment);
+        	return toResponseWithEvent(paymentId, payment);
         }
         if (payment.getStatus() != PaymentStatus.REQUESTED) {
-            // 기능: 결제 승인 상태 전이 검증
             throw new BusinessException(ErrorCode.PAYMENT_INVALID_STATUS);
         }
 
@@ -109,41 +151,36 @@ public class PaymentService {
 
         if (ok) {
             payment.markApproved();
-
             autoApproveEventApply(payment);
-
         } else {
             payment.markFailed();
         }
 
-        return PaymentResponse.from(payment);
+        return toResponseWithEvent(paymentId, payment);
     }
 
     /**
      * 결제 취소 요청
-     * - APPROVED인 결제만 취소 가능(운영 정책에 맞춰 조정)
+     * - APPROVED인 결제만 취소 가능(정책)
      */
     @Transactional
     public PaymentResponse cancelPayment(Long paymentId) {
         Payment payment = paymentRepository.findByIdForUpdate(paymentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
 
-        /*
-         * 기능: 결제 취소(cancel) 멱등 + 상태 동기화
-         * - 트랜잭션이 이미 취소된 경우 payment를 CANCELLED로 수렴시킨다.
-         */
-        PaymentTransaction tx = paymentTransactionRepository.findLatestByPaymentIdForUpdate(paymentId, PageRequest.of(0, 1))
-                .stream().findFirst()
+        PaymentTransaction tx = paymentTransactionRepository
+                .findLatestByPaymentIdForUpdate(paymentId, PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_TX_NOT_FOUND));
 
         if (tx.getStatus() == PaymentTransactionStatus.CANCELLED) {
             if (payment.getStatus() != PaymentStatus.CANCELLED) {
                 payment.markCancelled();
             }
-            return PaymentResponse.from(payment);
+            return toResponseWithEvent(paymentId, payment);
         }
 
-        // 실패 트랜잭션은 취소 불가(이미 실패 상태)
         if (tx.getStatus() == PaymentTransactionStatus.FAILED) {
             throw new BusinessException(ErrorCode.PAYMENT_TX_INVALID_STATUS);
         }
@@ -154,32 +191,30 @@ public class PaymentService {
         }
 
         if (payment.getStatus() == PaymentStatus.CANCELLED) {
-            return PaymentResponse.from(payment);
+        	return toResponseWithEvent(paymentId, payment);
         }
         if (payment.getStatus() != PaymentStatus.APPROVED) {
-            // 기능: 결제 취소 상태 전이 검증
             throw new BusinessException(ErrorCode.PAYMENT_INVALID_STATUS);
         }
 
         boolean ok = paymentGateway.cancel(payment);
-        // 기능: PG 취소 실패
         if (!ok) throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR);
 
         payment.markCancelled();
-        return PaymentResponse.from(payment);
+        return toResponseWithEvent(paymentId, payment);
     }
 
+    /**
+     * ✅ 결제 내역 조회 (eventTitle/eventStartAt/eventEndAt 포함)
+     * - N+1 방지: Payment + Event 조인 조회
+     */
     public Page<PaymentResponse> myPayments(Long userId, Pageable pageable) {
-        return paymentRepository.findByUserId(userId, pageable).map(PaymentResponse::from);
+        return paymentRepository.findMyPaymentHistory(userId, pageable)
+                .map(PaymentResponse::fromRow);
     }
 
     /**
      * 결제 승인 성공 시 이벤트 참가 신청을 자동 APPROVED 처리한다.
-     *
-     * 정책
-     * - event_apply가 존재하면 APPLIED -> APPROVED 로 전이한다.
-     * - 이미 APPROVED 이면 멱등 처리한다.
-     * - 참가 신청이 없는 경우(비정상 흐름)에는 생성하지 않고 예외로 처리한다.
      */
     private void autoApproveEventApply(Payment payment) {
         Long eventId = payment.getEventId();
@@ -193,5 +228,15 @@ public class PaymentService {
         if (er.getStatus() == RegistrationStatus.APPLIED) {
             er.approve();
         }
+    }
+
+    /**
+     * approve/cancel 반환도 event 정보 포함시키기 위해 단건 조인 조회 사용
+     * (조인 조회 실패 시 기존 payment 기반 fallback)
+     */
+    private PaymentResponse toResponseWithEvent(Long paymentId, Payment fallback) {
+        return paymentRepository.findPaymentDetail(paymentId)
+                .map(PaymentResponse::fromRow)
+                .orElseGet(() -> PaymentResponse.from(fallback));
     }
 }

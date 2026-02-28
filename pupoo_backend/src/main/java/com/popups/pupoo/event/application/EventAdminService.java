@@ -64,7 +64,8 @@ public class EventAdminService {
                 request.getEndAt(),
                 request.getLocation(),
                 request.getStatus(),
-                request.getRoundNo()
+                request.getRoundNo(),
+                request.getBaseFee()
         );
         Event saved = eventRepository.save(event);
 
@@ -99,7 +100,8 @@ public class EventAdminService {
                 request.getEndAt(),
                 request.getLocation(),
                 request.getStatus(),
-                request.getRoundNo()
+                request.getRoundNo(),
+                request.getBaseFee() != null ? request.getBaseFee() : event.getBaseFee()
         );
 
         saveEventInterests(eventId, request.getInterestIds());

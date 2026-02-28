@@ -6,6 +6,7 @@ import com.popups.pupoo.event.domain.model.EventRegistration;
 import com.popups.pupoo.event.persistence.EventRegistrationRepository;
 import com.popups.pupoo.payment.domain.enums.PaymentStatus;
 import com.popups.pupoo.payment.domain.model.Payment;
+import com.popups.pupoo.payment.domain.enums.PaymentProvider;
 import com.popups.pupoo.payment.persistence.PaymentRepository;
 import com.popups.pupoo.payment.port.PaymentGateway;
 import com.popups.pupoo.payment.refund.domain.enums.RefundStatus;
@@ -22,10 +23,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -59,11 +62,14 @@ class RefundAdminServiceIT {
         seedEvent(eventId);
         em.flush();
 
-        Payment payment = seedApprovedPayment(userId, eventId);
-        Refund refund = seedRequestedRefund(payment);
-
+        // Payment.requested(...) 시그니처가 (userId, eventId, targetId, orderNo, amount, provider) 형태이므로
+        // 결제 타겟(PK)을 먼저 확보한다. 여기서는 event_apply의 applyId를 targetId로 사용한다.
         EventRegistration reg = eventRegistrationRepository.save(EventRegistration.create(eventId, userId));
         reg.approve();
+        Long applyId = reg.getApplyId();
+
+        Payment payment = seedApprovedPayment(userId, eventId, applyId);
+        Refund refund = seedRequestedRefund(payment);
 
         Program program = seedProgram(eventId);
         programApplyRepository.save(ProgramApply.create(userId, program.getProgramId()));
@@ -80,10 +86,13 @@ class RefundAdminServiceIT {
         assertThat(savedRefund.getStatus()).isEqualTo(RefundStatus.COMPLETED);
         assertThat(savedPayment.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
 
-        EventRegistration savedReg = eventRegistrationRepository.findById(reg.getApplyId()).orElseThrow();
+        EventRegistration savedReg = eventRegistrationRepository.findById(applyId).orElseThrow();
         assertThat(savedReg.getStatus()).isEqualTo(RegistrationStatus.CANCELLED);
 
-        List<ProgramApply> applies = programApplyRepository.findByUserId(userId, org.springframework.data.domain.Pageable.unpaged()).getContent();
+        List<ProgramApply> applies = programApplyRepository
+                .findByUserId(userId, Pageable.unpaged())
+                .getContent();
+
         assertThat(applies).isNotEmpty();
         applies.forEach(a -> {
             assertThat(a.getStatus()).isEqualTo(ApplyStatus.CANCELLED);
@@ -99,27 +108,24 @@ class RefundAdminServiceIT {
         long userId = 101L;
         long eventId = 201L;
 
-        // ✅ FK 방지: 두 번째 테스트도 반드시 시딩 필요
         seedUser(userId);
         seedEvent(eventId);
         em.flush();
 
-        Payment payment = seedApprovedPayment(userId, eventId);
-        Refund refund = seedRequestedRefund(payment);
-
         EventRegistration reg = eventRegistrationRepository.save(EventRegistration.create(eventId, userId));
         reg.approve();
+        Long applyId = reg.getApplyId();
+
+        Payment payment = seedApprovedPayment(userId, eventId, applyId);
+        Refund refund = seedRequestedRefund(payment);
 
         Program program = seedProgram(eventId);
         ProgramApply apply = programApplyRepository.save(ProgramApply.create(userId, program.getProgramId()));
-
-        // native update 전에 PK 확보(안정)
-        Long applyId = reg.getApplyId();
         Long programApplyId = apply.getProgramApplyId();
 
         Mockito.when(paymentGateway.cancel(any(Payment.class))).thenReturn(true);
 
-        // 1) 정상 승인 1회 → COMPLETED + 자동 취소 완료
+        // 1) 정상 승인 1회
         refundAdminService.approveAndComplete(refund.getRefundId());
         em.flush();
         em.clear();
@@ -163,15 +169,18 @@ class RefundAdminServiceIT {
 
     // helpers
 
-    private Payment seedApprovedPayment(long userId, long eventId) {
+    private Payment seedApprovedPayment(long userId, long eventId, long targetId) {
         String orderNo = "ORD-TEST-" + System.nanoTime();
+
         Payment payment = Payment.requested(
                 userId,
                 eventId,
+                targetId,
                 orderNo,
-                new java.math.BigDecimal("10000.00"),
-                com.popups.pupoo.payment.domain.enums.PaymentProvider.KAKAOPAY
+                new BigDecimal("10000.00"),
+                PaymentProvider.KAKAOPAY
         );
+
         payment.markApproved();
         return paymentRepository.save(payment);
     }
@@ -212,7 +221,7 @@ class RefundAdminServiceIT {
         .setParameter("email", "test" + userId + "@pupoo.io")
         .setParameter("pw", "testpw")
         .setParameter("nick", "testnick" + userId)
-        .setParameter("phone", "010-0000-" + String.format("%04d", (int)(userId % 10000)))
+        .setParameter("phone", "010-0000-" + String.format("%04d", (int) (userId % 10000)))
         .executeUpdate();
     }
 

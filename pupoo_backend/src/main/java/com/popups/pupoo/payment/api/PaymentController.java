@@ -2,6 +2,7 @@
 package com.popups.pupoo.payment.api;
 
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.PageResponse;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.payment.application.PaymentService;
@@ -49,12 +50,13 @@ public class PaymentController {
     }
 
     @GetMapping("/payments/my")
-    public ApiResponse<Page<PaymentResponse>> myPayments(Pageable pageable) {
-        return ApiResponse.success(paymentService.myPayments(currentUserId(), pageable));
+    public ApiResponse<PageResponse<PaymentResponse>> myPayments(Pageable pageable) {
+        Page<PaymentResponse> page = paymentService.myPayments(currentUserId(), pageable);
+        return ApiResponse.success(PageResponse.from(page));
     }
 
 
-    @GetMapping("/payments/{paymentId}/approve")
+    @PostMapping("/payments/{paymentId}/approve")
     public ApiResponse<PaymentResponse> approve(
             @PathVariable("paymentId") Long paymentId,
             @RequestParam("pg_token") String pgToken

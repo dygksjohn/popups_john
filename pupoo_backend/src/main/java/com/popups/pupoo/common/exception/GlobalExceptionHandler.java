@@ -26,7 +26,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e, HttpServletRequest request) {
         ErrorCode ec = e.getErrorCode();
-        ErrorResponse body = new ErrorResponse(ec.getCode(), e.getMessage(), ec.getStatus().value(), request.getRequestURI());
+        String msg = e.getMessage();
+        if (msg == null || msg.isBlank()) {
+            msg = ec.getMessage();
+        }
+        ErrorResponse body = new ErrorResponse(ec.getCode(), msg, ec.getStatus().value(), request.getRequestURI());
         return ResponseEntity.status(ec.getStatus()).body(ApiResponse.fail(body));
     }
 

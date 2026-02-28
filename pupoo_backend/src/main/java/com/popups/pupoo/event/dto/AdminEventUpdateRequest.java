@@ -3,6 +3,7 @@ package com.popups.pupoo.event.dto;
 
 import com.popups.pupoo.event.domain.enums.EventStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -19,6 +20,7 @@ public class AdminEventUpdateRequest {
     private String location;
     private EventStatus status;
     private Integer roundNo;
+    private BigDecimal baseFee;
 
     private List<Long> interestIds;
 
@@ -29,5 +31,6 @@ public class AdminEventUpdateRequest {
     public String getLocation() { return location; }
     public EventStatus getStatus() { return status; }
     public Integer getRoundNo() { return roundNo; }
+    public BigDecimal getBaseFee() { return baseFee; }
     public List<Long> getInterestIds() { return interestIds; }
 }

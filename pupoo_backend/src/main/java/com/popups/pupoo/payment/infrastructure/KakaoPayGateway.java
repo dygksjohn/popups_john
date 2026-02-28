@@ -15,12 +15,16 @@ import com.popups.pupoo.common.exception.ErrorCode;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Component;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientResponseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 
 @Component
 public class KakaoPayGateway implements PaymentGateway {
+
+    private static final Logger log = LoggerFactory.getLogger(KakaoPayGateway.class);
 
     private final KakaoPayClient client;
     private final KakaoPayProperties props;
@@ -53,16 +57,45 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
     @Override
     @Transactional
     public PaymentReadyResponse ready(Payment payment, PaymentReadyRequest req) {
+    	
+    	log.warn("[KakaoPay][READY_ENTER] paymentId={}, orderNo={}, userId={}",
+    	        payment.getPaymentId(), payment.getOrderNo(), payment.getUserId());
+    	
+    	
         validateKakaoPay(payment);
+        validateKakaoPayConfig();
+
+        if (props.cid() == null || props.cid().isBlank()
+                || props.approvalUrl() == null || props.approvalUrl().isBlank()
+                || props.cancelUrl() == null || props.cancelUrl().isBlank()
+                || props.failUrl() == null || props.failUrl().isBlank()) {
+            throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, "KakaoPay config invalid: cid/urls blank");
+        }
 
         // 멱등: 이미 tx가 있으면 raw_ready로 동일 응답을 재구성하여 반환한다.
         // - READY/APPROVED는 "이미 ready가 한번 수행된 결제"로 보고 그대로 반환한다.
         // - CANCELLED/FAILED는 재-ready를 허용하지 않는다(결제는 새로 생성해야 함)
         PaymentTransaction existing = findLatestTxForUpdate(payment.getPaymentId());
+        log.warn("[KakaoPay][READY_EXISTING] paymentId={}, existing={}",
+                payment.getPaymentId(),
+                existing == null ? "null" :
+                    ("txId=" + existing.getTxId()
+                     + ", status=" + existing.getStatus()
+                     + ", rawReadyLen=" + (existing.getRawReady()==null?0:existing.getRawReady().length())));
         if (existing != null) {
-            if ("READY".equals(existing.getStatus().name()) || "APPROVED".equals(existing.getStatus().name())) {
+
+            // 1) APPROVED면 결제 완료 → ready 재호출 금지
+            if ("APPROVED".equals(existing.getStatus().name())) {
+                throw new BusinessException(
+                        ErrorCode.PAYMENT_DUPLICATE_ACTIVE, // 또는 새 에러코드 PAYMENT_ALREADY_APPROVED
+                        "KakaoPay already approved: paymentId=" + payment.getPaymentId()
+                );
+            }
+
+            // 2) READY면 멱등 재사용 허용(redirect_url 재구성)
+            if ("READY".equals(existing.getStatus().name())) {
                 if (existing.getRawReady() == null || existing.getRawReady().isBlank()) {
-                    throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR);
+                    throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, "KakaoPay idempotency: rawReady missing");
                 }
                 KakaoPayReadyResponse raw = client.parseReadyResponse(existing.getRawReady());
                 return new PaymentReadyResponse(
@@ -73,8 +106,12 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
                         raw.next_redirect_mobile_url()
                 );
             }
-            // 기능: READY 재호출 불가 상태
-            throw new BusinessException(ErrorCode.PAYMENT_TX_INVALID_STATUS);
+
+            // 3) CANCELLED/FAILED 등은 재-ready 금지(새 payment 생성해야 함)
+            throw new BusinessException(
+                    ErrorCode.PAYMENT_PG_ERROR,
+                    "KakaoPay idempotency: tx status invalid=" + existing.getStatus().name()
+            );
         }
 
         // URL 확정 (paymentId 치환)
@@ -84,12 +121,16 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
 
         // === 요청값 기본 검증(카카오가 500으로 뭉개는 케이스 예방) ===
         // 기능: 결제 요청값 검증
-        if (req.quantity() <= 0) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
-        if (req.itemName() == null || req.itemName().isBlank()) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        if (req.quantity() <= 0) throw new BusinessException(ErrorCode.VALIDATION_FAILED, "quantity must be > 0");
+        if (req.itemName() == null || req.itemName().isBlank()) throw new BusinessException(ErrorCode.VALIDATION_FAILED, "itemName is required");
 
-        int totalAmount = toIntAmount(payment.getAmount()); // 카카오: 보통 정수 금액
+        java.math.BigDecimal readyAmount = req.amount();
+        if (readyAmount == null || readyAmount.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "amount must be > 0");
+        }
+        int totalAmount = toIntAmount(readyAmount); // 카카오: 보통 정수 금액
         int taxFree = Math.max(req.taxFreeAmount(), 0);
-        if (taxFree > totalAmount) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        if (taxFree > totalAmount) throw new BusinessException(ErrorCode.VALIDATION_FAILED, "taxFreeAmount must be <= totalAmount");
 
         KakaoPayReadyRequest readyReq = new KakaoPayReadyRequest(
                 props.cid(),
@@ -105,17 +146,18 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
         );
 
         //  요청 로그(민감정보 없음)
-        System.out.println("[KakaoPay][READY] paymentId=" + payment.getPaymentId()
-                + ", cid=" + props.cid()
-                + ", orderNo=" + payment.getOrderNo()
-                + ", userId=" + payment.getUserId()
-                + ", item=" + req.itemName()
-                + ", qty=" + req.quantity()
-                + ", total=" + totalAmount
-                + ", taxFree=" + taxFree
-                + ", approvalUrl=" + approvalUrl
-                + ", cancelUrl=" + cancelUrl
-                + ", failUrl=" + failUrl);
+        log.info("[KakaoPay][READY] paymentId={}, cid={}, orderNo={}, userId={}, item={}, qty={}, total={}, taxFree={}, approvalUrl={}, cancelUrl={}, failUrl={}",
+                payment.getPaymentId(),
+                props.cid(),
+                payment.getOrderNo(),
+                payment.getUserId(),
+                req.itemName(),
+                req.quantity(),
+                totalAmount,
+                taxFree,
+                approvalUrl,
+                cancelUrl,
+                failUrl);
 
         try {
             KakaoPayReadyResponse res = client.ready(readyReq);
@@ -134,11 +176,22 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
                     res.next_redirect_pc_url(),
                     res.next_redirect_mobile_url()
             );
-        } catch (HttpStatusCodeException e) {
-            //  카카오가 내려주는 body를 그대로 로그로 남겨야 원인 추적 가능
-            System.out.println("[KakaoPay][READY][ERROR] status=" + e.getStatusCode()
-                    + ", body=" + e.getResponseBodyAsString());
-            throw e;
+        } catch (RestClientResponseException e) {
+            log.error(
+                    "[KakaoPay][READY][ERROR] status={}, body={}, cid={}, total={}, approvalUrl={}, cancelUrl={}, failUrl={}",
+                    e.getRawStatusCode(),
+                    e.getResponseBodyAsString(),
+                    props.cid(),
+                    totalAmount,
+                    approvalUrl,
+                    cancelUrl,
+                    failUrl,
+                    e
+            );
+            throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, e.getResponseBodyAsString());
+        } catch (Exception e) {
+            log.error("[KakaoPay][READY][UNEXPECTED]", e);
+            throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, e.toString());
         }
     }
 
@@ -152,6 +205,7 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
     @Transactional
     public boolean approve(Payment payment, PaymentApproveRequest req) {
         validateKakaoPay(payment);
+        validateKakaoPayConfig();
 
         if (payment.getStatus() != PaymentStatus.REQUESTED) {
             // 기능: 결제 승인 상태 전이 검증
@@ -173,7 +227,7 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
         // 승인 요청은 READY 상태에서만 허용
         if (!"READY".equals(tx.getStatus().name())) {
             // 기능: 트랜잭션 상태 전이 검증
-            throw new BusinessException(ErrorCode.PAYMENT_TX_INVALID_STATUS);
+            throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, "KakaoPay approve invalid tx status=" + tx.getStatus().name());
         }
 
         tx.setPgToken(req.pgToken());
@@ -187,23 +241,27 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
         );
 
         //  요청 로그
-        System.out.println("[KakaoPay][APPROVE] paymentId=" + payment.getPaymentId()
-                + ", cid=" + props.cid()
-                + ", tid=" + tx.getPgTid()
-                + ", orderNo=" + payment.getOrderNo()
-                + ", userId=" + payment.getUserId());
+        log.info("[KakaoPay][APPROVE] paymentId={}, cid={}, tid={}, orderNo={}, userId={}",
+                payment.getPaymentId(),
+                props.cid(),
+                tx.getPgTid(),
+                payment.getOrderNo(),
+                payment.getUserId());
 
         try {
             KakaoPayApproveResponse res = client.approve(approveReq);
             tx.markApproved(client.toJson(res));
             return true;
-        } catch (HttpStatusCodeException e) {
-            System.out.println("[KakaoPay][APPROVE][ERROR] status=" + e.getStatusCode()
-                    + ", body=" + e.getResponseBodyAsString());
+        } catch (RestClientResponseException e) {
+            log.error("[KakaoPay][APPROVE][ERROR] status={}, body={}",
+                    e.getRawStatusCode(),
+                    e.getResponseBodyAsString(),
+                    e);
             tx.markFailed(e.getResponseBodyAsString());
             return false;
         } catch (Exception e) {
-            tx.markFailed("{\"error\":\"approve failed\"}");
+            log.error("[KakaoPay][APPROVE][UNEXPECTED]", e);
+            tx.markFailed(e.toString());
             return false;
         }
     }
@@ -215,6 +273,8 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
             // 기능: 결제수단 검증
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
+
+        validateKakaoPayConfig();
 
         // 결제 취소/환불은 승인된 결제만 가능(정책)
         if (payment.getStatus() != PaymentStatus.APPROVED) {
@@ -233,7 +293,7 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
         // APPROVED 상태의 트랜잭션만 취소 가능(정책)
         if (!"APPROVED".equals(tx.getStatus().name())) {
             // 기능: 트랜잭션 상태 전이 검증
-            throw new BusinessException(ErrorCode.PAYMENT_TX_INVALID_STATUS);
+            throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, "KakaoPay cancel invalid tx status=" + tx.getStatus().name());
         }
 
         int cancelAmount = payment.getAmount().intValue(); // 현재 금액이 정수라는 전제(테스트)
@@ -245,21 +305,25 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
                 0
         );
 
-        System.out.println("[KakaoPay][CANCEL] paymentId=" + payment.getPaymentId()
-                + ", tid=" + tx.getPgTid()
-                + ", cancelAmount=" + cancelAmount);
+        log.info("[KakaoPay][CANCEL] paymentId={}, tid={}, cancelAmount={}",
+                payment.getPaymentId(),
+                tx.getPgTid(),
+                cancelAmount);
 
         try {
             KakaoPayCancelResponse res = client.cancel(cancelReq);
             tx.markCancelled(client.toJson(res));
             return true;
-        } catch (HttpStatusCodeException e) {
-            System.out.println("[KakaoPay][CANCEL][ERROR] status=" + e.getStatusCode()
-                    + ", body=" + e.getResponseBodyAsString());
+        } catch (RestClientResponseException e) {
+            log.error("[KakaoPay][CANCEL][ERROR] status={}, body={}",
+                    e.getRawStatusCode(),
+                    e.getResponseBodyAsString(),
+                    e);
             tx.markFailed(e.getResponseBodyAsString());
             return false;
         } catch (Exception e) {
-            tx.markFailed("{\"error\":\"cancel failed\"}");
+            log.error("[KakaoPay][CANCEL][UNEXPECTED]", e);
+            tx.markFailed(e.toString());
             return false;
         }
     }
@@ -268,7 +332,19 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
     private void validateKakaoPay(Payment payment) {
         if (payment.getPaymentMethod() != PaymentProvider.KAKAOPAY) {
             // 기능: 결제수단 검증
-            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, "KakaoPay method required");
+        }
+    }
+
+    private void validateKakaoPayConfig() {
+        String secret = props.secretKey();
+        if (secret == null || secret.isBlank()
+                || "__MISSING__".equals(secret)
+                || secret.contains("$")) {
+            throw new BusinessException(
+                    ErrorCode.PAYMENT_PG_ERROR,
+                    "KakaoPay secret key is missing"
+            );
         }
     }
 
@@ -278,9 +354,9 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
      */
     private int toIntAmount(BigDecimal amount) {
         // 기능: 금액 검증
-        if (amount == null) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        if (amount == null) throw new BusinessException(ErrorCode.VALIDATION_FAILED, "amount is required");
         if (amount.scale() > 0 && amount.stripTrailingZeros().scale() > 0) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "amount must be integer");
         }
         return amount.intValueExact();
     }

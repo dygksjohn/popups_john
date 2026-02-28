@@ -32,6 +32,9 @@ public class Payment {
     @Column(name = "event_id")
     private Long eventId; // NULL 가능(DDL)
 
+    @Column(name = "event_apply_id", nullable = false)
+    private Long eventApplyId;
+
     @Column(name = "order_no", nullable = false, length = 50)
     private String orderNo;
 
@@ -51,10 +54,11 @@ public class Payment {
 
     protected Payment() {}
 
-    public static Payment requested(Long userId, Long eventId, String orderNo, BigDecimal amount, PaymentProvider method) {
+    public static Payment requested(Long userId, Long eventId, Long eventApplyId, String orderNo, BigDecimal amount, PaymentProvider method) {
         Payment p = new Payment();
         p.userId = userId;
         p.eventId = eventId;
+        p.eventApplyId = eventApplyId;
         p.orderNo = orderNo;
         p.amount = amount;
         p.paymentMethod = method;
@@ -79,6 +83,7 @@ public class Payment {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) throw new IllegalStateException("amount must be positive");
         if (paymentMethod == null) throw new IllegalStateException("paymentMethod required");
         if (status == null) throw new IllegalStateException("status required");
+        if (eventApplyId == null) throw new IllegalStateException("eventApplyId required");
     }
 
     // 상태 전이
@@ -91,6 +96,7 @@ public class Payment {
     public Long getPaymentId() { return paymentId; }
     public Long getUserId() { return userId; }
     public Long getEventId() { return eventId; }
+    public Long getEventApplyId() { return eventApplyId; }
     public String getOrderNo() { return orderNo; }
     public BigDecimal getAmount() { return amount; }
     public PaymentProvider getPaymentMethod() { return paymentMethod; }

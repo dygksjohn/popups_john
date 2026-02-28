@@ -1,46 +1,37 @@
-// AuthProvider.jsx
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { authApi } from "./api/authApi";
 
 const AuthContext = createContext(null);
 
-const DEBUG_AUTH = false; // ← 디버깅 필요하면 true로 변경
-
 export function AuthProvider({ children }) {
+  const [isAuthed, setIsAuthed] = useState(false);
   const [isBootstrapped, setIsBootstrapped] = useState(false);
-  const [isAuthed, setIsAuthed] = useState(() => !!tokenStore.getAccess());
-
-  const snapshot = (tag) => {
-    if (!DEBUG_AUTH) return;
-    const access = tokenStore.getAccess();
-    console.log(`[AuthProvider] ${tag}`, {
-      isAuthed,
-      hasAccess: !!access,
-      accessHead: access ? String(access).slice(0, 12) + "..." : null,
-      pathname: window.location.pathname,
-      ts: new Date().toISOString(),
-    });
-  };
+  const bootstrappingRef = useRef(false);
 
   useEffect(() => {
-    snapshot("MOUNT");
-
-    // 새로고침/재진입 시 accessToken이 메모리에서 사라졌을 수 있으므로
-    // refresh_token(HttpOnly 쿠키)로 accessToken을 복구 시도한다.
+    // ✅ 초기 1회: 메모리에 access 없으면 refresh로 복구 시도
     const bootstrap = async () => {
+      if (bootstrappingRef.current) return;
+      bootstrappingRef.current = true;
+
       try {
-        if (!tokenStore.getAccess()) {
-          const data = await authApi.refresh({ withCredentials: true });
-          const accessToken = data?.accessToken;
-          if (accessToken) {
-            tokenStore.setAccess(accessToken);
-            setIsAuthed(true);
-          }
+        const access = tokenStore.getAccess();
+        if (access) {
+          setIsAuthed(true);
+          return;
         }
-      } catch (e) {
-        // refresh 실패면 비로그인 상태 유지
-        tokenStore.clear();
+
+        // refresh_token은 HttpOnly 쿠키이므로 withCredentials 기반으로 서버에 복구 요청
+        const res = await authApi.refresh(); 
+        // res가 { accessToken } 형태라고 가정 (프로젝트 실제 응답에 맞춰 조정)
+        if (res?.accessToken) {
+          tokenStore.setAccess(res.accessToken);
+          setIsAuthed(true);
+        } else {
+          setIsAuthed(false);
+        }
+      } catch {
         setIsAuthed(false);
       } finally {
         setIsBootstrapped(true);
@@ -48,86 +39,42 @@ export function AuthProvider({ children }) {
     };
 
     bootstrap();
+  }, []);
 
-    const sync = (reason) => {
-      const has = !!tokenStore.getAccess();
-      if (DEBUG_AUTH)
-        console.log(`[AuthProvider] sync(${reason}) -> setIsAuthed(${has})`);
-      setIsAuthed(has);
+  // ✅ focus/visibility에서는 "강제로 false로 내리지 말기"
+  // (메모리-only에서는 순간 null/레이스가 생기면 바로 로그아웃처럼 보임)
+  useEffect(() => {
+    const onFocus = () => {
+      // access가 있으면 true로만 올려준다(없다고 해서 false로 내리지 않음)
+      if (tokenStore.getAccess()) setIsAuthed(true);
     };
-
-    sync("mount");
-
-    const onFocus = () => sync("focus");
     const onVisibility = () => {
-      if (document.visibilityState === "visible") sync("visibility");
-    };
-
-    const onStorage = (e) => {
-      if (e.key === "pupoo_access_token" || e.key === "pupoo_refresh_token") {
-        if (DEBUG_AUTH) {
-          console.log("[AuthProvider] storage event", {
-            key: e.key,
-            oldValueHead: e.oldValue
-              ? String(e.oldValue).slice(0, 10) + "..."
-              : null,
-            newValueHead: e.newValue
-              ? String(e.newValue).slice(0, 10) + "..."
-              : null,
-          });
-        }
-        sync("storage");
+      if (document.visibilityState === "visible") {
+        if (tokenStore.getAccess()) setIsAuthed(true);
       }
     };
 
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("storage", onStorage);
-
     return () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("storage", onStorage);
-      if (DEBUG_AUTH) console.log("[AuthProvider] UNMOUNT");
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    snapshot("STATE_CHANGE");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthed]);
-
-  const login = () => {
-    if (DEBUG_AUTH)
-      console.log("[AuthProvider] login() called -> setIsAuthed(true)");
-    setIsAuthed(true);
-    snapshot("AFTER login()");
-  };
+  const login = () => setIsAuthed(true);
 
   const logoutLocal = () => {
-    if (DEBUG_AUTH)
-      console.log("[AuthProvider] logoutLocal() called -> clear token");
     tokenStore.clear();
     setIsAuthed(false);
-    snapshot("AFTER logoutLocal()");
   };
 
   const logout = async () => {
-    if (DEBUG_AUTH)
-      console.log("[AuthProvider] logout() called -> call server");
     try {
       await authApi.logout();
-    } catch (e) {
-      if (DEBUG_AUTH)
-        console.log(
-          "[AuthProvider] logout() server FAIL (ignored)",
-          e?.message,
-        );
     } finally {
       tokenStore.clear();
       setIsAuthed(false);
-      snapshot("AFTER logout()");
     }
   };
 

@@ -4,6 +4,7 @@ package com.popups.pupoo.event.domain.model;
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -53,6 +54,9 @@ public class Event {
     @Column(name = "round_no")
     private Integer roundNo;
 
+    @Column(name = "base_fee", precision = 10, scale = 2, nullable = false)
+    private BigDecimal baseFee = BigDecimal.ZERO;
+
     protected Event() {
         // JPA 기본 생성자
     }
@@ -64,7 +68,8 @@ public class Event {
             LocalDateTime endAt,
             String location,
             EventStatus status,
-            Integer roundNo
+            Integer roundNo,
+            BigDecimal baseFee
     ) {
         Event e = new Event();
         e.eventName = eventName;
@@ -74,6 +79,7 @@ public class Event {
         e.location = location;
         e.status = status;
         e.roundNo = roundNo;
+        e.baseFee = baseFee != null ? baseFee : BigDecimal.ZERO;
         return e;
     }
 
@@ -84,7 +90,8 @@ public class Event {
             LocalDateTime endAt,
             String location,
             EventStatus status,
-            Integer roundNo
+            Integer roundNo,
+            BigDecimal baseFee
     ) {
         this.eventName = eventName;
         this.description = description;
@@ -93,6 +100,9 @@ public class Event {
         this.location = location;
         this.status = status;
         this.roundNo = roundNo;
+        if (baseFee != null) {
+            this.baseFee = baseFee;
+        }
     }
 
     /**
@@ -111,6 +121,7 @@ public class Event {
     public String getLocation() { return location; }
     public EventStatus getStatus() { return status; }
     public Integer getRoundNo() { return roundNo; }
+    public BigDecimal getBaseFee() { return baseFee; }
 
     	
     public boolean isClosed() {

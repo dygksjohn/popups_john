@@ -4,6 +4,7 @@ package com.popups.pupoo.event.dto;
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.model.Event;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -19,6 +20,7 @@ public class EventResponse {
     private String location;
     private EventStatus status;
     private Integer roundNo;
+    private BigDecimal baseFee;
 
     public static EventResponse from(Event e) {
         EventResponse r = new EventResponse();
@@ -30,6 +32,7 @@ public class EventResponse {
         r.location = e.getLocation();
         r.status = e.getStatus();
         r.roundNo = e.getRoundNo();
+        r.baseFee = e.getBaseFee();
         return r;
     }
 
@@ -42,4 +45,5 @@ public class EventResponse {
     public String getLocation() { return location; }
     public EventStatus getStatus() { return status; }
     public Integer getRoundNo() { return roundNo; }
+    public BigDecimal getBaseFee() { return baseFee; }
 }

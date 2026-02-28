@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestClient;
 
 import com.popups.pupoo.common.exception.BusinessException;
@@ -38,10 +38,23 @@ public class KakaoPayClient {
 
             String secret = props.secretKey();
 
+         // 🔍 === DEBUG LOG START ===
+            System.out.println("[KakaoPay][CONF] secretRaw="
+                    + (secret == null ? "null"
+                    : (secret.length() <= 12 ? secret
+                    : secret.substring(0, 6) + "..." + secret.substring(secret.length() - 4))));
+
+            System.out.println("[KakaoPay][CONF] secretBlank="
+                    + (secret == null || secret.isBlank())
+                    + ", isMissing=" + "__MISSING__".equals(secret)
+                    + ", containsDollar=" + (secret != null && secret.contains("$"))
+                    + ", prefix='" + props.authorizationPrefix() + "'");
+            // 🔍 === DEBUG LOG END ===
+            
             //  부팅은 허용, 호출 시점에만 막는다.
             if (secret == null || secret.isBlank() || secret.contains("$") || "__MISSING__".equals(secret)) {
                 // 기능: PG 시크릿 미설정(운영/로컬 설정 오류)
-                throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR);
+                throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, "KakaoPay secret key is missing");
             }
 
             String auth = props.authorizationPrefix() + secret;
@@ -67,8 +80,8 @@ public class KakaoPayClient {
                     .body(req)
                     .retrieve()
                     .body(KakaoPayReadyResponse.class);
-        } catch (HttpStatusCodeException e) {
-            System.out.println("[KakaoPay][READY][ERROR] status=" + e.getStatusCode()
+        } catch (RestClientResponseException e) {
+            System.out.println("[KakaoPay][READY][ERROR] status=" + e.getRawStatusCode()
                     + ", body=" + e.getResponseBodyAsString());
             throw e;
         }
@@ -83,8 +96,8 @@ public class KakaoPayClient {
                     .body(req)
                     .retrieve()
                     .body(KakaoPayApproveResponse.class);
-        } catch (HttpStatusCodeException e) {
-            System.out.println("[KakaoPay][APPROVE][ERROR] status=" + e.getStatusCode()
+        } catch (RestClientResponseException e) {
+            System.out.println("[KakaoPay][APPROVE][ERROR] status=" + e.getRawStatusCode()
                     + ", body=" + e.getResponseBodyAsString());
             throw e;
         }
@@ -99,8 +112,8 @@ public class KakaoPayClient {
                     .body(req)
                     .retrieve()
                     .body(KakaoPayCancelResponse.class);
-        } catch (HttpStatusCodeException e) {
-            System.out.println("[KakaoPay][CANCEL][ERROR] status=" + e.getStatusCode()
+        } catch (RestClientResponseException e) {
+            System.out.println("[KakaoPay][CANCEL][ERROR] status=" + e.getRawStatusCode()
                     + ", body=" + e.getResponseBodyAsString());
             throw e;
         }

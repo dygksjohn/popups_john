@@ -12,9 +12,15 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-
 /**
  * EventRepository (v2.5 기준)
+ *
+ * 목록 조회 요구:
+ * - keyword(옵션): event_name / description LIKE
+ * - status(옵션)
+ * - 기간(옵션): start_at ~ end_at 범위 필터(단순 start_at 기준)
+ *
+ * created_at이 없으므로 정렬은 start_at/event_id 기준으로 처리
  */
 public interface EventRepository extends JpaRepository<Event, Long> {
 
