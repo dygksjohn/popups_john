@@ -1,4 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "./AuthProvider";
+import { notificationApi } from "../../../app/http/notificationApi";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -351,53 +354,22 @@ const PAST_EVENTS = [
   },
 ];
 
-const NOTIFICATIONS = [
-  {
-    id: 1,
-    text: "2025 서울 펫 페스티벌 참가 신청이 확정되었습니다.",
-    time: "1시간 전",
-    icon: "✓",
-    iconBg: "#ecfdf5",
-    iconColor: "#10b981",
-    unread: true,
-  },
-  {
-    id: 2,
-    text: "반려동물 건강 세미나 일정이 변경되었습니다. 확인해주세요.",
-    time: "3시간 전",
-    icon: "!",
-    iconBg: "#fffbeb",
-    iconColor: "#f59e0b",
-    unread: true,
-  },
-  {
-    id: 3,
-    text: "베스트 드레서 콘테스트 투표가 시작되었습니다.",
-    time: "1일 전",
-    icon: "★",
-    iconBg: "#f5f3ff",
-    iconColor: "#8b5cf6",
-    unread: false,
-  },
-  {
-    id: 4,
-    text: "문의하신 내용에 대한 답변이 등록되었습니다.",
-    time: "2일 전",
-    icon: "↩",
-    iconBg: "#eff4ff",
-    iconColor: "#1a4fd6",
-    unread: false,
-  },
-  {
-    id: 5,
-    text: "2024 부산 펫쇼 참여 후기를 작성해주세요.",
-    time: "3일 전",
-    icon: "✎",
-    iconBg: "#f3f4f6",
-    iconColor: "#6b7280",
-    unread: false,
-  },
-];
+/* 알림은 notificationApi.getInbox / getUnreadCount 로 실데이터 사용 */
+
+function formatNotifTime(receivedAt) {
+  if (!receivedAt) return "";
+  const d = new Date(receivedAt);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+  if (diffMin < 1) return "방금 전";
+  if (diffMin < 60) return `${diffMin}분 전`;
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  if (diffDay < 7) return `${diffDay}일 전`;
+  return d.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+}
 
 const INQUIRIES = [
   {
@@ -667,17 +639,64 @@ const TABS = [
 
 /* ── Main MyPage Component ── */
 export default function MyPage() {
+  const navigate = useNavigate();
+  const { isAuthed } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [pushNotif, setPushNotif] = useState(true);
   const [emailNotif, setEmailNotif] = useState(false);
   const [eventReminder, setEventReminder] = useState(true);
 
+  const [inboxItems, setInboxItems] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [inboxLoading, setInboxLoading] = useState(false);
+
+  const loadUnreadCount = useCallback(() => {
+    if (!isAuthed) return;
+    notificationApi.getUnreadCount().then((n) => setUnreadCount(Number(n) || 0)).catch(() => setUnreadCount(0));
+  }, [isAuthed]);
+
+  const loadInbox = useCallback(() => {
+    if (!isAuthed) return;
+    setInboxLoading(true);
+    notificationApi
+      .getInbox(0, 50)
+      .then((data) => setInboxItems(data?.items ?? []))
+      .catch(() => setInboxItems([]))
+      .finally(() => setInboxLoading(false));
+  }, [isAuthed]);
+
+  useEffect(() => {
+    if (isAuthed) {
+      loadUnreadCount();
+      loadInbox();
+    } else {
+      setUnreadCount(0);
+      setInboxItems([]);
+    }
+  }, [isAuthed, loadUnreadCount, loadInbox]);
+
+  useEffect(() => {
+    if (isAuthed && activeTab === "notifications") loadInbox();
+  }, [isAuthed, activeTab, loadInbox]);
+
+  const handleNotificationClick = (item) => {
+    if (!item?.inboxId || !isAuthed) return;
+    notificationApi
+      .click(item.inboxId)
+      .then((res) => {
+        loadUnreadCount();
+        setInboxItems((prev) => prev.filter((i) => i.inboxId !== item.inboxId));
+        const { targetType, targetId } = res || {};
+        if (targetType === "EVENT") navigate("/event/current");
+        else if (targetType === "NOTICE") navigate("/community/notice");
+      })
+      .catch(() => {});
+  };
+
   const statEventCount = useCountUp(3, 800, 200);
   const statParticipated = useCountUp(5, 800, 350);
   const statReviews = useCountUp(2, 800, 500);
   const statQrUsed = useCountUp(12, 800, 650);
-
-  const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
 
   return (
     <div className="mp-root">
@@ -899,31 +918,50 @@ export default function MyPage() {
                     </div>
                     최근 알림
                   </div>
-                  <span className="mp-card-tag">{unreadCount}건 안읽음</span>
+                  <span className="mp-card-tag">{isAuthed ? `${unreadCount}건 안읽음` : "로그인 후 확인"}</span>
                 </div>
                 <div className="mp-notif-list">
-                  {NOTIFICATIONS.slice(0, 4).map((n) => (
+                  {!isAuthed && (
+                    <div className="mp-notif-item" style={{ opacity: 0.7 }}>
+                      <div className="mp-notif-content">
+                        <div className="mp-notif-text">로그인하면 알림을 확인할 수 있습니다.</div>
+                      </div>
+                    </div>
+                  )}
+                  {isAuthed && inboxItems.slice(0, 4).map((n) => (
                     <div
-                      key={n.id}
-                      className={`mp-notif-item${n.unread ? " mp-notif-unread" : ""}`}
+                      key={n.inboxId}
+                      className="mp-notif-item mp-notif-unread"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => handleNotificationClick(n)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && handleNotificationClick(n)}
                     >
                       <div
                         className="mp-notif-icon"
                         style={{
-                          background: n.iconBg,
-                          color: n.iconColor,
+                          background: "#eff4ff",
+                          color: "#1a4fd6",
                           fontSize: 14,
                           fontWeight: 700,
                         }}
                       >
-                        {n.icon}
+                        {n.type === "EVENT" ? "★" : "!"}
                       </div>
                       <div className="mp-notif-content">
-                        <div className="mp-notif-text">{n.text}</div>
-                        <div className="mp-notif-time">{n.time}</div>
+                        <div className="mp-notif-text">{n.title || n.content || "알림"}</div>
+                        <div className="mp-notif-time">{formatNotifTime(n.receivedAt)}</div>
                       </div>
                     </div>
                   ))}
+                  {isAuthed && inboxItems.length === 0 && (
+                    <div className="mp-notif-item" style={{ opacity: 0.7 }}>
+                      <div className="mp-notif-content">
+                        <div className="mp-notif-text">새 알림이 없습니다.</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1104,33 +1142,49 @@ export default function MyPage() {
                   </div>
                   전체 알림
                 </div>
-                <span className="mp-card-tag">{NOTIFICATIONS.length}건</span>
+                <span className="mp-card-tag">{inboxItems.length}건</span>
               </div>
-              <div className="mp-notif-list">
-                {NOTIFICATIONS.map((n, i) => (
-                  <div
-                    key={n.id}
-                    className={`mp-notif-item${n.unread ? " mp-notif-unread" : ""}`}
-                    style={{ animationDelay: `${i * 60}ms` }}
-                  >
+              {inboxLoading && (
+                <div style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                  알림을 불러오는 중…
+                </div>
+              )}
+              {!inboxLoading && (
+                <div className="mp-notif-list">
+                  {inboxItems.map((n, i) => (
                     <div
-                      className="mp-notif-icon"
-                      style={{
-                        background: n.iconBg,
-                        color: n.iconColor,
-                        fontSize: 14,
-                        fontWeight: 700,
-                      }}
+                      key={n.inboxId}
+                      className="mp-notif-item mp-notif-unread"
+                      style={{ animationDelay: `${i * 60}ms`, cursor: "pointer" }}
+                      onClick={() => handleNotificationClick(n)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && handleNotificationClick(n)}
                     >
-                      {n.icon}
+                      <div
+                        className="mp-notif-icon"
+                        style={{
+                          background: n.type === "EVENT" ? "#f5f3ff" : "#eff4ff",
+                          color: n.type === "EVENT" ? "#8b5cf6" : "#1a4fd6",
+                          fontSize: 14,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {n.type === "EVENT" ? "★" : "!"}
+                      </div>
+                      <div className="mp-notif-content">
+                        <div className="mp-notif-text">{n.title || n.content || "알림"}</div>
+                        <div className="mp-notif-time">{formatNotifTime(n.receivedAt)}</div>
+                      </div>
                     </div>
-                    <div className="mp-notif-content">
-                      <div className="mp-notif-text">{n.text}</div>
-                      <div className="mp-notif-time">{n.time}</div>
+                  ))}
+                  {inboxItems.length === 0 && (
+                    <div style={{ padding: "32px", textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                      받은 알림이 없습니다.
                     </div>
-                  </div>
-                ))}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
