@@ -2544,6 +2544,27 @@ SELECT CONCAT('sess-', LPAD(n, 6, '0')),
        DATE_ADD('2025-03-01 01:50:00', INTERVAL n DAY)
 FROM tmp_nums WHERE n <= 120;
 
+-- normalize timeline for key user-facing tables (1-year spread)
+UPDATE posts
+SET created_at = DATE_ADD('2025-03-01 09:00:00', INTERVAL (post_id * 4) DAY),
+    updated_at = DATE_ADD('2025-03-01 09:00:00', INTERVAL (post_id * 4 + 1) DAY);
+
+UPDATE reviews
+SET created_at = DATE_ADD('2025-03-01 10:00:00', INTERVAL (review_id * 4) DAY),
+    updated_at = DATE_ADD('2025-03-01 10:00:00', INTERVAL (review_id * 4 + 2) DAY);
+
+UPDATE galleries
+SET created_at = DATE_ADD('2025-03-01 11:00:00', INTERVAL (gallery_id * 4) DAY),
+    updated_at = DATE_ADD('2025-03-01 11:00:00', INTERVAL (gallery_id * 4 + 1) DAY);
+
+UPDATE notices
+SET created_at = DATE_ADD('2025-03-01 08:00:00', INTERVAL (notice_id * 4) DAY),
+    updated_at = DATE_ADD('2025-03-01 08:00:00', INTERVAL (notice_id * 4 + 1) DAY);
+
+UPDATE inquiries
+SET created_at = DATE_ADD('2025-03-01 14:00:00', INTERVAL (inquiry_id * 4) DAY),
+    updated_at = DATE_ADD('2025-03-01 14:00:00', INTERVAL (inquiry_id * 4 + 1) DAY);
+
 DROP TEMPORARY TABLE IF EXISTS tmp_nums;
 
 SET FOREIGN_KEY_CHECKS = 1;
