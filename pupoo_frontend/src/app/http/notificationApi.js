@@ -46,4 +46,23 @@ export const notificationApi = {
       .post(`/api/notifications/${inboxId}/click`)
       .then((res) => unwrap(res));
   },
+
+  /**
+   * GET /api/notifications/settings — 알림 설정 조회
+   * @returns {Promise<{ allowMarketing: boolean, updatedAt: string }>}
+   */
+  getSettings() {
+    return axiosInstance.get("/api/notifications/settings").then((res) => unwrap(res));
+  },
+
+  /**
+   * PUT /api/notifications/settings — 마케팅 수신 동의 업데이트
+   * @param {boolean} allowMarketing
+   * @returns {Promise<{ allowMarketing: boolean, updatedAt: string }>}
+   */
+  updateSettings(allowMarketing) {
+    return axiosInstance
+      .put("/api/notifications/settings", null, { params: { allowMarketing } })
+      .then((res) => unwrap(res));
+  },
 };

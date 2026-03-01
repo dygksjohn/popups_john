@@ -258,6 +258,7 @@ const styles = `
   }
   .mp-toggle.on .mp-toggle-knob { left: 23px; }
   .mp-toggle.off .mp-toggle-knob { left: 3px; }
+  .mp-toggle.disabled { opacity: 0.6; cursor: not-allowed; pointer-events: none; }
 
   /* ── Animations ── */
   .mp-fade-in {
@@ -595,11 +596,14 @@ const Icons = {
 };
 
 /* ── Toggle Component ── */
-function Toggle({ value, onChange }) {
+function Toggle({ value, onChange, disabled }) {
   return (
     <button
-      className={`mp-toggle ${value ? "on" : "off"}`}
-      onClick={() => onChange(!value)}
+      type="button"
+      className={`mp-toggle ${value ? "on" : "off"} ${disabled ? "disabled" : ""}`}
+      onClick={() => !disabled && onChange(!value)}
+      disabled={!!disabled}
+      aria-pressed={value}
     >
       <div className="mp-toggle-knob" />
     </button>
@@ -659,6 +663,7 @@ export default function MyPage() {
   const [inboxItems, setInboxItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [inboxLoading, setInboxLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
 
   const loadUnreadCount = useCallback(() => {
     if (!isAuthed) return;
@@ -675,19 +680,39 @@ export default function MyPage() {
       .finally(() => setInboxLoading(false));
   }, [isAuthed]);
 
+  const loadSettings = useCallback(() => {
+    if (!isAuthed) return;
+    setSettingsLoading(true);
+    notificationApi
+      .getSettings()
+      .then((data) => setEmailNotif(!!data?.allowMarketing))
+      .catch(() => {})
+      .finally(() => setSettingsLoading(false));
+  }, [isAuthed]);
+
   useEffect(() => {
     if (isAuthed) {
       loadUnreadCount();
       loadInbox();
+      loadSettings();
     } else {
       setUnreadCount(0);
       setInboxItems([]);
     }
-  }, [isAuthed, loadUnreadCount, loadInbox]);
+  }, [isAuthed, loadUnreadCount, loadInbox, loadSettings]);
+
+  const handleEmailNotifChange = useCallback((newValue) => {
+    setEmailNotif(newValue);
+    notificationApi.updateSettings(newValue).catch(() => setEmailNotif((prev) => !prev));
+  }, []);
 
   useEffect(() => {
     if (isAuthed && activeTab === "notifications") loadInbox();
   }, [isAuthed, activeTab, loadInbox]);
+
+  useEffect(() => {
+    if (isAuthed && activeTab === "settings") loadSettings();
+  }, [isAuthed, activeTab, loadSettings]);
 
   const handleNotificationClick = (item) => {
     if (!item?.inboxId || !isAuthed) return;
@@ -1291,13 +1316,17 @@ export default function MyPage() {
                         <Icons.mail size={16} color="#8b5cf6" />
                       </div>
                       <div>
-                        <div className="mp-setting-label">이메일 알림</div>
+                        <div className="mp-setting-label">이메일 알림 (마케팅 수신 동의)</div>
                         <div className="mp-setting-desc">
-                          이메일로 소식을 받습니다
+                          이메일로 소식을 받습니다. 서버에 저장됩니다.
                         </div>
                       </div>
                     </div>
-                    <Toggle value={emailNotif} onChange={setEmailNotif} />
+                    <Toggle
+                      value={emailNotif}
+                      onChange={handleEmailNotifChange}
+                      disabled={settingsLoading}
+                    />
                   </div>
                   <div className="mp-setting-item">
                     <div className="mp-setting-left">
