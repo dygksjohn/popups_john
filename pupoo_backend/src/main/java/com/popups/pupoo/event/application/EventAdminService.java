@@ -12,6 +12,7 @@ import com.popups.pupoo.event.dto.AdminEventCreateRequest;
 import com.popups.pupoo.event.dto.AdminEventUpdateRequest;
 import com.popups.pupoo.event.dto.EventResponse;
 import com.popups.pupoo.event.persistence.EventInterestMapRepository;
+import com.popups.pupoo.event.persistence.EventRegistrationRepository;
 import com.popups.pupoo.event.persistence.EventRepository;
 import com.popups.pupoo.notification.application.NotificationService;
 import com.popups.pupoo.notification.domain.enums.InboxTargetType;
@@ -39,17 +40,20 @@ public class EventAdminService {
 
     private final EventRepository eventRepository;
     private final EventInterestMapRepository eventInterestMapRepository;
+    private final EventRegistrationRepository eventRegistrationRepository;
     private final NotificationService notificationService;
     private final AdminLogService adminLogService;
 
     public EventAdminService(
             EventRepository eventRepository,
             EventInterestMapRepository eventInterestMapRepository,
+            EventRegistrationRepository eventRegistrationRepository,
             NotificationService notificationService,
             AdminLogService adminLogService
     ) {
         this.eventRepository = eventRepository;
         this.eventInterestMapRepository = eventInterestMapRepository;
+        this.eventRegistrationRepository = eventRegistrationRepository;
         this.notificationService = notificationService;
         this.adminLogService = adminLogService;
     }
@@ -143,6 +147,33 @@ public class EventAdminService {
 
         adminLogService.write("EVENT_STATUS_CHANGE", AdminTargetType.EVENT, eventId);
         return EventResponse.from(event);
+    }
+
+    /**
+     * ★ 행사 Hard Delete (관리자)
+     * - 연관 데이터(interest map, registration) 먼저 삭제 후 행사 삭제
+     * - DB에서 완전히 제거됨
+     */
+    @Transactional
+    public void hardDeleteEvent(Long eventId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST,
+                        "존재하지 않는 행사입니다. eventId=" + eventId));
+
+        // 1. 연관 데이터 삭제 (FK 제약 방지)
+        eventInterestMapRepository.deleteByEventId(eventId);
+        try {
+            eventRegistrationRepository.deleteByEventId(eventId);
+        } catch (Exception ignored) {
+            // registration 데이터가 없을 수 있음
+        }
+
+        // 2. 행사 삭제
+        eventRepository.delete(event);
+        eventRepository.flush();
+
+        // 3. 관리자 로그
+        adminLogService.write("EVENT_HARD_DELETE", AdminTargetType.EVENT, eventId);
     }
 
     private void saveEventInterests(Long eventId, List<Long> interestIds) {

@@ -17,6 +17,10 @@ import {
 import ds from "../shared/designTokens";
 import DATA from "../shared/data";
 import { adminQnaApi, unwrap } from "../../../api/qnaApi";
+import { axiosInstance } from "../../../app/http/axiosInstance";
+import { getToken } from "../../../api/noticeApi";
+
+const authHeaders = () => { const t = getToken(); return t ? { Authorization: `Bearer ${t}` } : {}; };
 
 const styles = `
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
@@ -1277,11 +1281,60 @@ export default function BoardManage({ subTab = "free" }) {
   const config = BOARD_CONFIG[boardType] || BOARD_CONFIG.free;
   const isQna = boardType === "qna";
 
-  /* ── 로컬 게시판 데이터 (free, review) ── */
+  /* ── 게시판 데이터 (free, review — API 연동) ── */
   const [localData, setLocalData] = useState(() => ({
-    free: (DATA.boards || []).map((e) => ({ ...e, _visible: true })),
-    review: (DATA.reviews || []).map((e) => ({ ...e, _visible: true })),
+    free: [],
+    review: [],
   }));
+  const [boardLoading, setBoardLoading] = useState(false);
+  const [freeBoardId, setFreeBoardId] = useState(null);
+
+  /* ── 자유게시판/후기 API 로드 ── */
+  const fetchBoardData = useCallback(async (type) => {
+    setBoardLoading(true);
+    try {
+      if (type === "free") {
+        // 1) boardId 조회
+        let bId = freeBoardId;
+        if (!bId) {
+          try {
+            const bRes = await axiosInstance.get("/api/boards?activeOnly=true", { headers: authHeaders() });
+            const boards = bRes.data?.data || bRes.data || [];
+            const freeBoard = boards.find(b => b.boardType === "FREE");
+            bId = freeBoard?.boardId || 1;
+            setFreeBoardId(bId);
+          } catch { bId = 1; setFreeBoardId(1); }
+        }
+        // 2) posts 조회
+        const res = await axiosInstance.get(`/api/posts?boardId=${bId}&page=0&size=200`, { headers: authHeaders() });
+        const page = res.data?.data || res.data || {};
+        const list = page.content || page || [];
+        setLocalData(prev => ({ ...prev, free: list.map(p => ({
+          id: p.postId, title: p.postTitle, content: p.content,
+          author: `회원${p.userId}`, date: p.createdAt?.slice(0,10)?.replace(/-/g,".") || "",
+          views: p.viewCount || 0, pinned: false, _visible: !p.deleted,
+          postId: p.postId, boardId: p.boardId, userId: p.userId,
+        })) }));
+      } else if (type === "review") {
+        const res = await axiosInstance.get("/api/reviews?page=0&size=200", { headers: authHeaders() });
+        const page = res.data?.data || res.data || {};
+        const list = page.content || page || [];
+        setLocalData(prev => ({ ...prev, review: list.map(r => ({
+          id: r.reviewId, title: r.content?.slice(0,30) || "후기",
+          content: r.content, author: `회원${r.userId}`,
+          event: `행사 #${r.eventId}`, rating: r.rating || 5,
+          date: r.createdAt?.slice(0,10)?.replace(/-/g,".") || "",
+          views: r.viewCount || 0, _visible: true,
+          reviewId: r.reviewId, eventId: r.eventId, userId: r.userId,
+        })) }));
+      }
+    } catch (err) {
+      console.error(`[BoardManage] ${type} 로드 실패:`, err);
+      // fallback to mock data
+      if (type === "free") setLocalData(prev => ({ ...prev, free: (DATA.boards || []).map(e => ({ ...e, _visible: true })) }));
+      if (type === "review") setLocalData(prev => ({ ...prev, review: (DATA.reviews || []).map(e => ({ ...e, _visible: true })) }));
+    } finally { setBoardLoading(false); }
+  }, [freeBoardId]);
 
   /* ── Q&A API 상태 ── */
   const [qnaItems, setQnaItems] = useState([]);
@@ -1320,15 +1373,17 @@ export default function BoardManage({ subTab = "free" }) {
     }
   }, []);
 
-  /* ── boardType이 qna로 전환되면 API 호출 ── */
+  /* ── boardType이 전환되면 API 호출 ── */
   useEffect(() => {
     setSearch("");
     setModal(null);
     setPanel(null);
     if (isQna) {
       fetchQnaList(1);
+    } else if (boardType === "free" || boardType === "review") {
+      fetchBoardData(boardType);
     }
-  }, [boardType, isQna, fetchQnaList]);
+  }, [boardType, isQna, fetchQnaList, fetchBoardData]);
 
   /* ── 현재 보여줄 아이템 ── */
   const items = isQna ? qnaItems : localData[boardType] || [];
@@ -1365,17 +1420,25 @@ export default function BoardManage({ subTab = "free" }) {
         setSaving(false);
       }
     } else {
-      const d = new Date();
-      const newItem = {
-        ...f,
-        id: Math.max(0, ...items.map((x) => x.id)) + 1,
-        date: fmtDate(d),
-        views: 0,
-        _visible: true,
-      };
-      setBoard((p) => [newItem, ...p]);
-      setPanel(null);
-      showToast(config.toastCreate);
+      setSaving(true);
+      try {
+        if (boardType === "free") {
+          const bId = freeBoardId || 1;
+          await axiosInstance.post("/api/posts", {
+            boardId: bId, postTitle: f.title, content: f.content || "",
+          }, { headers: authHeaders() });
+        } else if (boardType === "review") {
+          await axiosInstance.post("/api/reviews", {
+            eventId: 1, rating: f.rating || 5, content: f.content || f.title || "",
+          }, { headers: authHeaders() });
+        }
+        setPanel(null);
+        showToast(config.toastCreate);
+        fetchBoardData(boardType);
+      } catch (err) {
+        console.error(`[BoardManage] ${boardType} create error:`, err);
+        showToast("등록에 실패했습니다.", "error");
+      } finally { setSaving(false); }
     }
   };
 
@@ -1396,9 +1459,26 @@ export default function BoardManage({ subTab = "free" }) {
         setSaving(false);
       }
     } else {
-      setBoard((p) => p.map((e) => (e.id === f.id ? { ...e, ...f } : e)));
-      setPanel(null);
-      showToast(config.toastUpdate);
+      setSaving(true);
+      try {
+        if (boardType === "free") {
+          const postId = f.postId || f.id;
+          await axiosInstance.put(`/api/posts/${postId}`, {
+            postTitle: f.title, content: f.content || "",
+          }, { headers: authHeaders() });
+        } else if (boardType === "review") {
+          const reviewId = f.reviewId || f.id;
+          await axiosInstance.patch(`/api/reviews/${reviewId}`, {
+            content: f.content || f.title || "", rating: f.rating || 5,
+          }, { headers: authHeaders() });
+        }
+        setPanel(null);
+        showToast(config.toastUpdate);
+        fetchBoardData(boardType);
+      } catch (err) {
+        console.error(`[BoardManage] ${boardType} update error:`, err);
+        showToast("수정에 실패했습니다.", "error");
+      } finally { setSaving(false); }
     }
   };
 
@@ -1424,13 +1504,25 @@ export default function BoardManage({ subTab = "free" }) {
       const id = item.id;
       setModal(null);
       setRemoving(id);
-      setTimeout(() => {
-        setBoard((p) =>
-          p.map((e) => (e.id === id ? { ...e, _visible: false } : e)),
-        );
+      setSaving(true);
+      try {
+        if (boardType === "free") {
+          const postId = item.postId || id;
+          await axiosInstance.delete(`/api/posts/${postId}`, { headers: authHeaders() });
+        } else if (boardType === "review") {
+          const reviewId = item.reviewId || id;
+          await axiosInstance.delete(`/api/reviews/${reviewId}`, { headers: authHeaders() });
+        }
+        setTimeout(() => {
+          setRemoving(null);
+          showToast(config.toastDelete);
+          fetchBoardData(boardType);
+        }, 300);
+      } catch (err) {
+        console.error(`[BoardManage] ${boardType} delete error:`, err);
         setRemoving(null);
-        showToast(config.toastDelete);
-      }, 300);
+        showToast("삭제에 실패했습니다.", "error");
+      } finally { setSaving(false); }
     }
   };
 
@@ -1605,8 +1697,16 @@ export default function BoardManage({ subTab = "free" }) {
           </div>
         )}
 
+        {/* 로딩 */}
+        {!isQna && boardLoading && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 20px" }}>
+            <div style={{ width: 32, height: 32, border: `3px solid ${ds.brand}20`, borderTopColor: ds.brand, borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+            <div style={{ fontSize: 13, color: "#94A3B8", fontWeight: 600, marginTop: 12 }}>로딩 중...</div>
+          </div>
+        )}
+
         {/* 리스트 */}
-        {!(isQna && (qnaLoading || qnaError)) &&
+        {!boardLoading && !(isQna && (qnaLoading || qnaError)) &&
           rows.map((r) => (
             <BoardRow
               key={r.id}
@@ -1619,8 +1719,8 @@ export default function BoardManage({ subTab = "free" }) {
             />
           ))}
 
-        {!(isQna && (qnaLoading || qnaError)) && rows.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 20px" }}>
+        {!boardLoading && !(isQna && (qnaLoading || qnaError)) && rows.length === 0 && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 20px" }}>
             {boardType === "qna" ? (
               <HelpCircle
                 size={36}

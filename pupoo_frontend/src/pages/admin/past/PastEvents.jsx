@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   MapPin,
   Users,
@@ -6,6 +6,7 @@ import {
   Zap,
   BarChart3,
   ChevronRight,
+  CalendarDays,
 } from "lucide-react";
 import {
   AreaChart,
@@ -18,6 +19,13 @@ import {
 } from "recharts";
 import ds from "../shared/designTokens";
 import DATA from "../shared/data";
+import { axiosInstance } from "../../../app/http/axiosInstance";
+import { getToken } from "../../../api/noticeApi";
+
+const authHeaders = () => {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
 
 /* ── 커스텀 차트 툴팁 ── */
 function ChartTooltip({ active, payload, label }) {
@@ -126,25 +134,124 @@ function MiniProgress({ pct }) {
 }
 
 export default function PastEvents() {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
-  const events = DATA.pastEvents || [];
+
+  /* ── DB에서 지난 행사 로드 ── */
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await axiosInstance.get(
+          "/api/admin/dashboard/past-events",
+          { headers: authHeaders() },
+        );
+        const list = res.data?.data || res.data || [];
+        if (list.length > 0) {
+          setEvents(list);
+          setSelectedId(list[0].id || list[0].eventId);
+        } else {
+          setEvents([]);
+        }
+      } catch (err) {
+        console.error("[PastEvents] API 로드 실패, mock 데이터 사용:", err);
+        const fallback = DATA.pastEvents || [];
+        setEvents(fallback);
+        if (fallback.length > 0) setSelectedId(fallback[0].id);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
   const ev = selectedId
-    ? events.find((e) => e.id === selectedId) || events[0]
+    ? events.find((e) => (e.id || e.eventId) === selectedId) || events[0]
     : events[0];
+
+  /* ── 로딩 ── */
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "80px 0",
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            border: `3px solid ${ds.brand}20`,
+            borderTopColor: ds.brand,
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+          }}
+        />
+        <div
+          style={{
+            fontSize: 13,
+            color: "#94A3B8",
+            fontWeight: 600,
+            marginTop: 14,
+          }}
+        >
+          지난 행사 로딩 중...
+        </div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
+  }
+
+  /* ── 빈 상태 ── */
+  if (events.length === 0) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "80px 0",
+        }}
+      >
+        <CalendarDays size={42} color="#CBD5E1" strokeWidth={1.5} />
+        <div
+          style={{
+            fontSize: 15,
+            fontWeight: 700,
+            color: "#94A3B8",
+            marginTop: 14,
+          }}
+        >
+          종료된 행사가 없습니다
+        </div>
+        <div style={{ fontSize: 13, color: "#CBD5E1", marginTop: 4 }}>
+          행사가 종료되면 여기에 표시됩니다
+        </div>
+      </div>
+    );
+  }
 
   if (!ev) return null;
 
-  const totalParticipants = events.reduce((a, b) => a + b.participants, 0);
+  const totalParticipants = events.reduce(
+    (a, b) => a + (b.participants || 0),
+    0,
+  );
   const avgZoneUsage = Math.round(
-    events.reduce((a, b) => a + b.zoneUsage, 0) / events.length,
+    events.reduce((a, b) => a + (b.zoneUsage || 0), 0) / events.length,
   );
   const avgEventRate = Math.round(
-    events.reduce((a, b) => a + b.eventRate, 0) / events.length,
+    events.reduce((a, b) => a + (b.eventRate || 0), 0) / events.length,
   );
   const avgCongestion = Math.round(
-    events.reduce((a, b) => a + b.avgCongestion, 0) / events.length,
+    events.reduce((a, b) => a + (b.avgCongestion || 0), 0) / events.length,
   );
-  const capacityPct = Math.round((ev.participants / ev.capacity) * 100);
+  const capacityPct =
+    ev.capacity > 0
+      ? Math.round(((ev.participants || 0) / ev.capacity) * 100)
+      : 0;
 
   return (
     <div>
@@ -244,11 +351,12 @@ export default function PastEvents() {
             </thead>
             <tbody>
               {events.map((r) => {
-                const active = ev.id === r.id;
+                const rid = r.id || r.eventId;
+                const active = (ev.id || ev.eventId) === rid;
                 return (
                   <tr
-                    key={r.id}
-                    onClick={() => setSelectedId(r.id)}
+                    key={rid}
+                    onClick={() => setSelectedId(rid)}
                     style={{
                       borderBottom: "1px solid #F8FAFC",
                       cursor: "pointer",
@@ -274,7 +382,7 @@ export default function PastEvents() {
                         {r.name}
                       </div>
                       <div style={{ fontSize: 10.5, color: "#94A3B8" }}>
-                        {r.id}
+                        {r.id || `PE-${r.eventId}`}
                       </div>
                     </td>
                     <td
@@ -309,7 +417,7 @@ export default function PastEvents() {
                         textAlign: "right",
                       }}
                     >
-                      {r.participants.toLocaleString()}
+                      {(r.participants || 0).toLocaleString()}
                     </td>
                     <td
                       style={{
@@ -319,7 +427,7 @@ export default function PastEvents() {
                         textAlign: "right",
                       }}
                     >
-                      {r.zoneUsage}%
+                      {r.zoneUsage || 0}%
                     </td>
                     <td
                       style={{
@@ -329,7 +437,7 @@ export default function PastEvents() {
                         textAlign: "right",
                       }}
                     >
-                      {r.eventRate}%
+                      {r.eventRate || 0}%
                     </td>
                     <td style={{ padding: "11px 14px", width: 28 }}>
                       {active && <ChevronRight size={14} color={ds.brand} />}
@@ -343,7 +451,6 @@ export default function PastEvents() {
 
         {/* 우측 상세 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* 상세 카드 */}
           <div
             style={{
               background: "#fff",
@@ -365,7 +472,6 @@ export default function PastEvents() {
             <div style={{ fontSize: 11.5, color: "#94A3B8", marginBottom: 18 }}>
               {ev.date} · {ev.location}
             </div>
-
             <div
               style={{
                 display: "grid",
@@ -375,10 +481,10 @@ export default function PastEvents() {
               }}
             >
               {[
-                { l: "참가자", v: ev.participants.toLocaleString() },
-                { l: "수용 인원", v: ev.capacity.toLocaleString() },
-                { l: "체험 이용률", v: `${ev.zoneUsage}%` },
-                { l: "이벤트 참여율", v: `${ev.eventRate}%` },
+                { l: "참가자", v: (ev.participants || 0).toLocaleString() },
+                { l: "수용 인원", v: (ev.capacity || 0).toLocaleString() },
+                { l: "체험 이용률", v: `${ev.zoneUsage || 0}%` },
+                { l: "이벤트 참여율", v: `${ev.eventRate || 0}%` },
               ].map((s) => (
                 <div
                   key={s.l}
@@ -399,7 +505,6 @@ export default function PastEvents() {
                 </div>
               ))}
             </div>
-
             <div style={{ marginBottom: 4 }}>
               <div
                 style={{

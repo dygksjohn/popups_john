@@ -16,4 +16,7 @@ public class ProgramUpdateRequest {
     public LocalDateTime startAt;
     public LocalDateTime endAt;
     public Long boothId;
+
+    /** 프로그램 이미지 URL */
+    public String imageUrl;
 }
