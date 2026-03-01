@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { notificationApi } from "../../../app/http/notificationApi";
 
@@ -638,10 +638,20 @@ const TABS = [
 ];
 
 /* ── Main MyPage Component ── */
+const TAB_KEYS = ["overview", "events", "history", "qr", "notifications", "inquiries", "settings"];
+
 export default function MyPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthed } = useAuth();
-  const [activeTab, setActiveTab] = useState("overview");
+  const tabFromUrl = searchParams.get("tab");
+  const initialTab = TAB_KEYS.includes(tabFromUrl) ? tabFromUrl : "overview";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && TAB_KEYS.includes(t)) setActiveTab(t);
+  }, [searchParams]);
   const [pushNotif, setPushNotif] = useState(true);
   const [emailNotif, setEmailNotif] = useState(false);
   const [eventReminder, setEventReminder] = useState(true);
@@ -714,7 +724,14 @@ export default function MyPage() {
               <button
                 key={tab.key}
                 className={`mp-page-tab${activeTab === tab.key ? " active" : ""}`}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("tab", tab.key);
+                    return next;
+                  });
+                }}
               >
                 {tab.label}
                 {tab.key === "notifications" && unreadCount > 0 && (
