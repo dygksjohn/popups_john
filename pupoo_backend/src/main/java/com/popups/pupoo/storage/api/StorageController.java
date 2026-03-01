@@ -9,6 +9,7 @@ import com.popups.pupoo.storage.application.StorageService;
 import com.popups.pupoo.storage.dto.FileResponse;
 import com.popups.pupoo.storage.dto.UploadRequest;
 import com.popups.pupoo.storage.dto.UploadResponse;
+import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator.UploadTargetType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +28,7 @@ public class StorageController {
     }
 
     /**
-     * (유저) POST 첨부파일 업로드 (files 테이블에 저장).
+     * (유저) 첨부파일 업로드 (files 테이블에 저장).
      *
      * 요청 형식: multipart/form-data
      * - file: 업로드할 파일 (MultipartFile)
@@ -41,22 +42,11 @@ public class StorageController {
             @RequestParam("contentId") Long contentId
     ) {
         UploadRequest req = new UploadRequest(targetType, contentId);
-        // NOTICE 업로드는 어드민 전용 (enum 파싱을 통해 엄격하게 판별)
-        if (req.parsedTargetType() == com.popups.pupoo.storage.infrastructure.StorageKeyGenerator.UploadTargetType.NOTICE) {
+
+        if (req.parsedTargetType() == UploadTargetType.NOTICE) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "notice file upload is admin-only");
         }
-        return ApiResponse.success(storageService.uploadForFilesTable(file, req));
-    }
 
-    /**
-     * (어드민) NOTICE 첨부파일 업로드 (files 테이블에 저장).
-     */
-    @PostMapping("/admin/notice")
-    public ApiResponse<UploadResponse> uploadNoticeByAdmin(
-            @RequestPart("file") MultipartFile file,
-            @RequestParam("noticeId") Long noticeId
-    ) {
-        UploadRequest req = new UploadRequest("NOTICE", noticeId);
         return ApiResponse.success(storageService.uploadForFilesTable(file, req));
     }
 
@@ -78,6 +68,7 @@ public class StorageController {
     @GetMapping("/{fileId}/download")
     public ResponseEntity<Void> redirectToStatic(@PathVariable Long fileId) {
         FileResponse file = storageService.getFile(fileId);
+
         return ResponseEntity.status(302)
                 .header(HttpHeaders.LOCATION, URI.create(file.getPublicPath()).toString())
                 .build();
@@ -92,20 +83,6 @@ public class StorageController {
     @DeleteMapping("/{fileId}")
     public ApiResponse<IdResponse> delete(@PathVariable Long fileId) {
         storageService.deleteByUser(fileId);
-        return ApiResponse.success(new IdResponse(fileId));
-    }
-
-    /**
-     * (어드민) 파일 강제 삭제.
-     * - POST/NOTICE 구분 없이 ADMIN은 삭제 가능
-     * - DB soft delete만 수행(오브젝트는 지연삭제 배치에서 제거)
-     */
-    @DeleteMapping("/admin/{fileId}")
-    public ApiResponse<IdResponse> deleteByAdmin(
-            @PathVariable Long fileId,
-            @RequestParam(value = "reason", required = false) String reason
-    ) {
-        storageService.deleteByAdmin(fileId, reason);
         return ApiResponse.success(new IdResponse(fileId));
     }
 }

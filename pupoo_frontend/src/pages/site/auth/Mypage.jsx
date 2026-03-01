@@ -1,4 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { mypageApi } from "./api/mypageApi";
+import { getApiErrorMessage } from "./api/authApi";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -665,17 +668,134 @@ const TABS = [
   { key: "settings", label: "설정" },
 ];
 
+function formatDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toISOString().slice(0, 10).replaceAll("-", ".");
+}
+
 /* ── Main MyPage Component ── */
 export default function MyPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [pushNotif, setPushNotif] = useState(true);
   const [emailNotif, setEmailNotif] = useState(false);
   const [eventReminder, setEventReminder] = useState(true);
+  const [me, setMe] = useState(null);
+  const [pets, setPets] = useState([]);
+  const [apiError, setApiError] = useState("");
+  const [isBusy, setIsBusy] = useState(false);
 
   const statEventCount = useCountUp(3, 800, 200);
   const statParticipated = useCountUp(5, 800, 350);
   const statReviews = useCountUp(2, 800, 500);
   const statQrUsed = useCountUp(12, 800, 650);
+
+  const loadProfileAndPets = async () => {
+    try {
+      setApiError("");
+      const [meRes, petRes] = await Promise.all([
+        mypageApi.getMe(),
+        mypageApi.getMyPets(),
+      ]);
+      setMe(meRes || null);
+      setPets(Array.isArray(petRes) ? petRes : []);
+      setPushNotif(Boolean(meRes?.showAge));
+      setEmailNotif(Boolean(meRes?.showGender));
+      setEventReminder(Boolean(meRes?.showPet));
+    } catch (e) {
+      setApiError(getApiErrorMessage(e, "마이페이지 정보를 불러오지 못했습니다."));
+    }
+  };
+
+  useEffect(() => {
+    loadProfileAndPets();
+  }, []);
+
+  const profileData = useMemo(() => {
+    const nickname = me?.nickname || USER_DATA.name;
+    return {
+      initial: nickname ? nickname.slice(0, 1) : USER_DATA.initial,
+      name: nickname,
+      email: me?.email || USER_DATA.email,
+      joinDate:
+        formatDate(me?.createdAt) === "-"
+          ? USER_DATA.joinDate
+          : formatDate(me?.createdAt),
+    };
+  }, [me]);
+
+  const petRows = useMemo(
+    () =>
+      pets.map((pet, idx) => ({
+        id: pet.petId,
+        title: `${pet.petName || "반려동물"} (${String(pet.petBreed || "DOG")})`,
+        date: `${pet.petAge ?? "-"}살`,
+        status: idx % 2 === 0 ? "answered" : "waiting",
+      })),
+    [pets],
+  );
+
+  const updatePrivacy = async (field, value, applyLocal) => {
+    applyLocal(value);
+    if (!me) return;
+
+    const fallback = {
+      showAge: Boolean(me.showAge),
+      showGender: Boolean(me.showGender),
+      showPet: Boolean(me.showPet),
+    };
+
+    try {
+      setIsBusy(true);
+      setApiError("");
+      const payload = {
+        nickname: me.nickname,
+        showAge: field === "showAge" ? value : pushNotif,
+        showGender: field === "showGender" ? value : emailNotif,
+        showPet: field === "showPet" ? value : eventReminder,
+      };
+      const updated = await mypageApi.updateMe(payload);
+      setMe(updated || me);
+      setPushNotif(Boolean(updated?.showAge ?? payload.showAge));
+      setEmailNotif(Boolean(updated?.showGender ?? payload.showGender));
+      setEventReminder(Boolean(updated?.showPet ?? payload.showPet));
+    } catch (e) {
+      setApiError(getApiErrorMessage(e, "공개 설정 저장에 실패했습니다."));
+      applyLocal(Boolean(fallback[field]));
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleProfileEdit = () => {
+    navigate("/mypage/profile");
+  };
+
+  const handlePetCreate = () => {
+    navigate("/mypage/pets/new");
+  };
+
+  const handlePetEdit = (petId) => {
+    navigate(`/mypage/pets/${petId}/edit`);
+  };
+
+  const handlePetDelete = async (petId) => {
+    if (!window.confirm("반려동물을 삭제하시겠습니까?")) return;
+
+    try {
+      setIsBusy(true);
+      setApiError("");
+      await mypageApi.deletePet(petId);
+      const refreshed = await mypageApi.getMyPets();
+      setPets(Array.isArray(refreshed) ? refreshed : []);
+    } catch (e) {
+      setApiError(getApiErrorMessage(e, "반려동물 삭제에 실패했습니다."));
+    } finally {
+      setIsBusy(false);
+    }
+  };
 
   const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
 
@@ -690,6 +810,11 @@ export default function MyPage() {
           <p className="mp-page-subtitle">
             내 정보와 참여 이력을 한눈에 관리합니다
           </p>
+          {apiError ? (
+            <p style={{ color: "#ef4444", fontSize: 12, margin: "0 0 12px" }}>
+              {apiError}
+            </p>
+          ) : null}
           <div className="mp-page-tabs">
             {TABS.map((tab) => (
               <button
@@ -728,7 +853,7 @@ export default function MyPage() {
           <div className="mp-fade-in">
             <div className="mp-profile-card">
               <div className="mp-avatar">
-                {USER_DATA.initial}
+                {profileData.initial}
                 <div className="mp-avatar-badge">
                   <svg
                     width="10"
@@ -745,8 +870,8 @@ export default function MyPage() {
                 </div>
               </div>
               <div className="mp-profile-info">
-                <div className="mp-profile-name">{USER_DATA.name}</div>
-                <div className="mp-profile-email">{USER_DATA.email}</div>
+                <div className="mp-profile-name">{profileData.name}</div>
+                <div className="mp-profile-email">{profileData.email}</div>
                 <div className="mp-profile-tags">
                   <span
                     className="mp-profile-tag"
@@ -758,7 +883,7 @@ export default function MyPage() {
                     className="mp-profile-tag"
                     style={{ background: "#ecfdf5", color: "#10b981" }}
                   >
-                    가입일 {USER_DATA.joinDate}
+                    가입일 {profileData.joinDate}
                   </span>
                 </div>
               </div>
@@ -766,12 +891,15 @@ export default function MyPage() {
                 <button
                   className="mp-btn mp-btn-primary"
                   style={{ display: "flex", alignItems: "center", gap: 6 }}
+                  onClick={handleProfileEdit}
+                  disabled={isBusy}
                 >
                   <Icons.edit size={14} color="#fff" />내 정보 수정
                 </button>
                 <button
                   className="mp-btn mp-btn-outline"
                   style={{ display: "flex", alignItems: "center", gap: 6 }}
+                  onClick={() => navigate("/mypage/qr")}
                 >
                   <Icons.qr size={14} />
                   QR코드
@@ -1076,11 +1204,15 @@ export default function MyPage() {
                     <button
                       className="mp-btn mp-btn-primary"
                       style={{ display: "flex", alignItems: "center", gap: 6 }}
+                      onClick={() => navigate("/mypage/qr")}
                     >
                       <Icons.download size={14} color="#fff" />
                       QR코드 저장
                     </button>
-                    <button className="mp-btn mp-btn-outline">
+                    <button
+                      className="mp-btn mp-btn-outline"
+                      onClick={() => navigate("/mypage/qr")}
+                    >
                       QR코드 재발급
                     </button>
                   </div>
@@ -1152,13 +1284,24 @@ export default function MyPage() {
                 <button
                   className="mp-btn mp-btn-primary"
                   style={{ padding: "8px 16px", fontSize: 12 }}
+                  onClick={handlePetCreate}
+                  disabled={isBusy}
                 >
                   + 새 문의
                 </button>
               </div>
               <div>
-                {INQUIRIES.map((inq) => (
-                  <div key={inq.id} className="mp-inquiry-item">
+                {petRows.map((inq) => (
+                  <div
+                    key={inq.id}
+                    className="mp-inquiry-item"
+                    onClick={() => handlePetEdit(inq.id)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      handlePetDelete(inq.id);
+                    }}
+                    style={{ cursor: "pointer" }}
+                  >
                     <div className="mp-inquiry-q">Q</div>
                     <div className="mp-inquiry-info">
                       <div className="mp-inquiry-title">{inq.title}</div>
@@ -1209,7 +1352,10 @@ export default function MyPage() {
                         </div>
                       </div>
                     </div>
-                    <Toggle value={pushNotif} onChange={setPushNotif} />
+                    <Toggle
+                      value={pushNotif}
+                      onChange={(value) => updatePrivacy("showAge", value, setPushNotif)}
+                    />
                   </div>
                   <div className="mp-setting-item">
                     <div className="mp-setting-left">
@@ -1226,7 +1372,10 @@ export default function MyPage() {
                         </div>
                       </div>
                     </div>
-                    <Toggle value={emailNotif} onChange={setEmailNotif} />
+                    <Toggle
+                      value={emailNotif}
+                      onChange={(value) => updatePrivacy("showGender", value, setEmailNotif)}
+                    />
                   </div>
                   <div className="mp-setting-item">
                     <div className="mp-setting-left">
@@ -1243,7 +1392,10 @@ export default function MyPage() {
                         </div>
                       </div>
                     </div>
-                    <Toggle value={eventReminder} onChange={setEventReminder} />
+                    <Toggle
+                      value={eventReminder}
+                      onChange={(value) => updatePrivacy("showPet", value, setEventReminder)}
+                    />
                   </div>
                 </div>
               </div>
@@ -1267,6 +1419,7 @@ export default function MyPage() {
                     <div
                       className="mp-setting-item"
                       style={{ cursor: "pointer" }}
+                      onClick={handleProfileEdit}
                     >
                       <div className="mp-setting-left">
                         <div

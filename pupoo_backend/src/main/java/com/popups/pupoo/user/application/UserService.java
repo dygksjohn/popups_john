@@ -31,6 +31,13 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Transactional(readOnly = true)
+    public boolean isNicknameAvailable(String nickname) {
+        String value = nickname == null ? "" : nickname.trim();
+        if (value.isBlank()) return false;
+        return !userRepository.existsByNickname(value);
+    }
+
     /**
      * 회원가입을 위한 사용자 생성
      * - 중복 검증 후 사용자 엔티티를 생성/저장하고 엔티티를 반환한다.

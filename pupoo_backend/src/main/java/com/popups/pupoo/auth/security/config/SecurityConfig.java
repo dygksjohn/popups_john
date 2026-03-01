@@ -1,5 +1,6 @@
 // file: src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
 package com.popups.pupoo.auth.security.config;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popups.pupoo.auth.security.authentication.filter.JwtAuthenticationFilter;
 import com.popups.pupoo.auth.security.handler.JwtAccessDeniedHandler;
@@ -37,6 +38,7 @@ public class SecurityConfig {
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
         config.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
@@ -57,7 +59,6 @@ public class SecurityConfig {
         );
 
         http.authorizeHttpRequests(auth -> auth
-            // CORS Preflight
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
             // Auth endpoints
@@ -107,12 +108,13 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/report-reasons").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/files/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/files/*/download").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/users/check-nickname").permitAll()
             .requestMatchers("/uploads/**").permitAll()
 
-            // ADMIN
+            // ADMIN (ADMIN은 여기로만 접근 가능)
             .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-            // USER
+            // USER (유저 전용 명시)
             .requestMatchers("/api/users/me/**").hasRole("USER")
             .requestMatchers("/api/payments/**").hasRole("USER")
             .requestMatchers("/api/refunds/**").hasRole("USER")
@@ -121,7 +123,8 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**").hasRole("USER")
             .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations").hasRole("USER")
 
-            .anyRequest().hasAnyRole("USER", "ADMIN")
+            // 기본 정책: /api/**는 USER만 (ADMIN은 /api/admin/**에서만)
+            .anyRequest().hasRole("USER")
         );
 
         http.addFilterBefore(
