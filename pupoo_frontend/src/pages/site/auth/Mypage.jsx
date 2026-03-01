@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { notificationApi } from "../../../app/http/notificationApi";
+import { settingsApi } from "../../../app/http/settingsApi";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -683,8 +684,8 @@ export default function MyPage() {
   const loadSettings = useCallback(() => {
     if (!isAuthed) return;
     setSettingsLoading(true);
-    notificationApi
-      .getSettings()
+    settingsApi
+      .getNotificationSettings()
       .then((data) => setEmailNotif(!!data?.allowMarketing))
       .catch(() => {})
       .finally(() => setSettingsLoading(false));
@@ -703,7 +704,7 @@ export default function MyPage() {
 
   const handleEmailNotifChange = useCallback((newValue) => {
     setEmailNotif(newValue);
-    notificationApi.updateSettings(newValue).catch(() => setEmailNotif((prev) => !prev));
+    settingsApi.updateNotificationSettings(newValue).catch(() => setEmailNotif((prev) => !prev));
   }, []);
 
   useEffect(() => {
