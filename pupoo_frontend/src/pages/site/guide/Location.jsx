@@ -1,8 +1,8 @@
+import { useState, useEffect, useRef } from "react";
 import PageHeader from "../components/PageHeader";
+import { loadKakaoMapScript } from "../../../shared/utils/kakaoMapScript";
 import {
-  CalendarDays,
   MapPin,
-  Phone,
   ParkingCircle,
   Banknote,
   Clock,
@@ -12,14 +12,21 @@ import {
   Navigation,
   AlertTriangle,
   Map,
-  ExternalLink,
   ArrowUpRight,
+  Copy,
 } from "lucide-react";
 
 const GUIDE_CATEGORIES = [
   { label: "현장 운영 안내", path: "/guide/operation" },
   { label: "장소/오시는길", path: "/guide/location" },
 ];
+
+const VENUE_NAME = "올림픽 공원 88잔디마당";
+
+const VENUE_ADDRESS = "서울특별시 송파구 올림픽로 424 (방이동 88-2)";
+
+// 올림픽 공원 88잔디마당 (WGS84, 카카오 지도 좌표계)
+const VENUE_COORDS = { lat: 37.5188, lng: 127.1253 };
 
 const GUIDE_SUBTITLE_MAP = {
   "/guide/operation":
@@ -41,9 +48,32 @@ const styles = `
     box-sizing: border-box; font-family: inherit;
   }
   .loc-container {
-    max-width: 860px; margin: 0 auto;
+    max-width: 1100px; margin: 0 auto;
     padding: 28px 20px 80px;
   }
+  .loc-two-col {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .loc-col-left {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .loc-col-right {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .loc-left-panel {
+    background: #fff; border: 1px solid #EBEBEB; border-radius: 16px;
+    overflow: hidden;
+  }
+  .loc-map-card {
+    background: #fff; border: 1px solid #EBEBEB; border-radius: 16px;
+    overflow: hidden;
+  }
+  .loc-map-card .loc-map-visual { display: block; width: 100%; aspect-ratio: 4/3; height: auto; min-height: 280px; }
+  .loc-map-card .loc-map-visual .loc-map-inner { min-height: 280px; }
+  .loc-col-left .loc-transport { grid-template-columns: 1fr; }
 
   /* ── 지도 영역 ── */
   .loc-map-hero {
@@ -54,11 +84,12 @@ const styles = `
     margin-bottom: 12px;
   }
   .loc-map-visual {
+    position: relative;
     height: 240px;
     background: linear-gradient(135deg, #EEF2FF 0%, #DBEAFE 50%, #E0E7FF 100%);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 12px;
-    position: relative; overflow: hidden;
+    overflow: hidden;
   }
   .loc-map-visual::before {
     content: '';
@@ -109,6 +140,32 @@ const styles = `
     white-space: nowrap; flex-shrink: 0;
   }
   .loc-map-cta:hover { background: #1640B8; }
+  .loc-map-visual.has-map .loc-map-loading { display: none; }
+  .loc-map-visual .loc-map-inner { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 240px; }
+  .loc-transport-tabs {
+    display: flex; gap: 8px; padding: 12px 20px;
+    background: #F9FAFB; border-bottom: 1px solid #EBEBEB;
+  }
+  .loc-transport-tab {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid #E5E7EB;
+    background: #fff; font-size: 13px; font-weight: 600; color: #6B7280;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+  }
+  .loc-transport-tab:hover { border-color: #1B50D9; color: #1B50D9; }
+  .loc-transport-tab.active { background: #1B50D9; color: #fff; border-color: #1B50D9; }
+  .loc-addr-wrap { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .loc-copy-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 8px; border: 1px solid #E5E7EB;
+    background: #fff; font-size: 12px; font-weight: 600; color: #6B7280;
+    cursor: pointer; font-family: inherit; transition: all 0.15s; flex-shrink: 0;
+  }
+  .loc-copy-btn:hover { border-color: #1B50D9; color: #1B50D9; }
+  .loc-toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    padding: 10px 20px; border-radius: 10px; background: #111827; color: #fff;
+    font-size: 13px; font-weight: 500; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
 
   /* ── 정보 카드 그리드 ── */
   .loc-info-grid {
@@ -275,6 +332,9 @@ const styles = `
     line-height: 1.6; opacity: 0.75;
   }
 
+  @media (max-width: 900px) {
+    .loc-two-col { grid-template-columns: 1fr; }
+  }
   @media (max-width: 860px) {
     .loc-info-grid { grid-template-columns: 1fr; }
     .loc-transport { grid-template-columns: 1fr; }
@@ -286,8 +346,89 @@ const styles = `
   }
 `;
 
+const TRANSPORT_OPTIONS = [
+  { id: "subway", label: "지하철", icon: Train },
+  { id: "bus", label: "버스", icon: Bus },
+  { id: "car", label: "승용차", icon: Car },
+];
+
 export default function Location({ onNavigate }) {
   const currentPath = "/guide/location";
+  const [transportMode, setTransportMode] = useState("subway");
+  const [copyToast, setCopyToast] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState(null);
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+
+  const cancelledRef = useRef(false);
+  useEffect(() => {
+    const appKey = import.meta.env.VITE_KAKAO_MAP_KEY;
+    if (!appKey) {
+      setMapError("key");
+      return;
+    }
+    cancelledRef.current = false;
+    let timeoutId = null;
+
+    const runInit = (container) => {
+      loadKakaoMapScript(appKey)
+        .then(() => {
+          if (cancelledRef.current || !mapContainerRef.current) return;
+          try {
+            const { kakao } = window;
+            const position = new kakao.maps.LatLng(VENUE_COORDS.lat, VENUE_COORDS.lng);
+            const options = { center: position, level: 5 };
+            const map = new kakao.maps.Map(container, options);
+            const marker = new kakao.maps.Marker({ position });
+            marker.setMap(map);
+            mapRef.current = map;
+            setMapLoaded(true);
+            setMapError(null);
+            const relayout = () => {
+              try {
+                map.relayout();
+              } catch (_) {}
+            };
+            requestAnimationFrame(relayout);
+            setTimeout(relayout, 100);
+          } catch (_) {
+            if (!cancelledRef.current) {
+              setMapLoaded(false);
+              setMapError("map");
+            }
+          }
+        })
+        .catch(() => {
+          if (!cancelledRef.current) {
+            setMapLoaded(false);
+            setMapError("script");
+          }
+        });
+    };
+
+    if (mapContainerRef.current) {
+      runInit(mapContainerRef.current);
+    } else {
+      timeoutId = setTimeout(() => {
+        if (mapContainerRef.current && !cancelledRef.current) {
+          runInit(mapContainerRef.current);
+        }
+      }, 200);
+    }
+
+    return () => {
+      cancelledRef.current = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
+
+  const handleCopyAddress = () => {
+    navigator.clipboard.writeText(VENUE_ADDRESS).then(() => {
+      setCopyToast(true);
+      setTimeout(() => setCopyToast(false), 2000);
+    });
+  };
 
   return (
     <div className="loc-root">
@@ -300,252 +441,181 @@ export default function Location({ onNavigate }) {
         onNavigate={onNavigate}
       />
       <main className="loc-container">
-        {/* 지도 영역 */}
-        <div className="loc-map-hero">
-          <div className="loc-map-visual">
-            <div className="loc-map-pin">
-              <Map size={26} color="#fff" />
+        <div className="loc-two-col">
+          {/* 좌측: 교통수단 선택 + 상세 목록 */}
+          <div className="loc-col-left">
+            <div className="loc-left-panel">
+              <div className="loc-transport-tabs">
+                {TRANSPORT_OPTIONS.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`loc-transport-tab ${transportMode === id ? "active" : ""}`}
+                    onClick={() => setTransportMode(id)}
+                  >
+                    <Icon size={16} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="loc-map-label">
-              서울 올림픽공원 SK핸드볼경기장 주변
+
+            {/* 교통편 상세 (선택한 교통수단만 표시) */}
+            <div className="loc-left-panel">
+              <div className="loc-transport" style={{ marginBottom: 0, padding: 12 }}>
+                {transportMode === "subway" && (
+                  <div className="loc-tr-card">
+                    <div className="loc-tr-icon subway"><Train size={20} /></div>
+                    <div className="loc-tr-title">지하철</div>
+                    <div className="loc-tr-row">
+                      <div className="loc-tr-badge dark">5</div>
+                      <div className="loc-tr-text"><strong>5호선</strong> 올림픽공원역 3번 출구 → 도보 5분</div>
+                    </div>
+                    <div className="loc-tr-row">
+                      <div className="loc-tr-badge orange">9</div>
+                      <div className="loc-tr-text"><strong>9호선</strong> 한성백제역 1번 출구 → 도보 10분</div>
+                    </div>
+                    <div className="loc-tr-row">
+                      <div className="loc-tr-badge green">2</div>
+                      <div className="loc-tr-text"><strong>2호선</strong> 잠실역 8번 출구 → 버스 환승 10분</div>
+                    </div>
+                  </div>
+                )}
+                {transportMode === "bus" && (
+                  <div className="loc-tr-card">
+                    <div className="loc-tr-icon bus"><Bus size={20} /></div>
+                    <div className="loc-tr-title">버스</div>
+                    <div className="loc-tr-row">
+                      <div className="loc-tr-badge dark">간</div>
+                      <div className="loc-tr-text"><strong>간선버스</strong> 340, 3312, 3411</div>
+                    </div>
+                    <div className="loc-tr-row">
+                      <div className="loc-tr-badge green">지</div>
+                      <div className="loc-tr-text"><strong>지선버스</strong> 2412, 3313</div>
+                    </div>
+                    <div className="loc-tr-row">
+                      <MapPin size={14} style={{ color: "#D1D5DB", flexShrink: 0, marginTop: 3 }} />
+                      <div className="loc-tr-text">올림픽공원 정류장 하차 후 도보 3분</div>
+                    </div>
+                  </div>
+                )}
+                {transportMode === "car" && (
+                  <div className="loc-tr-card">
+                    <div className="loc-tr-icon car"><Car size={20} /></div>
+                    <div className="loc-tr-title">자가용</div>
+                    <div className="loc-tr-row">
+                      <Navigation size={14} style={{ color: "#D1D5DB", flexShrink: 0, marginTop: 3 }} />
+                      <div className="loc-tr-text"><strong>내비게이션 검색</strong><br />「{VENUE_NAME}」</div>
+                    </div>
+                    <div className="loc-tr-row">
+                      <Car size={14} style={{ color: "#D1D5DB", flexShrink: 0, marginTop: 3 }} />
+                      <div className="loc-tr-text">강변북로 → 올림픽대로 → 올림픽공원 진입</div>
+                    </div>
+                    <div className="loc-tr-row">
+                      <AlertTriangle size={14} style={{ color: "#DC2626", flexShrink: 0, marginTop: 3 }} />
+                      <div className="loc-tr-warn">행사 당일 도로 혼잡 예상</div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="loc-map-sublabel">지도를 불러오는 중...</div>
           </div>
-          <div className="loc-map-footer">
-            <div>
-              <div className="loc-addr-main">
-                서울특별시 송파구 올림픽로 424
+
+          {/* 우측: 지도 + 주소 + 상세 안내 */}
+          <div className="loc-col-right">
+            <div className="loc-map-card">
+              <div className={`loc-map-visual ${mapLoaded ? "has-map" : ""} ${mapError ? "loc-map-error" : ""}`}>
+                <div ref={mapContainerRef} className="loc-map-inner" />
+                {!mapLoaded && (
+                  <div className="loc-map-loading" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "linear-gradient(135deg, #EEF2FF 0%, #DBEAFE 50%, #E0E7FF 100%)" }}>
+                    {mapError ? (
+                      <>
+                        <div className="loc-map-sublabel" style={{ color: "#6B7280", fontWeight: 600, marginBottom: 4 }}>지도를 불러올 수 없습니다</div>
+                        <div className="loc-map-sublabel" style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", maxWidth: 280 }}>
+                          일시적으로 지도를 표시할 수 없습니다. 잠시 후 다시 시도해 주시거나, 아래 주소를 복사해 지도 앱에서 검색해 보세요.
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="loc-map-pin"><Map size={26} color="#fff" /></div>
+                        <div className="loc-map-label">{VENUE_NAME}</div>
+                        <div className="loc-map-sublabel">지도를 불러오는 중...</div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="loc-addr-sub">
-                <MapPin size={12} />
-                올림픽공원 내 특설 행사장 (SK핸드볼경기장 인근)
+              <div className="loc-map-footer">
+                <div className="loc-addr-wrap">
+                  <div>
+                    <div className="loc-addr-main">{VENUE_ADDRESS}</div>
+                    <div className="loc-addr-sub"><MapPin size={12} />{VENUE_NAME}</div>
+                  </div>
+                  <button type="button" className="loc-copy-btn" onClick={handleCopyAddress}>
+                    <Copy size={14} />복사
+                  </button>
+                </div>
+                <button
+                  className="loc-map-cta"
+                  onClick={() => {
+                    const query = encodeURIComponent(VENUE_NAME);
+                    const url = `https://map.kakao.com/link/search/${query}`;
+                    window.open(url, "_blank");
+                  }}
+                >
+                  <Navigation size={14} />지도 앱으로 보기<ArrowUpRight size={12} />
+                </button>
               </div>
             </div>
-            <button
-              className="loc-map-cta"
-              onClick={() => window.open("https://map.naver.com", "_blank")}
-            >
-              <Navigation size={14} />
-              지도 앱으로 보기
-              <ArrowUpRight size={12} />
-            </button>
+
+            {/* 주차 안내: 승용차 선택 시에만 표시 */}
+            {transportMode === "car" && (
+              <div className="loc-info-grid" style={{ gridTemplateColumns: "1fr" }}>
+                <div className="loc-info-card">
+                  <div className="loc-info-card-header">
+                    <div className="loc-info-card-icon amber">
+                      <ParkingCircle size={17} />
+                    </div>
+                    <div className="loc-info-card-title">주차 안내</div>
+                  </div>
+                  <div className="loc-detail-row">
+                    <AlertTriangle
+                      size={14}
+                      className="loc-detail-icon"
+                      style={{ color: "#D97706" }}
+                    />
+                    <div>
+                      <div className="loc-detail-label">주의</div>
+                      <div className="loc-detail-value">
+                        행사 기간 중 주차 공간이 매우 혼잡합니다.{" "}
+                        <span className="loc-detail-highlight">대중교통 이용</span>을
+                        권장합니다.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="loc-detail-row">
+                    <Banknote size={14} className="loc-detail-icon" />
+                    <div>
+                      <div className="loc-detail-label">주차 요금</div>
+                      <div className="loc-detail-value">
+                        최초 30분 무료, 이후 10분당 400원
+                      </div>
+                    </div>
+                  </div>
+                  <div className="loc-detail-row">
+                    <Clock size={14} className="loc-detail-icon" />
+                    <div>
+                      <div className="loc-detail-label">운영 시간</div>
+                      <div className="loc-detail-value">오전 8:00 – 오후 8:00</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* 정보 카드 */}
-        <div className="loc-info-grid">
-          {/* 행사 기본 정보 */}
-          <div className="loc-info-card">
-            <div className="loc-info-card-header">
-              <div className="loc-info-card-icon blue">
-                <CalendarDays size={17} />
-              </div>
-              <div className="loc-info-card-title">행사 기본 정보</div>
-            </div>
-            <div className="loc-detail-row">
-              <CalendarDays size={14} className="loc-detail-icon" />
-              <div>
-                <div className="loc-detail-label">일시</div>
-                <div className="loc-detail-value">
-                  2026.04.12 (토) – 04.13 (일)
-                </div>
-                <div className="loc-detail-muted">오전 10:00 – 오후 6:00</div>
-              </div>
-            </div>
-            <div className="loc-detail-row">
-              <MapPin size={14} className="loc-detail-icon" />
-              <div>
-                <div className="loc-detail-label">장소</div>
-                <div className="loc-detail-value">
-                  서울 올림픽공원 특설 행사장
-                </div>
-              </div>
-            </div>
-            <div className="loc-detail-row">
-              <Phone size={14} className="loc-detail-icon" />
-              <div>
-                <div className="loc-detail-label">문의</div>
-                <div className="loc-detail-value">02-1234-5678</div>
-                <div className="loc-detail-muted">평일 10:00 – 17:00</div>
-              </div>
-            </div>
-          </div>
-
-          {/* 주차 안내 */}
-          <div className="loc-info-card">
-            <div className="loc-info-card-header">
-              <div className="loc-info-card-icon amber">
-                <ParkingCircle size={17} />
-              </div>
-              <div className="loc-info-card-title">주차 안내</div>
-            </div>
-            <div className="loc-detail-row">
-              <AlertTriangle
-                size={14}
-                className="loc-detail-icon"
-                style={{ color: "#D97706" }}
-              />
-              <div>
-                <div className="loc-detail-label">주의</div>
-                <div className="loc-detail-value">
-                  행사 기간 중 주차 공간이 매우 혼잡합니다.{" "}
-                  <span className="loc-detail-highlight">대중교통 이용</span>을
-                  권장합니다.
-                </div>
-              </div>
-            </div>
-            <div className="loc-detail-row">
-              <Banknote size={14} className="loc-detail-icon" />
-              <div>
-                <div className="loc-detail-label">주차 요금</div>
-                <div className="loc-detail-value">
-                  최초 30분 무료, 이후 10분당 400원
-                </div>
-              </div>
-            </div>
-            <div className="loc-detail-row">
-              <Clock size={14} className="loc-detail-icon" />
-              <div>
-                <div className="loc-detail-label">운영 시간</div>
-                <div className="loc-detail-value">오전 8:00 – 오후 8:00</div>
-              </div>
-            </div>
-          </div>
-
-          {/* 빠른 안내 */}
-          <div className="loc-info-card">
-            <div className="loc-info-card-header">
-              <div className="loc-info-card-icon slate">
-                <Navigation size={17} />
-              </div>
-              <div className="loc-info-card-title">빠른 길 안내</div>
-            </div>
-            <div className="loc-detail-row">
-              <Train size={14} className="loc-detail-icon" />
-              <div>
-                <div className="loc-detail-label">추천 경로</div>
-                <div className="loc-detail-value">
-                  5호선 올림픽공원역 3번 출구
-                </div>
-                <div className="loc-detail-muted">도보 약 5분</div>
-              </div>
-            </div>
-            <div className="loc-detail-row">
-              <Bus size={14} className="loc-detail-icon" />
-              <div>
-                <div className="loc-detail-label">버스 정류장</div>
-                <div className="loc-detail-value">올림픽공원 정류장</div>
-                <div className="loc-detail-muted">하차 후 도보 3분</div>
-              </div>
-            </div>
-            <div className="loc-detail-row">
-              <Car size={14} className="loc-detail-icon" />
-              <div>
-                <div className="loc-detail-label">내비게이션</div>
-                <div className="loc-detail-value">
-                  「올림픽공원 특설 행사장」
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 교통편 상세 */}
-        <div className="loc-sec-label">
-          <div className="loc-sec-num">01</div>
-          <h2 className="loc-sec-text">교통편 안내</h2>
-        </div>
-        <div className="loc-transport">
-          {/* 지하철 */}
-          <div className="loc-tr-card">
-            <div className="loc-tr-icon subway">
-              <Train size={20} />
-            </div>
-            <div className="loc-tr-title">지하철</div>
-            <div className="loc-tr-row">
-              <div className="loc-tr-badge dark">5</div>
-              <div className="loc-tr-text">
-                <strong>5호선</strong> 올림픽공원역 3번 출구 → 도보 5분
-              </div>
-            </div>
-            <div className="loc-tr-row">
-              <div className="loc-tr-badge orange">9</div>
-              <div className="loc-tr-text">
-                <strong>9호선</strong> 한성백제역 1번 출구 → 도보 10분
-              </div>
-            </div>
-            <div className="loc-tr-row">
-              <div className="loc-tr-badge green">2</div>
-              <div className="loc-tr-text">
-                <strong>2호선</strong> 잠실역 8번 출구 → 버스 환승 10분
-              </div>
-            </div>
-          </div>
-
-          {/* 버스 */}
-          <div className="loc-tr-card">
-            <div className="loc-tr-icon bus">
-              <Bus size={20} />
-            </div>
-            <div className="loc-tr-title">버스</div>
-            <div className="loc-tr-row">
-              <div className="loc-tr-badge dark">간</div>
-              <div className="loc-tr-text">
-                <strong>간선버스</strong> 340, 3312, 3411
-              </div>
-            </div>
-            <div className="loc-tr-row">
-              <div className="loc-tr-badge green">지</div>
-              <div className="loc-tr-text">
-                <strong>지선버스</strong> 2412, 3313
-              </div>
-            </div>
-            <div className="loc-tr-row">
-              <MapPin
-                size={14}
-                style={{ color: "#D1D5DB", flexShrink: 0, marginTop: 3 }}
-              />
-              <div className="loc-tr-text">
-                올림픽공원 정류장 하차 후 도보 3분
-              </div>
-            </div>
-          </div>
-
-          {/* 자가용 */}
-          <div className="loc-tr-card">
-            <div className="loc-tr-icon car">
-              <Car size={20} />
-            </div>
-            <div className="loc-tr-title">자가용</div>
-            <div className="loc-tr-row">
-              <Navigation
-                size={14}
-                style={{ color: "#D1D5DB", flexShrink: 0, marginTop: 3 }}
-              />
-              <div className="loc-tr-text">
-                <strong>내비게이션 검색</strong>
-                <br />
-                「올림픽공원 특설 행사장」
-              </div>
-            </div>
-            <div className="loc-tr-row">
-              <Car
-                size={14}
-                style={{ color: "#D1D5DB", flexShrink: 0, marginTop: 3 }}
-              />
-              <div className="loc-tr-text">
-                강변북로 → 올림픽대로 → 올림픽공원 진입
-              </div>
-            </div>
-            <div className="loc-tr-row">
-              <AlertTriangle
-                size={14}
-                style={{ color: "#DC2626", flexShrink: 0, marginTop: 3 }}
-              />
-              <div className="loc-tr-warn">행사 당일 도로 혼잡 예상</div>
-            </div>
-          </div>
-        </div>
+        {copyToast && <div className="loc-toast" role="status">주소가 복사되었습니다</div>}
 
         {/* 공지 */}
         <div className="loc-alert">
