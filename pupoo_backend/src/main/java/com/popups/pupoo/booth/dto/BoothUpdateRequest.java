@@ -1,19 +1,17 @@
-// file: src/main/java/com/popups/pupoo/booth/dto/BoothUpdateRequest.java
 package com.popups.pupoo.booth.dto;
 
-import com.popups.pupoo.booth.domain.enums.BoothStatus;
-import com.popups.pupoo.booth.domain.enums.BoothType;
-import com.popups.pupoo.booth.domain.enums.BoothZone;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-/**
- * 부스 수정 요청 DTO (관리자용)
- */
+@Getter
+@Setter
+@NoArgsConstructor
 public class BoothUpdateRequest {
-
-    public String placeName;
-    public BoothType type;
-    public String description;
-    public String company;
-    public BoothZone zone;
-    public BoothStatus status;
+    private String placeName;
+    private String type;
+    private String description;
+    private String company;
+    private String zone;
+    private String status;
 }

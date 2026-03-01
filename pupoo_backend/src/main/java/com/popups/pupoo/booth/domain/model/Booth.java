@@ -1,4 +1,3 @@
-// file: src/main/java/com/popups/pupoo/booth/domain/model/Booth.java
 package com.popups.pupoo.booth.domain.model;
 
 import com.popups.pupoo.booth.domain.enums.BoothStatus;
@@ -45,6 +44,33 @@ public class Booth {
     private LocalDateTime createdAt;
 
     protected Booth() {}
+
+    // ★ 추가: 관리자 생성용 팩토리 메서드
+    public static Booth create(Long eventId, String placeName, BoothType type,
+                                String description, String company,
+                                BoothZone zone, BoothStatus status) {
+        Booth b = new Booth();
+        b.eventId = eventId;
+        b.placeName = placeName;
+        b.type = type;
+        b.description = description;
+        b.company = company;
+        b.zone = zone;
+        b.status = (status != null) ? status : BoothStatus.OPEN;
+        b.createdAt = LocalDateTime.now();
+        return b;
+    }
+
+    // ★ 추가: 관리자 수정 메서드
+    public void update(String placeName, BoothType type, String description,
+                       String company, BoothZone zone, BoothStatus status) {
+        if (placeName != null) this.placeName = placeName;
+        if (type != null)      this.type = type;
+        if (description != null) this.description = description;
+        if (company != null)   this.company = company;
+        if (zone != null)      this.zone = zone;
+        if (status != null)    this.status = status;
+    }
 
     public Long getBoothId() { return boothId; }
     public Long getEventId() { return eventId; }
