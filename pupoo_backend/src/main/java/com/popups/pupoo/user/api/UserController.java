@@ -32,6 +32,11 @@ public class UserController {
         return ApiResponse.success(userService.getMe(userId));
     }
 
+    @GetMapping("/check-nickname")
+    public ApiResponse<Boolean> checkNickname(@RequestParam("nickname") String nickname) {
+        return ApiResponse.success(userService.isNicknameAvailable(nickname));
+    }
+
     /**
      * 현재 로그인 사용자 정보 수정
      * - phone은 본인인증 후 별도 플로우에서만 변경 가능하므로 여기서는 수정하지 않는다.

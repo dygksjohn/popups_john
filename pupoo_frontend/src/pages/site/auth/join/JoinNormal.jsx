@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "../api/authApi";
+import { userApi } from "../../../../features/user/api/userApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
 
@@ -451,6 +452,7 @@ export default function JoinNormal() {
 
   const [pets, setPets] = useState([{ type: "dog", age: "" }]);
   const [error, setError] = useState("");
+  const [nicknameError, setNicknameError] = useState("");
 
   // ✅ 플로우
   const [step, setStep] = useState("FORM"); // FORM -> OTP -> COMPLETE
@@ -478,6 +480,22 @@ export default function JoinNormal() {
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    if (name === "nickname") setNicknameError("");
+  };
+
+  const checkNickname = async () => {
+    const nickname = (form.nickname || "").trim();
+    if (!nickname) {
+      setNicknameError("닉네임을 입력하세요.");
+      return false;
+    }
+    const available = await userApi.checkNickname(nickname);
+    if (!available) {
+      setNicknameError("이미 사용 중인 닉네임입니다.");
+      return false;
+    }
+    setNicknameError("");
+    return true;
   };
 
   const handleNumberOnlyChange = (e) => {
@@ -592,6 +610,8 @@ export default function JoinNormal() {
     // 공통 필수
     if (!form.nickname?.trim()) throw new Error("닉네임을 입력하세요.");
     if (!phoneMobileDigits) throw new Error("휴대전화 번호를 완성해주세요.");
+    const nicknameAvailable = await checkNickname();
+    if (!nicknameAvailable) throw new Error("닉네임 중복 확인이 필요합니다.");
 
     // EMAIL 가입
     if (!isSocial) {
@@ -941,9 +961,13 @@ export default function JoinNormal() {
                   name="nickname"
                   value={form.nickname || ""}
                   onChange={handleFormChange}
+                  onBlur={checkNickname}
                   placeholder="닉네임을 입력하세요"
                   disabled={loading || step !== "FORM"}
                 />
+                {nicknameError ? (
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#e11d48" }}>{nicknameError}</div>
+                ) : null}
               </td>
             </tr>
 

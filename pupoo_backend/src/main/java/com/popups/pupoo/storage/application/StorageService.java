@@ -29,10 +29,12 @@ public class StorageService {
     private final StoredFileRepository storedFileRepository;
     private final SecurityUtil securityUtil;
 
-    public StorageService(ObjectStoragePort objectStoragePort,
-                          StorageKeyGenerator keyGenerator,
-                          StoredFileRepository storedFileRepository,
-                          SecurityUtil securityUtil) {
+    public StorageService(
+            ObjectStoragePort objectStoragePort,
+            StorageKeyGenerator keyGenerator,
+            StoredFileRepository storedFileRepository,
+            SecurityUtil securityUtil
+    ) {
         this.objectStoragePort = objectStoragePort;
         this.keyGenerator = keyGenerator;
         this.storedFileRepository = storedFileRepository;
@@ -41,18 +43,25 @@ public class StorageService {
 
     /**
      * POST/NOTICE 첨부파일 업로드 → files 테이블에 기록한다.
-     * - 업로더(user_id)는 현재 로그인 사용자로 저장한다.
+     * - 업로더(user_id)는 현재 인증 주체의 ID로 저장한다.
+     * - NOTICE 업로드는 ADMIN만 허용한다.
      */
     @Transactional
     public UploadResponse uploadForFilesTable(MultipartFile file, UploadRequest request) {
         request.validateForFilesTable();
+
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file is required");
         }
 
+        StorageKeyGenerator.UploadTargetType type = request.parsedTargetType();
+
+        if (type == StorageKeyGenerator.UploadTargetType.NOTICE && !securityUtil.isAdmin()) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "notice file upload is admin-only");
+        }
+
         Long uploaderId = securityUtil.currentUserId();
 
-        StorageKeyGenerator.UploadTargetType type = request.parsedTargetType();
         Long contentId = request.getContentId();
         String originalName = safeOriginalName(file.getOriginalFilename());
 
@@ -79,8 +88,10 @@ public class StorageService {
     public FileResponse getFile(Long fileId) {
         StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
+
         String key = toKey(f);
         String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
+
         return FileResponse.of(f.getFileId(), f.getOriginalName(), publicPath);
     }
 
@@ -88,6 +99,7 @@ public class StorageService {
     public InputStream download(Long fileId) {
         StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
+
         String key = toKey(f);
         return objectStoragePort.getObject(LOCAL_BUCKET_UNUSED, key);
     }
@@ -114,6 +126,7 @@ public class StorageService {
         }
 
         f.markDeleted(currentUserId, "USER_DELETE");
+        storedFileRepository.save(f);
     }
 
     /**
@@ -124,11 +137,14 @@ public class StorageService {
     @Transactional
     public void deleteByAdmin(Long fileId, String reason) {
         Long adminId = securityUtil.currentUserId();
+
         StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
 
         String r = (reason == null || reason.isBlank()) ? "ADMIN_DELETE" : reason;
+
         f.markDeleted(adminId, r);
+        storedFileRepository.save(f);
     }
 
     /**
@@ -139,6 +155,7 @@ public class StorageService {
     @Transactional
     public int purgeDeletedObjects(int retentionDays) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
+
         var targets = storedFileRepository
                 .findTop100ByDeletedAtIsNotNullAndObjectDeletedAtIsNullAndDeletedAtBefore(cutoff);
 
@@ -148,11 +165,13 @@ public class StorageService {
                 String key = toKey(f);
                 objectStoragePort.deleteObject(LOCAL_BUCKET_UNUSED, key);
                 f.markObjectDeleted();
+                storedFileRepository.save(f);
                 deletedCount++;
             } catch (Exception e) {
-                // 실패 시 다음 주기에 재시도 (objectDeletedAt 미세팅)
+                // 실패 시 다음 주기에 재시도한다.
             }
         }
+
         return deletedCount;
     }
 
@@ -167,10 +186,14 @@ public class StorageService {
     }
 
     private static String safeOriginalName(String originalFilename) {
-        if (originalFilename == null || originalFilename.isBlank()) return "file";
+        if (originalFilename == null || originalFilename.isBlank()) {
+            return "file";
+        }
+
         int idx1 = originalFilename.lastIndexOf('/');
         int idx2 = originalFilename.lastIndexOf('\\');
         int idx = Math.max(idx1, idx2);
+
         return (idx >= 0) ? originalFilename.substring(idx + 1) : originalFilename;
     }
 }

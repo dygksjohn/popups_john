@@ -29,6 +29,10 @@ import Home from "./pages/site/home/Home";
 /* Auth */
 import Login from "./pages/site/auth/Login";
 import Mypage from "./pages/site/auth/mypage";
+import MypageProfileEdit from "./pages/site/auth/MypageProfileEdit";
+import MypagePetEditor from "./pages/site/auth/MypagePetEditor";
+import MypageStorageUpload from "./pages/site/auth/MypageStorageUpload";
+import MypageQr from "./pages/site/auth/MypageQr";
 import JoinSelect from "./pages/site/auth/join/JoinSelect";
 import JoinNormal from "./pages/site/auth/join/JoinNormal";
 import JoinSocial from "./pages/site/auth/join/JoinSocial";
@@ -180,6 +184,16 @@ export default function App() {
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/mypage" element={<Mypage />} />
           <Route path="/mypage" element={<Mypage />} />
+          <Route path="/auth/mypage/profile" element={<MypageProfileEdit />} />
+          <Route path="/mypage/profile" element={<MypageProfileEdit />} />
+          <Route path="/auth/mypage/pets/new" element={<MypagePetEditor />} />
+          <Route path="/mypage/pets/new" element={<MypagePetEditor />} />
+          <Route path="/auth/mypage/pets/:petId/edit" element={<MypagePetEditor />} />
+          <Route path="/mypage/pets/:petId/edit" element={<MypagePetEditor />} />
+          <Route path="/auth/mypage/storage" element={<MypageStorageUpload />} />
+          <Route path="/mypage/storage" element={<MypageStorageUpload />} />
+          <Route path="/auth/mypage/qr" element={<MypageQr />} />
+          <Route path="/mypage/qr" element={<MypageQr />} />
           <Route
             path="/auth/join/joinselect"
             element={

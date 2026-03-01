@@ -96,6 +96,42 @@ public class PhoneVerificationService {
         return new PhoneVerificationRequestResponse(expiresAt, exposeDevCode ? code : null);
     }
 
+    @Transactional
+    public PhoneVerificationRequestResponse requestPhoneChange(Long userId, PhoneVerificationRequest request) {
+        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_PROFILE_NOT_FOUND));
+
+        String phone = normalizePhone(request.getPhone());
+        if (phone.equals(normalizePhone(user.getPhone()))) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "same phone");
+        }
+        if (userRepository.existsByPhone(phone)) {
+            throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
+        }
+
+        tokenRepository.findTopByUserIdAndPhoneAndUsedAtIsNullOrderByCreatedAtDesc(userId, phone).ifPresent(latest -> {
+            LocalDateTime cooldownLimit = latest.getCreatedAt().plusSeconds(requestCooldownSeconds);
+            if (LocalDateTime.now().isBefore(cooldownLimit)) {
+                throw new BusinessException(ErrorCode.VERIFICATION_TOO_MANY_REQUESTS);
+            }
+        });
+
+        String code = generateSixDigitCode();
+        String codeHash = HashUtil.sha256Hex(code + hashSalt);
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(otpTtlMinutes);
+
+        tokenRepository.save(new PhoneVerificationToken(userId, phone, codeHash, expiresAt));
+
+        String text = "[POPUPS] 인증번호는 " + code + " 입니다. (" + otpTtlMinutes + "분 이내 입력)";
+        notificationSender.sendSms(List.of(phone), text);
+
+        return new PhoneVerificationRequestResponse(expiresAt, exposeDevCode ? code : null);
+    }
+
     /**
      * 휴대폰 OTP 확인
      */
@@ -132,6 +168,45 @@ public class PhoneVerificationService {
             throw new BusinessException(ErrorCode.PHONE_OTP_INVALID);
         }
 
+        user.setPhoneVerified(true);
+        userRepository.save(user);
+
+        pvt.markUsed(LocalDateTime.now());
+        tokenRepository.save(pvt);
+    }
+
+    @Transactional
+    public void confirmPhoneChange(Long userId, PhoneVerificationConfirmRequest request) {
+        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_PROFILE_NOT_FOUND));
+
+        String phone = normalizePhone(request.getPhone());
+        PhoneVerificationToken pvt = tokenRepository.findTopByUserIdAndPhoneAndUsedAtIsNullOrderByCreatedAtDesc(userId, phone)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PHONE_OTP_INVALID));
+
+        if (pvt.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BusinessException(ErrorCode.PHONE_OTP_EXPIRED);
+        }
+        if (pvt.getAttemptCount() >= maxAttempts) {
+            throw new BusinessException(ErrorCode.PHONE_OTP_TOO_MANY_ATTEMPTS);
+        }
+
+        pvt.increaseAttemptCount();
+        String codeHash = HashUtil.sha256Hex(request.getCode() + hashSalt);
+        if (!codeHash.equals(pvt.getCodeHash())) {
+            tokenRepository.save(pvt);
+            throw new BusinessException(ErrorCode.PHONE_OTP_INVALID);
+        }
+
+        if (!phone.equals(normalizePhone(user.getPhone())) && userRepository.existsByPhone(phone)) {
+            throw new BusinessException(ErrorCode.DUPLICATE_PHONE);
+        }
+
+        user.setPhone(phone);
         user.setPhoneVerified(true);
         userRepository.save(user);
 
