@@ -19,8 +19,7 @@ services:
       - --default-time-zone=+09:00
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./pupoo_backend/src/main/resources/data/pupoo_db_v5_final.sql:/docker-entrypoint-initdb.d/00_schema.sql:ro
-      - ./pupoo_backend/src/main/resources/data/pupoo_seed_v5_final.sql:/docker-entrypoint-initdb.d/01_seed.sql:ro
+      - ./pupoo_backend/src/main/resources/data/pupoo_db_v5.3.sql:/docker-entrypoint-initdb.d/00_schema_and_seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
       interval: 10s
