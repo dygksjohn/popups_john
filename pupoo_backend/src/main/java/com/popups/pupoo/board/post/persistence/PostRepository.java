@@ -104,6 +104,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
           and (:from is null or p.createdAt >= :from)
           and (:to is null or p.createdAt <= :to)
         """)
+
+    @Query("""
+        select p
+        from Post p
+        where p.board.boardType = :boardType
+          and p.status = com.popups.pupoo.board.post.domain.enums.PostStatus.PUBLISHED
+          and p.deleted = false
+        """)
+    Page<Post> findByBoardTypePublished(@Param("boardType") com.popups.pupoo.board.boardinfo.domain.enums.BoardType boardType,
+                                        Pageable pageable);
+
     Page<Post> adminSearch(@Param("boardId") Long boardId,
                            @Param("keyword") String keyword,
                            @Param("status") PostStatus status,

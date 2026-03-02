@@ -2,6 +2,7 @@
 package com.popups.pupoo.board.post.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
+import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.post.application.PostService;
 import com.popups.pupoo.board.post.dto.PostCreateRequest;
 import com.popups.pupoo.board.post.dto.PostResponse;
@@ -43,6 +44,16 @@ public class PostController {
                                                     @RequestParam(required = false) String keyword,
                                                     Pageable pageable) {
         return ApiResponse.success(postService.getPublicPosts(boardId, SearchType.from(searchType), keyword, pageable));
+    }
+
+
+    /**
+     * 게시판 타입 기반 게시글 목록 조회(공개)
+     */
+    @GetMapping("/by-board-type")
+    public ApiResponse<Page<PostResponse>> getPostsByBoardType(@RequestParam BoardType boardType,
+                                                               Pageable pageable) {
+        return ApiResponse.success(postService.getPublicPostsByBoardType(boardType, pageable));
     }
 
     /**

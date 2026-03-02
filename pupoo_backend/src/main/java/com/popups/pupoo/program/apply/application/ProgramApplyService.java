@@ -14,6 +14,7 @@ import com.popups.pupoo.program.apply.dto.ProgramApplyResponse;
 import com.popups.pupoo.program.apply.persistence.ProgramApplyRepository;
 import com.popups.pupoo.program.domain.model.Program;
 import com.popups.pupoo.program.persistence.ProgramRepository;
+import com.popups.pupoo.pet.persistence.PetRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +31,7 @@ public class ProgramApplyService {
     private final ProgramApplyRepository programApplyRepository;
     private final ProgramRepository programRepository;
     private final EventRepository eventRepository;
+    private final PetRepository petRepository;
 
     //  활성 상태(= 중복 차단): APPLIED / WAITING / APPROVED
     // (DB active_flag 정의와 반드시 동일해야 함)
@@ -52,6 +54,8 @@ public class ProgramApplyService {
     }
 
     public ProgramApplyResponse create(Long userId, ProgramApplyRequest req) {
+        validatePetOwnership(userId, req.getPetId());
+
         Program program = programRepository.findById(req.getProgramId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROGRAM_NOT_FOUND));
 
@@ -82,7 +86,7 @@ public class ProgramApplyService {
         // 4) 저장 (REJECTED/CANCELLED 이력은 남기고, 재신청은 새 row INSERT)
         try {
             ProgramApply saved = programApplyRepository.save(
-                    ProgramApply.create(userId, program.getProgramId())
+                    ProgramApply.create(userId, program.getProgramId(), req.getPetId())
             );
             return ProgramApplyResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
@@ -109,6 +113,19 @@ public class ProgramApplyService {
     private void validateOwner(Long userId, ProgramApply apply) {
         if (!apply.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.PROGRAM_APPLY_ACCESS_DENIED);
+        }
+    }
+
+    /**
+     * 신청 시 선택한 pet_id가 요청 사용자 소유인지 검증한다.
+     * - null은 "선택 안 함"으로 허용한다.
+     */
+    private void validatePetOwnership(Long userId, Long petId) {
+        if (petId == null) {
+            return;
+        }
+        if (petRepository.findByPetIdAndUserId(petId, userId).isEmpty()) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "선택한 반려동물에 대한 접근 권한이 없습니다.");
         }
     }
 }

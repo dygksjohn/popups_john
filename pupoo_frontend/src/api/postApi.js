@@ -17,4 +17,8 @@ export const postApi = {
       },
     }),
   get: (postId) => axiosInstance.get(`/api/posts/${postId}`),
+  listByBoardType: (boardType, page = 0, size = 10) =>
+    axiosInstance.get("/api/posts/by-board-type", {
+      params: { boardType, page, size },
+    }),
 };

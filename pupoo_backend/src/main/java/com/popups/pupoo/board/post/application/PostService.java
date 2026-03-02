@@ -1,6 +1,7 @@
 // file: src/main/java/com/popups/pupoo/board/post/application/PostService.java
 package com.popups.pupoo.board.post.application;
 
+import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.domain.model.Board;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
@@ -63,6 +64,18 @@ public class PostService {
             }
             case TITLE_CONTENT -> postRepository.search(boardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
         };
+    }
+
+
+    /**
+     * 게시판 타입 기반 공개 게시글 목록 조회.
+     * - FREE 게시판은 반드시 board_type=FREE, status=PUBLISHED, deleted=false 조건으로 조회한다.
+     */
+    public Page<PostResponse> getPublicPostsByBoardType(BoardType boardType, Pageable pageable) {
+        if (boardType == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardType은 필수입니다.");
+        }
+        return postRepository.findByBoardTypePublished(boardType, pageable).map(PostResponse::from);
     }
 
     private static Long parseLongOrNull(String keyword) {

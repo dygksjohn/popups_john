@@ -128,8 +128,10 @@ public class SignupSessionService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
-        if (isBlank(request.getEmail()) || isBlank(request.getPassword())) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        if (request.getSignupType() == SignupType.EMAIL) {
+            if (isBlank(request.getEmail()) || isBlank(request.getPassword())) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+            }
         }
 
         if (request.getSignupType() == SignupType.SOCIAL) {
@@ -158,7 +160,7 @@ public class SignupSessionService {
         session.setSignupKey(UUID.randomUUID().toString());
         session.setSignupType(request.getSignupType());
         session.setEmail(safeTrim(request.getEmail()));
-        session.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        session.setPasswordHash(isBlank(request.getPassword()) ? passwordEncoder.encode(UUID.randomUUID().toString()) : passwordEncoder.encode(request.getPassword()));
         session.setNickname(nickname);
         session.setPhone(phone);
 
@@ -273,6 +275,10 @@ public class SignupSessionService {
         String body = "인증코드는 " + code + " 입니다. (" + emailTtlMinutes + "분 이내 입력)";
         notificationSender.sendEmail(List.of(session.getEmail()), subject, body);
 
+        if (exposeDevCode) {
+            System.out.println("[DEV][SIGNUP_EMAIL_CODE] signupKey=" + session.getSignupKey() + ", code=" + code);
+        }
+
         return new EmailVerificationRequestResponse(session.getEmailExpiresAt(), exposeDevCode ? code : null);
     }
 
@@ -340,7 +346,7 @@ public class SignupSessionService {
 
         // users 생성(최초 생성 지점)
         UserCreateRequest ucr = new UserCreateRequest();
-        ucr.setEmail(session.getEmail());
+        ucr.setEmail(resolveSignupEmail(session));
         ucr.setNickname(session.getNickname());
         ucr.setPhone(session.getPhone());
 
@@ -441,6 +447,18 @@ public class SignupSessionService {
 
     private boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
+    }
+
+    private String resolveSignupEmail(SignupSession session) {
+        if (!isBlank(session.getEmail())) {
+            return safeTrim(session.getEmail());
+        }
+        if (session.getSignupType() == SignupType.SOCIAL) {
+            String provider = safeTrim(session.getSocialProvider());
+            String providerUid = safeTrim(session.getSocialProviderUid());
+            return "social+" + provider + "_" + providerUid + "@dev.pupoo.local";
+        }
+        throw new BusinessException(ErrorCode.VALIDATION_FAILED);
     }
 
     /**

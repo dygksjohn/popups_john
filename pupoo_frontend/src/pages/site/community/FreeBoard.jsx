@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import PageHeader from "../components/PageHeader";
 import { ChevronDown, Search, Loader2 } from "lucide-react";
 import { postApi, unwrap } from "../../../api/postApi";
+import { boardApi, unwrap as unwrapBoard } from "../../../api/boardApi";
 
 const SERVICE_CATEGORIES = [
   { label: "자유게시판", path: "/community/freeboard" },
@@ -11,7 +12,6 @@ const SERVICE_CATEGORIES = [
 ];
 
 const FILTER_OPTIONS = ["전체", "제목", "내용"];
-const FREE_BOARD_ID = 1;
 
 function fmtDate(dt) {
   if (!dt) return "-";
@@ -31,11 +31,15 @@ export default function ServicePage() {
     setLoading(true);
     setError("");
     try {
-      const res = await postApi.list({
-        boardId: FREE_BOARD_ID,
-        uiPage: 1,
-        size: 10,
-      });
+      const boardsRes = await boardApi.getBoards();
+      const boards = unwrapBoard(boardsRes) || [];
+      const freeBoard = boards.find((b) => b.boardType === "FREE");
+
+      if (!freeBoard) {
+        throw new Error("FREE 게시판 정보를 찾을 수 없습니다.");
+      }
+
+      const res = await postApi.listByBoardType("FREE", 0, 10);
       const data = unwrap(res);
       setItems(data?.content || []);
     } catch (e) {
@@ -228,7 +232,7 @@ export default function ServicePage() {
                     fontWeight: "400",
                   }}
                 >
-                  {notice.postTitle}
+                  {notice.postTitle} · 작성자 {notice.userId || "-"} · 조회수 {notice.viewCount ?? 0}
                 </span>
                 <span
                   style={{

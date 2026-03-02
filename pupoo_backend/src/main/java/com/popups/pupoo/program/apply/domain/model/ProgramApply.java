@@ -28,6 +28,14 @@ public class ProgramApply {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    /**
+     * 선택한 반려동물 식별자.
+     * - DB 컬럼: event_program_apply.pet_id (nullable)
+     * - 사용자가 펫을 선택하지 않은 신청도 허용한다.
+     */
+    @Column(name = "pet_id")
+    private Long petId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private ApplyStatus status;
@@ -73,10 +81,11 @@ public class ProgramApply {
     @Column(name = "active_flag", insertable = false, updatable = false)
     private Byte activeFlag;
 
-    public static ProgramApply create(Long userId, Long programId) {
+    public static ProgramApply create(Long userId, Long programId, Long petId) {
         return ProgramApply.builder()
                 .userId(userId)
                 .programId(programId)
+                .petId(petId)
                 .status(ApplyStatus.APPLIED)
                 .ticketNo(null)
                 .etaMin(null)

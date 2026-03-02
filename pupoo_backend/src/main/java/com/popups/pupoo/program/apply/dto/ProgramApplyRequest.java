@@ -8,4 +8,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ProgramApplyRequest {
     private Long programId;
+    private Long petId;
 }
