@@ -900,6 +900,9 @@ export default function EventDetailModal({ event, onClose }) {
       redirectToLogin();
       return;
     }
+    const confirmed = window.confirm("확인을 누르시면 결제가 취소됩니다.");
+    if (!confirmed) return;
+
     setRegLoading(true);
     setRegError("");
     try {
@@ -914,7 +917,11 @@ export default function EventDetailModal({ event, onClose }) {
         redirectToLogin();
       } else {
         console.error(e);
-        setRegError("취소에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        const msg =
+          e?.response?.data?.error?.message ||
+          e?.response?.data?.message ||
+          "취소에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+        setRegError(msg);
       }
     } finally {
       setRegLoading(false);
