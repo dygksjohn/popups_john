@@ -1,8 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./pages/site/auth/AuthProvider";
 import SiteLayout from "./layouts/SiteLayout";
-import ScrollToTop from "./ScrolltoTop";
-import RequireAuth from "./app/router/guards/RequireAuth";
+import ScrollToTop from "./ScrollToTop";
 
 /* admin */
 import Dashboard from "./pages/admin/dashboard/Dashboard";
@@ -17,7 +16,7 @@ import PastEvents from "./pages/admin/past/PastEvents";
 import ZoneManage from "./pages/admin/zone/zoneManage";
 import ContestManage from "./pages/admin/contest/contestManage";
 import SessionManage from "./pages/admin/session/sessionManage";
-import Reviews from "./pages/admin/board/Reviews";
+import Reviews from "./pages/admin/board/reviews";
 import GalleryManage from "./pages/admin/gallery/Gallery";
 import ParticipantList from "./pages/admin/participant/ParticipantList";
 
@@ -29,11 +28,7 @@ import Home from "./pages/site/home/Home";
 
 /* Auth */
 import Login from "./pages/site/auth/Login";
-import Mypage from "./pages/site/auth/Mypage";
-import MypageProfileEdit from "./pages/site/auth/MypageProfileEdit";
-import MypagePetEditor from "./pages/site/auth/MypagePetEditor";
-import MypageStorageUpload from "./pages/site/auth/MypageStorageUpload";
-import MypageQr from "./pages/site/auth/MypageQr";
+import Mypage from "./pages/site/auth/mypage";
 import JoinSelect from "./pages/site/auth/join/JoinSelect";
 import JoinNormal from "./pages/site/auth/join/JoinNormal";
 import JoinSocial from "./pages/site/auth/join/JoinSocial";
@@ -60,7 +55,9 @@ import Session from "./pages/site/program/Session";
 import Booth from "./pages/site/program/Booth";
 import Contest from "./pages/site/program/Contest";
 import Schedule from "./pages/site/program/Schedule";
+import ProgramAll from "./pages/site/program/ProgramAll";
 import VoteResult from "./pages/site/program/VoteResult";
+import SessionDetail from "./pages/site/program/SessionDetail";
 
 /* Registration */
 import Apply from "./pages/site/registration/Apply";
@@ -100,7 +97,7 @@ import EventSketch from "./pages/site/gallery/eventsketch";
 
 /* guide */
 import Operation from "./pages/site/guide/Operation";
-import LocationPage from "./pages/site/guide/Location";
+import LocationPage from "./pages/site/guide/location";
 import Timetable from "./pages/site/guide/Timetable";
 import CheckinStatus from "./pages/site/realtime/CheckinStatus";
 
@@ -134,10 +131,8 @@ function ComingSoon() {
 }
 
 function PublicOnly({ children }) {
-  const { isAuthed, isBootstrapped } = useAuth();
+  const { isAuthed } = useAuth();
   const location = useLocation();
-
-  if (!isBootstrapped) return null;
 
   if (isAuthed) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
@@ -184,111 +179,9 @@ export default function App() {
           {/* Home */}
           <Route path="/" element={<Home />} />
           {/* Auth */}
-          <Route
-            path="/auth/login"
-            element={
-              <PublicOnly>
-                <Login />
-              </PublicOnly>
-            }
-          />
-          <Route path="/login" element={<Navigate to="/auth/login" replace />} />
-          <Route
-            path="/auth/mypage"
-            element={
-              <RequireAuth>
-                <Mypage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/mypage"
-            element={
-              <RequireAuth>
-                <Mypage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/auth/mypage/profile"
-            element={
-              <RequireAuth>
-                <MypageProfileEdit />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/mypage/profile"
-            element={
-              <RequireAuth>
-                <MypageProfileEdit />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/auth/mypage/pets/new"
-            element={
-              <RequireAuth>
-                <MypagePetEditor />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/mypage/pets/new"
-            element={
-              <RequireAuth>
-                <MypagePetEditor />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/auth/mypage/pets/:petId/edit"
-            element={
-              <RequireAuth>
-                <MypagePetEditor />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/mypage/pets/:petId/edit"
-            element={
-              <RequireAuth>
-                <MypagePetEditor />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/auth/mypage/storage"
-            element={
-              <RequireAuth>
-                <MypageStorageUpload />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/mypage/storage"
-            element={
-              <RequireAuth>
-                <MypageStorageUpload />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/auth/mypage/qr"
-            element={
-              <RequireAuth>
-                <MypageQr />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/mypage/qr"
-            element={
-              <RequireAuth>
-                <MypageQr />
-              </RequireAuth>
-            }
-          />
+          <Route path="/auth/login" element={<Login />} />
+          <Route path="/auth/mypage" element={<Mypage />} />
+          <Route path="/mypage" element={<Mypage />} />
           <Route
             path="/auth/join/joinselect"
             element={
@@ -362,6 +255,8 @@ export default function App() {
           />
           <Route path="/program/session/:eventId?" element={<Session />} />
           <Route path="/program/schedule/:eventId?" element={<Schedule />} />
+          <Route path="/program/all/:eventId?" element={<ProgramAll />} />
+          <Route path="/program/detail" element={<SessionDetail />} />
           <Route path="/program/contest/:eventId?" element={<Contest />} />
           <Route path="/program/booth/:eventId?" element={<Booth />} />
           {/* Registration */}

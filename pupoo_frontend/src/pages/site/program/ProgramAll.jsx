@@ -1,0 +1,439 @@
+﻿import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import PageHeader from "../components/PageHeader";
+import EventSelectPage from "../components/EventSelectPage";
+import {
+  SERVICE_CATEGORIES,
+  SUBTITLE_MAP,
+  SAMPLE_EVENTS,
+} from "../constants/programConstants";
+import { eventApi } from "../../../app/http/eventApi";
+import { programApi } from "../../../app/http/programApi";
+import {
+  CalendarDays,
+  Clock,
+  MapPin,
+  Users,
+  ChevronRight,
+  Tag,
+  CheckCircle2,
+  Circle,
+  AlertCircle,
+  CalendarCheck,
+} from "lucide-react";
+
+const styles = `
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
+
+  .sc-root {
+    box-sizing: border-box;
+    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+    background: #f8f9fc;
+    min-height: 100vh;
+  }
+  .sc-root *, .sc-root *::before, .sc-root *::after { box-sizing: border-box; font-family: inherit; }
+  .sc-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  .sc-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .sc-stat-card {
+    background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 20px 22px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .sc-stat-icon { width: 44px; height: 44px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .sc-stat-label { font-size: 12px; color: #6b7280; font-weight: 500; }
+  .sc-stat-value { font-size: 22px; font-weight: 800; color: #111827; }
+
+  .sc-card { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 24px 28px; margin-bottom: 16px; }
+  .sc-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #f1f3f5; }
+  .sc-card-title { font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin: 0; }
+  .sc-card-title-icon { width: 24px; height: 24px; border-radius: 6px; background: #fffbeb; display: flex; align-items: center; justify-content: center; }
+  .sc-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
+
+  .sc-main-grid { display: grid; grid-template-columns: 320px 1fr; gap: 14px; }
+
+  /* Day selector */
+  .sc-day-list { display: flex; flex-direction: column; gap: 8px; }
+  .sc-day-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 18px; border: 1px solid #e9ecef; border-radius: 10px;
+    background: #fff; cursor: pointer; transition: all 0.15s;
+  }
+  .sc-day-item:hover { border-color: #1a4fd6; }
+  .sc-day-item.active { border-color: #1a4fd6; background: #f5f8ff; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
+  .sc-day-icon {
+    width: 44px; height: 44px; border-radius: 10px; background: #f3f4f6;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .sc-day-icon.active { background: #1a4fd6; }
+  .sc-day-icon .sc-day-d { font-size: 16px; font-weight: 900; color: #111827; line-height: 1; }
+  .sc-day-icon.active .sc-day-d { color: #fff; }
+  .sc-day-icon .sc-day-w { font-size: 9px; font-weight: 600; color: #9ca3af; }
+  .sc-day-icon.active .sc-day-w { color: rgba(255,255,255,0.7); }
+  .sc-day-info { flex: 1; }
+  .sc-day-title { font-size: 14px; font-weight: 700; color: #111827; }
+  .sc-day-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+  .sc-day-count {
+    font-size: 11px; font-weight: 700; color: #1a4fd6; background: #eff4ff;
+    padding: 3px 10px; border-radius: 100px;
+  }
+
+  /* Schedule timeline */
+  .sc-timeline { display: flex; flex-direction: column; gap: 0; }
+  .sc-time-group { margin-bottom: 20px; }
+  .sc-time-label {
+    font-size: 12px; font-weight: 700; color: #1a4fd6; background: #eff4ff;
+    display: inline-flex; padding: 3px 10px; border-radius: 100px; margin-bottom: 10px;
+  }
+  .sc-event-list { display: flex; flex-direction: column; gap: 8px; }
+  .sc-event-item {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 16px 18px; border: 1px solid #e9ecef; border-radius: 10px;
+    background: #fff; transition: all 0.15s; cursor: pointer;
+  }
+  .sc-event-item:hover { border-color: #1a4fd6; background: #f8faff; }
+  .sc-event-item.active { border-color: #10b981; background: #f0fdf9; }
+  .sc-event-item.done { opacity: 0.55; }
+  .sc-event-dot { margin-top: 4px; flex-shrink: 0; }
+  .sc-event-info { flex: 1; }
+  .sc-event-name { font-size: 14px; font-weight: 700; color: #111827; }
+  .sc-event-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; font-size: 12px; color: #9ca3af; }
+  .sc-event-meta-item { display: flex; align-items: center; gap: 3px; }
+  .sc-event-tags { display: flex; gap: 6px; margin-top: 8px; }
+  .sc-event-tag {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 100px;
+  }
+  .sc-event-tag.session { background: #eff4ff; color: #1a4fd6; }
+  .sc-event-tag.contest { background: #fef3c7; color: #d97706; }
+  .sc-event-tag.experience { background: #fce7f3; color: #ec4899; }
+  .sc-event-tag.ceremony { background: #f5f3ff; color: #8b5cf6; }
+  .sc-event-badge {
+    padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; flex-shrink: 0;
+  }
+  .sc-event-badge.live { background: #ecfdf5; color: #059669; }
+  .sc-event-badge.upcoming { background: #fff7ed; color: #d97706; }
+  .sc-event-badge.done { background: #f3f4f6; color: #9ca3af; }
+
+  @media (max-width: 900px) {
+    .sc-main-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .sc-container { padding: 20px 16px 48px; }
+    .sc-stat-grid { grid-template-columns: 1fr 1fr; }
+  }
+`;
+
+const TIME_LABELS = { morning: "오전", afternoon: "오후", evening: "저녁" };
+const TYPE_LABEL = {
+  session: "세션",
+  contest: "콘테스트",
+  experience: "체험",
+  ceremony: "행사",
+};
+const STATUS_LABEL = { live: "진행 중", upcoming: "예정", done: "완료" };
+
+function toDateKey(value) {
+  if (!value) return null;
+  const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
+function toDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatYmd(key) {
+  if (!key) return "일정 미정";
+  return key.replaceAll("-", ".");
+}
+
+function getWeekdayLabel(key) {
+  const d = toDate(`${key}T00:00:00`);
+  if (!d) return "-";
+  return ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+}
+
+function getTimeLabel(startAt, endAt) {
+  const pick = (v) => {
+    if (!v) return "";
+    const m = String(v).match(/(\d{2}):(\d{2})/);
+    return m ? `${m[1]}:${m[2]}` : "";
+  };
+  const a = pick(startAt);
+  const b = pick(endAt);
+  if (a && b) return `${a}~${b}`;
+  return a || b || "시간 미정";
+}
+
+function getPeriod(timeText) {
+  const m = String(timeText).match(/(\d{1,2}):(\d{2})/);
+  if (!m) return "afternoon";
+  const minutes = Number(m[1]) * 60 + Number(m[2]);
+  if (minutes < 12 * 60) return "morning";
+  if (minutes < 18 * 60) return "afternoon";
+  return "evening";
+}
+
+function getType(raw) {
+  const v = String(raw ?? "").toUpperCase();
+  if (v.includes("SESSION") || v.includes("SEMINAR") || v.includes("LECTURE")) return "session";
+  if (v.includes("CONTEST") || v.includes("VOTE")) return "contest";
+  if (v.includes("EXPERIENCE") || v.includes("EXHIBIT")) return "experience";
+  return "ceremony";
+}
+
+function getStatus(raw) {
+  const v = String(raw ?? "").toUpperCase();
+  if (v.includes("LIVE") || v.includes("ONGOING") || v.includes("PROGRESS")) return "live";
+  if (v.includes("DONE") || v.includes("END") || v.includes("FINISH")) return "done";
+  return "upcoming";
+}
+
+function normalizeProgram(item, idx) {
+  const startAt = item?.startAt ?? item?.startDateTime ?? null;
+  const endAt = item?.endAt ?? item?.endDateTime ?? null;
+  const time = getTimeLabel(startAt, endAt);
+  return {
+    id: item?.id ?? item?.programId ?? `p-${idx}`,
+    dateKey: toDateKey(startAt ?? item?.date ?? item?.day),
+    name: item?.programName ?? item?.title ?? item?.name ?? `프로그램 ${idx + 1}`,
+    time,
+    zone: item?.location ?? item?.place ?? item?.zone ?? item?.boothName ?? "장소 미정",
+    people: Number(item?.participantCount ?? item?.participants ?? item?.capacity ?? 0),
+    type: getType(item?.category ?? item?.programCategory),
+    status: getStatus(item?.status),
+    period: getPeriod(time),
+  };
+}
+
+function buildDateKeys(eventDetail, programs) {
+  const startKey = toDateKey(eventDetail?.startAt);
+  const endKey = toDateKey(eventDetail?.endAt);
+  if (startKey && endKey) {
+    const out = [];
+    let cursor = new Date(`${startKey}T00:00:00`);
+    const end = new Date(`${endKey}T00:00:00`);
+    while (cursor.getTime() <= end.getTime()) {
+      const y = cursor.getFullYear();
+      const m = String(cursor.getMonth() + 1).padStart(2, "0");
+      const d = String(cursor.getDate()).padStart(2, "0");
+      out.push(`${y}-${m}-${d}`);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return out;
+  }
+  const keys = programs.map((p) => p.dateKey).filter(Boolean);
+  return [...new Set(keys)].sort();
+}
+
+function ScheduleContent({ eventDetail, programs, loading, error }) {
+  const days = useMemo(() => {
+    const keys = buildDateKeys(eventDetail, programs);
+    return keys.map((key, idx) => {
+      const count = programs.filter((p) => p.dateKey === key).length;
+      return {
+        key,
+        date: key.slice(8, 10),
+        weekday: getWeekdayLabel(key),
+        title: `${idx + 1}일차 · ${formatYmd(key)}`,
+        sub: `${count}개 프로그램`,
+        events: count,
+      };
+    });
+  }, [eventDetail, programs]);
+
+  const [selectedDay, setSelectedDay] = useState(0);
+  useEffect(() => {
+    setSelectedDay(0);
+  }, [days.length]);
+
+  const selected = days[selectedDay];
+  const selectedPrograms = selected ? programs.filter((p) => p.dateKey === selected.key) : [];
+  const scheduleByPeriod = {
+    morning: selectedPrograms.filter((p) => p.period === "morning"),
+    afternoon: selectedPrograms.filter((p) => p.period === "afternoon"),
+    evening: selectedPrograms.filter((p) => p.period === "evening"),
+  };
+  const liveCount = programs.filter((p) => p.status === "live").length;
+
+  return (
+    <>
+      <div className="sc-stat-grid">
+        {[
+          { label: "행사 기간", value: `${days.length}일`, icon: <CalendarDays size={20} color="#1a4fd6" />, bg: "#eff4ff" },
+          { label: "선택 일자 프로그램", value: `${selectedPrograms.length}개`, icon: <CalendarCheck size={20} color="#10b981" />, bg: "#ecfdf5" },
+          { label: "전체 프로그램", value: `${programs.length}개`, icon: <Users size={20} color="#f59e0b" />, bg: "#fffbeb" },
+          { label: "진행 중", value: `${liveCount}개`, icon: <AlertCircle size={20} color="#ef4444" />, bg: "#fff0f0" },
+        ].map((s) => (
+          <div key={s.label} className="sc-stat-card">
+            <div className="sc-stat-icon" style={{ background: s.bg }}>{s.icon}</div>
+            <div>
+              <div className="sc-stat-label">{s.label}</div>
+              <div className="sc-stat-value">{s.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="sc-main-grid">
+        <div className="sc-card">
+          <div className="sc-card-header">
+            <div className="sc-card-title">
+              <div className="sc-card-title-icon"><CalendarDays size={14} color="#f59e0b" /></div>
+              일자 선택
+            </div>
+            <span className="sc-card-tag">{days.length}일</span>
+          </div>
+          <div className="sc-day-list">
+            {days.map((d, i) => (
+              <div key={d.key} className={`sc-day-item${selectedDay === i ? " active" : ""}`} onClick={() => setSelectedDay(i)}>
+                <div className={`sc-day-icon${selectedDay === i ? " active" : ""}`}>
+                  <span className="sc-day-d">{d.date}</span>
+                  <span className="sc-day-w">{d.weekday}</span>
+                </div>
+                <div className="sc-day-info">
+                  <div className="sc-day-title">{d.title}</div>
+                  <div className="sc-day-sub">{d.sub}</div>
+                </div>
+                <span className="sc-day-count">{d.events}개</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="sc-card">
+          <div className="sc-card-header">
+            <div className="sc-card-title">
+              <div className="sc-card-title-icon"><Clock size={14} color="#f59e0b" /></div>
+              {selected ? `${selected.title} 일정` : "일정"}
+            </div>
+            <span className="sc-card-tag">{selectedPrograms.length}개 프로그램</span>
+          </div>
+          {loading ? (
+            <div className="sc-card-tag">로딩 중...</div>
+          ) : error ? (
+            <div className="sc-card-tag">{error}</div>
+          ) : (
+            <div className="sc-timeline">
+              {Object.entries(scheduleByPeriod).map(([period, events]) => (
+                <div key={period} className="sc-time-group">
+                  <div className="sc-time-label">{TIME_LABELS[period]}</div>
+                  <div className="sc-event-list">
+                    {events.map((e) => (
+                      <div key={e.id} className={`sc-event-item${e.status === "live" ? " active" : ""}${e.status === "done" ? " done" : ""}`}>
+                        <div className="sc-event-dot">
+                          {e.status === "done" ? <CheckCircle2 size={16} color="#10b981" /> : e.status === "live" ? <AlertCircle size={16} color="#10b981" /> : <Circle size={16} color="#d1d5db" />}
+                        </div>
+                        <div className="sc-event-info">
+                          <div className="sc-event-name">{e.name}</div>
+                          <div className="sc-event-meta">
+                            <span className="sc-event-meta-item"><Clock size={11} /> {e.time}</span>
+                            <span className="sc-event-meta-item"><MapPin size={11} /> {e.zone}</span>
+                            <span className="sc-event-meta-item"><Users size={11} /> {e.people}명</span>
+                          </div>
+                          <div className="sc-event-tags">
+                            <span className={`sc-event-tag ${e.type}`}>{TYPE_LABEL[e.type]}</span>
+                          </div>
+                        </div>
+                        <span className={`sc-event-badge ${e.status}`}>{STATUS_LABEL[e.status]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default function ProgramAll() {
+  const navigate = useNavigate();
+  const { eventId } = useParams();
+  const currentPath = "/program/all";
+  const safeEventId = Number(eventId);
+  const [eventDetail, setEventDetail] = useState(null);
+  const [programs, setPrograms] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const categories = useMemo(() => {
+    if (!Number.isFinite(safeEventId)) return SERVICE_CATEGORIES;
+    return SERVICE_CATEGORIES.map((category) => {
+      const basePath = String(category.path ?? "").replace(/\/\d+$/, "");
+      if (!basePath.startsWith("/program/")) return category;
+      return {
+        ...category,
+        path: `${basePath}/${safeEventId}`,
+      };
+    });
+  }, [safeEventId]);
+
+  useEffect(() => {
+    if (!Number.isFinite(safeEventId)) return;
+    let mounted = true;
+    const fetchData = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const [eventRes, programRes] = await Promise.all([
+          eventApi.getEventDetail(safeEventId),
+          programApi.getAllProgramsByEvent({
+            eventId: safeEventId,
+            sort: "startAt,asc",
+          }),
+        ]);
+        if (!mounted) return;
+        setEventDetail(eventRes?.data?.data ?? null);
+        const list = Array.isArray(programRes) ? programRes : [];
+        const filtered = list.filter(
+          (item) => Number(item?.eventId) === safeEventId,
+        );
+        setPrograms(filtered.map(normalizeProgram));
+      } catch (e) {
+        if (!mounted) return;
+        setError(e?.response?.data?.message || e?.message || "프로그램 데이터를 불러오지 못했습니다.");
+        setPrograms([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    fetchData();
+    return () => { mounted = false; };
+  }, [safeEventId]);
+
+  if (!eventId) {
+    return (
+      <div className="sc-root">
+        <style>{styles}</style>
+        <PageHeader
+          title="프로그램 일정"
+          subtitle="행사를 선택해 프로그램 일정을 확인하세요"
+          categories={categories}
+          currentPath={currentPath}
+          onNavigate={(path) => navigate(path)}
+        />
+        <EventSelectPage events={SAMPLE_EVENTS} basePath="/program/all" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="sc-root">
+      <style>{styles}</style>
+      <PageHeader
+        title="프로그램 일정"
+        subtitle={SUBTITLE_MAP["/program/schedule"]}
+        categories={categories}
+        currentPath={currentPath}
+        onNavigate={(path) => navigate(path)}
+      />
+      <main className="sc-container">
+        <ScheduleContent eventDetail={eventDetail} programs={programs} loading={loading} error={error} />
+      </main>
+    </div>
+  );
+}
+

@@ -19,6 +19,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
     name = "qr_codes",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_qr_codes_user_event", columnNames = {"user_id", "event_id"})
+    },
     indexes = {
         @Index(name = "ix_qr_codes_user_id", columnList = "user_id"),
         @Index(name = "ix_qr_codes_event_id", columnList = "event_id")
@@ -74,6 +77,15 @@ public class QrCode {
     void prePersist() {
         if (issuedAt == null) {
             issuedAt = LocalDateTime.now();
+        }
+    }
+
+    public void syncIssuePolicy(String originalUrl, QrMimeType mimeType, LocalDateTime expiredAt, LocalDateTime now) {
+        this.originalUrl = originalUrl;
+        this.mimeType = mimeType;
+        this.expiredAt = expiredAt;
+        if (this.issuedAt == null) {
+            this.issuedAt = now;
         }
     }
 }

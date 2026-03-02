@@ -20,6 +20,39 @@ export const programApi = {
     });
   },
 
+  // GET /api/events/{eventId}/programs (all pages)
+  getAllProgramsByEvent: async ({
+    eventId,
+    category,
+    sort = "startAt,asc",
+    pageSize = 200,
+    maxPages = 100,
+  } = {}) => {
+    if (eventId == null)
+      throw new Error("getAllProgramsByEvent: eventId is required");
+
+    const all = [];
+    let page = 0;
+    let isLast = false;
+
+    while (!isLast && page < maxPages) {
+      const res = await programApi.getPrograms({
+        eventId,
+        category,
+        page,
+        size: pageSize,
+        sort,
+      });
+      const data = res?.data?.data ?? {};
+      const content = Array.isArray(data?.content) ? data.content : [];
+      all.push(...content);
+      isLast = Boolean(data?.last);
+      page += 1;
+    }
+
+    return all;
+  },
+
   // GET /api/programs/{programId}
   getProgramDetail: (programId) => {
     if (programId == null)
@@ -50,13 +83,27 @@ export const programApi = {
   // =========================
 
   // GET /api/program-applies/my
+  // ✅ C안은 programId 매칭용으로 한번에 많이 가져오므로 size 기본값을 200으로 올림
   getMyProgramApplies: ({ page = 0, size = 200, sort } = {}) =>
     axiosInstance.get(`/api/program-applies/my`, {
       params: { page, size, ...(sort ? { sort } : {}) },
     }),
 
+  // ✅ (추가) GET /api/program-applies/programs/{programId}/candidates
+  // 후보 목록(승인된 신청자만 백엔드에서 내려줌)
+  getCandidates: (programId, { page = 0, size = 200 } = {}) => {
+    if (programId == null)
+      throw new Error("getCandidates: programId is required");
+
+    return axiosInstance.get(
+      `/api/program-applies/programs/${programId}/candidates`,
+      { params: { page, size } },
+    );
+  },
+
   // POST /api/program-applies
   createProgramApply: (payload) => {
+    // ✅ ProgramApplyRequest = { programId } 최소 검증
     if (!payload || payload.programId == null) {
       throw new Error("createProgramApply: payload.programId is required");
     }
@@ -89,6 +136,7 @@ export const programApi = {
   },
 
   // POST /api/programs/{programId}/votes
+  // body/params 둘 다 실어 호환 처리
   voteContest: (programId, programApplyId) => {
     if (programId == null) throw new Error("voteContest: programId is required");
     if (programApplyId == null)
