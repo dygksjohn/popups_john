@@ -305,6 +305,11 @@ const MegaMenuItem = ({ item }) => {
 const MegaMenu = ({ menuData }) => {
   if (!menuData) return null;
   const { columns, promo } = menuData;
+  const hiddenEventMenuHrefs = new Set([
+    "/event/preregister",
+    "/event/eventschedule",
+    "/event/eventSchedule",
+  ]);
 
   return (
     <div
@@ -349,7 +354,9 @@ const MegaMenu = ({ menuData }) => {
                 {col.title}
               </div>
               <div>
-                {col.items.map((item, j) => (
+                {col.items
+                  .filter((item) => !hiddenEventMenuHrefs.has(item.href))
+                  .map((item, j) => (
                   <MegaMenuItem key={j} item={item} />
                 ))}
               </div>

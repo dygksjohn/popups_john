@@ -1,18 +1,18 @@
 ﻿import PageHeader from "../components/PageHeader";
 import EventDetailModal from "./EventDetailModal";
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { eventApi } from "../../../app/http/eventApi";
+import { axiosInstance } from "../../../app/http/axiosInstance";
+import { tokenStore } from "../../../app/http/tokenStore";
 import {
-  Calendar,
   MapPin,
-  Users,
   Clock,
   ChevronRight,
   Search,
   Bell,
   BellRing,
   Tag,
-  Filter,
 } from "lucide-react";
 
 export const SERVICE_CATEGORIES = [
@@ -61,6 +61,10 @@ const styles = `
   .up-nav-btn.active { background: #1a4fd6; color: #fff; font-weight: 600; }
 
   .up-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  .up-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 100px; font-size: 11px; font-weight: 700; color: #2563eb; margin-bottom: 20px; }
+  .up-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #2563eb; animation: up-pulse 1.4s ease-in-out infinite; }
+  @keyframes up-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 
   .up-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
   .up-stat-card {
@@ -118,7 +122,7 @@ const styles = `
   .up-event-title { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 8px; }
   .up-event-meta { display: flex; gap: 16px; flex-wrap: wrap; }
   .up-event-meta-item { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: #6b7280; }
-  .up-event-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+  .up-event-right { display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; align-self: flex-start; gap: 8px; flex-shrink: 0; }
   .up-participants { font-size: 12px; color: #6b7280; text-align: right; }
   .up-participants strong { display: block; font-size: 15px; font-weight: 700; color: #111827; }
   .up-alarm-btn {
@@ -129,11 +133,19 @@ const styles = `
   .up-alarm-btn.off { border: 1px solid #e2e8f0; background: #fff; color: #374151; }
   .up-alarm-btn.off:hover { border-color: #1a4fd6; color: #1a4fd6; }
   .up-alarm-btn.on { border: 1px solid #1a4fd6; background: #eff4ff; color: #1a4fd6; }
+  .up-action-row { display: flex; align-items: center; gap: 6px; }
+  .up-pre-btn {
+    height: 32px; padding: 0 12px; border-radius: 8px; border: none;
+    font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+    background: #1a4fd6; color: #fff; transition: all 0.15s;
+  }
+  .up-pre-btn:hover { background: #1640b8; }
+  .up-pre-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-  @media (max-width: 900px) {
+  @media (max-width: 700px) {
     .up-stat-grid { grid-template-columns: repeat(3, 1fr); }
     .up-event-card { flex-wrap: wrap; }
-    .up-event-right { flex-direction: row; align-items: center; width: 100%; justify-content: space-between; }
+    .up-event-right { flex-direction: column; align-items: flex-end; width: 100%; }
   }
 `;
 
@@ -176,9 +188,15 @@ function buildDateParts(startAt) {
   if (!m) {
     return { month: "", day: "", dow: "" };
   }
+  const year = Number(m[1]);
   const month = m[2];
   const day = m[3];
-  return { month, day, dow: "" };
+
+  const date = new Date(year, Number(month) - 1, Number(day));
+  const week = ["일", "월", "화", "수", "목", "금", "토"];
+  const dow = Number.isNaN(date.getTime()) ? "" : week[date.getDay()];
+
+  return { month, day, dow };
 }
 
 function mapEvent(raw) {
@@ -189,6 +207,23 @@ function mapEvent(raw) {
   const startAt = raw?.startAt ?? raw?.startDateTime ?? raw?.startDate ?? null;
   const endAt = raw?.endAt ?? raw?.endDateTime ?? raw?.endDate ?? null;
   const parts = buildDateParts(startAt);
+  const sortTime = Date.parse(String(startAt || endAt || ""));
+  const baseDateRaw = startAt || endAt;
+  const baseMatch = baseDateRaw
+    ? String(baseDateRaw).match(/^(\d{4})-(\d{2})-(\d{2})/)
+    : null;
+  let dday = 0;
+  if (baseMatch) {
+    const eventDate = new Date(
+      Number(baseMatch[1]),
+      Number(baseMatch[2]) - 1,
+      Number(baseMatch[3]),
+    );
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffMs = eventDate.getTime() - today.getTime();
+    dday = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  }
 
   return {
     id: eventId,
@@ -200,14 +235,18 @@ function mapEvent(raw) {
     dow: parts.dow,
     location,
     time: startAt || endAt ? formatTime(startAt, endAt) : "시간 미정",
-    capacity: 1,
-    registered: 0,
-    dday: 0,
-    fallback: "🐶",
+    sortKey: Number.isNaN(sortTime) ? Number.POSITIVE_INFINITY : sortTime,
+    capacity: raw?.capacity ?? raw?.maxParticipants ?? 0,
+    registered: raw?.participants ?? raw?.appliedCount ?? raw?.registered ?? 0,
+    baseFee: raw?.baseFee ?? raw?.participationFee ?? raw?.fee ?? 0,
+    dday,
+    fallback: "??",
   };
 }
 
 export default function Upcoming() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [alarms, setAlarms] = useState({});
@@ -216,6 +255,7 @@ export default function Upcoming() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [submittingId, setSubmittingId] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -232,7 +272,13 @@ export default function Upcoming() {
         });
         const content = res.data.data.content;
         const list = Array.isArray(content) ? content : [];
-        if (mounted) setEvents(list.map(mapEvent));
+        if (mounted) {
+          setEvents(
+            list
+              .map(mapEvent)
+              .sort((a, b) => a.sortKey - b.sortKey),
+          );
+        }
       } catch (e) {
         const msg =
           e?.response?.data?.message || e?.message || "Failed to load events.";
@@ -254,7 +300,58 @@ export default function Upcoming() {
     return matchQ && matchF;
   });
 
-  const categories = ["all", ...new Set(events.map((e) => e.category))];
+  const categories = [
+    ...new Set(
+      events
+        .map((e) => e.category)
+        .filter((c) => c && c !== "행사"),
+    ),
+  ];
+
+  
+  const handlePreApply = async (ev, clickEvent) => {
+    clickEvent.stopPropagation();
+    if (!ev?.id || submittingId) return;
+
+    if (!tokenStore.getAccess()) {
+      navigate("/auth/login", {
+        state: { from: `${location.pathname}${location.search}` },
+      });
+      return;
+    }
+
+    const amount = Number(ev?.baseFee ?? 0);
+    const params = new URLSearchParams({
+      eventId: String(ev.id),
+      amount: String(Number.isFinite(amount) ? amount : 0),
+      title: ev?.title || "",
+      returnUrl: location?.pathname || "/",
+    });
+
+    setSubmittingId(ev.id);
+    try {
+      await axiosInstance.post("/api/event-registrations", {
+        eventId: Number(ev.id),
+      });
+      navigate(`/payment/checkout?${params.toString()}`);
+    } catch (e) {
+      if (e?.response?.status === 409) {
+        navigate(`/payment/checkout?${params.toString()}`);
+      } else if (e?.response?.status === 401) {
+        navigate("/auth/login", {
+          state: { from: `${location.pathname}${location.search}` },
+        });
+      } else {
+        const msg =
+          e?.response?.data?.error?.message ||
+          e?.response?.data?.message ||
+          "사전신청 처리에 실패했습니다.";
+        window.alert(msg);
+      }
+    } finally {
+      setSubmittingId(null);
+    }
+  };
 
   return (
     <div className="up-root">
@@ -269,45 +366,15 @@ export default function Upcoming() {
 
       <main className="up-container">
         {loading ? (
-          <div className="up-stat-card">Loading...</div>
+          <div className="up-live-badge">Loading...</div>
         ) : error ? (
-          <div className="up-stat-card">{error}</div>
-        ) : null}
-
-        <div className="up-stat-grid">
-          {[
-            {
-              label: "예정 행사",
-              value: `${events.length}개`,
-              icon: <Calendar size={20} color="#1a4fd6" />,
-              bg: "#eff4ff",
-            },
-            {
-              label: "총 사전등록",
-              value: `${events
-                .reduce((a, e) => a + e.registered, 0)
-                .toLocaleString()}명`,
-              icon: <Users size={20} color="#10b981" />,
-              bg: "#ecfdf5",
-            },
-            {
-              label: "알림 설정",
-              value: `${Object.values(alarms).filter(Boolean).length}개`,
-              icon: <BellRing size={20} color="#f59e0b" />,
-              bg: "#fffbeb",
-            },
-          ].map((s) => (
-            <div key={s.label} className="up-stat-card">
-              <div className="up-stat-icon" style={{ background: s.bg }}>
-                {s.icon}
-              </div>
-              <div>
-                <div className="up-stat-label">{s.label}</div>
-                <div className="up-stat-value">{s.value}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+          <div className="up-live-badge">{error}</div>
+        ) : (
+          <div className="up-live-badge">
+            <div className="up-live-dot" />
+            UPCOMMING · {events.length}개 행사 예정
+          </div>
+        )}
 
         <div className="up-toolbar">
           <div className="up-search-wrap">
@@ -325,15 +392,9 @@ export default function Upcoming() {
               className={`up-filter-btn${filter === c ? " active" : ""}`}
               onClick={() => setFilter(c)}
             >
-              {c === "all" ? (
-                <>
-                  <Filter size={13} /> 전체
-                </>
-              ) : (
-                <>
-                  <Tag size={11} /> {c}
-                </>
-              )}
+              <>
+                <Tag size={11} /> {c}
+              </>
             </button>
           ))}
         </div>
@@ -380,20 +441,28 @@ export default function Upcoming() {
                 </div>
                 <div className="up-event-right">
                   <div className="up-participants">
-                    <strong>{ev.registered.toLocaleString()}명</strong>
-                    사전등록 / {ev.capacity.toLocaleString()}명
+                    <strong>{Number(ev.registered || 0).toLocaleString()}명</strong>
+                    사전 등록 인원 / {Number(ev.capacity || 0).toLocaleString()}명
                   </div>
-                  <button
-                    className={`up-alarm-btn ${isOn ? "on" : "off"}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedEvent(ev);
-                      setAlarms((a) => ({ ...a, [ev.id]: !a[ev.id] }));
-                    }}
-                  >
-                    {isOn ? <BellRing size={12} /> : <Bell size={12} />}
-                    {isOn ? "알림 설정됨" : "알림 받기"}
-                  </button>
+                  <div className="up-action-row">
+                    <button
+                      className={`up-alarm-btn ${isOn ? "on" : "off"}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAlarms((a) => ({ ...a, [ev.id]: !a[ev.id] }));
+                      }}
+                    >
+                      {isOn ? <BellRing size={12} /> : <Bell size={12} />}
+                      {isOn ? "알림 설정됨" : "알림 설정"}
+                    </button>
+                    <button
+                      className="up-pre-btn"
+                      onClick={(e) => handlePreApply(ev, e)}
+                      disabled={submittingId === ev.id}
+                    >
+                      {submittingId === ev.id ? "처리중" : "사전신청"}
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -410,4 +479,8 @@ export default function Upcoming() {
     </div>
   );
 }
+
+
+
+
 

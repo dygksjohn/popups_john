@@ -68,7 +68,7 @@ public class PaymentController {
     public ApiResponse<PaymentResponse> cancel(
             @PathVariable("paymentId") Long paymentId
     ) {
-        return ApiResponse.success(paymentService.cancelPayment(paymentId));
+        return ApiResponse.success(paymentService.cancelMyPayment(currentUserId(), paymentId));
     }
     
 }
