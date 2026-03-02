@@ -46,8 +46,44 @@ public class Program {
 	@Column(name = "booth_id")
 	private Long boothId;
 
+	@Column(name = "image_url")
+	private String imageUrl;
+
 	@Column(name = "created_at", updatable = false)
 	private LocalDateTime createdAt;
+
+	/*
+	 * ========================= 업데이트 메서드 =========================
+	 */
+
+	public void updateCategory(ProgramCategory category) {
+		this.category = category;
+	}
+
+	public void updateProgramTitle(String programTitle) {
+		this.programTitle = programTitle;
+	}
+
+	public void updateDescription(String description) {
+		this.description = description;
+	}
+
+	public void updateStartAt(LocalDateTime startAt) {
+		this.startAt = startAt;
+	}
+
+	public void updateEndAt(LocalDateTime endAt) {
+		this.endAt = endAt;
+	}
+
+	public void updateBoothId(Long boothId) {
+		this.boothId = boothId;
+	}
+
+	/** ★ 추가: 이미지 URL 수정 */
+	public void updateImageUrl(String imageUrl) {
+		this.imageUrl = imageUrl;
+	}
 
 	/*
 	 * ========================= 상태 계산 로직 =========================

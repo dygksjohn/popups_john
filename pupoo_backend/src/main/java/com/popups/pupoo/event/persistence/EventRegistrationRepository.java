@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -102,4 +103,10 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
     """)
     java.util.List<Long> findDistinctUserIdsByEventIdAndStatus(@Param("eventId") Long eventId,
                                                              @Param("status") RegistrationStatus status);
+
+    /** ★ 추가: 행사 Hard Delete 시 연관 신청 데이터 일괄 삭제 */
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM EventRegistration er WHERE er.eventId = :eventId")
+    int deleteByEventId(@Param("eventId") Long eventId);
 }

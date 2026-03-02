@@ -82,7 +82,7 @@ const styles = `
   .ev-filter-btn.active { background: #1a4fd6; border-color: #1a4fd6; color: #fff; }
 
   /* Event card grid */
-  .ev-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .ev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 
   .ev-card {
     background: #fff; border: 1.5px solid #e9ecef; border-radius: 16px;
@@ -104,7 +104,7 @@ const styles = `
 
   /* Thumbnail - IMAGE */
   .ev-card-thumb {
-    width: 100%; height: 180px; position: relative; overflow: hidden;
+    width: 100%; aspect-ratio: 1 / 1; position: relative; overflow: hidden;
     background: #f1f3f6;
   }
   .ev-card-thumb-img {
@@ -286,7 +286,10 @@ const styles = `
   .ev-empty-title { font-size: 16px; font-weight: 700; color: #6b7280; margin-bottom: 6px; }
   .ev-empty-desc { font-size: 13px; }
 
-  @media (max-width: 768px) {
+  @media (max-width: 1024px) {
+    .ev-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
     .ev-grid { grid-template-columns: 1fr; }
     .ev-container { padding: 20px 16px 48px; }
     .ev-modal { max-width: 100%; }

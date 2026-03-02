@@ -1,53 +1,164 @@
-import { useState, useEffect, useCallback } from "react";
-import { authApi, unwrap, setToken } from "../../../api/noticeApi";
+import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  authApi,
+  unwrap,
+  setToken,
+  getToken,
+  clearToken,
+  adminNoticeApi,
+} from "../../../api/noticeApi";
+import { axiosInstance } from "../../../app/http/axiosInstance";
 import ds from "./designTokens";
-
-const TOKEN_KEY = "pupoo_admin_token";
 
 /* ── 테스트용 기본 계정 (Tab 키로 자동입력) ── */
 const DEFAULT_ID = "admin@pupoo.com";
 const DEFAULT_PW = "admin1234";
 
 /**
- * 대시보드 레이아웃에서 children을 감싸면 끝.
+ * ★ 핵심 동작 ★
  *
- * - 토큰 없으면 → 로그인 모달 표시
- * - 401 응답 오면 → 자동으로 로그인 모달 다시 표시
- * - 한 번 로그인하면 → 다른 페이지 이동해도 다시 안 뜸
- * - 기존 로그인 페이지(AdminLogin)로 들어왔으면 안 뜸
+ * 1. 마운트 시 localStorage에 토큰이 있는지 확인
+ * 2. 토큰이 있으면 → 실제 API 호출로 유효성 검증
+ * 3. 토큰 없거나 검증 실패(401) → 대시보드 blur + 로그인 모달
+ * 4. 사용 중 401 발생 → 자동으로 blur + 로그인 모달 재표시
+ * 5. 로그인 성공 → blur 해제, 정상 렌더링
  */
 export default function AdminAuthGuard({ children }) {
-  const [authed, setAuthed] = useState(() => !!localStorage.getItem(TOKEN_KEY));
+  const [authed, setAuthed] = useState(false); // ★ 기본 false — 검증 후 true
+  const [checking, setChecking] = useState(true); // 초기 토큰 검증 중
+  const interceptorId = useRef(null);
 
-  /* 401 이벤트 수신 — interceptor에서 dispatch */
+  /* ── 마운트 시 토큰 유효성 검증 ── */
   useEffect(() => {
-    const handler = () => {
-      localStorage.removeItem(TOKEN_KEY);
-      setAuthed(false);
+    validateToken();
+    setupInterceptor();
+
+    return () => {
+      // cleanup: interceptor 제거
+      if (interceptorId.current !== null) {
+        axiosInstance.interceptors.response.eject(interceptorId.current);
+      }
     };
-    window.addEventListener("auth:required", handler);
-    return () => window.removeEventListener("auth:required", handler);
   }, []);
+
+  /* 토큰이 있으면 실제 API 호출로 검증 */
+  const validateToken = async () => {
+    const token = getToken();
+
+    if (!token) {
+      setAuthed(false);
+      setChecking(false);
+      return;
+    }
+
+    try {
+      // 가벼운 admin API 호출로 토큰 유효성 확인
+      await adminNoticeApi.list(1, 1);
+      setAuthed(true);
+    } catch (err) {
+      const status = err?.response?.status;
+      console.warn("[AdminAuthGuard] 토큰 검증 실패:", status);
+      clearToken();
+      setAuthed(false);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  /* 401 응답 감지 인터셉터 (사용 중 토큰 만료 대응) */
+  const setupInterceptor = () => {
+    interceptorId.current = axiosInstance.interceptors.response.use(
+      (res) => res,
+      (err) => {
+        const status = err?.response?.status;
+        const url = err?.config?.url || "";
+
+        // admin API에서 401 → 로그인 모달 표시
+        if (status === 401 && url.includes("/api/admin")) {
+          clearToken();
+          setAuthed(false);
+        }
+
+        return Promise.reject(err);
+      },
+    );
+  };
 
   const handleLoginSuccess = useCallback(() => {
     setAuthed(true);
   }, []);
 
-  if (!authed) {
-    return <LoginModal onSuccess={handleLoginSuccess} />;
+  /* ── 초기 검증 중: 로딩 표시 ── */
+  if (checking) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          height: "100vh",
+          alignItems: "center",
+          justifyContent: "center",
+          background: ds.bg,
+          fontFamily: ds.ff,
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              border: `3px solid ${ds.line}`,
+              borderTopColor: ds.brand,
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+              margin: "0 auto 14px",
+            }}
+          />
+          <p style={{ fontSize: 13, color: ds.ink4, margin: 0 }}>
+            인증 확인 중...
+          </p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
   }
 
-  return children;
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {/* ── 대시보드 콘텐츠: 항상 렌더링, 미인증 시 블러 ── */}
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          filter: authed ? "none" : "blur(8px) saturate(0.6)",
+          pointerEvents: authed ? "auto" : "none",
+          userSelect: authed ? "auto" : "none",
+          transition: "filter 0.5s ease",
+        }}
+      >
+        {children}
+      </div>
+
+      {/* ── 미인증 시 오버레이 + 로그인 모달 ── */}
+      {!authed && <LoginOverlay onSuccess={handleLoginSuccess} />}
+    </div>
+  );
 }
 
 /* ═══════════════════════════════════════════════
-   로그인 모달
+   오버레이 + 로그인 모달
    ═══════════════════════════════════════════════ */
-function LoginModal({ onSuccess }) {
+function LoginOverlay({ onSuccess }) {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  /* 마운트 시 fade-in 애니메이션 */
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 30);
+    return () => clearTimeout(t);
+  }, []);
 
   /* Tab 키 → 비어있으면 기본 계정 자동입력 */
   const handleKeyDown = (e) => {
@@ -61,7 +172,7 @@ function LoginModal({ onSuccess }) {
     }
   };
 
-  /* 기존 AdminLogin.jsx와 동일한 로그인 로직 */
+  /* 로그인 로직 */
   const handleLogin = async () => {
     if (!id || !pw) {
       setErr("아이디와 비밀번호를 입력해주세요.");
@@ -95,20 +206,28 @@ function LoginModal({ onSuccess }) {
         position: "fixed",
         inset: 0,
         zIndex: 9999,
-        background: "linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%)",
+        background: visible ? "rgba(15, 16, 23, 0.5)" : "rgba(15, 16, 23, 0)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         fontFamily: ds.ff,
+        transition: "background 0.5s ease",
       }}
     >
+      {/* 모달 카드 */}
       <div
         style={{
           background: "#fff",
-          borderRadius: 20,
-          padding: "40px 36px 32px",
-          width: 380,
-          boxShadow: "0 20px 60px rgba(0,0,0,0.08)",
+          borderRadius: 24,
+          padding: "44px 40px 36px",
+          width: 400,
+          maxWidth: "90vw",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.12)",
+          transform: visible
+            ? "translateY(0) scale(1)"
+            : "translateY(30px) scale(0.96)",
+          opacity: visible ? 1 : 0,
+          transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
         onKeyDown={handleKeyDown}
       >
@@ -116,29 +235,38 @@ function LoginModal({ onSuccess }) {
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div
             style={{
-              width: 52,
-              height: 52,
-              borderRadius: 14,
-              background: `${ds.brand}12`,
+              width: 56,
+              height: 56,
+              borderRadius: 16,
+              background: `linear-gradient(135deg, ${ds.brand}18, ${ds.brand}08)`,
+              border: `1.5px solid ${ds.brand}20`,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              marginBottom: 14,
+              marginBottom: 16,
             }}
           >
-            <span style={{ fontSize: 24 }}>🐾</span>
+            <span style={{ fontSize: 26 }}>🐾</span>
           </div>
           <h2
             style={{
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: 800,
               color: ds.ink,
-              margin: "0 0 6px",
+              margin: "0 0 8px",
+              letterSpacing: -0.3,
             }}
           >
             Pupoo 관리자
           </h2>
-          <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>
+          <p
+            style={{
+              fontSize: 13.5,
+              color: "#94A3B8",
+              margin: 0,
+              lineHeight: 1.5,
+            }}
+          >
             대시보드에 접속하려면 로그인이 필요합니다
           </p>
         </div>
@@ -149,7 +277,7 @@ function LoginModal({ onSuccess }) {
             style={{
               background: "#FEF2F2",
               border: "1px solid #FECACA",
-              borderRadius: 10,
+              borderRadius: 12,
               padding: "10px 14px",
               fontSize: 12.5,
               color: "#DC2626",
@@ -182,8 +310,8 @@ function LoginModal({ onSuccess }) {
             autoFocus
             style={{
               width: "100%",
-              padding: "11px 14px",
-              borderRadius: 10,
+              padding: "12px 14px",
+              borderRadius: 12,
               border: "1.5px solid #E2E8F0",
               fontSize: 14,
               fontFamily: ds.ff,
@@ -204,7 +332,7 @@ function LoginModal({ onSuccess }) {
         </div>
 
         {/* 비밀번호 */}
-        <div style={{ marginBottom: 22 }}>
+        <div style={{ marginBottom: 24 }}>
           <label
             style={{
               fontSize: 12,
@@ -223,8 +351,8 @@ function LoginModal({ onSuccess }) {
             placeholder="비밀번호"
             style={{
               width: "100%",
-              padding: "11px 14px",
-              borderRadius: 10,
+              padding: "12px 14px",
+              borderRadius: 12,
               border: "1.5px solid #E2E8F0",
               fontSize: 14,
               fontFamily: ds.ff,
@@ -250,16 +378,25 @@ function LoginModal({ onSuccess }) {
           disabled={loading}
           style={{
             width: "100%",
-            padding: "12px 0",
-            borderRadius: 10,
+            padding: "13px 0",
+            borderRadius: 12,
             border: "none",
             background: loading ? "#94A3B8" : ds.brand,
             color: "#fff",
-            fontSize: 14.5,
+            fontSize: 15,
             fontWeight: 700,
             cursor: loading ? "not-allowed" : "pointer",
             fontFamily: ds.ff,
-            transition: "background .15s",
+            transition: "background .15s, transform .1s",
+          }}
+          onMouseDown={(e) => {
+            if (!loading) e.currentTarget.style.transform = "scale(0.98)";
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
           }}
         >
           {loading ? "로그인 중..." : "로그인"}
@@ -271,7 +408,7 @@ function LoginModal({ onSuccess }) {
             textAlign: "center",
             fontSize: 11,
             color: "#CBD5E1",
-            marginTop: 16,
+            marginTop: 18,
             marginBottom: 0,
           }}
         >

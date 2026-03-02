@@ -29,8 +29,8 @@ const styles = `
   .ev-filter-btn:hover { border-color: #1a4fd6; color: #1a4fd6; }
   .ev-filter-btn.active { background: #1a4fd6; border-color: #1a4fd6; color: #fff; }
 
-  /* Event card grid */
-  .ev-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  /* Event card grid — 3열 */
+  .ev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 
   .ev-card {
     background: #fff; border: 1.5px solid #e9ecef; border-radius: 16px;
@@ -44,11 +44,24 @@ const styles = `
     box-shadow: 0 8px 28px rgba(26, 79, 214, 0.08);
   }
 
-  /* Thumbnail area */
+  /* ★ 정사각형 이미지 영역 (aspect-ratio 1:1) */
   .ev-card-thumb {
-    width: 100%; height: 160px; position: relative; overflow: hidden;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    position: relative;
+    overflow: hidden;
     display: flex; align-items: center; justify-content: center;
   }
+
+  /* 이미지가 있을 때 — 정사각형 꽉 채움 */
+  .ev-card-thumb img.ev-card-thumb-img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    z-index: 0;
+  }
+
+  /* 이미지 없을 때 패턴 배경 */
   .ev-card-thumb-pattern {
     position: absolute; inset: 0; opacity: 0.08;
     background-image: radial-gradient(circle at 20% 50%, currentColor 1px, transparent 1px),
@@ -107,30 +120,32 @@ const styles = `
     font-size: 11px; font-weight: 600; color: #fff;
   }
 
-  /* Card body */
-  .ev-card-body { padding: 20px 22px 22px; flex: 1; display: flex; flex-direction: column; }
+  /* Card body — 흰색 하단 영역 */
+  .ev-card-body { padding: 18px 20px 20px; flex: 1; display: flex; flex-direction: column; }
   .ev-card-name {
-    font-size: 18px; font-weight: 800; color: #111827; margin-bottom: 6px;
+    font-size: 16px; font-weight: 800; color: #111827; margin-bottom: 5px;
     letter-spacing: -0.3px; line-height: 1.3;
   }
   .ev-card-desc {
-    font-size: 13px; color: #6b7280; line-height: 1.5; margin-bottom: 16px;
+    font-size: 12.5px; color: #6b7280; line-height: 1.5; margin-bottom: 14px;
     flex: 1;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; text-overflow: ellipsis;
   }
-  .ev-card-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+  .ev-card-meta { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
   .ev-card-meta-item {
     display: flex; align-items: center; gap: 7px;
-    font-size: 12.5px; color: #6b7280; font-weight: 500;
+    font-size: 12px; color: #6b7280; font-weight: 500;
   }
   .ev-card-meta-icon {
-    width: 22px; height: 22px; border-radius: 6px; background: #f3f4f6;
+    width: 20px; height: 20px; border-radius: 5px; background: #f3f4f6;
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
   .ev-card-footer {
     display: flex; align-items: center; justify-content: space-between;
-    padding-top: 14px; border-top: 1px solid #f1f3f5;
+    padding-top: 12px; border-top: 1px solid #f1f3f5;
   }
-  .ev-card-organizer { font-size: 12px; color: #9ca3af; font-weight: 500; }
+  .ev-card-organizer { font-size: 11.5px; color: #9ca3af; font-weight: 500; }
   .ev-card-enter {
     display: flex; align-items: center; gap: 4px;
     font-size: 13px; font-weight: 700; color: #1a4fd6;
@@ -147,7 +162,11 @@ const styles = `
   .ev-empty-title { font-size: 16px; font-weight: 700; color: #6b7280; margin-bottom: 6px; }
   .ev-empty-desc { font-size: 13px; }
 
-  @media (max-width: 768px) {
+  /* 반응형: 태블릿 2열, 모바일 1열 */
+  @media (max-width: 1024px) {
+    .ev-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
     .ev-grid { grid-template-columns: 1fr; }
     .ev-container { padding: 20px 16px 48px; }
   }
@@ -209,18 +228,35 @@ export default function EventSelectPage({ events, basePath }) {
                 className="ev-card"
                 onClick={() => handleSelect(event)}
               >
-                {/* Thumbnail */}
+                {/* ★ 정사각형 썸네일 영역 */}
                 <div
                   className="ev-card-thumb"
                   style={{
-                    background: `linear-gradient(135deg, ${event.color}12 0%, ${event.color}08 100%)`,
+                    background:
+                      event.imageUrl || event.thumbnail
+                        ? "#f8f9fa"
+                        : `linear-gradient(135deg, ${event.color}12 0%, ${event.color}08 100%)`,
                     color: event.color,
                   }}
                 >
-                  <div className="ev-card-thumb-pattern" />
-                  <div className="ev-card-thumb-icon">
-                    <CalendarDays size={24} color={event.color} />
-                  </div>
+                  {/* 이미지가 있으면 정사각형 꽉 채움 */}
+                  {event.imageUrl || event.thumbnail ? (
+                    <img
+                      className="ev-card-thumb-img"
+                      src={event.imageUrl || event.thumbnail}
+                      alt={event.name}
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <div className="ev-card-thumb-pattern" />
+                      <div className="ev-card-thumb-icon">
+                        <CalendarDays size={24} color={event.color} />
+                      </div>
+                    </>
+                  )}
 
                   {/* Status */}
                   <div className={`ev-card-status ${event.status}`}>
@@ -237,7 +273,7 @@ export default function EventSelectPage({ events, basePath }) {
                   )}
                 </div>
 
-                {/* Body */}
+                {/* ★ 흰색 하단 영역 */}
                 <div className="ev-card-body">
                   <div className="ev-card-name">{event.name}</div>
                   <div className="ev-card-desc">{event.description}</div>
@@ -282,4 +318,3 @@ export default function EventSelectPage({ events, basePath }) {
     </>
   );
 }
-
