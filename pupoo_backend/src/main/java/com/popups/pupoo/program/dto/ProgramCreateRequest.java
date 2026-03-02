@@ -21,4 +21,7 @@ public class ProgramCreateRequest {
      * 프로그램이 특정 부스/공간에 속할 경우 매핑.
      */
     public Long boothId;
+
+    /** 프로그램 이미지 URL */
+    public String imageUrl;
 }

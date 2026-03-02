@@ -1,36 +1,69 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Plus,
   X,
   Pencil,
   Trash2,
   ChevronDown,
+  ChevronLeft,
   Mic,
   Users,
   Clock,
-  MapPin,
   AlertTriangle,
   Check,
+  CalendarDays,
+  MapPin,
+  ArrowRight,
+  ImagePlus,
 } from "lucide-react";
 import ds, { statusMap } from "../shared/designTokens";
 import { Pill } from "../shared/Components";
-import DATA from "../shared/data";
+import { axiosInstance } from "../../../app/http/axiosInstance";
+import { getToken } from "../../../api/noticeApi";
 
-/* ═══════════════════════════════════════════
-   전역 스타일
-   ═══════════════════════════════════════════ */
 const styles = `
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
 @keyframes rowFadeOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(-30px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 .row-removing{animation:rowFadeOut .3s ease forwards}
 `;
 
-/* ═══════════════════════════════════════════
-   체크박스
-   ═══════════════════════════════════════════ */
+const authHeaders = () => {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
+const inputStyle = {
+  width: "100%",
+  padding: "10px 14px",
+  borderRadius: 9,
+  border: "1.5px solid #E2E8F0",
+  fontSize: 13.5,
+  fontFamily: ds.ff,
+  color: ds.ink,
+  outline: "none",
+  boxSizing: "border-box",
+  background: "#fff",
+};
+const inputFocus = (e) => {
+  e.target.style.borderColor = ds.brand;
+};
+const inputBlur = (e) => {
+  e.target.style.borderColor = "#E2E8F0";
+};
+const calcStatus = (s, e) => {
+  if (!s && !e) return "pending";
+  const n = new Date();
+  const start = s
+    ? new Date(s.includes("T") ? s : s + "T00:00:00+09:00")
+    : null;
+  const end = e ? new Date(e.includes("T") ? e : e + "T23:59:59+09:00") : null;
+  if (end && n > end) return "ended";
+  if (start && n < start) return "pending";
+  return "active";
+};
+
 function Checkbox({ checked, onChange, size = 18 }) {
   return (
     <div
@@ -48,7 +81,6 @@ function Checkbox({ checked, onChange, size = 18 }) {
         alignItems: "center",
         justifyContent: "center",
         cursor: "pointer",
-        transition: "all .15s ease",
         flexShrink: 0,
       }}
     >
@@ -56,61 +88,11 @@ function Checkbox({ checked, onChange, size = 18 }) {
     </div>
   );
 }
-
-/* ═══════════════════════════════════════════
-   미니 프로그레스 바
-   ═══════════════════════════════════════════ */
-function MiniProgress({ value, max }) {
-  const pct = max > 0 ? Math.min(Math.round((value / max) * 100), 100) : 0;
-  const color = pct >= 90 ? "#EF4444" : pct >= 70 ? "#F59E0B" : ds.brand;
-  return (
-    <div
-      style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 100 }}
-    >
-      <div
-        style={{
-          flex: 1,
-          height: 5,
-          borderRadius: 3,
-          background: "#F1F5F9",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            width: `${pct}%`,
-            height: "100%",
-            borderRadius: 3,
-            background: color,
-            transition: "width .3s ease",
-          }}
-        />
-      </div>
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          color,
-          minWidth: 32,
-          textAlign: "right",
-        }}
-      >
-        {pct}%
-      </span>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   토스트
-   ═══════════════════════════════════════════ */
 function Toast({ msg, type = "success", onDone }) {
   useEffect(() => {
     const t = setTimeout(onDone, 2200);
     return () => clearTimeout(t);
   }, [onDone]);
-  const bg =
-    type === "success" ? "#10B981" : type === "error" ? "#EF4444" : "#F59E0B";
   return (
     <div
       style={{
@@ -118,7 +100,7 @@ function Toast({ msg, type = "success", onDone }) {
         top: 24,
         right: 24,
         zIndex: 9999,
-        background: bg,
+        background: type === "success" ? "#10B981" : "#EF4444",
         color: "#fff",
         padding: "12px 22px",
         borderRadius: 10,
@@ -136,10 +118,6 @@ function Toast({ msg, type = "success", onDone }) {
     </div>
   );
 }
-
-/* ═══════════════════════════════════════════
-   오버레이 / 확인 모달
-   ═══════════════════════════════════════════ */
 function Overlay({ children, onClose }) {
   return (
     <div
@@ -173,38 +151,20 @@ function Overlay({ children, onClose }) {
     </div>
   );
 }
-
 function ConfirmModal({ title, msg, onConfirm, onCancel }) {
   return (
     <Overlay onClose={onCancel}>
       <div style={{ padding: "28px" }}>
-        <div
+        <h3
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            marginBottom: 14,
+            fontSize: 16,
+            fontWeight: 800,
+            color: ds.ink,
+            margin: "0 0 10px",
           }}
         >
-          <div
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 10,
-              background: "#FEF2F2",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <AlertTriangle size={18} color="#EF4444" />
-          </div>
-          <h3
-            style={{ fontSize: 16, fontWeight: 800, color: ds.ink, margin: 0 }}
-          >
-            {title}
-          </h3>
-        </div>
+          {title}
+        </h3>
         <p
           style={{
             fontSize: 13.5,
@@ -254,13 +214,9 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
     </Overlay>
   );
 }
-
-/* ═══════════════════════════════════════════
-   입력 필드
-   ═══════════════════════════════════════════ */
 function Field({ label, children, required }) {
   return (
-    <div style={{ marginBottom: 20 }}>
+    <div style={{ marginBottom: 18 }}>
       <label
         style={{
           fontSize: 12,
@@ -268,7 +224,6 @@ function Field({ label, children, required }) {
           color: "#64748B",
           marginBottom: 7,
           display: "block",
-          letterSpacing: 0.2,
         }}
       >
         {label} {required && <span style={{ color: "#EF4444" }}>*</span>}
@@ -277,555 +232,6 @@ function Field({ label, children, required }) {
     </div>
   );
 }
-const inputStyle = {
-  width: "100%",
-  padding: "10px 14px",
-  borderRadius: 9,
-  border: "1.5px solid #E2E8F0",
-  fontSize: 13.5,
-  fontFamily: ds.ff,
-  color: ds.ink,
-  outline: "none",
-  boxSizing: "border-box",
-  transition: "border-color .15s, box-shadow .15s",
-  background: "#fff",
-};
-const inputFocus = (e) => {
-  e.target.style.borderColor = ds.brand;
-  e.target.style.boxShadow = `0 0 0 3px ${ds.brand}15`;
-};
-const inputBlur = (e) => {
-  e.target.style.borderColor = "#E2E8F0";
-  e.target.style.boxShadow = "none";
-};
-
-/* ═══════════════════════════════════════════
-   슬라이드 패널 (등록 / 수정)
-   ═══════════════════════════════════════════ */
-function SlidePanel({ item, onSave, onClose, isEdit }) {
-  const [form, setForm] = useState(
-    item || {
-      name: "",
-      speaker: "",
-      date: "",
-      time: "10:00",
-      duration: 60,
-      location: "",
-      enrolled: 0,
-      capacity: 50,
-      status: "pending",
-      description: "",
-    },
-  );
-  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
-  const [err, setErr] = useState("");
-
-  const handleSave = () => {
-    if (!form.name || !form.speaker || !form.date) {
-      setErr("강연명, 강연자, 일시는 필수입니다.");
-      return;
-    }
-    onSave(form);
-  };
-
-  return (
-    <>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 4999,
-          background: "rgba(0,0,0,0.15)",
-          animation: "fadeIn .15s ease",
-        }}
-      />
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 5000,
-          width: 440,
-          background: "#fff",
-          boxShadow: "-4px 0 30px rgba(0,0,0,0.08)",
-          display: "flex",
-          flexDirection: "column",
-          animation: "slideIn .25s cubic-bezier(.22,1,.36,1)",
-        }}
-      >
-        <div
-          style={{
-            padding: "20px 24px",
-            borderBottom: "1px solid #F1F5F9",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexShrink: 0,
-          }}
-        >
-          <div>
-            <h3
-              style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: ds.ink,
-                margin: 0,
-              }}
-            >
-              {isEdit ? "세션 수정" : "새 세션 등록"}
-            </h3>
-            <p style={{ fontSize: 11.5, color: "#94A3B8", margin: "3px 0 0" }}>
-              {isEdit ? "세션 정보를 수정합니다" : "새로운 세션을 등록합니다"}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <X size={14} color="#94A3B8" />
-          </button>
-        </div>
-        <div style={{ flex: 1, overflow: "auto", padding: "24px" }}>
-          {err && (
-            <div
-              style={{
-                background: "#FEF2F2",
-                border: "1px solid #FECACA",
-                borderRadius: 9,
-                padding: "10px 14px",
-                fontSize: 12.5,
-                color: "#DC2626",
-                marginBottom: 18,
-                fontWeight: 600,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <AlertTriangle size={14} /> {err}
-            </div>
-          )}
-
-          <Field label="강연명" required>
-            <input
-              style={inputStyle}
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              onFocus={inputFocus}
-              onBlur={inputBlur}
-              placeholder="예: 반려견 행동학 기초"
-            />
-          </Field>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
-          >
-            <Field label="강연자" required>
-              <input
-                style={inputStyle}
-                value={form.speaker}
-                onChange={(e) => set("speaker", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-                placeholder="강연자명"
-              />
-            </Field>
-            <Field label="장소">
-              <input
-                style={inputStyle}
-                value={form.location}
-                onChange={(e) => set("location", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-                placeholder="세미나실 A"
-              />
-            </Field>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: 12,
-            }}
-          >
-            <Field label="일시" required>
-              <input
-                style={inputStyle}
-                value={form.date}
-                onChange={(e) => set("date", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-                placeholder="2026.03.15"
-              />
-            </Field>
-            <Field label="시작 시간">
-              <input
-                style={inputStyle}
-                value={form.time}
-                onChange={(e) => set("time", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-                placeholder="10:00"
-              />
-            </Field>
-            <Field label="소요 시간(분)">
-              <input
-                type="number"
-                style={inputStyle}
-                value={form.duration}
-                onChange={(e) => set("duration", +e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-              />
-            </Field>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: 12,
-            }}
-          >
-            <Field label="등록 인원">
-              <input
-                type="number"
-                style={inputStyle}
-                value={form.enrolled}
-                onChange={(e) => set("enrolled", +e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-              />
-            </Field>
-            <Field label="정원">
-              <input
-                type="number"
-                style={inputStyle}
-                value={form.capacity}
-                onChange={(e) => set("capacity", +e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-              />
-            </Field>
-            <Field label="상태">
-              <div style={{ position: "relative" }}>
-                <select
-                  value={form.status}
-                  onChange={(e) => set("status", e.target.value)}
-                  style={{
-                    ...inputStyle,
-                    appearance: "none",
-                    paddingRight: 32,
-                    cursor: "pointer",
-                  }}
-                >
-                  <option value="pending">대기</option>
-                  <option value="active">진행중</option>
-                  <option value="ended">종료</option>
-                </select>
-                <ChevronDown
-                  size={14}
-                  color="#94A3B8"
-                  style={{
-                    position: "absolute",
-                    right: 12,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    pointerEvents: "none",
-                  }}
-                />
-              </div>
-            </Field>
-          </div>
-          <Field label="설명">
-            <textarea
-              rows={3}
-              style={{ ...inputStyle, resize: "vertical" }}
-              value={form.description || ""}
-              onChange={(e) => set("description", e.target.value)}
-              onFocus={inputFocus}
-              onBlur={inputBlur}
-              placeholder="세션 설명"
-            />
-          </Field>
-        </div>
-        <div
-          style={{
-            padding: "14px 24px",
-            borderTop: "1px solid #F1F5F9",
-            display: "flex",
-            gap: 10,
-            flexShrink: 0,
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              flex: 1,
-              padding: "11px 0",
-              borderRadius: 9,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: ds.ff,
-              color: "#64748B",
-            }}
-          >
-            취소
-          </button>
-          <button
-            onClick={handleSave}
-            style={{
-              flex: 1,
-              padding: "11px 0",
-              borderRadius: 9,
-              border: "none",
-              background: ds.brand,
-              color: "#fff",
-              fontSize: 13.5,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: ds.ff,
-            }}
-          >
-            {isEdit ? "수정 완료" : "등록하기"}
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   상세 모달
-   ═══════════════════════════════════════════ */
-function DetailModal({ item, onClose, onEdit, onDelete }) {
-  const st = statusMap[item.status];
-  const pct = Math.round((item.enrolled / item.capacity) * 100);
-  return (
-    <Overlay onClose={onClose}>
-      <div style={{ padding: "28px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 20,
-          }}
-        >
-          <h3
-            style={{ fontSize: 16, fontWeight: 800, color: ds.ink, margin: 0 }}
-          >
-            세션 상세
-          </h3>
-          <button
-            onClick={onClose}
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 7,
-              border: "none",
-              background: "#F1F5F9",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <X size={14} color="#94A3B8" />
-          </button>
-        </div>
-        <div
-          style={{
-            background: "#F8FAFC",
-            borderRadius: 12,
-            padding: 20,
-            marginBottom: 20,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 14,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#94A3B8",
-                fontFamily: "monospace",
-              }}
-            >
-              {item.id}
-            </span>
-            <Pill color={st.c} bg={st.bg}>
-              {st.l}
-            </Pill>
-          </div>
-          <h4
-            style={{
-              fontSize: 17,
-              fontWeight: 800,
-              color: ds.ink,
-              margin: "0 0 14px",
-            }}
-          >
-            {item.name}
-          </h4>
-          {[
-            { l: "강연자", v: item.speaker },
-            { l: "일시", v: `${item.date} ${item.time}` },
-            { l: "소요 시간", v: `${item.duration}분` },
-            { l: "장소", v: item.location },
-            {
-              l: "등록/정원",
-              v: `${item.enrolled}/${item.capacity}명 (${pct}%)`,
-            },
-          ].map((r) => (
-            <div
-              key={r.l}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                padding: "9px 0",
-                borderBottom: "1px solid #E2E8F0",
-              }}
-            >
-              <span style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>
-                {r.l}
-              </span>
-              <span style={{ fontSize: 13, color: ds.ink, fontWeight: 600 }}>
-                {r.v}
-              </span>
-            </div>
-          ))}
-          <div style={{ marginTop: 14 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: 6,
-              }}
-            >
-              <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>
-                등록률
-              </span>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: pct >= 90 ? "#EF4444" : ds.brand,
-                }}
-              >
-                {pct}%
-              </span>
-            </div>
-            <div
-              style={{
-                height: 6,
-                borderRadius: 3,
-                background: "#F1F5F9",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: `${pct}%`,
-                  height: "100%",
-                  borderRadius: 3,
-                  background: pct >= 90 ? "#EF4444" : ds.brand,
-                  transition: "width .3s ease",
-                }}
-              />
-            </div>
-          </div>
-          {item.description && (
-            <div style={{ marginTop: 14 }}>
-              <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>
-                설명
-              </span>
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "#475569",
-                  lineHeight: 1.6,
-                  marginTop: 6,
-                }}
-              >
-                {item.description}
-              </p>
-            </div>
-          )}
-        </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button
-            onClick={() => {
-              onClose();
-              onDelete(item);
-            }}
-            style={{
-              padding: "9px 16px",
-              borderRadius: 8,
-              border: "1px solid #FECACA",
-              background: "#FEF2F2",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: ds.ff,
-              color: "#DC2626",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <Trash2 size={13} /> 삭제
-          </button>
-          <button
-            onClick={() => {
-              onClose();
-              onEdit(item);
-            }}
-            style={{
-              padding: "9px 16px",
-              borderRadius: 8,
-              border: "none",
-              background: ds.brand,
-              color: "#fff",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: ds.ff,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <Pencil size={13} /> 수정하기
-          </button>
-        </div>
-      </div>
-    </Overlay>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   요약 통계 카드
-   ═══════════════════════════════════════════ */
 function StatCard({ icon: Icon, label, value, color }) {
   return (
     <div
@@ -879,29 +285,592 @@ function StatCard({ icon: Icon, label, value, color }) {
   );
 }
 
-/* ═══════════════════════════════════════════
-   메인 컴포넌트
-   ═══════════════════════════════════════════ */
-export default function SessionManage() {
-  const [items, setItems] = useState(() =>
-    DATA.sessionManage.map((e) => ({ ...e, _visible: true })),
+/* ═══ 등록/수정 모달 ═══ */
+function SessionFormModal({ item, onSave, onClose, isEdit, eventName }) {
+  const [form, setForm] = useState(
+    item
+      ? {
+          ...item,
+          startAt: item.startAt?.split("T")[0] || "",
+          endAt: item.endAt?.split("T")[0] || "",
+        }
+      : { name: "", description: "", startAt: "", endAt: "" },
   );
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const [err, setErr] = useState("");
+  const [visible, setVisible] = useState(false);
+  const [imagePreview, setImagePreview] = useState(item?.imageUrl || null);
+  const [imageFile, setImageFile] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
+  useEffect(() => {
+    setTimeout(() => setVisible(true), 20);
+  }, []);
+
+  const handleImageFile = (file) => {
+    if (
+      !file ||
+      !file.type.startsWith("image/") ||
+      file.size > 10 * 1024 * 1024
+    )
+      return;
+    setImageFile(file);
+    const r = new FileReader();
+    r.onload = (e) => setImagePreview(e.target.result);
+    r.readAsDataURL(file);
+  };
+  const handleSave = () => {
+    if (!form.name) {
+      setErr("세션명은 필수입니다.");
+      return;
+    }
+    onSave({ ...form, imageUrl: imagePreview });
+  };
+
+  const autoStatus =
+    form.startAt || form.endAt
+      ? (() => {
+          const s = calcStatus(form.startAt, form.endAt);
+          const map = {
+            pending: { l: "대기", c: "#D97706", bg: "#FFFBEB", icon: "⏳" },
+            active: { l: "진행 중", c: "#059669", bg: "#ECFDF5", icon: "🟢" },
+            ended: { l: "종료", c: "#94A3B8", bg: "#F1F5F9", icon: "⏹" },
+          };
+          return map[s];
+        })()
+      : null;
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 4999,
+          background: visible ? "rgba(15,16,23,0.45)" : "rgba(15,16,23,0)",
+          transition: "background .3s ease",
+        }}
+      />
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 5000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          style={{
+            pointerEvents: "auto",
+            width: 540,
+            maxWidth: "95vw",
+            maxHeight: "90vh",
+            background: "#fff",
+            borderRadius: 20,
+            boxShadow: "0 32px 80px rgba(0,0,0,0.18)",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            transform: visible
+              ? "translateY(0) scale(1)"
+              : "translateY(24px) scale(0.97)",
+            opacity: visible ? 1 : 0,
+            transition: "all .35s cubic-bezier(.16,1,.3,1)",
+          }}
+        >
+          <div
+            style={{ padding: "22px 28px", borderBottom: "1px solid #F1F5F9" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 800,
+                    color: ds.ink,
+                    margin: 0,
+                  }}
+                >
+                  {isEdit ? "세션 수정" : "새 세션/강연 등록"}
+                </h3>
+                <p
+                  style={{ fontSize: 12, color: "#94A3B8", margin: "4px 0 0" }}
+                >
+                  <span style={{ color: ds.brand, fontWeight: 700 }}>
+                    {eventName}
+                  </span>{" "}
+                  행사
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  border: "1px solid #E2E8F0",
+                  background: "#fff",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <X size={15} color="#94A3B8" />
+              </button>
+            </div>
+          </div>
+          <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
+            {err && (
+              <div
+                style={{
+                  background: "#FEF2F2",
+                  border: "1px solid #FECACA",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  fontSize: 12.5,
+                  color: "#DC2626",
+                  marginBottom: 18,
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <AlertTriangle size={14} /> {err}
+              </div>
+            )}
+            <Field label="포스터 이미지">
+              {!imagePreview ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    handleImageFile(e.dataTransfer.files?.[0]);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  style={{
+                    border: `2px dashed ${dragOver ? ds.brand : "#E2E8F0"}`,
+                    borderRadius: 14,
+                    padding: "28px 20px",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    background: dragOver ? `${ds.brand}08` : "#FAFBFC",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 11,
+                      background: `${ds.brand}10`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      margin: "0 auto 10px",
+                    }}
+                  >
+                    <ImagePlus size={20} color={ds.brand} />
+                  </div>
+                  <div
+                    style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}
+                  >
+                    클릭하거나 이미지를 드래그하세요
+                  </div>
+                  <div style={{ fontSize: 11, color: "#94A3B8" }}>
+                    JPG, PNG, WEBP · 최대 10MB
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    position: "relative",
+                    borderRadius: 14,
+                    overflow: "hidden",
+                  }}
+                >
+                  <img
+                    src={imagePreview}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      maxHeight: 180,
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 8,
+                      right: 8,
+                      display: "flex",
+                      gap: 6,
+                    }}
+                  >
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 7,
+                        border: "none",
+                        background: "rgba(0,0,0,0.55)",
+                        color: "#fff",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setImagePreview(null);
+                        setImageFile(null);
+                      }}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 7,
+                        border: "none",
+                        background: "rgba(239,68,68,0.8)",
+                        color: "#fff",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => handleImageFile(e.target.files?.[0])}
+              />
+            </Field>
+            <Field label="세션/강연명" required>
+              <input
+                style={inputStyle}
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+                onFocus={inputFocus}
+                onBlur={inputBlur}
+                placeholder="예: 반려동물 건강관리 강연"
+                autoFocus
+              />
+            </Field>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 14,
+              }}
+            >
+              <Field label="시작일">
+                <input
+                  type="date"
+                  style={inputStyle}
+                  value={form.startAt || ""}
+                  onChange={(e) => set("startAt", e.target.value)}
+                  onFocus={inputFocus}
+                  onBlur={inputBlur}
+                />
+              </Field>
+              <Field label="종료일">
+                <input
+                  type="date"
+                  style={inputStyle}
+                  value={form.endAt || ""}
+                  onChange={(e) => set("endAt", e.target.value)}
+                  onFocus={inputFocus}
+                  onBlur={inputBlur}
+                />
+              </Field>
+            </div>
+            {autoStatus && (
+              <div
+                style={{
+                  marginBottom: 18,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 14px",
+                  background: autoStatus.bg,
+                  borderRadius: 9,
+                }}
+              >
+                <span style={{ fontSize: 14 }}>{autoStatus.icon}</span>
+                <span
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    color: autoStatus.c,
+                  }}
+                >
+                  상태: {autoStatus.l} (일정 기준 자동)
+                </span>
+              </div>
+            )}
+            <Field label="설명">
+              <textarea
+                rows={3}
+                style={{ ...inputStyle, resize: "vertical" }}
+                value={form.description || ""}
+                onChange={(e) => set("description", e.target.value)}
+                onFocus={inputFocus}
+                onBlur={inputBlur}
+                placeholder="세션/강연 설명"
+              />
+            </Field>
+          </div>
+          <div
+            style={{
+              padding: "16px 28px",
+              borderTop: "1px solid #F1F5F9",
+              display: "flex",
+              gap: 10,
+            }}
+          >
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: "12px 0",
+                borderRadius: 10,
+                border: "1px solid #E2E8F0",
+                background: "#fff",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: ds.ff,
+                color: "#64748B",
+              }}
+            >
+              취소
+            </button>
+            <button
+              onClick={handleSave}
+              style={{
+                flex: 1,
+                padding: "12px 0",
+                borderRadius: 10,
+                border: "none",
+                background: ds.brand,
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: ds.ff,
+              }}
+            >
+              {isEdit ? "수정 완료" : "등록하기"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ═══ 메인 ═══ */
+export default function SessionManage({ subTab = "all" }) {
+  const [events, setEvents] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [items, setItems] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [loadingItems, setLoadingItems] = useState(false);
   const [modal, setModal] = useState(null);
   const [panel, setPanel] = useState(null);
   const [toast, setToast] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [selected, setSelected] = useState(new Set());
-
-  const rows = items.filter((e) => e._visible);
+  const imageMapRef = useRef({});
   const showToast = (msg, type = "success") => setToast({ msg, type });
 
-  /* 통계 */
-  const totalSessions = rows.length;
-  const activeSessions = rows.filter((e) => e.status === "active").length;
-  const totalEnrolled = rows.reduce((a, b) => a + b.enrolled, 0);
-  const totalCapacity = rows.reduce((a, b) => a + b.capacity, 0);
+  const loadEvents = async () => {
+    try {
+      const res = await axiosInstance.get("/api/admin/dashboard/events", {
+        headers: authHeaders(),
+      });
+      const list = res.data?.data || res.data || [];
+      setEvents(
+        list.map((e) => ({
+          ...e,
+          status: calcStatus(
+            e.startAt || e.date?.split("~")[0]?.trim(),
+            e.endAt || e.date?.split("~")[1]?.trim(),
+          ),
+        })),
+      );
+    } catch {
+      setEvents([]);
+    } finally {
+      setLoadingEvents(false);
+    }
+  };
+  const loadItems = async (eventId) => {
+    setLoadingItems(true);
+    try {
+      const res = await axiosInstance.get(
+        `/api/admin/dashboard/events/${eventId}/programs?category=SESSION`,
+        { headers: authHeaders() },
+      );
+      setItems(
+        (res.data?.data || res.data || []).map((p) => ({
+          ...p,
+          status: calcStatus(p.startAt, p.endAt),
+          imageUrl:
+            imageMapRef.current[p.programId || p.id] || p.imageUrl || null,
+        })),
+      );
+    } catch {
+      setItems([]);
+    } finally {
+      setLoadingItems(false);
+    }
+  };
+  useEffect(() => {
+    loadEvents();
+  }, []);
 
-  /* 선택 */
+  const selectEvent = (ev) => {
+    setSelectedEvent(ev);
+    setSelected(new Set());
+    loadItems(ev.eventId || ev.id);
+  };
+  const goBack = () => {
+    setSelectedEvent(null);
+    setItems([]);
+    setSelected(new Set());
+    setPanel(null);
+  };
+  const evId = () => selectedEvent?.eventId || selectedEvent?.id;
+
+  const handleCreate = async (form) => {
+    try {
+      const body = {
+        eventId: Number(evId()),
+        category: "SESSION",
+        programTitle: form.name,
+        description: form.description || "",
+        startAt: form.startAt
+          ? `${form.startAt}T00:00:00`
+          : new Date().toISOString().slice(0, 19),
+        endAt: form.endAt
+          ? `${form.endAt}T23:59:59`
+          : new Date().toISOString().slice(0, 19),
+        imageUrl: null,
+      };
+      const res = await axiosInstance.post(
+        "/api/admin/dashboard/programs",
+        body,
+        { headers: authHeaders() },
+      );
+      const created = res.data?.data || res.data;
+      if (form.imageUrl && created?.programId)
+        imageMapRef.current[created.programId] = form.imageUrl;
+      await loadItems(evId());
+      setPanel(null);
+      showToast("세션이 등록되었습니다.");
+    } catch {
+      showToast("등록 실패", "error");
+    }
+  };
+  const handleUpdate = async (form) => {
+    const pid = form.programId || form.id;
+    try {
+      const body = {
+        category: "SESSION",
+        programTitle: form.name,
+        description: form.description || "",
+        startAt: form.startAt ? `${form.startAt}T00:00:00` : null,
+        endAt: form.endAt ? `${form.endAt}T23:59:59` : null,
+        imageUrl: null,
+      };
+      await axiosInstance.patch(`/api/admin/dashboard/programs/${pid}`, body, {
+        headers: authHeaders(),
+      });
+      if (form.imageUrl) imageMapRef.current[pid] = form.imageUrl;
+      else delete imageMapRef.current[pid];
+      await loadItems(evId());
+      setPanel(null);
+      showToast("세션이 수정되었습니다.");
+    } catch {
+      showToast("수정 실패", "error");
+    }
+  };
+  const handleDelete = async () => {
+    const item = modal.item;
+    const pid = item.programId || item.id;
+    setModal(null);
+    setRemoving(item.id);
+    try {
+      await axiosInstance.delete(`/api/admin/dashboard/programs/${pid}`, {
+        headers: authHeaders(),
+      });
+      setTimeout(async () => {
+        await loadItems(evId());
+        setRemoving(null);
+        showToast("삭제되었습니다.");
+      }, 300);
+    } catch {
+      setRemoving(null);
+      showToast("삭제 실패", "error");
+    }
+  };
+  const handleBulkDelete = async () => {
+    const ids = [...selected];
+    setModal(null);
+    try {
+      const programIds = ids.map((fid) => {
+        const it = items.find((e) => e.id === fid);
+        return it?.programId || Number(String(fid).replace("PG-", ""));
+      });
+      await axiosInstance.post(
+        "/api/admin/dashboard/programs/bulk-delete",
+        { programIds },
+        { headers: authHeaders() },
+      );
+      await loadItems(evId());
+      setSelected(new Set());
+      showToast(`${ids.length}건 삭제`);
+    } catch {
+      showToast("일괄 삭제 실패", "error");
+    }
+  };
+
+  const filterFn =
+    {
+      all: () => true,
+      active: (e) => e.status === "active",
+      ended: (e) => e.status === "ended",
+      pending: (e) => e.status === "pending",
+    }[subTab] || (() => true);
+  const rows = items.filter(filterFn);
   const isAllSelected =
     rows.length > 0 && rows.every((r) => selected.has(r.id));
   const hasSelected = selected.size > 0;
@@ -910,528 +879,609 @@ export default function SessionManage() {
     else setSelected(new Set(rows.map((r) => r.id)));
   };
   const toggleOne = (id) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+    setSelected((p) => {
+      const n = new Set(p);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
     });
-  };
-
-  /* CRUD */
-  const handleCreate = (f) => {
-    setItems((p) => [
-      {
-        ...f,
-        id: `SS-${String(p.length + 1).padStart(3, "0")}`,
-        enrolled: 0,
-        _visible: true,
-      },
-      ...p,
-    ]);
-    setPanel(null);
-    showToast("새 세션이 등록되었습니다.");
-  };
-  const handleUpdate = (f) => {
-    setItems((p) => p.map((e) => (e.id === f.id ? { ...e, ...f } : e)));
-    setPanel(null);
-    showToast("세션이 수정되었습니다.");
-  };
-  const handleDelete = () => {
-    const id = modal.item.id;
-    setModal(null);
-    setRemoving(id);
-    setTimeout(() => {
-      setItems((p) =>
-        p.map((e) => (e.id === id ? { ...e, _visible: false } : e)),
-      );
-      setRemoving(null);
-      setSelected((prev) => {
-        const n = new Set(prev);
-        n.delete(id);
-        return n;
-      });
-      showToast("세션이 삭제되었습니다.");
-    }, 300);
-  };
-  const handleBulkDelete = () => {
-    const ids = new Set(selected);
-    setModal(null);
-    setItems((p) =>
-      p.map((e) => (ids.has(e.id) ? { ...e, _visible: false } : e)),
-    );
-    setSelected(new Set());
-    showToast(`${ids.size}건의 세션이 삭제되었습니다.`);
-  };
-  const handleDeleteAll = () => {
-    setModal(null);
-    const ids = new Set(rows.map((r) => r.id));
-    setItems((p) =>
-      p.map((e) => (ids.has(e.id) ? { ...e, _visible: false } : e)),
-    );
-    setSelected(new Set());
-    showToast(`${ids.size}건의 세션이 삭제되었습니다.`);
   };
 
   return (
     <div>
       <style>{styles}</style>
-
-      {/* ── 상단 통계 ── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <StatCard
-          icon={Mic}
-          label="전체 세션"
-          value={totalSessions}
-          color={ds.brand}
-        />
-        <StatCard
-          icon={Clock}
-          label="진행 중"
-          value={activeSessions}
-          color="#10B981"
-        />
-        <StatCard
-          icon={Users}
-          label="총 등록 인원"
-          value={totalEnrolled}
-          color="#8B5CF6"
-        />
-        <StatCard
-          icon={MapPin}
-          label="총 정원"
-          value={totalCapacity}
-          color="#F59E0B"
-        />
-      </div>
-
-      {/* ── 테이블 카드 ── */}
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 12,
-          border: "1px solid #F1F5F9",
-          overflow: "hidden",
-        }}
-      >
-        {/* 헤더 바 */}
-        <div
-          style={{
-            padding: "12px 18px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: "1px solid #F1F5F9",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
-              세션/강연 목록
-            </span>
-            <span
+      {!selectedEvent && (
+        <>
+          <div style={{ marginBottom: 20 }}>
+            <h3
               style={{
-                fontSize: 11.5,
-                fontWeight: 600,
-                color: "#94A3B8",
-                background: "#F1F5F9",
-                padding: "2px 8px",
-                borderRadius: 5,
+                fontSize: 17,
+                fontWeight: 800,
+                color: ds.ink,
+                margin: "0 0 6px",
               }}
             >
-              {rows.length}
-            </span>
-            {hasSelected && (
-              <span
-                style={{
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  color: ds.brand,
-                  background: `${ds.brand}0C`,
-                  padding: "4px 10px",
-                  borderRadius: 6,
-                  animation: "fadeIn .15s ease",
-                }}
-              >
-                {selected.size}건 선택됨
-              </span>
-            )}
+              세션/강연 관리
+            </h3>
+            <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>
+              세션/강연을 관리할 행사를 선택하세요
+            </p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {hasSelected && (
-              <button
-                onClick={() => setModal({ type: "bulkDelete" })}
+          {loadingEvents ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                padding: "80px 0",
+              }}
+            >
+              <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "6px 12px",
-                  borderRadius: 7,
-                  border: "1px solid #FECACA",
-                  background: "#FEF2F2",
-                  fontSize: 12,
+                  width: 36,
+                  height: 36,
+                  border: `3px solid ${ds.brand}20`,
+                  borderTopColor: ds.brand,
+                  borderRadius: "50%",
+                  animation: "spin 1s linear infinite",
+                }}
+              />
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "#94A3B8",
                   fontWeight: 600,
-                  color: "#DC2626",
-                  cursor: "pointer",
-                  fontFamily: ds.ff,
-                  animation: "fadeIn .15s ease",
+                  marginTop: 14,
                 }}
               >
-                <Trash2 size={12} /> 선택 삭제 ({selected.size})
-              </button>
-            )}
-            {hasSelected && rows.length > 0 && (
-              <button
-                onClick={() => setModal({ type: "deleteAll" })}
+                행사 목록 로딩 중...
+              </div>
+            </div>
+          ) : events.length === 0 ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                padding: "80px 0",
+              }}
+            >
+              <CalendarDays size={42} color="#CBD5E1" strokeWidth={1.5} />
+              <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "6px 12px",
-                  borderRadius: 7,
-                  border: "1px solid #E2E8F0",
-                  background: "#fff",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "#64748B",
-                  cursor: "pointer",
-                  fontFamily: ds.ff,
-                  transition: "all .1s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "#FECACA";
-                  e.currentTarget.style.color = "#DC2626";
-                  e.currentTarget.style.background = "#FEF2F2";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "#E2E8F0";
-                  e.currentTarget.style.color = "#64748B";
-                  e.currentTarget.style.background = "#fff";
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: "#94A3B8",
+                  marginTop: 14,
                 }}
               >
-                <Trash2 size={12} /> 전체 삭제
-              </button>
-            )}
+                등록된 행사가 없습니다
+              </div>
+              <div style={{ fontSize: 13, color: "#CBD5E1", marginTop: 4 }}>
+                먼저 행사 관리에서 행사를 등록해주세요
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                gap: 14,
+              }}
+            >
+              {events.map((ev) => {
+                const st = statusMap[ev.status] || statusMap.pending;
+                return (
+                  <div
+                    key={ev.eventId || ev.id}
+                    onClick={() => selectEvent(ev)}
+                    style={{
+                      background: "#fff",
+                      borderRadius: 14,
+                      border: "1px solid #F1F5F9",
+                      padding: "20px",
+                      cursor: "pointer",
+                      transition: "all .2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = ds.brand;
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "#F1F5F9";
+                      e.currentTarget.style.transform = "translateY(0)";
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Pill color={st.c} bg={st.bg}>
+                        {st.l}
+                      </Pill>
+                      <ArrowRight size={16} color="#CBD5E1" />
+                    </div>
+                    <h4
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 800,
+                        color: ds.ink,
+                        margin: "0 0 8px",
+                      }}
+                    >
+                      {ev.name || ev.eventName}
+                    </h4>
+                    {ev.date && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 12,
+                          color: "#94A3B8",
+                        }}
+                      >
+                        <CalendarDays size={12} /> {ev.date}
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        marginTop: 14,
+                        paddingTop: 12,
+                        borderTop: "1px solid #F1F5F9",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 12,
+                        color: ds.brand,
+                        fontWeight: 700,
+                      }}
+                    >
+                      <Mic size={13} /> 세션/강연 관리하기
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {selectedEvent && (
+        <>
+          <div style={{ marginBottom: 16 }}>
             <button
-              onClick={() => setPanel({ type: "create" })}
+              onClick={goBack}
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 5,
-                padding: "6px 14px",
-                borderRadius: 7,
+                gap: 7,
+                padding: "8px 16px 8px 12px",
+                borderRadius: 10,
                 border: "none",
-                background: ds.brand,
-                color: "#fff",
-                fontSize: 12.5,
+                background: `${ds.brand}0F`,
+                fontSize: 13.5,
                 fontWeight: 700,
+                color: ds.brand,
                 cursor: "pointer",
                 fontFamily: ds.ff,
-                transition: "transform .1s",
+                marginBottom: 14,
+                transition: "all .2s ease",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.transform = "translateY(-1px)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.transform = "translateY(0)")
-              }
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${ds.brand}1A`;
+                e.currentTarget.style.transform = "translateX(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = `${ds.brand}0F`;
+                e.currentTarget.style.transform = "translateX(0)";
+              }}
             >
-              <Plus size={13} strokeWidth={2.5} /> 세션 등록
+              <ChevronLeft size={16} strokeWidth={2.5} /> 행사 목록으로
             </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <h3
+                style={{
+                  fontSize: 17,
+                  fontWeight: 800,
+                  color: ds.ink,
+                  margin: 0,
+                }}
+              >
+                {selectedEvent.name || selectedEvent.eventName}
+              </h3>
+              <Pill
+                color={(statusMap[selectedEvent.status] || statusMap.pending).c}
+                bg={(statusMap[selectedEvent.status] || statusMap.pending).bg}
+              >
+                {(statusMap[selectedEvent.status] || statusMap.pending).l}
+              </Pill>
+            </div>
           </div>
-        </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 12,
+              marginBottom: 16,
+            }}
+          >
+            <StatCard
+              icon={Mic}
+              label="전체 세션"
+              value={items.length}
+              color={ds.brand}
+            />
+            <StatCard
+              icon={Clock}
+              label="진행 중"
+              value={items.filter((e) => e.status === "active").length}
+              color="#10B981"
+            />
+            <StatCard
+              icon={Users}
+              label="총 참가자"
+              value={items.reduce((a, b) => a + (b.enrolled || 0), 0)}
+              color="#8B5CF6"
+            />
+          </div>
 
-        {/* 테이블 */}
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid #F1F5F9" }}>
-              <th style={{ width: 44, padding: "10px 14px" }}>
-                <Checkbox checked={isAllSelected} onChange={toggleAll} />
-              </th>
-              {[
-                { label: "강연명", w: "22%" },
-                { label: "강연자", w: 110 },
-                { label: "일시", w: 100 },
-                { label: "시간", w: 100 },
-                { label: "장소", w: 100 },
-                { label: "등록률", w: 120, align: "center" },
-                { label: "상태", w: 72 },
-                { label: "", w: 150 },
-              ].map((c, i) => (
-                <th
-                  key={i}
-                  style={{
-                    padding: "10px 14px",
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    color: "#94A3B8",
-                    textAlign: c.align || "left",
-                    letterSpacing: 0.3,
-                    ...(c.w ? { width: c.w } : {}),
-                  }}
-                >
-                  {c.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => {
-              const st = statusMap[r.status];
-              const isRemoving = removing === r.id;
-              const isChecked = selected.has(r.id);
-              return (
-                <tr
-                  key={r.id}
-                  className={isRemoving ? "row-removing" : ""}
-                  onClick={() => setModal({ type: "detail", item: r })}
-                  style={{
-                    borderBottom: "1px solid #F8FAFC",
-                    cursor: "pointer",
-                    transition: "background .1s",
-                    background: isChecked ? `${ds.brand}06` : "transparent",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = isChecked
-                      ? `${ds.brand}0A`
-                      : "#F4F6F8")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = isChecked
-                      ? `${ds.brand}06`
-                      : "transparent")
-                  }
-                >
-                  <td style={{ width: 44, padding: "11px 14px" }}>
-                    <Checkbox
-                      checked={isChecked}
-                      onChange={() => toggleOne(r.id)}
-                    />
-                  </td>
-                  <td style={{ padding: "11px 14px" }}>
-                    <div
-                      style={{ fontSize: 13, fontWeight: 700, color: ds.ink }}
-                    >
-                      {r.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "#94A3B8",
-                        fontFamily: "monospace",
-                        marginTop: 1,
-                      }}
-                    >
-                      {r.id}
-                    </div>
-                  </td>
-                  <td style={{ padding: "11px 14px" }}>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontSize: 13,
-                        color: "#475569",
-                      }}
-                    >
-                      <Mic size={12} color="#8B5CF6" /> {r.speaker}
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      padding: "11px 14px",
-                      fontSize: 13,
-                      color: "#475569",
-                    }}
-                  >
-                    {r.date}
-                  </td>
-                  <td
-                    style={{
-                      padding: "11px 14px",
-                      fontSize: 13,
-                      color: "#475569",
-                    }}
-                  >
-                    {r.time} ({r.duration}분)
-                  </td>
-                  <td
-                    style={{
-                      padding: "11px 14px",
-                      fontSize: 13,
-                      color: "#64748B",
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <MapPin size={12} color="#94A3B8" /> {r.location}
-                    </span>
-                  </td>
-                  <td style={{ padding: "11px 14px" }}>
-                    <MiniProgress value={r.enrolled} max={r.capacity} />
-                  </td>
-                  <td style={{ padding: "11px 14px" }}>
-                    <Pill color={st.c} bg={st.bg}>
-                      {st.l}
-                    </Pill>
-                  </td>
-                  <td style={{ padding: "11px 10px" }}>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 3 }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModal({ type: "detail", item: r });
-                        }}
-                        style={{
-                          padding: "4px 9px",
-                          borderRadius: 6,
-                          border: "1px solid #E2E8F0",
-                          background: "#fff",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: "#64748B",
-                          cursor: "pointer",
-                          fontFamily: ds.ff,
-                          transition: "all .12s",
-                          lineHeight: 1.2,
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = "#F1F5F9";
-                          e.currentTarget.style.borderColor = "#CBD5E1";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "#fff";
-                          e.currentTarget.style.borderColor = "#E2E8F0";
-                        }}
-                      >
-                        상세
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPanel({ type: "edit", item: r });
-                        }}
-                        style={{
-                          padding: "4px 9px",
-                          borderRadius: 6,
-                          border: `1px solid ${ds.brand}25`,
-                          background: `${ds.brand}06`,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: ds.brand,
-                          cursor: "pointer",
-                          fontFamily: ds.ff,
-                          transition: "all .12s",
-                          lineHeight: 1.2,
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = `${ds.brand}12`;
-                          e.currentTarget.style.borderColor = `${ds.brand}40`;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = `${ds.brand}06`;
-                          e.currentTarget.style.borderColor = `${ds.brand}25`;
-                        }}
-                      >
-                        수정
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModal({ type: "delete", item: r });
-                        }}
-                        style={{
-                          padding: "4px 9px",
-                          borderRadius: 6,
-                          border: "1px solid #FECACA50",
-                          background: "#FEF2F208",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: "#EF4444",
-                          cursor: "pointer",
-                          fontFamily: ds.ff,
-                          transition: "all .12s",
-                          lineHeight: 1.2,
-                          opacity: 0.7,
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = "#FEF2F2";
-                          e.currentTarget.style.borderColor = "#FECACA";
-                          e.currentTarget.style.opacity = "1";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "#FEF2F208";
-                          e.currentTarget.style.borderColor = "#FECACA50";
-                          e.currentTarget.style.opacity = "0.7";
-                        }}
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {rows.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <Mic size={36} color="#CBD5E1" style={{ marginBottom: 12 }} />
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              border: "1px solid #F1F5F9",
+              overflow: "hidden",
+            }}
+          >
             <div
               style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#64748B",
-                marginBottom: 4,
+                padding: "12px 18px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderBottom: "1px solid #F1F5F9",
               }}
             >
-              등록된 세션이 없습니다
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
+                  세션/강연 목록
+                </span>
+                <span
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    color: "#94A3B8",
+                    background: "#F1F5F9",
+                    padding: "2px 8px",
+                    borderRadius: 5,
+                  }}
+                >
+                  {rows.length}
+                </span>
+                {hasSelected && (
+                  <span
+                    style={{
+                      fontSize: 12.5,
+                      fontWeight: 700,
+                      color: ds.brand,
+                      background: `${ds.brand}0C`,
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                    }}
+                  >
+                    {selected.size}건 선택됨
+                  </span>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {hasSelected && (
+                  <button
+                    onClick={() => setModal({ type: "bulkDelete" })}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "6px 12px",
+                      borderRadius: 7,
+                      border: "1px solid #FECACA",
+                      background: "#FEF2F2",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#DC2626",
+                      cursor: "pointer",
+                      fontFamily: ds.ff,
+                    }}
+                  >
+                    <Trash2 size={12} /> 선택 삭제
+                  </button>
+                )}
+                <button
+                  onClick={() => setPanel({ type: "create" })}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "6px 14px",
+                    borderRadius: 7,
+                    border: "none",
+                    background: ds.brand,
+                    color: "#fff",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: ds.ff,
+                  }}
+                >
+                  <Plus size={13} strokeWidth={2.5} /> 세션 등록
+                </button>
+              </div>
             </div>
-            <div style={{ fontSize: 12.5, color: "#94A3B8" }}>
-              새 세션을 등록해보세요
-            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #F1F5F9" }}>
+                  <th style={{ width: 44, padding: "10px 14px" }}>
+                    <Checkbox checked={isAllSelected} onChange={toggleAll} />
+                  </th>
+                  {[
+                    { label: "세션/강연명", w: "40%" },
+                    { label: "참가자", w: 80, align: "right" },
+                    { label: "상태", w: 72 },
+                    { label: "", w: 130 },
+                  ].map((c, i) => (
+                    <th
+                      key={i}
+                      style={{
+                        padding: "10px 14px",
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        color: "#94A3B8",
+                        textAlign: c.align || "left",
+                        ...(c.w ? { width: c.w } : {}),
+                      }}
+                    >
+                      {c.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loadingItems ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      style={{ padding: "60px 0", textAlign: "center" }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 12,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            border: `3px solid ${ds.brand}20`,
+                            borderTopColor: ds.brand,
+                            borderRadius: "50%",
+                            animation: "spin 1s linear infinite",
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: 13,
+                            color: "#94A3B8",
+                            fontWeight: 600,
+                          }}
+                        >
+                          로딩 중...
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: "60px 0" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Mic size={36} color="#CBD5E1" strokeWidth={1.5} />
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: "#94A3B8",
+                            marginTop: 12,
+                          }}
+                        >
+                          등록된 세션/강연이 없습니다
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 12.5,
+                            color: "#CBD5E1",
+                            marginTop: 4,
+                          }}
+                        >
+                          이 행사에 세션/강연을 등록해보세요
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((r) => {
+                    const st = statusMap[r.status] || statusMap.pending;
+                    const isChecked = selected.has(r.id);
+                    return (
+                      <tr
+                        key={r.id}
+                        className={removing === r.id ? "row-removing" : ""}
+                        onClick={() => setModal({ type: "detail", item: r })}
+                        style={{
+                          borderBottom: "1px solid #F8FAFC",
+                          cursor: "pointer",
+                          background: isChecked
+                            ? `${ds.brand}06`
+                            : "transparent",
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = isChecked
+                            ? `${ds.brand}0A`
+                            : "#F4F6F8")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = isChecked
+                            ? `${ds.brand}06`
+                            : "transparent")
+                        }
+                      >
+                        <td style={{ width: 44, padding: "11px 14px" }}>
+                          <Checkbox
+                            checked={isChecked}
+                            onChange={() => toggleOne(r.id)}
+                          />
+                        </td>
+                        <td style={{ padding: "11px 14px" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                            }}
+                          >
+                            {r.imageUrl && (
+                              <img
+                                src={r.imageUrl}
+                                alt=""
+                                style={{
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: 8,
+                                  objectFit: "cover",
+                                  flexShrink: 0,
+                                  border: "1px solid #F1F5F9",
+                                }}
+                              />
+                            )}
+                            <div>
+                              <div
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: 700,
+                                  color: ds.ink,
+                                }}
+                              >
+                                {r.name}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 10.5,
+                                  color: "#94A3B8",
+                                  fontFamily: "monospace",
+                                }}
+                              >
+                                {r.id}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td
+                          style={{
+                            padding: "11px 14px",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: ds.ink,
+                            textAlign: "right",
+                          }}
+                        >
+                          {r.enrolled || 0}명
+                        </td>
+                        <td style={{ padding: "11px 14px" }}>
+                          <Pill color={st.c} bg={st.bg}>
+                            {st.l}
+                          </Pill>
+                        </td>
+                        <td style={{ padding: "11px 10px" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 3,
+                            }}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPanel({ type: "edit", item: r });
+                              }}
+                              style={{
+                                padding: "4px 9px",
+                                borderRadius: 6,
+                                border: "1px solid #E2E8F0",
+                                background: "#fff",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: "#64748B",
+                                cursor: "pointer",
+                                fontFamily: ds.ff,
+                              }}
+                            >
+                              수정
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setModal({ type: "delete", item: r });
+                              }}
+                              style={{
+                                padding: "4px 9px",
+                                borderRadius: 6,
+                                border: "1px solid #FECACA60",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: "#DC2626",
+                                cursor: "pointer",
+                                fontFamily: ds.ff,
+                              }}
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </>
+      )}
 
-      {/* 슬라이드 패널 */}
       {panel?.type === "create" && (
-        <SlidePanel onSave={handleCreate} onClose={() => setPanel(null)} />
+        <SessionFormModal
+          onSave={handleCreate}
+          onClose={() => setPanel(null)}
+          eventName={selectedEvent?.name || selectedEvent?.eventName}
+        />
       )}
       {panel?.type === "edit" && (
-        <SlidePanel
+        <SessionFormModal
           item={panel.item}
           isEdit
           onSave={handleUpdate}
           onClose={() => setPanel(null)}
-        />
-      )}
-
-      {/* 모달 */}
-      {modal?.type === "detail" && (
-        <DetailModal
-          item={modal.item}
-          onClose={() => setModal(null)}
-          onEdit={(item) => {
-            setModal(null);
-            setPanel({ type: "edit", item });
-          }}
-          onDelete={(item) => setModal({ type: "delete", item })}
+          eventName={selectedEvent?.name || selectedEvent?.eventName}
         />
       )}
       {modal?.type === "delete" && (
@@ -1444,21 +1494,12 @@ export default function SessionManage() {
       )}
       {modal?.type === "bulkDelete" && (
         <ConfirmModal
-          title="선택 세션 삭제"
-          msg={`선택한 ${selected.size}건의 세션을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          title="선택 삭제"
+          msg={`선택한 ${selected.size}건을 삭제하시겠습니까?`}
           onConfirm={handleBulkDelete}
           onCancel={() => setModal(null)}
         />
       )}
-      {modal?.type === "deleteAll" && (
-        <ConfirmModal
-          title="전체 세션 삭제"
-          msg={`현재 목록의 ${rows.length}건 세션을 모두 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
-          onConfirm={handleDeleteAll}
-          onCancel={() => setModal(null)}
-        />
-      )}
-
       {toast && (
         <Toast
           msg={toast.msg}
