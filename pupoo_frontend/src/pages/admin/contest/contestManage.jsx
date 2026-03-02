@@ -1264,14 +1264,14 @@ export default function ContestManage({ subTab = "all" }) {
     const eventId = selectedEvent?.eventId || selectedEvent?.id;
     try {
       if (isEdit) {
-        await axiosInstance.patch(
+        await axiosInstance.put(
           `/api/admin/dashboard/programs/${modal.item.programId}`,
           {
-            category: "CONTEST",
-            programTitle: form.name,
+            name: form.name,
             description: form.description || "",
-            startAt: form.startAt ? `${form.startAt}T00:00:00` : null,
-            endAt: form.endAt ? `${form.endAt}T23:59:59` : null,
+            startAt: form.startAt || null,
+            endAt: form.endAt || null,
+            category: "CONTEST",
           },
           { headers: authHeaders() },
         );
@@ -1279,18 +1279,13 @@ export default function ContestManage({ subTab = "all" }) {
           imageMapRef.current[modal.item.programId] = form.imageUrl;
       } else {
         const res = await axiosInstance.post(
-          `/api/admin/dashboard/programs`,
+          `/api/admin/dashboard/events/${eventId}/programs`,
           {
-            eventId: Number(eventId),
-            category: "CONTEST",
-            programTitle: form.name,
+            name: form.name,
             description: form.description || "",
-            startAt: form.startAt
-              ? `${form.startAt}T00:00:00`
-              : new Date().toISOString().slice(0, 19),
-            endAt: form.endAt
-              ? `${form.endAt}T23:59:59`
-              : new Date().toISOString().slice(0, 19),
+            startAt: form.startAt || null,
+            endAt: form.endAt || null,
+            category: "CONTEST",
           },
           { headers: authHeaders() },
         );
