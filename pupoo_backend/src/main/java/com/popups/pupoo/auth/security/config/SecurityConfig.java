@@ -1,4 +1,4 @@
-﻿// file: src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
+// file: src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
 package com.popups.pupoo.auth.security.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
