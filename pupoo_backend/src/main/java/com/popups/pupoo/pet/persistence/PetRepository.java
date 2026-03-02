@@ -23,4 +23,8 @@ public interface PetRepository extends JpaRepository<Pet, Long> {
      * - 없으면 Optional.empty()
      */
     Optional<Pet> findByPetIdAndUserId(Long petId, Long userId);
+
+    List<Pet> findAllByPetIdIn(List<Long> petIds);
+
+    List<Pet> findAllByUserIdInOrderByPetIdDesc(List<Long> userIds);
 }

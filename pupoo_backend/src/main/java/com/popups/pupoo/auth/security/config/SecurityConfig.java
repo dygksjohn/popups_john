@@ -93,6 +93,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/programs/*/speakers").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/programs/*/speakers/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/programs/*/votes/result").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/program-applies/programs/*/candidates").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/speakers").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/speakers/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/booths").permitAll()

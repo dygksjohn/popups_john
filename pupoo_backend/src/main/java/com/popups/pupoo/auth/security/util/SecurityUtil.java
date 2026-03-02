@@ -17,6 +17,39 @@ import org.springframework.stereotype.Component;
 @Component
 public class SecurityUtil {
 
+    public Long currentUserIdOrNull() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return null;
+        }
+
+        Object principal = auth.getPrincipal();
+        if (principal == null) {
+            return null;
+        }
+
+        if (principal instanceof Long userId) {
+            return userId;
+        }
+
+        if (principal instanceof Integer i) {
+            return i.longValue();
+        }
+
+        if (principal instanceof String s) {
+            if ("anonymousUser".equalsIgnoreCase(s)) {
+                return null;
+            }
+            try {
+                return Long.parseLong(s.trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
     public Long currentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
