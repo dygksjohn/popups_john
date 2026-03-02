@@ -23,9 +23,6 @@ export const SUBTITLE_MAP = {
   "/registration/qrcheckin": "내 QR 코드를 확인하세요",
 };
 
-/* ─────────────────────────────────────────────
-   카드사 / 결제수단 SVG 아이콘 (기존 유지)
-───────────────────────────────────────────── */
 const KBCardSVG = () => (
   <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect width="28" height="28" rx="6" fill="#FFB800" />
@@ -189,9 +186,6 @@ const METHOD_ICON = {
   bank: <BankTransferSVG />,
 };
 
-/* ─────────────────────────────────────────────
-   STYLES
-───────────────────────────────────────────── */
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
 
@@ -203,7 +197,6 @@ const styles = `
   .pay-root *, .pay-root *::before, .pay-root *::after { box-sizing: border-box; font-family: inherit; }
   .pay-container { max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; }
 
-  /* Stats */
   .pay-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
   .pay-stat {
     background: #fff; border: 1px solid #EBEBEB; border-radius: 16px;
@@ -219,15 +212,12 @@ const styles = `
   .pay-stat-value { font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.8px; line-height: 1; }
   .pay-stat-label { font-size: 12px; color: #9CA3AF; font-weight: 500; margin-top: 3px; }
 
-  /* Toolbar */
   .pay-toolbar { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
   .pay-title { font-size: 17px; font-weight: 800; color: #111827; letter-spacing: -0.3px; }
   .pay-sub { font-size: 13px; color: #9CA3AF; margin-top: 3px; }
 
-  /* List */
   .pay-list { display: flex; flex-direction: column; gap: 10px; }
 
-  /* Card */
   .pay-card {
     background: #fff; border: 1px solid #EBEBEB; border-radius: 16px;
     overflow: hidden; transition: box-shadow 0.2s;
@@ -252,6 +242,7 @@ const styles = `
     background: #DCFCE7; color: #15803D;
     display: inline-flex; align-items: center; gap: 5px;
   }
+  .pay-footer-actions { display: flex; align-items: center; gap: 8px; }
   .pay-receipt-btn {
     padding: 6px 14px; font-size: 12px; font-weight: 600;
     border: 1.5px solid #EBEBEB; border-radius: 8px; background: #fff;
@@ -259,8 +250,14 @@ const styles = `
     display: flex; align-items: center; gap: 5px;
   }
   .pay-receipt-btn:hover { border-color: #9CA3AF; color: #374151; }
+  .pay-refund-btn {
+    padding: 6px 14px; font-size: 12px; font-weight: 600;
+    border: 1px solid #FCA5A5; border-radius: 8px; background: #FEF2F2;
+    color: #DC2626; cursor: pointer; transition: all 0.15s;
+  }
+  .pay-refund-btn:hover { background: #FFE4E6; }
+  .pay-refund-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-  /* Total row */
   .pay-total-card {
     background: #EEF2FF; border: 1.5px solid #C7D2FA; border-radius: 16px;
     padding: 18px 20px; display: flex; align-items: center; justify-content: space-between;
@@ -275,11 +272,6 @@ const styles = `
   }
 `;
 
-/* ─────────────────────────────────────────────
-   helpers
-───────────────────────────────────────────── */
-
-// 백엔드 PaymentProvider/Status -> UI 매핑
 const statusLabel = {
   REQUESTED: "결제 요청",
   APPROVED: "결제 완료",
@@ -288,14 +280,12 @@ const statusLabel = {
   REFUNDED: "환불 완료",
 };
 
-// 결제수단 -> methodType(아이콘)
 function methodTypeOf(paymentMethod) {
-  // 백엔드 enum 기준: KAKAOPAY/CARD/BANK/OTHER...
   switch (paymentMethod) {
     case "KAKAOPAY":
       return "kakao";
     case "CARD":
-      return "kb"; // 카드사는 정보가 없으니 기본 아이콘(필요시 변경)
+      return "kb";
     case "BANK":
       return "bank";
     default:
@@ -318,7 +308,6 @@ function methodLabelOf(paymentMethod) {
 
 function formatDateTime(isoLike) {
   if (!isoLike) return { date: "-", time: "-" };
-  // 예: 2026-02-27T01:15:56 (LocalDateTime 문자열)
   const [d, t] = String(isoLike).split("T");
   if (!d) return { date: "-", time: "-" };
   const date = d.replaceAll("-", ".");
@@ -331,17 +320,14 @@ function toNumberAmount(amount) {
   return Number.isFinite(n) ? n : 0;
 }
 
-/* ─────────────────────────────────────────────
-   COMPONENT
-───────────────────────────────────────────── */
 export default function PaymentHistory({ onNavigate }) {
   const currentPath = "/registration/paymenthistory";
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [payments, setPayments] = useState([]);
+  const [refundingId, setRefundingId] = useState(null);
 
-  // pagination (원하면 추후 더 확장)
   const page = 0;
   const size = 20;
 
@@ -386,6 +372,34 @@ export default function PaymentHistory({ onNavigate }) {
     fetchPayments();
   }, []);
 
+  const handleRefund = async (payment) => {
+    const paymentId = payment?.paymentId;
+    if (!paymentId || payment?.status !== "APPROVED" || refundingId) return;
+
+    const ok = window.confirm("정말 환불하시겠습니까?\n환불 후 결제 상태는 취소됨으로 변경됩니다.");
+    if (!ok) return;
+
+    setRefundingId(paymentId);
+    try {
+      const res = await axiosInstance.post(`/api/payments/${paymentId}/cancel`);
+      const changedStatus = res?.data?.data?.status || "CANCELLED";
+      setPayments((prev) =>
+        prev.map((row) =>
+          row?.paymentId === paymentId ? { ...row, status: changedStatus } : row,
+        ),
+      );
+      window.alert("환불이 완료되었습니다.");
+    } catch (e) {
+      const msg =
+        e?.response?.data?.error?.message ||
+        e?.response?.data?.message ||
+        "환불 처리 중 오류가 발생했습니다.";
+      window.alert(msg);
+    } finally {
+      setRefundingId(null);
+    }
+  };
+
   return (
     <div className="pay-root">
       <style>{styles}</style>
@@ -399,7 +413,6 @@ export default function PaymentHistory({ onNavigate }) {
       />
 
       <main className="pay-container">
-        {/* Stats */}
         <div className="pay-stats">
           {[
             {
@@ -429,31 +442,27 @@ export default function PaymentHistory({ onNavigate }) {
           ))}
         </div>
 
-        {/* Toolbar */}
         <div className="pay-toolbar">
           <div>
             <div className="pay-title">결제 내역</div>
             <div className="pay-sub">
-              {loading ? "불러오는 중..." : `총 ${stats.totalCount}건 · ₩${stats.totalAmount.toLocaleString()}`}
+              {loading ? "불러오는 중..." : `총 ${stats.totalCount}건 · ${stats.totalAmount.toLocaleString()}원`}
             </div>
           </div>
         </div>
 
-        {/* Error */}
         {error && (
           <div style={{ color: "#b91c1c", marginBottom: 12 }}>
             {error}
           </div>
         )}
 
-        {/* Empty */}
         {!loading && !error && payments.length === 0 && (
           <div style={{ color: "#6b7280" }}>
             결제 내역이 없습니다.
           </div>
         )}
 
-        {/* List */}
         <div className="pay-list">
           {payments.map((p) => {
             const methodType = methodTypeOf(p.paymentMethod);
@@ -461,9 +470,7 @@ export default function PaymentHistory({ onNavigate }) {
             const amount = toNumberAmount(p.amount);
             const { date, time } = formatDateTime(p.requestedAt);
 
-            // 표시용 id: orderNo가 있으면 orderNo, 없으면 paymentId 기반
             const displayId = p.orderNo || `PAY-${p.paymentId}`;
-
             const isApproved = p.status === "APPROVED";
 
             return (
@@ -475,15 +482,13 @@ export default function PaymentHistory({ onNavigate }) {
                   </div>
 
                   <div className="pay-card-info">
-                    {/* event명이 PaymentResponse에 없으니 일단 표시 보류.
-                        필요하면 PaymentResponse에 eventTitle을 추가하는 걸 추천 */}
                     <div className="pay-card-event">
                       {p.eventTitle || "이벤트 결제"}
-                    </div>                    
+                    </div>
                   </div>
 
                   <div className="pay-card-right">
-                    <div className="pay-card-amount">₩{amount.toLocaleString()}</div>
+                    <div className="pay-card-amount">{amount.toLocaleString()}원</div>
                     <div className="pay-card-date">
                       {date} {time}
                     </div>
@@ -505,25 +510,34 @@ export default function PaymentHistory({ onNavigate }) {
                     <CheckCircle2 size={11} /> {statusLabel[p.status] || p.status}
                   </span>
 
-                  <button
-                    className="pay-receipt-btn"
-                    onClick={() => {
-                      // 영수증 기능은 PG/백에서 추가 구현 필요
-                      window.alert("영수증 기능은 추후 연결 예정입니다.");
-                    }}
-                  >
-                    <Receipt size={12} /> 영수증
-                  </button>
+                  <div className="pay-footer-actions">
+                    <button
+                      className="pay-receipt-btn"
+                      onClick={() => {
+                        window.alert("영수증 기능은 추후 연결 예정입니다.");
+                      }}
+                    >
+                      <Receipt size={12} /> 영수증
+                    </button>
+                    {p.status === "APPROVED" ? (
+                      <button
+                        className="pay-refund-btn"
+                        onClick={() => handleRefund(p)}
+                        disabled={refundingId === p.paymentId}
+                      >
+                        {refundingId === p.paymentId ? "처리 중..." : "환불하기"}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Total */}
         <div className="pay-total-card">
           <div className="pay-total-label">총 결제 금액</div>
-          <div className="pay-total-amount">₩ {stats.totalAmount.toLocaleString()}</div>
+          <div className="pay-total-amount">{stats.totalAmount.toLocaleString()}원</div>
         </div>
       </main>
     </div>
