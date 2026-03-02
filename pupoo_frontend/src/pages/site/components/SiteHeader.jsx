@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogIn, LogOut, UserPlus, UserCircle } from "lucide-react";
+import { LogIn, LogOut, UserPlus, UserCircle, Bell } from "lucide-react";
+import { notificationApi } from "../../../app/http/notificationApi";
 
 /* ─────────────────────────────────────────────
    ICONS
@@ -546,6 +547,7 @@ export default function PupooHeader() {
   const { isAuthed, logout } = useAuth(); // ✅ logoutLocal 제거
   const [activeMenu, setActiveMenu] = useState(null);
   const [scrolled, setScrolled] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const headerRef = useRef(null);
   const location = useLocation();
   const isHome = location.pathname === "/";
@@ -555,6 +557,17 @@ export default function PupooHeader() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!isAuthed) {
+      setUnreadCount(0);
+      return;
+    }
+    notificationApi
+      .getUnreadCount()
+      .then((n) => setUnreadCount(Number(n) || 0))
+      .catch(() => setUnreadCount(0));
+  }, [isAuthed]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -686,6 +699,38 @@ export default function PupooHeader() {
                 </>
               ) : (
                 <>
+                  <IconButtonWithTooltip
+                    to="/mypage?tab=notifications"
+                    tooltip={unreadCount > 0 ? `알림 ${unreadCount}건` : "알림"}
+                  >
+                    <span style={{ position: "relative", display: "inline-flex" }}>
+                      <Bell size={23} color={iconColor} strokeWidth={1.5} />
+                      {unreadCount > 0 && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: -4,
+                            right: -6,
+                            minWidth: 18,
+                            height: 18,
+                            padding: "0 5px",
+                            borderRadius: 9,
+                            backgroundColor: "#ef4444",
+                            color: "#fff",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            boxSizing: "border-box",
+                          }}
+                        >
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                    </span>
+                  </IconButtonWithTooltip>
+
                   <IconButtonWithTooltip
                     tooltip="로그아웃"
                     onClick={() => {

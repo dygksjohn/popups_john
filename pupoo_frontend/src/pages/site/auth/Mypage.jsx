@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { mypageApi } from "./api/mypageApi";
-import { getApiErrorMessage } from "./api/authApi";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "./AuthProvider";
+import { notificationApi } from "../../../app/http/notificationApi";
+import { settingsApi } from "../../../app/http/settingsApi";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -258,6 +259,7 @@ const styles = `
   }
   .mp-toggle.on .mp-toggle-knob { left: 23px; }
   .mp-toggle.off .mp-toggle-knob { left: 3px; }
+  .mp-toggle.disabled { opacity: 0.6; cursor: not-allowed; pointer-events: none; }
 
   /* ── Animations ── */
   .mp-fade-in {
@@ -354,53 +356,22 @@ const PAST_EVENTS = [
   },
 ];
 
-const NOTIFICATIONS = [
-  {
-    id: 1,
-    text: "2025 서울 펫 페스티벌 참가 신청이 확정되었습니다.",
-    time: "1시간 전",
-    icon: "✓",
-    iconBg: "#ecfdf5",
-    iconColor: "#10b981",
-    unread: true,
-  },
-  {
-    id: 2,
-    text: "반려동물 건강 세미나 일정이 변경되었습니다. 확인해주세요.",
-    time: "3시간 전",
-    icon: "!",
-    iconBg: "#fffbeb",
-    iconColor: "#f59e0b",
-    unread: true,
-  },
-  {
-    id: 3,
-    text: "베스트 드레서 콘테스트 투표가 시작되었습니다.",
-    time: "1일 전",
-    icon: "★",
-    iconBg: "#f5f3ff",
-    iconColor: "#8b5cf6",
-    unread: false,
-  },
-  {
-    id: 4,
-    text: "문의하신 내용에 대한 답변이 등록되었습니다.",
-    time: "2일 전",
-    icon: "↩",
-    iconBg: "#eff4ff",
-    iconColor: "#1a4fd6",
-    unread: false,
-  },
-  {
-    id: 5,
-    text: "2024 부산 펫쇼 참여 후기를 작성해주세요.",
-    time: "3일 전",
-    icon: "✎",
-    iconBg: "#f3f4f6",
-    iconColor: "#6b7280",
-    unread: false,
-  },
-];
+/* 알림은 notificationApi.getInbox / getUnreadCount 로 실데이터 사용 */
+
+function formatNotifTime(receivedAt) {
+  if (!receivedAt) return "";
+  const d = new Date(receivedAt);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+  if (diffMin < 1) return "방금 전";
+  if (diffMin < 60) return `${diffMin}분 전`;
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  if (diffDay < 7) return `${diffDay}일 전`;
+  return d.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+}
 
 const INQUIRIES = [
   {
@@ -626,11 +597,14 @@ const Icons = {
 };
 
 /* ── Toggle Component ── */
-function Toggle({ value, onChange }) {
+function Toggle({ value, onChange, disabled }) {
   return (
     <button
-      className={`mp-toggle ${value ? "on" : "off"}`}
-      onClick={() => onChange(!value)}
+      type="button"
+      className={`mp-toggle ${value ? "on" : "off"} ${disabled ? "disabled" : ""}`}
+      onClick={() => !disabled && onChange(!value)}
+      disabled={!!disabled}
+      aria-pressed={value}
     >
       <div className="mp-toggle-knob" />
     </button>
@@ -668,136 +642,97 @@ const TABS = [
   { key: "settings", label: "설정" },
 ];
 
-function formatDate(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toISOString().slice(0, 10).replaceAll("-", ".");
-}
-
 /* ── Main MyPage Component ── */
+const TAB_KEYS = ["overview", "events", "history", "qr", "notifications", "inquiries", "settings"];
+
 export default function MyPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { isAuthed } = useAuth();
+  const tabFromUrl = searchParams.get("tab");
+  const initialTab = TAB_KEYS.includes(tabFromUrl) ? tabFromUrl : "overview";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && TAB_KEYS.includes(t)) setActiveTab(t);
+  }, [searchParams]);
   const [pushNotif, setPushNotif] = useState(true);
   const [emailNotif, setEmailNotif] = useState(false);
   const [eventReminder, setEventReminder] = useState(true);
-  const [me, setMe] = useState(null);
-  const [pets, setPets] = useState([]);
-  const [apiError, setApiError] = useState("");
-  const [isBusy, setIsBusy] = useState(false);
+
+  const [inboxItems, setInboxItems] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [inboxLoading, setInboxLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+
+  const loadUnreadCount = useCallback(() => {
+    if (!isAuthed) return;
+    notificationApi.getUnreadCount().then((n) => setUnreadCount(Number(n) || 0)).catch(() => setUnreadCount(0));
+  }, [isAuthed]);
+
+  const loadInbox = useCallback(() => {
+    if (!isAuthed) return;
+    setInboxLoading(true);
+    notificationApi
+      .getInbox(0, 50)
+      .then((data) => setInboxItems(data?.items ?? []))
+      .catch(() => setInboxItems([]))
+      .finally(() => setInboxLoading(false));
+  }, [isAuthed]);
+
+  const loadSettings = useCallback(() => {
+    if (!isAuthed) return;
+    setSettingsLoading(true);
+    settingsApi
+      .getNotificationSettings()
+      .then((data) => setEmailNotif(!!data?.allowMarketing))
+      .catch(() => {})
+      .finally(() => setSettingsLoading(false));
+  }, [isAuthed]);
+
+  useEffect(() => {
+    if (isAuthed) {
+      loadUnreadCount();
+      loadInbox();
+      loadSettings();
+    } else {
+      setUnreadCount(0);
+      setInboxItems([]);
+    }
+  }, [isAuthed, loadUnreadCount, loadInbox, loadSettings]);
+
+  const handleEmailNotifChange = useCallback((newValue) => {
+    setEmailNotif(newValue);
+    settingsApi.updateNotificationSettings(newValue).catch(() => setEmailNotif((prev) => !prev));
+  }, []);
+
+  useEffect(() => {
+    if (isAuthed && activeTab === "notifications") loadInbox();
+  }, [isAuthed, activeTab, loadInbox]);
+
+  useEffect(() => {
+    if (isAuthed && activeTab === "settings") loadSettings();
+  }, [isAuthed, activeTab, loadSettings]);
+
+  const handleNotificationClick = (item) => {
+    if (!item?.inboxId || !isAuthed) return;
+    notificationApi
+      .click(item.inboxId)
+      .then((res) => {
+        loadUnreadCount();
+        setInboxItems((prev) => prev.filter((i) => i.inboxId !== item.inboxId));
+        const { targetType, targetId } = res || {};
+        if (targetType === "EVENT") navigate("/event/current");
+        else if (targetType === "NOTICE") navigate("/community/notice");
+      })
+      .catch(() => {});
+  };
 
   const statEventCount = useCountUp(3, 800, 200);
   const statParticipated = useCountUp(5, 800, 350);
   const statReviews = useCountUp(2, 800, 500);
   const statQrUsed = useCountUp(12, 800, 650);
-
-  const loadProfileAndPets = async () => {
-    try {
-      setApiError("");
-      const [meRes, petRes] = await Promise.all([
-        mypageApi.getMe(),
-        mypageApi.getMyPets(),
-      ]);
-      setMe(meRes || null);
-      setPets(Array.isArray(petRes) ? petRes : []);
-      setPushNotif(Boolean(meRes?.showAge));
-      setEmailNotif(Boolean(meRes?.showGender));
-      setEventReminder(Boolean(meRes?.showPet));
-    } catch (e) {
-      setApiError(getApiErrorMessage(e, "마이페이지 정보를 불러오지 못했습니다."));
-    }
-  };
-
-  useEffect(() => {
-    loadProfileAndPets();
-  }, []);
-
-  const profileData = useMemo(() => {
-    const nickname = me?.nickname || USER_DATA.name;
-    return {
-      initial: nickname ? nickname.slice(0, 1) : USER_DATA.initial,
-      name: nickname,
-      email: me?.email || USER_DATA.email,
-      joinDate:
-        formatDate(me?.createdAt) === "-"
-          ? USER_DATA.joinDate
-          : formatDate(me?.createdAt),
-    };
-  }, [me]);
-
-  const petRows = useMemo(
-    () =>
-      pets.map((pet, idx) => ({
-        id: pet.petId,
-        title: `${pet.petName || "반려동물"} (${String(pet.petBreed || "DOG")})`,
-        date: `${pet.petAge ?? "-"}살`,
-        status: idx % 2 === 0 ? "answered" : "waiting",
-      })),
-    [pets],
-  );
-
-  const updatePrivacy = async (field, value, applyLocal) => {
-    applyLocal(value);
-    if (!me) return;
-
-    const fallback = {
-      showAge: Boolean(me.showAge),
-      showGender: Boolean(me.showGender),
-      showPet: Boolean(me.showPet),
-    };
-
-    try {
-      setIsBusy(true);
-      setApiError("");
-      const payload = {
-        nickname: me.nickname,
-        showAge: field === "showAge" ? value : pushNotif,
-        showGender: field === "showGender" ? value : emailNotif,
-        showPet: field === "showPet" ? value : eventReminder,
-      };
-      const updated = await mypageApi.updateMe(payload);
-      setMe(updated || me);
-      setPushNotif(Boolean(updated?.showAge ?? payload.showAge));
-      setEmailNotif(Boolean(updated?.showGender ?? payload.showGender));
-      setEventReminder(Boolean(updated?.showPet ?? payload.showPet));
-    } catch (e) {
-      setApiError(getApiErrorMessage(e, "공개 설정 저장에 실패했습니다."));
-      applyLocal(Boolean(fallback[field]));
-    } finally {
-      setIsBusy(false);
-    }
-  };
-
-  const handleProfileEdit = () => {
-    navigate("/mypage/profile");
-  };
-
-  const handlePetCreate = () => {
-    navigate("/mypage/pets/new");
-  };
-
-  const handlePetEdit = (petId) => {
-    navigate(`/mypage/pets/${petId}/edit`);
-  };
-
-  const handlePetDelete = async (petId) => {
-    if (!window.confirm("반려동물을 삭제하시겠습니까?")) return;
-
-    try {
-      setIsBusy(true);
-      setApiError("");
-      await mypageApi.deletePet(petId);
-      const refreshed = await mypageApi.getMyPets();
-      setPets(Array.isArray(refreshed) ? refreshed : []);
-    } catch (e) {
-      setApiError(getApiErrorMessage(e, "반려동물 삭제에 실패했습니다."));
-    } finally {
-      setIsBusy(false);
-    }
-  };
-
-  const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
 
   return (
     <div className="mp-root">
@@ -810,17 +745,19 @@ export default function MyPage() {
           <p className="mp-page-subtitle">
             내 정보와 참여 이력을 한눈에 관리합니다
           </p>
-          {apiError ? (
-            <p style={{ color: "#ef4444", fontSize: 12, margin: "0 0 12px" }}>
-              {apiError}
-            </p>
-          ) : null}
           <div className="mp-page-tabs">
             {TABS.map((tab) => (
               <button
                 key={tab.key}
                 className={`mp-page-tab${activeTab === tab.key ? " active" : ""}`}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("tab", tab.key);
+                    return next;
+                  });
+                }}
               >
                 {tab.label}
                 {tab.key === "notifications" && unreadCount > 0 && (
@@ -853,7 +790,7 @@ export default function MyPage() {
           <div className="mp-fade-in">
             <div className="mp-profile-card">
               <div className="mp-avatar">
-                {profileData.initial}
+                {USER_DATA.initial}
                 <div className="mp-avatar-badge">
                   <svg
                     width="10"
@@ -870,8 +807,8 @@ export default function MyPage() {
                 </div>
               </div>
               <div className="mp-profile-info">
-                <div className="mp-profile-name">{profileData.name}</div>
-                <div className="mp-profile-email">{profileData.email}</div>
+                <div className="mp-profile-name">{USER_DATA.name}</div>
+                <div className="mp-profile-email">{USER_DATA.email}</div>
                 <div className="mp-profile-tags">
                   <span
                     className="mp-profile-tag"
@@ -883,7 +820,7 @@ export default function MyPage() {
                     className="mp-profile-tag"
                     style={{ background: "#ecfdf5", color: "#10b981" }}
                   >
-                    가입일 {profileData.joinDate}
+                    가입일 {USER_DATA.joinDate}
                   </span>
                 </div>
               </div>
@@ -891,15 +828,12 @@ export default function MyPage() {
                 <button
                   className="mp-btn mp-btn-primary"
                   style={{ display: "flex", alignItems: "center", gap: 6 }}
-                  onClick={handleProfileEdit}
-                  disabled={isBusy}
                 >
                   <Icons.edit size={14} color="#fff" />내 정보 수정
                 </button>
                 <button
                   className="mp-btn mp-btn-outline"
                   style={{ display: "flex", alignItems: "center", gap: 6 }}
-                  onClick={() => navigate("/mypage/qr")}
                 >
                   <Icons.qr size={14} />
                   QR코드
@@ -1027,31 +961,50 @@ export default function MyPage() {
                     </div>
                     최근 알림
                   </div>
-                  <span className="mp-card-tag">{unreadCount}건 안읽음</span>
+                  <span className="mp-card-tag">{isAuthed ? `${unreadCount}건 안읽음` : "로그인 후 확인"}</span>
                 </div>
                 <div className="mp-notif-list">
-                  {NOTIFICATIONS.slice(0, 4).map((n) => (
+                  {!isAuthed && (
+                    <div className="mp-notif-item" style={{ opacity: 0.7 }}>
+                      <div className="mp-notif-content">
+                        <div className="mp-notif-text">로그인하면 알림을 확인할 수 있습니다.</div>
+                      </div>
+                    </div>
+                  )}
+                  {isAuthed && inboxItems.slice(0, 4).map((n) => (
                     <div
-                      key={n.id}
-                      className={`mp-notif-item${n.unread ? " mp-notif-unread" : ""}`}
+                      key={n.inboxId}
+                      className="mp-notif-item mp-notif-unread"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => handleNotificationClick(n)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && handleNotificationClick(n)}
                     >
                       <div
                         className="mp-notif-icon"
                         style={{
-                          background: n.iconBg,
-                          color: n.iconColor,
+                          background: "#eff4ff",
+                          color: "#1a4fd6",
                           fontSize: 14,
                           fontWeight: 700,
                         }}
                       >
-                        {n.icon}
+                        {n.type === "EVENT" ? "★" : "!"}
                       </div>
                       <div className="mp-notif-content">
-                        <div className="mp-notif-text">{n.text}</div>
-                        <div className="mp-notif-time">{n.time}</div>
+                        <div className="mp-notif-text">{n.title || n.content || "알림"}</div>
+                        <div className="mp-notif-time">{formatNotifTime(n.receivedAt)}</div>
                       </div>
                     </div>
                   ))}
+                  {isAuthed && inboxItems.length === 0 && (
+                    <div className="mp-notif-item" style={{ opacity: 0.7 }}>
+                      <div className="mp-notif-content">
+                        <div className="mp-notif-text">새 알림이 없습니다.</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1204,15 +1157,11 @@ export default function MyPage() {
                     <button
                       className="mp-btn mp-btn-primary"
                       style={{ display: "flex", alignItems: "center", gap: 6 }}
-                      onClick={() => navigate("/mypage/qr")}
                     >
                       <Icons.download size={14} color="#fff" />
                       QR코드 저장
                     </button>
-                    <button
-                      className="mp-btn mp-btn-outline"
-                      onClick={() => navigate("/mypage/qr")}
-                    >
+                    <button className="mp-btn mp-btn-outline">
                       QR코드 재발급
                     </button>
                   </div>
@@ -1236,33 +1185,49 @@ export default function MyPage() {
                   </div>
                   전체 알림
                 </div>
-                <span className="mp-card-tag">{NOTIFICATIONS.length}건</span>
+                <span className="mp-card-tag">{inboxItems.length}건</span>
               </div>
-              <div className="mp-notif-list">
-                {NOTIFICATIONS.map((n, i) => (
-                  <div
-                    key={n.id}
-                    className={`mp-notif-item${n.unread ? " mp-notif-unread" : ""}`}
-                    style={{ animationDelay: `${i * 60}ms` }}
-                  >
+              {inboxLoading && (
+                <div style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                  알림을 불러오는 중…
+                </div>
+              )}
+              {!inboxLoading && (
+                <div className="mp-notif-list">
+                  {inboxItems.map((n, i) => (
                     <div
-                      className="mp-notif-icon"
-                      style={{
-                        background: n.iconBg,
-                        color: n.iconColor,
-                        fontSize: 14,
-                        fontWeight: 700,
-                      }}
+                      key={n.inboxId}
+                      className="mp-notif-item mp-notif-unread"
+                      style={{ animationDelay: `${i * 60}ms`, cursor: "pointer" }}
+                      onClick={() => handleNotificationClick(n)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && handleNotificationClick(n)}
                     >
-                      {n.icon}
+                      <div
+                        className="mp-notif-icon"
+                        style={{
+                          background: n.type === "EVENT" ? "#f5f3ff" : "#eff4ff",
+                          color: n.type === "EVENT" ? "#8b5cf6" : "#1a4fd6",
+                          fontSize: 14,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {n.type === "EVENT" ? "★" : "!"}
+                      </div>
+                      <div className="mp-notif-content">
+                        <div className="mp-notif-text">{n.title || n.content || "알림"}</div>
+                        <div className="mp-notif-time">{formatNotifTime(n.receivedAt)}</div>
+                      </div>
                     </div>
-                    <div className="mp-notif-content">
-                      <div className="mp-notif-text">{n.text}</div>
-                      <div className="mp-notif-time">{n.time}</div>
+                  ))}
+                  {inboxItems.length === 0 && (
+                    <div style={{ padding: "32px", textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                      받은 알림이 없습니다.
                     </div>
-                  </div>
-                ))}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1284,24 +1249,13 @@ export default function MyPage() {
                 <button
                   className="mp-btn mp-btn-primary"
                   style={{ padding: "8px 16px", fontSize: 12 }}
-                  onClick={handlePetCreate}
-                  disabled={isBusy}
                 >
                   + 새 문의
                 </button>
               </div>
               <div>
-                {petRows.map((inq) => (
-                  <div
-                    key={inq.id}
-                    className="mp-inquiry-item"
-                    onClick={() => handlePetEdit(inq.id)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      handlePetDelete(inq.id);
-                    }}
-                    style={{ cursor: "pointer" }}
-                  >
+                {INQUIRIES.map((inq) => (
+                  <div key={inq.id} className="mp-inquiry-item">
                     <div className="mp-inquiry-q">Q</div>
                     <div className="mp-inquiry-info">
                       <div className="mp-inquiry-title">{inq.title}</div>
@@ -1352,10 +1306,7 @@ export default function MyPage() {
                         </div>
                       </div>
                     </div>
-                    <Toggle
-                      value={pushNotif}
-                      onChange={(value) => updatePrivacy("showAge", value, setPushNotif)}
-                    />
+                    <Toggle value={pushNotif} onChange={setPushNotif} />
                   </div>
                   <div className="mp-setting-item">
                     <div className="mp-setting-left">
@@ -1366,15 +1317,16 @@ export default function MyPage() {
                         <Icons.mail size={16} color="#8b5cf6" />
                       </div>
                       <div>
-                        <div className="mp-setting-label">이메일 알림</div>
+                        <div className="mp-setting-label">이메일 알림 (마케팅 수신 동의)</div>
                         <div className="mp-setting-desc">
-                          이메일로 소식을 받습니다
+                          이메일로 소식을 받습니다. 서버에 저장됩니다.
                         </div>
                       </div>
                     </div>
                     <Toggle
                       value={emailNotif}
-                      onChange={(value) => updatePrivacy("showGender", value, setEmailNotif)}
+                      onChange={handleEmailNotifChange}
+                      disabled={settingsLoading}
                     />
                   </div>
                   <div className="mp-setting-item">
@@ -1392,10 +1344,7 @@ export default function MyPage() {
                         </div>
                       </div>
                     </div>
-                    <Toggle
-                      value={eventReminder}
-                      onChange={(value) => updatePrivacy("showPet", value, setEventReminder)}
-                    />
+                    <Toggle value={eventReminder} onChange={setEventReminder} />
                   </div>
                 </div>
               </div>
@@ -1419,7 +1368,6 @@ export default function MyPage() {
                     <div
                       className="mp-setting-item"
                       style={{ cursor: "pointer" }}
-                      onClick={handleProfileEdit}
                     >
                       <div className="mp-setting-left">
                         <div

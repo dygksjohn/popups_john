@@ -86,6 +86,13 @@ public class NotificationService {
         );
     }
 
+    /**
+     * 읽지 않은 알림 수(인박스 건수). 종 모양 배지 등에 사용.
+     */
+    public long getUnreadCount(Long userId) {
+        return notificationInboxRepository.countByUserId(userId);
+    }
+
     /* =========================================================
      * 2) 클릭(읽음 처리)
      * ========================================================= */

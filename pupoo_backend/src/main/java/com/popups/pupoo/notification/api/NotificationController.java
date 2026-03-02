@@ -24,6 +24,16 @@ public class NotificationController {
     }
 
     /**
+     * 읽지 않은 알림 수 조회(종 모양 배지용).
+     * 설계: GET /api/notifications/unread-count
+     */
+    @GetMapping("/unread-count")
+    public ApiResponse<Long> unreadCount() {
+        Long userId = securityUtil.currentUserId();
+        return ApiResponse.success(notificationService.getUnreadCount(userId));
+    }
+
+    /**
      * 내 미열람(=인박스) 알림 목록
      */
     @GetMapping

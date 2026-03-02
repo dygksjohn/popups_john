@@ -15,6 +15,15 @@ import {
 } from "lucide-react";
 import ds from "../shared/designTokens";
 import DATA from "../shared/data";
+import { eventApi } from "../../../app/http/eventApi";
+import { adminNotificationApi } from "../../../app/http/adminNotificationApi";
+
+/** 발송 대상(recipientScope) 옵션 — 백엔드 Enum 매핑 */
+const RECIPIENT_SCOPE_OPTIONS = [
+  { value: "INTEREST_SUBSCRIBERS", label: "관심 구독자" },
+  { value: "EVENT_REGISTRANTS", label: "이벤트 신청자" },
+  { value: "EVENT_PAYERS", label: "결제 완료자" },
+];
 
 const styles = `
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
@@ -324,25 +333,51 @@ function StatusDot({ status, label }) {
 const STATUS_LABEL = { sent: "발송완료", draft: "임시저장" };
 
 /* ── 슬라이드 패널 ── */
-function SlidePanel({ item, onSave, onClose, isEdit }) {
-  const [form, setForm] = useState(
-    item || {
+function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
+  const [form, setForm] = useState(() => {
+    if (item) {
+      const scope = item.recipientScope || "INTEREST_SUBSCRIBERS";
+      const scopeOpt = RECIPIENT_SCOPE_OPTIONS.find((o) => o.value === scope);
+      return {
+        eventId: item.eventId ?? "",
+        title: item.title ?? "",
+        content: item.content ?? "",
+        recipientScope: scope,
+        target: scopeOpt?.label ?? item.target ?? RECIPIENT_SCOPE_OPTIONS[0].label,
+        targetCount: item.targetCount ?? 0,
+        status: item.status ?? "draft",
+      };
+    }
+    return {
+      eventId: "",
       title: "",
       content: "",
-      target: "전체",
+      recipientScope: "INTEREST_SUBSCRIBERS",
+      target: RECIPIENT_SCOPE_OPTIONS[0].label,
       targetCount: 0,
       status: "draft",
-    },
-  );
+    };
+  });
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const [err, setErr] = useState("");
-  const targets = { 전체: 234, 미체크인: 56, 체크인완료: 178, 미결제: 12 };
   const handleSave = () => {
     if (!form.title || !form.content) {
       setErr("제목과 내용은 필수입니다.");
       return;
     }
-    onSave({ ...form, targetCount: targets[form.target] || 0 });
+    if (!form.eventId && !isEdit) {
+      setErr("대상 행사를 선택해 주세요.");
+      return;
+    }
+    const scopeOpt = RECIPIENT_SCOPE_OPTIONS.find((o) => o.value === form.recipientScope);
+    const eventName = events.find((e) => String(e.eventId) === String(form.eventId))?.eventName ?? "";
+    onSave({
+      ...form,
+      eventId: form.eventId ? Number(form.eventId) : form.eventId,
+      eventName,
+      target: scopeOpt?.label ?? form.target,
+      targetCount: form.targetCount ?? 0,
+    });
   };
 
   return (
@@ -434,6 +469,38 @@ function SlidePanel({ item, onSave, onClose, isEdit }) {
               <AlertTriangle size={14} /> {err}
             </div>
           )}
+          <Field label="대상 행사" required>
+            <div style={{ position: "relative" }}>
+              <select
+                value={form.eventId}
+                onChange={(e) => set("eventId", e.target.value)}
+                style={{
+                  ...inputStyle,
+                  appearance: "none",
+                  paddingRight: 32,
+                  cursor: "pointer",
+                }}
+              >
+                <option value="">행사 선택</option>
+                {events.map((ev) => (
+                  <option key={ev.eventId} value={ev.eventId}>
+                    {ev.eventName ?? ev.eventTitle ?? `행사 ${ev.eventId}`}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={14}
+                color="#94A3B8"
+                style={{
+                  position: "absolute",
+                  right: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                }}
+              />
+            </div>
+          </Field>
           <Field label="제목" required>
             <input
               style={inputStyle}
@@ -447,8 +514,13 @@ function SlidePanel({ item, onSave, onClose, isEdit }) {
           <Field label="발송 대상">
             <div style={{ position: "relative" }}>
               <select
-                value={form.target}
-                onChange={(e) => set("target", e.target.value)}
+                value={form.recipientScope}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const opt = RECIPIENT_SCOPE_OPTIONS.find((o) => o.value === v);
+                  set("recipientScope", v);
+                  if (opt) set("target", opt.label);
+                }}
                 style={{
                   ...inputStyle,
                   appearance: "none",
@@ -456,9 +528,9 @@ function SlidePanel({ item, onSave, onClose, isEdit }) {
                   cursor: "pointer",
                 }}
               >
-                {Object.keys(targets).map((t) => (
-                  <option key={t} value={t}>
-                    {t} ({targets[t]}명)
+                {RECIPIENT_SCOPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
                   </option>
                 ))}
               </select>
@@ -541,14 +613,37 @@ function SlidePanel({ item, onSave, onClose, isEdit }) {
    ═══════════════════════════════════════════ */
 export default function AlertManage() {
   const [items, setItems] = useState(() =>
-    (DATA.alertHistory || []).map((e) => ({ ...e, _visible: true })),
+    (DATA.alertHistory || []).map((e) => ({
+      ...e,
+      _visible: true,
+      eventId: e.eventId ?? null,
+      recipientScope: e.recipientScope ?? "INTEREST_SUBSCRIBERS",
+      eventName: e.eventName ?? "",
+    })),
   );
+  const [events, setEvents] = useState([]);
   const [modal, setModal] = useState(null);
   const [panel, setPanel] = useState(null);
   const [toast, setToast] = useState(null);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState([]);
   const show = (msg, type = "success") => setToast({ msg, type });
+
+  useEffect(() => {
+    let cancelled = false;
+    eventApi
+      .getEvents({ page: 0, size: 200 })
+      .then((res) => {
+        if (cancelled) return;
+        const data = res?.data?.data ?? res?.data;
+        const list = data?.content ?? data ?? [];
+        setEvents(Array.isArray(list) ? list : []);
+      })
+      .catch(() => {
+        if (!cancelled) setEvents([]);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const visible = items.filter((e) => e._visible);
   const sent = visible.filter((e) => e.status === "sent").length;
@@ -572,6 +667,7 @@ export default function AlertManage() {
         id: `AL-${String(p.length + 1).padStart(3, "0")}`,
         sentDate: null,
         _visible: true,
+        status: f.status ?? "draft",
       },
       ...p,
     ]);
@@ -592,20 +688,46 @@ export default function AlertManage() {
     show("알림이 삭제되었습니다.");
   };
   const handleSend = (item) => {
-    const d = new Date();
-    setItems((p) =>
-      p.map((e) =>
-        e.id === item.id
-          ? {
-              ...e,
-              status: "sent",
-              sentDate: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`,
-            }
-          : e,
-      ),
-    );
-    setModal(null);
-    show("알림이 발송되었습니다.");
+    if (!item.eventId) {
+      setModal(null);
+      show("대상 행사를 선택해 주세요. 알림을 수정한 뒤 다시 발송해 주세요.", "error");
+      return;
+    }
+    const payload = {
+      type: "EVENT",
+      title: item.title,
+      content: item.content,
+      targetType: "EVENT",
+      targetId: Number(item.eventId),
+      eventId: Number(item.eventId),
+      channels: ["APP"],
+      recipientScope: item.recipientScope || "INTEREST_SUBSCRIBERS",
+    };
+    adminNotificationApi
+      .publishEvent(payload)
+      .then(() => {
+        const d = new Date();
+        setItems((p) =>
+          p.map((e) =>
+            e.id === item.id
+              ? {
+                  ...e,
+                  status: "sent",
+                  sentDate: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`,
+                }
+              : e,
+          ),
+        );
+        setModal(null);
+        show("알림이 발송되었습니다.");
+      })
+      .catch((err) => {
+        const msg =
+          err?.response?.data?.error?.message ||
+          err?.message ||
+          "발송에 실패했습니다.";
+        show(msg, "error");
+      });
   };
 
   return (
@@ -736,6 +858,7 @@ export default function AlertManage() {
               {[
                 "제목",
                 "내용",
+                "행사",
                 "대상",
                 "대상자수",
                 "발송일",
@@ -805,6 +928,9 @@ export default function AlertManage() {
                   >
                     {r.content}
                   </span>
+                </td>
+                <td style={{ padding: "10px 12px", fontSize: 12, color: "#64748B" }}>
+                  {r.eventName || "—"}
                 </td>
                 <td style={{ padding: "10px 12px" }}>
                   <span
@@ -926,12 +1052,17 @@ export default function AlertManage() {
       </div>
 
       {panel?.type === "create" && (
-        <SlidePanel onSave={handleCreate} onClose={() => setPanel(null)} />
+        <SlidePanel
+          events={events}
+          onSave={handleCreate}
+          onClose={() => setPanel(null)}
+        />
       )}
       {panel?.type === "edit" && (
         <SlidePanel
           item={panel.item}
           isEdit
+          events={events}
           onSave={handleUpdate}
           onClose={() => setPanel(null)}
         />
