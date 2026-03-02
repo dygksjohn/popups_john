@@ -6,6 +6,7 @@ import com.popups.pupoo.common.api.IdResponse;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.storage.application.StorageService;
+import com.popups.pupoo.storage.dto.FileDownloadResponse;
 import com.popups.pupoo.storage.dto.FileResponse;
 import com.popups.pupoo.storage.dto.UploadRequest;
 import com.popups.pupoo.storage.dto.UploadResponse;
@@ -71,11 +72,14 @@ public class StorageController {
     }
 
     @GetMapping("/{fileId}/download")
-    public ResponseEntity<Void> redirectToStatic(@PathVariable Long fileId) {
+    public ResponseEntity<ApiResponse<FileDownloadResponse>> redirectToStatic(@PathVariable Long fileId) {
         FileResponse file = storageService.getFile(fileId);
+        FileDownloadResponse data = new FileDownloadResponse();
+        data.fileName = file.getOriginalName();
+        data.downloadUrl = file.getPublicPath();
         return ResponseEntity.status(302)
                 .header(HttpHeaders.LOCATION, URI.create(file.getPublicPath()).toString())
-                .build();
+                .body(ApiResponse.success(data));
     }
 
     @DeleteMapping("/{fileId}")

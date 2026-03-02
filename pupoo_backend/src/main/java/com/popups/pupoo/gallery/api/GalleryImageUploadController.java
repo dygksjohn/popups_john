@@ -1,12 +1,12 @@
 package com.popups.pupoo.gallery.api;
 
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.storage.application.StorageService;
 import com.popups.pupoo.storage.dto.UploadResponse;
 
@@ -24,7 +24,7 @@ public class GalleryImageUploadController {
     private final StorageService storageService;
 
     @PostMapping("/upload")
-    public ResponseEntity<UploadResponse> upload(@RequestPart("file") MultipartFile file) {
-        return ResponseEntity.ok(storageService.uploadForGalleryTemp(file));
+    public ApiResponse<UploadResponse> upload(@RequestPart("file") MultipartFile file) {
+        return ApiResponse.success(storageService.uploadForGalleryTemp(file));
     }
 }
