@@ -17,6 +17,8 @@ import {
   ImageOff,
   Users,
   Film,
+  ImagePlus,
+  Hash,
 } from "lucide-react";
 import ds from "../shared/designTokens";
 import { Pill } from "../shared/Components";
@@ -62,21 +64,24 @@ function fmtDate(dt) {
 }
 
 /* ── meta 태그 파싱 ──
-   DB: "배콩아<!--meta:{"galleryType":"현장"}-->"
-   → { text: "배콩아", type: "현장" }
+   DB: "배콩아<!--meta:{"galleryType":"현장","tags":["봄페스티벌","말티즈"]}-->"
+   → { text: "배콩아", type: "현장", tags: ["봄페스티벌","말티즈"] }
 */
 const META_RE = /<!--meta:(.*?)-->/;
 function parseMeta(desc) {
-  if (!desc) return { text: "", type: null };
+  if (!desc) return { text: "", type: null, tags: [] };
   const m = desc.match(META_RE);
   const text = desc.replace(META_RE, "").trim();
-  let type = null;
+  let type = null,
+    tags = [];
   if (m) {
     try {
-      type = JSON.parse(m[1]).galleryType;
+      const o = JSON.parse(m[1]);
+      type = o.galleryType;
+      tags = o.tags || [];
     } catch {}
   }
-  return { text, type };
+  return { text, type, tags };
 }
 function isSketch(item) {
   return parseMeta(item.description).type === "현장";
@@ -84,8 +89,13 @@ function isSketch(item) {
 function cleanDesc(item) {
   return parseMeta(item.description).text;
 }
-function appendMeta(desc, galleryType) {
-  return `${desc || ""}<!--meta:${JSON.stringify({ galleryType })}-->`;
+function getTags(item) {
+  return parseMeta(item.description).tags;
+}
+function appendMeta(desc, galleryType, tags = []) {
+  const meta = { galleryType };
+  if (tags.length > 0) meta.tags = tags;
+  return `${desc || ""}<!--meta:${JSON.stringify(meta)}-->`;
 }
 
 /* ── 이미지 URL 해석 ──
@@ -122,7 +132,7 @@ const styles = `
 @keyframes spin{to{transform:rotate(360deg)}}
 .gal-card2{transition:transform .18s,box-shadow .18s}
 .gal-card2:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.08)}
-.gal-tab{position:relative;padding:10px 20px;font-size:14px;font-weight:700;border:none;background:none;cursor:pointer;color:#94A3B8;transition:color .15s}
+.gal-tab{position:relative;padding:10px 20px;font-size:14px;font-weight:700;border:none;background:none;cursor:pointer;color:#94A3B8;transition:color .15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .gal-tab.active{color:${ds.brand}}
 .gal-tab.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2.5px;background:${ds.brand};border-radius:2px 2px 0 0}
 `;
@@ -620,12 +630,43 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
               fontSize: 13.5,
               color: "#334155",
               lineHeight: 1.7,
-              margin: "0 0 16px",
+              margin: "0 0 12px",
               flex: 1,
             }}
           >
             {desc || "설명이 없습니다."}
           </p>
+
+          {/* 태그 */}
+          {getTags(item).length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 6,
+                marginBottom: 14,
+              }}
+            >
+              {getTags(item).map((t, i) => (
+                <span
+                  key={i}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "4px 12px",
+                    background: "#F1F5F9",
+                    borderRadius: 20,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: "#475569",
+                    border: "1px solid #E2E8F0",
+                  }}
+                >
+                  #{t}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* 상태 */}
           <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
@@ -759,11 +800,14 @@ function FormModal({
   events,
   galleryType,
 }) {
+  const existingMeta = item
+    ? parseMeta(item.description)
+    : { text: "", type: null, tags: [] };
   const [form, setForm] = useState(
     item
       ? {
           title: item.title || "",
-          description: cleanDesc(item),
+          description: existingMeta.text,
           eventId: item.eventId ? String(item.eventId) : "",
         }
       : { title: "", description: "", eventId: "" },
@@ -772,48 +816,75 @@ function FormModal({
   const [err, setErr] = useState("");
   const [imageUrls, setImageUrls] = useState(item?.imageUrls || []);
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef(null);
+  const [tags, setTags] = useState(existingMeta.tags || []);
+  const [tagInput, setTagInput] = useState("");
+  const [visible, setVisible] = useState(false);
 
-  /* 파일 선택 → 즉시 서버 업로드 → URL 수집 */
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 20);
+    return () => clearTimeout(t);
+  }, []);
+
+  /* 태그 */
+  const addTag = () => {
+    const t = tagInput.trim().replace(/^#/, "");
+    if (!t) return;
+    if (tags.includes(t)) {
+      setTagInput("");
+      return;
+    }
+    if (tags.length >= 5) {
+      setErr("태그는 최대 5개까지 가능합니다.");
+      return;
+    }
+    setTags((p) => [...p, t]);
+    setTagInput("");
+  };
+  const removeTag = (idx) => setTags((p) => p.filter((_, i) => i !== idx));
+
+  /* 파일 업로드 */
   const addFiles = async (fileList) => {
     const files = Array.from(fileList).filter((f) =>
       f.type.startsWith("image/"),
     );
     if (files.length === 0) return;
-
     setUploading(true);
     try {
       const formData = new FormData();
       files.forEach((f) => formData.append("files", f));
-
-      const res = await axiosInstance.post(
-        "/api/admin/galleries/images/upload",
-        formData,
-        {
-          headers: { ...authHeaders() },
-        },
-      );
-
-      const uploaded = res?.data?.data?.urls || [];
+      const token = getToken();
+      const baseURL = axiosInstance.defaults.baseURL || "http://localhost:8080";
+      const res = await fetch(`${baseURL}/api/admin/galleries/images/upload`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(
+          errBody?.error?.message || errBody?.message || `HTTP ${res.status}`,
+        );
+      }
+      const data = await res.json();
+      const uploaded = data?.data?.urls || [];
       setImageUrls((prev) => [...prev, ...uploaded]);
     } catch (e) {
       console.error("[Gallery] image upload error:", e);
-      console.error(
-        "[Gallery] response:",
-        e?.response?.status,
-        e?.response?.data,
-      );
-      const msg =
-        e?.response?.data?.error?.message ||
-        e?.response?.data?.message ||
-        e.message;
-      setErr("이미지 업로드 실패: " + msg);
+      setErr("이미지 업로드 실패: " + e.message);
     } finally {
       setUploading(false);
     }
   };
-
   const removeUrl = (idx) => setImageUrls((p) => p.filter((_, i) => i !== idx));
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    addFiles(e.dataTransfer.files);
+  };
 
   const handleSave = () => {
     if (!form.title.trim()) {
@@ -824,10 +895,7 @@ function FormModal({
       setErr("행사를 선택해주세요.");
       return;
     }
-
-    // description에 meta 태그 append
-    const descWithMeta = appendMeta(form.description, galleryType);
-
+    const descWithMeta = appendMeta(form.description, galleryType, tags);
     if (isEdit) {
       onSave({ title: form.title, description: descWithMeta });
     } else {
@@ -843,331 +911,626 @@ function FormModal({
   const label = galleryType === "현장" ? "현장 스케치" : "참가자 갤러리";
 
   return (
-    <Overlay onClose={onClose}>
-      <div style={{ padding: "28px" }}>
+    <>
+      {/* 배경 */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 4999,
+          background: visible ? "rgba(15,16,23,0.45)" : "rgba(15,16,23,0)",
+          transition: "background .3s ease",
+        }}
+      />
+      {/* 중앙 모달 */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 5000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+          pointerEvents: "none",
+        }}
+      >
         <div
           style={{
+            pointerEvents: "auto",
+            width: 560,
+            maxWidth: "95vw",
+            maxHeight: "90vh",
+            background: "#fff",
+            borderRadius: 20,
+            boxShadow:
+              "0 32px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.1)",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 24,
+            flexDirection: "column",
+            overflow: "hidden",
+            transform: visible
+              ? "translateY(0) scale(1)"
+              : "translateY(24px) scale(0.97)",
+            opacity: visible ? 1 : 0,
+            transition: "all .35s cubic-bezier(.16,1,.3,1)",
           }}
         >
-          <div>
-            <h3
-              style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: ds.ink,
-                margin: 0,
-              }}
-            >
-              {isEdit ? `${label} 수정` : `${label} 등록`}
-            </h3>
-            <p style={{ fontSize: 11.5, color: "#94A3B8", margin: "3px 0 0" }}>
-              {isEdit ? "정보를 수정합니다" : `새 ${label}를 등록합니다`}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <X size={14} color="#94A3B8" />
-          </button>
-        </div>
-
-        {err && (
+          {/* 헤더 */}
           <div
             style={{
-              background: "#FEF2F2",
-              border: "1px solid #FECACA",
-              borderRadius: 9,
-              padding: "10px 14px",
-              fontSize: 12.5,
-              color: "#DC2626",
-              marginBottom: 18,
-              fontWeight: 600,
+              padding: "22px 28px",
+              borderBottom: "1px solid #F1F5F9",
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              justifyContent: "space-between",
+              flexShrink: 0,
             }}
           >
-            <AlertTriangle size={14} /> {err}
-          </div>
-        )}
-
-        <Field label="제목" required>
-          <input
-            style={inputStyle}
-            value={form.title}
-            onChange={(e) => set("title", e.target.value)}
-            onFocus={inputFocus}
-            onBlur={inputBlur}
-            placeholder="갤러리 제목"
-          />
-        </Field>
-
-        {!isEdit && (
-          <Field label="행사 선택" required>
-            <div style={{ position: "relative" }}>
-              <select
-                value={form.eventId}
-                onChange={(e) => set("eventId", e.target.value)}
+            <div>
+              <h3
                 style={{
-                  ...inputStyle,
-                  appearance: "none",
-                  paddingRight: 32,
-                  cursor: "pointer",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: ds.ink,
+                  margin: 0,
+                  letterSpacing: -0.3,
                 }}
               >
-                <option value="">행사를 선택하세요</option>
-                {(events || []).map((ev) => (
-                  <option key={ev.eventId} value={ev.eventId}>
-                    {ev.eventName || ev.title || `행사 #${ev.eventId}`}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={14}
-                color="#94A3B8"
-                style={{
-                  position: "absolute",
-                  right: 12,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  pointerEvents: "none",
-                }}
-              />
+                {isEdit ? `${label} 수정` : `${label} 등록`}
+              </h3>
+              <p style={{ fontSize: 12, color: "#94A3B8", margin: "4px 0 0" }}>
+                {isEdit ? "정보를 수정합니다" : `새 ${label}를 등록합니다`}
+              </p>
             </div>
-          </Field>
-        )}
-
-        <Field label="설명">
-          <textarea
-            rows={3}
-            style={{ ...inputStyle, resize: "vertical" }}
-            value={form.description}
-            onChange={(e) => set("description", e.target.value)}
-            onFocus={inputFocus}
-            onBlur={inputBlur}
-            placeholder="갤러리 설명을 입력하세요"
-          />
-        </Field>
-
-        {!isEdit && (
-          <Field label="이미지">
-            {/* 파일 선택 → 서버 업로드 */}
-            <div
-              onClick={() => !uploading && fileRef.current?.click()}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.style.borderColor = ds.brand;
-              }}
-              onDragLeave={(e) => {
-                e.currentTarget.style.borderColor = "#E2E8F0";
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.currentTarget.style.borderColor = "#E2E8F0";
-                addFiles(e.dataTransfer.files);
-              }}
+            <button
+              onClick={onClose}
               style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                border: "1px solid #E2E8F0",
+                background: "#fff",
+                cursor: "pointer",
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 6,
-                padding: "20px",
-                borderRadius: 9,
-                border: "2px dashed #E2E8F0",
-                cursor: uploading ? "wait" : "pointer",
-                transition: "border-color .15s",
-                background: "#FAFBFC",
-                opacity: uploading ? 0.6 : 1,
+                transition: "background .15s",
               }}
               onMouseEnter={(e) =>
-                !uploading && (e.currentTarget.style.borderColor = ds.brand)
+                (e.currentTarget.style.background = "#F8FAFC")
               }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.borderColor = "#E2E8F0")
-              }
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
             >
-              {uploading ? (
-                <>
-                  <Spinner size={24} />
-                  <span
-                    style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}
-                  >
-                    업로드 중...
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Camera size={24} color="#94A3B8" />
-                  <span
-                    style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}
-                  >
-                    클릭 또는 드래그하여 이미지 업로드
-                  </span>
-                  <span style={{ fontSize: 11, color: "#94A3B8" }}>
-                    JPG, PNG, GIF, WebP · 10MB 이하 · 최대 10장
-                  </span>
-                </>
-              )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => {
-                  addFiles(e.target.files);
-                  e.target.value = "";
-                }}
-                style={{ display: "none" }}
-              />
-            </div>
+              <X size={15} color="#94A3B8" />
+            </button>
+          </div>
 
-            {/* 업로드된 이미지 미리보기 */}
-            {imageUrls.length > 0 && (
+          {/* 본문 */}
+          <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
+            {err && (
               <div
                 style={{
+                  background: "#FEF2F2",
+                  border: "1px solid #FECACA",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  fontSize: 12.5,
+                  color: "#DC2626",
+                  marginBottom: 18,
+                  fontWeight: 600,
                   display: "flex",
-                  flexWrap: "wrap",
+                  alignItems: "center",
                   gap: 8,
-                  marginTop: 10,
                 }}
               >
-                {imageUrls.map((url, i) => (
+                <AlertTriangle size={14} /> {err}
+              </div>
+            )}
+
+            {/* ── 이미지 업로드 (EventManage 스타일) ── */}
+            {!isEdit && (
+              <Field label="이미지">
+                {imageUrls.length === 0 ? (
                   <div
-                    key={i}
+                    onClick={() => !uploading && fileRef.current?.click()}
+                    onDrop={handleDrop}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOver(true);
+                    }}
+                    onDragLeave={() => setDragOver(false)}
+                    style={{
+                      border: `2px dashed ${dragOver ? ds.brand : "#E2E8F0"}`,
+                      borderRadius: 14,
+                      padding: "32px 20px",
+                      textAlign: "center",
+                      cursor: uploading ? "wait" : "pointer",
+                      background: dragOver ? `${ds.brand}08` : "#FAFBFC",
+                      transition: "all .2s ease",
+                      opacity: uploading ? 0.6 : 1,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!dragOver && !uploading) {
+                        e.currentTarget.style.borderColor = "#CBD5E1";
+                        e.currentTarget.style.background = "#F8FAFC";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!dragOver) {
+                        e.currentTarget.style.borderColor = "#E2E8F0";
+                        e.currentTarget.style.background = "#FAFBFC";
+                      }
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 12,
+                        background: `${ds.brand}10`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        margin: "0 auto 12px",
+                      }}
+                    >
+                      {uploading ? (
+                        <Spinner size={22} />
+                      ) : (
+                        <ImagePlus size={22} color={ds.brand} />
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 13.5,
+                        fontWeight: 600,
+                        color: "#475569",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {uploading
+                        ? "업로드 중..."
+                        : "클릭하거나 이미지를 드래그하세요"}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "#94A3B8" }}>
+                      JPG, PNG, GIF, WEBP · 최대 10MB · 최대 10장
+                    </div>
+                  </div>
+                ) : (
+                  <div
                     style={{
                       position: "relative",
-                      width: 80,
-                      height: 80,
-                      borderRadius: 8,
+                      borderRadius: 14,
                       overflow: "hidden",
-                      border:
-                        i === 0 ? `2px solid ${ds.brand}` : "1px solid #E2E8F0",
                     }}
                   >
                     <img
-                      src={resolveImgUrl(url)}
-                      alt=""
+                      src={resolveImgUrl(imageUrls[0])}
+                      alt="미리보기"
                       style={{
                         width: "100%",
-                        height: "100%",
+                        maxHeight: 200,
                         objectFit: "cover",
+                        borderRadius: 14,
+                        display: "block",
                       }}
                       onError={(e) => {
                         e.target.style.display = "none";
                       }}
                     />
-                    {i === 0 && (
-                      <span
-                        style={{
-                          position: "absolute",
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          background: ds.brand,
-                          color: "#fff",
-                          fontSize: 9,
-                          fontWeight: 700,
-                          textAlign: "center",
-                          padding: "2px 0",
-                        }}
-                      >
-                        대표
-                      </span>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeUrl(i);
-                      }}
+                    <div
                       style={{
                         position: "absolute",
-                        top: 3,
-                        right: 3,
-                        width: 18,
-                        height: 18,
-                        borderRadius: "50%",
-                        border: "none",
-                        background: "rgba(0,0,0,0.5)",
-                        color: "#fff",
-                        cursor: "pointer",
+                        top: 8,
+                        right: 8,
                         display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: 0,
+                        gap: 6,
                       }}
                     >
-                      <X size={10} />
-                    </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileRef.current?.click();
+                        }}
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 8,
+                          border: "none",
+                          background: "rgba(0,0,0,0.55)",
+                          color: "#fff",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backdropFilter: "blur(4px)",
+                        }}
+                        title="이미지 추가"
+                      >
+                        <Plus size={13} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImageUrls([]);
+                        }}
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 8,
+                          border: "none",
+                          background: "rgba(239,68,68,0.8)",
+                          color: "#fff",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backdropFilter: "blur(4px)",
+                        }}
+                        title="전체 삭제"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                    {imageUrls.length > 1 && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: 8,
+                          left: 8,
+                          background: "rgba(0,0,0,0.55)",
+                          color: "#fff",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: 6,
+                          backdropFilter: "blur(4px)",
+                        }}
+                      >
+                        +{imageUrls.length - 1}장 더
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-          </Field>
-        )}
+                )}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    addFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
 
-        <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-          <button
-            onClick={onClose}
-            disabled={saving || uploading}
+                {/* 업로드된 이미지 썸네일 리스트 */}
+                {imageUrls.length > 1 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 6,
+                      marginTop: 10,
+                    }}
+                  >
+                    {imageUrls.map((url, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          position: "relative",
+                          width: 56,
+                          height: 56,
+                          borderRadius: 8,
+                          overflow: "hidden",
+                          border:
+                            i === 0
+                              ? `2px solid ${ds.brand}`
+                              : "1px solid #E2E8F0",
+                        }}
+                      >
+                        <img
+                          src={resolveImgUrl(url)}
+                          alt=""
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                          }}
+                        />
+                        {i === 0 && (
+                          <span
+                            style={{
+                              position: "absolute",
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              background: ds.brand,
+                              color: "#fff",
+                              fontSize: 8,
+                              fontWeight: 700,
+                              textAlign: "center",
+                              padding: "1px 0",
+                            }}
+                          >
+                            대표
+                          </span>
+                        )}
+                        <button
+                          onClick={() => removeUrl(i)}
+                          style={{
+                            position: "absolute",
+                            top: 2,
+                            right: 2,
+                            width: 16,
+                            height: 16,
+                            borderRadius: "50%",
+                            border: "none",
+                            background: "rgba(0,0,0,0.5)",
+                            color: "#fff",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: 0,
+                          }}
+                        >
+                          <X size={8} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Field>
+            )}
+
+            {/* ── 2열: 제목 / 행사 ── */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isEdit ? "1fr" : "1fr 1fr",
+                gap: 14,
+              }}
+            >
+              <Field label="제목" required>
+                <input
+                  style={inputStyle}
+                  value={form.title}
+                  onChange={(e) => set("title", e.target.value)}
+                  onFocus={inputFocus}
+                  onBlur={inputBlur}
+                  placeholder="갤러리 제목"
+                  autoFocus
+                />
+              </Field>
+              {!isEdit && (
+                <Field label="행사 선택" required>
+                  <div style={{ position: "relative" }}>
+                    <select
+                      value={form.eventId}
+                      onChange={(e) => set("eventId", e.target.value)}
+                      style={{
+                        ...inputStyle,
+                        appearance: "none",
+                        paddingRight: 32,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <option value="">행사를 선택하세요</option>
+                      {(events || []).map((ev) => (
+                        <option key={ev.eventId} value={ev.eventId}>
+                          {ev.eventName || ev.title || `행사 #${ev.eventId}`}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={14}
+                      color="#94A3B8"
+                      style={{
+                        position: "absolute",
+                        right: 12,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                  </div>
+                </Field>
+              )}
+            </div>
+
+            {/* ── 설명 ── */}
+            <Field label="설명">
+              <textarea
+                rows={3}
+                style={{ ...inputStyle, resize: "vertical" }}
+                value={form.description}
+                onChange={(e) => set("description", e.target.value)}
+                onFocus={inputFocus}
+                onBlur={inputBlur}
+                placeholder="갤러리 설명을 입력하세요"
+              />
+            </Field>
+
+            {/* ── 태그 입력 ── */}
+            <Field label="태그">
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  marginBottom: tags.length > 0 ? 10 : 0,
+                }}
+              >
+                <div style={{ position: "relative", flex: 1 }}>
+                  <Hash
+                    size={14}
+                    color="#94A3B8"
+                    style={{
+                      position: "absolute",
+                      left: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                    }}
+                  />
+                  <input
+                    style={{ ...inputStyle, paddingLeft: 32 }}
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onFocus={inputFocus}
+                    onBlur={inputBlur}
+                    placeholder="태그 입력 후 Enter (예: 봄페스티벌)"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addTag();
+                      }
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={addTag}
+                  style={{
+                    padding: "0 16px",
+                    borderRadius: 9,
+                    border: "none",
+                    background: ds.brand,
+                    color: "#fff",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: ds.ff,
+                    whiteSpace: "nowrap",
+                    transition: "opacity .15s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                >
+                  추가
+                </button>
+              </div>
+              {tags.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {tags.map((t, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "5px 10px",
+                        background: "#F1F5F9",
+                        borderRadius: 20,
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        color: "#475569",
+                        border: "1px solid #E2E8F0",
+                      }}
+                    >
+                      #{t}
+                      <button
+                        onClick={() => removeTag(i)}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: "50%",
+                          border: "none",
+                          background: "#CBD5E1",
+                          color: "#fff",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: 0,
+                          marginLeft: 2,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <X size={9} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 6 }}>
+                최대 5개, Enter 또는 추가 버튼으로 등록
+              </div>
+            </Field>
+          </div>
+
+          {/* 하단 버튼 */}
+          <div
             style={{
-              flex: 1,
-              padding: "11px 0",
-              borderRadius: 9,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: ds.ff,
-              color: "#64748B",
+              padding: "16px 28px",
+              borderTop: "1px solid #F1F5F9",
+              display: "flex",
+              gap: 10,
+              flexShrink: 0,
             }}
           >
-            취소
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || uploading}
-            style={{
-              flex: 1,
-              padding: "11px 0",
-              borderRadius: 9,
-              border: "none",
-              background: ds.brand,
-              color: "#fff",
-              fontSize: 13.5,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: ds.ff,
-              opacity: saving || uploading ? 0.5 : 1,
-            }}
-          >
-            {uploading
-              ? "업로드 중..."
-              : saving
-                ? "저장 중..."
-                : isEdit
-                  ? "수정 완료"
-                  : "등록하기"}
-          </button>
+            <button
+              onClick={onClose}
+              disabled={saving || uploading}
+              style={{
+                flex: 1,
+                padding: "12px 0",
+                borderRadius: 10,
+                border: "1px solid #E2E8F0",
+                background: "#fff",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: ds.ff,
+                color: "#64748B",
+                transition: "background .15s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#F8FAFC")
+              }
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+            >
+              취소
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || uploading}
+              style={{
+                flex: 1,
+                padding: "12px 0",
+                borderRadius: 10,
+                border: "none",
+                background: ds.brand,
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: ds.ff,
+                opacity: saving || uploading ? 0.5 : 1,
+                transition: "background .15s, transform .1s",
+              }}
+              onMouseDown={(e) =>
+                (e.currentTarget.style.transform = "scale(0.98)")
+              }
+              onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.transform = "scale(1)")
+              }
+            >
+              {uploading
+                ? "업로드 중..."
+                : saving
+                  ? "저장 중..."
+                  : isEdit
+                    ? "수정 완료"
+                    : "등록하기"}
+            </button>
+          </div>
         </div>
       </div>
-    </Overlay>
+    </>
   );
 }
 
@@ -1293,7 +1656,7 @@ function UserGalleryCard({ item, onClick, eventMap }) {
             fontSize: 12.5,
             color: "#334155",
             lineHeight: 1.5,
-            margin: "0 0 10px",
+            margin: "0 0 8px",
             display: "-webkit-box",
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
@@ -1302,6 +1665,40 @@ function UserGalleryCard({ item, onClick, eventMap }) {
         >
           {desc || ""}
         </p>
+        {getTags(item).length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 4,
+              marginBottom: 8,
+            }}
+          >
+            {getTags(item)
+              .slice(0, 3)
+              .map((t, i) => (
+                <span
+                  key={i}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#64748B",
+                    background: "#F1F5F9",
+                    padding: "2px 8px",
+                    borderRadius: 12,
+                    border: "1px solid #E2E8F0",
+                  }}
+                >
+                  #{t}
+                </span>
+              ))}
+            {getTags(item).length > 3 && (
+              <span style={{ fontSize: 11, color: "#94A3B8" }}>
+                +{getTags(item).length - 3}
+              </span>
+            )}
+          </div>
+        )}
         <div
           style={{
             display: "flex",
@@ -1621,7 +2018,7 @@ export default function Gallery() {
               onClick={() => setTab("user")}
               style={{ fontFamily: ds.ff }}
             >
-              <Users size={14} style={{ marginRight: 5, verticalAlign: -2 }} />
+              <Users size={14} />
               참가자 갤러리
             </button>
             <button
@@ -1629,7 +2026,7 @@ export default function Gallery() {
               onClick={() => setTab("sketch")}
               style={{ fontFamily: ds.ff }}
             >
-              <Film size={14} style={{ marginRight: 5, verticalAlign: -2 }} />
+              <Film size={14} />
               현장 스케치
             </button>
           </div>
