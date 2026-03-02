@@ -20,6 +20,39 @@ export const programApi = {
     });
   },
 
+  // GET /api/events/{eventId}/programs (all pages)
+  getAllProgramsByEvent: async ({
+    eventId,
+    category,
+    sort = "startAt,asc",
+    pageSize = 200,
+    maxPages = 100,
+  } = {}) => {
+    if (eventId == null)
+      throw new Error("getAllProgramsByEvent: eventId is required");
+
+    const all = [];
+    let page = 0;
+    let isLast = false;
+
+    while (!isLast && page < maxPages) {
+      const res = await programApi.getPrograms({
+        eventId,
+        category,
+        page,
+        size: pageSize,
+        sort,
+      });
+      const data = res?.data?.data ?? {};
+      const content = Array.isArray(data?.content) ? data.content : [];
+      all.push(...content);
+      isLast = Boolean(data?.last);
+      page += 1;
+    }
+
+    return all;
+  },
+
   // GET /api/programs/{programId}
   getProgramDetail: (programId) => {
     if (programId == null)
