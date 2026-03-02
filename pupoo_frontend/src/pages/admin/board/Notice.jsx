@@ -659,6 +659,7 @@ export default function Notice() {
   const [toast, setToast] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(new Set());
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
 
@@ -689,6 +690,23 @@ export default function Notice() {
   }, [fetchList]);
 
   const rows = items.filter((e) => !search || e.title?.includes(search));
+
+  /* ── 선택 관련 ── */
+  const isAllSelected =
+    rows.length > 0 && rows.every((r) => selected.has(r.noticeId));
+  const hasSelected = selected.size > 0;
+  const toggleAll = () => {
+    if (isAllSelected) setSelected(new Set());
+    else setSelected(new Set(rows.map((r) => r.noticeId)));
+  };
+  const toggleOne = (id) => {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
 
   const handleCreate = async (form) => {
     setSaving(true);
@@ -741,6 +759,47 @@ export default function Notice() {
     }
   };
 
+  /* ── 선택 삭제 ── */
+  const handleBatchDelete = async () => {
+    setSaving(true);
+    const ids = [...selected];
+    try {
+      for (const id of ids) {
+        await adminNoticeApi.delete(id);
+      }
+      setModal(null);
+      setSelected(new Set());
+      showToast(`${ids.length}건이 삭제되었습니다.`);
+      fetchList(page);
+    } catch (err) {
+      console.error("[Notice] batch delete error:", err);
+      setModal(null);
+      showToast("일괄 삭제에 실패했습니다.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* ── 전체 삭제 ── */
+  const handleDeleteAll = async () => {
+    setSaving(true);
+    try {
+      for (const r of rows) {
+        await adminNoticeApi.delete(r.noticeId);
+      }
+      setModal(null);
+      setSelected(new Set());
+      showToast(`${rows.length}건이 전체 삭제되었습니다.`);
+      fetchList(1);
+    } catch (err) {
+      console.error("[Notice] delete all error:", err);
+      setModal(null);
+      showToast("전체 삭제에 실패했습니다.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
       <style>{styles}</style>
@@ -762,14 +821,74 @@ export default function Notice() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Checkbox
+              checked={isAllSelected && rows.length > 0}
+              onChange={toggleAll}
+            />
             <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
               공지사항
             </span>
             <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
               총 {totalElements}개
             </span>
+            {hasSelected && (
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  color: ds.brand,
+                  background: `${ds.brand}0C`,
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                }}
+              >
+                {selected.size}건 선택됨
+              </span>
+            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {hasSelected && (
+              <button
+                onClick={() => setModal({ type: "batchDelete" })}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "7px 12px",
+                  borderRadius: 7,
+                  border: "1px solid #FECACA",
+                  background: "#FEF2F2",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#DC2626",
+                  cursor: "pointer",
+                  fontFamily: ds.ff,
+                }}
+              >
+                <Trash2 size={12} /> 선택 삭제
+              </button>
+            )}
+            {rows.length > 0 && (
+              <button
+                onClick={() => setModal({ type: "deleteAll" })}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "7px 12px",
+                  borderRadius: 7,
+                  border: "1px solid #E2E8F0",
+                  background: "#fff",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#64748B",
+                  cursor: "pointer",
+                  fontFamily: ds.ff,
+                }}
+              >
+                <Trash2 size={12} /> 전체 삭제
+              </button>
+            )}
             <button
               onClick={() => fetchList(page)}
               style={{
@@ -912,14 +1031,27 @@ export default function Notice() {
                 cursor: "pointer",
                 transition: "background .1s",
                 position: "relative",
+                background: selected.has(r.noticeId)
+                  ? `${ds.brand}06`
+                  : "transparent",
               }}
               onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "#F4F6F8")
+                (e.currentTarget.style.background = selected.has(r.noticeId)
+                  ? `${ds.brand}0A`
+                  : "#F4F6F8")
               }
               onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
+                (e.currentTarget.style.background = selected.has(r.noticeId)
+                  ? `${ds.brand}06`
+                  : "transparent")
               }
             >
+              <div style={{ marginRight: 12, flexShrink: 0 }}>
+                <Checkbox
+                  checked={selected.has(r.noticeId)}
+                  onChange={() => toggleOne(r.noticeId)}
+                />
+              </div>
               <div style={{ width: 12, flexShrink: 0 }}>
                 {r.pinned && (
                   <span
@@ -1160,6 +1292,24 @@ export default function Notice() {
           loading={saving}
           msg={`"${modal.item.title}" 공지사항을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
           onConfirm={handleDelete}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === "batchDelete" && (
+        <ConfirmModal
+          title="선택 삭제"
+          loading={saving}
+          msg={`선택한 ${selected.size}건을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          onConfirm={handleBatchDelete}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === "deleteAll" && (
+        <ConfirmModal
+          title="전체 삭제"
+          loading={saving}
+          msg={`현재 목록의 ${rows.length}건을 전체 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          onConfirm={handleDeleteAll}
           onCancel={() => setModal(null)}
         />
       )}

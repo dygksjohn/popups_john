@@ -1,19 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import EventSelectPage from "../components/EventSelectPage";
-import { SERVICE_CATEGORIES, SUBTITLE_MAP } from "../constants/programConstants";
-import { eventApi } from "../../../app/http/eventApi";
-import { programApi } from "../../../app/http/programApi";
-import { boothApi } from "../../../app/http/boothApi";
+import {
+  SERVICE_CATEGORIES,
+  SUBTITLE_MAP,
+  SAMPLE_EVENTS,
+} from "../constants/programConstants";
 import {
   Mic,
   Users,
+  Clock,
   MapPin,
   BookOpen,
   ChevronRight,
   PlayCircle,
+  CheckCircle2,
   Star,
+  MessageSquare,
   UserCircle,
   Video,
 } from "lucide-react";
@@ -60,6 +64,7 @@ const styles = `
   .ss-card-title-icon { width: 24px; height: 24px; border-radius: 6px; background: #fffbeb; display: flex; align-items: center; justify-content: center; }
   .ss-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
 
+  /* Filter tabs */
   .ss-filter-bar { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
   .ss-filter-btn {
     padding: 7px 16px; border: 1px solid #e9ecef; border-radius: 100px;
@@ -69,6 +74,7 @@ const styles = `
   .ss-filter-btn:hover { border-color: #1a4fd6; color: #1a4fd6; }
   .ss-filter-btn.active { background: #1a4fd6; border-color: #1a4fd6; color: #fff; }
 
+  /* Session list */
   .ss-session-list { display: flex; flex-direction: column; gap: 12px; }
   .ss-session-item {
     display: flex; gap: 18px; padding: 20px 22px; border: 1px solid #e9ecef;
@@ -102,11 +108,17 @@ const styles = `
   .ss-session-badge.upcoming { background: #fff7ed; color: #d97706; }
   .ss-session-badge.done { background: #f3f4f6; color: #9ca3af; }
   .ss-session-rating { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #f59e0b; font-weight: 600; }
+  .ss-session-cap { font-size: 11px; color: #9ca3af; }
+
   .ss-tag-list { display: flex; gap: 5px; margin-top: 8px; }
   .ss-tag {
     font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 100px;
   }
-  .ss-tag.session { background: #eff4ff; color: #1a4fd6; }
+  .ss-tag.health { background: #ecfdf5; color: #059669; }
+  .ss-tag.training { background: #eff4ff; color: #1a4fd6; }
+  .ss-tag.nutrition { background: #fef3c7; color: #d97706; }
+  .ss-tag.behavior { background: #fce7f3; color: #ec4899; }
+  .ss-tag.care { background: #f5f3ff; color: #8b5cf6; }
 
   @media (max-width: 640px) {
     .ss-container { padding: 20px 16px 48px; }
@@ -116,72 +128,102 @@ const styles = `
   }
 `;
 
-const FILTERS = [
-  { key: "all", label: "전체" },
-  { key: "live", label: "진행 중" },
-  { key: "upcoming", label: "예정" },
-  { key: "done", label: "완료" },
+const FILTERS = ["전체", "건강", "훈련", "영양", "행동학", "케어"];
+
+const SESSIONS = [
+  {
+    name: "반려동물 건강검진의 중요성",
+    desc: "정기 건강검진의 필요성과 주요 검사 항목에 대해 알아봅니다",
+    speaker: "김수의",
+    role: "서울동물의료센터 원장",
+    time: "10:00",
+    endTime: "11:30",
+    zone: "세미나실 A",
+    people: 72,
+    max: 80,
+    rating: 4.9,
+    tags: ["health"],
+    status: "done",
+    color: "#10b981",
+  },
+  {
+    name: "올바른 사회화 훈련 방법",
+    desc: "강아지 사회화 시기의 중요성과 효과적인 훈련 프로그램 소개",
+    speaker: "박훈련",
+    role: "반려동물 행동전문가",
+    time: "11:00",
+    endTime: "12:00",
+    zone: "세미나실 B",
+    people: 55,
+    max: 60,
+    rating: 4.7,
+    tags: ["training", "behavior"],
+    status: "done",
+    color: "#1a4fd6",
+  },
+  {
+    name: "수제 사료와 영양 균형",
+    desc: "집에서 만드는 건강한 수제 사료 레시피와 필수 영양소 가이드",
+    speaker: "이영양",
+    role: "수의영양학 박사",
+    time: "13:00",
+    endTime: "14:30",
+    zone: "세미나실 A",
+    people: 48,
+    max: 80,
+    rating: null,
+    tags: ["nutrition"],
+    status: "live",
+    color: "#f59e0b",
+  },
+  {
+    name: "노견 케어 & 재활 운동",
+    desc: "노령 반려동물의 건강 관리와 관절 재활 운동법",
+    speaker: "최재활",
+    role: "동물재활전문 수의사",
+    time: "15:00",
+    endTime: "16:30",
+    zone: "세미나실 B",
+    people: 0,
+    max: 60,
+    rating: null,
+    tags: ["health", "care"],
+    status: "upcoming",
+    color: "#8b5cf6",
+  },
+  {
+    name: "반려동물 분리불안 극복하기",
+    desc: "분리불안의 원인을 이해하고 단계별 개선 방법을 배웁니다",
+    speaker: "정행동",
+    role: "동물행동학 교수",
+    time: "16:00",
+    endTime: "17:00",
+    zone: "세미나실 A",
+    people: 0,
+    max: 80,
+    rating: null,
+    tags: ["behavior", "training"],
+    status: "upcoming",
+    color: "#ec4899",
+  },
 ];
 
+const TAG_MAP = {
+  health: "건강",
+  training: "훈련",
+  nutrition: "영양",
+  behavior: "행동학",
+  care: "케어",
+};
 const STATUS_LABEL = { live: "진행 중", upcoming: "예정", done: "완료" };
-const DIVIDER_COLORS = ["#10b981", "#1a4fd6", "#f59e0b", "#8b5cf6", "#ec4899"];
 
-function parseDate(value) {
-  if (!value) return null;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
+function SessionContent() {
+  const [filter, setFilter] = useState("전체");
 
-function formatDateRange(startAt, endAt) {
-  const pick = (v) => {
-    const m = String(v ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-    return m ? `${m[1]}.${m[2]}.${m[3]}` : "";
-  };
-  const a = pick(startAt);
-  const b = pick(endAt);
-  if (a && b) return `${a} ~ ${b}`;
-  return a || b || "일정 미정";
-}
-
-function formatTime(value) {
-  const m = String(value ?? "").match(/(\d{2}):(\d{2})/);
-  return m ? `${m[1]}:${m[2]}` : "";
-}
-
-function toEventStatus(rawStatus, startAt, endAt) {
-  const raw = String(rawStatus ?? "").toUpperCase();
-  if (raw.includes("ONGOING") || raw.includes("LIVE")) return "live";
-  if (raw.includes("END")) return "ended";
-  const now = Date.now();
-  const s = parseDate(startAt)?.getTime();
-  const e = parseDate(endAt)?.getTime();
-  if (s && now < s) return "upcoming";
-  if (e && now > e) return "ended";
-  return "upcoming";
-}
-
-function toSessionStatus(item) {
-  if (item?.ongoing) return "live";
-  if (item?.ended) return "done";
-  if (item?.upcoming) return "upcoming";
-  const now = Date.now();
-  const s = parseDate(item?.startAt)?.getTime();
-  const e = parseDate(item?.endAt)?.getTime();
-  if (s && now < s) return "upcoming";
-  if (e && now > e) return "done";
-  return "live";
-}
-
-function SessionContent({ sessions, loading, errorMsg, onClickItem }) {
-  const [filter, setFilter] = useState("all");
-
-  const filtered = useMemo(() => {
-    if (filter === "all") return sessions;
-    return sessions.filter((s) => s.status === filter);
-  }, [filter, sessions]);
-
-  const liveCount = sessions.filter((s) => s.status === "live").length;
-  const totalPeople = sessions.reduce((sum, s) => sum + Number(s.people || 0), 0);
+  const filtered =
+    filter === "전체"
+      ? SESSIONS
+      : SESSIONS.filter((s) => s.tags.some((t) => TAG_MAP[t] === filter));
 
   return (
     <>
@@ -194,25 +236,25 @@ function SessionContent({ sessions, loading, errorMsg, onClickItem }) {
         {[
           {
             label: "전체 세션",
-            value: `${sessions.length}개`,
+            value: "5개",
             icon: <Mic size={20} color="#1a4fd6" />,
             bg: "#eff4ff",
           },
           {
             label: "진행 중",
-            value: `${liveCount}개`,
+            value: "1개",
             icon: <PlayCircle size={20} color="#10b981" />,
             bg: "#ecfdf5",
           },
           {
             label: "총 참석자",
-            value: `${totalPeople}명`,
+            value: "175명",
             icon: <Users size={20} color="#f59e0b" />,
             bg: "#fffbeb",
           },
           {
             label: "평균 평점",
-            value: "-",
+            value: "4.8",
             icon: <Star size={20} color="#ec4899" />,
             bg: "#fce7f3",
           },
@@ -235,186 +277,109 @@ function SessionContent({ sessions, loading, errorMsg, onClickItem }) {
             <div className="ss-card-title-icon">
               <BookOpen size={14} color="#f59e0b" />
             </div>
-            세션 · 강연
+            세션 ．강연
           </div>
-          <span className="ss-card-tag">총 {sessions.length}개</span>
+          <span className="ss-card-tag">총 {SESSIONS.length}개</span>
         </div>
 
         <div className="ss-filter-bar">
           {FILTERS.map((f) => (
             <button
-              key={f.key}
-              className={`ss-filter-btn${filter === f.key ? " active" : ""}`}
-              onClick={() => setFilter(f.key)}
+              key={f}
+              className={`ss-filter-btn${filter === f ? " active" : ""}`}
+              onClick={() => setFilter(f)}
             >
-              {f.label}
+              {f}
             </button>
           ))}
         </div>
 
-        {loading ? <div className="ss-card-tag">로딩 중...</div> : null}
-        {!loading && errorMsg ? <div className="ss-card-tag">{errorMsg}</div> : null}
-        {!loading && !errorMsg && filtered.length === 0 ? (
-          <div className="ss-card-tag">표시할 세션이 없습니다.</div>
-        ) : null}
-
-        {!loading && !errorMsg && filtered.length > 0 ? (
-          <div className="ss-session-list">
-            {filtered.map((s, idx) => (
+        <div className="ss-session-list">
+          {filtered.map((s) => (
+            <div
+              key={s.name}
+              className={`ss-session-item${s.status === "live" ? " live" : ""}`}
+            >
+              <div className="ss-session-time">
+                <div className="ss-session-time-main">{s.time}</div>
+                <div className="ss-session-time-end">~{s.endTime}</div>
+              </div>
               <div
-                key={s.id}
-                className={`ss-session-item${s.status === "live" ? " live" : ""}`}
-                onClick={() => onClickItem(s)}
-              >
-                <div className="ss-session-time">
-                  <div className="ss-session-time-main">{s.time}</div>
-                  <div className="ss-session-time-end">~{s.endTime}</div>
-                </div>
-                <div
-                  className="ss-session-divider"
-                  style={{ background: DIVIDER_COLORS[idx % DIVIDER_COLORS.length] }}
-                />
-                <div className="ss-session-body">
-                  <div className="ss-session-name">{s.name}</div>
-                  <div className="ss-session-desc">{s.desc || "설명이 없습니다."}</div>
-                  <div className="ss-session-speaker">
-                    <div className="ss-speaker-avatar">
-                      <UserCircle size={18} color="#9ca3af" />
-                    </div>
-                    <div>
-                      <div className="ss-speaker-name">{s.speaker}</div>
-                      <div className="ss-speaker-role">{s.role}</div>
-                    </div>
+                className="ss-session-divider"
+                style={{ background: s.color }}
+              />
+              <div className="ss-session-body">
+                <div className="ss-session-name">{s.name}</div>
+                <div className="ss-session-desc">{s.desc}</div>
+                <div className="ss-session-speaker">
+                  <div className="ss-speaker-avatar">
+                    <UserCircle size={18} color="#9ca3af" />
                   </div>
-                  <div className="ss-session-meta">
-                    <span className="ss-session-meta-item">
-                      <MapPin size={11} /> {s.zone}
-                    </span>
-                    <span className="ss-session-meta-item">
-                      <Users size={11} /> {s.people}/{s.max}명
-                    </span>
-                    {s.status === "live" ? (
-                      <span className="ss-session-meta-item">
-                        <Video size={11} /> 실시간 진행
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="ss-tag-list">
-                    <span className="ss-tag session">세션</span>
+                  <div>
+                    <div className="ss-speaker-name">{s.speaker}</div>
+                    <div className="ss-speaker-role">{s.role}</div>
                   </div>
                 </div>
-                <div className="ss-session-right">
-                  <span className={`ss-session-badge ${s.status}`}>{STATUS_LABEL[s.status]}</span>
-                  {s.rating ? (
-                    <div className="ss-session-rating">
-                      <Star size={12} fill="#f59e0b" /> {s.rating}
-                    </div>
-                  ) : null}
-                  <ChevronRight size={16} color="#d1d5db" />
+                <div className="ss-session-meta">
+                  <span className="ss-session-meta-item">
+                    <MapPin size={11} /> {s.zone}
+                  </span>
+                  <span className="ss-session-meta-item">
+                    <Users size={11} /> {s.people}/{s.max}명
+                  </span>
+                  {s.status === "live" && (
+                    <span className="ss-session-meta-item">
+                      <Video size={11} /> 실시간 스트리밍
+                    </span>
+                  )}
+                </div>
+                <div className="ss-tag-list">
+                  {s.tags.map((t) => (
+                    <span key={t} className={`ss-tag ${t}`}>
+                      {TAG_MAP[t]}
+                    </span>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        ) : null}
+              <div className="ss-session-right">
+                <span className={`ss-session-badge ${s.status}`}>
+                  {STATUS_LABEL[s.status]}
+                </span>
+                {s.rating && (
+                  <div className="ss-session-rating">
+                    <Star size={12} fill="#f59e0b" /> {s.rating}
+                  </div>
+                )}
+                <ChevronRight size={16} color="#d1d5db" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </>
   );
 }
 
-function SessionDetail({ eventId }) {
+export default function Session() {
   const navigate = useNavigate();
+  const { eventId } = useParams();
   const currentPath = "/program/session";
-  const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    if (!eventId) return;
-    let mounted = true;
-
-    const load = async () => {
-      setLoading(true);
-      setErrorMsg("");
-      try {
-        const [list, boothRes] = await Promise.all([
-          programApi.getAllProgramsByEvent({
-            eventId: Number(eventId),
-            category: "SESSION",
-            sort: "startAt,asc",
-          }),
-          boothApi.getEventBooths({
-            eventId: Number(eventId),
-            page: 0,
-            size: 200,
-            sort: "boothId,asc",
-          }),
-        ]);
-        if (!mounted) return;
-
-        const booths = Array.isArray(boothRes?.data?.data?.content)
-          ? boothRes.data.data.content
-          : [];
-        const boothMap = new Map(
-          booths
-            .map((b) => [Number(b?.boothId), b?.placeName])
-            .filter(([id, name]) => Number.isFinite(id) && !!name),
-        );
-
-        const raw = Array.isArray(list) ? list : [];
-        const speakerLists = await Promise.all(
-          raw.map(async (item) => {
-            try {
-              const res = await programApi.getProgramSpeakers(item?.programId);
-              return Array.isArray(res?.data?.data) ? res.data.data : [];
-            } catch {
-              return [];
-            }
-          }),
-        );
-        if (!mounted) return;
-
-        const mapped = raw.map((item, idx) => {
-          const speakers = speakerLists[idx] || [];
-          const first = speakers[0] || {};
-          return {
-            id: Number(item?.programId ?? idx + 1),
-            name: item?.programTitle ?? `세션 ${idx + 1}`,
-            desc: item?.description ?? "",
-            speaker: first?.speakerName ?? "연사 정보 없음",
-            role: first?.speakerBio ?? "",
-            time: formatTime(item?.startAt) || "시간 미정",
-            endTime: formatTime(item?.endAt) || "시간 미정",
-            zone:
-              item?.boothName ??
-              boothMap.get(Number(item?.boothId)) ??
-              "장소 미정",
-            people: Number(item?.participantCount ?? 0),
-            max: Number(item?.capacity ?? 0),
-            rating: null,
-            status: toSessionStatus(item),
-            detailPath: `/program/detail?programId=${item?.programId}`,
-          };
-        });
-
-        setSessions(mapped);
-      } catch (e) {
-        if (!mounted) return;
-        setSessions([]);
-        setErrorMsg(
-          e?.response?.data?.message ||
-            e?.message ||
-            "세션 데이터를 불러오지 못했습니다.",
-        );
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [eventId]);
+  if (!eventId) {
+    return (
+      <div className="ss-root">
+        <style>{styles}</style>
+        <PageHeader
+          title="세션 · 강연"
+          subtitle="행사를 선택해 세션과 강연 일정을 확인하세요"
+          categories={SERVICE_CATEGORIES}
+          currentPath={currentPath}
+          onNavigate={(path) => navigate(path)}
+        />
+        <EventSelectPage events={SAMPLE_EVENTS} basePath="/program/session" />
+      </div>
+    );
+  }
 
   return (
     <div className="ss-root">
@@ -427,86 +392,8 @@ function SessionDetail({ eventId }) {
         onNavigate={(path) => navigate(path)}
       />
       <main className="ss-container">
-        <SessionContent
-          sessions={sessions}
-          loading={loading}
-          errorMsg={errorMsg}
-          onClickItem={(s) => navigate(s.detailPath)}
-        />
+        <SessionContent />
       </main>
     </div>
   );
-}
-
-export default function Session() {
-  const navigate = useNavigate();
-  const { eventId } = useParams();
-  const currentPath = "/program/session";
-  const [events, setEvents] = useState([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
-
-  useEffect(() => {
-    if (eventId) return;
-    let mounted = true;
-    const load = async () => {
-      setEventsLoading(true);
-      try {
-        const res = await eventApi.getEvents({
-          page: 0,
-          size: 200,
-          sort: "startAt,desc",
-        });
-        if (!mounted) return;
-        const list = Array.isArray(res?.data?.data?.content)
-          ? res.data.data.content
-          : [];
-        setEvents(
-          list.map((evt) => ({
-            id: evt?.eventId,
-            name: evt?.eventName ?? "행사",
-            description: evt?.description ?? "",
-            date: formatDateRange(evt?.startAt, evt?.endAt),
-            location: evt?.location ?? "장소 미정",
-            organizer: evt?.eventName ?? "주최 정보 없음",
-            status: toEventStatus(evt?.status, evt?.startAt, evt?.endAt),
-            participants: 0,
-            thumbnail: null,
-            color: "#1a4fd6",
-          })),
-        );
-      } catch {
-        if (!mounted) return;
-        setEvents([]);
-      } finally {
-        if (mounted) setEventsLoading(false);
-      }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [eventId]);
-
-  if (!eventId) {
-    return (
-      <div className="ss-root">
-        <style>{styles}</style>
-        <PageHeader
-          title="세션 · 강연"
-          subtitle="행사를 선택해 세션 프로그램을 확인하세요"
-          categories={SERVICE_CATEGORIES}
-          currentPath={currentPath}
-          onNavigate={(path) => navigate(path)}
-        />
-        <EventSelectPage events={events} basePath="/program/session" />
-        {eventsLoading ? (
-          <main className="ss-container">
-            <div className="ss-card-tag">행사 목록 불러오는 중...</div>
-          </main>
-        ) : null}
-      </div>
-    );
-  }
-
-  return <SessionDetail eventId={eventId} />;
 }

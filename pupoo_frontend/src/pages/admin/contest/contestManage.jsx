@@ -104,6 +104,33 @@ function Toast({ msg, type = "success", onDone }) {
     </div>
   );
 }
+
+function Checkbox({ checked, onChange, size = 18 }) {
+  return (
+    <div
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange?.();
+      }}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 5,
+        border: checked ? "none" : "1.8px solid #CBD5E1",
+        background: checked ? ds.brand : "#fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        transition: "all .15s ease",
+        flexShrink: 0,
+      }}
+    >
+      {checked && <Check size={size - 6} color="#fff" strokeWidth={3} />}
+    </div>
+  );
+}
+
 function Overlay({ children, onClose }) {
   return (
     <div
@@ -227,14 +254,14 @@ const contestBadge = (status) => {
   return m[status] || m.pending;
 };
 const ICON_POOL = [
-  { emoji: "🏆", bg: "#FFFBEB" },
-  { emoji: "🎨", bg: "#EEF2FF" },
-  { emoji: "🐾", bg: "#FDF2F8" },
-  { emoji: "🎭", bg: "#F5F3FF" },
-  { emoji: "⭐", bg: "#FEF3C7" },
-  { emoji: "🎪", bg: "#ECFDF5" },
-  { emoji: "🏅", bg: "#FFF7ED" },
-  { emoji: "👑", bg: "#FFFBEB" },
+  { icon: Trophy, bg: "#FFFBEB", color: "#D97706" },
+  { icon: Camera, bg: "#EEF2FF", color: "#6366F1" },
+  { icon: Dog, bg: "#FDF2F8", color: "#EC4899" },
+  { icon: Star, bg: "#F5F3FF", color: "#8B5CF6" },
+  { icon: Award, bg: "#FEF3C7", color: "#D97706" },
+  { icon: Crown, bg: "#ECFDF5", color: "#059669" },
+  { icon: Medal, bg: "#FFF7ED", color: "#EA580C" },
+  { icon: Trophy, bg: "#FFFBEB", color: "#D97706" },
 ];
 
 /* ═══ Mock 참가자 (DB 연동 전) ═══ */
@@ -858,11 +885,10 @@ function ContestCard({ item, idx, isSelected, onClick, participantCount }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 18,
           flexShrink: 0,
         }}
       >
-        {icon.emoji}
+        {icon.icon && <icon.icon size={20} color={icon.color} strokeWidth={2} />}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
@@ -1185,7 +1211,24 @@ export default function ContestManage({ subTab = "all" }) {
   const [deleteParticipant, setDeleteParticipant] = useState(null);
   const imageMapRef = useRef({});
   const [participantsMap, setParticipantsMap] = useState({});
+  const [selected, setSelected] = useState(new Set());
   const showToast = (msg, type = "success") => setToast({ msg, type });
+
+  const getRowId = (r) => r.programId || r.id;
+  const isAllSelected = items.length > 0 && items.every((r) => selected.has(getRowId(r)));
+  const hasSelected = selected.size > 0;
+  const toggleAll = () => {
+    if (isAllSelected) setSelected(new Set());
+    else setSelected(new Set(items.map(getRowId)));
+  };
+  const toggleOne = (id) => {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
 
   const getParticipants = useCallback(
     (contestId) => participantsMap[contestId] || [],
@@ -1364,7 +1407,23 @@ export default function ContestManage({ subTab = "all" }) {
     return (
       <div style={{ fontFamily: ds.ff }}>
         <style>{styles}</style>
-        {toast && (
+              {modal?.type === "bulkDelete" && (
+        <ConfirmModal
+          title="선택 삭제"
+          msg={`선택한 ${selected.size}건을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          onConfirm={handleBulkDelete}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === "deleteAll" && (
+        <ConfirmModal
+          title="전체 삭제"
+          msg={`현재 목록의 ${items.length}건을 전체 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          onConfirm={handleDeleteAll}
+          onCancel={() => setModal(null)}
+        />
+      )}
+{toast && (
           <Toast
             msg={toast.msg}
             type={toast.type}
@@ -1485,7 +1544,7 @@ export default function ContestManage({ subTab = "all" }) {
                     <span
                       style={{ display: "flex", alignItems: "center", gap: 4 }}
                     >
-                      📍 {ev.location}
+                      {ev.location}
                     </span>
                   )}
                 </div>
@@ -1731,19 +1790,51 @@ export default function ContestManage({ subTab = "all" }) {
               </div>
               콘테스트 목록
             </div>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#868E9C",
-                background: "#F3F4F7",
-                padding: "4px 10px",
-                borderRadius: 100,
-              }}
-            >
-              총 {items.length}개
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "#868E9C",
+                  background: "#F3F4F7",
+                  padding: "4px 10px",
+                  borderRadius: 100,
+                }}
+              >
+                총 {items.length}개
+              </span>
+            </div>
           </div>
+          {/* 선택/삭제 툴바 */}
+          {items.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Checkbox checked={isAllSelected && items.length > 0} onChange={toggleAll} />
+                <span style={{ fontSize: 12, color: "#94A3B8" }}>전체 선택</span>
+                {hasSelected && (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: ds.brand, background: `${ds.brand}0C`, padding: "3px 8px", borderRadius: 5 }}>
+                    {selected.size}건
+                  </span>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                {hasSelected && (
+                  <button
+                    onClick={() => setModal({ type: "bulkDelete" })}
+                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, border: "1px solid #FECACA", background: "#FEF2F2", fontSize: 11, fontWeight: 600, color: "#DC2626", cursor: "pointer", fontFamily: ds.ff }}
+                  >
+                    <Trash2 size={11} /> 선택 삭제
+                  </button>
+                )}
+                <button
+                  onClick={() => setModal({ type: "deleteAll" })}
+                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, border: "1px solid #E2E8F0", background: "#fff", fontSize: 11, fontWeight: 600, color: "#64748B", cursor: "pointer", fontFamily: ds.ff }}
+                >
+                  <Trash2 size={11} /> 전체 삭제
+                </button>
+              </div>
+            </div>
+          )}
           {loadingItems ? (
             <div style={{ textAlign: "center", padding: 30, color: "#94A3B8" }}>
               로딩 중...
@@ -1772,6 +1863,9 @@ export default function ContestManage({ subTab = "all" }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {items.map((it, idx) => (
                 <div key={it.programId} style={{ position: "relative" }}>
+                  <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2 }}>
+                    <Checkbox checked={selected.has(it.programId || it.id)} onChange={() => toggleOne(it.programId || it.id)} />
+                  </div>
                   <ContestCard
                     item={it}
                     idx={idx}

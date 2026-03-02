@@ -948,7 +948,23 @@ export default function ZoneManage() {
     } catch {
       showToast("일괄 삭제 실패", "error");
     }
-  };
+  }
+
+  const handleDeleteAll = async () => {
+    const eventId = selectedEvent.eventId || selectedEvent.id?.replace("EV-", "");
+    setModal(null);
+    try {
+      const zoneIds = rows.map((r) => r.zoneId || Number(String(r.id).replace("ZN-", "")));
+      for (const zid of zoneIds) {
+        await axiosInstance.delete(`/api/admin/dashboard/zones/${zid}`, { headers: authHeaders() });
+      }
+      await loadZones(eventId);
+      setSelected(new Set());
+      showToast(`${rows.length}건이 전체 삭제되었습니다.`);
+    } catch (err) {
+      showToast("전체 삭제 실패", "error");
+    }
+  };;
 
   const rows = booths;
   const isAllSelected =
@@ -972,19 +988,24 @@ export default function ZoneManage() {
       {!selectedEvent && (
         <>
           <div style={{ marginBottom: 20 }}>
-            <h3
-              style={{
-                fontSize: 17,
-                fontWeight: 800,
-                color: ds.ink,
-                margin: "0 0 6px",
-              }}
-            >
-              체험존 관리
-            </h3>
-            <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>
-              체험존을 관리할 행사를 선택하세요
-            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: `${ds.brand}12`, display: "flex", alignItems: "center", justifyContent: "center" }}><Layers size={22} color={ds.brand} strokeWidth={2} /></div>
+              <div>
+                <h3
+                  style={{
+                    fontSize: 17,
+                    fontWeight: 800,
+                    color: ds.ink,
+                    margin: "0 0 6px",
+                  }}
+                >
+                  체험존 관리
+                </h3>
+                <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>
+                  체험존을 관리할 행사를 선택하세요
+                </p>
+              </div>
+            </div>
           </div>
           {loadingEvents ? (
             <div
@@ -1128,14 +1149,24 @@ export default function ZoneManage() {
                         paddingTop: 12,
                         borderTop: "1px solid #F1F5F9",
                         display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 12,
-                        color: ds.brand,
-                        fontWeight: 700,
+                        justifyContent: "center",
                       }}
                     >
-                      <Layers size={13} /> 체험존 관리하기
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: "#fff",
+                          background: ds.brand,
+                          padding: "6px 16px",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Layers size={13} /> 체험존 관리하기
+                      </span>
                     </div>
                   </div>
                 );
@@ -1293,6 +1324,27 @@ export default function ZoneManage() {
                     }}
                   >
                     <Trash2 size={12} /> 선택 삭제
+                  </button>
+                )}
+                {rows.length > 0 && (
+                  <button
+                    onClick={() => setModal({ type: "deleteAll" })}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "6px 12px",
+                      borderRadius: 7,
+                      border: "1px solid #E2E8F0",
+                      background: "#fff",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#64748B",
+                      cursor: "pointer",
+                      fontFamily: ds.ff,
+                    }}
+                  >
+                    <Trash2 size={12} /> 전체 삭제
                   </button>
                 )}
                 <button
@@ -1616,6 +1668,15 @@ export default function ZoneManage() {
           title="선택 삭제"
           msg={`선택한 ${selected.size}건을 삭제하시겠습니까?`}
           onConfirm={handleBulkDelete}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === "deleteAll" && (
+        <ConfirmModal
+          title="전체 삭제"
+          msg={`현재 목록의 ${rows.length}건을 전체 삭제하시겠습니까?
+삭제된 데이터는 복구할 수 없습니다.`}
+          onConfirm={handleDeleteAll}
           onCancel={() => setModal(null)}
         />
       )}

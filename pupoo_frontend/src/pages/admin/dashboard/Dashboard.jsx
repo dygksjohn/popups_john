@@ -176,7 +176,6 @@ const PAGE_TABS = {
   participantList: [
     { id: "list", label: "참가자 목록" },
     { id: "checkin", label: "체크인 관리" },
-    { id: "session", label: "체험 세션" },
   ],
   paymentManage: [{ id: "all", label: "결제 내역" }],
   alertManage: [{ id: "all", label: "알림 내역" }],
@@ -820,7 +819,7 @@ export default function Dashboard() {
                 width: 34,
                 height: 34,
                 borderRadius: 9,
-                background: "linear-gradient(135deg, #4361EE, #7C3AED)",
+                background: "linear-gradient(135deg, #4361EE, #3d34c1)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -838,11 +837,19 @@ export default function Dashboard() {
                   letterSpacing: -0.5,
                 }}
               >
-                pupoo
+                <img
+                  src="/logo_white.png"
+                  alt="pupoo logo"
+                  style={{
+                    height: 20,
+                    objectFit: "contain",
+                    cursor: "pointer",
+                  }}
+                />
               </div>
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 8,
                   fontWeight: 600,
                   color: ds.inkWG,
                   letterSpacing: 1.2,

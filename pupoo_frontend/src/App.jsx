@@ -5,7 +5,6 @@ import ScrollToTop from "./ScrollToTop";
 
 /* admin */
 import Dashboard from "./pages/admin/dashboard/Dashboard";
-import AdminLogin from "./pages/admin/dashboard/Login.jsx";
 import BoardManage from "./pages/admin/board/boardManage";
 
 import NoticeManage from "./pages/admin/board/Notice";
@@ -55,10 +54,10 @@ import Session from "./pages/site/program/Session";
 import Booth from "./pages/site/program/Booth";
 import Contest from "./pages/site/program/Contest";
 import ContestDetailPage from "./pages/site/program/ContestDetailPage";
-import Schedule from "./pages/site/program/Schedule";
 import ProgramAll from "./pages/site/program/ProgramAll";
-import VoteResult from "./pages/site/program/VoteResult";
 import SessionDetail from "./pages/site/program/SessionDetail";
+import Schedule from "./pages/site/program/Schedule";
+import VoteResult from "./pages/site/program/VoteResult";
 
 /* Registration */
 import Apply from "./pages/site/registration/Apply";
@@ -150,7 +149,7 @@ export default function App() {
       <Routes>
         {/* ---------------- 관리자 전용 ---------------- */}
         <Route path="/admin/dashboard" element={<Dashboard />} />
-        <Route path="/admin/login" element={<AdminLogin />} />
+
         <Route path="/admin/board" element={<BoardManage />} />
 
         <Route path="/admin/board/notice" element={<NoticeManage />} />
@@ -248,7 +247,6 @@ export default function App() {
           <Route path="/payment/checkout" element={<Checkout />} />
           <Route path="/payment/approve" element={<PaymentApprove />} />
 
-
           {/* Program */}
           <Route
             path="/program/experience/:eventId?"
@@ -258,7 +256,10 @@ export default function App() {
           <Route path="/program/schedule/:eventId?" element={<Schedule />} />
           <Route path="/program/all/:eventId?" element={<ProgramAll />} />
           <Route path="/program/detail" element={<SessionDetail />} />
-          <Route path="/program/contest/:eventId/detail/:programId" element={<ContestDetailPage />} />
+          <Route
+            path="/program/contest/:eventId/detail/:programId"
+            element={<ContestDetailPage />}
+          />
           <Route path="/program/contest/:eventId?" element={<Contest />} />
           <Route path="/program/booth/:eventId?" element={<Booth />} />
           {/* Registration */}

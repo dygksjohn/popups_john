@@ -108,7 +108,7 @@ export default function PageHeader({ title, subtitle, categories }) {
                 <button
                   key={cat.path}
                   style={btnStyle}
-                  onClick={() => navigate(targetPath)}
+                  onClick={() => navigate(cat.path)}
                   onMouseEnter={() => setHoveredIdx(i)}
                   onMouseLeave={() => setHoveredIdx(null)}
                   aria-current={isActive ? "page" : undefined}
