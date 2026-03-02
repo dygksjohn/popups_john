@@ -55,7 +55,7 @@ public class ReplyController {
      */
     @PatchMapping("/{replyId}")
     public ApiResponse<ReplyResponse> update(@PathVariable Long replyId,
-                                            @RequestParam ReplyTargetType targetType,
+                                            @RequestParam(name = "targetType") ReplyTargetType targetType,
                                             @Valid @RequestBody ReplyUpdateRequest request) {
         Long userId = securityUtil.currentUserId();
         return ApiResponse.success(replyService.update(userId, targetType, replyId, request));
