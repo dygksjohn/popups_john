@@ -45,7 +45,7 @@ public class ContestVoteController {
     public ApiResponse<ContestVoteResultResponse> result(
             @PathVariable("programId") Long programId
     ) {
-        Long userId = securityUtil.currentUserId();
+        Long userId = securityUtil.currentUserIdOrNull();
         return ApiResponse.success(contestVoteService.result(programId, userId));
     }
 
