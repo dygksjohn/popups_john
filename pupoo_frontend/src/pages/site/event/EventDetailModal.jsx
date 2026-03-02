@@ -629,7 +629,6 @@ export default function EventDetailModal({ event, onClose }) {
   const [regLoaded, setRegLoaded] = useState(true);
   const [selectedDateKey, setSelectedDateKey] = useState("");
   const overlayRef = useRef(null);
-  const lastAlertAtRef = useRef(0);
 
   const modalEventId = Number(event?.eventId ?? event?.id);
   const hasToken = !!tokenStore.getAccess();
@@ -717,11 +716,12 @@ export default function EventDetailModal({ event, onClose }) {
     if (e.target === overlayRef.current) handleClose();
   };
 
-  const alertLoginRequired = () => {
-    const now = Date.now();
-    if (now - lastAlertAtRef.current < 2000) return;
-    lastAlertAtRef.current = now;
-    window.alert("로그인이 필요합니다.");
+  const redirectToLogin = () => {
+    navigate("/auth/login", {
+      state: {
+        from: `${location?.pathname || "/"}${location?.search || ""}`,
+      },
+    });
   };
 
   const fetchMyRegistrations = async () => {
@@ -828,7 +828,7 @@ export default function EventDetailModal({ event, onClose }) {
     if (!Number.isFinite(modalEventId) || regLoading) return;
     if (!hasToken) {
       setRegError("로그인이 필요합니다.");
-      alertLoginRequired();
+      redirectToLogin();
       return;
     }
     setRegLoading(true);
@@ -864,7 +864,7 @@ export default function EventDetailModal({ event, onClose }) {
           } catch (err) {
             if (err?.response?.status === 401) {
               setRegError("로그인이 필요합니다.");
-              alertLoginRequired();
+              redirectToLogin();
             }
           }
         }
@@ -879,7 +879,7 @@ export default function EventDetailModal({ event, onClose }) {
         }
       } else if (e?.response?.status === 401) {
         setRegError("로그인이 필요합니다.");
-        alertLoginRequired();
+        redirectToLogin();
       } else {
         console.error(e);
         setRegError("참가 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.");
@@ -897,7 +897,7 @@ export default function EventDetailModal({ event, onClose }) {
     }
     if (!hasToken) {
       setRegError("로그인이 필요합니다.");
-      alertLoginRequired();
+      redirectToLogin();
       return;
     }
     setRegLoading(true);
@@ -911,7 +911,7 @@ export default function EventDetailModal({ event, onClose }) {
     } catch (e) {
       if (e?.response?.status === 401) {
         setRegError("로그인이 필요합니다.");
-        alertLoginRequired();
+        redirectToLogin();
       } else {
         console.error(e);
         setRegError("취소에 실패했습니다. 잠시 후 다시 시도해 주세요.");
