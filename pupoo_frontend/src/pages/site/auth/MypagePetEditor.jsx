@@ -14,6 +14,7 @@ import {
 } from "../../../features/shared/ui/mypageStyles";
 
 const PET_BREEDS = ["DOG", "CAT", "OTHER"];
+const PET_WEIGHTS = ["XS", "S", "M", "L", "XL"];
 
 export default function MypagePetEditor() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function MypagePetEditor() {
     petName: "",
     petBreed: "DOG",
     petAge: "",
+    petWeight: "M",
   });
 
   useEffect(() => {
@@ -49,6 +51,7 @@ export default function MypagePetEditor() {
           petName: target.petName || "",
           petBreed: String(target.petBreed || "DOG").toUpperCase(),
           petAge: String(target.petAge ?? ""),
+          petWeight: String(target.petWeight || "M").toUpperCase(),
         });
       } catch (error) {
         if (!mounted) return;
@@ -80,10 +83,15 @@ export default function MypagePetEditor() {
         petName: (form.petName || "").trim(),
         petBreed: String(form.petBreed || "DOG").toUpperCase(),
         petAge: Number(form.petAge),
+        petWeight: String(form.petWeight || "M").toUpperCase(),
       };
 
       if (isEditMode) {
-        await mypageApi.updatePet(Number(petId), payload);
+        await mypageApi.updatePet(Number(petId), {
+          petName: payload.petName,
+          petBreed: payload.petBreed,
+          petAge: payload.petAge,
+        });
       } else {
         await mypageApi.createPet(payload);
       }
@@ -183,6 +191,29 @@ export default function MypagePetEditor() {
             />
             {fieldErrors.petAge ? (
               <div style={{ marginTop: 6, color: "#b91c1c", fontSize: 12 }}>{fieldErrors.petAge}</div>
+            ) : null}
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <label htmlFor="petWeight" style={mypageLabelStyle}>
+              Weight Code
+            </label>
+            <select
+              id="petWeight"
+              name="petWeight"
+              value={form.petWeight}
+              onChange={handleChange}
+              style={mypageInputStyle}
+              disabled={loading || saving || deleting}
+            >
+              {PET_WEIGHTS.map((weight) => (
+                <option key={weight} value={weight}>
+                  {weight}
+                </option>
+              ))}
+            </select>
+            {fieldErrors.petWeight ? (
+              <div style={{ marginTop: 6, color: "#b91c1c", fontSize: 12 }}>{fieldErrors.petWeight}</div>
             ) : null}
           </div>
 

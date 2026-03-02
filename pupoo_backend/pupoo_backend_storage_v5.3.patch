@@ -1,0 +1,1606 @@
+diff -ruN /mnt/data/pupoo_backend_original/build.gradle /mnt/data/pupoo_backend/build.gradle
+--- /mnt/data/pupoo_backend_original/build.gradle	2026-02-27 12:22:40.000000000 +0000
++++ /mnt/data/pupoo_backend/build.gradle	2026-03-02 09:56:04.021693499 +0000
+@@ -1,116 +1,122 @@
+-plugins {
+-	id 'java'
+-	id 'org.springframework.boot' version '3.5.10'
+-	id 'io.spring.dependency-management' version '1.1.7'
+-}
+-
+-group = 'com.popups'
+-version = '0.0.1-SNAPSHOT'
+-description = 'Pupoo project for Spring Boot'
+-
+-java {
+-	toolchain {
+-		languageVersion = JavaLanguageVersion.of(21)
+-	}
+-}
+-
+-/* =========================
+- * 프로젝트 전체 인코딩 명시 
+- * ========================= */
+-compileJava.options.encoding = 'UTF-8'
+-compileTestJava.options.encoding = 'UTF-8'
+-
+-tasks.withType(JavaCompile).configureEach {
+-	options.encoding = 'UTF-8'
+-	options.compilerArgs += ["-parameters"]  // 메서드 파라미터 이름 보존
+-}
+-
+-tasks.withType(Javadoc).configureEach {
+-	options.encoding = 'UTF-8'
+-}
+-
+-tasks.withType(ProcessResources).configureEach {
+-	filteringCharset = 'UTF-8'
+-}
+-
+-configurations {
+-	compileOnly {
+-		extendsFrom annotationProcessor
+-	}
+-}
+-
+-repositories {
+-	mavenCentral()
+-}
+-
+-dependencies {
+-
+-	/* =========================
+-	 * Spring Core
+-	 * ========================= */
+-	implementation 'org.springframework.boot:spring-boot-starter-web'
+-	implementation 'org.springframework.boot:spring-boot-starter-validation'
+-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+-	implementation 'org.springframework.boot:spring-boot-starter-security'
+-	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+-	implementation 'org.springframework.boot:spring-boot-starter-aop'
+-
+-	/* =========================
+-	 * JWT (JJWT 0.11.5)
+-	 * ========================= */
+-	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+-	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+-	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+-
+-	/* =========================
+-	 * Database
+-	 * ========================= */
+-	runtimeOnly 'com.mysql:mysql-connector-j'
+-
+-	/* =========================
+-	 * Lombok
+-	 * ========================= */
+-	compileOnly 'org.projectlombok:lombok'
+-	annotationProcessor 'org.projectlombok:lombok'
+-	testCompileOnly 'org.projectlombok:lombok'
+-	testAnnotationProcessor 'org.projectlombok:lombok'
+-
+-	/* =========================
+-	 * Configuration Metadata
+-	 * ========================= */
+-	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+-
+-	/* =========================
+-	 * AWS S3
+-	 * ========================= */
+-	implementation 'software.amazon.awssdk:s3:2.25.21'
+-
+-	/* =========================
+-	 * Dev
+-	 * ========================= */
+-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+-
+-	/* =========================
+-	 * Test
+-	 * ========================= */
+-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+-	testImplementation 'org.springframework.security:spring-security-test'
+-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+-	
+-	/* =========================
+-	 * Kakao
+-	 * ========================= */
+-	 implementation 'org.springframework.boot:spring-boot-starter-webflux'
+-	
+-}
+-
+-tasks.named('test') {
+-	useJUnitPlatform()
+-}
+-
+-/* =========================
+- * 운영 배포용 Jar 이름 고정
+- * ========================= */
+-bootJar {
+-	archiveFileName = "pupoo-backend.jar"
++plugins {
++	id 'java'
++	id 'org.springframework.boot' version '3.5.10'
++	id 'io.spring.dependency-management' version '1.1.7'
++}
++
++group = 'com.popups'
++version = '0.0.1-SNAPSHOT'
++description = 'Pupoo project for Spring Boot'
++
++java {
++	toolchain {
++		languageVersion = JavaLanguageVersion.of(21)
++	}
++}
++
++/* =========================
++ * 프로젝트 전체 인코딩 명시 
++ * ========================= */
++compileJava.options.encoding = 'UTF-8'
++compileTestJava.options.encoding = 'UTF-8'
++
++tasks.withType(JavaCompile).configureEach {
++	options.encoding = 'UTF-8'
++	options.compilerArgs += ["-parameters"]  // 메서드 파라미터 이름 보존
++}
++
++tasks.withType(Javadoc).configureEach {
++	options.encoding = 'UTF-8'
++}
++
++tasks.withType(ProcessResources).configureEach {
++	filteringCharset = 'UTF-8'
++}
++
++configurations {
++	compileOnly {
++		extendsFrom annotationProcessor
++	}
++}
++
++repositories {
++	mavenCentral()
++}
++
++dependencies {
++
++	/* =========================
++	 * Spring Core
++	 * ========================= */
++	implementation 'org.springframework.boot:spring-boot-starter-web'
++	implementation 'org.springframework.boot:spring-boot-starter-validation'
++	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
++	implementation 'org.springframework.boot:spring-boot-starter-security'
++	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
++	implementation 'org.springframework.boot:spring-boot-starter-aop'
++
++	/* =========================
++	 * JWT (JJWT 0.11.5)
++	 * ========================= */
++	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
++	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
++	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
++
++	/* =========================
++	 * Database
++	 * ========================= */
++	runtimeOnly 'com.mysql:mysql-connector-j'
++
++	/* =========================
++	 * Lombok
++	 * ========================= */
++	compileOnly 'org.projectlombok:lombok'
++	annotationProcessor 'org.projectlombok:lombok'
++	testCompileOnly 'org.projectlombok:lombok'
++	testAnnotationProcessor 'org.projectlombok:lombok'
++
++	/* =========================
++	 * Configuration Metadata
++	 * ========================= */
++	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
++
++	/* =========================
++	 * AWS S3
++	 * ========================= */
++	implementation 'software.amazon.awssdk:s3:2.25.21'
++
++	/* =========================
++	 * QR Code (ZXing)
++	 * ========================= */
++	implementation 'com.google.zxing:core:3.5.3'
++	implementation 'com.google.zxing:javase:3.5.3'
++
++	/* =========================
++	 * Dev
++	 * ========================= */
++	developmentOnly 'org.springframework.boot:spring-boot-devtools'
++
++	/* =========================
++	 * Test
++	 * ========================= */
++	testImplementation 'org.springframework.boot:spring-boot-starter-test'
++	testImplementation 'org.springframework.security:spring-security-test'
++	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
++	
++	/* =========================
++	 * Kakao
++	 * ========================= */
++	 implementation 'org.springframework.boot:spring-boot-starter-webflux'
++	
++}
++
++tasks.named('test') {
++	useJUnitPlatform()
++}
++
++/* =========================
++ * 운영 배포용 Jar 이름 고정
++ * ========================= */
++bootJar {
++	archiveFileName = "pupoo-backend.jar"
+ }
+\ No newline at end of file
+diff -ruN /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
+--- /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java	2026-02-27 21:55:24.000000000 +0000
++++ /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java	2026-03-02 09:51:53.335639181 +0000
+@@ -1,134 +1,135 @@
+-// file: src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
+-package com.popups.pupoo.auth.security.config;
+-import com.fasterxml.jackson.databind.ObjectMapper;
+-import com.popups.pupoo.auth.security.authentication.filter.JwtAuthenticationFilter;
+-import com.popups.pupoo.auth.security.handler.JwtAccessDeniedHandler;
+-import com.popups.pupoo.auth.security.handler.JwtAuthenticationEntryPoint;
+-import com.popups.pupoo.auth.token.JwtProvider;
+-import org.springframework.context.annotation.Bean;
+-import org.springframework.context.annotation.Configuration;
+-import org.springframework.http.HttpMethod;
+-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+-import org.springframework.security.config.http.SessionCreationPolicy;
+-import org.springframework.security.web.SecurityFilterChain;
+-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+-import org.springframework.web.cors.CorsConfiguration;
+-import org.springframework.web.cors.CorsConfigurationSource;
+-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+-
+-import java.util.List;
+-
+-@Configuration
+-public class SecurityConfig {
+-
+-    private final JwtProvider jwtProvider;
+-    private final ObjectMapper objectMapper;
+-
+-    public SecurityConfig(JwtProvider jwtProvider, ObjectMapper objectMapper) {
+-        this.jwtProvider = jwtProvider;
+-        this.objectMapper = objectMapper;
+-    }
+-
+-    @Bean
+-    public CorsConfigurationSource corsConfigurationSource() {
+-        CorsConfiguration config = new CorsConfiguration();
+-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+-        config.setAllowedHeaders(List.of("*"));
+-        config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
+-        config.setAllowCredentials(true);
+-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+-        source.registerCorsConfiguration("/**", config);
+-        return source;
+-    }
+-
+-    @Bean
+-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+-        http
+-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+-            .csrf(csrf -> csrf.disable())
+-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+-            .httpBasic(basic -> basic.disable())
+-            .formLogin(form -> form.disable());
+-
+-        http.exceptionHandling(ex -> ex
+-            .authenticationEntryPoint(new JwtAuthenticationEntryPoint())
+-            .accessDeniedHandler(new JwtAccessDeniedHandler())
+-        );
+-
+-        http.authorizeHttpRequests(auth -> auth
+-            // CORS Preflight
+-            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+-
+-            // Auth endpoints
+-            .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+-            .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
+-            .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
+-            .requestMatchers(HttpMethod.POST, "/api/auth/signup/**").permitAll()
+-            .requestMatchers(HttpMethod.POST, "/api/auth/oauth/**").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/auth/oauth/**").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/auth/email/verification/confirm").permitAll()
+-
+-            // Ops/docs
+-            .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+-            .requestMatchers("/swagger-ui/**").permitAll()
+-            .requestMatchers("/v3/api-docs/**").permitAll()
+-            .requestMatchers("/error").permitAll()
+-
+-            // Public GET
+-            .requestMatchers(HttpMethod.GET, "/api/posts").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/posts/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/notices").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/notices/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/faqs").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/faqs/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/events/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/events/*/galleries").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/events/*/programs").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/events/*/booths").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/programs").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/programs/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/programs/*/speakers").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/programs/*/speakers/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/programs/*/votes/result").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/speakers").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/speakers/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/booths").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/booths/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/qnas").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/qnas/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/galleries").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/galleries/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/reviews").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/reviews/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/replies").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/report-reasons").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/files/*").permitAll()
+-            .requestMatchers(HttpMethod.GET, "/api/files/*/download").permitAll()
+-            .requestMatchers("/uploads/**").permitAll()
+-
+-            // ADMIN
+-            .requestMatchers("/api/admin/**").hasRole("ADMIN")
+-
+-            // USER
+-            .requestMatchers("/api/users/me/**").hasRole("USER")
+-            .requestMatchers("/api/payments/**").hasRole("USER")
+-            .requestMatchers("/api/refunds/**").hasRole("USER")
+-            .requestMatchers("/api/notifications/**").hasRole("USER")
+-            .requestMatchers(HttpMethod.POST, "/api/event-registrations").hasRole("USER")
+-            .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**").hasRole("USER")
+-            .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations").hasRole("USER")
+-
+-            .anyRequest().hasAnyRole("USER", "ADMIN")
+-        );
+-
+-        http.addFilterBefore(
+-            new JwtAuthenticationFilter(jwtProvider, objectMapper),
+-            UsernamePasswordAuthenticationFilter.class
+-        );
+-
+-        return http.build();
+-    }
+-}
++// file: src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
++package com.popups.pupoo.auth.security.config;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import com.popups.pupoo.auth.security.authentication.filter.JwtAuthenticationFilter;
++import com.popups.pupoo.auth.security.handler.JwtAccessDeniedHandler;
++import com.popups.pupoo.auth.security.handler.JwtAuthenticationEntryPoint;
++import com.popups.pupoo.auth.token.JwtProvider;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++import org.springframework.http.HttpMethod;
++import org.springframework.security.config.annotation.web.builders.HttpSecurity;
++import org.springframework.security.config.http.SessionCreationPolicy;
++import org.springframework.security.web.SecurityFilterChain;
++import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
++import org.springframework.web.cors.CorsConfiguration;
++import org.springframework.web.cors.CorsConfigurationSource;
++import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
++
++import java.util.List;
++
++@Configuration
++public class SecurityConfig {
++
++    private final JwtProvider jwtProvider;
++    private final ObjectMapper objectMapper;
++
++    public SecurityConfig(JwtProvider jwtProvider, ObjectMapper objectMapper) {
++        this.jwtProvider = jwtProvider;
++        this.objectMapper = objectMapper;
++    }
++
++    @Bean
++    public CorsConfigurationSource corsConfigurationSource() {
++        CorsConfiguration config = new CorsConfiguration();
++        config.setAllowedOrigins(List.of("http://localhost:5173"));
++        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
++        config.setAllowedHeaders(List.of("*"));
++        config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
++        config.setAllowCredentials(true);
++        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
++        source.registerCorsConfiguration("/**", config);
++        return source;
++    }
++
++    @Bean
++    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
++        http
++            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
++            .csrf(csrf -> csrf.disable())
++            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
++            .httpBasic(basic -> basic.disable())
++            .formLogin(form -> form.disable());
++
++        http.exceptionHandling(ex -> ex
++            .authenticationEntryPoint(new JwtAuthenticationEntryPoint())
++            .accessDeniedHandler(new JwtAccessDeniedHandler())
++        );
++
++        http.authorizeHttpRequests(auth -> auth
++            // CORS Preflight
++            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
++
++            // Auth endpoints
++            .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
++            .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
++            .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
++            .requestMatchers(HttpMethod.POST, "/api/auth/signup/**").permitAll()
++            .requestMatchers(HttpMethod.POST, "/api/auth/oauth/**").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/auth/oauth/**").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/auth/email/verification/confirm").permitAll()
++
++            // Ops/docs
++            .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()
++            .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
++            .requestMatchers("/swagger-ui/**").permitAll()
++            .requestMatchers("/v3/api-docs/**").permitAll()
++            .requestMatchers("/error").permitAll()
++
++            // Public GET
++            .requestMatchers(HttpMethod.GET, "/api/posts").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/posts/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/notices").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/notices/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/faqs").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/faqs/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/events/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/events/*/galleries").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/events/*/programs").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/events/*/booths").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/programs").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/programs/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/programs/*/speakers").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/programs/*/speakers/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/programs/*/votes/result").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/speakers").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/speakers/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/booths").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/booths/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/qnas").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/qnas/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/galleries").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/galleries/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/reviews").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/reviews/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/replies").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/report-reasons").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/files/*").permitAll()
++            .requestMatchers(HttpMethod.GET, "/api/files/*/download").permitAll()
++            .requestMatchers("/static/**").permitAll()
++            .requestMatchers("/uploads/**").permitAll()
++
++            // ADMIN
++            .requestMatchers("/api/admin/**").hasRole("ADMIN")
++
++            // USER
++            .requestMatchers("/api/users/me/**").hasRole("USER")
++            .requestMatchers("/api/payments/**").hasRole("USER")
++            .requestMatchers("/api/refunds/**").hasRole("USER")
++            .requestMatchers("/api/notifications/**").hasRole("USER")
++            .requestMatchers(HttpMethod.POST, "/api/event-registrations").hasRole("USER")
++            .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**").hasRole("USER")
++            .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations").hasRole("USER")
++
++            .anyRequest().hasAnyRole("USER", "ADMIN")
++        );
++
++        http.addFilterBefore(
++            new JwtAuthenticationFilter(jwtProvider, objectMapper),
++            UsernamePasswordAuthenticationFilter.class
++        );
++
++        return http.build();
++    }
++}
+diff -ruN /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/gallery/api/GalleryController.java /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/gallery/api/GalleryController.java
+--- /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/gallery/api/GalleryController.java	2026-02-27 21:55:24.000000000 +0000
++++ /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/gallery/api/GalleryController.java	2026-03-02 09:55:41.194295157 +0000
+@@ -1,87 +1,107 @@
+-// file: src/main/java/com/popups/pupoo/gallery/api/GalleryController.java
+-package com.popups.pupoo.gallery.api;
+-
+-import org.springframework.http.ResponseEntity;
+-import org.springframework.web.bind.annotation.DeleteMapping;
+-import org.springframework.web.bind.annotation.GetMapping;
+-import org.springframework.web.bind.annotation.PatchMapping;
+-import org.springframework.web.bind.annotation.PathVariable;
+-import org.springframework.web.bind.annotation.PostMapping;
+-import org.springframework.web.bind.annotation.RequestBody;
+-import org.springframework.web.bind.annotation.RequestHeader;
+-import org.springframework.web.bind.annotation.RequestMapping;
+-import org.springframework.web.bind.annotation.RequestParam;
+-import org.springframework.web.bind.annotation.RestController;
+-
+-import com.popups.pupoo.auth.security.util.SecurityUtil;
+-import com.popups.pupoo.common.api.ApiResponse;
+-import com.popups.pupoo.common.api.PageResponse;
+-import com.popups.pupoo.gallery.application.GalleryAdminService;
+-import com.popups.pupoo.gallery.application.GalleryService;
+-import com.popups.pupoo.gallery.dto.GalleryCreateRequest;
+-import com.popups.pupoo.gallery.dto.GalleryLikeResponse;
+-import com.popups.pupoo.gallery.dto.GalleryResponse;
+-import com.popups.pupoo.gallery.dto.GalleryUpdateRequest;
+-
+-import jakarta.validation.Valid;
+-import lombok.RequiredArgsConstructor;
+-
+-@RestController
+-@RequiredArgsConstructor
+-@RequestMapping("/api/galleries")
+-public class GalleryController {
+-
+-    private final GalleryService galleryService;
+-    private final GalleryAdminService galleryAdminService;
+-    private final SecurityUtil securityUtil;
+-
+-    @GetMapping("/{galleryId}")
+-    public ResponseEntity<GalleryResponse> get(@PathVariable Long galleryId) {
+-        return ResponseEntity.ok(galleryService.get(galleryId));
+-    }
+-
+-    @GetMapping
+-    public ResponseEntity<ApiResponse<PageResponse<GalleryResponse>>> list(
+-            @RequestParam(name = "page",defaultValue = "0") int page,
+-            @RequestParam(name = "size",defaultValue = "10") int size) {
+-        return ResponseEntity.ok(
+-                ApiResponse.success(PageResponse.from(galleryService.list(page, size)))
+-        );
+-    }
+-
+-    @PostMapping
+-    public ResponseEntity<GalleryResponse> create(@Valid @RequestBody GalleryCreateRequest request) {
+-        Long userId = securityUtil.currentUserId();
+-        return ResponseEntity.ok(galleryAdminService.createByUser(userId, request));
+-    }
+-
+-    @PatchMapping("/{galleryId}")
+-    public ResponseEntity<GalleryResponse> update(@PathVariable Long galleryId,
+-                                                  @Valid @RequestBody GalleryUpdateRequest request) {
+-        Long currentUserId = securityUtil.currentUserId();
+-        boolean isAdmin = securityUtil.isAdmin();
+-        return ResponseEntity.ok(
+-                galleryAdminService.updateByAuthorOrAdmin(galleryId, request, currentUserId, isAdmin));
+-    }
+-
+-    @DeleteMapping("/{galleryId}")
+-    public ResponseEntity<Void> delete(@PathVariable Long galleryId) {
+-        Long currentUserId = securityUtil.currentUserId();
+-        boolean isAdmin = securityUtil.isAdmin();
+-        galleryAdminService.deleteByAuthorOrAdmin(galleryId, currentUserId, isAdmin);
+-        return ResponseEntity.noContent().build();
+-    }
+-
+-    @PostMapping("/{galleryId}/like")
+-    public ResponseEntity<GalleryLikeResponse> like(@PathVariable Long galleryId) {
+-        Long userId = securityUtil.currentUserId();
+-        return ResponseEntity.ok(galleryService.like(userId, galleryId));
+-    }
+-
+-    @DeleteMapping("/{galleryId}/like")
+-    public ResponseEntity<Void> unlike(@PathVariable Long galleryId) {
+-        Long userId = securityUtil.currentUserId();
+-        galleryService.unlike(userId, galleryId);
+-        return ResponseEntity.noContent().build();
+-    }
+-}
++// file: src/main/java/com/popups/pupoo/gallery/api/GalleryController.java
++package com.popups.pupoo.gallery.api;
++
++import com.popups.pupoo.auth.security.util.SecurityUtil;
++import com.popups.pupoo.common.api.ApiResponse;
++import com.popups.pupoo.common.api.PageResponse;
++import com.popups.pupoo.gallery.application.GalleryAdminService;
++import com.popups.pupoo.gallery.application.GalleryImageUploadService;
++import com.popups.pupoo.gallery.application.GalleryService;
++import com.popups.pupoo.gallery.dto.GalleryCreateRequest;
++import com.popups.pupoo.gallery.dto.GalleryImageUploadResponse;
++import com.popups.pupoo.gallery.dto.GalleryLikeResponse;
++import com.popups.pupoo.gallery.dto.GalleryResponse;
++import com.popups.pupoo.gallery.dto.GalleryUpdateRequest;
++import jakarta.validation.Valid;
++import lombok.RequiredArgsConstructor;
++import org.springframework.http.MediaType;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.bind.annotation.*;
++import org.springframework.web.multipart.MultipartFile;
++
++import java.util.List;
++
++@RestController
++@RequiredArgsConstructor
++@RequestMapping("/api/galleries")
++public class GalleryController {
++
++    private final GalleryService galleryService;
++    private final GalleryAdminService galleryAdminService;
++    private final GalleryImageUploadService galleryImageUploadService;
++    private final SecurityUtil securityUtil;
++
++    @GetMapping("/{galleryId}")
++    public ResponseEntity<GalleryResponse> get(@PathVariable Long galleryId) {
++        return ResponseEntity.ok(galleryService.get(galleryId));
++    }
++
++    @GetMapping
++    public ResponseEntity<ApiResponse<PageResponse<GalleryResponse>>> list(
++            @RequestParam(name = "page", defaultValue = "0") int page,
++            @RequestParam(name = "size", defaultValue = "10") int size) {
++        return ResponseEntity.ok(
++                ApiResponse.success(PageResponse.from(galleryService.list(page, size)))
++        );
++    }
++
++    @PostMapping
++    public ResponseEntity<GalleryResponse> create(@Valid @RequestBody GalleryCreateRequest request) {
++        Long userId = securityUtil.currentUserId();
++        return ResponseEntity.ok(galleryAdminService.createByUser(userId, request));
++    }
++
++    @PatchMapping("/{galleryId}")
++    public ResponseEntity<GalleryResponse> update(@PathVariable Long galleryId,
++                                                  @Valid @RequestBody GalleryUpdateRequest request) {
++        Long currentUserId = securityUtil.currentUserId();
++        boolean isAdmin = securityUtil.isAdmin();
++        return ResponseEntity.ok(
++                galleryAdminService.updateByAuthorOrAdmin(galleryId, request, currentUserId, isAdmin));
++    }
++
++    @DeleteMapping("/{galleryId}")
++    public ResponseEntity<Void> delete(@PathVariable Long galleryId) {
++        Long currentUserId = securityUtil.currentUserId();
++        boolean isAdmin = securityUtil.isAdmin();
++        galleryAdminService.deleteByAuthorOrAdmin(galleryId, currentUserId, isAdmin);
++        return ResponseEntity.noContent().build();
++    }
++
++    @PostMapping("/{galleryId}/like")
++    public ResponseEntity<GalleryLikeResponse> like(@PathVariable Long galleryId) {
++        Long userId = securityUtil.currentUserId();
++        return ResponseEntity.ok(galleryService.like(userId, galleryId));
++    }
++
++    @DeleteMapping("/{galleryId}/like")
++    public ResponseEntity<Void> unlike(@PathVariable Long galleryId) {
++        Long userId = securityUtil.currentUserId();
++        galleryService.unlike(userId, galleryId);
++        return ResponseEntity.noContent().build();
++    }
++
++    /**
++     * 갤러리 이미지 업로드
++     *
++     * 요청 형식: multipart/form-data
++     * - files: 이미지 파일들
++     */
++    @PostMapping(value = "/{galleryId}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
++    public ResponseEntity<ApiResponse<List<GalleryImageUploadResponse>>> uploadImages(
++            @PathVariable Long galleryId,
++            @RequestPart("files") List<MultipartFile> files
++    ) {
++        Long currentUserId = securityUtil.currentUserId();
++        boolean isAdmin = securityUtil.isAdmin();
++
++        List<GalleryImageUploadResponse> uploaded = galleryImageUploadService.uploadImages(
++                galleryId,
++                currentUserId,
++                isAdmin,
++                files
++        );
++
++        return ResponseEntity.ok(ApiResponse.success(uploaded));
++    }
++}
+diff -ruN /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/gallery/application/GalleryImageUploadService.java /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/gallery/application/GalleryImageUploadService.java
+--- /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/gallery/application/GalleryImageUploadService.java	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/gallery/application/GalleryImageUploadService.java	2026-03-02 10:00:47.755963379 +0000
+@@ -0,0 +1,215 @@
++// file: src/main/java/com/popups/pupoo/gallery/application/GalleryImageUploadService.java
++package com.popups.pupoo.gallery.application;
++
++import com.popups.pupoo.common.exception.BusinessException;
++import com.popups.pupoo.common.exception.ErrorCode;
++import com.popups.pupoo.gallery.domain.enums.GalleryStatus;
++import com.popups.pupoo.gallery.domain.model.Gallery;
++import com.popups.pupoo.gallery.domain.model.GalleryImage;
++import com.popups.pupoo.gallery.dto.GalleryImageUploadResponse;
++import com.popups.pupoo.gallery.persistence.GalleryImageRepository;
++import com.popups.pupoo.gallery.persistence.GalleryRepository;
++import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator;
++import com.popups.pupoo.storage.port.ObjectStoragePort;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++import org.springframework.web.multipart.MultipartFile;
++
++import java.io.IOException;
++import java.time.LocalDateTime;
++import java.util.ArrayList;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Locale;
++import java.util.Set;
++
++@Service
++@Transactional(readOnly = true)
++public class GalleryImageUploadService {
++
++    private static final String LOCAL_BUCKET_UNUSED = "local";
++
++    private static final Set<String> ALLOWED_IMAGE_TYPES = new HashSet<>(
++            List.of("jpeg", "jpg", "png", "gif", "webp", "tiff", "svg")
++    );
++
++    private final GalleryRepository galleryRepository;
++    private final GalleryImageRepository galleryImageRepository;
++
++    private final ObjectStoragePort objectStoragePort;
++    private final StorageKeyGenerator storageKeyGenerator;
++
++    public GalleryImageUploadService(GalleryRepository galleryRepository,
++                                    GalleryImageRepository galleryImageRepository,
++                                    ObjectStoragePort objectStoragePort,
++                                    StorageKeyGenerator storageKeyGenerator) {
++        this.galleryRepository = galleryRepository;
++        this.galleryImageRepository = galleryImageRepository;
++        this.objectStoragePort = objectStoragePort;
++        this.storageKeyGenerator = storageKeyGenerator;
++    }
++
++    /**
++     * 갤러리 이미지 업로드
++     *
++     * 저장 규칙
++     * - basePath: ./uploads
++     * - key: gallery/{galleryId}/{uuid.ext}
++     * - publicPath: /static/{key}
++     *
++     * DB 기록(v5.3)
++     * - gallery_images.original_url 에 publicPath 저장
++     * - galleries.thumbnail_image_id 가 비어있으면, 첫 업로드 이미지를 대표 이미지로 설정
++     */
++    @Transactional
++    public List<GalleryImageUploadResponse> uploadImages(Long galleryId,
++                                                        Long currentUserId,
++                                                        boolean isAdmin,
++                                                        List<MultipartFile> files) {
++        if (galleryId == null || galleryId <= 0) {
++            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "galleryId is required");
++        }
++        if (files == null || files.isEmpty()) {
++            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "files is required");
++        }
++
++        Gallery gallery = galleryRepository.findById(galleryId)
++                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "gallery not found"));
++
++        validateUploadPermission(gallery, currentUserId, isAdmin);
++
++        Integer maxOrder = galleryImageRepository.findMaxImageOrder(galleryId);
++        int nextOrder = (maxOrder == null) ? 1 : maxOrder + 1;
++
++        List<GalleryImageUploadResponse> results = new ArrayList<>();
++        Long firstNewImageId = null;
++
++        for (MultipartFile file : files) {
++            if (file == null || file.isEmpty()) {
++                continue;
++            }
++
++            String originalName = safeOriginalName(file.getOriginalFilename());
++            String resolvedType = resolveImageType(file.getContentType(), originalName);
++            validateImageType(resolvedType);
++
++            String key = storageKeyGenerator.generateKey(StorageKeyGenerator.UploadTargetType.GALLERY, galleryId, originalName);
++
++            try {
++                objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
++            } catch (IOException e) {
++                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload bytes: " + e.getMessage());
++            }
++
++            String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
++            Integer fileSize = safeIntSize(file.getSize());
++
++            GalleryImage image = GalleryImage.builder()
++                    .gallery(gallery)
++                    .originalUrl(publicPath)
++                    .thumbUrl(null)
++                    .imageOrder(nextOrder++)
++                    .mimeType(resolvedType)
++                    .fileSize(fileSize)
++                    .createdAt(LocalDateTime.now())
++                    .build();
++
++            GalleryImage saved = galleryImageRepository.save(image);
++
++            if (firstNewImageId == null) {
++                firstNewImageId = saved.getImageId();
++            }
++
++            results.add(GalleryImageUploadResponse.from(saved));
++        }
++
++        if (results.isEmpty()) {
++            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "no files uploaded");
++        }
++
++        if (gallery.getThumbnailImageId() == null && firstNewImageId != null) {
++            galleryRepository.save(gallery.toBuilder()
++                    .thumbnailImageId(firstNewImageId)
++                    .updatedAt(LocalDateTime.now())
++                    .build());
++        }
++
++        return results;
++    }
++
++    private void validateUploadPermission(Gallery gallery, Long currentUserId, boolean isAdmin) {
++        if (gallery.getGalleryStatus() == GalleryStatus.DELETED) {
++            throw new BusinessException(ErrorCode.INVALID_REQUEST, "gallery is deleted");
++        }
++
++        if (isAdmin) {
++            return;
++        }
++
++        if (currentUserId == null) {
++            throw new BusinessException(ErrorCode.UNAUTHORIZED, "UNAUTHENTICATED");
++        }
++        if (!currentUserId.equals(gallery.getUserId())) {
++            throw new BusinessException(ErrorCode.FORBIDDEN, "only author can upload images");
++        }
++
++        if (gallery.getGalleryStatus() == GalleryStatus.BLINDED) {
++            throw new BusinessException(ErrorCode.FORBIDDEN, "blinded gallery cannot be modified by user");
++        }
++    }
++
++    private void validateImageType(String type) {
++        if (type == null || type.isBlank()) {
++            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "image type is required");
++        }
++        if (!ALLOWED_IMAGE_TYPES.contains(type)) {
++            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "unsupported image type: " + type);
++        }
++    }
++
++    private String resolveImageType(String contentType, String originalName) {
++        String ext = extractExt(originalName);
++        if (ext != null && !ext.isBlank()) {
++            return ext.toLowerCase(Locale.ROOT);
++        }
++
++        if (contentType == null || contentType.isBlank()) {
++            return null;
++        }
++
++        String ct = contentType.toLowerCase(Locale.ROOT);
++        return switch (ct) {
++            case "image/jpeg" -> "jpeg";
++            case "image/jpg" -> "jpg";
++            case "image/png" -> "png";
++            case "image/gif" -> "gif";
++            case "image/webp" -> "webp";
++            case "image/tiff" -> "tiff";
++            case "image/svg+xml" -> "svg";
++            default -> null;
++        };
++    }
++
++    private static Integer safeIntSize(long size) {
++        if (size < 0) return null;
++        if (size > Integer.MAX_VALUE) {
++            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file is too large");
++        }
++        return (int) size;
++    }
++
++    private static String extractExt(String filename) {
++        if (filename == null) return null;
++        int idx = filename.lastIndexOf('.');
++        if (idx < 0 || idx == filename.length() - 1) return null;
++        return filename.substring(idx + 1);
++    }
++
++    private static String safeOriginalName(String originalFilename) {
++        if (originalFilename == null || originalFilename.isBlank()) return "file";
++        int idx1 = originalFilename.lastIndexOf('/');
++        int idx2 = originalFilename.lastIndexOf('\\');
++        int idx = Math.max(idx1, idx2);
++        return (idx >= 0) ? originalFilename.substring(idx + 1) : originalFilename;
++    }
++}
+diff -ruN /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/gallery/dto/GalleryImageUploadResponse.java /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/gallery/dto/GalleryImageUploadResponse.java
+--- /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/gallery/dto/GalleryImageUploadResponse.java	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/gallery/dto/GalleryImageUploadResponse.java	2026-03-02 09:54:27.582678859 +0000
+@@ -0,0 +1,41 @@
++// file: src/main/java/com/popups/pupoo/gallery/dto/GalleryImageUploadResponse.java
++package com.popups.pupoo.gallery.dto;
++
++import com.popups.pupoo.gallery.domain.model.GalleryImage;
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Getter;
++import lombok.NoArgsConstructor;
++
++import java.time.LocalDateTime;
++
++@Getter
++@Builder
++@NoArgsConstructor
++@AllArgsConstructor
++public class GalleryImageUploadResponse {
++
++    private Long imageId;
++    private Long galleryId;
++    private String originalUrl;
++    private String thumbUrl;
++    private Integer imageOrder;
++    private String mimeType;
++    private Integer fileSize;
++    private LocalDateTime createdAt;
++
++    public static GalleryImageUploadResponse from(GalleryImage img) {
++        if (img == null) return null;
++
++        return GalleryImageUploadResponse.builder()
++                .imageId(img.getImageId())
++                .galleryId(img.getGalleryId())
++                .originalUrl(img.getOriginalUrl())
++                .thumbUrl(img.getThumbUrl())
++                .imageOrder(img.getImageOrder())
++                .mimeType(img.getMimeType())
++                .fileSize(img.getFileSize())
++                .createdAt(img.getCreatedAt())
++                .build();
++    }
++}
+diff -ruN /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/gallery/persistence/GalleryImageRepository.java /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/gallery/persistence/GalleryImageRepository.java
+--- /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/gallery/persistence/GalleryImageRepository.java	2026-02-27 12:22:46.000000000 +0000
++++ /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/gallery/persistence/GalleryImageRepository.java	2026-03-02 09:53:38.885638973 +0000
+@@ -3,9 +3,19 @@
+ 
+ import com.popups.pupoo.gallery.domain.model.GalleryImage;
+ import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.Query;
++import org.springframework.data.repository.query.Param;
+ 
+ import java.util.List;
+ 
+ public interface GalleryImageRepository extends JpaRepository<GalleryImage, Long> {
++
+     List<GalleryImage> findAllByGallery_GalleryIdOrderByImageOrderAsc(Long galleryId);
++
++    @Query("""
++        select max(gi.imageOrder)
++        from GalleryImage gi
++        where gi.gallery.galleryId = :galleryId
++    """)
++    Integer findMaxImageOrder(@Param("galleryId") Long galleryId);
+ }
+diff -ruN /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/qr/application/QrService.java /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/qr/application/QrService.java
+--- /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/qr/application/QrService.java	2026-02-27 12:22:42.000000000 +0000
++++ /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/qr/application/QrService.java	2026-03-02 09:58:03.076693072 +0000
+@@ -3,6 +3,8 @@
+ 
+ import com.popups.pupoo.booth.domain.model.Booth;
+ import com.popups.pupoo.booth.persistence.BoothRepository;
++import com.popups.pupoo.common.exception.BusinessException;
++import com.popups.pupoo.common.exception.ErrorCode;
+ import com.popups.pupoo.event.domain.model.Event;
+ import com.popups.pupoo.event.persistence.EventRepository;
+ import com.popups.pupoo.qr.domain.enums.QrMimeType;
+@@ -10,9 +12,12 @@
+ import com.popups.pupoo.qr.domain.model.QrCode;
+ import com.popups.pupoo.qr.dto.QrHistoryResponse;
+ import com.popups.pupoo.qr.dto.QrIssueResponse;
++import com.popups.pupoo.qr.infrastructure.QrImageGenerator;
+ import com.popups.pupoo.qr.persistence.QrCheckinRepository;
+ import com.popups.pupoo.qr.persistence.projection.BoothVisitSummaryRow;
+ import com.popups.pupoo.qr.persistence.QrCodeRepository;
++import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator;
++import com.popups.pupoo.storage.port.ObjectStoragePort;
+ import com.popups.pupoo.user.domain.model.User;
+ import com.popups.pupoo.user.persistence.UserRepository;
+ import org.springframework.stereotype.Service;
+@@ -26,6 +31,10 @@
+ @Transactional(readOnly = true)
+ public class QrService {
+ 
++    private static final String LOCAL_BUCKET_UNUSED = "local";
++    private static final String LOCAL_PUBLIC_PREFIX = "/static/qr/";
++    private static final int QR_IMAGE_SIZE = 320;
++
+     private final QrCodeRepository qrCodeRepository;
+     private final QrCheckinRepository qrCheckinRepository;
+ 
+@@ -33,16 +42,26 @@
+     private final EventRepository eventRepository;
+     private final BoothRepository boothRepository;
+ 
++    private final ObjectStoragePort objectStoragePort;
++    private final StorageKeyGenerator storageKeyGenerator;
++    private final QrImageGenerator qrImageGenerator;
++
+     public QrService(QrCodeRepository qrCodeRepository,
+                      QrCheckinRepository qrCheckinRepository,
+                      UserRepository userRepository,
+                      EventRepository eventRepository,
+-                     BoothRepository boothRepository) {
++                     BoothRepository boothRepository,
++                     ObjectStoragePort objectStoragePort,
++                     StorageKeyGenerator storageKeyGenerator,
++                     QrImageGenerator qrImageGenerator) {
+         this.qrCodeRepository = qrCodeRepository;
+         this.qrCheckinRepository = qrCheckinRepository;
+         this.userRepository = userRepository;
+         this.eventRepository = eventRepository;
+         this.boothRepository = boothRepository;
++        this.objectStoragePort = objectStoragePort;
++        this.storageKeyGenerator = storageKeyGenerator;
++        this.qrImageGenerator = qrImageGenerator;
+     }
+ 
+     // =========================
+@@ -59,6 +78,7 @@
+                 .orElseThrow(() -> new IllegalArgumentException("행사 없음"));
+ 
+         return qrCodeRepository.findValidLatest(userId, eventId, now)
++                .map(this::ensureLocalQrImage)
+                 .map(QrIssueResponse::from)
+                 .orElseGet(() -> {
+                     LocalDateTime expiredAt = event.getEndAt().plusDays(1);
+@@ -66,20 +86,55 @@
+                     QrCode issued = QrCode.builder()
+                             .user(user)
+                             .event(event)
+-                            .originalUrl(buildQrUrl(userId, eventId))
+-                            // enum 상수는 대문자, DB 저장은 Converter가 소문자로 변환한다.
++                            // DB NOT NULL 대응: 발급 직후 로컬 파일 생성 후 /static/..으로 갱신한다.
++                            .originalUrl("PENDING")
+                             .mimeType(QrMimeType.PNG)
+                             .issuedAt(now)
+                             .expiredAt(expiredAt)
+                             .build();
+ 
+                     QrCode saved = qrCodeRepository.save(issued);
++                    ensureLocalQrImage(saved);
++
+                     return QrIssueResponse.from(saved);
+                 });
+     }
+ 
+-    private String buildQrUrl(Long userId, Long eventId) {
+-        return "https://pupoo.io/qr/" + userId + "/" + eventId;
++    /**
++     * DB seed/레거시 데이터(https://...)를 로컬 정적 파일로 전환한다.
++     * - 파일 저장: ./uploads/qr/{qrId}/...
++     * - DB 기록: qr_codes.original_url = /static/qr/{qrId}/...
++     */
++    private QrCode ensureLocalQrImage(QrCode qr) {
++        if (qr == null) return null;
++
++        if (qr.getOriginalUrl() != null && qr.getOriginalUrl().startsWith(LOCAL_PUBLIC_PREFIX)) {
++            if (qr.getMimeType() == null) {
++                qr.updateMimeType(QrMimeType.PNG);
++            }
++            return qr;
++        }
++
++        String payload = String.valueOf(qr.getQrId());
++        byte[] png = qrImageGenerator.generatePng(payload, QR_IMAGE_SIZE);
++
++        String key = storageKeyGenerator.generateKey(
++                StorageKeyGenerator.UploadTargetType.QR,
++                qr.getQrId(),
++                "qr.png"
++        );
++
++        objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, png, "image/png");
++
++        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
++        if (publicPath == null || publicPath.isBlank()) {
++            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to build qr public path");
++        }
++
++        qr.updateOriginalUrl(publicPath);
++        qr.updateMimeType(QrMimeType.PNG);
++
++        return qr;
+     }
+ 
+     // =========================
+@@ -169,4 +224,4 @@
+                         .build())
+                 .toList();
+     }
+-}
+\ No newline at end of file
++}
+diff -ruN /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/qr/domain/model/QrCode.java /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/qr/domain/model/QrCode.java
+--- /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/qr/domain/model/QrCode.java	2026-02-27 12:22:40.000000000 +0000
++++ /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/qr/domain/model/QrCode.java	2026-03-02 09:57:06.749666247 +0000
+@@ -70,6 +70,14 @@
+     @Column(name = "expired_at", nullable = false)
+     private LocalDateTime expiredAt;
+ 
++    public void updateOriginalUrl(String originalUrl) {
++        this.originalUrl = originalUrl;
++    }
++
++    public void updateMimeType(QrMimeType mimeType) {
++        this.mimeType = mimeType;
++    }
++
+     @PrePersist
+     void prePersist() {
+         if (issuedAt == null) {
+diff -ruN /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/qr/infrastructure/QrImageGenerator.java /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/qr/infrastructure/QrImageGenerator.java
+--- /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/qr/infrastructure/QrImageGenerator.java	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/qr/infrastructure/QrImageGenerator.java	2026-03-02 09:56:52.000847407 +0000
+@@ -0,0 +1,47 @@
++// file: src/main/java/com/popups/pupoo/qr/infrastructure/QrImageGenerator.java
++package com.popups.pupoo.qr.infrastructure;
++
++import com.google.zxing.BarcodeFormat;
++import com.google.zxing.EncodeHintType;
++import com.google.zxing.WriterException;
++import com.google.zxing.client.j2se.MatrixToImageWriter;
++import com.google.zxing.common.BitMatrix;
++import com.google.zxing.qrcode.QRCodeWriter;
++import com.popups.pupoo.common.exception.BusinessException;
++import com.popups.pupoo.common.exception.ErrorCode;
++import org.springframework.stereotype.Component;
++
++import java.io.ByteArrayOutputStream;
++import java.io.IOException;
++import java.util.EnumMap;
++import java.util.Map;
++
++@Component
++public class QrImageGenerator {
++
++    /**
++     * QR 코드 이미지를 PNG 바이트로 생성한다.
++     */
++    public byte[] generatePng(String content, int size) {
++        if (content == null || content.isBlank()) {
++            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "qr content is required");
++        }
++        if (size <= 0) {
++            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "size must be positive");
++        }
++
++        try {
++            Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
++            hints.put(EncodeHintType.MARGIN, 1);
++
++            QRCodeWriter writer = new QRCodeWriter();
++            BitMatrix matrix = writer.encode(content, BarcodeFormat.QR_CODE, size, size, hints);
++
++            ByteArrayOutputStream out = new ByteArrayOutputStream();
++            MatrixToImageWriter.writeToStream(matrix, "PNG", out);
++            return out.toByteArray();
++        } catch (WriterException | IOException e) {
++            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to generate QR image: " + e.getMessage());
++        }
++    }
++}
+diff -ruN /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/storage/application/StorageService.java /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/storage/application/StorageService.java
+--- /mnt/data/pupoo_backend_original/src/main/java/com/popups/pupoo/storage/application/StorageService.java	2026-02-27 13:04:26.000000000 +0000
++++ /mnt/data/pupoo_backend/src/main/java/com/popups/pupoo/storage/application/StorageService.java	2026-03-02 10:00:23.532166811 +0000
+@@ -1,176 +1,217 @@
+-// file: src/main/java/com/popups/pupoo/storage/application/StorageService.java
+-package com.popups.pupoo.storage.application;
+-
+-import com.popups.pupoo.auth.security.util.SecurityUtil;
+-import com.popups.pupoo.common.exception.BusinessException;
+-import com.popups.pupoo.common.exception.ErrorCode;
+-import com.popups.pupoo.storage.domain.model.StoredFile;
+-import com.popups.pupoo.storage.dto.FileResponse;
+-import com.popups.pupoo.storage.dto.UploadRequest;
+-import com.popups.pupoo.storage.dto.UploadResponse;
+-import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator;
+-import com.popups.pupoo.storage.persistence.StoredFileRepository;
+-import com.popups.pupoo.storage.port.ObjectStoragePort;
+-import org.springframework.stereotype.Service;
+-import org.springframework.transaction.annotation.Transactional;
+-import org.springframework.web.multipart.MultipartFile;
+-
+-import java.io.IOException;
+-import java.io.InputStream;
+-import java.time.LocalDateTime;
+-
+-@Service
+-public class StorageService {
+-
+-    private static final String LOCAL_BUCKET_UNUSED = "local";
+-
+-    private final ObjectStoragePort objectStoragePort;
+-    private final StorageKeyGenerator keyGenerator;
+-    private final StoredFileRepository storedFileRepository;
+-    private final SecurityUtil securityUtil;
+-
+-    public StorageService(ObjectStoragePort objectStoragePort,
+-                          StorageKeyGenerator keyGenerator,
+-                          StoredFileRepository storedFileRepository,
+-                          SecurityUtil securityUtil) {
+-        this.objectStoragePort = objectStoragePort;
+-        this.keyGenerator = keyGenerator;
+-        this.storedFileRepository = storedFileRepository;
+-        this.securityUtil = securityUtil;
+-    }
+-
+-    /**
+-     * POST/NOTICE 첨부파일 업로드 → files 테이블에 기록한다.
+-     * - 업로더(user_id)는 현재 로그인 사용자로 저장한다.
+-     */
+-    @Transactional
+-    public UploadResponse uploadForFilesTable(MultipartFile file, UploadRequest request) {
+-        request.validateForFilesTable();
+-        if (file == null || file.isEmpty()) {
+-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file is required");
+-        }
+-
+-        Long uploaderId = securityUtil.currentUserId();
+-
+-        StorageKeyGenerator.UploadTargetType type = request.parsedTargetType();
+-        Long contentId = request.getContentId();
+-        String originalName = safeOriginalName(file.getOriginalFilename());
+-
+-        String key = keyGenerator.generateKey(type, contentId, originalName);
+-        String storedName = key.substring(key.lastIndexOf('/') + 1);
+-
+-        try {
+-            objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
+-        } catch (IOException e) {
+-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload bytes: " + e.getMessage());
+-        }
+-
+-        StoredFile storedFile = (type == StorageKeyGenerator.UploadTargetType.POST)
+-                ? StoredFile.forPost(originalName, storedName, uploaderId, contentId)
+-                : StoredFile.forNotice(originalName, storedName, uploaderId, contentId);
+-
+-        StoredFile saved = storedFileRepository.save(storedFile);
+-        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
+-
+-        return UploadResponse.of(saved.getFileId(), saved.getOriginalName(), saved.getStoredName(), publicPath);
+-    }
+-
+-    @Transactional(readOnly = true)
+-    public FileResponse getFile(Long fileId) {
+-        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
+-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
+-        String key = toKey(f);
+-        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
+-        return FileResponse.of(f.getFileId(), f.getOriginalName(), publicPath);
+-    }
+-
+-    @Transactional(readOnly = true)
+-    public InputStream download(Long fileId) {
+-        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
+-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
+-        String key = toKey(f);
+-        return objectStoragePort.getObject(LOCAL_BUCKET_UNUSED, key);
+-    }
+-
+-    /**
+-     * (유저) 파일 삭제
+-     * - 작성자만 가능
+-     * - NOTICE 첨부파일은 유저 삭제 불가
+-     * - DB soft delete만 수행(오브젝트는 지연삭제 배치에서 제거)
+-     */
+-    @Transactional
+-    public void deleteByUser(Long fileId) {
+-        Long currentUserId = securityUtil.currentUserId();
+-
+-        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
+-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
+-
+-        if (f.getNoticeId() != null) {
+-            throw new BusinessException(ErrorCode.FORBIDDEN, "notice file cannot be deleted by user");
+-        }
+-
+-        if (!currentUserId.equals(f.getUserId())) {
+-            throw new BusinessException(ErrorCode.FORBIDDEN, "only uploader can delete this file");
+-        }
+-
+-        f.markDeleted(currentUserId, "USER_DELETE");
+-    }
+-
+-    /**
+-     * (어드민) 파일 강제 삭제
+-     * - POST/NOTICE 구분 없이 가능
+-     * - DB soft delete만 수행(오브젝트는 지연삭제 배치에서 제거)
+-     */
+-    @Transactional
+-    public void deleteByAdmin(Long fileId, String reason) {
+-        Long adminId = securityUtil.currentUserId();
+-        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
+-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
+-
+-        String r = (reason == null || reason.isBlank()) ? "ADMIN_DELETE" : reason;
+-        f.markDeleted(adminId, r);
+-    }
+-
+-    /**
+-     * 지연삭제 배치
+-     * - soft delete 된 파일 중 retentionDays가 지난 오브젝트를 실제로 제거한다.
+-     * - 삭제 성공 시 object_deleted_at을 세팅하여 멱등/재시도 가능
+-     */
+-    @Transactional
+-    public int purgeDeletedObjects(int retentionDays) {
+-        LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
+-        var targets = storedFileRepository
+-                .findTop100ByDeletedAtIsNotNullAndObjectDeletedAtIsNullAndDeletedAtBefore(cutoff);
+-
+-        int deletedCount = 0;
+-        for (StoredFile f : targets) {
+-            try {
+-                String key = toKey(f);
+-                objectStoragePort.deleteObject(LOCAL_BUCKET_UNUSED, key);
+-                f.markObjectDeleted();
+-                deletedCount++;
+-            } catch (Exception e) {
+-                // 실패 시 다음 주기에 재시도 (objectDeletedAt 미세팅)
+-            }
+-        }
+-        return deletedCount;
+-    }
+-
+-    private String toKey(StoredFile f) {
+-        if (f.getPostId() != null) {
+-            return keyGenerator.buildKey(StorageKeyGenerator.UploadTargetType.POST, f.getPostId(), f.getStoredName());
+-        }
+-        if (f.getNoticeId() != null) {
+-            return keyGenerator.buildKey(StorageKeyGenerator.UploadTargetType.NOTICE, f.getNoticeId(), f.getStoredName());
+-        }
+-        throw new BusinessException(ErrorCode.INTERNAL_ERROR, "files row has no owner (post_id/notice_id)");
+-    }
+-
+-    private static String safeOriginalName(String originalFilename) {
+-        if (originalFilename == null || originalFilename.isBlank()) return "file";
+-        int idx1 = originalFilename.lastIndexOf('/');
+-        int idx2 = originalFilename.lastIndexOf('\\');
+-        int idx = Math.max(idx1, idx2);
+-        return (idx >= 0) ? originalFilename.substring(idx + 1) : originalFilename;
+-    }
+-}
+\ No newline at end of file
++// file: src/main/java/com/popups/pupoo/storage/application/StorageService.java
++package com.popups.pupoo.storage.application;
++
++import com.popups.pupoo.auth.security.util.SecurityUtil;
++import com.popups.pupoo.common.exception.BusinessException;
++import com.popups.pupoo.common.exception.ErrorCode;
++import com.popups.pupoo.storage.domain.model.StoredFile;
++import com.popups.pupoo.storage.dto.FileResponse;
++import com.popups.pupoo.storage.dto.UploadRequest;
++import com.popups.pupoo.storage.dto.UploadResponse;
++import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator;
++import com.popups.pupoo.storage.persistence.StoredFileRepository;
++import com.popups.pupoo.storage.port.ObjectStoragePort;
++import org.springframework.stereotype.Service;
++import org.springframework.transaction.annotation.Transactional;
++import org.springframework.web.multipart.MultipartFile;
++
++import java.io.IOException;
++import java.io.InputStream;
++import java.time.LocalDateTime;
++
++@Service
++public class StorageService {
++
++    private static final String LOCAL_BUCKET_UNUSED = "local";
++
++    private final ObjectStoragePort objectStoragePort;
++    private final StorageKeyGenerator keyGenerator;
++    private final StoredFileRepository storedFileRepository;
++    private final SecurityUtil securityUtil;
++
++    public StorageService(ObjectStoragePort objectStoragePort,
++                          StorageKeyGenerator keyGenerator,
++                          StoredFileRepository storedFileRepository,
++                          SecurityUtil securityUtil) {
++        this.objectStoragePort = objectStoragePort;
++        this.keyGenerator = keyGenerator;
++        this.storedFileRepository = storedFileRepository;
++        this.securityUtil = securityUtil;
++    }
++
++    /**
++     * POST/NOTICE 첨부파일 업로드 → files 테이블에 기록한다.
++     *
++     * 저장 규칙
++     * - basePath: ./uploads
++     * - key: post/{postId}/{uuid.ext} 또는 notice/{noticeId}/{uuid.ext}
++     * - publicPath: /static/{key}
++     *
++     * DB 저장 규칙(v5.3)
++     * - files.stored_name 에 publicPath를 저장한다.
++     *   예) /static/post/10/uuid.png
++     *
++     * 레거시 호환
++     * - seed/과거 데이터: stored_name이 파일명만 있는 경우(uuid.png)
++     * - 일부 브랜치: stored_name에 key(post/10/uuid.png)만 저장된 경우
++     * → 조회/다운로드/지연삭제 시 toKey()에서 보정한다.
++     */
++    @Transactional
++    public UploadResponse uploadForFilesTable(MultipartFile file, UploadRequest request) {
++        request.validateForFilesTable();
++        if (file == null || file.isEmpty()) {
++            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file is required");
++        }
++
++        Long uploaderId = securityUtil.currentUserId();
++
++        StorageKeyGenerator.UploadTargetType type = request.parsedTargetType();
++        Long contentId = request.getContentId();
++        String originalName = safeOriginalName(file.getOriginalFilename());
++
++        String key = keyGenerator.generateKey(type, contentId, originalName);
++
++        try {
++            objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
++        } catch (IOException e) {
++            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload bytes: " + e.getMessage());
++        }
++
++        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
++
++        StoredFile storedFile = (type == StorageKeyGenerator.UploadTargetType.POST)
++                ? StoredFile.forPost(originalName, publicPath, uploaderId, contentId)
++                : StoredFile.forNotice(originalName, publicPath, uploaderId, contentId);
++
++        StoredFile saved = storedFileRepository.save(storedFile);
++
++        return UploadResponse.of(saved.getFileId(), saved.getOriginalName(), saved.getStoredName(), publicPath);
++    }
++
++    @Transactional(readOnly = true)
++    public FileResponse getFile(Long fileId) {
++        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
++                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
++
++        String key = toKey(f);
++        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
++
++        return FileResponse.of(f.getFileId(), f.getOriginalName(), publicPath);
++    }
++
++    @Transactional(readOnly = true)
++    public InputStream download(Long fileId) {
++        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
++                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
++
++        String key = toKey(f);
++        return objectStoragePort.getObject(LOCAL_BUCKET_UNUSED, key);
++    }
++
++    /**
++     * (유저) 파일 삭제
++     * - 작성자만 가능
++     * - NOTICE 첨부파일은 유저 삭제 불가
++     * - DB soft delete만 수행(오브젝트는 지연삭제 배치에서 제거)
++     */
++    @Transactional
++    public void deleteByUser(Long fileId) {
++        Long currentUserId = securityUtil.currentUserId();
++
++        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
++                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
++
++        if (f.getNoticeId() != null) {
++            throw new BusinessException(ErrorCode.FORBIDDEN, "notice file cannot be deleted by user");
++        }
++
++        if (!currentUserId.equals(f.getUserId())) {
++            throw new BusinessException(ErrorCode.FORBIDDEN, "only uploader can delete this file");
++        }
++
++        f.markDeleted(currentUserId, "USER_DELETE");
++    }
++
++    /**
++     * (어드민) 파일 강제 삭제
++     * - POST/NOTICE 구분 없이 가능
++     * - DB soft delete만 수행(오브젝트는 지연삭제 배치에서 제거)
++     */
++    @Transactional
++    public void deleteByAdmin(Long fileId, String reason) {
++        Long adminId = securityUtil.currentUserId();
++        StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
++                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
++
++        String r = (reason == null || reason.isBlank()) ? "ADMIN_DELETE" : reason;
++        f.markDeleted(adminId, r);
++    }
++
++    /**
++     * 지연삭제 배치
++     * - soft delete 된 파일 중 retentionDays가 지난 오브젝트를 실제로 제거한다.
++     * - 삭제 성공 시 object_deleted_at을 세팅하여 멱등/재시도 가능
++     */
++    @Transactional
++    public int purgeDeletedObjects(int retentionDays) {
++        LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
++        var targets = storedFileRepository
++                .findTop100ByDeletedAtIsNotNullAndObjectDeletedAtIsNullAndDeletedAtBefore(cutoff);
++
++        int deletedCount = 0;
++        for (StoredFile f : targets) {
++            try {
++                String key = toKey(f);
++                objectStoragePort.deleteObject(LOCAL_BUCKET_UNUSED, key);
++                f.markObjectDeleted();
++                deletedCount++;
++            } catch (Exception e) {
++                // 실패 시 다음 주기에 재시도 (objectDeletedAt 미세팅)
++            }
++        }
++        return deletedCount;
++    }
++
++    private String toKey(StoredFile f) {
++        String storedName = f.getStoredName();
++
++        // 1) stored_name이 publicPath("/static/...") 또는 key("post/...") 형태인 경우
++        if (storedName != null && storedName.contains("/")) {
++            return normalizeKeyFromStoredName(storedName);
++        }
++
++        // 2) legacy: stored_name이 파일명만 있는 경우(uuid.png)
++        if (f.getPostId() != null) {
++            return keyGenerator.buildKey(StorageKeyGenerator.UploadTargetType.POST, f.getPostId(), storedName);
++        }
++        if (f.getNoticeId() != null) {
++            return keyGenerator.buildKey(StorageKeyGenerator.UploadTargetType.NOTICE, f.getNoticeId(), storedName);
++        }
++        throw new BusinessException(ErrorCode.INTERNAL_ERROR, "files row has no owner (post_id/notice_id)");
++    }
++
++    private static String normalizeKeyFromStoredName(String storedName) {
++        String v = stripLeadingSlash(storedName);
++
++        // publicPath: static/.... => key: ....
++        if (v.startsWith("static/")) {
++            return v.substring("static/".length());
++        }
++
++        // key: post/... or notice/... etc
++        return v;
++    }
++
++    private static String stripLeadingSlash(String v) {
++        if (v == null) return null;
++        return v.startsWith("/") ? v.substring(1) : v;
++    }
++
++    private static String safeOriginalName(String originalFilename) {
++        if (originalFilename == null || originalFilename.isBlank()) return "file";
++        int idx1 = originalFilename.lastIndexOf('/');
++        int idx2 = originalFilename.lastIndexOf('\\');
++        int idx = Math.max(idx1, idx2);
++        return (idx >= 0) ? originalFilename.substring(idx + 1) : originalFilename;
++    }
++}

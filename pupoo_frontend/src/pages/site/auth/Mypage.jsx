@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { mypageApi } from "./api/mypageApi";
@@ -147,6 +147,27 @@ const styles = `
     background: #b91c1c;
   }
 
+  .btn-inline {
+    height: 42px;
+    padding: 0 16px;
+    background: #1a9ac9;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-inline:hover {
+    background: #1588b0;
+  }
+
+  .btn-inline:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+
   .inline-actions {
     display: flex;
     gap: 8px;
@@ -225,13 +246,18 @@ function getStatusLabel(status) {
   return status || "-";
 }
 
+const PET_BREEDS = ["DOG", "CAT", "OTHER"];
+const PET_WEIGHTS = ["XS", "S", "M", "L", "XL"];
+
 export default function Mypage() {
   const navigate = useNavigate();
   const { isAuthed, isBootstrapped, logout } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [addingPet, setAddingPet] = useState(false);
   const [error, setError] = useState("");
+  const [petFormError, setPetFormError] = useState("");
 
   const [me, setMe] = useState(null);
   const [pets, setPets] = useState([]);
@@ -239,6 +265,12 @@ export default function Mypage() {
   const [programApplies, setProgramApplies] = useState([]);
 
   const [editForm, setEditForm] = useState({ nickname: "", phone: "" });
+  const [petForm, setPetForm] = useState({
+    petName: "",
+    petBreed: "DOG",
+    petAge: "",
+    petWeight: "M",
+  });
 
   const fetchData = useCallback(async () => {
     if (!isBootstrapped) return;
@@ -283,8 +315,6 @@ export default function Mypage() {
     () => [
       { label: "이메일", value: me?.email || "-" },
       { label: "닉네임", value: me?.nickname || "-" },
-      { label: "연락처", value: me?.phone || "-" },
-      { label: "회원상태", value: me?.status || "-" },
     ],
     [me],
   );
@@ -292,6 +322,42 @@ export default function Mypage() {
   const handleEditInput = (e) => {
     const { name, value } = e.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePetInput = (e) => {
+    const { name, value } = e.target;
+    setPetForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddPet = async () => {
+    const petName = String(petForm.petName || "").trim();
+    const petAge = Number(petForm.petAge);
+
+    if (!petName) {
+      setPetFormError("반려동물 이름을 입력해 주세요.");
+      return;
+    }
+    if (!Number.isFinite(petAge) || petAge < 0 || petAge > 100) {
+      setPetFormError("반려동물 나이는 0~100 범위로 입력해 주세요.");
+      return;
+    }
+
+    setAddingPet(true);
+    setPetFormError("");
+    try {
+      await mypageApi.createPet({
+        petName,
+        petBreed: String(petForm.petBreed || "DOG").toUpperCase(),
+        petAge,
+        petWeight: String(petForm.petWeight || "M").toUpperCase(),
+      });
+      setPetForm({ petName: "", petBreed: "DOG", petAge: "", petWeight: "M" });
+      await fetchData();
+    } catch (e) {
+      setPetFormError(e?.message || "반려동물 추가에 실패했습니다.");
+    } finally {
+      setAddingPet(false);
+    }
   };
 
   const handleSaveBasicInfo = async () => {
@@ -420,26 +486,87 @@ export default function Mypage() {
                 <th>목록</th>
                 <td>
                   <div className="list-stack">
-                    {pets.map((pet) => (
-                      <div className="list-item" key={pet.id || `${pet.name}-${pet.type}`}>
-                        <div className="list-item-title">{pet.name || "이름 미입력"}</div>
-                        <div className="list-item-meta">
-                          종류: {pet.type || "-"} | 나이: {pet.age ?? "-"}
+                    {pets.map((pet, idx) => {
+                      const petId = pet?.petId ?? pet?.id ?? idx;
+                      const petName = pet?.petName ?? pet?.name ?? "-";
+                      const petBreed = pet?.petBreed ?? pet?.type ?? "-";
+                      const petAge = pet?.petAge ?? pet?.age ?? "-";
+                      const petWeight = pet?.petWeight ?? "-";
+                      return (
+                        <div className="list-item" key={petId}>
+                          <div className="list-item-title">{petName}</div>
+                          <div className="list-item-meta">
+                            종류: {petBreed} | 나이: {petAge} | 무게: {petWeight}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </td>
               </tr>
             )}
             <tr>
-              <th>관리</th>
+              <th>추가</th>
               <td>
                 <div className="inline-actions">
-                  <button className="btn-cancel" type="button" onClick={() => navigate("/mypage/pets/new")}>
-                    반려동물 관리 이동
+                  <input
+                    className="form-input"
+                    name="petName"
+                    placeholder="이름"
+                    value={petForm.petName}
+                    onChange={handlePetInput}
+                    disabled={addingPet}
+                    style={{ maxWidth: 180 }}
+                  />
+                  <select
+                    className="form-input"
+                    name="petBreed"
+                    value={petForm.petBreed}
+                    onChange={handlePetInput}
+                    disabled={addingPet}
+                    style={{ maxWidth: 140 }}
+                  >
+                    {PET_BREEDS.map((breed) => (
+                      <option key={breed} value={breed}>
+                        {breed}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="form-input"
+                    type="number"
+                    min={0}
+                    max={100}
+                    name="petAge"
+                    placeholder="나이"
+                    value={petForm.petAge}
+                    onChange={handlePetInput}
+                    disabled={addingPet}
+                    style={{ maxWidth: 120 }}
+                  />
+                  <select
+                    className="form-input"
+                    name="petWeight"
+                    value={petForm.petWeight}
+                    onChange={handlePetInput}
+                    disabled={addingPet}
+                    style={{ maxWidth: 120 }}
+                  >
+                    {PET_WEIGHTS.map((weight) => (
+                      <option key={weight} value={weight}>
+                        {weight}
+                      </option>
+                    ))}
+                  </select>
+                  <button className="btn-inline" type="button" onClick={handleAddPet} disabled={addingPet}>
+                    {addingPet ? "추가 중..." : "반려동물 추가"}
                   </button>
                 </div>
+                {petFormError && (
+                  <div className="status-text" style={{ color: "#e11d48", marginTop: 8 }}>
+                    {petFormError}
+                  </div>
+                )}
               </td>
             </tr>
           </tbody>
@@ -505,14 +632,25 @@ export default function Mypage() {
           </tbody>
         </table>
 
+        <p className="section-title">내 QR 확인</p>
+        <table className="form-table form-table-bordered">
+          <tbody>
+            <tr>
+              <th>QR</th>
+              <td>
+                <button className="btn-submit" type="button" onClick={() => navigate("/mypage/qr")}>
+                  내 QR 확인
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
         {error && <div className="error-text">{error}</div>}
 
         <div className="submit-wrap">
           <button className="btn-cancel" type="button" onClick={() => navigate("/")}>
             홈으로
-          </button>
-          <button className="btn-submit" type="button" onClick={logout}>
-            로그아웃
           </button>
           <button className="btn-danger" type="button" onClick={handleDeleteMe}>
             회원 탈퇴
@@ -522,3 +660,4 @@ export default function Mypage() {
     </>
   );
 }
+

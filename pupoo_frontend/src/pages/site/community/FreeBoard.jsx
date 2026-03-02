@@ -527,8 +527,10 @@ export default function FreeBoard() {
 
   const fetchBoards = useCallback(async () => {
     try {
-      const list = await boardApi.getBoards(true);
-      const free = Array.isArray(list) ? list.find((b) => b.boardType === "FREE") : null;
+      const list = await boardApi.getBoards(false);
+      const free = Array.isArray(list)
+        ? list.find((b) => String(b?.boardType || "").toUpperCase() === "FREE")
+        : null;
       setFreeBoardId(free?.boardId ?? null);
     } catch (err) {
       console.error("[FreeBoard] boards fetch error:", err);
@@ -545,7 +547,7 @@ export default function FreeBoard() {
     setLoading(true);
     setError(null);
     try {
-      const data = await postApi.list(freeBoardId, {
+      const data = await postApi.listByBoardType("FREE", {
         page: p - 1,
         size: PAGE_SIZE,
         searchType: kw?.trim() ? st : undefined,

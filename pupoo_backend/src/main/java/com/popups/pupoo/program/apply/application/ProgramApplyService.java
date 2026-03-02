@@ -31,6 +31,8 @@ public class ProgramApplyService {
     private final ProgramRepository programRepository;
     private final EventRepository eventRepository;
 
+    private final com.popups.pupoo.pet.persistence.PetRepository petRepository;
+
     //  활성 상태(= 중복 차단): APPLIED / WAITING / APPROVED
     // (DB active_flag 정의와 반드시 동일해야 함)
     private static final EnumSet<ApplyStatus> ACTIVE_STATUSES =
@@ -80,9 +82,19 @@ public class ProgramApplyService {
         }
 
         // 4) 저장 (REJECTED/CANCELLED 이력은 남기고, 재신청은 새 row INSERT)
+        // 4) 반려동물 소유권 검증 (pet_id가 제공된 경우)
+        Long petId = req.getPetId();
+        if (petId != null) {
+            boolean exists = petRepository.findByPetIdAndUserId(petId, userId).isPresent();
+            if (!exists) {
+                throw new BusinessException(ErrorCode.PET_NOT_FOUND);
+            }
+        }
+
+        // 5) 저장 (REJECTED/CANCELLED 이력은 남기고, 재신청은 새 row INSERT)
         try {
             ProgramApply saved = programApplyRepository.save(
-                    ProgramApply.create(userId, program.getProgramId())
+                    ProgramApply.create(userId, program.getProgramId(), petId)
             );
             return ProgramApplyResponse.from(saved);
         } catch (DataIntegrityViolationException e) {

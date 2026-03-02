@@ -27,6 +27,16 @@ export const postApi = {
     return axiosInstance.get("/api/posts", { params }).then((res) => unwrap(res));
   },
 
+  listByBoardType(boardType, opts = {}) {
+    if (!boardType)
+      throw new Error("postApi.listByBoardType: boardType is required");
+    const { page = 0, size = 10, searchType, keyword } = opts;
+    const params = { boardType, page, size };
+    if (searchType != null && searchType !== "") params.searchType = searchType;
+    if (keyword != null && keyword !== "") params.keyword = keyword;
+    return axiosInstance.get("/api/posts", { params }).then((res) => unwrap(res));
+  },
+
   /** GET /api/posts/{postId} — 게시글 단건 조회 (조회수 증가) */
   get(postId) {
     if (postId == null) throw new Error("postApi.get: postId is required");

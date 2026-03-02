@@ -80,6 +80,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/posts/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/notices").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/notices/*").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/boards").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/faqs").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/faqs/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events").permitAll()

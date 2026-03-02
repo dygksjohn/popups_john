@@ -39,7 +39,8 @@ public class PetServiceImpl implements PetService {
                 userId,
                 request.petName(),
                 request.petBreed(),
-                request.petAge()
+                request.petAge(),
+                request.petWeight()
         );
         return petRepository.save(pet).getPetId();
     }

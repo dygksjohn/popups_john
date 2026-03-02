@@ -16,6 +16,11 @@ public class ProgramApplyResponse {
     private Long programId;
     private Long userId;
 
+    /**
+     * 신청에 사용된 반려동물 ID. null인 경우 사용자가 반려동물을 선택하지 않았음을 의미한다.
+     */
+    private Long petId;
+
     private ApplyStatus status;
 
     private String ticketNo;
@@ -37,6 +42,7 @@ public class ProgramApplyResponse {
                 .programApplyId(a.getProgramApplyId())
                 .programId(a.getProgramId())
                 .userId(a.getUserId())
+                .petId(a.getPetId())
                 .status(a.getStatus())
                 .ticketNo(a.getTicketNo())
                 .etaMin(a.getEtaMin())
