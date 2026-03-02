@@ -1,4 +1,4 @@
-// file: src/main/java/com/popups/pupoo/storage/application/StorageService.java
+﻿// file: src/main/java/com/popups/pupoo/storage/application/StorageService.java
 package com.popups.pupoo.storage.application;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
@@ -29,12 +29,10 @@ public class StorageService {
     private final StoredFileRepository storedFileRepository;
     private final SecurityUtil securityUtil;
 
-    public StorageService(
-            ObjectStoragePort objectStoragePort,
-            StorageKeyGenerator keyGenerator,
-            StoredFileRepository storedFileRepository,
-            SecurityUtil securityUtil
-    ) {
+    public StorageService(ObjectStoragePort objectStoragePort,
+                          StorageKeyGenerator keyGenerator,
+                          StoredFileRepository storedFileRepository,
+                          SecurityUtil securityUtil) {
         this.objectStoragePort = objectStoragePort;
         this.keyGenerator = keyGenerator;
         this.storedFileRepository = storedFileRepository;
@@ -42,9 +40,8 @@ public class StorageService {
     }
 
     /**
-     * POST/NOTICE 첨부파일 업로드 → files 테이블에 기록한다.
-     * - 업로더(user_id)는 현재 인증 주체의 ID로 저장한다.
-     * - NOTICE 업로드는 ADMIN만 허용한다.
+     * POST/NOTICE 첨부파일 업로드 API입니다.
+     * NOTICE 업로드는 관리자만 허용합니다.
      */
     @Transactional
     public UploadResponse uploadForFilesTable(MultipartFile file, UploadRequest request) {
@@ -55,13 +52,11 @@ public class StorageService {
         }
 
         StorageKeyGenerator.UploadTargetType type = request.parsedTargetType();
-
         if (type == StorageKeyGenerator.UploadTargetType.NOTICE && !securityUtil.isAdmin()) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "notice file upload is admin-only");
         }
 
         Long uploaderId = securityUtil.currentUserId();
-
         Long contentId = request.getContentId();
         String originalName = safeOriginalName(file.getOriginalFilename());
 
@@ -84,6 +79,30 @@ public class StorageService {
         return UploadResponse.of(saved.getFileId(), saved.getOriginalName(), saved.getStoredName(), publicPath);
     }
 
+    /**
+     * 갤러리 이미지 임시 업로드 API입니다.
+     * files 테이블에는 저장하지 않고 object storage 경로만 반환합니다.
+     */
+    public UploadResponse uploadForGalleryTemp(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file is required");
+        }
+
+        Long userId = securityUtil.currentUserId();
+        String originalName = safeOriginalName(file.getOriginalFilename());
+        String key = keyGenerator.generateKeyForGalleryTemp(userId, originalName);
+        String storedName = key.substring(key.lastIndexOf('/') + 1);
+
+        try {
+            objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload bytes: " + e.getMessage());
+        }
+
+        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
+        return UploadResponse.of(0L, originalName, storedName, publicPath);
+    }
+
     @Transactional(readOnly = true)
     public FileResponse getFile(Long fileId) {
         StoredFile f = storedFileRepository.findByFileIdAndDeletedAtIsNull(fileId)
@@ -91,7 +110,6 @@ public class StorageService {
 
         String key = toKey(f);
         String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
-
         return FileResponse.of(f.getFileId(), f.getOriginalName(), publicPath);
     }
 
@@ -104,12 +122,6 @@ public class StorageService {
         return objectStoragePort.getObject(LOCAL_BUCKET_UNUSED, key);
     }
 
-    /**
-     * (유저) 파일 삭제
-     * - 작성자만 가능
-     * - NOTICE 첨부파일은 유저 삭제 불가
-     * - DB soft delete만 수행(오브젝트는 지연삭제 배치에서 제거)
-     */
     @Transactional
     public void deleteByUser(Long fileId) {
         Long currentUserId = securityUtil.currentUserId();
@@ -120,7 +132,6 @@ public class StorageService {
         if (f.getNoticeId() != null) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "notice file cannot be deleted by user");
         }
-
         if (!currentUserId.equals(f.getUserId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "only uploader can delete this file");
         }
@@ -129,11 +140,6 @@ public class StorageService {
         storedFileRepository.save(f);
     }
 
-    /**
-     * (어드민) 파일 강제 삭제
-     * - POST/NOTICE 구분 없이 가능
-     * - DB soft delete만 수행(오브젝트는 지연삭제 배치에서 제거)
-     */
     @Transactional
     public void deleteByAdmin(Long fileId, String reason) {
         Long adminId = securityUtil.currentUserId();
@@ -142,20 +148,13 @@ public class StorageService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
 
         String r = (reason == null || reason.isBlank()) ? "ADMIN_DELETE" : reason;
-
         f.markDeleted(adminId, r);
         storedFileRepository.save(f);
     }
 
-    /**
-     * 지연삭제 배치
-     * - soft delete 된 파일 중 retentionDays가 지난 오브젝트를 실제로 제거한다.
-     * - 삭제 성공 시 object_deleted_at을 세팅하여 멱등/재시도 가능
-     */
     @Transactional
     public int purgeDeletedObjects(int retentionDays) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
-
         var targets = storedFileRepository
                 .findTop100ByDeletedAtIsNotNullAndObjectDeletedAtIsNullAndDeletedAtBefore(cutoff);
 
@@ -168,10 +167,9 @@ public class StorageService {
                 storedFileRepository.save(f);
                 deletedCount++;
             } catch (Exception e) {
-                // 실패 시 다음 주기에 재시도한다.
+                // 실패 건은 다음 주기에서 재시도합니다.
             }
         }
-
         return deletedCount;
     }
 

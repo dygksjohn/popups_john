@@ -26,17 +26,66 @@ export const galleryApi = {
     return axiosInstance.get(`/api/galleries/${galleryId}`);
   },
 
-  // POST /api/galleries/{galleryId}/like — 좋아요 (로그인 사용자)
-  like: (galleryId) => {
+  // POST /api/galleries/{galleryId}/like — 좋아요 (로그인 사용자, X-USER-ID 필요)
+  like: (galleryId, userId) => {
     if (galleryId == null)
       throw new Error("galleryApi.like: galleryId is required");
-    return axiosInstance.post(`/api/galleries/${galleryId}/like`, null);
+    const headers = userId != null ? { "X-USER-ID": String(userId) } : {};
+    return axiosInstance.post(`/api/galleries/${galleryId}/like`, null, { headers });
   },
   // DELETE /api/galleries/{galleryId}/like — 좋아요 취소
-  unlike: (galleryId) => {
+  unlike: (galleryId, userId) => {
     if (galleryId == null)
       throw new Error("galleryApi.unlike: galleryId is required");
-    return axiosInstance.delete(`/api/galleries/${galleryId}/like`);
+    const headers = userId != null ? { "X-USER-ID": String(userId) } : {};
+    return axiosInstance.delete(`/api/galleries/${galleryId}/like`, { headers });
+  },
+
+  // =========================
+  // 사용자 API (회원 갤러리 작성/수정/삭제 — 로그인 필요)
+  // =========================
+
+  // POST /api/galleries/image/upload — 갤러리 이미지 1장 업로드 (로컬 디스크 저장), publicPath 반환
+  uploadImage: (file) => {
+    if (!file || !(file instanceof File))
+      throw new Error("galleryApi.uploadImage: file is required");
+    const formData = new FormData();
+    formData.append("file", file);
+    // Content-Type 제거 — FormData 면 boundary 포함 multipart/form-data 로 보내짐 (axios 기본 json 덮어씀)
+    return axiosInstance.post("/api/galleries/image/upload", formData, {
+      headers: { "Content-Type": undefined },
+    });
+  },
+
+  // POST /api/galleries — 회원 갤러리 작성 (서버에서 user_id 설정)
+  createByUser: (payload) => {
+    if (!payload || payload.eventId == null)
+      throw new Error("galleryApi.createByUser: payload.eventId is required");
+    if (!payload?.title?.trim())
+      throw new Error("galleryApi.createByUser: payload.title is required");
+    return axiosInstance.post("/api/galleries", {
+      eventId: payload.eventId,
+      title: payload.title,
+      description: payload.description ?? "",
+      imageUrls: payload.imageUrls ?? [],
+    });
+  },
+
+  // PATCH /api/galleries/{galleryId} — 수정 (작성자 본인 또는 관리자)
+  updateOne: (galleryId, payload) => {
+    if (galleryId == null)
+      throw new Error("galleryApi.updateOne: galleryId is required");
+    return axiosInstance.patch(`/api/galleries/${galleryId}`, {
+      title: payload?.title ?? "",
+      description: payload?.description ?? "",
+    });
+  },
+
+  // DELETE /api/galleries/{galleryId} — 삭제/소프트삭제 (작성자 본인 또는 관리자)
+  deleteOne: (galleryId) => {
+    if (galleryId == null)
+      throw new Error("galleryApi.deleteOne: galleryId is required");
+    return axiosInstance.delete(`/api/galleries/${galleryId}`);
   },
 
   // =========================

@@ -42,4 +42,16 @@ public class StorageKeyGenerator {
             case QR -> "qr/" + contentId;
         };
     }
+
+    /**
+     * 갤러리 임시 업로드용 키 (files 테이블 없이 스토리지만 사용).
+     * gallery/temp/{userId}/{storedName}
+     */
+    public String generateKeyForGalleryTemp(Long userId, String originalFilename) {
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "userId is required for gallery temp upload");
+        }
+        String storedName = FileNameUtil.generateStoredName(originalFilename);
+        return "gallery/temp/" + userId + "/" + storedName;
+    }
 }
