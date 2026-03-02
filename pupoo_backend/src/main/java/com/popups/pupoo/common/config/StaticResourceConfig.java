@@ -21,7 +21,7 @@ import java.nio.file.Paths;
  * - Nginx가 /static/** 를 서빙하도록 설정 (alias)
  */
 @Configuration
-@Profile({"local", "dev"})
+@Profile({"default", "local", "dev"})
 public class StaticResourceConfig implements WebMvcConfigurer {
 
     @Value("${storage.base-path:./uploads}")
