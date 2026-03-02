@@ -28,6 +28,12 @@ public class ProgramApply {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Column(name = "pet_id")
+    private Long petId;
+
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private ApplyStatus status;
@@ -73,10 +79,12 @@ public class ProgramApply {
     @Column(name = "active_flag", insertable = false, updatable = false)
     private Byte activeFlag;
 
-    public static ProgramApply create(Long userId, Long programId) {
+    public static ProgramApply create(Long userId, Long programId, Long petId, String imageUrl) {
         return ProgramApply.builder()
                 .userId(userId)
                 .programId(programId)
+                .petId(petId)
+                .imageUrl(imageUrl)
                 .status(ApplyStatus.APPLIED)
                 .ticketNo(null)
                 .etaMin(null)

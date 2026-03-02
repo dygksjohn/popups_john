@@ -51,7 +51,10 @@ export const authApi = {
 
   refresh: async (config) => {
     // refresh는 보통 payload 없음
-    const res = await axiosInstance.post("/api/auth/refresh", null, config);
+    const res = await axiosInstance.post("/api/auth/refresh", null, {
+      withCredentials: true,
+      ...(config || {}),
+    });
     return unwrap(res.data);
   },
 

@@ -15,6 +15,10 @@ public class ProgramApplyResponse {
     private Long programApplyId;
     private Long programId;
     private Long userId;
+    private Long petId;
+    private String petName;
+    private String ownerNickname;
+    private String imageUrl;
 
     private ApplyStatus status;
 
@@ -37,6 +41,54 @@ public class ProgramApplyResponse {
                 .programApplyId(a.getProgramApplyId())
                 .programId(a.getProgramId())
                 .userId(a.getUserId())
+                .petId(a.getPetId())
+                .petName(null)
+                .ownerNickname(null)
+                .imageUrl(a.getImageUrl())
+                .status(a.getStatus())
+                .ticketNo(a.getTicketNo())
+                .etaMin(a.getEtaMin())
+                .notifiedAt(a.getNotifiedAt())
+                .checkedInAt(a.getCheckedInAt())
+                .createdAt(a.getCreatedAt())
+                .build();
+    }
+
+    public static ProgramApplyResponse from(ProgramApply a, String petName) {
+        if (a == null) {
+            throw new IllegalArgumentException("ProgramApply is null");
+        }
+
+        return ProgramApplyResponse.builder()
+                .programApplyId(a.getProgramApplyId())
+                .programId(a.getProgramId())
+                .userId(a.getUserId())
+                .petId(a.getPetId())
+                .petName(petName)
+                .ownerNickname(null)
+                .imageUrl(a.getImageUrl())
+                .status(a.getStatus())
+                .ticketNo(a.getTicketNo())
+                .etaMin(a.getEtaMin())
+                .notifiedAt(a.getNotifiedAt())
+                .checkedInAt(a.getCheckedInAt())
+                .createdAt(a.getCreatedAt())
+                .build();
+    }
+
+    public static ProgramApplyResponse from(ProgramApply a, String petName, String ownerNickname) {
+        if (a == null) {
+            throw new IllegalArgumentException("ProgramApply is null");
+        }
+
+        return ProgramApplyResponse.builder()
+                .programApplyId(a.getProgramApplyId())
+                .programId(a.getProgramId())
+                .userId(a.getUserId())
+                .petId(a.getPetId())
+                .petName(petName)
+                .ownerNickname(ownerNickname)
+                .imageUrl(a.getImageUrl())
                 .status(a.getStatus())
                 .ticketNo(a.getTicketNo())
                 .etaMin(a.getEtaMin())

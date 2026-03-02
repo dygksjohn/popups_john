@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Clock,
 } from "lucide-react";
+import { programApi } from "../../../app/http/programApi";
 import {
   useCountUp,
   useRefresh,
@@ -130,40 +131,25 @@ export const SUBTITLE_MAP = {
   "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 모니터링합니다",
 };
 
-const VOTES = {
-  best: {
-    title: "베스트 드레서 콘테스트",
-    total: 512,
-    status: "진행 중",
-    items: [
-      { name: "별이 (포메라니안)", votes: 184, color: "#8b5cf6" },
-      { name: "보리 (시바견)", votes: 147, color: "#a78bfa" },
-      { name: "하루 (말티즈)", votes: 98, color: "#c4b5fd" },
-      { name: "코코 (푸들)", votes: 53, color: "#ddd6fe" },
-      { name: "두부 (비숑)", votes: 30, color: "#ede9fe" },
-    ],
-  },
-  satisfaction: {
-    title: "행사 만족도 조사",
-    total: 389,
-    status: "진행 중",
-    items: [
-      { name: "매우 만족", votes: 212, color: "#10b981" },
-      { name: "만족", votes: 118, color: "#34d399" },
-      { name: "보통", votes: 41, color: "#fbbf24" },
-      { name: "불만족", votes: 18, color: "#f87171" },
-    ],
-  },
-};
+const CANDIDATE_COLORS = ["#8b5cf6", "#a78bfa", "#c4b5fd", "#ddd6fe", "#ede9fe", "#c084fc"];
 
-const RECENT_VOTES = [
-  { time: "14:31", name: "홍*동", choice: "별이 (포메라니안)" },
-  { time: "14:30", name: "이*연", choice: "보리 (시바견)" },
-  { time: "14:29", name: "김*수", choice: "하루 (말티즈)" },
-  { time: "14:27", name: "박*희", choice: "별이 (포메라니안)" },
-  { time: "14:26", name: "최*혁", choice: "코코 (푸들)" },
-  { time: "14:24", name: "정*아", choice: "별이 (포메라니안)" },
-];
+function parseDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function toContestStatus(item) {
+  if (item?.ongoing) return "진행 중";
+  if (item?.ended) return "종료";
+  if (item?.upcoming) return "예정";
+  const now = Date.now();
+  const s = parseDate(item?.startAt)?.getTime();
+  const e = parseDate(item?.endAt)?.getTime();
+  if (s && now < s) return "예정";
+  if (e && now > e) return "종료";
+  return "진행 중";
+}
 
 const OPINION_DATA = [
   { label: "프로그램 구성", pct: 88, color: "#8b5cf6" },
@@ -262,11 +248,14 @@ function AnimOpinionItem({ o, index }) {
   );
 }
 
-function VoteContent({ onNavigate }) {
-  const [activeVote, setActiveVote] = useState("best");
+function VoteContent({ onNavigate, eventId }) {
+  const [activeVote, setActiveVote] = useState(null);
+  const [contests, setContests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
   const { tick, lastUpdated } = useAutoRefresh(5000);
   const { spinning, refresh } = useRefresh(() => {}, 800);
-  const historyVisible = useStaggerIn(RECENT_VOTES.length, 80);
+  const historyVisible = useStaggerIn(6, 80);
   const [flashKey, setFlashKey] = useState(0);
   useEffect(() => {
     setFlashKey((k) => k + 1);
@@ -278,8 +267,104 @@ function VoteContent({ onNavigate }) {
     setTabKey((k) => k + 1);
   };
 
-  const data = VOTES[activeVote];
-  const maxVotes = data.items[0].votes;
+  useEffect(() => {
+    let mounted = true;
+    const loadVoteData = async () => {
+      if (!eventId) return;
+      setLoading(true);
+      setErrorMsg("");
+      try {
+        const programs = await programApi.getAllProgramsByEvent({
+          eventId: Number(eventId),
+          category: "CONTEST",
+          sort: "startAt,asc",
+        });
+
+        const mapped = await Promise.all(
+          (Array.isArray(programs) ? programs : []).map(async (program, pIdx) => {
+            const programId = Number(program?.programId);
+            const [voteRes, candRes] = await Promise.allSettled([
+              programApi.getContestVoteResult(programId),
+              programApi.getCandidates(programId, { page: 0, size: 200 }),
+            ]);
+
+            const voteData =
+              voteRes.status === "fulfilled" ? voteRes.value?.data?.data ?? {} : {};
+            const candidateRows =
+              candRes.status === "fulfilled"
+                ? candRes.value?.data?.data?.content ?? []
+                : [];
+
+            const nameByApplyId = new Map(
+              candidateRows.map((row) => [
+                Number(row?.programApplyId),
+                row?.petName || (row?.ticketNo ? `참가자 ${row.ticketNo}` : `참가자 #${row?.programApplyId}`),
+              ]),
+            );
+
+            const results = Array.isArray(voteData?.results) ? voteData.results : [];
+            const sorted = [...results].sort(
+              (a, b) => Number(b?.voteCount ?? 0) - Number(a?.voteCount ?? 0),
+            );
+
+            const items =
+              sorted.length > 0
+                ? sorted.map((r, idx) => ({
+                    name: nameByApplyId.get(Number(r?.programApplyId)) || `참가자 #${r?.programApplyId}`,
+                    votes: Number(r?.voteCount ?? 0),
+                    color: CANDIDATE_COLORS[idx % CANDIDATE_COLORS.length],
+                  }))
+                : candidateRows.map((row, idx) => ({
+                    name:
+                      row?.petName ||
+                      (row?.ticketNo ? `참가자 ${row.ticketNo}` : `참가자 #${row?.programApplyId}`),
+                    votes: 0,
+                    color: CANDIDATE_COLORS[idx % CANDIDATE_COLORS.length],
+                  }));
+
+            return {
+              key: `contest-${programId}`,
+              title: program?.programTitle || `콘테스트 #${programId}`,
+              status: toContestStatus(program),
+              total: Number(voteData?.totalVotes ?? 0),
+              participantCount: candidateRows.length,
+              items,
+              order: pIdx,
+            };
+          }),
+        );
+
+        if (!mounted) return;
+        setContests(mapped);
+        setActiveVote(mapped[0]?.key ?? null);
+      } catch (e) {
+        if (!mounted) return;
+        setErrorMsg(e?.response?.data?.message || e?.message || "투표 데이터를 불러오지 못했습니다.");
+        setContests([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    loadVoteData();
+    return () => {
+      mounted = false;
+    };
+  }, [eventId, tick]);
+
+  const data = contests.find((c) => c.key === activeVote) || null;
+  const maxVotes = data?.items?.[0]?.votes ?? 0;
+  const recentVotes = (data?.items || []).slice(0, 6).map((item, idx) => ({
+    time: lastUpdated?.split(" ").pop() || "--:--:--",
+    name: `집계 ${idx + 1}`,
+    choice: item.name,
+  }));
+  const totalParticipants = contests.reduce((acc, c) => acc + (c.participantCount || 0), 0);
+  const activeContestCount = contests.filter((c) => c.status === "진행 중").length;
+  const endedContestCount = contests.filter((c) => c.status === "종료").length;
+
+  if (loading) return <div className="vt-card-tag">투표 데이터를 불러오는 중...</div>;
+  if (!loading && errorMsg) return <div className="vt-card-tag">{errorMsg}</div>;
+  if (!loading && contests.length === 0) return <div className="vt-card-tag">표시할 콘테스트가 없습니다.</div>;
 
   return (
     <>
@@ -345,22 +430,22 @@ function VoteContent({ onNavigate }) {
       <div className="vt-stat-grid">
         {[
           {
-            label: "총 투표 참여",
-            rawValue: 512,
+            label: "총 참여자",
+            rawValue: totalParticipants,
             suffix: "명",
             icon: <Vote size={20} color="#8b5cf6" />,
             bg: "#f5f3ff",
           },
           {
             label: "진행 중 투표",
-            rawValue: 2,
+            rawValue: activeContestCount,
             suffix: "건",
             icon: <BarChart2 size={20} color="#4f46e5" />,
             bg: "#eef2ff",
           },
           {
             label: "완료된 투표",
-            rawValue: 1,
+            rawValue: endedContestCount,
             suffix: "건",
             icon: <CheckCircle2 size={20} color="#10b981" />,
             bg: "#ecfdf5",
@@ -372,11 +457,11 @@ function VoteContent({ onNavigate }) {
 
       {/* Tabs */}
       <div className="vt-tabs">
-        {Object.entries(VOTES).map(([key, v]) => (
+        {contests.map((v) => (
           <button
-            key={key}
-            className={`vt-tab${activeVote === key ? " active" : ""}`}
-            onClick={() => handleTabSwitch(key)}
+            key={v.key}
+            className={`vt-tab${activeVote === v.key ? " active" : ""}`}
+            onClick={() => handleTabSwitch(v.key)}
           >
             {v.title}
             <span className="vt-tab-badge">{v.status}</span>
@@ -402,15 +487,15 @@ function VoteContent({ onNavigate }) {
             </span>
           </div>
           <div className="vt-vote-list">
-            {data.items.map((item, i) => (
-              <AnimVoteItem
-                key={item.name}
-                item={item}
-                index={i}
-                total={data.total}
-                maxVotes={maxVotes}
-                isLeading={i === 0}
-              />
+              {(data?.items || []).map((item, i) => (
+                <AnimVoteItem
+                  key={item.name}
+                  item={item}
+                  index={i}
+                  total={data?.total || 1}
+                  maxVotes={maxVotes}
+                  isLeading={i === 0}
+                />
             ))}
           </div>
         </div>
@@ -451,14 +536,14 @@ function VoteContent({ onNavigate }) {
               </div>
             </div>
             <div className="vt-history-list">
-              {RECENT_VOTES.map((v, i) => (
+              {recentVotes.map((v, i) => (
                 <div
                   key={i}
                   className={`vt-history-item anim-slide-right ${historyVisible.includes(i) ? "visible" : ""}`}
                 >
                   <div className="vt-history-dot" />
                   <span className="vt-history-time">{v.time}</span>
-                  <span className="vt-history-name">{v.name}님이</span>
+                    <span className="vt-history-name">{v.name}</span>
                   <span className="vt-history-choice">{v.choice}</span>
                   <span style={{ color: "#9ca3af", fontSize: 12 }}>선택</span>
                 </div>
