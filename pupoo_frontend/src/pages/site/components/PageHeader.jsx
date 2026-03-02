@@ -55,6 +55,27 @@ export default function PageHeader({ title, subtitle, categories }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const programMatch = location.pathname.match(
+    /^\/program\/(?:all|schedule|experience|session|contest|booth)(?:\/([^/?#]+))?/,
+  );
+  const currentEventId = programMatch?.[1] || null;
+
+  const isProgramTabPath = (path) =>
+    /^\/program\/(?:all|schedule|experience|session|contest|booth)(?:\/[^/?#]+)?$/.test(
+      path,
+    );
+
+  const hasEventIdInPath = (path) =>
+    /^\/program\/(?:all|schedule|experience|session|contest|booth)\/[^/?#]+$/.test(
+      path,
+    );
+
+  const resolveTargetPath = (path) => {
+    if (!currentEventId) return path;
+    if (!isProgramTabPath(path)) return path;
+    if (hasEventIdInPath(path)) return path;
+    return `${path}/${currentEventId}`;
+  };
 
   return (
     <div style={styles.pageHeader}>
@@ -65,7 +86,8 @@ export default function PageHeader({ title, subtitle, categories }) {
         {categories && categories.length > 0 && (
           <div style={styles.tabs}>
             {categories.map((cat, i) => {
-              const isActive = location.pathname === cat.path;
+              const targetPath = resolveTargetPath(cat.path);
+              const isActive = location.pathname === targetPath;
               const isHovered = hoveredIdx === i;
 
               let btnStyle = { ...styles.tabBase };
@@ -81,7 +103,7 @@ export default function PageHeader({ title, subtitle, categories }) {
                 <button
                   key={cat.path}
                   style={btnStyle}
-                  onClick={() => navigate(cat.path)}
+                  onClick={() => navigate(targetPath)}
                   onMouseEnter={() => setHoveredIdx(i)}
                   onMouseLeave={() => setHoveredIdx(null)}
                   aria-current={isActive ? "page" : undefined}
