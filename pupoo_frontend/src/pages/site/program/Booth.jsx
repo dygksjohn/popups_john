@@ -1,25 +1,20 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import EventSelectPage from "../components/EventSelectPage";
-import {
-  SERVICE_CATEGORIES,
-  SUBTITLE_MAP,
-  SAMPLE_EVENTS,
-} from "../constants/programConstants";
+import { SERVICE_CATEGORIES, SUBTITLE_MAP } from "../constants/programConstants";
+import { eventApi } from "../../../app/http/eventApi";
+import { boothApi } from "../../../app/http/boothApi";
 import {
   Store,
   MapPin,
   Users,
   Star,
-  Clock,
   Eye,
   ChevronRight,
-  Sparkles,
   TrendingUp,
   Heart,
 } from "lucide-react";
-
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
 
@@ -125,102 +120,61 @@ const styles = `
     .bt-stat-grid { grid-template-columns: 1fr 1fr; }
   }
 `;
+const STATUS_LABEL = {
+  open: "운영 중",
+  closed: "운영 종료",
+  full: "혼잡",
+};
 
-const BOOTH_DATA = [
-  {
-    name: "멍멍이 간식 체험",
-    zone: "A-01",
-    visitors: 128,
-    capacity: 20,
-    status: "open",
-    bg: "#eff4ff",
-    color: "#1a4fd6",
-    popular: true,
-  },
-  {
-    name: "반려견 건강 상담",
-    zone: "A-02",
-    visitors: 95,
-    capacity: 15,
-    status: "open",
-    bg: "#ecfdf5",
-    color: "#10b981",
-    popular: true,
-  },
-  {
-    name: "펫 포토 스튜디오",
-    zone: "A-03",
-    visitors: 87,
-    capacity: 10,
-    status: "full",
-    bg: "#fef3c7",
-    color: "#d97706",
-    popular: false,
-  },
-  {
-    name: "수제 사료 시식",
-    zone: "B-01",
-    visitors: 72,
-    capacity: 20,
-    status: "open",
-    bg: "#fce7f3",
-    color: "#ec4899",
-    popular: false,
-  },
-  {
-    name: "반려동물 미용 시연",
-    zone: "B-02",
-    visitors: 65,
-    capacity: 8,
-    status: "full",
-    bg: "#f5f3ff",
-    color: "#8b5cf6",
-    popular: false,
-  },
-  {
-    name: "펫 용품 할인관",
-    zone: "C-01",
-    visitors: 110,
-    capacity: 30,
-    status: "open",
-    bg: "#fff7ed",
-    color: "#f59e0b",
-    popular: true,
-  },
-  {
-    name: "입양 상담 부스",
-    zone: "C-02",
-    visitors: 43,
-    capacity: 10,
-    status: "open",
-    bg: "#f0fdf4",
-    color: "#16a34a",
-    popular: false,
-  },
-  {
-    name: "동물 행동학 강연",
-    zone: "D-01",
-    visitors: 38,
-    capacity: 50,
-    status: "closed",
-    bg: "#f1f5f9",
-    color: "#64748b",
-    popular: false,
-  },
+const BOOTH_COLORS = [
+  { bg: "#eff4ff", color: "#1a4fd6" },
+  { bg: "#ecfdf5", color: "#10b981" },
+  { bg: "#fef3c7", color: "#d97706" },
+  { bg: "#fce7f3", color: "#ec4899" },
+  { bg: "#f5f3ff", color: "#8b5cf6" },
+  { bg: "#fff7ed", color: "#f59e0b" },
 ];
 
-const TOP_BOOTHS = [
-  { name: "멍멍이 간식 체험", visitors: 128 },
-  { name: "펫 용품 할인관", visitors: 110 },
-  { name: "반려견 건강 상담", visitors: 95 },
-  { name: "펫 포토 스튜디오", visitors: 87 },
-  { name: "수제 사료 시식", visitors: 72 },
-];
+function formatDateRange(startAt, endAt) {
+  const pick = (v) => {
+    const m = String(v ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[1]}.${m[2]}.${m[3]}` : "";
+  };
+  const a = pick(startAt);
+  const b = pick(endAt);
+  if (a && b) return `${a} ~ ${b}`;
+  return a || b || "일정 미정";
+}
 
-const STATUS_LABEL = { open: "운영 중", closed: "운영 종료", full: "만석" };
-const maxVisitors = Math.max(...TOP_BOOTHS.map((b) => b.visitors));
+function toEventStatus(rawStatus, startAt, endAt) {
+  const raw = String(rawStatus ?? "").toUpperCase();
+  if (raw.includes("ONGOING") || raw.includes("LIVE")) return "live";
+  if (raw.includes("END")) return "ended";
+  const now = Date.now();
+  const s = startAt ? new Date(startAt).getTime() : null;
+  const e = endAt ? new Date(endAt).getTime() : null;
+  if (s && now < s) return "upcoming";
+  if (e && now > e) return "ended";
+  return "upcoming";
+}
 
-function BoothContent() {
+function normalizeBoothStatus(raw) {
+  const v = String(raw ?? "").toUpperCase();
+  if (v.includes("CLOSE") || v.includes("END")) return "closed";
+  if (v.includes("FULL") || v.includes("WAIT")) return "full";
+  return "open";
+}
+
+function BoothContent({ booths, loading, errorMsg }) {
+  const topBooths = useMemo(
+    () => [...booths].sort((a, b) => (b.visitors || 0) - (a.visitors || 0)).slice(0, 5),
+    [booths],
+  );
+  const maxVisitors = Math.max(1, ...topBooths.map((b) => b.visitors || 0));
+  const openCount = booths.filter((b) => b.status === "open").length;
+  const totalVisitors = booths.reduce((sum, b) => sum + (b.visitors || 0), 0);
+  const popularCount = topBooths.slice(0, 3).length;
+
   return (
     <>
       <div className="bt-live-badge">
@@ -232,25 +186,25 @@ function BoothContent() {
         {[
           {
             label: "전체 부스",
-            value: "24개",
+            value: `${booths.length}개`,
             icon: <Store size={20} color="#1a4fd6" />,
             bg: "#eff4ff",
           },
           {
             label: "운영 중",
-            value: "18개",
+            value: `${openCount}개`,
             icon: <Eye size={20} color="#10b981" />,
             bg: "#ecfdf5",
           },
           {
             label: "총 방문자",
-            value: "638명",
+            value: `${totalVisitors}명`,
             icon: <Users size={20} color="#f59e0b" />,
             bg: "#fffbeb",
           },
           {
             label: "인기 부스",
-            value: "3곳",
+            value: `${popularCount}개`,
             icon: <Star size={20} color="#ec4899" />,
             bg: "#fce7f3",
           },
@@ -268,7 +222,6 @@ function BoothContent() {
       </div>
 
       <div className="bt-main-grid">
-        {/* Left: Booth list */}
         <div className="bt-card">
           <div className="bt-card-header">
             <div className="bt-card-title">
@@ -277,47 +230,44 @@ function BoothContent() {
               </div>
               부스 목록
             </div>
-            <span className="bt-card-tag">총 {BOOTH_DATA.length}개</span>
+            <span className="bt-card-tag">총 {booths.length}개</span>
           </div>
-          <div className="bt-booth-list">
-            {BOOTH_DATA.map((b) => (
-              <div
-                key={b.zone}
-                className={`bt-booth-item${b.popular ? " popular" : ""}`}
-              >
-                <div className="bt-booth-icon" style={{ background: b.bg }}>
-                  <Store size={20} color={b.color} />
-                </div>
-                <div className="bt-booth-info">
-                  <div className="bt-booth-name">
-                    {b.name}
-                    {b.popular && (
-                      <Heart size={12} color="#ef4444" fill="#ef4444" />
-                    )}
+
+          {loading ? <div className="bt-card-tag">로딩 중...</div> : null}
+          {!loading && errorMsg ? <div className="bt-card-tag">{errorMsg}</div> : null}
+          {!loading && !errorMsg && booths.length === 0 ? (
+            <div className="bt-card-tag">표시할 부스가 없습니다.</div>
+          ) : null}
+
+          {!loading && !errorMsg && booths.length > 0 ? (
+            <div className="bt-booth-list">
+              {booths.map((b) => (
+                <div key={b.zone + b.name} className={`bt-booth-item${b.popular ? " popular" : ""}`}>
+                  <div className="bt-booth-icon" style={{ background: b.bg }}>
+                    <Store size={20} color={b.color} />
                   </div>
-                  <div className="bt-booth-sub">
-                    <span
-                      style={{ display: "flex", alignItems: "center", gap: 3 }}
-                    >
-                      <MapPin size={11} /> {b.zone}
-                    </span>
-                    <span
-                      style={{ display: "flex", alignItems: "center", gap: 3 }}
-                    >
-                      <Users size={11} /> {b.visitors}명 방문
-                    </span>
+                  <div className="bt-booth-info">
+                    <div className="bt-booth-name">
+                      {b.name}
+                      {b.popular ? <Heart size={12} color="#ef4444" fill="#ef4444" /> : null}
+                    </div>
+                    <div className="bt-booth-sub">
+                      <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                        <MapPin size={11} /> {b.zone}
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                        <Users size={11} /> {b.visitors}명 방문
+                      </span>
+                    </div>
                   </div>
+                  <span className={`bt-booth-badge ${b.status}`}>{STATUS_LABEL[b.status]}</span>
+                  <ChevronRight size={16} className="bt-booth-arrow" />
                 </div>
-                <span className={`bt-booth-badge ${b.status}`}>
-                  {STATUS_LABEL[b.status]}
-                </span>
-                <ChevronRight size={16} className="bt-booth-arrow" />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : null}
         </div>
 
-        {/* Right: Map + Ranking */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="bt-card">
             <div className="bt-card-header">
@@ -327,7 +277,7 @@ function BoothContent() {
                 </div>
                 부스 배치도
               </div>
-              <span className="bt-card-tag">1층 전시관</span>
+              <span className="bt-card-tag">행사장</span>
             </div>
             <div className="bt-floor-map">
               <MapPin size={32} color="#9ca3af" />
@@ -346,17 +296,12 @@ function BoothContent() {
               <span className="bt-card-tag">방문자 기준</span>
             </div>
             <div className="bt-rank-list">
-              {TOP_BOOTHS.map((b, i) => (
-                <div key={b.name} className="bt-rank-item">
-                  <div className={`bt-rank-num${i < 3 ? " top" : ""}`}>
-                    {i + 1}
-                  </div>
+              {topBooths.map((b, i) => (
+                <div key={b.name + i} className="bt-rank-item">
+                  <div className={`bt-rank-num${i < 3 ? " top" : ""}`}>{i + 1}</div>
                   <span className="bt-rank-name">{b.name}</span>
                   <div className="bt-rank-bar-bg">
-                    <div
-                      className="bt-rank-bar"
-                      style={{ width: `${(b.visitors / maxVisitors) * 100}%` }}
-                    />
+                    <div className="bt-rank-bar" style={{ width: `${(b.visitors / maxVisitors) * 100}%` }} />
                   </div>
                   <span className="bt-rank-visitors">{b.visitors}명</span>
                 </div>
@@ -373,8 +318,93 @@ export default function Booth() {
   const navigate = useNavigate();
   const { eventId } = useParams();
   const currentPath = "/program/booth";
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [booths, setBooths] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  // eventId 없으면 → 행사 선택 화면
+  useEffect(() => {
+    if (eventId) return;
+    let mounted = true;
+    const load = async () => {
+      setEventsLoading(true);
+      try {
+        const res = await eventApi.getEvents({ page: 0, size: 200, sort: "startAt,desc" });
+        if (!mounted) return;
+        const list = Array.isArray(res?.data?.data?.content) ? res.data.data.content : [];
+        setEvents(
+          list.map((evt) => ({
+            id: evt?.eventId,
+            name: evt?.eventName ?? "행사",
+            description: evt?.description ?? "",
+            date: formatDateRange(evt?.startAt, evt?.endAt),
+            location: evt?.location ?? "장소 미정",
+            organizer: evt?.eventName ?? "주최 정보 없음",
+            status: toEventStatus(evt?.status, evt?.startAt, evt?.endAt),
+            participants: 0,
+            thumbnail: null,
+            color: "#1a4fd6",
+          })),
+        );
+      } catch {
+        if (!mounted) return;
+        setEvents([]);
+      } finally {
+        if (mounted) setEventsLoading(false);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [eventId]);
+
+  useEffect(() => {
+    if (!eventId) return;
+    let mounted = true;
+    const load = async () => {
+      setLoading(true);
+      setErrorMsg("");
+      try {
+        const res = await boothApi.getEventBooths({
+          eventId: Number(eventId),
+          page: 0,
+          size: 200,
+          sort: "boothId,asc",
+        });
+        if (!mounted) return;
+        const content = Array.isArray(res?.data?.data?.content) ? res.data.data.content : [];
+        const mapped = content.map((item, idx) => {
+          const color = BOOTH_COLORS[idx % BOOTH_COLORS.length];
+          const visitors = Number(item?.visitorCount ?? item?.visitCount ?? item?.waitCount ?? 0);
+          return {
+            name: item?.boothName ?? item?.placeName ?? `부스 ${item?.boothId ?? idx + 1}`,
+            zone: item?.zone ?? item?.location ?? item?.placeName ?? `#${item?.boothId ?? idx + 1}`,
+            visitors: Number.isFinite(visitors) ? visitors : 0,
+            status: normalizeBoothStatus(item?.status),
+            bg: color.bg,
+            color: color.color,
+          };
+        });
+        const popularNames = new Set(
+          [...mapped].sort((a, b) => b.visitors - a.visitors).slice(0, 3).map((b) => b.name),
+        );
+        setBooths(mapped.map((b) => ({ ...b, popular: popularNames.has(b.name) })));
+      } catch (e) {
+        if (!mounted) return;
+        setBooths([]);
+        setErrorMsg(e?.response?.data?.message || e?.message || "부스 데이터를 불러오지 못했습니다.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [eventId]);
+
   if (!eventId) {
     return (
       <div className="bt-root">
@@ -386,12 +416,16 @@ export default function Booth() {
           currentPath={currentPath}
           onNavigate={(path) => navigate(path)}
         />
-        <EventSelectPage events={SAMPLE_EVENTS} basePath="/program/booth" />
+        <EventSelectPage events={events} basePath="/program/booth" />
+        {eventsLoading ? (
+          <main className="bt-container">
+            <div className="bt-card-tag">행사 목록 불러오는 중...</div>
+          </main>
+        ) : null}
       </div>
     );
   }
 
-  // eventId 있으면 → 기존 부스 상세 화면
   return (
     <div className="bt-root">
       <style>{styles}</style>
@@ -403,7 +437,7 @@ export default function Booth() {
         onNavigate={(path) => navigate(path)}
       />
       <main className="bt-container">
-        <BoothContent />
+        <BoothContent booths={booths} loading={loading} errorMsg={errorMsg} />
       </main>
     </div>
   );

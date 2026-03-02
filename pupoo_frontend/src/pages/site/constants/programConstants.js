@@ -1,13 +1,10 @@
-/* ─────────────────────────────────────────
-   공용 프로그램 상수
-   모든 program 페이지에서 import해서 사용
-   추후 백엔드 API로 교체
-───────────────────────────────────────── */
+﻿/* 공용 프로그램 상수 */
 
 export const SERVICE_CATEGORIES = [
+  { label: "프로그램 일정", path: "/program/all" },
+  { label: "전체 프로그램", path: "/program/schedule" },
   { label: "체험존 안내", path: "/program/experience" },
-  { label: "세션 · 강연", path: "/program/session" },
-  { label: "프로그램 안내", path: "/program/schedule" },
+  { label: "세션강연", path: "/program/session" },
   { label: "콘테스트 안내", path: "/program/contest" },
   { label: "부스 안내", path: "/program/booth" },
 ];
@@ -20,10 +17,6 @@ export const SUBTITLE_MAP = {
   "/program/booth": "부스 운영 현황을 한눈에 살펴보세요",
 };
 
-/* ─────────────────────────────────────────
-   샘플 행사 데이터 (추후 백엔드 API로 교체)
-   ※ thumbnail 필드 필수!
-───────────────────────────────────────── */
 export const SAMPLE_EVENTS = [
   {
     id: "pet-festa-2025",
