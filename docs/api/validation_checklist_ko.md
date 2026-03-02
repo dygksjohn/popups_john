@@ -16,8 +16,7 @@
 ## 1) DB/스키마 정합성
 1. 백엔드 부팅 로그에서 `ddl-auto=validate` 관련 스키마 오류가 없는지 확인
 2. 최신 SQL만 유지되는지 확인:
-   - `pupoo_backend/src/main/resources/data/pupoo_db_v5_final.sql`
-   - `pupoo_backend/src/main/resources/data/pupoo_seed_v5_final.sql`
+   - `pupoo_backend/src/main/resources/data/pupoo_db_v5.3.sql` (스키마 + 시드 포함)
 
 ## 2) API 1:1 매칭 검증
 1. 루트에서 `node tools_api_audit.mjs` 실행

@@ -7,13 +7,9 @@
 ```powershell
 & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -upupoo -ppupoo1234! -e "CREATE DATABASE IF NOT EXISTS pupoodb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
-2. 최종 스키마 import
+2. 최종 SQL(v5.3, 스키마+시드 포함) import
 ```powershell
-& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -upupoo -ppupoo1234! pupoodb -e "source C:/pupoo_workspace/integration_all_worktree/pupoo_backend/src/main/resources/data/pupoo_db_v5_final.sql"
-```
-3. 최종 시드 import
-```powershell
-& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -upupoo -ppupoo1234! pupoodb -e "source C:/pupoo_workspace/integration_all_worktree/pupoo_backend/src/main/resources/data/pupoo_seed_v5_final.sql"
+& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -upupoo -ppupoo1234! pupoodb -e "source C:/pupoo_workspace/integration_all_worktree/pupoo_backend/src/main/resources/data/pupoo_db_v5.3.sql"
 ```
 
 ### 1-2. 백엔드 검증
@@ -33,8 +29,7 @@ npm run build
 ## 2) 체크리스트 결과
 
 ### DB
-- [완료] `pupoo_db_v5_final.sql` import 성공
-- [완료] `pupoo_seed_v5_final.sql` import 성공
+- [완료] `pupoo_db_v5.3.sql` import 성공
 
 ### Backend
 - [완료] `clean compileJava` 성공

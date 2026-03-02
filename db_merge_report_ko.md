@@ -1,46 +1,29 @@
 # DB 병합 보고서 (db_merge_report_ko)
 
-## 1) SQL 파일 탐색 결과
+## 1) SQL 파일 현황
 경로: `pupoo_backend/src/main/resources/data/`
-- `pupoo_db_v5.1.sql`
-- `pupoo_db_v5.2.sql`
-- `pupoo_seed_v5.2.sql`
-- `pupoo_db_v5_final.sql` (신규)
-- `pupoo_seed_v5_final.sql` (신규)
+- `pupoo_db_v5.1.sql` (레거시)
+- `pupoo_db_v5.3.sql` (최신 SSOT)
 
-## 2) v5.1 vs v5.2 비교 결과
-### 스키마(테이블/컬럼/타입/인덱스/제약)
-- v5.1 테이블 수: 47
-- v5.2 테이블 수: 48
-- 공통 테이블 정의 비교: 의미상 동일(컬럼/타입/PK/FK/UK/인덱스 차이 없음)
-- v5.2 신규 테이블: `event_images`
-
-### 시드 데이터 구조
-- v5.1: `pupoo_db_v5.1.sql` 내부에 INSERT가 포함된 구조(스키마+시드 혼합)
-- v5.2: 스키마(`pupoo_db_v5.2.sql`)와 시드(`pupoo_seed_v5.2.sql`) 분리 구조
-
-## 3) 최종 SSOT 결정
-- 최종 스키마: `pupoo_db_v5_final.sql` (v5.2 기반)
-- 최종 시드: `pupoo_seed_v5_final.sql` (v5.2 seed 기반)
+## 2) 최종 SSOT 결정
+- 최종 DB 기준: `pupoo_db_v5.3.sql`
+- 특징: 스키마 + 시드 데이터가 단일 파일에 포함됨
 
 결정 근거:
-1. `kw/testfinish` 기준에서 v5.2가 최신 구조
-2. v5.2가 v5.1 대비 확장(`event_images`)을 포함
-3. 시드 분리 방식이 운영/검증 절차에 더 일관적
+1. 저장소 내 최신 버전이 `v5.3`
+2. 런타임/검증 문서에서 `ddl-auto=validate` 기준과 일치하도록 단일 기준 유지 필요
+3. 배포/검증 시 파일 참조 혼선을 제거하기 위해 `v5_final`/`seed_v5_final` 분리 참조 제거
 
-## 4) 변경 매핑 표
-| 항목 | v5.1 | v5.2 | 최종(v5_final) | 사유 |
-|---|---|---|---|---|
-| 스키마 파일 | `pupoo_db_v5.1.sql` | `pupoo_db_v5.2.sql` | `pupoo_db_v5_final.sql`(v5.2) | 최신 기준 정합 |
-| 시드 파일 | db 파일에 일부 혼합 | `pupoo_seed_v5.2.sql` 분리 | `pupoo_seed_v5_final.sql`(v5.2 seed) | 배포/검증 절차 단순화 |
-| 신규 테이블 | 없음 | `event_images` 추가 | 유지 | 기능 확장 반영 |
+## 3) 운영 반영 사항
+- `docker-compose.yml` 초기화 SQL 참조를 `pupoo_db_v5.3.sql` 단일 파일로 변경
+- `docs/api/validation_checklist_ko.md` DB 검증 경로를 `pupoo_db_v5.3.sql`로 변경
+- `integration_validation_ko.md` import 절차를 `pupoo_db_v5.3.sql` 기준으로 변경
+- `POLICY_DEVIATIONS.md`의 시드 파일 표기를 `pupoo_db_v5.3.sql` 기준으로 정정
 
-## 5) Deprecated 처리
-삭제하지 않고 유지:
-- `pupoo_db_v5.1.sql` (Deprecated)
-- `pupoo_db_v5.2.sql` (Deprecated, 최종 파일로 승격 대체)
-- `pupoo_seed_v5.2.sql` (Deprecated, 최종 파일로 승격 대체)
+## 4) Deprecated 처리
+유지:
+- `pupoo_db_v5.1.sql` (레거시 참조용, 실행 기준 아님)
 
-## 6) 코드-스키마 정합
-- 최종 DB import 후 Spring Boot JPA 초기화 로그에서 EntityManagerFactory 생성 확인.
-- `ddl-auto=validate` 단계에서 스키마 불일치 오류는 발생하지 않음.
+## 5) 코드-스키마 정합성
+- 백엔드 테스트(`gradlew.bat test`) 기준 ApplicationContext 로딩 성공
+- 애플리케이션 기동 후 스모크 검증에서 `ddl-auto=validate` 관련 부팅 오류 미발생
