@@ -20,7 +20,20 @@ export const mypageApi = {
     return apiClient.get("/api/users/me/event-registrations", {
       ...options,
       params: { page, size },
-      fallbackMessage: "신청 행사 목록을 불러오지 못했습니다.",
+      fallbackMessage: "내 이벤트 신청 내역을 불러오지 못했습니다.",
+    });
+  },
+  getMyProgramApplies({ page = 0, size = 20 } = {}, options) {
+    return apiClient.get("/api/program-applies/my", {
+      ...options,
+      params: { page, size },
+      fallbackMessage: "프로그램 신청 내역을 불러오지 못했습니다.",
+    });
+  },
+  deleteMe(options) {
+    return apiClient.delete("/api/users/me", {
+      ...options,
+      fallbackMessage: "회원 탈퇴 처리에 실패했습니다.",
     });
   },
 };

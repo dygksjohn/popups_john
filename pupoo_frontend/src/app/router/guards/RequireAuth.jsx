@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../pages/site/auth/AuthProvider";
 
@@ -17,7 +17,13 @@ export default function RequireAuth({ children, role: requiredRole = null }) {
   }
 
   if (!isAuthed) {
-    return <Navigate to="/auth/login" replace state={{ from: location.pathname }} />;
+    return (
+      <Navigate
+        to="/auth/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+      />
+    );
   }
 
   if (requiredRole) {

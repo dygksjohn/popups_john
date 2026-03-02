@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./pages/site/auth/AuthProvider";
 import SiteLayout from "./layouts/SiteLayout";
-import ScrollToTop from "./ScrollToTop";
+import ScrollToTop from "./ScrolltoTop";
+import RequireAuth from "./app/router/guards/RequireAuth";
 
 /* admin */
 import Dashboard from "./pages/admin/dashboard/Dashboard";
@@ -16,7 +17,7 @@ import PastEvents from "./pages/admin/past/PastEvents";
 import ZoneManage from "./pages/admin/zone/zoneManage";
 import ContestManage from "./pages/admin/contest/contestManage";
 import SessionManage from "./pages/admin/session/sessionManage";
-import Reviews from "./pages/admin/board/reviews";
+import Reviews from "./pages/admin/board/Reviews";
 import GalleryManage from "./pages/admin/gallery/Gallery";
 import ParticipantList from "./pages/admin/participant/ParticipantList";
 
@@ -28,7 +29,7 @@ import Home from "./pages/site/home/Home";
 
 /* Auth */
 import Login from "./pages/site/auth/Login";
-import Mypage from "./pages/site/auth/mypage";
+import Mypage from "./pages/site/auth/Mypage";
 import MypageProfileEdit from "./pages/site/auth/MypageProfileEdit";
 import MypagePetEditor from "./pages/site/auth/MypagePetEditor";
 import MypageStorageUpload from "./pages/site/auth/MypageStorageUpload";
@@ -99,7 +100,7 @@ import EventSketch from "./pages/site/gallery/eventsketch";
 
 /* guide */
 import Operation from "./pages/site/guide/Operation";
-import LocationPage from "./pages/site/guide/location";
+import LocationPage from "./pages/site/guide/Location";
 import Timetable from "./pages/site/guide/Timetable";
 import CheckinStatus from "./pages/site/realtime/CheckinStatus";
 
@@ -133,8 +134,10 @@ function ComingSoon() {
 }
 
 function PublicOnly({ children }) {
-  const { isAuthed } = useAuth();
+  const { isAuthed, isBootstrapped } = useAuth();
   const location = useLocation();
+
+  if (!isBootstrapped) return null;
 
   if (isAuthed) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
@@ -181,19 +184,111 @@ export default function App() {
           {/* Home */}
           <Route path="/" element={<Home />} />
           {/* Auth */}
-          <Route path="/auth/login" element={<Login />} />
-          <Route path="/auth/mypage" element={<Mypage />} />
-          <Route path="/mypage" element={<Mypage />} />
-          <Route path="/auth/mypage/profile" element={<MypageProfileEdit />} />
-          <Route path="/mypage/profile" element={<MypageProfileEdit />} />
-          <Route path="/auth/mypage/pets/new" element={<MypagePetEditor />} />
-          <Route path="/mypage/pets/new" element={<MypagePetEditor />} />
-          <Route path="/auth/mypage/pets/:petId/edit" element={<MypagePetEditor />} />
-          <Route path="/mypage/pets/:petId/edit" element={<MypagePetEditor />} />
-          <Route path="/auth/mypage/storage" element={<MypageStorageUpload />} />
-          <Route path="/mypage/storage" element={<MypageStorageUpload />} />
-          <Route path="/auth/mypage/qr" element={<MypageQr />} />
-          <Route path="/mypage/qr" element={<MypageQr />} />
+          <Route
+            path="/auth/login"
+            element={
+              <PublicOnly>
+                <Login />
+              </PublicOnly>
+            }
+          />
+          <Route path="/login" element={<Navigate to="/auth/login" replace />} />
+          <Route
+            path="/auth/mypage"
+            element={
+              <RequireAuth>
+                <Mypage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/mypage"
+            element={
+              <RequireAuth>
+                <Mypage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/auth/mypage/profile"
+            element={
+              <RequireAuth>
+                <MypageProfileEdit />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/mypage/profile"
+            element={
+              <RequireAuth>
+                <MypageProfileEdit />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/auth/mypage/pets/new"
+            element={
+              <RequireAuth>
+                <MypagePetEditor />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/mypage/pets/new"
+            element={
+              <RequireAuth>
+                <MypagePetEditor />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/auth/mypage/pets/:petId/edit"
+            element={
+              <RequireAuth>
+                <MypagePetEditor />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/mypage/pets/:petId/edit"
+            element={
+              <RequireAuth>
+                <MypagePetEditor />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/auth/mypage/storage"
+            element={
+              <RequireAuth>
+                <MypageStorageUpload />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/mypage/storage"
+            element={
+              <RequireAuth>
+                <MypageStorageUpload />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/auth/mypage/qr"
+            element={
+              <RequireAuth>
+                <MypageQr />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/mypage/qr"
+            element={
+              <RequireAuth>
+                <MypageQr />
+              </RequireAuth>
+            }
+          />
           <Route
             path="/auth/join/joinselect"
             element={
