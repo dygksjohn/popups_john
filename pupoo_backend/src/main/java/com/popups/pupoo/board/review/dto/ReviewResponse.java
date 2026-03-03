@@ -19,6 +19,7 @@ public class ReviewResponse {
     private String writerEmail;
 
     private int rating;
+    private String reviewTitle;
     private String content;
 
     private int viewCount;
@@ -33,6 +34,7 @@ public class ReviewResponse {
                 .eventId(review.getEventId())
                 .userId(review.getUserId())
                 .rating(review.getRating())
+                .reviewTitle(review.getReviewTitle())
                 .content(review.getContent())
                 .viewCount(review.getViewCount())
                 .status(review.getReviewStatus())
@@ -49,6 +51,7 @@ public class ReviewResponse {
                 .userId(review.getUserId())
                 .writerEmail(writerEmail)
                 .rating(review.getRating())
+                .reviewTitle(review.getReviewTitle())
                 .content(review.getContent())
                 .viewCount(review.getViewCount())
                 .status(review.getReviewStatus())

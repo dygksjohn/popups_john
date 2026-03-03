@@ -17,6 +17,7 @@ import com.popups.pupoo.reply.dto.ReplyResponse;
 import com.popups.pupoo.reply.dto.ReplyUpdateRequest;
 import com.popups.pupoo.reply.persistence.PostCommentRepository;
 import com.popups.pupoo.reply.persistence.ReviewCommentRepository;
+import com.popups.pupoo.user.persistence.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -34,19 +35,27 @@ public class ReplyService {
     private final PostRepository postRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final UserRepository userRepository;
 
     public ReplyService(PostCommentRepository postCommentRepository,
                         ReviewCommentRepository reviewCommentRepository,
                         ReplyTargetValidator targetValidator,
                         PostRepository postRepository,
                         BoardRepository boardRepository,
-                        BannedWordService bannedWordService) {
+                        BannedWordService bannedWordService,
+                        UserRepository userRepository) {
         this.postCommentRepository = postCommentRepository;
         this.reviewCommentRepository = reviewCommentRepository;
         this.targetValidator = targetValidator;
         this.postRepository = postRepository;
         this.boardRepository = boardRepository;
         this.bannedWordService = bannedWordService;
+        this.userRepository = userRepository;
+    }
+
+    private String getWriterEmail(Long userId) {
+        if (userId == null) return null;
+        return userRepository.findById(userId).map(u -> u.getEmail()).orElse(null);
     }
 
     @Transactional
@@ -207,6 +216,7 @@ public class ReplyService {
                 .targetType(type)
                 .targetId(targetId)
                 .userId(c.getUserId())
+                .writerEmail(getWriterEmail(c.getUserId()))
                 .content(c.getContent())
                 .status(c.isDeleted() ? ReplyStatus.DELETED : ReplyStatus.ACTIVE)
                 .createdAt(c.getCreatedAt())
@@ -220,6 +230,7 @@ public class ReplyService {
                 .targetType(type)
                 .targetId(targetId)
                 .userId(c.getUserId())
+                .writerEmail(getWriterEmail(c.getUserId()))
                 .content(c.getContent())
                 .status(c.isDeleted() ? ReplyStatus.DELETED : ReplyStatus.ACTIVE)
                 .createdAt(c.getCreatedAt())

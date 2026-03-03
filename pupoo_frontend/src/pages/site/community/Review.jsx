@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import PageHeader from "../components/PageHeader";
-import { Search, Loader2, ChevronLeft, ChevronRight, X, Star } from "lucide-react";
+import { Search, Loader2, ChevronLeft, ChevronRight, ChevronDown, Star } from "lucide-react";
 import { reviewApi } from "../../../app/http/reviewApi";
+import { replyApi } from "../../../app/http/replyApi";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 
 const PAGE_SIZE = 10;
@@ -12,7 +13,10 @@ function fmtDate(dt) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function getReviewTitle(item) {
+/** DB review_title 우선, 없으면 content 첫 줄로 제목 추출 */
+function getDisplayTitle(item) {
+  const t = item?.reviewTitle ?? item?.review_title ?? "";
+  if (t && String(t).trim()) return String(t).trim();
   const firstLine = String(item?.content || "")
     .split("\n")
     .map((line) => line.trim())
@@ -41,124 +45,6 @@ function maskWriterEmail(email) {
   return (first2 + "***").slice(0, 5);
 }
 
-function DetailModal({ item, onClose }) {
-  if (!item) return null;
-
-  return (
-    <>
-      <style>{`
-        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-      `}</style>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 5000,
-          background: "rgba(0,0,0,0.4)",
-          backdropFilter: "blur(4px)",
-          animation: "fadeIn .15s ease",
-        }}
-      />
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          zIndex: 5001,
-          background: "#fff",
-          borderRadius: 16,
-          width: "90%",
-          maxWidth: 760,
-          maxHeight: "85vh",
-          overflow: "auto",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
-          animation: "fadeIn .15s ease",
-        }}
-      >
-        <div
-          style={{
-            padding: "24px 28px 0",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
-        >
-          <div style={{ flex: 1, paddingRight: 16 }}>
-            <span style={getBoardBadge("REVIEW").style}>{getBoardBadge("REVIEW").text}</span>
-            <h2
-              style={{
-                fontSize: 20,
-                fontWeight: 800,
-                color: "#1E293B",
-                margin: "10px 0 0",
-                lineHeight: 1.4,
-              }}
-            >
-              {getReviewTitle(item)}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <X size={16} color="#94A3B8" />
-          </button>
-        </div>
-
-        <div
-          style={{
-            padding: "10px 28px 0",
-            display: "flex",
-            gap: 16,
-            flexWrap: "wrap",
-            fontSize: 13,
-            color: "#94A3B8",
-          }}
-        >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
-            {renderStars(item.rating || 0)}
-          </span>
-          <span>작성일 {fmtDate(item.createdAt)}</span>
-          <span>조회수 {item.viewCount ?? 0}</span>
-          <span>
-            행사 {item.eventName ?? item.event_name ?? (item.eventId ? `#${item.eventId}` : "-")}
-          </span>
-        </div>
-
-        <div style={{ margin: "16px 28px", borderBottom: "1px solid #E2E8F0" }} />
-
-        <div style={{ padding: "0 28px 28px" }}>
-          <p
-            style={{
-              fontSize: 15,
-              color: "#334155",
-              lineHeight: 1.75,
-              whiteSpace: "pre-wrap",
-              margin: 0,
-            }}
-          >
-            {item.content || "내용이 없습니다."}
-          </p>
-        </div>
-      </div>
-    </>
-  );
-}
-
 export default function Review() {
   const [search, setSearch] = useState("");
   const [currentPath, setCurrentPath] = useState("/community/review");
@@ -169,7 +55,27 @@ export default function Review() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const [selected, setSelected] = useState(null);
+  const [openReplies, setOpenReplies] = useState({});
+  const [commentCache, setCommentCache] = useState({});
+  const [commentLoadingId, setCommentLoadingId] = useState(null);
+
+  const toggleReply = async (reviewId) => {
+    const nextOpen = !openReplies[reviewId];
+    setOpenReplies((prev) => ({ ...prev, [reviewId]: nextOpen }));
+    if (nextOpen && !commentCache[reviewId]) {
+      setCommentLoadingId(reviewId);
+      try {
+        const res = await replyApi.list("REVIEW", reviewId, 0, 50);
+        const list = res?.content ?? [];
+        setCommentCache((prev) => ({ ...prev, [reviewId]: list }));
+      } catch (e) {
+        console.error("[Review] comments fetch failed:", e);
+        setCommentCache((prev) => ({ ...prev, [reviewId]: [] }));
+      } finally {
+        setCommentLoadingId(null);
+      }
+    }
+  };
 
   const fetchList = useCallback(async (p = 1) => {
     setLoading(true);
@@ -196,7 +102,7 @@ export default function Review() {
   const filtered = items.filter((item) => {
     if (!search.trim()) return true;
     const q = search.trim();
-    return getReviewTitle(item).includes(q) || (item.content || "").includes(q);
+    return getDisplayTitle(item).includes(q) || (item.content || "").includes(q);
   });
 
   const badge = getBoardBadge("REVIEW");
@@ -211,7 +117,7 @@ export default function Review() {
         onNavigate={setCurrentPath}
       />
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes expandIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <main
         style={{
           maxWidth: "1400px",
@@ -314,74 +220,124 @@ export default function Review() {
           <>
             <div>
               {filtered.map((item) => (
-                <div
-                  key={item.reviewId}
-                  onClick={() => setSelected(item)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "18px 6px",
-                    borderBottom: "1px solid #e8e8e8",
-                    cursor: "pointer",
-                    transition: "background 0.15s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f9f9f9")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <span style={{ ...badge.style, marginRight: 12 }}>{badge.text}</span>
-                  <span
+                <div key={item.reviewId} style={{ borderBottom: "1px solid #e8e8e8" }}>
+                  <div
                     style={{
-                      fontSize: "13px",
-                      color: "#64748B",
-                      marginRight: 12,
-                      flexShrink: 0,
-                      maxWidth: 140,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "18px 4px",
+                      cursor: "pointer",
+                      transition: "background 0.15s",
+                      gap: "0",
                     }}
+                    onClick={() => toggleReply(item.reviewId)}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f9f9f9")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    {item.eventName ?? item.event_name ?? (item.eventId ? `행사 #${item.eventId}` : "-")}
-                  </span>
-                  <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500, minWidth: 0 }}>
-                    {getReviewTitle(item)}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "13px",
-                      color: "#999",
-                      whiteSpace: "nowrap",
-                      marginLeft: "12px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {maskWriterEmail(item.writerEmail ?? item.email)}
-                  </span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 2, marginLeft: "12px", flexShrink: 0 }}>
-                    {renderStars(item.rating || 0)}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "13px",
-                      color: "#999",
-                      whiteSpace: "nowrap",
-                      marginLeft: "12px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    작성일 {fmtDate(item.createdAt)}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "13px",
-                      color: "#999",
-                      whiteSpace: "nowrap",
-                      marginLeft: "12px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    조회수 {item.viewCount ?? 0}
-                  </span>
+                    <span style={{ ...badge.style, marginRight: 12 }}>{badge.text}</span>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        transition: "transform 0.2s ease",
+                        transform: openReplies[item.reviewId] ? "rotate(180deg)" : "rotate(0deg)",
+                        marginRight: 12,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <ChevronDown size={18} strokeWidth={2.5} color="#666" />
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        color: "#64748B",
+                        marginRight: 12,
+                        flexShrink: 0,
+                        maxWidth: 140,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.eventName ?? item.event_name ?? (item.eventId ? `행사 #${item.eventId}` : "-")}
+                    </span>
+                    <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 400, minWidth: 0 }}>
+                      {getDisplayTitle(item)}
+                    </span>
+                    <div
+                      style={{
+                        marginLeft: "auto",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", textAlign: "right" }}>
+                        {maskWriterEmail(item.writerEmail ?? item.email)}
+                      </span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 2, textAlign: "right" }}>
+                        {renderStars(item.rating || 0)}
+                      </span>
+                      <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", textAlign: "right" }}>
+                        작성일 {fmtDate(item.createdAt)}
+                      </span>
+                      <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", textAlign: "right" }}>
+                        조회수 {item.viewCount ?? 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  {openReplies[item.reviewId] && (
+                    <div
+                      style={{
+                        padding: "16px 20px",
+                        background: "#f7f9ff",
+                        borderTop: "1px dashed #dde6ff",
+                        animation: "expandIn .15s ease",
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: 14,
+                          color: "#334155",
+                          lineHeight: 1.7,
+                          whiteSpace: "pre-wrap",
+                          margin: "0 0 16px",
+                        }}
+                      >
+                        {item.content || "내용이 없습니다."}
+                      </p>
+                      {commentLoadingId === item.reviewId ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", fontSize: 13, color: "#64748B" }}>
+                          <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                          댓글 불러오는 중...
+                        </div>
+                      ) : (commentCache[item.reviewId]?.length > 0 ? (
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+                          {commentCache[item.reviewId].map((c) => (
+                            <div
+                              key={c.replyId}
+                              style={{
+                                marginBottom: 12,
+                                padding: "10px 12px",
+                                background: "#fff",
+                                borderRadius: 8,
+                                border: "1px solid #e2e8f0",
+                              }}
+                            >
+                              <p style={{ fontSize: 13, color: "#334155", lineHeight: 1.6, whiteSpace: "pre-wrap", margin: "0 0 8px" }}>
+                                {c.content}
+                              </p>
+                              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12, fontSize: 12, color: "#64748B" }}>
+                                <span style={{ textAlign: "right" }}>{maskWriterEmail(c.writerEmail ?? c.writer_email)}</span>
+                                <span style={{ textAlign: "right" }}>작성일 {fmtDate(c.createdAt ?? c.created_at)}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null)}
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -452,8 +408,6 @@ export default function Review() {
           </>
         )}
       </main>
-
-      <DetailModal item={selected} onClose={() => setSelected(null)} />
     </>
   );
 }
