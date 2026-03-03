@@ -802,23 +802,100 @@ export default function ServicePage() {
                     <div
                       style={{
                         padding: "16px 20px",
-                        background: "#f7f9ff",
-                        borderTop: "1px dashed #dde6ff",
+                        background: "#fff",
+                        borderRadius: 10,
+                        border: "1px solid #e2e8f0",
+                        margin: "4px 4px 16px",
                         animation: "expandIn .15s ease",
                       }}
                     >
-                      {/* 질문 내용 */}
-                      <p
+                      {/* 질문 내용 + 수정/삭제 오른쪽 배치 */}
+                      <div
                         style={{
-                          fontSize: 14,
-                          color: "#444",
-                          lineHeight: 1.6,
-                          margin: "0 0 16px",
-                          whiteSpace: "pre-wrap",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 16,
+                          marginBottom: q.answerContent ? 16 : 0,
                         }}
                       >
-                        {q.content}
-                      </p>
+                        <p
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            fontSize: 14,
+                            color: "#444",
+                            lineHeight: 1.6,
+                            margin: 0,
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {q.content}
+                        </p>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setWriteModal({ item: q });
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              padding: "6px 14px",
+                              borderRadius: 6,
+                              border: "1px solid #ddd",
+                              background: "#fff",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              color: "#555",
+                              fontFamily: "'Noto Sans KR', sans-serif",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background = "#f5f5f5")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = "#fff")
+                            }
+                          >
+                            <Pencil size={12} /> 수정
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteModal(q);
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              padding: "6px 14px",
+                              borderRadius: 6,
+                              border: "1px solid #fecaca",
+                              background: "#fef2f2",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              color: "#dc2626",
+                              fontFamily: "'Noto Sans KR', sans-serif",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background = "#fee2e2")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = "#fef2f2")
+                            }
+                          >
+                            <Trash2 size={12} /> 삭제
+                          </button>
+                        </div>
+                      </div>
 
                       {/* 운영자 답변 */}
                       {q.answerContent && (
@@ -828,7 +905,6 @@ export default function ServicePage() {
                             background: "#eef3ff",
                             borderRadius: 8,
                             borderLeft: "3px solid #4a7cf7",
-                            marginBottom: 16,
                           }}
                         >
                           <div
@@ -871,74 +947,6 @@ export default function ServicePage() {
                           </p>
                         </div>
                       )}
-
-                      {/* 수정/삭제 버튼 */}
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "flex-end",
-                          gap: 8,
-                          paddingTop: 8,
-                          borderTop: "1px solid #eef2ff",
-                        }}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setWriteModal({ item: q });
-                          }}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            padding: "6px 14px",
-                            borderRadius: 6,
-                            border: "1px solid #ddd",
-                            background: "#fff",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            color: "#555",
-                            fontFamily: "'Noto Sans KR', sans-serif",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#f5f5f5")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "#fff")
-                          }
-                        >
-                          <Pencil size={12} /> 수정
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteModal(q);
-                          }}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            padding: "6px 14px",
-                            borderRadius: 6,
-                            border: "1px solid #fecaca",
-                            background: "#fef2f2",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            color: "#dc2626",
-                            fontFamily: "'Noto Sans KR', sans-serif",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#fee2e2")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "#fef2f2")
-                          }
-                        >
-                          <Trash2 size={12} /> 삭제
-                        </button>
-                      </div>
                     </div>
                   )}
                 </div>

@@ -291,8 +291,10 @@ export default function Review() {
                     <div
                       style={{
                         padding: "16px 20px",
-                        background: "#f7f9ff",
-                        borderTop: "1px dashed #dde6ff",
+                        background: "#fff",
+                        borderRadius: 10,
+                        border: "1px solid #e2e8f0",
+                        margin: "4px 4px 16px",
                         animation: "expandIn .15s ease",
                       }}
                     >
@@ -313,24 +315,60 @@ export default function Review() {
                           댓글 불러오는 중...
                         </div>
                       ) : (commentCache[item.reviewId]?.length > 0 ? (
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+                        <div style={{ marginTop: 12, paddingTop: 8, borderTop: "1px solid #e2e8f0" }}>
                           {commentCache[item.reviewId].map((c) => (
                             <div
                               key={c.replyId}
                               style={{
-                                marginBottom: 12,
-                                padding: "10px 12px",
-                                background: "#fff",
-                                borderRadius: 8,
-                                border: "1px solid #e2e8f0",
+                                marginBottom: 8,
+                                fontSize: 13,
+                                color: "#334155",
                               }}
                             >
-                              <p style={{ fontSize: 13, color: "#334155", lineHeight: 1.6, whiteSpace: "pre-wrap", margin: "0 0 8px" }}>
-                                {c.content}
-                              </p>
-                              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12, fontSize: 12, color: "#64748B" }}>
-                                <span style={{ textAlign: "right" }}>{maskWriterEmail(c.writerEmail ?? c.writer_email)}</span>
-                                <span style={{ textAlign: "right" }}>작성일 {fmtDate(c.createdAt ?? c.created_at)}</span>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "flex-start",
+                                  justifyContent: "space-between",
+                                  gap: 8,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    gap: 6,
+                                    flex: 1,
+                                    minWidth: 0,
+                                    paddingLeft: "4ch",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      whiteSpace: "pre-wrap",
+                                      wordBreak: "break-word",
+                                    }}
+                                  >
+                                    {c.content}
+                                  </span>
+                                </div>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 10,
+                                    fontSize: 12,
+                                    color: "#94A3B8",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  <span style={{ textAlign: "right" }}>
+                                    {maskWriterEmail(c.writerEmail ?? c.writer_email)}
+                                  </span>
+                                  <span style={{ textAlign: "right" }}>
+                                    작성일 {fmtDate(c.createdAt ?? c.created_at)}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           ))}

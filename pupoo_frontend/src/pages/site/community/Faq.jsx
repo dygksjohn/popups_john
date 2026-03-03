@@ -281,8 +281,10 @@ export default function CommunityFaq() {
                     <div
                       style={{
                         padding: "16px 20px",
-                        background: "#f7f9ff",
-                        borderTop: "1px dashed #dde6ff",
+                        background: "#fff",
+                        borderRadius: 10,
+                        border: "1px solid #e2e8f0",
+                        margin: "4px 4px 16px",
                         animation: "expandIn .15s ease",
                       }}
                     >
