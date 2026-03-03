@@ -56,10 +56,6 @@ export default function CommunityFaq() {
       setOpenReplies((prev) => ({ ...prev, [postId]: false }));
       return;
     }
-    if (detailCache[postId]) {
-      setOpenReplies((prev) => ({ ...prev, [postId]: true }));
-      return;
-    }
     setDetailLoadingId(postId);
     try {
       const res = await axiosInstance.get(`/api/faqs/${postId}`);
@@ -74,6 +70,11 @@ export default function CommunityFaq() {
           createdAt: d.createdAt,
         },
       }));
+      setItems((prev) =>
+        prev.map((it) =>
+          it.postId === postId ? { ...it, viewCount: d.viewCount } : it,
+        ),
+      );
       setOpenReplies((prev) => ({ ...prev, [postId]: true }));
     } catch (e) {
       console.error("[Community FAQ] detail fetch failed:", e);

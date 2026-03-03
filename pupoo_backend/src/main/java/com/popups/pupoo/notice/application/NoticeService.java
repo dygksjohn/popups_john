@@ -24,7 +24,10 @@ public class NoticeService {
     private final NoticeRepository noticeRepository;
     private final EventRepository eventRepository;
 
+    @Transactional
     public NoticeResponse get(Long noticeId) {
+        noticeRepository.increaseViewCount(noticeId);
+
         // 공개 조회 정책: PUBLISHED만 조회 가능
         Notice notice = noticeRepository.findById(noticeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "공지사항이 존재하지 않습니다."));
@@ -114,6 +117,7 @@ public class NoticeService {
                 .status(n.getStatus())
                 .createdAt(n.getCreatedAt())
                 .updatedAt(n.getUpdatedAt())
+                .viewCount(n.getViewCount())
                 .build();
     }
 }

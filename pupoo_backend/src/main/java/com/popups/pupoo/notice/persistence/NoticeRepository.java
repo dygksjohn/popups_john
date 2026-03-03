@@ -6,6 +6,7 @@ import com.popups.pupoo.notice.domain.enums.NoticeStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -53,5 +54,13 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     Page<Notice> searchByTitleOrContent(@Param("status") NoticeStatus status,
                                        @Param("keyword") String keyword,
                                        Pageable pageable);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update Notice n
+        set n.viewCount = n.viewCount + 1
+        where n.noticeId = :noticeId
+        """)
+    int increaseViewCount(@Param("noticeId") Long noticeId);
 
 }

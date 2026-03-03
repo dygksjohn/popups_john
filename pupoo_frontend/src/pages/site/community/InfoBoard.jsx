@@ -161,6 +161,21 @@ export default function InfoBoard() {
     fetchList(1);
   }, [fetchList]);
 
+  const openDetail = async (item) => {
+    try {
+      const fresh = await postApi.get(item.postId);
+      setSelected(fresh);
+      setItems((prev) =>
+        prev.map((it) =>
+          it.postId === item.postId ? { ...it, viewCount: fresh.viewCount } : it,
+        ),
+      );
+    } catch (e) {
+      console.error("[InfoBoard] detail fetch failed:", e);
+      setSelected(item);
+    }
+  };
+
   const filtered = items.filter((item) => {
     if (!search.trim()) return true;
     const q = search.trim();
@@ -284,7 +299,7 @@ export default function InfoBoard() {
               {filtered.map((item) => (
                 <div
                   key={item.postId}
-                  onClick={() => setSelected(item)}
+                  onClick={() => openDetail(item)}
                   style={{
                     display: "flex",
                     alignItems: "center",

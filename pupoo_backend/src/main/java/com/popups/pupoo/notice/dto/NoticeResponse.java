@@ -22,7 +22,7 @@ public class NoticeResponse {
     private boolean pinned;
     private NoticeStatus status;
 
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private int viewCount;
 }

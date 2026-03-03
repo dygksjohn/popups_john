@@ -72,7 +72,8 @@ public class FaqQueryService {
 
         return page.map(p -> new FaqListResponse(
                 p.getPostId(),
-                p.getPostTitle()
+                p.getPostTitle(),
+                p.getViewCount()
         ));
     }
 
@@ -86,6 +87,7 @@ public class FaqQueryService {
         }
 
         postRepository.increaseViewCount(postId);
+        int viewCountAfter = postRepository.getViewCountByPostId(postId);
 
         return new FaqDetailResponse(
                 post.getPostId(),
@@ -94,7 +96,7 @@ public class FaqQueryService {
                 post.getAnswerContent(),
                 post.getAnsweredAt(),
                 post.getUserId(),
-                post.getViewCount() + 1,
+                viewCountAfter,
                 post.getCreatedAt(),
                 post.getUpdatedAt()
         );

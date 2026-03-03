@@ -6,6 +6,7 @@ import com.popups.pupoo.board.review.domain.model.Review;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -74,4 +75,13 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
                              @Param("to") LocalDateTime to,
                              @Param("reviewIds") List<Long> reviewIds,
                              Pageable pageable);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update Review r
+        set r.viewCount = r.viewCount + 1
+        where r.reviewId = :reviewId
+          and r.deleted = false
+        """)
+    int increaseViewCount(@Param("reviewId") Long reviewId);
 }
