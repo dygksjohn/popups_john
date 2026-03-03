@@ -390,11 +390,35 @@ export default function ServicePage() {
   const [writeModal, setWriteModal] = useState(null); // null | { } | { item }
   const [deleteModal, setDeleteModal] = useState(null);
   const [toast, setToast] = useState(null);
+  const [detailLoadingId, setDetailLoadingId] = useState(null);
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
 
-  const toggleReply = (id) => {
-    setOpenReplies((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleReply = async (id) => {
+    if (openReplies[id]) {
+      setOpenReplies((prev) => ({ ...prev, [id]: false }));
+      return;
+    }
+    setDetailLoadingId(id);
+    try {
+      const res = await qnaApi.get(id);
+      const d = unwrap(res);
+      if (d != null) {
+        setItems((prev) =>
+          prev.map((it) =>
+            String(it.qnaId) === String(id)
+              ? { ...it, ...d, viewCount: d.viewCount ?? it.viewCount ?? 0 }
+              : it,
+          ),
+        );
+      }
+      setOpenReplies((prev) => ({ ...prev, [id]: true }));
+    } catch (err) {
+      console.error("[QnA] get error:", err);
+      setOpenReplies((prev) => ({ ...prev, [id]: true }));
+    } finally {
+      setDetailLoadingId(null);
+    }
   };
 
   /* ── 목록 조회 ── */
@@ -795,6 +819,21 @@ export default function ServicePage() {
                     >
                       조회수 {q.viewCount ?? 0}
                     </span>
+                    {detailLoadingId === q.qnaId && (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          display: "inline-flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Loader2
+                          size={14}
+                          color="#999"
+                          style={{ animation: "spin 1s linear infinite" }}
+                        />
+                      </span>
+                    )}
                   </div>
 
                   {/* 상세 내용 (토글) */}

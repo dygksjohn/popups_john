@@ -245,6 +245,26 @@ export default function Notice() {
     return n.title?.includes(search) || n.content?.includes(search);
   });
 
+  const openDetail = async (notice) => {
+    try {
+      const res = await noticeApi.get(notice.noticeId);
+      const fresh = res?.data?.data ?? res?.data ?? null;
+      if (fresh) {
+        setSelected(fresh);
+        setNotices((prev) =>
+          prev.map((n) =>
+            n.noticeId === notice.noticeId ? { ...n, viewCount: fresh.viewCount ?? n.viewCount } : n,
+          ),
+        );
+      } else {
+        setSelected(notice);
+      }
+    } catch (err) {
+      console.error("[Notice] get error:", err);
+      setSelected(notice);
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -379,7 +399,7 @@ export default function Notice() {
             {filtered.map((notice) => (
               <div
                 key={notice.noticeId}
-                onClick={() => setSelected(notice)}
+                onClick={() => openDetail(notice)}
                 style={{
                   display: "flex",
                   alignItems: "center",

@@ -57,7 +57,10 @@ public class ReviewService {
         return toResponse(reviewRepository.save(review));
     }
 
+    @Transactional
     public ReviewResponse get(Long reviewId) {
+        reviewRepository.increaseViewCount(reviewId);
+
         // 공개 조회 정책: PUBLIC + deleted=false만 반환한다.
         Review review = reviewRepository.findByReviewIdAndDeletedFalseAndReviewStatus(reviewId, ReviewStatus.PUBLIC)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "후기가 존재하지 않습니다."));

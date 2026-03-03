@@ -43,6 +43,7 @@ public class NoticeAdminService {
                 .createdByAdminId(adminUserId)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
+                .viewCount(0)
                 .build();
 
         Notice saved = noticeRepository.save(notice);
@@ -105,6 +106,7 @@ public class NoticeAdminService {
                 .status(n.getStatus())
                 .createdAt(n.getCreatedAt())
                 .updatedAt(n.getUpdatedAt())
+                .viewCount(n.getViewCount())
                 .build();
     }
 }
