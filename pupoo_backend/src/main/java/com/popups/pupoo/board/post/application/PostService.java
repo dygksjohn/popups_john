@@ -29,16 +29,6 @@ public class PostService {
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
 
-    private Long resolveBoardId(Long boardId, BoardType boardType) {
-        if (boardId != null) return boardId;
-        if (boardType == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId or boardType is required");
-        }
-        return boardRepository.findByBoardType(boardType)
-                .map(Board::getBoardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Board not found for boardType: " + boardType));
-    }
-
     public Page<PostResponse> getPosts(Long boardId, String keyword, PostStatus status, Pageable pageable) {
         if (boardId == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId is required");
@@ -51,8 +41,14 @@ public class PostService {
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, String keyword, Pageable pageable) {
-        Long resolvedBoardId = resolveBoardId(boardId, boardType);
-        return postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+        if (boardId != null) {
+            return postRepository.search(boardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+        }
+        if (boardType != null) {
+            return postRepository.searchByBoardType(boardType, keyword, PostStatus.PUBLISHED, pageable)
+                    .map(PostResponse::from);
+        }
+        throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId or boardType is required");
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, SearchType searchType, String keyword, Pageable pageable) {
@@ -60,17 +56,31 @@ public class PostService {
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, SearchType searchType, String keyword, Pageable pageable) {
-        Long resolvedBoardId = resolveBoardId(boardId, boardType);
+        if (boardId != null) {
+            return switch (searchType) {
+                case TITLE -> postRepository.searchByTitle(boardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+                case CONTENT -> postRepository.searchByContent(boardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+                case WRITER -> {
+                    Long writerId = parseLongOrNull(keyword);
+                    yield postRepository.searchByWriter(boardId, writerId, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+                }
+                case TITLE_CONTENT -> postRepository.search(boardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+            };
+        }
 
-        return switch (searchType) {
-            case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
-            case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
-            case WRITER -> {
-                Long writerId = parseLongOrNull(keyword);
-                yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
-            }
-            case TITLE_CONTENT -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
-        };
+        if (boardType != null) {
+            return switch (searchType) {
+                case TITLE -> postRepository.searchByBoardTypeTitle(boardType, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+                case CONTENT -> postRepository.searchByBoardTypeContent(boardType, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+                case WRITER -> {
+                    Long writerId = parseLongOrNull(keyword);
+                    yield postRepository.searchByBoardTypeWriter(boardType, writerId, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+                }
+                case TITLE_CONTENT -> postRepository.searchByBoardType(boardType, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+            };
+        }
+
+        throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId or boardType is required");
     }
 
     private static Long parseLongOrNull(String keyword) {

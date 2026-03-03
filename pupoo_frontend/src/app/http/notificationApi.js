@@ -38,7 +38,7 @@ export const notificationApi = {
   /**
    * 알림 클릭(읽음 처리). 인박스에서 제거되고 이동 대상 반환
    * @param {number} inboxId
-   * @returns {Promise<{ targetType: 'EVENT'|'NOTICE', targetId: number }>}
+   * @returns {Promise<{ targetType: 'EVENT'|'NOTICE'|'POST'|'REVIEW', targetId: number }>}
    */
   click(inboxId) {
     if (inboxId == null) throw new Error("notificationApi.click: inboxId is required");

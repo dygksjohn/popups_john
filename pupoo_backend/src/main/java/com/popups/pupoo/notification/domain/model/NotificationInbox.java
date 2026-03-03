@@ -18,7 +18,7 @@ import static lombok.AccessLevel.PROTECTED;
  * - user_id BIGINT
  * - notification_id BIGINT (FK)
  * - created_at DATETIME DEFAULT CURRENT_TIMESTAMP
- * - target_type ENUM('EVENT','NOTICE') NULL
+ * - target_type ENUM('EVENT','NOTICE','POST','REVIEW') NULL
  * - target_id BIGINT NULL
  *
  * 정책: "읽는 순간(클릭) 인박스에서 삭제" -> read flag 컬럼 불필요.
@@ -45,7 +45,7 @@ public class NotificationInbox {
     private LocalDateTime createdAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "target_type", length = 20, columnDefinition = "ENUM('EVENT','NOTICE')")
+    @Column(name = "target_type", length = 20, columnDefinition = "ENUM('EVENT','NOTICE','POST','REVIEW')")
     private InboxTargetType targetType;
 
     @Column(name = "target_id")

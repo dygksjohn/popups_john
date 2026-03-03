@@ -1,6 +1,7 @@
 // file: src/main/java/com/popups/pupoo/board/post/persistence/PostRepository.java
 package com.popups.pupoo.board.post.persistence;
 
+import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.post.domain.enums.PostStatus;
 import com.popups.pupoo.board.post.domain.model.Post;
 import org.springframework.data.domain.Page;
@@ -70,6 +71,63 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                       @Param("keyword") String keyword,
                       @Param("status") PostStatus status,
                       Pageable pageable);
+
+    @Query("""
+        select p
+        from Post p
+        where p.board.boardType = :boardType
+          and p.deleted = false
+          and (
+                :keyword is null
+             or :keyword = ''
+             or p.postTitle like concat('%', :keyword, '%')
+             or p.content like concat('%', :keyword, '%')
+          )
+          and (:status is null or p.status = :status)
+        """)
+    Page<Post> searchByBoardType(@Param("boardType") BoardType boardType,
+                                 @Param("keyword") String keyword,
+                                 @Param("status") PostStatus status,
+                                 Pageable pageable);
+
+    @Query("""
+        select p
+        from Post p
+        where p.board.boardType = :boardType
+          and p.deleted = false
+          and (:keyword is null or :keyword = '' or p.postTitle like concat('%', :keyword, '%'))
+          and (:status is null or p.status = :status)
+        """)
+    Page<Post> searchByBoardTypeTitle(@Param("boardType") BoardType boardType,
+                                      @Param("keyword") String keyword,
+                                      @Param("status") PostStatus status,
+                                      Pageable pageable);
+
+    @Query("""
+        select p
+        from Post p
+        where p.board.boardType = :boardType
+          and p.deleted = false
+          and (:keyword is null or :keyword = '' or p.content like concat('%', :keyword, '%'))
+          and (:status is null or p.status = :status)
+        """)
+    Page<Post> searchByBoardTypeContent(@Param("boardType") BoardType boardType,
+                                        @Param("keyword") String keyword,
+                                        @Param("status") PostStatus status,
+                                        Pageable pageable);
+
+    @Query("""
+        select p
+        from Post p
+        where p.board.boardType = :boardType
+          and p.deleted = false
+          and (:writerId is null or p.userId = :writerId)
+          and (:status is null or p.status = :status)
+        """)
+    Page<Post> searchByBoardTypeWriter(@Param("boardType") BoardType boardType,
+                                       @Param("writerId") Long writerId,
+                                       @Param("status") PostStatus status,
+                                       Pageable pageable);
 
     Optional<Post> findByPostIdAndDeletedFalse(Long postId);
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import { ChevronLeft, ChevronRight, Search, Loader2, X, Edit2, Trash2, MessageCircle, Pencil, Send, Paperclip, Download } from "lucide-react";
 import { boardApi } from "../../../app/http/boardApi";
@@ -502,6 +502,7 @@ function WriteModal({ boardId, initial, onClose, onSuccess }) {
 export default function FreeBoard() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const currentPath = location.pathname;
   const { isAuthed } = useAuth();
 
@@ -524,10 +525,11 @@ export default function FreeBoard() {
   const [showWriteModal, setShowWriteModal] = useState(false);
   const [editPost, setEditPost] = useState(null);
   const [meUserId, setMeUserId] = useState(null);
+  const [linkedPostOpened, setLinkedPostOpened] = useState(false);
 
   const fetchBoards = useCallback(async () => {
     try {
-      const list = await boardApi.getBoards(false);
+      const list = await boardApi.getBoards();
       const free = Array.isArray(list)
         ? list.find((b) => String(b?.boardType || "").toUpperCase() === "FREE")
         : null;
@@ -572,6 +574,23 @@ export default function FreeBoard() {
   useEffect(() => {
     if (freeBoardId != null) fetchPosts(1);
   }, [freeBoardId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const linkedPostIdRaw = searchParams.get("postId");
+    const linkedPostId = linkedPostIdRaw ? Number(linkedPostIdRaw) : null;
+    if (!linkedPostId || Number.isNaN(linkedPostId) || linkedPostOpened) return;
+
+    postApi
+      .get(linkedPostId)
+      .then((detail) => {
+        setSelectedPost(detail);
+        setLinkedPostOpened(true);
+        const next = new URLSearchParams(searchParams);
+        next.delete("postId");
+        setSearchParams(next, { replace: true });
+      })
+      .catch(() => setLinkedPostOpened(true));
+  }, [linkedPostOpened, searchParams, setSearchParams]);
 
   const handleSearch = () => {
     const nextKeyword = searchInput.trim();
@@ -882,7 +901,7 @@ export default function FreeBoard() {
                   {post.postTitle}
                 </span>
                 <span style={{ fontSize: "13px", color: "#999", minWidth: 60 }}>
-                  회원
+                  {post.authorNickname || post.author || (post.userId ? `회원#${post.userId}` : "회원")}
                 </span>
                 <span style={{ fontSize: "13px", color: "#999", minWidth: 90 }}>
                   {fmtDate(post.createdAt)}

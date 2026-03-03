@@ -9,6 +9,8 @@ import com.popups.pupoo.board.faq.dto.FaqUpdateRequest;
 import com.popups.pupoo.board.post.domain.enums.PostStatus;
 import com.popups.pupoo.board.post.domain.model.Post;
 import com.popups.pupoo.board.post.persistence.PostRepository;
+import com.popups.pupoo.common.audit.application.AdminLogService;
+import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class FaqAdminService {
 
     private final BoardRepository boardRepository;
     private final PostRepository postRepository;
+    private final AdminLogService adminLogService;
 
     public Long create(Long adminId, FaqCreateRequest req) {
         Board faqBoard = boardRepository.findByBoardType(BoardType.FAQ)
@@ -49,7 +52,9 @@ public class FaqAdminService {
 
         post.writeAnswer(req.getAnswerContent());
 
-        return postRepository.save(post).getPostId();
+        Long postId = postRepository.save(post).getPostId();
+        adminLogService.write("FAQ_CREATE", AdminTargetType.POST, postId);
+        return postId;
     }
 
     public void update(Long postId, FaqUpdateRequest req) {
@@ -62,6 +67,7 @@ public class FaqAdminService {
 
         post.updateTitleAndContent(req.getTitle(), req.getContent());
         post.writeAnswer(req.getAnswerContent());
+        adminLogService.write("FAQ_UPDATE", AdminTargetType.POST, postId);
     }
 
     public void delete(Long postId) {
@@ -75,5 +81,6 @@ public class FaqAdminService {
         post.hide();
 
         post.softDelete();
+        adminLogService.write("FAQ_DELETE", AdminTargetType.POST, postId);
     }
 }

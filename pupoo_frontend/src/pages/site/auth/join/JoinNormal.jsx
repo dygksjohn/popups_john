@@ -450,7 +450,9 @@ export default function JoinNormal() {
     employeeId: "",
   });
 
-  const [pets, setPets] = useState([{ type: "dog", age: "" }]);
+  const [pets, setPets] = useState([
+    { animalType: "DOG", petWeight: "M", age: "" },
+  ]);
   const [error, setError] = useState("");
   const [nicknameError, setNicknameError] = useState("");
 
@@ -538,7 +540,11 @@ export default function JoinNormal() {
     });
   };
 
-  const addPet = () => setPets((prev) => [...prev, { type: "dog", age: "" }]);
+  const addPet = () =>
+    setPets((prev) => [
+      ...prev,
+      { animalType: "DOG", petWeight: "M", age: "" },
+    ]);
 
   const removePet = (index) => {
     if (pets.length === 1) return;
@@ -621,7 +627,6 @@ export default function JoinNormal() {
         throw new Error("비밀번호가 일치하지 않습니다.");
     } else {
       // SOCIAL 가입(JoinNormal을 소셜로도 재사용하는 경우)
-      if (!form.email.trim()) throw new Error("이메일을 입력하세요.");
       if (!socialState?.socialProviderUid) {
         throw new Error(
           "소셜 UID가 없습니다. 카카오 콜백부터 다시 진행해주세요.",
@@ -639,7 +644,7 @@ export default function JoinNormal() {
             signupType: "SOCIAL",
             socialProvider: socialState.socialProvider ?? "KAKAO",
             socialProviderUid: socialState.socialProviderUid,
-            email: form.email.trim(),
+            ...(form.email.trim() ? { email: form.email.trim() } : {}),
             nickname: form.nickname.trim(),
             phone: phoneMobileDigits,
           }
@@ -721,7 +726,12 @@ export default function JoinNormal() {
       // unwrap 혼재 대응
       const body = res?.data ?? res;
       const devCode =
-        body?.data?.devCode || body?.devCode || body?.data?.code || "";
+        body?.data?.devCode ||
+        body?.devCode ||
+        body?.data?.code ||
+        body?.data?.devToken ||
+        body?.devToken ||
+        "";
 
       if (devCode) setEmailCode(devCode);
       setEmailRequested(true);
@@ -761,7 +771,8 @@ export default function JoinNormal() {
   const completeSignup = async () => {
     if (loading) return;
     if (!signupKey) throw new Error("signupKey가 없습니다. 다시 시도해주세요.");
-    if (!emailVerified) throw new Error("이메일 인증을 완료해주세요.");
+    if (!isSocial && !emailVerified)
+      throw new Error("이메일 인증을 완료해주세요.");
 
     setLoading(true);
     setError("");
@@ -1247,7 +1258,7 @@ export default function JoinNormal() {
               <button
                 type="submit"
                 className="btn-submit"
-                disabled={loading || !emailVerified}
+                disabled={loading || (!isSocial && !emailVerified)}
               >
                 {loading ? "처리 중..." : "가입 완료 & 로그인"}
               </button>
@@ -1274,14 +1285,31 @@ export default function JoinNormal() {
 
                       <select
                         className="pet-select"
-                        value={pet.type}
+                        value={pet.animalType}
                         onChange={(e) =>
-                          handlePetChange(index, "type", e.target.value)
+                          handlePetChange(index, "animalType", e.target.value)
                         }
                         disabled={loading}
                       >
-                        <option value="dog">🐶 강아지 (Dog)</option>
-                        <option value="cat">🐱 고양이 (Cat)</option>
+                        <option value="DOG">강아지 (DOG)</option>
+                        <option value="CAT">고양이 (CAT)</option>
+                        <option value="OTHER">기타 (OTHER)</option>
+                      </select>
+
+                      <select
+                        className="pet-select"
+                        value={pet.petWeight}
+                        onChange={(e) =>
+                          handlePetChange(index, "petWeight", e.target.value)
+                        }
+                        disabled={loading}
+                        title="체중 구간"
+                      >
+                        <option value="XS">XS (0~5kg)</option>
+                        <option value="S">S (5~10kg)</option>
+                        <option value="M">M (10~20kg)</option>
+                        <option value="L">L (20~35kg)</option>
+                        <option value="XL">XL (35kg+)</option>
                       </select>
 
                       <input
@@ -1320,8 +1348,8 @@ export default function JoinNormal() {
                   ))}
                 </div>
                 <div style={{ marginTop: 8, fontSize: 12, color: "#777" }}>
-                  ※ 반려동물 정보는 현재 가입 플로우에 포함되지 않습니다(추후
-                  mypage/pet 등록으로 확장).
+                  반려동물 타입(DOG/CAT/OTHER)과 체중 구간(XS~XL)은 가입 단계에서
+                  선택할 수 있으며, 마이페이지에서 수정 가능합니다.
                 </div>
               </td>
             </tr>
@@ -1369,7 +1397,7 @@ export default function JoinNormal() {
             <button
               type="submit"
               className="btn-submit"
-              disabled={loading || !emailVerified}
+              disabled={loading || (!isSocial && !emailVerified)}
             >
               {loading ? "처리 중..." : "가입 완료 & 로그인"}
             </button>

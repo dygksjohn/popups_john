@@ -170,6 +170,7 @@ const PAGE_TABS = {
     { id: "free", label: "자유게시판" },
     { id: "review", label: "행사후기" },
     { id: "qna", label: "질문·답변" },
+    { id: "faq", label: "FAQ" },
   ],
   gallery: [{ id: "all", label: "갤러리" }],
   notice: [{ id: "all", label: "공지사항", count: 5 }],

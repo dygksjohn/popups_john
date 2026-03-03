@@ -81,6 +81,20 @@ const BOARD_CONFIG = {
     formTitle: (edit) => (edit ? "질문 수정" : "새 질문 등록"),
     formSub: (edit) => (edit ? "질문을 수정합니다" : "새 질문을 등록합니다"),
   },
+  faq: {
+    dataKey: "faq",
+    title: "FAQ",
+    writeLabel: "FAQ 등록",
+    emptyMsg: "FAQ가 없습니다",
+    emptySub: "자주 묻는 질문을 등록해보세요",
+    toastCreate: "FAQ가 등록되었습니다.",
+    toastUpdate: "FAQ가 수정되었습니다.",
+    toastDelete: "FAQ가 삭제되었습니다.",
+    deleteTitle: "FAQ 삭제",
+    detailTitle: "FAQ 상세",
+    formTitle: (edit) => (edit ? "FAQ 수정" : "새 FAQ 등록"),
+    formSub: (edit) => (edit ? "FAQ를 수정합니다" : "새 FAQ를 등록합니다"),
+  },
 };
 
 /* ── 날짜 포맷 ── */
@@ -110,6 +124,24 @@ function mapQnaFromApi(item) {
     date: fmtDate(item.createdAt ?? item.date),
     _visible: true,
     _raw: item, // 원본 보관
+  };
+}
+
+function mapFaqFromApi(item) {
+  return {
+    id: item.postId ?? item.id,
+    postId: item.postId ?? item.id,
+    boardType: item.boardType ?? "FAQ",
+    title: item.title ?? "",
+    content: item.content ?? "",
+    answer: item.answerContent ?? "",
+    author: "관리자",
+    status: item.answerContent ? "답변완료" : "대기중",
+    answerDate: item.answeredAt ? fmtDate(item.answeredAt) : "",
+    views: item.viewCount ?? 0,
+    date: fmtDate(item.createdAt),
+    _visible: true,
+    _raw: item,
   };
 }
 
@@ -365,6 +397,8 @@ function DetailModal({
   replyLoading,
 }) {
   const isQna = boardType === "qna";
+  const isFaq = boardType === "faq";
+  const isQnaLike = isQna || isFaq;
   const isReview = boardType === "review";
   const [replyText, setReplyText] = useState(item.answer || "");
   const [isReplying, setIsReplying] = useState(false);
@@ -425,7 +459,7 @@ function DetailModal({
             }}
           >
             {item.pinned && <Star size={14} color="#F59E0B" fill="#F59E0B" />}
-            {isQna && (
+            {isQnaLike && (
               <StatusPill
                 status={item.status || (hasReply ? "답변완료" : "대기중")}
               />
@@ -579,7 +613,7 @@ function DetailModal({
             </div>
           )}
 
-          {(isReplying || (!hasReply && isQna)) && (
+          {(isReplying || (!hasReply && isQnaLike)) && (
             <div
               style={{
                 border: `1.5px solid ${isReplying ? ds.brand : "#E2E8F0"}`,
@@ -778,6 +812,14 @@ function SlidePanel({
       answer: "",
       views: 0,
     },
+    faq: {
+      title: "",
+      author: "관리자",
+      content: "",
+      status: "답변완료",
+      answer: "",
+      views: 0,
+    },
   };
   const [form, setForm] = useState(item || defaults[boardType]);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -798,8 +840,12 @@ function SlidePanel({
         setErr("제목은 필수입니다.");
         return;
       }
-      // Q&A API 방식일 때는 author 필수 아님 (로그인 사용자 기반)
-      if (boardType !== "qna" && !form.author) {
+      if (boardType === "faq" && !form.answer?.trim()) {
+        setErr("FAQ 답변은 필수입니다.");
+        return;
+      }
+      // Q&A/FAQ API 방식일 때는 author 필수 아님 (로그인 사용자 기반)
+      if (boardType !== "qna" && boardType !== "faq" && !form.author) {
         setErr("제목과 작성자는 필수입니다.");
         return;
       }
@@ -908,8 +954,8 @@ function SlidePanel({
             />
           </Field>
 
-          {/* Q&A는 작성자 필드 불필요 (API에서 로그인 사용자 기반) */}
-          {boardType !== "qna" && (
+          {/* Q&A/FAQ는 작성자 필드 불필요 (API에서 로그인 사용자 기반) */}
+          {boardType !== "qna" && boardType !== "faq" && (
             <Field label="작성자" required>
               <input
                 style={inputStyle}
@@ -1014,6 +1060,20 @@ function SlidePanel({
               placeholder="내용을 입력하세요"
             />
           </Field>
+
+          {boardType === "faq" && (
+            <Field label="답변" required>
+              <textarea
+                rows={4}
+                style={{ ...inputStyle, resize: "vertical" }}
+                value={form.answer || ""}
+                onChange={(e) => set("answer", e.target.value)}
+                onFocus={inputFocus}
+                onBlur={inputBlur}
+                placeholder="FAQ 답변을 입력하세요"
+              />
+            </Field>
+          )}
         </div>
         <div
           style={{
@@ -1071,8 +1131,10 @@ function SlidePanel({
    게시판 행
    ══════════════════════════════════════════════ */
 function BoardRow({ item, boardType, removing, onDetail, onEdit, onDelete }) {
-  const isQna = boardType === "qna";
+  const isQna = boardType === "qna" || boardType === "faq";
   const isReview = boardType === "review";
+  const boardTypeLabel =
+    boardType === "free" ? "FREE" : boardType === "faq" ? "FAQ" : null;
 
   return (
     <div
@@ -1129,6 +1191,27 @@ function BoardRow({ item, boardType, removing, onDetail, onEdit, onDelete }) {
           gap: 6,
         }}
       >
+        {boardTypeLabel && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minWidth: 40,
+              height: 18,
+              padding: "0 7px",
+              borderRadius: 9,
+              background: "#EEF2FF",
+              color: "#4338CA",
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: 0.3,
+              flexShrink: 0,
+            }}
+          >
+            {item.boardType || boardTypeLabel}
+          </span>
+        )}
         {item.title}
         {item.answer && (
           <span
@@ -1320,11 +1403,13 @@ export default function BoardManage({ subTab = "free" }) {
   const boardType = subTab || "free";
   const config = BOARD_CONFIG[boardType] || BOARD_CONFIG.free;
   const isQna = boardType === "qna";
+  const isFaq = boardType === "faq";
 
   /* ── 게시판 데이터 (free, review — API 연동) ── */
   const [localData, setLocalData] = useState(() => ({
     free: [],
     review: [],
+    faq: [],
   }));
   const [boardLoading, setBoardLoading] = useState(false);
   const [freeBoardId, setFreeBoardId] = useState(null);
@@ -1374,7 +1459,7 @@ export default function BoardManage({ subTab = "free" }) {
           }
           // 2) posts 조회
           const res = await axiosInstance.get(
-            `/api/posts?boardId=${bId}&page=0&size=200`,
+            "/api/posts?boardType=FREE&page=0&size=200",
             { headers: authHeaders() },
           );
           const page = res.data?.data || res.data || {};
@@ -1383,6 +1468,7 @@ export default function BoardManage({ subTab = "free" }) {
             ...prev,
             free: list.map((p) => ({
               id: p.postId,
+              boardType: "FREE",
               title: p.postTitle,
               content: p.content,
               author: `회원${p.userId}`,
@@ -1422,6 +1508,35 @@ export default function BoardManage({ subTab = "free" }) {
               userId: r.userId,
             })),
           }));
+        } else if (type === "faq") {
+          const res = await axiosInstance.get("/api/faqs?page=0&size=100", {
+            headers: authHeaders(),
+          });
+          const page = res.data?.data || res.data || {};
+          const list = page.content || [];
+          const details = await Promise.all(
+            list.map(async (row) => {
+              try {
+                const dRes = await axiosInstance.get(`/api/faqs/${row.postId}`, {
+                  headers: authHeaders(),
+                });
+                return dRes.data?.data || dRes.data || {};
+              } catch {
+                return {};
+              }
+            }),
+          );
+
+          setLocalData((prev) => ({
+            ...prev,
+            faq: list.map((row, idx) =>
+              mapFaqFromApi({
+                ...details[idx],
+                postId: row.postId,
+                title: row.title,
+              }),
+            ),
+          }));
         }
       } catch (err) {
         console.error(`[BoardManage] ${type} 로드 실패:`, err);
@@ -1435,6 +1550,11 @@ export default function BoardManage({ subTab = "free" }) {
           setLocalData((prev) => ({
             ...prev,
             review: (DATA.reviews || []).map((e) => ({ ...e, _visible: true })),
+          }));
+        if (type === "faq")
+          setLocalData((prev) => ({
+            ...prev,
+            faq: [],
           }));
       } finally {
         setBoardLoading(false);
@@ -1487,13 +1607,15 @@ export default function BoardManage({ subTab = "free" }) {
     setPanel(null);
     if (isQna) {
       fetchQnaList(1);
+    } else if (isFaq) {
+      fetchBoardData("faq");
     } else if (boardType === "free") {
       fetchBoardData("free");
     } else if (boardType === "review") {
       // 행사 목록을 먼저 가져온 뒤 리뷰 로드 (행사명 매핑)
       fetchEventList().then(() => fetchBoardData("review"));
     }
-  }, [boardType, isQna, fetchQnaList, fetchBoardData, fetchEventList]);
+  }, [boardType, isQna, isFaq, fetchQnaList, fetchBoardData, fetchEventList]);
 
   /* ── 현재 보여줄 아이템 ── */
   const items = isQna ? qnaItems : localData[boardType] || [];
@@ -1559,6 +1681,16 @@ export default function BoardManage({ subTab = "free" }) {
             },
             { headers: authHeaders() },
           );
+        } else if (boardType === "faq") {
+          await axiosInstance.post(
+            "/api/admin/faqs",
+            {
+              title: f.title,
+              content: f.content || "",
+              answerContent: f.answer || "",
+            },
+            { headers: authHeaders() },
+          );
         }
         setPanel(null);
         showToast(config.toastCreate);
@@ -1616,6 +1748,17 @@ export default function BoardManage({ subTab = "free" }) {
             },
             { headers: authHeaders() },
           );
+        } else if (boardType === "faq") {
+          const faqId = f.postId || f.id;
+          await axiosInstance.patch(
+            `/api/admin/faqs/${faqId}`,
+            {
+              title: f.title,
+              content: f.content || "",
+              answerContent: f.answer || "",
+            },
+            { headers: authHeaders() },
+          );
         }
         setPanel(null);
         showToast(config.toastUpdate);
@@ -1664,6 +1807,11 @@ export default function BoardManage({ subTab = "free" }) {
             `/api/admin/moderation/reviews/${reviewId}`,
             { headers: authHeaders() },
           );
+        } else if (boardType === "faq") {
+          const faqId = item.postId || id;
+          await axiosInstance.delete(`/api/admin/faqs/${faqId}`, {
+            headers: authHeaders(),
+          });
         }
         setTimeout(() => {
           setRemoving(null);
@@ -1693,6 +1841,28 @@ export default function BoardManage({ subTab = "free" }) {
         fetchQnaList(qnaPage);
       } catch (err) {
         console.error("[BoardManage QnA] reply error:", err);
+        showToast("답변 처리에 실패했습니다.", "error");
+      } finally {
+        setSaving(false);
+      }
+    } else if (isFaq) {
+      setSaving(true);
+      try {
+        const faqId = item.postId || item.id;
+        await axiosInstance.patch(
+          `/api/admin/faqs/${faqId}`,
+          {
+            title: item.title,
+            content: item.content || "",
+            answerContent: replyText,
+          },
+          { headers: authHeaders() },
+        );
+        setModal(null);
+        showToast("답변이 등록되었습니다.");
+        fetchBoardData("faq");
+      } catch (err) {
+        console.error("[BoardManage FAQ] reply error:", err);
         showToast("답변 처리에 실패했습니다.", "error");
       } finally {
         setSaving(false);

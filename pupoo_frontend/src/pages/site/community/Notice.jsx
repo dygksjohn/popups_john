@@ -1,6 +1,6 @@
 // src/pages/site/community/Notice.jsx
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import { ChevronLeft, ChevronRight, Search, Loader2, X } from "lucide-react";
 import { noticeApi, unwrap } from "../../../api/noticeApi";
@@ -222,6 +222,7 @@ function DetailModal({ item, onClose }) {
 export default function Notice() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { noticeId: routeNoticeId } = useParams();
   const currentPath = location.pathname;
 
   const [searchType, setSearchType] = useState("TITLE_CONTENT");
@@ -267,6 +268,20 @@ export default function Notice() {
   useEffect(() => {
     fetchNotices(1);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const parsed = Number(routeNoticeId);
+    if (!routeNoticeId || Number.isNaN(parsed)) {
+      return;
+    }
+
+    noticeApi
+      .get(parsed)
+      .then((res) => setSelected(unwrap(res)))
+      .catch((err) => {
+        console.error("[Notice] route detail error:", err);
+      });
+  }, [routeNoticeId]);
 
   const handleSearch = () => {
     const nextKeyword = searchInput.trim();

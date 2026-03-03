@@ -700,7 +700,7 @@ export default function PupooHeader() {
               ) : (
                 <>
                   <IconButtonWithTooltip
-                    to="/mypage"
+                    to="/notifications"
                     tooltip={unreadCount > 0 ? `알림 ${unreadCount}건` : "알림"}
                   >
                     <span style={{ position: "relative", display: "inline-flex" }}>

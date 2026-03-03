@@ -76,6 +76,7 @@ import Review from "./pages/site/community/Review";
 
 import QnA from "./pages/site/community/QnA";
 import Notice from "./pages/site/community/Notice";
+import Notifications from "./pages/site/notifications/Notifications";
 
 /* Info */
 import PlatformIntro from "./pages/site/info/PlatformIntro";
@@ -284,6 +285,8 @@ export default function App() {
 
           <Route path="/community/qna" element={<QnA />} />
           <Route path="/community/notice" element={<Notice />} />
+          <Route path="/community/notice/:noticeId" element={<Notice />} />
+          <Route path="/notifications" element={<Notifications />} />
           {/* Info */}
           <Route path="/info/intro" element={<PlatformIntro />} />
           <Route path="/info/faq" element={<FAQ />} />

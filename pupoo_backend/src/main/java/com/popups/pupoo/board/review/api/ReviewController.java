@@ -3,7 +3,11 @@ package com.popups.pupoo.board.review.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.board.review.application.ReviewService;
-import com.popups.pupoo.board.review.dto.*;
+import com.popups.pupoo.board.review.dto.ReviewCreateRequest;
+import com.popups.pupoo.board.review.dto.ReviewResponse;
+import com.popups.pupoo.board.review.dto.ReviewUpdateRequest;
+import com.popups.pupoo.common.audit.application.AdminLogService;
+import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.common.search.SearchType;
@@ -17,8 +21,8 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 후기 API.
- * - 정책: ApiResponse<T> 통일
- * - 정책: 인증 주체는 SecurityUtil에서 userId를 읽는다.
+ * - 응답: ApiResponse<T> 형태로 통일
+ * - 인증 주체: SecurityUtil.currentUserId() 사용
  */
 @RestController
 @RequiredArgsConstructor
@@ -27,12 +31,15 @@ public class ReviewController {
 
     private final ReviewService reviewService;
     private final SecurityUtil securityUtil;
+    private final AdminLogService adminLogService;
     private final ReportService reportService;
 
     @PostMapping
     public ApiResponse<ReviewResponse> create(@Valid @RequestBody ReviewCreateRequest request) {
         Long userId = securityUtil.currentUserId();
-        return ApiResponse.success(reviewService.create(userId, request));
+        ReviewResponse created = reviewService.create(userId, request);
+        writeAdminLogIfNeeded("REVIEW_CREATE", created.getReviewId());
+        return ApiResponse.success(created);
     }
 
     @GetMapping("/{reviewId}")
@@ -52,13 +59,16 @@ public class ReviewController {
     public ApiResponse<ReviewResponse> update(@PathVariable Long reviewId,
                                               @Valid @RequestBody ReviewUpdateRequest request) {
         Long userId = securityUtil.currentUserId();
-        return ApiResponse.success(reviewService.update(userId, reviewId, request));
+        ReviewResponse updated = reviewService.update(userId, reviewId, request);
+        writeAdminLogIfNeeded("REVIEW_UPDATE", reviewId);
+        return ApiResponse.success(updated);
     }
 
     @DeleteMapping("/{reviewId}")
     public ApiResponse<MessageResponse> delete(@PathVariable Long reviewId) {
         Long userId = securityUtil.currentUserId();
         reviewService.delete(userId, reviewId);
+        writeAdminLogIfNeeded("REVIEW_DELETE", reviewId);
         return ApiResponse.success(new MessageResponse("삭제 완료"));
     }
 
@@ -69,5 +79,12 @@ public class ReviewController {
     public ApiResponse<ReportResponse> report(@PathVariable Long reviewId,
                                               @Valid @RequestBody ReportCreateRequest req) {
         return ApiResponse.success(reportService.reportReview(reviewId, req.getReasonCode(), req.getReasonDetail()));
+    }
+
+    private void writeAdminLogIfNeeded(String action, Long reviewId) {
+        if (!securityUtil.isAdmin()) {
+            return;
+        }
+        adminLogService.write(action, AdminTargetType.REVIEW, reviewId);
     }
 }

@@ -32,6 +32,10 @@ export default function KakaoJoin() {
   const [email, setEmail] = useState(kakaoSession.email);
   const [nickname, setNickname] = useState(kakaoSession.nickname);
   const [phone, setPhone] = useState("");
+  const [petProfile, setPetProfile] = useState({
+    animalType: "DOG",
+    petWeight: "M",
+  });
 
   const [step, setStep] = useState(STEP.INIT);
   const [signupKey, setSignupKey] = useState("");
@@ -62,7 +66,6 @@ export default function KakaoJoin() {
     !loading &&
     step === STEP.FORM &&
     !!providerUid &&
-    !!emailTrim &&
     phoneDigits.length >= 10;
 
   const canVerify =
@@ -102,7 +105,7 @@ export default function KakaoJoin() {
         signupType: "SOCIAL",
         socialProvider: "KAKAO",
         socialProviderUid: providerUid,
-        email: emailTrim,
+        email: emailTrim || undefined,
         password: tempPassword,
         nickname: nickTrim,
         phone: phoneDigits,
@@ -185,7 +188,7 @@ export default function KakaoJoin() {
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="이메일을 입력하세요. (필수)"
+            placeholder="이메일 (선택)"
             disabled={loading || hasKakaoEmail}
             style={{
               width: "100%",
@@ -256,11 +259,66 @@ export default function KakaoJoin() {
             <div style={{ marginTop: 6, color: "#a00", fontSize: 12 }}>{fieldErrors.phone}</div>
           ) : null}
 
-          {!emailTrim && (
-            <div style={{ marginTop: 6, fontSize: 12, color: "#a00" }}>
-              이메일은 필수입니다. 카카오에서 이메일을 못 받는 경우 직접 입력해 주세요.
+          <div style={{ marginTop: 6, marginBottom: 10, fontSize: 12, color: "#666" }}>
+            이메일은 선택 입력입니다. 휴대폰 OTP 인증만으로 가입할 수 있습니다.
+          </div>
+
+          <div
+            style={{
+              border: "1px solid #eee",
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 10,
+              background: "#fafafa",
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+              반려동물 기본 정보(선택)
             </div>
-          )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <select
+                value={petProfile.animalType}
+                onChange={(e) =>
+                  setPetProfile((prev) => ({ ...prev, animalType: e.target.value }))
+                }
+                style={{
+                  flex: 1,
+                  height: 40,
+                  borderRadius: 8,
+                  border: "1px solid #ddd",
+                  padding: "0 10px",
+                  background: "#fff",
+                }}
+              >
+                <option value="DOG">강아지 (DOG)</option>
+                <option value="CAT">고양이 (CAT)</option>
+                <option value="OTHER">기타 (OTHER)</option>
+              </select>
+              <select
+                value={petProfile.petWeight}
+                onChange={(e) =>
+                  setPetProfile((prev) => ({ ...prev, petWeight: e.target.value }))
+                }
+                style={{
+                  flex: 1,
+                  height: 40,
+                  borderRadius: 8,
+                  border: "1px solid #ddd",
+                  padding: "0 10px",
+                  background: "#fff",
+                }}
+              >
+                <option value="XS">XS (0~5kg)</option>
+                <option value="S">S (5~10kg)</option>
+                <option value="M">M (10~20kg)</option>
+                <option value="L">L (20~35kg)</option>
+                <option value="XL">XL (35kg+)</option>
+              </select>
+            </div>
+            <div style={{ marginTop: 6, fontSize: 11, color: "#666" }}>
+              가입 완료 후 마이페이지에서 실제 반려동물 정보를 등록/수정할 수 있습니다.
+            </div>
+          </div>
 
           <button
             onClick={sendOtp}
