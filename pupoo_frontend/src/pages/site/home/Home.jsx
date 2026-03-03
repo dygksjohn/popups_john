@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { noticeApi, unwrap } from "../../../api/noticeApi";
-
+import { reviewApi } from "../../../app/http/reviewApi";
 // ================= 스크롤 reveal 훅 =================
 function useScrollReveal(options = {}) {
   const { threshold = 0.15, rootMargin = "0px 0px -60px 0px" } = options;
@@ -644,9 +644,22 @@ function fmtDate(dt) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function getReviewHeadline(item) {
+  const explicitTitle = String(item?.title || "").trim();
+  if (explicitTitle) return explicitTitle;
+
+  const firstLine = String(item?.content || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .find(Boolean);
+
+  if (!firstLine) return "행사 후기";
+  return firstLine.length > 58 ? `${firstLine.slice(0, 58)}...` : firstLine;
+}
 function NoticeSection() {
   const navigate = useNavigate();
   const [notices, setNotices] = useState([]);
+  const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
     noticeApi
@@ -657,14 +670,21 @@ function NoticeSection() {
       })
       .catch(() => setNotices([]));
   }, []);
+  useEffect(() => {
+    reviewApi
+      .list({ page: 0, size: 3 })
+      .then((d) => {
+        const content = Array.isArray(d?.content)
+          ? d.content
+          : Array.isArray(d)
+            ? d
+            : [];
+        setReviews(content.slice(0, 3));
+      })
+      .catch(() => setReviews([]));
+  }, []);
 
-  // 후기는 아직 API 없으므로 더미
-  const articles = [
-    { title: "반려동물 산업 2026 트렌드 분석", date: "2026.02.20" },
-    { title: "펫 테크 스타트업 투자 현황", date: "2026.02.18" },
-    { title: "반려동물 동반 여행 시장 성장세", date: "2026.02.15" },
-  ];
-
+  // 공지/후기 모두 DB 연동 데이터로 노출
   const sections = [
     {
       title: "공지사항",
@@ -676,7 +696,10 @@ function NoticeSection() {
     },
     {
       title: "후기 게시판",
-      items: articles,
+      items: reviews.map((r) => ({
+        title: getReviewHeadline(r),
+        date: fmtDate(r.createdAt),
+      })),
       morePath: "/community/review",
     },
   ];

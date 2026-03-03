@@ -13,13 +13,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { qnaApi, unwrap } from "../../../api/qnaApi";
-
-const SERVICE_CATEGORIES = [
-  { label: "자유게시판", path: "/community/freeboard" },
-  { label: "공지사항", path: "/community/notice" },
-  { label: "행사후기", path: "/community/review" },
-  { label: "질문/답변", path: "/community/qna" },
-];
+import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 
 const FILTER_OPTIONS = ["전체", "답변완료", "미답변"];
 
@@ -481,7 +475,7 @@ export default function ServicePage() {
       <PageHeader
         title="질문 답변"
         subtitle="서비스 이용과 관련된 문의사항을 등록하고 답변을 확인할 수 있습니다."
-        categories={SERVICE_CATEGORIES}
+        categories={COMMUNITY_CATEGORIES}
         currentPath={currentPath}
         onNavigate={setCurrentPath}
       />
@@ -715,24 +709,9 @@ export default function ServicePage() {
                     }
                   >
                     <span
-                      style={{
-                        color: "#2d2d2d",
-                        fontWeight: "600",
-                        fontSize: "14px",
-                        minWidth: "64px",
-                      }}
+                      style={{ ...getBoardBadge("QNA").style, marginRight: 12 }}
                     >
-                      pupoo
-                    </span>
-                    <span
-                      style={{
-                        color: "#565656",
-                        fontWeight: "400",
-                        fontSize: "14px",
-                        minWidth: "80px",
-                      }}
-                    >
-                      질문해요
+                      {getBoardBadge("QNA").text}
                     </span>
                     <span
                       style={{

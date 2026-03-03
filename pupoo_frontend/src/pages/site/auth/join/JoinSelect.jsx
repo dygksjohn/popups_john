@@ -82,6 +82,7 @@ export default function JoinSelect() {
     console.log("KAKAO_REST_KEY?", !!KAKAO_REST_KEY);
     console.log("KAKAO_REDIRECT_URI =", KAKAO_REDIRECT_URI);
     sessionStorage.removeItem("kakao_auth_code");
+    sessionStorage.removeItem("kakao_oauth_code_guard");
     sessionStorage.removeItem("kakao_provider_uid");
     sessionStorage.removeItem("kakao_email");
     sessionStorage.removeItem("kakao_nickname");
@@ -95,10 +96,13 @@ export default function JoinSelect() {
       response_type: "code",
       client_id: KAKAO_REST_KEY,
       redirect_uri: KAKAO_REDIRECT_URI,
+      through_account: "true",
       prompt: "login",
     });
 
-    window.location.href = `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
+    const authorizeUrl = `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
+    const kakaoLoginUrl = `https://accounts.kakao.com/login/?login_type=normal&continue=${encodeURIComponent(authorizeUrl)}`;
+    window.location.href = kakaoLoginUrl;
   };
 
   return (

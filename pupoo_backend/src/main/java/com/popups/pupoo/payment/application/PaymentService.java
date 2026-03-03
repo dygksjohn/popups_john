@@ -10,6 +10,7 @@ import com.popups.pupoo.event.persistence.EventRegistrationRepository;
 import com.popups.pupoo.event.persistence.EventRepository;
 import com.popups.pupoo.payment.domain.enums.PaymentStatus;
 import com.popups.pupoo.payment.domain.enums.PaymentTransactionStatus;
+import com.popups.pupoo.payment.domain.enums.PaymentProvider;
 import com.popups.pupoo.payment.domain.model.Payment;
 import com.popups.pupoo.payment.domain.model.PaymentTransaction;
 import com.popups.pupoo.payment.dto.*;
@@ -61,6 +62,9 @@ public class PaymentService {
         if (req.amount() == null || req.amount().compareTo(java.math.BigDecimal.ZERO) <= 0)
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         if (req.paymentMethod() == null) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        if (req.paymentMethod() != PaymentProvider.KAKAOPAY) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Only KAKAOPAY is supported");
+        }
         if (eventId == null) throw new BusinessException(ErrorCode.INVALID_REQUEST);
 
         EventRegistration apply = eventRegistrationRepository

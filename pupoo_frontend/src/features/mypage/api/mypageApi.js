@@ -9,31 +9,42 @@ export const mypageApi = {
   createPet: petApi.createPet,
   updatePet: petApi.updatePet,
   deletePet: petApi.deletePet,
+
   issueMyQr(eventId, options) {
     return apiClient.get("/api/qr/me", {
       ...options,
       params: { eventId },
-      fallbackMessage: "QR 발급에 실패했습니다.",
+      fallbackMessage: "Failed to issue QR code.",
     });
   },
+
+  getMyBoothVisitsGroupedByEvent(options) {
+    return apiClient.get("/api/me/booth-visits", {
+      ...options,
+      fallbackMessage: "Failed to load QR scan history.",
+    });
+  },
+
   getMyEventRegistrations({ page = 0, size = 20 } = {}, options) {
     return apiClient.get("/api/users/me/event-registrations", {
       ...options,
       params: { page, size },
-      fallbackMessage: "내 이벤트 신청 내역을 불러오지 못했습니다.",
+      fallbackMessage: "Failed to load my event registrations.",
     });
   },
+
   getMyProgramApplies({ page = 0, size = 20 } = {}, options) {
     return apiClient.get("/api/program-applies/my", {
       ...options,
       params: { page, size },
-      fallbackMessage: "프로그램 신청 내역을 불러오지 못했습니다.",
+      fallbackMessage: "Failed to load my program applications.",
     });
   },
+
   deleteMe(options) {
     return apiClient.delete("/api/users/me", {
       ...options,
-      fallbackMessage: "회원 탈퇴 처리에 실패했습니다.",
+      fallbackMessage: "Failed to delete account.",
     });
   },
 };

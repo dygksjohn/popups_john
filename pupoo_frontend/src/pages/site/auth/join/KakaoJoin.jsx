@@ -125,7 +125,7 @@ export default function KakaoJoin() {
       setStep(STEP.OTP);
 
       if (res?.devOtp) {
-        setOtpCode(String(res.data.devOtp));
+        setOtpCode(String(res.devOtp));
       }
     } catch (e) {
       console.error(e);
@@ -165,6 +165,7 @@ export default function KakaoJoin() {
       sessionStorage.removeItem("kakao_provider_uid");
       sessionStorage.removeItem("kakao_email");
       sessionStorage.removeItem("kakao_nickname");
+      sessionStorage.removeItem("post_login_redirect");
 
       navigate("/", { replace: true });
     } catch (e) {

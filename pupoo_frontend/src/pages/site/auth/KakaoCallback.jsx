@@ -1,19 +1,55 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "./api/authApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { useAuth } from "./AuthProvider";
 
+const KAKAO_CODE_GUARD_KEY = "kakao_oauth_code_guard";
+
+const isDuplicateCode = (code) => {
+  try {
+    const raw = sessionStorage.getItem(KAKAO_CODE_GUARD_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    const lastCode = parsed?.code;
+    const ts = Number(parsed?.ts || 0);
+    // StrictMode/중복 렌더 구간에서만 막고, 일정 시간이 지나면 다시 허용
+    return lastCode === code && Date.now() - ts < 60_000;
+  } catch {
+    return false;
+  }
+};
+
+const markCodeGuard = (code) => {
+  sessionStorage.setItem(
+    KAKAO_CODE_GUARD_KEY,
+    JSON.stringify({ code, ts: Date.now() }),
+  );
+};
+
+const clearCodeGuard = (code) => {
+  try {
+    const raw = sessionStorage.getItem(KAKAO_CODE_GUARD_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed?.code === code) {
+      sessionStorage.removeItem(KAKAO_CODE_GUARD_KEY);
+    }
+  } catch {
+    sessionStorage.removeItem(KAKAO_CODE_GUARD_KEY);
+  }
+};
+
 export default function KakaoCallback() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const didRunRef = useRef(false);
+  const resolvePostLoginRedirect = () => {
+    const target = sessionStorage.getItem("post_login_redirect") || "/";
+    return target.startsWith("/auth/") ? "/" : target;
+  };
 
   useEffect(() => {
-    if (didRunRef.current) return;
-    didRunRef.current = true;
-
     const run = async () => {
       const params = new URLSearchParams(location.search);
       const code = params.get("code");
@@ -34,6 +70,13 @@ export default function KakaoCallback() {
         });
         return;
       }
+
+      // 개발 StrictMode에서 callback effect가 중복 실행되어
+      // 같은 인가코드(code)로 로그인 API가 2회 호출되는 문제를 방지한다.
+      if (isDuplicateCode(code)) {
+        return;
+      }
+      markCodeGuard(code);
 
       // ✅ 이전 카카오 가입 세션 값 초기화(꼬임 방지)
       sessionStorage.removeItem("kakao_provider_uid");
@@ -68,8 +111,7 @@ export default function KakaoCallback() {
           tokenStore.setAccess(accessToken);
           login();
 
-          const redirectTo =
-            sessionStorage.getItem("post_login_redirect") || "/";
+          const redirectTo = resolvePostLoginRedirect();
           sessionStorage.removeItem("post_login_redirect");
           navigate(redirectTo, { replace: true });
           return;
@@ -93,6 +135,7 @@ export default function KakaoCallback() {
 
         navigate("/auth/join/kakao", { replace: true });
       } catch (e) {
+        clearCodeGuard(code);
         navigate("/auth/login", {
           replace: true,
           state: {

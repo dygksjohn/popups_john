@@ -4,9 +4,9 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { tokenStore } from "../../../app/http/tokenStore";
 
 const paymentMethods = [
-  { label: "카카오페이", value: "KAKAOPAY" },
-  { label: "카드", value: "CARD" },
-  { label: "계좌이체", value: "BANK" },
+  { label: "카카오페이", value: "KAKAOPAY", enabled: true },
+  { label: "카드 (준비중)", value: "CARD", enabled: false },
+  { label: "계좌이체 (준비중)", value: "BANK", enabled: false },
 ];
 
 function normalizeAmount(value) {
@@ -52,6 +52,10 @@ export default function Checkout() {
       setError("결제 정보를 확인할 수 없습니다.");
       return;
     }
+    if (method !== "KAKAOPAY") {
+      setError("현재는 카카오페이만 지원합니다.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -68,8 +72,16 @@ export default function Checkout() {
         setError("결제 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       }
     } catch (e) {
+      const apiMessage =
+        e?.response?.data?.error?.message ||
+        e?.response?.data?.message ||
+        "";
       if (e?.response?.status === 409) {
         setError("이미 진행 중인 결제가 있습니다. 결제 내역에서 확인해 주세요.");
+      } else if (e?.response?.status === 404) {
+        setError("행사 신청 상태를 찾을 수 없습니다. 행사 신청 후 다시 결제해 주세요.");
+      } else if (apiMessage) {
+        setError(`결제 준비 실패: ${apiMessage}`);
       } else {
         setError("결제 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       }
@@ -111,7 +123,8 @@ export default function Checkout() {
         {paymentMethods.map((m) => (
           <button
             key={m.value}
-            onClick={() => setMethod(m.value)}
+            onClick={() => m.enabled && setMethod(m.value)}
+            disabled={!m.enabled}
             style={{
               flex: 1,
               height: 48,
@@ -122,7 +135,8 @@ export default function Checkout() {
                   : "1px solid #e5e7eb",
               background: method === m.value ? "#eff4ff" : "#fff",
               fontWeight: 700,
-              cursor: "pointer",
+              cursor: m.enabled ? "pointer" : "not-allowed",
+              opacity: m.enabled ? 1 : 0.5,
             }}
           >
             {m.label}
