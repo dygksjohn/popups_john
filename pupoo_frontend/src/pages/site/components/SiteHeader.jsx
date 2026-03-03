@@ -278,8 +278,8 @@ const navItems = [
 const MegaMenuItem = ({ item }) => {
   const [hovered, setHovered] = useState(false);
   return (
-    <Link
-      to={item.href}
+    <a
+      href={item.href}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -296,7 +296,7 @@ const MegaMenuItem = ({ item }) => {
       }}
     >
       {item.label}
-    </Link>
+    </a>
   );
 };
 
@@ -306,11 +306,6 @@ const MegaMenuItem = ({ item }) => {
 const MegaMenu = ({ menuData }) => {
   if (!menuData) return null;
   const { columns, promo } = menuData;
-  const hiddenEventMenuHrefs = new Set([
-    "/event/preregister",
-    "/event/eventschedule",
-    "/event/eventSchedule",
-  ]);
 
   return (
     <div
@@ -355,9 +350,7 @@ const MegaMenu = ({ menuData }) => {
                 {col.title}
               </div>
               <div>
-                {col.items
-                  .filter((item) => !hiddenEventMenuHrefs.has(item.href))
-                  .map((item, j) => (
+                {col.items.map((item, j) => (
                   <MegaMenuItem key={j} item={item} />
                 ))}
               </div>
@@ -462,56 +455,27 @@ const NavItem = ({
   const computedColor = isActive || hovered ? activeColor : baseColor;
 
   if (!hasDropdown) {
-    const isInternal = typeof href === "string" && href.startsWith("/");
-    const linkStyle = {
-      position: "relative",
-      display: "inline-flex",
-      alignItems: "center",
-      height: "100%",
-      padding: "0 4px",
-      color: computedColor,
-      fontSize: "14px",
-      fontFamily: "'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif",
-      fontWeight: "400",
-      textDecoration: "none",
-      whiteSpace: "nowrap",
-      letterSpacing: "0.01em",
-      transition: "color 0.2s ease",
-      cursor: "pointer",
-    };
-
-    if (isInternal) {
-      return (
-        <Link
-          to={href}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          style={linkStyle}
-        >
-          {label}
-          <span
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: "2px",
-              backgroundColor: "#1c69d4",
-              transform: hovered ? "scaleX(1)" : "scaleX(0)",
-              transition: "transform 0.2s ease",
-              transformOrigin: "center",
-            }}
-          />
-        </Link>
-      );
-    }
-
     return (
       <a
         href={href || "#"}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        style={linkStyle}
+        style={{
+          position: "relative",
+          display: "inline-flex",
+          alignItems: "center",
+          height: "100%",
+          padding: "0 4px",
+          color: computedColor,
+          fontSize: "14px",
+          fontFamily: "'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif",
+          fontWeight: "400",
+          textDecoration: "none",
+          whiteSpace: "nowrap",
+          letterSpacing: "0.01em",
+          transition: "color 0.2s ease",
+          cursor: "pointer",
+        }}
       >
         {label}
         <span
@@ -722,6 +686,10 @@ export default function PupooHeader() {
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
               {!isAuthed ? (
                 <>
+                  <IconButtonWithTooltip to="/auth/login" tooltip="알림">
+                    <Bell size={23} color={iconColor} strokeWidth={1.5} />
+                  </IconButtonWithTooltip>
+
                   <IconButtonWithTooltip to="/auth/login" tooltip="로그인">
                     <LogIn size={23} color={iconColor} strokeWidth={1.5} />
                   </IconButtonWithTooltip>

@@ -113,7 +113,20 @@ public class SecurityConfig {
             .requestMatchers("/uploads/**").permitAll()
             .requestMatchers("/static/**").permitAll()
 
-            // 갤러리 쓰기 API는 로그인 사용자만 허용합니다.
+            // Admin console writes board content with admin token.
+            .requestMatchers(HttpMethod.POST, "/api/posts").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.PUT, "/api/posts/*").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/posts/*").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.PATCH, "/api/posts/*/close").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/reviews").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.PATCH, "/api/reviews/*").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/reviews/*").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/qnas").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.PATCH, "/api/qnas/*").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/qnas/*").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/qnas/*/close").hasAnyRole("USER", "ADMIN")
+
+            // Gallery write APIs require login.
             .requestMatchers(HttpMethod.POST, "/api/galleries/image/upload").hasRole("USER")
             .requestMatchers(HttpMethod.POST, "/api/galleries").hasRole("USER")
             .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasRole("USER")

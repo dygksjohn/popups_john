@@ -3,15 +3,11 @@ import EventDetailModal from "./EventDetailModal";
 import { useEffect, useState } from "react";
 import { eventApi } from "../../../app/http/eventApi";
 import {
-  Play,
   MapPin,
-  Users,
-  Clock,
   Calendar,
   ChevronRight,
   Search,
   Zap,
-  TrendingUp,
 } from "lucide-react";
 
 export const SERVICE_CATEGORIES = [
@@ -63,29 +59,35 @@ const styles = `
   .ev-stat-label { font-size: 12px; color: #6b7280; font-weight: 500; }
   .ev-stat-value { font-size: 22px; font-weight: 800; color: #111827; }
 
-  .ev-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; }
+  .ev-card { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 24px 28px; margin-bottom: 16px; }
+  .ev-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #f1f3f5; }
+  .ev-card-title { font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin: 0; }
+  .ev-card-title-icon { width: 24px; height: 24px; border-radius: 6px; background: #fffbeb; display: flex; align-items: center; justify-content: center; }
+  .ev-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
+
+  .ev-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
   .ev-search-wrap { position: relative; flex: 1; }
   .ev-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
   .ev-search { width: 100%; height: 40px; padding: 0 13px 0 36px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13.5px; color: #111827; outline: none; font-family: inherit; background: #fff; transition: border-color 0.15s; }
   .ev-search:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
 
-  .ev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .ev-card { background: #fff; border: 1px solid #e9ecef; border-radius: 14px; overflow: hidden; transition: box-shadow 0.2s, transform 0.2s; cursor: pointer; }
-  .ev-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.08); transform: translateY(-2px); }
+  .ev-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .ev-event-card { background: #fff; border: 1px solid #e9ecef; border-radius: 14px; overflow: hidden; transition: box-shadow 0.2s, transform 0.2s; cursor: pointer; }
+  .ev-event-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.08); transform: translateY(-2px); }
 
   .ev-card-thumb { height: 160px; position: relative; overflow: hidden; }
   .ev-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; }
-  .ev-card:hover .ev-card-thumb img { transform: scale(1.05); }
+  .ev-event-card:hover .ev-card-thumb img { transform: scale(1.05); }
   .ev-card-thumb-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.45) 100%); }
   .ev-card-thumb-label { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.55); color: #fff; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; backdrop-filter: blur(4px); }
   .ev-card-thumb-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 48px; }
 
-  .ev-card-body { padding: 18px 20px 20px; }
-  .ev-card-category { font-size: 11px; font-weight: 600; color: #1a4fd6; margin-bottom: 6px; }
-  .ev-card-title { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 10px; line-height: 1.4; }
-  .ev-card-meta { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-  .ev-card-meta-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #6b7280; }
-  .ev-card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #f1f3f5; }
+  .ev-event-card-body { padding: 18px 20px 20px; }
+  .ev-event-category { font-size: 11px; font-weight: 600; color: #1a4fd6; margin-bottom: 6px; }
+  .ev-event-title { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 10px; line-height: 1.4; }
+  .ev-event-meta { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .ev-event-meta-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #6b7280; }
+  .ev-event-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #f1f3f5; }
   .ev-progress-wrap { flex: 1; margin-right: 14px; }
   .ev-progress-label { display: flex; justify-content: space-between; font-size: 11px; color: #9ca3af; margin-bottom: 4px; }
   .ev-progress-track { height: 5px; background: #f1f3f5; border-radius: 100px; overflow: hidden; }
@@ -93,8 +95,10 @@ const styles = `
   .ev-card-btn { height: 32px; padding: 0 14px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; font-size: 12px; font-weight: 600; color: #374151; cursor: pointer; display: flex; align-items: center; gap: 4px; font-family: inherit; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
   .ev-card-btn:hover { background: #1a4fd6; color: #fff; border-color: #1a4fd6; }
 
-  @media (max-width: 1100px) { .ev-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 700px) { .ev-grid { grid-template-columns: 1fr; } .ev-stat-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 700px) {
+    .ev-grid { grid-template-columns: 1fr; }
+    .ev-card { padding: 20px 16px; }
+  }
 `;
 
 function formatDate(value) {
@@ -105,17 +109,20 @@ function formatDate(value) {
   return `${m[1]}.${m[2]}.${m[3]}`;
 }
 
-function formatTime(startAt, endAt) {
-  const pick = (v) => {
-    if (!v) return "";
-    const m = String(v).match(/(\d{2}):(\d{2})/);
-    return m ? `${m[1]}:${m[2]}` : "";
-  };
-  const a = pick(startAt);
-  const b = pick(endAt);
-  if (a && b) return `${a} ~ ${b}`;
-  if (a || b) return a || b;
-  return "일정 미정";
+function formatDateRange(startAt, endAt) {
+  const startDate = formatDate(startAt);
+  const endDate = formatDate(endAt);
+
+  if (startDate === "일정 미정" && endDate === "일정 미정") return "일정 미정";
+  if (startDate === "일정 미정") return `~ ${endDate}`;
+  if (endDate === "일정 미정") return `${startDate} ~`;
+  return `${startDate} ~ ${endDate}`;
+}
+
+function toSortTimestamp(value) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const ts = Date.parse(String(value));
+  return Number.isNaN(ts) ? Number.POSITIVE_INFINITY : ts;
 }
 
 function mapEvent(raw) {
@@ -133,8 +140,8 @@ function mapEvent(raw) {
     title: eventName,
     category,
     location,
-    time: startAt || endAt ? formatTime(startAt, endAt) : "일정 미정",
-    date: startAt ? formatDate(startAt) : "일정 미정",
+    date: formatDateRange(startAt, endAt),
+    endSortKey: toSortTimestamp(endAt),
     participants,
     capacity,
     fallback: "🐶",
@@ -184,7 +191,13 @@ export default function Current() {
         });
         const content = res.data.data.content;
         const list = Array.isArray(content) ? content : [];
-        if (mounted) setEvents(list.map(mapEvent));
+        if (mounted) {
+          setEvents(
+            list
+              .map(mapEvent)
+              .sort((a, b) => a.endSortKey - b.endSortKey),
+          );
+        }
       } catch (e) {
         const msg =
           e?.response?.data?.message || e?.message || "Failed to load events.";
@@ -206,25 +219,6 @@ export default function Current() {
       e.category.includes(query) ||
       e.location.includes(query),
   );
-
-  const totalParticipants = events.reduce(
-    (a, e) => a + (e.participants ?? 0),
-    0,
-  );
-  const avgRate =
-    events.length === 0
-      ? 0
-      : Math.round(
-          (events.reduce(
-            (a, e) =>
-              a +
-              ((e.participants ?? 0) /
-                (e.capacity && e.capacity > 0 ? e.capacity : 1)),
-            0,
-          ) /
-            events.length) *
-            100,
-        );
 
   return (
     <div className="ev-root">
@@ -249,107 +243,82 @@ export default function Current() {
           </div>
         )}
 
-        <div className="ev-stat-grid">
-          {[
-            {
-              label: "진행 중 행사",
-              value: `${events.length}개`,
-              icon: <Play size={20} color="#1a4fd6" />,
-              bg: "#eff4ff",
-            },
-            {
-              label: "총 참가자",
-              value: `${totalParticipants.toLocaleString()}명`,
-              icon: <Users size={20} color="#10b981" />,
-              bg: "#ecfdf5",
-            },
-            {
-              label: "평균 참석률",
-              value: `${avgRate}%`,
-              icon: <TrendingUp size={20} color="#f59e0b" />,
-              bg: "#fffbeb",
-            },
-          ].map((s) => (
-            <div key={s.label} className="ev-stat-card">
-              <div className="ev-stat-icon" style={{ background: s.bg }}>
-                {s.icon}
+        <div className="ev-card">
+          <div className="ev-card-header">
+            <div className="ev-card-title">
+              <div className="ev-card-title-icon">
+                <Calendar size={14} color="#f59e0b" />
               </div>
-              <div>
-                <div className="ev-stat-label">{s.label}</div>
-                <div className="ev-stat-value">{s.value}</div>
-              </div>
+              진행 중인 행사
             </div>
-          ))}
-        </div>
-
-        <div className="ev-toolbar">
-          <div className="ev-search-wrap">
-            <Search size={15} className="ev-search-icon" />
-            <input
-              className="ev-search"
-              placeholder="행사명, 카테고리, 장소 검색"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
+            <span className="ev-card-tag">{filtered.length}개 행사</span>
           </div>
-        </div>
 
-        <div className="ev-grid">
-          {filtered.map((ev) => {
-            const safeCapacity = ev.capacity && ev.capacity > 0 ? ev.capacity : 1;
-            const safeParticipants = ev.participants ?? 0;
-            const pct = Math.round((safeParticipants / safeCapacity) * 100);
-            return (
-              <div
-                key={ev.id}
-                className="ev-card"
-                onClick={() => setSelectedEvent(ev)}
-              >
-                <EventThumb ev={ev} />
-                <div className="ev-card-body">
-                  <div className="ev-card-category">{ev.category}</div>
-                  <div className="ev-card-title">{ev.title}</div>
-                  <div className="ev-card-meta">
-                    <div className="ev-card-meta-row">
-                      <MapPin size={12} />
-                      {ev.location}
-                    </div>
-                    <div className="ev-card-meta-row">
-                      <Clock size={12} />
-                      {ev.time}
-                    </div>
-                    <div className="ev-card-meta-row">
-                      <Calendar size={12} />
-                      {ev.date}
-                    </div>
-                  </div>
-                  <div className="ev-card-footer">
-                    <div className="ev-progress-wrap">
-                      <div className="ev-progress-label">
-                        <span>참가자 {ev.participants.toLocaleString()}명</span>
-                        <span>{pct}%</span>
+          <div className="ev-toolbar">
+            <div className="ev-search-wrap">
+              <Search size={15} className="ev-search-icon" />
+              <input
+                className="ev-search"
+                placeholder="행사명, 카테고리, 장소 검색"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="ev-grid">
+            {filtered.map((ev) => {
+              const safeCapacity = ev.capacity && ev.capacity > 0 ? ev.capacity : 1;
+              const safeParticipants = ev.participants ?? 0;
+              const pct = Math.round((safeParticipants / safeCapacity) * 100);
+              return (
+                <div
+                  key={ev.id}
+                  className="ev-event-card"
+                  onClick={() => setSelectedEvent(ev)}
+                >
+                  <EventThumb ev={ev} />
+                  <div className="ev-event-card-body">
+                    <div className="ev-event-category">{ev.category}</div>
+                    <div className="ev-event-title">{ev.title}</div>
+                    <div className="ev-event-meta">
+                      <div className="ev-event-meta-row">
+                        <MapPin size={12} />
+                        {ev.location}
                       </div>
-                      <div className="ev-progress-track">
-                        <div
-                          className="ev-progress-fill"
-                          style={{ width: `${pct}%` }}
-                        />
+                      <div className="ev-event-meta-row">
+                        <Calendar size={12} />
+                        {ev.date}
                       </div>
                     </div>
-                    <button
-                      className="ev-card-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedEvent(ev);
-                      }}
-                    >
-                      상세 <ChevronRight size={12} />
-                    </button>
+                    <div className="ev-event-footer">
+                      <div className="ev-progress-wrap">
+                        <div className="ev-progress-label">
+                          <span>참가자 {ev.participants.toLocaleString()}명</span>
+                          <span>{pct}%</span>
+                        </div>
+                        <div className="ev-progress-track">
+                          <div
+                            className="ev-progress-fill"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                      <button
+                        className="ev-card-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedEvent(ev);
+                        }}
+                      >
+                        상세 <ChevronRight size={12} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </main>
 

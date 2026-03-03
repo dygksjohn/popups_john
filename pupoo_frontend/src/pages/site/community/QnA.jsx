@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import {
   ChevronDown,
@@ -10,11 +9,10 @@ import {
   Trash2,
   AlertTriangle,
   Loader2,
-  Lock,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { qnaApi, unwrap } from "../../../api/qnaApi";
-import { userApi } from "../../../app/http/userApi";
-import { useAuth } from "../auth/AuthProvider";
 
 const SERVICE_CATEGORIES = [
   { label: "자유게시판", path: "/community/freeboard" },
@@ -23,11 +21,7 @@ const SERVICE_CATEGORIES = [
   { label: "질문/답변", path: "/community/qna" },
 ];
 
-const FILTER_OPTIONS = [
-  { value: "ALL", label: "전체" },
-  { value: "ANSWERED", label: "답변완료" },
-  { value: "WAITING", label: "미답변" },
-];
+const FILTER_OPTIONS = ["전체", "답변완료", "미답변"];
 
 /* ── 날짜 포맷 ── */
 function fmtDate(dt) {
@@ -146,7 +140,6 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button
-            type="button"
             onClick={onCancel}
             disabled={loading}
             style={{
@@ -163,7 +156,6 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
             취소
           </button>
           <button
-            type="button"
             onClick={onConfirm}
             disabled={loading}
             style={{
@@ -224,7 +216,6 @@ function WriteModal({ item, onSave, onClose, saving }) {
             {isEdit ? "질문 수정" : "질문 등록"}
           </h3>
           <button
-            type="button"
             onClick={onClose}
             style={{
               width: 30,
@@ -333,7 +324,6 @@ function WriteModal({ item, onSave, onClose, saving }) {
 
         <div style={{ display: "flex", gap: 10 }}>
           <button
-            type="button"
             onClick={onClose}
             disabled={saving}
             style={{
@@ -352,7 +342,6 @@ function WriteModal({ item, onSave, onClose, saving }) {
             취소
           </button>
           <button
-            type="button"
             onClick={handleSave}
             disabled={saving}
             style={{
@@ -380,16 +369,13 @@ function WriteModal({ item, onSave, onClose, saving }) {
 /* ═══════════════════════════════════════════
    메인 컴포넌트
    ═══════════════════════════════════════════ */
-export default function QnAPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const currentPath = location.pathname;
-  const { isAuthed } = useAuth();
-
-  const [filter, setFilter] = useState("ALL");
+export default function ServicePage() {
+  const [currentPath, setCurrentPath] = useState("/community/qna");
+  const [filter, setFilter] = useState("전체");
   const [search, setSearch] = useState("");
   const [openReplies, setOpenReplies] = useState({});
 
+  /* ── API 상태 ── */
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -399,24 +385,15 @@ export default function QnAPage() {
   const [totalElements, setTotalElements] = useState(0);
   const PAGE_SIZE = 10;
 
-  const [writeModal, setWriteModal] = useState(null);
+  const [writeModal, setWriteModal] = useState(null); // null | { } | { item }
   const [deleteModal, setDeleteModal] = useState(null);
   const [toast, setToast] = useState(null);
-  const [meUserId, setMeUserId] = useState(null);
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
 
   const toggleReply = (id) => {
     setOpenReplies((prev) => ({ ...prev, [id]: !prev[id] }));
   };
-
-  useEffect(() => {
-    if (isAuthed) {
-      userApi.getMe().then((me) => setMeUserId(me?.userId ?? null)).catch(() => setMeUserId(null));
-    } else {
-      setMeUserId(null);
-    }
-  }, [isAuthed]);
 
   /* ── 목록 조회 ── */
   const fetchList = useCallback(async (p = 1) => {
@@ -441,9 +418,10 @@ export default function QnAPage() {
     fetchList(1);
   }, [fetchList]);
 
-  /* ── 필터링 (백엔드 status: WAITING | ANSWERED) ── */
+  /* ── 필터링 ── */
   const filtered = items.filter((q) => {
-    const matchFilter = filter === "ALL" || q.status === filter;
+    const status = q.status === "CLOSED" ? "답변완료" : "미답변";
+    const matchFilter = filter === "전체" || filter === status;
     const matchSearch =
       !search || q.title?.includes(search) || q.content?.includes(search);
     return matchFilter && matchSearch;
@@ -498,22 +476,6 @@ export default function QnAPage() {
     }
   };
 
-  /* ── 마감 ── */
-  const handleClose = async (qnaId) => {
-    setSaving(true);
-    try {
-      await qnaApi.close(qnaId);
-      setOpenReplies((prev) => ({ ...prev, [qnaId]: false }));
-      showToast("질문이 마감되었습니다.");
-      fetchList(page);
-    } catch (err) {
-      console.error("[QnA] close error:", err);
-      showToast("마감에 실패했습니다.", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <>
       <PageHeader
@@ -521,7 +483,7 @@ export default function QnAPage() {
         subtitle="서비스 이용과 관련된 문의사항을 등록하고 답변을 확인할 수 있습니다."
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
-        onNavigate={(path) => navigate(path)}
+        onNavigate={setCurrentPath}
       />
       <main
         style={{
@@ -562,11 +524,11 @@ export default function QnAPage() {
                   background: "#fff",
                   cursor: "pointer",
                   outline: "none",
-                  minWidth: "100px",
+                  minWidth: "80px",
                 }}
               >
                 {FILTER_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt}>{opt}</option>
                 ))}
               </select>
               <span
@@ -610,7 +572,6 @@ export default function QnAPage() {
                 }}
               />
               <button
-                type="button"
                 style={{
                   border: "none",
                   background: "#fff",
@@ -631,10 +592,8 @@ export default function QnAPage() {
               </button>
             </div>
 
-            {/* 글쓰기 버튼 (로그인 시에만) */}
-            {isAuthed && (
+            {/* 글쓰기 버튼 */}
             <button
-              type="button"
               onClick={() => setWriteModal({})}
               style={{
                 display: "flex",
@@ -660,7 +619,6 @@ export default function QnAPage() {
             >
               <Plus size={14} strokeWidth={2.5} /> 질문하기
             </button>
-            )}
           </div>
         </div>
 
@@ -709,7 +667,6 @@ export default function QnAPage() {
               {error}
             </div>
             <button
-              type="button"
               onClick={() => fetchList(page)}
               style={{
                 padding: "8px 20px",
@@ -731,9 +688,8 @@ export default function QnAPage() {
         {!loading && !error && (
           <div>
             {filtered.map((q) => {
-              const isAnswered = q.status === "ANSWERED";
-              const statusLabel = isAnswered ? "답변완료" : "미답변";
-              const isMine = meUserId != null && q.userId === meUserId;
+              const isClosed = q.status === "CLOSED";
+              const statusLabel = isClosed ? "답변완료" : "미답변";
 
               return (
                 <div
@@ -794,8 +750,8 @@ export default function QnAPage() {
                       style={{
                         fontSize: "11px",
                         fontWeight: "600",
-                        color: isAnswered ? "#4a7cf7" : "#999",
-                        border: `1px solid ${isAnswered ? "#4a7cf7" : "#ccc"}`,
+                        color: isClosed ? "#4a7cf7" : "#999",
+                        border: `1px solid ${isClosed ? "#4a7cf7" : "#ccc"}`,
                         borderRadius: "20px",
                         padding: "2px 9px",
                         marginRight: "12px",
@@ -902,8 +858,7 @@ export default function QnAPage() {
                         </div>
                       )}
 
-                      {/* 수정/삭제/마감 버튼 (본인 글만) */}
-                      {isMine && (
+                      {/* 수정/삭제 버튼 */}
                       <div
                         style={{
                           display: "flex",
@@ -914,7 +869,6 @@ export default function QnAPage() {
                         }}
                       >
                         <button
-                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setWriteModal({ item: q });
@@ -943,7 +897,6 @@ export default function QnAPage() {
                           <Pencil size={12} /> 수정
                         </button>
                         <button
-                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setDeleteModal(q);
@@ -971,34 +924,7 @@ export default function QnAPage() {
                         >
                           <Trash2 size={12} /> 삭제
                         </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm("이 질문을 마감하시겠습니까? 마감 후 목록에서 숨겨집니다.")) {
-                              handleClose(q.qnaId);
-                            }
-                          }}
-                          disabled={saving}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            padding: "6px 14px",
-                            borderRadius: 6,
-                            border: "1px solid #94a3b8",
-                            background: "#fff",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: saving ? "not-allowed" : "pointer",
-                            color: "#64748b",
-                            fontFamily: "'Noto Sans KR', sans-serif",
-                          }}
-                        >
-                          <Lock size={12} /> 마감
-                        </button>
                       </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -1034,7 +960,6 @@ export default function QnAPage() {
             }}
           >
             <button
-              type="button"
               onClick={() => fetchList(page - 1)}
               disabled={page <= 1}
               style={{
@@ -1051,7 +976,6 @@ export default function QnAPage() {
             {Array.from({ length: totalPages }, (_, i) => (
               <button
                 key={i}
-                type="button"
                 onClick={() => fetchList(i + 1)}
                 style={{
                   fontSize: "14px",
@@ -1069,7 +993,6 @@ export default function QnAPage() {
               </button>
             ))}
             <button
-              type="button"
               onClick={() => fetchList(page + 1)}
               disabled={page >= totalPages}
               style={{

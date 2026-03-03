@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { eventApi } from "../../../app/http/eventApi";
+import { programApi } from "../../../app/http/programApi";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { tokenStore } from "../../../app/http/tokenStore";
 import {
@@ -52,13 +53,22 @@ const modalStyles = `
     transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
     overflow: hidden;
     margin: auto 0;
+    max-height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
   }
   .evm-overlay.open .evm-modal {
     transform: translateY(0) scale(1);
   }
+  .evm-body-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 
   /* Hero */
-  .evm-hero { position: relative; height: 220px; overflow: hidden; }
+  .evm-hero { position: relative; height: 260px; overflow: hidden; }
   .evm-hero img { width: 100%; height: 100%; object-fit: cover; }
   .evm-hero-overlay {
     position: absolute; inset: 0;
@@ -129,6 +139,8 @@ const modalStyles = `
     margin-bottom: 14px; padding-bottom: 10px;
     border-bottom: 2px solid #f1f3f5;
   }
+  .evm-section-header.has-action { justify-content: space-between; }
+  .evm-section-title-wrap { display: flex; align-items: center; gap: 8px; }
   .evm-section-title {
     font-size: 15px; font-weight: 800; color: #111827;
   }
@@ -143,47 +155,182 @@ const modalStyles = `
     font-size: 14px; color: #374151; line-height: 1.7;
   }
 
-  /* Schedule */
-  .evm-schedule { display: flex; flex-direction: column; gap: 0; }
-  .evm-sch-item {
-    display: flex; align-items: stretch; gap: 16px;
-    position: relative;
-    padding: 10px 0;
+  /* Program guide */
+  .evm-guide-grid {
+    --evm-guide-row-height: 72px;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 12px;
   }
-  .evm-sch-time-col {
-    width: 54px; flex-shrink: 0; text-align: right;
-    padding-top: 2px;
+  .evm-guide-panel {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
   }
-  .evm-sch-time {
-    font-size: 13px; font-weight: 700; color: #374151;
-    font-variant-numeric: tabular-nums;
+  .evm-guide-panel-head {
+    height: 48px;
+    padding: 0 14px;
+    border-bottom: 1px solid #f1f3f5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
-  .evm-sch-line-col {
-    width: 20px; flex-shrink: 0;
-    display: flex; flex-direction: column; align-items: center;
-    position: relative;
+  .evm-guide-panel-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
   }
-  .evm-sch-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    border: 2px solid #d1d5db; background: #fff;
-    margin-top: 5px; z-index: 1; flex-shrink: 0;
+  .evm-guide-pill {
+    font-size: 11px;
+    font-weight: 700;
+    color: #6b7280;
+    background: #f3f4f6;
+    padding: 3px 10px;
+    border-radius: 999px;
   }
-  .evm-sch-dot.keynote { border-color: #1a4fd6; background: #1a4fd6; }
-  .evm-sch-dot.session { border-color: #10b981; background: #10b981; }
-  .evm-sch-dot.panel { border-color: #f59e0b; background: #f59e0b; }
-  .evm-sch-dot.opening { border-color: #8b5cf6; background: #8b5cf6; }
-  .evm-sch-dot.break { border-color: #d1d5db; background: #f3f4f6; }
-  .evm-sch-rail {
-    width: 2px; flex: 1; background: #e5e7eb; margin-top: 4px;
+  .evm-guide-day-list,
+  .evm-guide-program-scroll {
+    max-height: calc(var(--evm-guide-row-height) * 5 + 8px * 4 + 16px);
+    overflow-y: auto;
+    padding: 8px;
   }
-  .evm-sch-item:last-child .evm-sch-rail { display: none; }
-  .evm-sch-body { flex: 1; padding-bottom: 4px; }
-  .evm-sch-title {
-    font-size: 13.5px; font-weight: 600; color: #111827;
-    margin-bottom: 2px;
+  .evm-guide-day-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
-  .evm-sch-title.is-break { color: #9ca3af; font-weight: 500; font-style: italic; }
-  .evm-sch-speaker { font-size: 12px; color: #6b7280; }
+  .evm-guide-day-item {
+    min-height: var(--evm-guide-row-height);
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    background: #fff;
+    transition: all 0.15s;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+  }
+  .evm-guide-day-item:hover { border-color: #90b3ff; }
+  .evm-guide-day-item.active {
+    border-color: #1a4fd6;
+    background: #f5f8ff;
+    box-shadow: 0 0 0 2px rgba(26,79,214,0.08) inset;
+  }
+  .evm-guide-date-chip {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: #f3f4f6;
+    color: #111827;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-weight: 800;
+  }
+  .evm-guide-day-item.active .evm-guide-date-chip {
+    background: #1a4fd6;
+    color: #fff;
+  }
+  .evm-guide-date-day { font-size: 18px; line-height: 1; }
+  .evm-guide-date-week { font-size: 9px; opacity: 0.85; margin-top: 2px; }
+  .evm-guide-day-info { flex: 1; min-width: 0; }
+  .evm-guide-day-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .evm-guide-day-sub { margin-top: 4px; font-size: 12px; color: #9ca3af; }
+  .evm-guide-day-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1a4fd6;
+    background: #eff4ff;
+    border-radius: 999px;
+    padding: 3px 9px;
+    flex-shrink: 0;
+  }
+  .evm-guide-program-group { margin-bottom: 10px; }
+  .evm-guide-program-group:last-child { margin-bottom: 0; }
+  .evm-guide-period {
+    display: inline-flex;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #eff4ff;
+    color: #1a4fd6;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .evm-guide-program-list { display: flex; flex-direction: column; gap: 8px; }
+  .evm-guide-program-item {
+    min-height: var(--evm-guide-row-height);
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: #fff;
+  }
+  .evm-guide-program-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .evm-guide-program-dot.done { background: #9ca3af; }
+  .evm-guide-program-dot.live { background: #10b981; }
+  .evm-guide-program-dot.upcoming { background: #1a4fd6; }
+  .evm-guide-program-body { flex: 1; min-width: 0; }
+  .evm-guide-program-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.35;
+  }
+  .evm-guide-program-meta {
+    margin-top: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+  .evm-guide-program-meta-item { display: inline-flex; align-items: center; gap: 4px; }
+  .evm-guide-program-status {
+    font-size: 11px;
+    font-weight: 700;
+    color: #6b7280;
+    background: #f3f4f6;
+    border-radius: 999px;
+    padding: 3px 10px;
+    flex-shrink: 0;
+  }
+  .evm-guide-empty {
+    min-height: var(--evm-guide-row-height);
+    border: 1px dashed #d1d5db;
+    border-radius: 10px;
+    color: #9ca3af;
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fafbfc;
+  }
 
   /* Speakers */
   .evm-speakers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
@@ -293,10 +440,10 @@ const modalStyles = `
 
   /* CTA */
   .evm-cta-bar {
-    position: sticky; bottom: 0;
     background: #fff; border-top: 1px solid #e9ecef;
     padding: 16px 28px;
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-shrink: 0;
   }
   .evm-cta-price-label { font-size: 11px; color: #9ca3af; }
   .evm-cta-price { font-size: 16px; font-weight: 800; color: #111827; }
@@ -319,16 +466,30 @@ const modalStyles = `
     box-shadow: 0 2px 12px rgba(26,79,214,0.25);
   }
   .evm-btn-primary:hover { background: #1541b0; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(26,79,214,0.35); }
+  .evm-inline-link-btn {
+    height: 30px; padding: 0 11px;
+    border: 1px solid #dbe1ea; border-radius: 8px;
+    background: #fff; color: #1f2937;
+    font-size: 12px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 4px;
+    cursor: pointer; font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  .evm-inline-link-btn:hover {
+    border-color: #1a4fd6; color: #1a4fd6; background: #f8fbff;
+  }
 
   /* Responsive */
   @media (max-width: 700px) {
+    .evm-modal { max-height: calc(100vh - 24px); }
     .evm-quick-info { grid-template-columns: 1fr; }
     .evm-speakers { grid-template-columns: 1fr; }
     .evm-contact-grid { grid-template-columns: 1fr; }
-    .evm-hero { height: 180px; }
+    .evm-hero { height: 210px; }
     .evm-hero-title { font-size: 20px; }
     .evm-content { padding: 20px 18px 28px; }
     .evm-cta-bar { padding: 14px 18px; }
+    .evm-guide-grid { grid-template-columns: 1fr; }
   }
 `;
 
@@ -358,6 +519,99 @@ function normalizeFee(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function toDateKey(value) {
+  if (!value) return null;
+  const s = String(value);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+function toDateFromKey(key) {
+  if (!key) return null;
+  const d = new Date(`${key}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatDateKeyLabel(key) {
+  if (!key) return "일정 미정";
+  return key.replaceAll("-", ".");
+}
+
+function weekdayShortKey(key) {
+  const d = toDateFromKey(key);
+  if (!d) return "-";
+  return ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+}
+
+function buildDateKeys(startAt, endAt, scheduleList) {
+  const startKey = toDateKey(startAt);
+  const endKey = toDateKey(endAt);
+  const bySchedule = (Array.isArray(scheduleList) ? scheduleList : [])
+    .map((item) => toDateKey(item?.startAt ?? item?.date ?? item?.day))
+    .filter(Boolean);
+
+  if (startKey && endKey) {
+    const result = [];
+    let cursor = toDateFromKey(startKey);
+    const end = toDateFromKey(endKey);
+    if (cursor && end) {
+      while (cursor.getTime() <= end.getTime()) {
+        const y = cursor.getFullYear();
+        const m = String(cursor.getMonth() + 1).padStart(2, "0");
+        const d = String(cursor.getDate()).padStart(2, "0");
+        result.push(`${y}-${m}-${d}`);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      if (result.length > 0) return result;
+    }
+  }
+
+  if (bySchedule.length > 0) return [...new Set(bySchedule)].sort();
+  if (startKey) return [startKey];
+  return [];
+}
+
+function normalizeScheduleItem(item, idx, fallbackDateKey) {
+  const startAt = item?.startAt ?? item?.startDateTime ?? null;
+  const endAt = item?.endAt ?? item?.endDateTime ?? null;
+  const timeText =
+    item?.time ??
+    (startAt || endAt ? formatTime(startAt, endAt) : "시간 미정");
+  const dateKey = toDateKey(startAt ?? item?.date ?? item?.day) ?? fallbackDateKey;
+  const title = item?.title ?? item?.name ?? item?.programName ?? `프로그램 ${idx + 1}`;
+  const place =
+    item?.location ??
+    item?.place ??
+    item?.zone ??
+    item?.boothName ??
+    (item?.boothId ? `부스 ${item.boothId}` : "장소 미정");
+  const rawStatus = String(item?.status ?? "").toUpperCase();
+  const status =
+    rawStatus.includes("DONE") || rawStatus.includes("END")
+      ? "done"
+      : rawStatus.includes("LIVE") || rawStatus.includes("ONGOING")
+        ? "live"
+        : "upcoming";
+
+  const minuteMatch = String(timeText).match(/(\d{1,2}):(\d{2})/);
+  const minutes = minuteMatch
+    ? Number(minuteMatch[1]) * 60 + Number(minuteMatch[2])
+    : null;
+  const period =
+    minutes === null ? "오후" : minutes < 12 * 60 ? "오전" : minutes < 18 * 60 ? "오후" : "저녁";
+
+  return {
+    id: item?.id ?? item?.programId ?? `${title}-${idx}`,
+    dateKey,
+    title,
+    timeText,
+    place,
+    status,
+    period,
+  };
+}
+
 
 export default function EventDetailModal({ event, onClose }) {
   const navigate = useNavigate();
@@ -367,13 +621,14 @@ export default function EventDetailModal({ event, onClose }) {
   const [detailLoading, setDetailLoading] = useState(true);
   const [error, setError] = useState("");
   const [detail, setDetail] = useState(null);
+  const [programList, setProgramList] = useState([]);
   const [regStatus, setRegStatus] = useState("");
   const [applyId, setApplyId] = useState(null);
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState("");
   const [regLoaded, setRegLoaded] = useState(true);
+  const [selectedDateKey, setSelectedDateKey] = useState("");
   const overlayRef = useRef(null);
-  const lastAlertAtRef = useRef(0);
 
   const modalEventId = Number(event?.eventId ?? event?.id);
   const hasToken = !!tokenStore.getAccess();
@@ -408,10 +663,26 @@ export default function EventDetailModal({ event, onClose }) {
       setDetailLoading(true);
       setError("");
       setRegError("");
+      setProgramList([]);
       try {
         const res = await eventApi.getEventDetail(modalEventId);
         const data = res.data.data;
         if (mounted) setDetail(data);
+        try {
+          const programRes = await programApi.getAllProgramsByEvent({
+            eventId: modalEventId,
+            sort: "startAt,asc",
+          });
+          if (mounted && Array.isArray(programRes)) {
+            const filtered = programRes.filter(
+              (item) => Number(item?.eventId) === modalEventId,
+            );
+            setProgramList(filtered);
+          }
+        } catch (programError) {
+          console.error(programError);
+          if (mounted) setProgramList([]);
+        }
         if (hasToken) {
           try {
             await fetchMyRegistrations();
@@ -445,11 +716,12 @@ export default function EventDetailModal({ event, onClose }) {
     if (e.target === overlayRef.current) handleClose();
   };
 
-  const alertLoginRequired = () => {
-    const now = Date.now();
-    if (now - lastAlertAtRef.current < 2000) return;
-    lastAlertAtRef.current = now;
-    window.alert("로그인이 필요합니다.");
+  const redirectToLogin = () => {
+    navigate("/auth/login", {
+      state: {
+        from: `${location?.pathname || "/"}${location?.search || ""}`,
+      },
+    });
   };
 
   const fetchMyRegistrations = async () => {
@@ -514,11 +786,49 @@ export default function EventDetailModal({ event, onClose }) {
     regStatus === RegistrationStatus.APPROVED;
   const canApply = !regStatus || regStatus === RegistrationStatus.CANCELLED;
 
+  const fallbackDateKey = toDateKey(detail?.startAt);
+  const normalizedPrograms = (
+    programList.length > 0 ? programList : detail?.schedule || []
+  ).map((item, idx) => normalizeScheduleItem(item, idx, fallbackDateKey));
+
+  const dateKeys = buildDateKeys(detail?.startAt, detail?.endAt, normalizedPrograms);
+  const dayList = dateKeys.map((key, idx) => {
+    const count = normalizedPrograms.filter((p) => p.dateKey === key).length;
+    return {
+      key,
+      index: idx + 1,
+      label: formatDateKeyLabel(key),
+      weekday: weekdayShortKey(key),
+      count,
+    };
+  });
+
+  const effectiveDateKey =
+    (selectedDateKey && dayList.some((d) => d.key === selectedDateKey)
+      ? selectedDateKey
+      : dayList[0]?.key) || "";
+  const selectedPrograms = normalizedPrograms.filter(
+    (item) => item.dateKey === effectiveDateKey,
+  );
+  const periods = ["오전", "오후", "저녁"];
+  const programGroups = periods.map((period) => ({
+    period,
+    items: selectedPrograms.filter((item) => item.period === period),
+  }));
+  const totalProgramCount = normalizedPrograms.length;
+
+  const handleViewAllPrograms = () => {
+    const target = Number.isFinite(modalEventId)
+      ? `/program/all/${modalEventId}`
+      : "/program/all";
+    navigate(target);
+  };
+
   const handleApply = async () => {
     if (!Number.isFinite(modalEventId) || regLoading) return;
     if (!hasToken) {
       setRegError("로그인이 필요합니다.");
-      alertLoginRequired();
+      redirectToLogin();
       return;
     }
     setRegLoading(true);
@@ -554,7 +864,7 @@ export default function EventDetailModal({ event, onClose }) {
           } catch (err) {
             if (err?.response?.status === 401) {
               setRegError("로그인이 필요합니다.");
-              alertLoginRequired();
+              redirectToLogin();
             }
           }
         }
@@ -569,7 +879,7 @@ export default function EventDetailModal({ event, onClose }) {
         }
       } else if (e?.response?.status === 401) {
         setRegError("로그인이 필요합니다.");
-        alertLoginRequired();
+        redirectToLogin();
       } else {
         console.error(e);
         setRegError("참가 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.");
@@ -587,7 +897,7 @@ export default function EventDetailModal({ event, onClose }) {
     }
     if (!hasToken) {
       setRegError("로그인이 필요합니다.");
-      alertLoginRequired();
+      redirectToLogin();
       return;
     }
     const confirmed = window.confirm("확인을 누르시면 결제가 취소됩니다.");
@@ -604,7 +914,7 @@ export default function EventDetailModal({ event, onClose }) {
     } catch (e) {
       if (e?.response?.status === 401) {
         setRegError("로그인이 필요합니다.");
-        alertLoginRequired();
+        redirectToLogin();
       } else {
         console.error(e);
         const msg =
@@ -677,6 +987,7 @@ export default function EventDetailModal({ event, onClose }) {
             </div>
           </div>
 
+          <div className="evm-body-scroll">
           {/* Body */}
           <div className="evm-content">
             {detailLoading && (
@@ -731,42 +1042,114 @@ export default function EventDetailModal({ event, onClose }) {
               <div className="evm-desc">{desc}</div>
             </div>
 
-            {/* Schedule */}
+            {/* Program Guide */}
             <div className="evm-section">
-              <div className="evm-section-header">
-                <div
-                  className="evm-section-icon"
-                  style={{ background: "#fef3c7" }}
-                >
-                  <Clock size={15} color="#f59e0b" />
-                </div>
-                <div className="evm-section-title">프로그램 타임테이블</div>
-              </div>
-              <div className="evm-schedule">
-                {(detail?.schedule || []).map((item, i) => (
-                  <div className="evm-sch-item" key={i}>
-                    <div className="evm-sch-time-col">
-                      <div className="evm-sch-time">{item.time}</div>
-                    </div>
-                    <div className="evm-sch-line-col">
-                      <div className={`evm-sch-dot ${item.type}`} />
-                      <div className="evm-sch-rail" />
-                    </div>
-                    <div className="evm-sch-body">
-                      <div
-                        className={`evm-sch-title ${item.type === "break" ? "is-break" : ""}`}
-                      >
-                        {item.title}
-                      </div>
-                      {item.speaker && (
-                        <div className="evm-sch-speaker">
-                          {item.speaker}
-                          {item.role ? ` · ${item.role}` : ""}
-                        </div>
-                      )}
-                    </div>
+              <div className="evm-section-header has-action">
+                <div className="evm-section-title-wrap">
+                  <div
+                    className="evm-section-icon"
+                    style={{ background: "#fef3c7" }}
+                  >
+                    <Clock size={15} color="#f59e0b" />
                   </div>
-                ))}
+                  <div className="evm-section-title">프로그램 안내</div>
+                </div>
+                <button
+                  type="button"
+                  className="evm-inline-link-btn"
+                  onClick={handleViewAllPrograms}
+                >
+                  전체 프로그램 조회
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+              <div className="evm-guide-grid">
+                <div className="evm-guide-panel">
+                  <div className="evm-guide-panel-head">
+                    <div className="evm-guide-panel-title">
+                      <Calendar size={14} color="#f59e0b" />
+                      일자 선택
+                    </div>
+                    <span className="evm-guide-pill">
+                      총 {dayList.length}일 {totalProgramCount}개 프로그램
+                    </span>
+                  </div>
+                  <div className="evm-guide-day-list">
+                    {dayList.length === 0 ? (
+                      <div className="evm-guide-empty">선택 가능한 일자가 없습니다.</div>
+                    ) : (
+                      dayList.map((day) => (
+                        <button
+                          key={day.key}
+                          type="button"
+                          className={`evm-guide-day-item${effectiveDateKey === day.key ? " active" : ""}`}
+                          onClick={() => setSelectedDateKey(day.key)}
+                        >
+                          <div className="evm-guide-date-chip">
+                            <div className="evm-guide-date-day">{day.key.slice(8, 10)}</div>
+                            <div className="evm-guide-date-week">{day.weekday}</div>
+                          </div>
+                          <div className="evm-guide-day-info">
+                            <div className="evm-guide-day-title">
+                              {day.index}일차 · {day.label}
+                            </div>
+                            <div className="evm-guide-day-sub">{day.count}개 프로그램</div>
+                          </div>
+                          <span className="evm-guide-day-count">{day.count}개</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div className="evm-guide-panel">
+                  <div className="evm-guide-panel-head">
+                    <div className="evm-guide-panel-title">
+                      <Clock size={14} color="#f59e0b" />
+                      {effectiveDateKey
+                        ? `${dayList.find((d) => d.key === effectiveDateKey)?.index ?? 1}일차 · ${formatDateKeyLabel(effectiveDateKey)} 일정`
+                        : "일정"}
+                    </div>
+                    <span className="evm-guide-pill">{selectedPrograms.length}개 프로그램</span>
+                  </div>
+                  <div className="evm-guide-program-scroll">
+                    {programGroups.every((group) => group.items.length === 0) ? (
+                      <div className="evm-guide-empty">등록된 프로그램이 없습니다.</div>
+                    ) : (
+                      programGroups.map((group) => (
+                        <div key={group.period} className="evm-guide-program-group">
+                          <div className="evm-guide-period">{group.period}</div>
+                          {group.items.length > 0 && (
+                            <div className="evm-guide-program-list">
+                              {group.items.map((item) => (
+                                <div key={item.id} className="evm-guide-program-item">
+                                  <div className={`evm-guide-program-dot ${item.status}`} />
+                                  <div className="evm-guide-program-body">
+                                    <div className="evm-guide-program-name">{item.title}</div>
+                                    <div className="evm-guide-program-meta">
+                                      <span className="evm-guide-program-meta-item">
+                                        <Clock size={12} /> {item.timeText}
+                                      </span>
+                                      <span className="evm-guide-program-meta-item">
+                                        <MapPin size={12} /> {item.place}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <span className="evm-guide-program-status">
+                                    {item.status === "done"
+                                      ? "완료"
+                                      : item.status === "live"
+                                        ? "진행 중"
+                                        : "예정"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -974,6 +1357,7 @@ export default function EventDetailModal({ event, onClose }) {
                 </div>
               </div>
             </div>
+          </div>
           </div>
 
           {/* Sticky CTA */}

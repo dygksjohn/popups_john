@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"; // ✅ useRef 추가
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { programApi } from "../../../../app/http/programApi";
-// 반려동물 정보 API: features/pet/api/petApi.js
-import { petApi } from "../../../../features/pet/api/petApi";
 
 export default function ContestApply() {
   const navigate = useNavigate();
@@ -15,10 +13,6 @@ export default function ContestApply() {
 
   const [errorMsg, setErrorMsg] = useState("");
   const [myApply, setMyApply] = useState(null);
-
-  // 사용자 보유 반려동물 목록 및 선택된 반려동물 ID
-  const [pets, setPets] = useState([]);
-  const [selectedPetId, setSelectedPetId] = useState(null);
 
   const mode = useMemo(() => (myApply ? "VIEW" : "EDIT"), [myApply]);
 
@@ -76,21 +70,6 @@ export default function ContestApply() {
         setLoading(true);
         setErrorMsg("");
         await loadMyApply();
-
-        // 반려동물 목록 로드 (신청 시 pet_id 전달용)
-        try {
-          const myPets = await petApi.getMyPets();
-          setPets(Array.isArray(myPets) ? myPets : []);
-          // 기본 선택: 첫 번째 반려동물 ID
-          if (Array.isArray(myPets) && myPets.length > 0) {
-            const firstPet = myPets[0];
-            const firstPetId = firstPet.petId ?? firstPet.id ?? null;
-            setSelectedPetId(firstPetId);
-          }
-        } catch (err) {
-          // 반려동물 목록 불러오기 오류는 별도 에러 메시지를 주지 않고 건너뜀
-          console.error("Failed to load pets", err);
-        }
       } catch (e) {
         const statusCode = e?.response?.status;
         if (statusCode === 401) return handle401();
@@ -113,10 +92,8 @@ export default function ContestApply() {
       setSaving(true);
       setErrorMsg("");
 
-      // petId 전달: 선택된 반려동물이 있으면 넘기고 없으면 null
       await programApi.createProgramApply({
         programId: Number(programId),
-        petId: selectedPetId ? Number(selectedPetId) : null,
       });
 
       alert("참가 신청이 완료되었습니다.");
@@ -217,35 +194,6 @@ export default function ContestApply() {
         <div>
           <h3>참가 신청</h3>
           <p>신청하시겠습니까?</p>
-
-          {/* 반려동물 선택 UI: 사용자가 여러 반려동물을 등록한 경우 선택 */}
-          {pets.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <label htmlFor="petSelect" style={{ marginRight: 8 }}>
-                참가할 반려동물:
-              </label>
-              <select
-                id="petSelect"
-                value={selectedPetId ?? ""}
-                onChange={(e) =>
-                  setSelectedPetId(e.target.value ? Number(e.target.value) : null)
-                }
-                style={{ padding: 8, borderRadius: 4 }}
-              >
-                {/* 비어있음: 선택 안 함 */}
-                <option value="">선택 안 함</option>
-                {pets.map((pet) => {
-                  const id = pet.petId ?? pet.id;
-                  const name = pet.petName ?? pet.name ?? `펫 ${id}`;
-                  return (
-                    <option key={id} value={id}>
-                      {name}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-          )}
 
           <div style={{ marginTop: 16 }}>
             <button

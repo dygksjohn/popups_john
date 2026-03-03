@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -41,10 +40,17 @@ public class GalleryImageUploadController {
             @RequestPart("files") List<MultipartFile> files
     ) {
         if (files == null || files.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "파일을 선택해주세요.");
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "File is required.");
         }
         if (files.size() > 10) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "최대 10개까지 업로드 가능합니다.");
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Up to 10 files can be uploaded.");
+        }
+
+        Path dir = resolveGalleryUploadDir();
+        try {
+            Files.createDirectories(dir);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to create upload directory: " + e.getMessage());
         }
 
         List<String> urls = new ArrayList<>();
@@ -52,12 +58,10 @@ public class GalleryImageUploadController {
             validateFile(file);
             String ext = extractExt(file.getOriginalFilename());
             String storedName = UUID.randomUUID().toString().replace("-", "") + ext;
-            Path dir = Paths.get(basePath, "gallery");
             try {
-                Files.createDirectories(dir);
                 Files.write(dir.resolve(storedName), file.getBytes());
-            } catch (IOException e) {
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "파일 저장 실패: " + e.getMessage());
+            } catch (Exception e) {
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to write upload file: " + e.getMessage());
             }
             urls.add("/uploads/gallery/" + storedName);
         }
@@ -71,14 +75,14 @@ public class GalleryImageUploadController {
 
     private void validateFile(MultipartFile file) {
         if (file.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "빈 파일입니다.");
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Empty file is not allowed.");
         }
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "10MB 이하만 가능합니다.");
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "File size must be 10MB or less.");
         }
         String ct = file.getContentType();
         if (ct == null || !ALLOWED_TYPES.contains(ct.toLowerCase())) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "jpg, png, gif, webp만 가능합니다.");
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Only jpg, png, gif, webp are allowed.");
         }
     }
 
@@ -88,5 +92,13 @@ public class GalleryImageUploadController {
         }
         int idx = filename.lastIndexOf('.');
         return (idx >= 0) ? filename.substring(idx).toLowerCase() : "";
+    }
+
+    private Path resolveGalleryUploadDir() {
+        try {
+            return Paths.get(basePath).toAbsolutePath().normalize().resolve("gallery");
+        } catch (Exception ignored) {
+            return Paths.get(".").toAbsolutePath().normalize().resolve("uploads").resolve("gallery");
+        }
     }
 }
