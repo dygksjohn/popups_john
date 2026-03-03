@@ -14,6 +14,7 @@ import com.popups.pupoo.board.post.persistence.PostRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.search.SearchType;
+import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +29,7 @@ public class PostService {
     private final PostRepository postRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final UserRepository userRepository;
 
     private Long resolveBoardId(Long boardId, BoardType boardType) {
         if (boardId != null) return boardId;
@@ -43,7 +45,7 @@ public class PostService {
         if (boardId == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId is required");
         }
-        return postRepository.search(boardId, keyword, status, pageable).map(PostResponse::from);
+        return postRepository.search(boardId, keyword, status, pageable).map(this::toResponse);
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, String keyword, Pageable pageable) {
@@ -52,7 +54,7 @@ public class PostService {
 
     public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, String keyword, Pageable pageable) {
         Long resolvedBoardId = resolveBoardId(boardId, boardType);
-        return postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+        return postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, SearchType searchType, String keyword, Pageable pageable) {
@@ -63,13 +65,13 @@ public class PostService {
         Long resolvedBoardId = resolveBoardId(boardId, boardType);
 
         return switch (searchType) {
-            case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
-            case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+            case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
+            case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
             case WRITER -> {
                 Long writerId = parseLongOrNull(keyword);
-                yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+                yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable).map(this::toResponse);
             }
-            case TITLE_CONTENT -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+            case TITLE_CONTENT -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
         };
     }
 
@@ -96,7 +98,7 @@ public class PostService {
         if (post.getStatus() != PostStatus.PUBLISHED) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Post not found");
         }
-        return PostResponse.from(post);
+        return toResponse(post);
     }
 
     @Transactional
@@ -110,7 +112,15 @@ public class PostService {
         Post post = postRepository.findByPostIdAndDeletedFalse(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Post not found"));
 
-        return PostResponse.from(post);
+        return toResponse(post);
+    }
+
+    private String getWriterEmail(Long userId) {
+        return userId != null ? userRepository.findById(userId).map(u -> u.getEmail()).orElse(null) : null;
+    }
+
+    private PostResponse toResponse(Post post) {
+        return PostResponse.from(post, getWriterEmail(post.getUserId()));
     }
 
     @Transactional

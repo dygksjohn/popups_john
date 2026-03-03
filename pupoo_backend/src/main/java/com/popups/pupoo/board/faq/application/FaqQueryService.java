@@ -87,14 +87,12 @@ public class FaqQueryService {
 
         postRepository.increaseViewCount(postId);
 
-        // 현재 구조상 FAQ는 일반 게시글 기반이므로
-        // answerContent / answeredAt 은 일단 null 처리
         return new FaqDetailResponse(
                 post.getPostId(),
                 post.getPostTitle(),
                 post.getContent(),
-                null,                       // answerContent
-                null,                       // answeredAt
+                post.getAnswerContent(),
+                post.getAnsweredAt(),
                 post.getUserId(),
                 post.getViewCount() + 1,
                 post.getCreatedAt(),

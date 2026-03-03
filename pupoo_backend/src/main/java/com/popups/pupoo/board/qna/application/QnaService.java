@@ -12,6 +12,7 @@ import com.popups.pupoo.board.post.domain.model.Post;
 import com.popups.pupoo.board.qna.domain.enums.QnaStatus;
 import com.popups.pupoo.board.qna.dto.*;
 import com.popups.pupoo.board.qna.persistence.QnaRepository;
+import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class QnaService {
     private final QnaRepository qnaRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final UserRepository userRepository;
 
     @Transactional
     public QnaResponse create(Long userId, QnaCreateRequest request) {
@@ -125,11 +127,15 @@ private void validatePageRequest(int page, int size) {
     }
 }
 
-private QnaResponse toResponse(Post post) {
+    private QnaResponse toResponse(Post post) {
+        String writerEmail = post.getUserId() != null
+                ? userRepository.findById(post.getUserId()).map(u -> u.getEmail()).orElse(null)
+                : null;
         return QnaResponse.builder()
                 .qnaId(post.getPostId())
                 .boardId(post.getBoard().getBoardId())
                 .userId(post.getUserId())
+                .writerEmail(writerEmail)
                 .title(post.getPostTitle())
                 .content(post.getContent())
                 .status(post.getAnsweredAt() == null ? QnaStatus.WAITING : QnaStatus.ANSWERED)

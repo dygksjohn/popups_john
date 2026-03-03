@@ -8,9 +8,11 @@ import com.popups.pupoo.notice.domain.enums.NoticeStatus;
 import com.popups.pupoo.notice.domain.model.Notice;
 import com.popups.pupoo.notice.dto.NoticeResponse;
 import com.popups.pupoo.notice.persistence.NoticeRepository;
+import com.popups.pupoo.event.persistence.EventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NoticeService {
 
     private final NoticeRepository noticeRepository;
+    private final EventRepository eventRepository;
 
     public NoticeResponse get(Long noticeId) {
         // 공개 조회 정책: PUBLISHED만 조회 가능
@@ -40,9 +43,15 @@ public class NoticeService {
         return list(SearchType.TITLE_CONTENT, "", page, size);
     }
 
+    /** 공지 목록 정렬: 고정(pinned) 내림차순, 작성일(createdAt) 내림차순 (전체 항목 기준) */
+    private static final Sort NOTICE_LIST_SORT = Sort.by(
+            Sort.Order.desc("pinned"),
+            Sort.Order.desc("createdAt")
+    );
+
     public Page<NoticeResponse> list(SearchType searchType, String keyword, int page, int size) {
         validatePageRequest(page, size);
-        PageRequest pageable = PageRequest.of(page, size);
+        PageRequest pageable = PageRequest.of(page, size, NOTICE_LIST_SORT);
 
         SearchType type = (searchType == null) ? SearchType.TITLE_CONTENT : searchType;
         String kw = (keyword == null) ? "" : keyword.trim();
@@ -91,10 +100,14 @@ public class NoticeService {
     }
 
     protected NoticeResponse toResponse(Notice n) {
+        String eventName = n.getEventId() != null
+                ? eventRepository.findById(n.getEventId()).map(e -> e.getEventName()).orElse(null)
+                : null;
         return NoticeResponse.builder()
                 .noticeId(n.getNoticeId())
                 .scope(n.getScope())
                 .eventId(n.getEventId())
+                .eventName(eventName)
                 .title(n.getNoticeTitle())
                 .content(n.getContent())
                 .pinned(n.isPinned())

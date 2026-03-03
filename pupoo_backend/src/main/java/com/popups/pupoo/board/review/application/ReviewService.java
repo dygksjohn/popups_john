@@ -11,6 +11,8 @@ import com.popups.pupoo.board.review.persistence.ReviewRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.search.SearchType;
+import com.popups.pupoo.event.persistence.EventRepository;
+import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,8 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final EventRepository eventRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public ReviewResponse create(Long userId, ReviewCreateRequest request) {
@@ -155,16 +159,8 @@ public class ReviewService {
     }
 
     private ReviewResponse toResponse(Review r) {
-        return ReviewResponse.builder()
-                .reviewId(r.getReviewId())
-                .eventId(r.getEventId())
-                .userId(r.getUserId())
-                .rating(r.getRating())
-                .content(r.getContent())
-                .viewCount(r.getViewCount())
-                .status(r.getReviewStatus())
-                .createdAt(r.getCreatedAt())
-                .updatedAt(r.getUpdatedAt())
-                .build();
+        String eventName = eventRepository.findById(r.getEventId()).map(e -> e.getEventName()).orElse(null);
+        String writerEmail = userRepository.findById(r.getUserId()).map(u -> u.getEmail()).orElse(null);
+        return ReviewResponse.from(r, eventName, writerEmail);
     }
 }
