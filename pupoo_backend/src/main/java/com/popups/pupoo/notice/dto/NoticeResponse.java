@@ -14,6 +14,7 @@ public class NoticeResponse {
     private Long noticeId;
     private String scope;
     private Long eventId;
+    private String eventName;
 
     private String title;
     private String content;

@@ -29,7 +29,6 @@ function DetailModal({ item, onClose }) {
       />
       <style>{`
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
       `}</style>
       <div
         onClick={(e) => e.stopPropagation()}
@@ -46,7 +45,7 @@ function DetailModal({ item, onClose }) {
           maxHeight: "80vh",
           overflow: "auto",
           boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
-          animation: "slideUp .25s ease",
+          animation: "fadeIn .15s ease",
         }}
       >
         {/* 헤더 */}
@@ -128,11 +127,12 @@ function DetailModal({ item, onClose }) {
           <span style={{ fontSize: 13, color: "#94A3B8" }}>
             작성일 {fmtDate(item.createdAt)}
           </span>
-          {item.updatedAt && item.updatedAt !== item.createdAt && (
-            <span style={{ fontSize: 13, color: "#94A3B8" }}>
-              수정일 {fmtDate(item.updatedAt)}
-            </span>
-          )}
+          <span style={{ fontSize: 13, color: "#94A3B8" }}>
+            조회수 {item.viewCount ?? 0}
+          </span>
+          <span style={{ fontSize: 13, color: "#94A3B8" }}>
+            행사 {item.eventName ?? item.event_name ?? (item.eventId ? `#${item.eventId}` : "-")}
+          </span>
         </div>
 
         {/* 구분선 */}
@@ -413,6 +413,18 @@ export default function Notice() {
                     📌
                   </span>
                 )}
+                {notice.scope === "ALL" && (
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: "#64748B",
+                      marginRight: 8,
+                      flexShrink: 0,
+                    }}
+                  >
+                    전체
+                  </span>
+                )}
                 <span
                   style={{
                     flex: 1,
@@ -427,11 +439,23 @@ export default function Notice() {
                   style={{
                     fontSize: "13px",
                     color: "#999",
-                    marginLeft: "16px",
+                    marginLeft: "12px",
                     whiteSpace: "nowrap",
+                    flexShrink: 0,
                   }}
                 >
-                  {fmtDate(notice.createdAt)}
+                  작성일 {fmtDate(notice.createdAt)}
+                </span>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    color: "#999",
+                    marginLeft: "12px",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                >
+                  조회수 {notice.viewCount ?? 0}
                 </span>
               </div>
             ))}

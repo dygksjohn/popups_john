@@ -121,14 +121,14 @@ function fmtDate(dt) {
 
 /* ── API → 컴포넌트 데이터 매핑 ── */
 function mapQnaFromApi(item) {
-  const isClosed = item.status === "CLOSED";
+  const isAnswered = item.status === "ANSWERED";
   return {
     id: item.qnaId ?? item.inquiryId ?? item.id,
     qnaId: item.qnaId ?? item.inquiryId ?? item.id,
     title: item.title ?? item.inquiryTitle ?? "",
     author: item.nickname ?? item.author ?? item.userName ?? "익명",
     content: item.content ?? "",
-    status: isClosed ? "답변완료" : "대기중",
+    status: isAnswered ? "답변완료" : "대기중",
     answer: item.answer ?? item.answerContent ?? "",
     answerDate: item.answeredAt
       ? fmtDate(item.answeredAt)

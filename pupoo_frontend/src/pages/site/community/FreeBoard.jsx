@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PageHeader from "../components/PageHeader";
 import { Search, Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { postApi } from "../../../app/http/postApi";
@@ -12,11 +12,22 @@ function fmtDate(dt) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** 작성자 표시: 영문 기준 5글자, 이메일 앞 2글자 + 나머지 * */
+function maskWriterEmail(email) {
+  if (!email || typeof email !== "string") return "-----";
+  const s = String(email).trim();
+  const first2 = s.slice(0, 2);
+  return (first2 + "***").slice(0, 5);
+}
+
 function DetailModal({ item, onClose }) {
   if (!item) return null;
 
   return (
     <>
+      <style>{`
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+      `}</style>
       <div
         onClick={onClose}
         style={{
@@ -25,6 +36,7 @@ function DetailModal({ item, onClose }) {
           zIndex: 5000,
           background: "rgba(0,0,0,0.4)",
           backdropFilter: "blur(4px)",
+          animation: "fadeIn .15s ease",
         }}
       />
       <div
@@ -42,6 +54,7 @@ function DetailModal({ item, onClose }) {
           maxHeight: "85vh",
           overflow: "auto",
           boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+          animation: "fadeIn .15s ease",
         }}
       >
         <div
@@ -297,8 +310,38 @@ export default function FreeBoard() {
                   <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500 }}>
                     {item.postTitle}
                   </span>
-                  <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap" }}>
-                    {fmtDate(item.createdAt)}
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: "#999",
+                      whiteSpace: "nowrap",
+                      marginLeft: "12px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {maskWriterEmail(item.writerEmail ?? item.email)}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: "#999",
+                      whiteSpace: "nowrap",
+                      marginLeft: "12px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    작성일 {fmtDate(item.createdAt)}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: "#999",
+                      whiteSpace: "nowrap",
+                      marginLeft: "12px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    조회수 {item.viewCount ?? 0}
                   </span>
                 </div>
               ))}

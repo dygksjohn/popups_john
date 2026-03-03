@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PageHeader from "../components/PageHeader";
 import { Search, Loader2, ChevronLeft, ChevronRight, X, Star } from "lucide-react";
 import { reviewApi } from "../../../app/http/reviewApi";
@@ -33,11 +33,22 @@ function renderStars(rating = 0) {
   ));
 }
 
+/** 작성자 표시: 영문 기준 5글자, 이메일 앞 2글자 + 나머지 * */
+function maskWriterEmail(email) {
+  if (!email || typeof email !== "string") return "-----";
+  const s = String(email).trim();
+  const first2 = s.slice(0, 2);
+  return (first2 + "***").slice(0, 5);
+}
+
 function DetailModal({ item, onClose }) {
   if (!item) return null;
 
   return (
     <>
+      <style>{`
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+      `}</style>
       <div
         onClick={onClose}
         style={{
@@ -46,6 +57,7 @@ function DetailModal({ item, onClose }) {
           zIndex: 5000,
           background: "rgba(0,0,0,0.4)",
           backdropFilter: "blur(4px)",
+          animation: "fadeIn .15s ease",
         }}
       />
       <div
@@ -63,6 +75,7 @@ function DetailModal({ item, onClose }) {
           maxHeight: "85vh",
           overflow: "auto",
           boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+          animation: "fadeIn .15s ease",
         }}
       >
         <div
@@ -120,7 +133,10 @@ function DetailModal({ item, onClose }) {
             {renderStars(item.rating || 0)}
           </span>
           <span>작성일 {fmtDate(item.createdAt)}</span>
-          <span>행사 ID {item.eventId ?? "-"}</span>
+          <span>조회수 {item.viewCount ?? 0}</span>
+          <span>
+            행사 {item.eventName ?? item.event_name ?? (item.eventId ? `#${item.eventId}` : "-")}
+          </span>
         </div>
 
         <div style={{ margin: "16px 28px", borderBottom: "1px solid #E2E8F0" }} />
@@ -313,14 +329,58 @@ export default function Review() {
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   <span style={{ ...badge.style, marginRight: 12 }}>{badge.text}</span>
-                  <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500 }}>
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: "#64748B",
+                      marginRight: 12,
+                      flexShrink: 0,
+                      maxWidth: 140,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {item.eventName ?? item.event_name ?? (item.eventId ? `행사 #${item.eventId}` : "-")}
+                  </span>
+                  <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500, minWidth: 0 }}>
                     {getReviewTitle(item)}
                   </span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 2, marginRight: 12 }}>
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: "#999",
+                      whiteSpace: "nowrap",
+                      marginLeft: "12px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {maskWriterEmail(item.writerEmail ?? item.email)}
+                  </span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 2, marginLeft: "12px", flexShrink: 0 }}>
                     {renderStars(item.rating || 0)}
                   </span>
-                  <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap" }}>
-                    {fmtDate(item.createdAt)}
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: "#999",
+                      whiteSpace: "nowrap",
+                      marginLeft: "12px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    작성일 {fmtDate(item.createdAt)}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: "#999",
+                      whiteSpace: "nowrap",
+                      marginLeft: "12px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    조회수 {item.viewCount ?? 0}
                   </span>
                 </div>
               ))}

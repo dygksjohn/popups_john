@@ -24,6 +24,14 @@ function fmtDate(dt) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** 작성자 표시: 영문 기준 5글자, 이메일 앞 2글자 + 나머지 * */
+function maskWriterEmail(email) {
+  if (!email || typeof email !== "string") return "-----";
+  const s = String(email).trim();
+  const first2 = s.slice(0, 2);
+  return (first2 + "***").slice(0, 5);
+}
+
 /* ── 토스트 ── */
 function Toast({ msg, type = "success", onDone }) {
   useEffect(() => {
@@ -414,7 +422,7 @@ export default function ServicePage() {
 
   /* ── 필터링 ── */
   const filtered = items.filter((q) => {
-    const status = q.status === "CLOSED" ? "답변완료" : "미답변";
+    const status = q.status === "ANSWERED" ? "답변완료" : "미답변";
     const matchFilter = filter === "전체" || filter === status;
     const matchSearch =
       !search || q.title?.includes(search) || q.content?.includes(search);
@@ -472,6 +480,7 @@ export default function ServicePage() {
 
   return (
     <>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes expandIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <PageHeader
         title="질문 답변"
         subtitle="서비스 이용과 관련된 문의사항을 등록하고 답변을 확인할 수 있습니다."
@@ -634,7 +643,6 @@ export default function ServicePage() {
               style={{ animation: "spin 1s linear infinite" }}
             />
             <span style={{ fontSize: 13, color: "#999" }}>불러오는 중...</span>
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </div>
         )}
 
@@ -682,8 +690,8 @@ export default function ServicePage() {
         {!loading && !error && (
           <div>
             {filtered.map((q) => {
-              const isClosed = q.status === "CLOSED";
-              const statusLabel = isClosed ? "답변완료" : "미답변";
+              const isAnswered = q.status === "ANSWERED";
+              const statusLabel = isAnswered ? "답변완료" : "미답변";
 
               return (
                 <div
@@ -713,24 +721,13 @@ export default function ServicePage() {
                     >
                       {getBoardBadge("QNA").text}
                     </span>
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: "15px",
-                        color: "#222",
-                        fontWeight: "400",
-                      }}
-                    >
-                      {q.title}
-                    </span>
-
-                    {/* 상태 뱃지 */}
+                    {/* 진행상태 */}
                     <span
                       style={{
                         fontSize: "11px",
                         fontWeight: "600",
-                        color: isClosed ? "#4a7cf7" : "#999",
-                        border: `1px solid ${isClosed ? "#4a7cf7" : "#ccc"}`,
+                        color: isAnswered ? "#4a7cf7" : "#999",
+                        border: `1px solid ${isAnswered ? "#4a7cf7" : "#ccc"}`,
                         borderRadius: "20px",
                         padding: "2px 9px",
                         marginRight: "12px",
@@ -738,6 +735,7 @@ export default function ServicePage() {
                         display: "flex",
                         alignItems: "center",
                         gap: "3px",
+                        flexShrink: 0,
                       }}
                     >
                       {statusLabel}
@@ -753,15 +751,49 @@ export default function ServicePage() {
                         <ChevronDown size={11} strokeWidth={2.5} />
                       </span>
                     </span>
-
+                    <span
+                      style={{
+                        flex: 1,
+                        fontSize: "15px",
+                        color: "#222",
+                        fontWeight: "400",
+                        minWidth: 0,
+                      }}
+                    >
+                      {q.title}
+                    </span>
                     <span
                       style={{
                         fontSize: "13px",
                         color: "#999",
                         whiteSpace: "nowrap",
+                        marginLeft: "12px",
+                        flexShrink: 0,
                       }}
                     >
-                      {fmtDate(q.createdAt)}
+                      {maskWriterEmail(q.writerEmail ?? q.email)}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        color: "#999",
+                        whiteSpace: "nowrap",
+                        marginLeft: "12px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      작성일 {fmtDate(q.createdAt)}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        color: "#999",
+                        whiteSpace: "nowrap",
+                        marginLeft: "12px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      조회수 {q.viewCount ?? 0}
                     </span>
                   </div>
 
@@ -772,6 +804,7 @@ export default function ServicePage() {
                         padding: "16px 20px",
                         background: "#f7f9ff",
                         borderTop: "1px dashed #dde6ff",
+                        animation: "expandIn .15s ease",
                       }}
                     >
                       {/* 질문 내용 */}
@@ -806,10 +839,11 @@ export default function ServicePage() {
                               marginBottom: 6,
                               display: "flex",
                               alignItems: "center",
+                              justifyContent: "space-between",
                               gap: 4,
                             }}
                           >
-                            re: 관리자 답변
+                            <span>re: 관리자 답변</span>
                             {q.answeredAt && (
                               <span
                                 style={{
@@ -817,9 +851,10 @@ export default function ServicePage() {
                                   color: "#999",
                                   fontWeight: 400,
                                   marginLeft: 8,
+                                  textAlign: "right",
                                 }}
                               >
-                                {fmtDate(q.answeredAt)}
+                                작성일 {fmtDate(q.answeredAt)}
                               </span>
                             )}
                           </div>

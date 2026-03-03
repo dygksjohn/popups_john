@@ -14,6 +14,7 @@ public class PostResponse {
     private Long postId;
     private Long boardId;
     private Long userId;
+    private String writerEmail;
     private String postTitle;
     private String content;
     private PostStatus status;
@@ -24,10 +25,15 @@ public class PostResponse {
     private LocalDateTime updatedAt;
 
     public static PostResponse from(Post post) {
+        return from(post, null);
+    }
+
+    public static PostResponse from(Post post, String writerEmail) {
         PostResponse r = new PostResponse();
         r.postId = post.getPostId();
         r.boardId = post.getBoard().getBoardId();
         r.userId = post.getUserId();
+        r.writerEmail = writerEmail;
         r.postTitle = post.getPostTitle();
         r.content = post.getContent();
         r.status = post.getStatus();
