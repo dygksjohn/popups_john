@@ -271,7 +271,7 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
     public boolean cancel(Payment payment) {
         if (payment.getPaymentMethod() != PaymentProvider.KAKAOPAY) {
             // 기능: 결제수단 검증
-            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Only KAKAOPAY is supported");
         }
 
         validateKakaoPayConfig();
@@ -332,7 +332,7 @@ private PaymentTransaction findLatestTxForUpdate(Long paymentId) {
     private void validateKakaoPay(Payment payment) {
         if (payment.getPaymentMethod() != PaymentProvider.KAKAOPAY) {
             // 기능: 결제수단 검증
-            throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR, "KakaoPay method required");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Only KAKAOPAY is supported");
         }
     }
 

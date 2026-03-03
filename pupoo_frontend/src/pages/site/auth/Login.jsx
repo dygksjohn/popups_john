@@ -96,6 +96,13 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
   const KAKAO_REDIRECT_URI = import.meta.env.VITE_KAKAO_REDIRECT_URI;
+  const resolvePostLoginRedirect = () => {
+    const target =
+      location.state?.from ||
+      sessionStorage.getItem("post_login_redirect") ||
+      "/";
+    return target.startsWith("/auth/") ? "/" : target;
+  };
 
   const handleKakaoLogin = () => {
     if (!KAKAO_REST_KEY || !KAKAO_REDIRECT_URI) {
@@ -107,16 +114,15 @@ const LoginPage = ({ leftBgImage = null }) => {
     // 1순위: ProtectedRoute가 넘겨준 from
     // 2순위: 직전 저장 값
     // 3순위: 기본 홈
-    const redirectTo =
-      location.state?.from ||
-      sessionStorage.getItem("post_login_redirect") ||
-      "/";
+    const redirectTo = resolvePostLoginRedirect();
     sessionStorage.setItem("post_login_redirect", redirectTo);
 
     const params = new URLSearchParams({
       response_type: "code",
       client_id: KAKAO_REST_KEY,
       redirect_uri: KAKAO_REDIRECT_URI,
+      through_account: "true",
+      prompt: "login",
     });
     window.location.href = `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
   };
@@ -136,6 +142,13 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const externalError = location.state?.error || "";
+
+  useEffect(() => {
+    if (externalError) {
+      setError(externalError);
+    }
+  }, [externalError]);
 
   const handleLogin = async () => {
     if (loading) return;
@@ -157,10 +170,7 @@ const LoginPage = ({ leftBgImage = null }) => {
 
       tokenStore.setAccess(accessToken);
       login(); // ✅ 전역 인증 상태 true -> 헤더 즉시 전환
-      const redirectTo =
-        location.state?.from ||
-        sessionStorage.getItem("post_login_redirect") ||
-        "/";
+      const redirectTo = resolvePostLoginRedirect();
       sessionStorage.removeItem("post_login_redirect");
       navigate(redirectTo, { replace: true });
     } catch (e) {

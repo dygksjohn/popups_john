@@ -30,6 +30,7 @@ import Home from "./pages/site/home/Home";
 import Login from "./pages/site/auth/Login";
 import Mypage from "./pages/site/auth/mypage";
 import MypageQr from "./pages/site/auth/MypageQr";
+import MypageProfileEdit from "./pages/site/auth/MypageProfileEdit";
 import JoinSelect from "./pages/site/auth/join/JoinSelect";
 import JoinNormal from "./pages/site/auth/join/JoinNormal";
 import JoinSocial from "./pages/site/auth/join/JoinSocial";
@@ -78,10 +79,12 @@ import FreeBoard from "./pages/site/community/FreeBoard";
 import Review from "./pages/site/community/Review";
 import QnA from "./pages/site/community/QnA";
 import Notice from "./pages/site/community/Notice";
+import CommunityFaq from "./pages/site/community/Faq";
+import InfoBoard from "./pages/site/community/InfoBoard";
 
 /* Info */
 import PlatformIntro from "./pages/site/info/PlatformIntro";
-import FAQ from "./pages/site/info/FAQ";
+import InfoFAQ from "./pages/site/info/FAQ";
 import Inquiry from "./pages/site/info/Inquiry";
 import Location from "./pages/site/info/Location";
 
@@ -222,11 +225,15 @@ export default function App() {
         {/* site */}
         <Route element={<SiteLayout />}>
           <Route path="/" element={<Home />} />
-          <Route path="/auth/login" element={<Login />} />
+          <Route path="/auth/login" element={<PublicOnly><Login /></PublicOnly>} />
           <Route path="/auth/mypage" element={<Mypage />} />
           <Route path="/auth/mypage/qr" element={<MypageQr />} />
+          <Route path="/auth/mypage/profile" element={<MypageProfileEdit />} />
+          <Route path="/auth/mypage/pjrofile" element={<MypageProfileEdit />} />
           <Route path="/mypage" element={<Mypage />} />
           <Route path="/mypage/qr" element={<MypageQr />} />
+          <Route path="/mypage/profile" element={<MypageProfileEdit />} />
+          <Route path="/mypage/pjrofile" element={<MypageProfileEdit />} />
           <Route path="/auth/join/joinselect" element={<PublicOnly><JoinSelect /></PublicOnly>} />
           <Route path="/auth/join/joinnormal" element={<PublicOnly><JoinNormal /></PublicOnly>} />
           <Route path="/auth/join/joinsocial" element={<PublicOnly><JoinSocial /></PublicOnly>} />
@@ -261,11 +268,13 @@ export default function App() {
           <Route path="/realtime/votestatus/:eventId?" element={<VoteStatus />} />
           <Route path="/realtime/waitingstatus/:eventId?" element={<WaitingStatus />} />
           <Route path="/community/freeboard" element={<FreeBoard />} />
+          <Route path="/community/info" element={<InfoBoard />} />
           <Route path="/community/review" element={<Review />} />
           <Route path="/community/qna" element={<QnA />} />
           <Route path="/community/notice" element={<Notice />} />
+          <Route path="/community/faq" element={<CommunityFaq />} />
           <Route path="/info/intro" element={<PlatformIntro />} />
-          <Route path="/info/faq" element={<FAQ />} />
+          <Route path="/info/faq" element={<InfoFAQ />} />
           <Route path="/info/inquiry" element={<Inquiry />} />
           <Route path="/info/location" element={<Location />} />
           <Route path="/policy/aboutus" element={<AboutUs />} />

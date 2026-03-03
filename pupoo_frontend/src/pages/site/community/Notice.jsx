@@ -3,13 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import PageHeader from "../components/PageHeader";
 import { ChevronLeft, ChevronRight, Search, Loader2, X } from "lucide-react";
 import { noticeApi, unwrap } from "../../../api/noticeApi";
-
-const SERVICE_CATEGORIES = [
-  { label: "자유게시판", path: "/community/freeboard" },
-  { label: "공지사항", path: "/community/notice" },
-  { label: "행사후기", path: "/community/review" },
-  { label: "질문/답변", path: "/community/qna" },
-];
+import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 
 function fmtDate(dt) {
   if (!dt) return "-";
@@ -256,7 +250,7 @@ export default function Notice() {
       <PageHeader
         title="공지사항"
         subtitle="플랫폼 운영 및 주요 안내 사항을 공지하는 공간입니다."
-        categories={SERVICE_CATEGORIES}
+        categories={COMMUNITY_CATEGORIES}
         currentPath={currentPath}
         onNavigate={setCurrentPath}
       />
@@ -401,6 +395,11 @@ export default function Notice() {
                   (e.currentTarget.style.background = "transparent")
                 }
               >
+                <span
+                  style={{ ...getBoardBadge("NOTICE").style, marginRight: 12 }}
+                >
+                  {getBoardBadge("NOTICE").text}
+                </span>
                 {notice.pinned && (
                   <span
                     style={{

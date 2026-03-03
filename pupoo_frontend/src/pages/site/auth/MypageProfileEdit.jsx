@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { mypageApi } from "./api/mypageApi";
 import { authApi } from "./api/authApi";
@@ -13,6 +13,24 @@ import {
   mypagePrimaryButtonStyle,
   mypageTitleStyle,
 } from "../../../features/shared/ui/mypageStyles";
+function formatDateTimeDisplay(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    const hh = String(date.getHours()).padStart(2, "0");
+    const min = String(date.getMinutes()).padStart(2, "0");
+    const ss = String(date.getSeconds()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+  }
+
+  const normalized = String(value).trim().replace("T", " ").replace(/\.\d+$/, "");
+  const m = normalized.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}:\d{2}))?/);
+  if (!m) return String(value);
+  return `${m[1]} ${m[2] || "00:00:00"}`;
+}
 
 export default function MypageProfileEdit() {
   const navigate = useNavigate();
@@ -37,8 +55,6 @@ export default function MypageProfileEdit() {
     email: "",
     phone: "",
     nickname: "",
-    status: "",
-    roleName: "",
     createdAt: "",
     lastLoginAt: "",
     lastModifiedAt: "",
@@ -54,6 +70,7 @@ export default function MypageProfileEdit() {
     () => (form.nickname || "").trim() !== (initialNickname || "").trim(),
     [form.nickname, initialNickname],
   );
+  const wideButtonStyle = { minWidth: 120, whiteSpace: "nowrap" };
 
   const refreshMe = async () => {
     const me = await mypageApi.getMe();
@@ -62,8 +79,6 @@ export default function MypageProfileEdit() {
       email: me?.email || "",
       phone: me?.phone || "",
       nickname: me?.nickname || "",
-      status: me?.status || "",
-      roleName: me?.roleName || "",
       createdAt: me?.createdAt || "",
       lastLoginAt: me?.lastLoginAt || "",
       lastModifiedAt: me?.lastModifiedAt || "",
@@ -89,8 +104,6 @@ export default function MypageProfileEdit() {
           email: me?.email || "",
           phone: me?.phone || "",
           nickname: me?.nickname || "",
-          status: me?.status || "",
-          roleName: me?.roleName || "",
           createdAt: me?.createdAt || "",
           lastLoginAt: me?.lastLoginAt || "",
           lastModifiedAt: me?.lastModifiedAt || "",
@@ -178,7 +191,7 @@ export default function MypageProfileEdit() {
       navigate("/mypage");
     } catch (error) {
       setFieldErrors(toFieldMessageMap(error));
-      setGlobalError(resolveErrorMessage(error, "프로필 저장에 실패했습니다."));
+      setGlobalError(resolveErrorMessage(error, "프로필 수정에 실패했습니다."));
     } finally {
       setSaving(false);
     }
@@ -225,7 +238,7 @@ export default function MypageProfileEdit() {
       });
       setPhoneVerifyCode(String(res?.devCode || ""));
     } catch (error) {
-      setGlobalError(resolveErrorMessage(error, "전화번호 인증 요청에 실패했습니다."));
+      setGlobalError(resolveErrorMessage(error, "휴대전화 인증 요청에 실패했습니다."));
     } finally {
       setPhoneChanging(false);
     }
@@ -245,7 +258,7 @@ export default function MypageProfileEdit() {
       setForm((prev) => ({ ...prev, nextPhone: "" }));
       await refreshMe();
     } catch (error) {
-      setGlobalError(resolveErrorMessage(error, "전화번호 변경 확인에 실패했습니다."));
+      setGlobalError(resolveErrorMessage(error, "휴대전화 변경 확인에 실패했습니다."));
     } finally {
       setPhoneConfirming(false);
     }
@@ -279,7 +292,7 @@ export default function MypageProfileEdit() {
                 type="button"
                 onClick={checkNickname}
                 disabled={loading || saving}
-                style={mypageOutlineButtonStyle}
+                style={{ ...mypageOutlineButtonStyle, ...wideButtonStyle }}
               >
                 중복확인
               </button>
@@ -305,28 +318,18 @@ export default function MypageProfileEdit() {
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label style={mypageLabelStyle}>계정 상태</label>
-            <input value={form.status} style={mypageInputStyle} disabled />
-          </div>
-
-          <div style={{ marginBottom: 14 }}>
-            <label style={mypageLabelStyle}>권한</label>
-            <input value={form.roleName} style={mypageInputStyle} disabled />
-          </div>
-
-          <div style={{ marginBottom: 14 }}>
-            <label style={mypageLabelStyle}>가입일시</label>
-            <input value={form.createdAt} style={mypageInputStyle} disabled />
+            <label style={mypageLabelStyle}>가입일</label>
+            <input value={formatDateTimeDisplay(form.createdAt)} style={mypageInputStyle} disabled />
           </div>
 
           <div style={{ marginBottom: 14 }}>
             <label style={mypageLabelStyle}>최근 로그인 일시</label>
-            <input value={form.lastLoginAt} style={mypageInputStyle} disabled />
+            <input value={formatDateTimeDisplay(form.lastLoginAt)} style={mypageInputStyle} disabled />
           </div>
 
           <div style={{ marginBottom: 20 }}>
             <label style={mypageLabelStyle}>최근 변경 일시</label>
-            <input value={form.lastModifiedAt} style={mypageInputStyle} disabled />
+            <input value={formatDateTimeDisplay(form.lastModifiedAt)} style={mypageInputStyle} disabled />
           </div>
 
           <div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
@@ -363,8 +366,8 @@ export default function MypageProfileEdit() {
           </div>
 
           <div style={{ marginBottom: 16, fontSize: 12, color: "#6b7280", lineHeight: 1.6 }}>
-            현재 프로필 수정 API에서 변경 가능한 항목은 닉네임과 공개설정입니다.
-            이메일/전화번호는 아래 인증 절차로 변경할 수 있습니다.
+            현재 프로필 수정 API에서 변경 가능한 항목은 닉네임과 공개 설정입니다.
+            이메일과 휴대전화는 아래 인증 절차로 변경할 수 있습니다.
           </div>
 
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 14, marginBottom: 14 }}>
@@ -382,7 +385,7 @@ export default function MypageProfileEdit() {
                 type="button"
                 onClick={requestEmailChange}
                 disabled={emailChanging || emailConfirming}
-                style={mypageOutlineButtonStyle}
+                style={{ ...mypageOutlineButtonStyle, ...wideButtonStyle }}
               >
                 인증요청
               </button>
@@ -391,7 +394,7 @@ export default function MypageProfileEdit() {
               <input
                 value={emailVerifyInput}
                 onChange={(e) => setEmailVerifyInput(e.target.value)}
-                placeholder="이메일 토큰 입력"
+                placeholder="이메일 인증 토큰 입력"
                 style={mypageInputStyle}
                 disabled={emailChanging || emailConfirming}
               />
@@ -399,7 +402,7 @@ export default function MypageProfileEdit() {
                 type="button"
                 onClick={confirmEmailChange}
                 disabled={emailChanging || emailConfirming}
-                style={mypageOutlineButtonStyle}
+                style={{ ...mypageOutlineButtonStyle, ...wideButtonStyle }}
               >
                 변경확인
               </button>
@@ -410,13 +413,13 @@ export default function MypageProfileEdit() {
           </div>
 
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 14, marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>전화번호 변경 인증</div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>휴대전화 변경 인증</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input
                 name="nextPhone"
                 value={form.nextPhone}
                 onChange={handleChange}
-                placeholder="새 전화번호"
+                placeholder="새 휴대전화번호"
                 style={mypageInputStyle}
                 disabled={phoneChanging || phoneConfirming}
               />
@@ -424,7 +427,7 @@ export default function MypageProfileEdit() {
                 type="button"
                 onClick={requestPhoneChange}
                 disabled={phoneChanging || phoneConfirming}
-                style={mypageOutlineButtonStyle}
+                style={{ ...mypageOutlineButtonStyle, ...wideButtonStyle }}
               >
                 인증요청
               </button>
@@ -441,7 +444,7 @@ export default function MypageProfileEdit() {
                 type="button"
                 onClick={confirmPhoneChange}
                 disabled={phoneChanging || phoneConfirming}
-                style={mypageOutlineButtonStyle}
+                style={{ ...mypageOutlineButtonStyle, ...wideButtonStyle }}
               >
                 변경확인
               </button>
@@ -455,7 +458,7 @@ export default function MypageProfileEdit() {
             <button
               type="submit"
               disabled={loading || saving}
-              style={{ ...mypagePrimaryButtonStyle, cursor: loading || saving ? "not-allowed" : "pointer" }}
+              style={{ ...mypagePrimaryButtonStyle, ...wideButtonStyle, cursor: loading || saving ? "not-allowed" : "pointer" }}
             >
               저장
             </button>
@@ -463,9 +466,9 @@ export default function MypageProfileEdit() {
               type="button"
               onClick={() => navigate("/mypage")}
               disabled={loading || saving}
-              style={{ ...mypageOutlineButtonStyle, cursor: loading || saving ? "not-allowed" : "pointer" }}
+              style={{ ...mypageOutlineButtonStyle, ...wideButtonStyle, cursor: loading || saving ? "not-allowed" : "pointer" }}
             >
-              취소
+              痍⑥냼
             </button>
           </div>
         </form>
@@ -473,3 +476,4 @@ export default function MypageProfileEdit() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Home,
   CalendarDays,
@@ -35,6 +35,8 @@ import { CircleDot } from "lucide-react";
 import ds, { cardStyle } from "../shared/designTokens";
 import { KpiCard, ChartTip } from "../shared/Components";
 import DATA from "../shared/data";
+import { axiosInstance } from "../../../app/http/axiosInstance";
+import { getToken } from "../../../api/noticeApi";
 
 /* 페이지 import */
 import EventManage from "../event/eventManage";
@@ -117,7 +119,7 @@ const NAV = [
     section: "행사",
     items: [
       { id: "pastEvents", label: "지난 행사", icon: Archive },
-      { id: "eventManage", label: "행사 관리", icon: CalendarDays, badge: 3 },
+      { id: "eventManage", label: "행사 관리", icon: CalendarDays },
       { id: "programManage", label: "프로그램 관리", icon: Clipboard },
     ],
   },
@@ -147,19 +149,19 @@ const NAV = [
   },
 ];
 
-const PAGE_TABS = {
+const DEFAULT_PAGE_TABS = {
   dashboard: [{ id: "summary", label: "요약" }],
   eventManage: [
-    { id: "all", label: "전체 이벤트", count: 10 },
-    { id: "active", label: "진행 중", count: 4 },
-    { id: "ended", label: "종료", count: 3 },
-    { id: "new", label: "신규", count: 3 },
+    { id: "all", label: "전체 이벤트", count: 0 },
+    { id: "active", label: "진행 중", count: 0 },
+    { id: "ended", label: "종료", count: 0 },
+    { id: "new", label: "신규", count: 0 },
   ],
   programManage: [
-    { id: "all", label: "전체", count: 6 },
-    { id: "active", label: "운영 중", count: 3 },
-    { id: "ended", label: "종료", count: 1 },
-    { id: "pending", label: "대기", count: 2 },
+    { id: "all", label: "전체", count: 0 },
+    { id: "active", label: "운영 중", count: 0 },
+    { id: "ended", label: "종료", count: 0 },
+    { id: "pending", label: "대기", count: 0 },
   ],
   pastEvents: [{ id: "all", label: "전체 행사" }],
   zoneManage: [{ id: "all", label: "체험존 목록" }],
@@ -167,8 +169,10 @@ const PAGE_TABS = {
   sessionManage: [{ id: "all", label: "세션 목록" }],
   boardManage: [
     { id: "free", label: "자유게시판" },
+    { id: "info", label: "정보게시판" },
     { id: "review", label: "행사후기" },
     { id: "qna", label: "질문·답변" },
+    { id: "faq", label: "자주묻는질문" },
   ],
   gallery: [{ id: "all", label: "갤러리" }],
   notice: [{ id: "all", label: "공지사항", count: 5 }],
@@ -179,6 +183,11 @@ const PAGE_TABS = {
   ],
   paymentManage: [{ id: "all", label: "결제 내역" }],
   alertManage: [{ id: "all", label: "알림 내역" }],
+};
+
+const authHeaders = () => {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 const PAGE_TITLES = {
@@ -741,8 +750,68 @@ export default function Dashboard() {
   const [nav, setNav] = useState("dashboard");
   const [subTab, setSubTab] = useState(null);
   const [bellAnim, setBellAnim] = useState(false);
+  const [pageTabs, setPageTabs] = useState(DEFAULT_PAGE_TABS);
+  const [eventMenuBadge, setEventMenuBadge] = useState(0);
 
-  const tabs = PAGE_TABS[nav] || [];
+  const loadTabCounts = useCallback(async () => {
+    try {
+      const [eventRes, programRes] = await Promise.all([
+        axiosInstance.get("/api/admin/dashboard/events", {
+          headers: authHeaders(),
+        }),
+        axiosInstance.get("/api/admin/dashboard/programs", {
+          headers: authHeaders(),
+        }),
+      ]);
+
+      const eventList = eventRes?.data?.data || eventRes?.data || [];
+      const programList = programRes?.data?.data || programRes?.data || [];
+
+      const events = Array.isArray(eventList) ? eventList : [];
+      const programs = Array.isArray(programList) ? programList : [];
+
+      const eventCounts = {
+        all: events.length,
+        active: events.filter((e) => e?.status === "active").length,
+        ended: events.filter((e) => e?.status === "ended").length,
+        new: events.filter((e) => e?.status === "pending").length,
+      };
+
+      const programCounts = {
+        all: programs.length,
+        active: programs.filter((p) => p?.status === "active").length,
+        ended: programs.filter((p) => p?.status === "ended").length,
+        pending: programs.filter((p) => p?.status === "pending").length,
+      };
+
+      setPageTabs((prev) => ({
+        ...prev,
+        eventManage: [
+          { id: "all", label: "전체 이벤트", count: eventCounts.all },
+          { id: "active", label: "진행 중", count: eventCounts.active },
+          { id: "ended", label: "종료", count: eventCounts.ended },
+          { id: "new", label: "신규", count: eventCounts.new },
+        ],
+        programManage: [
+          { id: "all", label: "전체", count: programCounts.all },
+          { id: "active", label: "운영 중", count: programCounts.active },
+          { id: "ended", label: "종료", count: programCounts.ended },
+          { id: "pending", label: "대기", count: programCounts.pending },
+        ],
+      }));
+      setEventMenuBadge(eventCounts.all);
+    } catch (err) {
+      console.error("[Dashboard] tab count load failed:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (nav === "dashboard" || nav === "eventManage" || nav === "programManage") {
+      loadTabCounts();
+    }
+  }, [nav, loadTabCounts]);
+
+  const tabs = pageTabs[nav] || [];
   const activeTab = subTab || tabs[0]?.id;
   const handleNav = (id) => {
     setNav(id);
@@ -879,6 +948,8 @@ export default function Dashboard() {
                 {group.items.map((item) => {
                   const on = nav === item.id;
                   const I = item.icon;
+                  const badgeValue =
+                    item.id === "eventManage" ? eventMenuBadge : item.badge;
                   return (
                     <button
                       key={item.id}
@@ -913,7 +984,7 @@ export default function Dashboard() {
                       <span style={{ flex: 1, textAlign: "left" }}>
                         {item.label}
                       </span>
-                      {item.badge && (
+                      {badgeValue != null && (
                         <span
                           style={{
                             fontSize: 10,
@@ -927,7 +998,7 @@ export default function Dashboard() {
                             lineHeight: "15px",
                           }}
                         >
-                          {item.badge}
+                          {badgeValue}
                         </span>
                       )}
                     </button>

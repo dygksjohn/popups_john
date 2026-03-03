@@ -197,10 +197,12 @@ const megaMenuData = {
       {
         title: "소통공간",
         items: [
-          { label: "자유 게시판", href: "/community/freeboard" },
           { label: "공지사항", href: "/community/notice" },
+          { label: "정보 게시판", href: "/community/info" },
+          { label: "자유 게시판", href: "/community/freeboard" },
           { label: "행사 후기", href: "/community/review" },
           { label: "질문 · 답변", href: "/community/qna" },
+          { label: "자주묻는질문", href: "/community/faq" },
         ],
       },
       {
