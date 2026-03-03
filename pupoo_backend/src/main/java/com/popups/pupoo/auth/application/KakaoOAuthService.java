@@ -171,9 +171,8 @@ public class KakaoOAuthService {
 
         // ✅ 설정값 누락 방어(실수 방지)
         if (clientId == null || clientId.isBlank() || redirectUri == null || redirectUri.isBlank()) {
-
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }     
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "KAKAO_OAUTH_CONFIG_MISSING");
+        }
         
         final String secret = (clientSecret == null) ? "" : clientSecret.trim();
         log.warn("[KAKAO][DEBUG] token req: clientIdPrefix={}, redirectUri={}, hasSecret={}, secretLenTrim={}",

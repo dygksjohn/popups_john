@@ -68,10 +68,16 @@ export default function Checkout() {
         setError("결제 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       }
     } catch (e) {
+      const serverMsg =
+        e?.response?.data?.error?.message ||
+        e?.response?.data?.message ||
+        "";
       if (e?.response?.status === 409) {
         setError("이미 진행 중인 결제가 있습니다. 결제 내역에서 확인해 주세요.");
       } else {
-        setError("결제 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        setError(
+          serverMsg || "결제 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+        );
       }
     } finally {
       setLoading(false);

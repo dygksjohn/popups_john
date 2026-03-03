@@ -64,7 +64,11 @@ public class PaymentService {
         if (eventId == null) throw new BusinessException(ErrorCode.INVALID_REQUEST);
 
         EventRegistration apply = eventRegistrationRepository
-                .findByEventIdAndUserIdAndStatusForUpdate(eventId, userId, RegistrationStatus.APPLIED)
+                .findActiveByEventIdAndUserIdForUpdate(
+                        eventId,
+                        userId,
+                        EnumSet.of(RegistrationStatus.APPLIED, RegistrationStatus.APPROVED)
+                )
                 .orElseThrow(() -> new BusinessException(ErrorCode.EVENT_REGISTRATION_NOT_FOUND));
 
         Long applyId = apply.getApplyId();

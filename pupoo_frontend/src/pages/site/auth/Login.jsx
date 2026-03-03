@@ -94,12 +94,15 @@ const LoginPage = ({ leftBgImage = null }) => {
   const location = useLocation();
   const { login } = useAuth();
 
-  const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
-  const KAKAO_REDIRECT_URI = import.meta.env.VITE_KAKAO_REDIRECT_URI;
+  const KAKAO_REST_KEY = (import.meta.env.VITE_KAKAO_REST_KEY || "").trim();
+  const KAKAO_REDIRECT_URI =
+    (import.meta.env.VITE_KAKAO_REDIRECT_URI || "").trim() ||
+    `${window.location.origin}/auth/kakao/callback`;
 
   const handleKakaoLogin = () => {
-    if (!KAKAO_REST_KEY || !KAKAO_REDIRECT_URI) {
-      console.error("Kakao env missing");
+    if (!KAKAO_REST_KEY) {
+      setError("카카오 로그인 설정이 누락되었습니다. VITE_KAKAO_REST_KEY를 확인하세요.");
+      console.error("Kakao env missing: VITE_KAKAO_REST_KEY");
       return;
     }
 
@@ -136,6 +139,11 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const msg = location.state?.error;
+    if (msg) setError(msg);
+  }, [location.state]);
 
   const handleLogin = async () => {
     if (loading) return;

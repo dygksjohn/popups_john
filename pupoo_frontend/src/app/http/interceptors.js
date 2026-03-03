@@ -43,9 +43,32 @@ export function attachInterceptors(instance) {
         return Promise.reject(err);
       }
 
-      // ✅ (일단) refresh 로직 없으니 여기서 그냥 clear하고 로그인 유도
-      tokenStore.clear();
-      return Promise.reject(err);
+      original._retry = true;
+
+      try {
+        const refreshRes = await instance.post(
+          "/api/auth/refresh",
+          null,
+          { withCredentials: true },
+        );
+
+        const newAccess =
+          refreshRes?.data?.data?.accessToken ??
+          refreshRes?.data?.accessToken;
+
+        if (!newAccess) {
+          tokenStore.clear();
+          return Promise.reject(err);
+        }
+
+        tokenStore.setAccess(newAccess);
+        original.headers = original.headers || {};
+        original.headers.Authorization = `Bearer ${newAccess}`;
+        return instance(original);
+      } catch (refreshErr) {
+        tokenStore.clear();
+        return Promise.reject(refreshErr);
+      }
     },
   );
 }
