@@ -278,8 +278,8 @@ const navItems = [
 const MegaMenuItem = ({ item }) => {
   const [hovered, setHovered] = useState(false);
   return (
-    <a
-      href={item.href}
+    <Link
+      to={item.href}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -296,7 +296,7 @@ const MegaMenuItem = ({ item }) => {
       }}
     >
       {item.label}
-    </a>
+    </Link>
   );
 };
 
@@ -462,27 +462,56 @@ const NavItem = ({
   const computedColor = isActive || hovered ? activeColor : baseColor;
 
   if (!hasDropdown) {
+    const isInternal = typeof href === "string" && href.startsWith("/");
+    const linkStyle = {
+      position: "relative",
+      display: "inline-flex",
+      alignItems: "center",
+      height: "100%",
+      padding: "0 4px",
+      color: computedColor,
+      fontSize: "14px",
+      fontFamily: "'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif",
+      fontWeight: "400",
+      textDecoration: "none",
+      whiteSpace: "nowrap",
+      letterSpacing: "0.01em",
+      transition: "color 0.2s ease",
+      cursor: "pointer",
+    };
+
+    if (isInternal) {
+      return (
+        <Link
+          to={href}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={linkStyle}
+        >
+          {label}
+          <span
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: "2px",
+              backgroundColor: "#1c69d4",
+              transform: hovered ? "scaleX(1)" : "scaleX(0)",
+              transition: "transform 0.2s ease",
+              transformOrigin: "center",
+            }}
+          />
+        </Link>
+      );
+    }
+
     return (
       <a
         href={href || "#"}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        style={{
-          position: "relative",
-          display: "inline-flex",
-          alignItems: "center",
-          height: "100%",
-          padding: "0 4px",
-          color: computedColor,
-          fontSize: "14px",
-          fontFamily: "'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif",
-          fontWeight: "400",
-          textDecoration: "none",
-          whiteSpace: "nowrap",
-          letterSpacing: "0.01em",
-          transition: "color 0.2s ease",
-          cursor: "pointer",
-        }}
+        style={linkStyle}
       >
         {label}
         <span

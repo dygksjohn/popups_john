@@ -55,7 +55,6 @@ export default function PageHeader({ title, subtitle, categories }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const hiddenPaths = new Set(["/event/preregister", "/event/eventschedule"]);
   const programMatch = location.pathname.match(
     /^\/program\/(?:all|schedule|experience|session|contest|booth)(?:\/([^/?#]+))?/,
   );
@@ -78,9 +77,7 @@ export default function PageHeader({ title, subtitle, categories }) {
     return `${path}/${currentEventId}`;
   };
 
-  const filteredCategories = (categories || []).filter(
-    (cat) => !hiddenPaths.has(cat.path),
-  );
+  const filteredCategories = categories || [];
 
   return (
     <div style={styles.pageHeader}>
@@ -108,7 +105,7 @@ export default function PageHeader({ title, subtitle, categories }) {
                 <button
                   key={cat.path}
                   style={btnStyle}
-                  onClick={() => navigate(cat.path)}
+                  onClick={() => navigate(targetPath)}
                   onMouseEnter={() => setHoveredIdx(i)}
                   onMouseLeave={() => setHoveredIdx(null)}
                   aria-current={isActive ? "page" : undefined}

@@ -50,7 +50,6 @@ import ParticipantList from "../participant/ParticipantList";
 import PaymentManage from "../participant/PaymentManage";
 import AlertManage from "../participant/AlertManage";
 /**/
-import AdminAuthGuard from "../shared/AdminAuthGuard";
 
 /* ═══════════════════════════════════════════════
    벨 애니메이션 CSS
@@ -784,7 +783,6 @@ export default function Dashboard() {
   };
 
   return (
-    <AdminAuthGuard>
       <div
         style={{
           display: "flex",
@@ -1121,6 +1119,5 @@ export default function Dashboard() {
           </div>
         </main>
       </div>
-    </AdminAuthGuard>
   );
 }

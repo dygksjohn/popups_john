@@ -1,10 +1,34 @@
-﻿const ACCESS_KEY = "pupoo_access_token";
+const ACCESS_KEY = "pupoo_access_token";
 const REFRESH_KEY = "pupoo_refresh_token";
 
 let accessTokenMemory = null;
 let refreshTokenMemory = null;
 let roleMemory = null;
 let userIdMemory = null;
+
+function readSession(key) {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeSession(key, value) {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // ignore
+  }
+}
+
+function removeSession(key) {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
 
 function normalizeRole(role) {
   if (!role) return null;
@@ -19,7 +43,10 @@ function decodeJwtPayload(token) {
 
   try {
     const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const padded = base64.padEnd(
+      base64.length + ((4 - (base64.length % 4)) % 4),
+      "=",
+    );
     const decoded = atob(padded);
     return JSON.parse(decoded);
   } catch {
@@ -43,21 +70,34 @@ function hydrateMetaFromAccess(token) {
 
 export const tokenStore = {
   getAccess() {
+    if (!accessTokenMemory) {
+      const stored = readSession(ACCESS_KEY);
+      if (stored) {
+        accessTokenMemory = stored;
+        hydrateMetaFromAccess(stored);
+      }
+    }
     return accessTokenMemory;
   },
   getRefresh() {
+    if (!refreshTokenMemory) {
+      refreshTokenMemory = readSession(REFRESH_KEY);
+    }
     return refreshTokenMemory;
   },
   getRole() {
+    if (!accessTokenMemory) this.getAccess();
     return roleMemory;
   },
   getUserId() {
+    if (!accessTokenMemory) this.getAccess();
     return userIdMemory;
   },
 
   setAccess(accessToken, meta = {}) {
     if (!accessToken) return;
     accessTokenMemory = accessToken;
+    writeSession(ACCESS_KEY, accessToken);
     hydrateMetaFromAccess(accessToken);
 
     if (meta.roleName || meta.role) {
@@ -71,6 +111,7 @@ export const tokenStore = {
   setRefresh(refreshToken) {
     if (!refreshToken) return;
     refreshTokenMemory = refreshToken;
+    writeSession(REFRESH_KEY, refreshToken);
   },
 
   setTokens({ accessToken, refreshToken, roleName, role, userId }) {
@@ -87,6 +128,8 @@ export const tokenStore = {
     refreshTokenMemory = null;
     roleMemory = null;
     userIdMemory = null;
+    removeSession(ACCESS_KEY);
+    removeSession(REFRESH_KEY);
 
     // Legacy keys cleanup in case older builds stored tokens in localStorage.
     localStorage.removeItem(ACCESS_KEY);
