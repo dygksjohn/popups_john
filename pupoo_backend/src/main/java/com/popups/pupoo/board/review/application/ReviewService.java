@@ -67,11 +67,29 @@ public class ReviewService {
         return toResponse(review);
     }
 
-    public Page<ReviewResponse> list(SearchType searchType, String keyword, int page, int size) {
-        // 공개 조회 정책: PUBLIC + deleted=false만 반환한다.
+    public Page<ReviewResponse> list(SearchType searchType, String keyword, int page, int size, Integer rating) {
         validatePageRequest(page, size);
-
         PageRequest pageable = PageRequest.of(page, size);
+
+        if (rating != null && rating >= 1 && rating <= 5) {
+            byte ratingByte = rating.byteValue();
+            if (searchType == SearchType.WRITER) {
+                Long writerId = parseLongOrNull(keyword);
+                if (writerId == null) {
+                    return reviewRepository.findByDeletedFalseAndReviewStatusAndRating(ReviewStatus.PUBLIC, ratingByte, pageable)
+                            .map(this::toResponse);
+                }
+                return reviewRepository.searchPublicByWriter(ReviewStatus.PUBLIC, writerId, pageable)
+                        .map(this::toResponse);
+            }
+            if (keyword == null || keyword.isBlank()) {
+                return reviewRepository.findByDeletedFalseAndReviewStatusAndRating(ReviewStatus.PUBLIC, ratingByte, pageable)
+                        .map(this::toResponse);
+            }
+            return reviewRepository.searchPublicByContentAndRating(ReviewStatus.PUBLIC, keyword, ratingByte, pageable)
+                    .map(this::toResponse);
+        }
+
         return switch (searchType) {
             case WRITER -> {
                 Long writerId = parseLongOrNull(keyword);
@@ -83,7 +101,11 @@ public class ReviewService {
     }
 
     public Page<ReviewResponse> list(int page, int size) {
-        return list(SearchType.TITLE_CONTENT, null, page, size);
+        return list(SearchType.TITLE_CONTENT, null, page, size, null);
+    }
+
+    public Page<ReviewResponse> list(SearchType searchType, String keyword, int page, int size) {
+        return list(searchType, keyword, page, size, null);
     }
 
     private static Long parseLongOrNull(String keyword) {

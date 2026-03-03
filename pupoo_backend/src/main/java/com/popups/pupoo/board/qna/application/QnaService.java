@@ -73,8 +73,22 @@ public class QnaService {
     }
 
     public Page<QnaResponse> list(int page, int size) {
+        return list(page, size, null);
+    }
+
+    public Page<QnaResponse> list(int page, int size, String statusFilter) {
         validatePageRequest(page, size);
-        Page<Post> result = qnaRepository.findAllQnaPublished(PostStatus.PUBLISHED, PageRequest.of(page, size));
+        Boolean answeredOnly = null; // ALL
+        if (statusFilter != null && !statusFilter.isBlank()) {
+            if ("ANSWERED".equalsIgnoreCase(statusFilter)) {
+                answeredOnly = true;
+            } else if ("WAITING".equalsIgnoreCase(statusFilter)) {
+                answeredOnly = false;
+            }
+        }
+        Page<Post> result = answeredOnly != null
+                ? qnaRepository.findAllQnaPublishedWithAnsweredFilter(PostStatus.PUBLISHED, answeredOnly, PageRequest.of(page, size))
+                : qnaRepository.findAllQnaPublished(PostStatus.PUBLISHED, PageRequest.of(page, size));
         return result.map(this::toResponse);
     }
 

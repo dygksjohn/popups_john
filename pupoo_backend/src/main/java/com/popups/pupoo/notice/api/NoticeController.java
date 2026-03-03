@@ -26,9 +26,11 @@ public class NoticeController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String searchType,
-            @RequestParam(required = false) String keyword
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String scope,
+            @RequestParam(required = false) Boolean pinned
     ) {
-        return ApiResponse.success(noticeService.list(SearchType.from(searchType), keyword, page, size));
+        return ApiResponse.success(noticeService.list(SearchType.from(searchType), keyword, page, size, scope, pinned));
     }
 
     @GetMapping("/{noticeId}")
