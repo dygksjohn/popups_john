@@ -81,20 +81,6 @@ const BOARD_CONFIG = {
     formTitle: (edit) => (edit ? "질문 수정" : "새 질문 등록"),
     formSub: (edit) => (edit ? "질문을 수정합니다" : "새 질문을 등록합니다"),
   },
-  faq: {
-    dataKey: "faq",
-    title: "FAQ",
-    writeLabel: "FAQ 등록",
-    emptyMsg: "FAQ가 없습니다",
-    emptySub: "자주 묻는 질문을 등록해보세요",
-    toastCreate: "FAQ가 등록되었습니다.",
-    toastUpdate: "FAQ가 수정되었습니다.",
-    toastDelete: "FAQ가 삭제되었습니다.",
-    deleteTitle: "FAQ 삭제",
-    detailTitle: "FAQ 상세",
-    formTitle: (edit) => (edit ? "FAQ 수정" : "새 FAQ 등록"),
-    formSub: (edit) => (edit ? "FAQ를 수정합니다" : "새 FAQ를 등록합니다"),
-  },
 };
 
 /* ── 날짜 포맷 ── */
@@ -124,24 +110,6 @@ function mapQnaFromApi(item) {
     date: fmtDate(item.createdAt ?? item.date),
     _visible: true,
     _raw: item, // 원본 보관
-  };
-}
-
-function mapFaqFromApi(item) {
-  return {
-    id: item.postId ?? item.id,
-    postId: item.postId ?? item.id,
-    boardType: item.boardType ?? "FAQ",
-    title: item.title ?? "",
-    content: item.content ?? "",
-    answer: item.answerContent ?? "",
-    author: "관리자",
-    status: item.answerContent ? "답변완료" : "대기중",
-    answerDate: item.answeredAt ? fmtDate(item.answeredAt) : "",
-    views: item.viewCount ?? 0,
-    date: fmtDate(item.createdAt),
-    _visible: true,
-    _raw: item,
   };
 }
 
@@ -397,8 +365,6 @@ function DetailModal({
   replyLoading,
 }) {
   const isQna = boardType === "qna";
-  const isFaq = boardType === "faq";
-  const isQnaLike = isQna || isFaq;
   const isReview = boardType === "review";
   const [replyText, setReplyText] = useState(item.answer || "");
   const [isReplying, setIsReplying] = useState(false);
@@ -459,7 +425,7 @@ function DetailModal({
             }}
           >
             {item.pinned && <Star size={14} color="#F59E0B" fill="#F59E0B" />}
-            {isQnaLike && (
+            {isQna && (
               <StatusPill
                 status={item.status || (hasReply ? "답변완료" : "대기중")}
               />
@@ -613,7 +579,7 @@ function DetailModal({
             </div>
           )}
 
-          {(isReplying || (!hasReply && isQnaLike)) && (
+          {(isReplying || (!hasReply && isQna)) && (
             <div
               style={{
                 border: `1.5px solid ${isReplying ? ds.brand : "#E2E8F0"}`,
@@ -812,14 +778,6 @@ function SlidePanel({
       answer: "",
       views: 0,
     },
-    faq: {
-      title: "",
-      author: "관리자",
-      content: "",
-      status: "답변완료",
-      answer: "",
-      views: 0,
-    },
   };
   const [form, setForm] = useState(item || defaults[boardType]);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -840,12 +798,8 @@ function SlidePanel({
         setErr("제목은 필수입니다.");
         return;
       }
-      if (boardType === "faq" && !form.answer?.trim()) {
-        setErr("FAQ 답변은 필수입니다.");
-        return;
-      }
-      // Q&A/FAQ API 방식일 때는 author 필수 아님 (로그인 사용자 기반)
-      if (boardType !== "qna" && boardType !== "faq" && !form.author) {
+      // Q&A API 방식일 때는 author 필수 아님 (로그인 사용자 기반)
+      if (boardType !== "qna" && !form.author) {
         setErr("제목과 작성자는 필수입니다.");
         return;
       }
@@ -954,8 +908,8 @@ function SlidePanel({
             />
           </Field>
 
-          {/* Q&A/FAQ는 작성자 필드 불필요 (API에서 로그인 사용자 기반) */}
-          {boardType !== "qna" && boardType !== "faq" && (
+          {/* Q&A는 작성자 필드 불필요 (API에서 로그인 사용자 기반) */}
+          {boardType !== "qna" && (
             <Field label="작성자" required>
               <input
                 style={inputStyle}
@@ -1060,20 +1014,6 @@ function SlidePanel({
               placeholder="내용을 입력하세요"
             />
           </Field>
-
-          {boardType === "faq" && (
-            <Field label="답변" required>
-              <textarea
-                rows={4}
-                style={{ ...inputStyle, resize: "vertical" }}
-                value={form.answer || ""}
-                onChange={(e) => set("answer", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-                placeholder="FAQ 답변을 입력하세요"
-              />
-            </Field>
-          )}
         </div>
         <div
           style={{
@@ -1130,11 +1070,44 @@ function SlidePanel({
 /* ══════════════════════════════════════════════
    게시판 행
    ══════════════════════════════════════════════ */
-function BoardRow({ item, boardType, removing, onDetail, onEdit, onDelete }) {
-  const isQna = boardType === "qna" || boardType === "faq";
+function Checkbox({ checked, onChange, size = 18 }) {
+  return (
+    <div
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange?.();
+      }}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 5,
+        border: checked ? "none" : "1.8px solid #CBD5E1",
+        background: checked ? ds.brand : "#fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        transition: "all .15s ease",
+        flexShrink: 0,
+      }}
+    >
+      {checked && <Check size={size - 6} color="#fff" strokeWidth={3} />}
+    </div>
+  );
+}
+
+function BoardRow({
+  item,
+  boardType,
+  removing,
+  onDetail,
+  onEdit,
+  onDelete,
+  checked,
+  onToggle,
+}) {
+  const isQna = boardType === "qna";
   const isReview = boardType === "review";
-  const boardTypeLabel =
-    boardType === "free" ? "FREE" : boardType === "faq" ? "FAQ" : null;
 
   return (
     <div
@@ -1148,10 +1121,22 @@ function BoardRow({ item, boardType, removing, onDetail, onEdit, onDelete }) {
         cursor: "pointer",
         transition: "background .1s",
         position: "relative",
+        background: checked ? `${ds.brand}06` : "transparent",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "#F4F6F8")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+      onMouseEnter={(e) =>
+        (e.currentTarget.style.background = checked
+          ? `${ds.brand}0A`
+          : "#F4F6F8")
+      }
+      onMouseLeave={(e) =>
+        (e.currentTarget.style.background = checked
+          ? `${ds.brand}06`
+          : "transparent")
+      }
     >
+      <div style={{ marginRight: 12, flexShrink: 0 }}>
+        <Checkbox checked={checked} onChange={onToggle} />
+      </div>
       <span
         style={{
           fontSize: 13,
@@ -1191,27 +1176,6 @@ function BoardRow({ item, boardType, removing, onDetail, onEdit, onDelete }) {
           gap: 6,
         }}
       >
-        {boardTypeLabel && (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: 40,
-              height: 18,
-              padding: "0 7px",
-              borderRadius: 9,
-              background: "#EEF2FF",
-              color: "#4338CA",
-              fontSize: 10,
-              fontWeight: 800,
-              letterSpacing: 0.3,
-              flexShrink: 0,
-            }}
-          >
-            {item.boardType || boardTypeLabel}
-          </span>
-        )}
         {item.title}
         {item.answer && (
           <span
@@ -1403,13 +1367,11 @@ export default function BoardManage({ subTab = "free" }) {
   const boardType = subTab || "free";
   const config = BOARD_CONFIG[boardType] || BOARD_CONFIG.free;
   const isQna = boardType === "qna";
-  const isFaq = boardType === "faq";
 
   /* ── 게시판 데이터 (free, review — API 연동) ── */
   const [localData, setLocalData] = useState(() => ({
     free: [],
     review: [],
-    faq: [],
   }));
   const [boardLoading, setBoardLoading] = useState(false);
   const [freeBoardId, setFreeBoardId] = useState(null);
@@ -1459,7 +1421,7 @@ export default function BoardManage({ subTab = "free" }) {
           }
           // 2) posts 조회
           const res = await axiosInstance.get(
-            "/api/posts?boardType=FREE&page=0&size=200",
+            `/api/posts?boardId=${bId}&page=0&size=200`,
             { headers: authHeaders() },
           );
           const page = res.data?.data || res.data || {};
@@ -1468,7 +1430,6 @@ export default function BoardManage({ subTab = "free" }) {
             ...prev,
             free: list.map((p) => ({
               id: p.postId,
-              boardType: "FREE",
               title: p.postTitle,
               content: p.content,
               author: `회원${p.userId}`,
@@ -1508,35 +1469,6 @@ export default function BoardManage({ subTab = "free" }) {
               userId: r.userId,
             })),
           }));
-        } else if (type === "faq") {
-          const res = await axiosInstance.get("/api/faqs?page=0&size=100", {
-            headers: authHeaders(),
-          });
-          const page = res.data?.data || res.data || {};
-          const list = page.content || [];
-          const details = await Promise.all(
-            list.map(async (row) => {
-              try {
-                const dRes = await axiosInstance.get(`/api/faqs/${row.postId}`, {
-                  headers: authHeaders(),
-                });
-                return dRes.data?.data || dRes.data || {};
-              } catch {
-                return {};
-              }
-            }),
-          );
-
-          setLocalData((prev) => ({
-            ...prev,
-            faq: list.map((row, idx) =>
-              mapFaqFromApi({
-                ...details[idx],
-                postId: row.postId,
-                title: row.title,
-              }),
-            ),
-          }));
         }
       } catch (err) {
         console.error(`[BoardManage] ${type} 로드 실패:`, err);
@@ -1550,11 +1482,6 @@ export default function BoardManage({ subTab = "free" }) {
           setLocalData((prev) => ({
             ...prev,
             review: (DATA.reviews || []).map((e) => ({ ...e, _visible: true })),
-          }));
-        if (type === "faq")
-          setLocalData((prev) => ({
-            ...prev,
-            faq: [],
           }));
       } finally {
         setBoardLoading(false);
@@ -1578,6 +1505,7 @@ export default function BoardManage({ subTab = "free" }) {
   const [toast, setToast] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(new Set());
   const [saving, setSaving] = useState(false);
 
   /* ── Q&A 목록 조회 ── */
@@ -1607,15 +1535,13 @@ export default function BoardManage({ subTab = "free" }) {
     setPanel(null);
     if (isQna) {
       fetchQnaList(1);
-    } else if (isFaq) {
-      fetchBoardData("faq");
     } else if (boardType === "free") {
       fetchBoardData("free");
     } else if (boardType === "review") {
       // 행사 목록을 먼저 가져온 뒤 리뷰 로드 (행사명 매핑)
       fetchEventList().then(() => fetchBoardData("review"));
     }
-  }, [boardType, isQna, isFaq, fetchQnaList, fetchBoardData, fetchEventList]);
+  }, [boardType, isQna, fetchQnaList, fetchBoardData, fetchEventList]);
 
   /* ── 현재 보여줄 아이템 ── */
   const items = isQna ? qnaItems : localData[boardType] || [];
@@ -1625,6 +1551,24 @@ export default function BoardManage({ subTab = "free" }) {
       (e) => !search || e.title?.includes(search) || e.author?.includes(search),
     );
   const totalCount = isQna ? qnaTotalElements : rows.length;
+
+  /* ── 선택 관련 ── */
+  const getRowId = (r) => r.id;
+  const isAllSelected =
+    rows.length > 0 && rows.every((r) => selected.has(getRowId(r)));
+  const hasSelected = selected.size > 0;
+  const toggleAll = () => {
+    if (isAllSelected) setSelected(new Set());
+    else setSelected(new Set(rows.map(getRowId)));
+  };
+  const toggleOne = (id) => {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
 
@@ -1678,16 +1622,6 @@ export default function BoardManage({ subTab = "free" }) {
               eventId: Number(eId),
               rating: f.rating || 5,
               content: f.content || f.title || "",
-            },
-            { headers: authHeaders() },
-          );
-        } else if (boardType === "faq") {
-          await axiosInstance.post(
-            "/api/admin/faqs",
-            {
-              title: f.title,
-              content: f.content || "",
-              answerContent: f.answer || "",
             },
             { headers: authHeaders() },
           );
@@ -1748,17 +1682,6 @@ export default function BoardManage({ subTab = "free" }) {
             },
             { headers: authHeaders() },
           );
-        } else if (boardType === "faq") {
-          const faqId = f.postId || f.id;
-          await axiosInstance.patch(
-            `/api/admin/faqs/${faqId}`,
-            {
-              title: f.title,
-              content: f.content || "",
-              answerContent: f.answer || "",
-            },
-            { headers: authHeaders() },
-          );
         }
         setPanel(null);
         showToast(config.toastUpdate);
@@ -1807,11 +1730,6 @@ export default function BoardManage({ subTab = "free" }) {
             `/api/admin/moderation/reviews/${reviewId}`,
             { headers: authHeaders() },
           );
-        } else if (boardType === "faq") {
-          const faqId = item.postId || id;
-          await axiosInstance.delete(`/api/admin/faqs/${faqId}`, {
-            headers: authHeaders(),
-          });
         }
         setTimeout(() => {
           setRemoving(null);
@@ -1828,6 +1746,73 @@ export default function BoardManage({ subTab = "free" }) {
     }
   };
 
+  /* ── 선택 삭제 ── */
+  const handleBatchDelete = async () => {
+    setSaving(true);
+    const ids = [...selected];
+    try {
+      if (isQna) {
+        for (const id of ids) {
+          const item = rows.find((r) => getRowId(r) === id);
+          const qnaId = item?.qnaId ?? id;
+          await adminQnaApi.delete(qnaId);
+        }
+        fetchQnaList(qnaPage);
+      } else {
+        const postIds = ids.map((id) => {
+          const item = rows.find((r) => getRowId(r) === id);
+          return item?.postId || item?.reviewId || id;
+        });
+        await axiosInstance.delete("/api/admin/posts/batch", {
+          headers: authHeaders(),
+          data: { ids: postIds },
+        });
+        fetchBoardData(boardType);
+      }
+      setModal(null);
+      setSelected(new Set());
+      showToast(`${ids.length}건이 삭제되었습니다.`);
+    } catch (err) {
+      console.error("[BoardManage] batch delete error:", err);
+      setModal(null);
+      showToast("일괄 삭제에 실패했습니다.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* ── 전체 삭제 ── */
+  const handleDeleteAll = async () => {
+    const allIds = rows.map(getRowId);
+    setSelected(new Set(allIds));
+    setSaving(true);
+    try {
+      if (isQna) {
+        for (const r of rows) {
+          const qnaId = r.qnaId ?? r.id;
+          await adminQnaApi.delete(qnaId);
+        }
+        fetchQnaList(1);
+      } else {
+        const postIds = rows.map((r) => r.postId || r.reviewId || r.id);
+        await axiosInstance.delete("/api/admin/posts/batch", {
+          headers: authHeaders(),
+          data: { ids: postIds },
+        });
+        fetchBoardData(boardType);
+      }
+      setModal(null);
+      setSelected(new Set());
+      showToast(`${rows.length}건이 전체 삭제되었습니다.`);
+    } catch (err) {
+      console.error("[BoardManage] delete all error:", err);
+      setModal(null);
+      showToast("전체 삭제에 실패했습니다.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   /* ── 운영자 답변 등록/수정 (Q&A API) ── */
   const handleReply = async (item, replyText) => {
     if (isQna) {
@@ -1841,28 +1826,6 @@ export default function BoardManage({ subTab = "free" }) {
         fetchQnaList(qnaPage);
       } catch (err) {
         console.error("[BoardManage QnA] reply error:", err);
-        showToast("답변 처리에 실패했습니다.", "error");
-      } finally {
-        setSaving(false);
-      }
-    } else if (isFaq) {
-      setSaving(true);
-      try {
-        const faqId = item.postId || item.id;
-        await axiosInstance.patch(
-          `/api/admin/faqs/${faqId}`,
-          {
-            title: item.title,
-            content: item.content || "",
-            answerContent: replyText,
-          },
-          { headers: authHeaders() },
-        );
-        setModal(null);
-        showToast("답변이 등록되었습니다.");
-        fetchBoardData("faq");
-      } catch (err) {
-        console.error("[BoardManage FAQ] reply error:", err);
         showToast("답변 처리에 실패했습니다.", "error");
       } finally {
         setSaving(false);
@@ -1911,14 +1874,74 @@ export default function BoardManage({ subTab = "free" }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Checkbox
+              checked={isAllSelected && rows.length > 0}
+              onChange={toggleAll}
+            />
             <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
               {config.title}
             </span>
             <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
               총 {totalCount}개
             </span>
+            {hasSelected && (
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  color: ds.brand,
+                  background: `${ds.brand}0C`,
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                }}
+              >
+                {selected.size}건 선택됨
+              </span>
+            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {hasSelected && (
+              <button
+                onClick={() => setModal({ type: "batchDelete" })}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "7px 12px",
+                  borderRadius: 7,
+                  border: "1px solid #FECACA",
+                  background: "#FEF2F2",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#DC2626",
+                  cursor: "pointer",
+                  fontFamily: ds.ff,
+                }}
+              >
+                <Trash2 size={12} /> 선택 삭제
+              </button>
+            )}
+            {rows.length > 0 && (
+              <button
+                onClick={() => setModal({ type: "deleteAll" })}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "7px 12px",
+                  borderRadius: 7,
+                  border: "1px solid #E2E8F0",
+                  background: "#fff",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#64748B",
+                  cursor: "pointer",
+                  fontFamily: ds.ff,
+                }}
+              >
+                <Trash2 size={12} /> 전체 삭제
+              </button>
+            )}
             <div style={{ position: "relative" }}>
               <input
                 value={search}
@@ -2063,6 +2086,8 @@ export default function BoardManage({ subTab = "free" }) {
               item={r}
               boardType={boardType}
               removing={removing === r.id}
+              checked={selected.has(getRowId(r))}
+              onToggle={() => toggleOne(getRowId(r))}
               onDetail={() => setModal({ type: "detail", item: r })}
               onEdit={() => setPanel({ type: "edit", item: r })}
               onDelete={() => setModal({ type: "delete", item: r })}
@@ -2218,6 +2243,24 @@ export default function BoardManage({ subTab = "free" }) {
           title={config.deleteTitle}
           msg={`"${modal.item.title}" 을(를) 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
           onConfirm={handleDelete}
+          onCancel={() => setModal(null)}
+          loading={saving}
+        />
+      )}
+      {modal?.type === "batchDelete" && (
+        <ConfirmModal
+          title="선택 삭제"
+          msg={`선택한 ${selected.size}건을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          onConfirm={handleBatchDelete}
+          onCancel={() => setModal(null)}
+          loading={saving}
+        />
+      )}
+      {modal?.type === "deleteAll" && (
+        <ConfirmModal
+          title="전체 삭제"
+          msg={`현재 목록의 ${rows.length}건을 전체 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          onConfirm={handleDeleteAll}
           onCancel={() => setModal(null)}
           loading={saving}
         />

@@ -28,7 +28,6 @@ import Home from "./pages/site/home/Home";
 /* Auth */
 import Login from "./pages/site/auth/Login";
 import Mypage from "./pages/site/auth/mypage";
-import MypageQr from "./pages/site/auth/MypageQr";
 import JoinSelect from "./pages/site/auth/join/JoinSelect";
 import JoinNormal from "./pages/site/auth/join/JoinNormal";
 import JoinSocial from "./pages/site/auth/join/JoinSocial";
@@ -54,10 +53,11 @@ import Experience from "./pages/site/program/Experience";
 import Session from "./pages/site/program/Session";
 import Booth from "./pages/site/program/Booth";
 import Contest from "./pages/site/program/Contest";
-import Schedule from "./pages/site/program/Schedule";
+import ContestDetailPage from "./pages/site/program/ContestDetailPage";
 import ProgramAll from "./pages/site/program/ProgramAll";
-import VoteResult from "./pages/site/program/VoteResult";
 import SessionDetail from "./pages/site/program/SessionDetail";
+import Schedule from "./pages/site/program/Schedule";
+import VoteResult from "./pages/site/program/VoteResult";
 
 /* Registration */
 import Apply from "./pages/site/registration/Apply";
@@ -76,7 +76,6 @@ import Review from "./pages/site/community/Review";
 
 import QnA from "./pages/site/community/QnA";
 import Notice from "./pages/site/community/Notice";
-import Notifications from "./pages/site/notifications/Notifications";
 
 /* Info */
 import PlatformIntro from "./pages/site/info/PlatformIntro";
@@ -182,9 +181,7 @@ export default function App() {
           {/* Auth */}
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/mypage" element={<Mypage />} />
-          <Route path="/auth/mypage/qr" element={<MypageQr />} />
           <Route path="/mypage" element={<Mypage />} />
-          <Route path="/mypage/qr" element={<MypageQr />} />
           <Route
             path="/auth/join/joinselect"
             element={
@@ -210,7 +207,14 @@ export default function App() {
             }
           />
           {/* Kakao */}
-          <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
+          <Route
+            path="/auth/kakao/callback"
+            element={
+              <PublicOnly>
+                <KakaoCallback />
+              </PublicOnly>
+            }
+          />
           <Route
             path="/auth/join/kakao"
             element={
@@ -252,6 +256,10 @@ export default function App() {
           <Route path="/program/schedule/:eventId?" element={<Schedule />} />
           <Route path="/program/all/:eventId?" element={<ProgramAll />} />
           <Route path="/program/detail" element={<SessionDetail />} />
+          <Route
+            path="/program/contest/:eventId/detail/:programId"
+            element={<ContestDetailPage />}
+          />
           <Route path="/program/contest/:eventId?" element={<Contest />} />
           <Route path="/program/booth/:eventId?" element={<Booth />} />
           {/* Registration */}
@@ -285,8 +293,6 @@ export default function App() {
 
           <Route path="/community/qna" element={<QnA />} />
           <Route path="/community/notice" element={<Notice />} />
-          <Route path="/community/notice/:noticeId" element={<Notice />} />
-          <Route path="/notifications" element={<Notifications />} />
           {/* Info */}
           <Route path="/info/intro" element={<PlatformIntro />} />
           <Route path="/info/faq" element={<FAQ />} />

@@ -26,6 +26,14 @@ public class ProgramApplyController {
         return ApiResponse.success(programApplyService.getMyApplies(userId, pageable));
     }
 
+    @GetMapping("/programs/{programId}/candidates")
+    public ApiResponse<PageResponse<ProgramApplyResponse>> candidates(
+            @PathVariable("programId") Long programId,
+            Pageable pageable
+    ) {
+        return ApiResponse.success(programApplyService.getApprovedCandidates(programId, pageable));
+    }
+
     @PostMapping
     public ApiResponse<ProgramApplyResponse> create(@RequestBody ProgramApplyRequest req) {
         Long userId = securityUtil.currentUserId();

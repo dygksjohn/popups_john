@@ -3,9 +3,11 @@ package com.popups.pupoo.payment.application;
 
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.event.domain.model.Event;
 import com.popups.pupoo.event.domain.enums.RegistrationStatus;
 import com.popups.pupoo.event.domain.model.EventRegistration;
 import com.popups.pupoo.event.persistence.EventRegistrationRepository;
+import com.popups.pupoo.event.persistence.EventRepository;
 import com.popups.pupoo.payment.domain.enums.PaymentStatus;
 import com.popups.pupoo.payment.domain.enums.PaymentTransactionStatus;
 import com.popups.pupoo.payment.domain.model.Payment;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.util.EnumSet;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -33,17 +36,20 @@ public class PaymentService {
     private final PaymentGateway paymentGateway;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final EventRegistrationRepository eventRegistrationRepository;
+    private final EventRepository eventRepository;
 
     public PaymentService(
             PaymentRepository paymentRepository,
             PaymentGateway paymentGateway,
             PaymentTransactionRepository paymentTransactionRepository,
-            EventRegistrationRepository eventRegistrationRepository
+            EventRegistrationRepository eventRegistrationRepository,
+            EventRepository eventRepository
     ) {
         this.paymentRepository = paymentRepository;
         this.paymentGateway = paymentGateway;
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
+        this.eventRepository = eventRepository;
     }
 
     /**
@@ -168,6 +174,8 @@ public class PaymentService {
         Payment payment = paymentRepository.findByIdForUpdate(paymentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
 
+        validateRefundPolicyByEventSchedule(payment);
+
         PaymentTransaction tx = paymentTransactionRepository
                 .findLatestByPaymentIdForUpdate(paymentId, PageRequest.of(0, 1))
                 .stream()
@@ -204,6 +212,18 @@ public class PaymentService {
         return toResponseWithEvent(paymentId, payment);
     }
 
+    @Transactional
+    public PaymentResponse cancelMyPayment(Long userId, Long paymentId) {
+        Payment payment = paymentRepository.findByIdForUpdate(paymentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAYMENT_NOT_FOUND));
+
+        if (!payment.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.REFUND_ACCESS_DENIED);
+        }
+
+        return cancelPayment(paymentId);
+    }
+
     /**
      * ✅ 결제 내역 조회 (eventTitle/eventStartAt/eventEndAt 포함)
      * - N+1 방지: Payment + Event 조인 조회
@@ -238,5 +258,21 @@ public class PaymentService {
         return paymentRepository.findPaymentDetail(paymentId)
                 .map(PaymentResponse::fromRow)
                 .orElseGet(() -> PaymentResponse.from(fallback));
+    }
+
+    private void validateRefundPolicyByEventSchedule(Payment payment) {
+        if (payment.getEventId() == null) {
+            return;
+        }
+
+        Event event = eventRepository.findById(payment.getEventId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.EVENT_NOT_FOUND));
+
+        if (!LocalDateTime.now().isBefore(event.getStartAt())) {
+            throw new BusinessException(
+                    ErrorCode.REFUND_NOT_ALLOWED,
+                    "Refund is only available before event start"
+            );
+        }
     }
 }

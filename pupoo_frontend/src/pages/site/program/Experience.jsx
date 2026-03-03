@@ -1,14 +1,12 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import EventSelectPage from "../components/EventSelectPage";
 import {
   SERVICE_CATEGORIES,
   SUBTITLE_MAP,
+  SAMPLE_EVENTS,
 } from "../constants/programConstants";
-import { eventApi } from "../../../app/http/eventApi";
-import { programApi } from "../../../app/http/programApi";
-import { boothApi } from "../../../app/http/boothApi";
 import {
   Palette,
   Users,
@@ -254,60 +252,126 @@ const styles = `
   }
 `;
 
-const CARD_COLORS = [
-  { bg: "#eff4ff", color: "#1a4fd6" },
-  { bg: "#fef3c7", color: "#d97706" },
-  { bg: "#fce7f3", color: "#ec4899" },
-  { bg: "#f5f3ff", color: "#8b5cf6" },
-  { bg: "#ecfdf5", color: "#10b981" },
-  { bg: "#fff7ed", color: "#f59e0b" },
+const INITIAL_PROGRAMS = [
+  {
+    id: 1,
+    name: "반려견 아지리티 체험",
+    category: "스포츠",
+    desc: "장애물 코스를 함께 달리며 반려견과의 유대감을 높이는 체험",
+    time: "10:00~18:00",
+    zone: "야외 운동장",
+    current: 18,
+    max: 20,
+    status: "open",
+    featured: true,
+    bg: "#eff4ff",
+    color: "#1a4fd6",
+  },
+  {
+    id: 2,
+    name: "펫 쿠킹 클래스",
+    category: "요리",
+    desc: "수의영양사와 함께 건강한 수제 간식을 직접 만들어보는 체험",
+    time: "11:00~12:00",
+    zone: "B동 2층",
+    current: 15,
+    max: 15,
+    status: "full",
+    featured: true,
+    bg: "#fef3c7",
+    color: "#d97706",
+  },
+  {
+    id: 3,
+    name: "반려동물 마사지 교실",
+    category: "힐링",
+    desc: "전문가에게 배우는 올바른 반려동물 마사지 기법",
+    time: "13:00~14:00",
+    zone: "힐링센터",
+    current: 8,
+    max: 12,
+    status: "open",
+    featured: false,
+    bg: "#fce7f3",
+    color: "#ec4899",
+  },
+  {
+    id: 4,
+    name: "펫 포토 스냅 촬영",
+    category: "사진",
+    desc: "전문 포토그래퍼와 함께하는 반려동물 프로필 사진 촬영",
+    time: "14:30~16:00",
+    zone: "A동 포토존",
+    current: 0,
+    max: 10,
+    status: "soon",
+    featured: false,
+    bg: "#f5f3ff",
+    color: "#8b5cf6",
+  },
+  {
+    id: 5,
+    name: "강아지 수영 체험",
+    category: "스포츠",
+    desc: "안전한 환경에서 반려견 수영을 체험할 수 있는 프로그램",
+    time: "15:00~17:00",
+    zone: "야외 수영장",
+    current: 12,
+    max: 16,
+    status: "open",
+    featured: true,
+    bg: "#ecfdf5",
+    color: "#10b981",
+  },
+  {
+    id: 6,
+    name: "핸드메이드 목걸이 만들기",
+    category: "공예",
+    desc: "세상에 하나뿐인 반려동물 이름 목걸이를 직접 제작",
+    time: "16:00~17:30",
+    zone: "공예 체험관",
+    current: 0,
+    max: 20,
+    status: "soon",
+    featured: false,
+    bg: "#fff7ed",
+    color: "#f59e0b",
+  },
 ];
 
-const CATEGORY_LABEL = {
-  EXPERIENCE: "체험",
-  SESSION: "세션",
-  CONTEST: "콘테스트",
-};
-
-function parseDate(value) {
-  if (!value) return null;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function formatTimeRange(startAt, endAt) {
-  const pick = (v) => {
-    const m = String(v ?? "").match(/(\d{2}):(\d{2})/);
-    return m ? `${m[1]}:${m[2]}` : "";
-  };
-  const a = pick(startAt);
-  const b = pick(endAt);
-  if (a && b) return `${a}~${b}`;
-  return a || b || "시간 미정";
-}
-
-function formatDateRange(startAt, endAt) {
-  const pick = (v) => {
-    const m = String(v ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-    return m ? `${m[1]}.${m[2]}.${m[3]}` : "";
-  };
-  const a = pick(startAt);
-  const b = pick(endAt);
-  if (a && b) return `${a} ~ ${b}`;
-  return a || b || "일정 미정";
-}
-
-function toEventStatus(rawStatus, startAt, endAt) {
-  const raw = String(rawStatus ?? "").toUpperCase();
-  if (raw.includes("ONGOING") || raw.includes("LIVE")) return "live";
-  if (raw.includes("END")) return "ended";
-  const now = Date.now();
-  const s = parseDate(startAt)?.getTime();
-  const e = parseDate(endAt)?.getTime();
-  if (s && now < s) return "upcoming";
-  if (e && now > e) return "ended";
-  return "upcoming";
-}
+const TIMELINE = [
+  {
+    time: "10:00",
+    name: "반려견 아지리티 체험",
+    zone: "야외 운동장",
+    status: "active",
+  },
+  { time: "11:00", name: "펫 쿠킹 클래스", zone: "B동 2층", status: "done" },
+  {
+    time: "13:00",
+    name: "반려동물 마사지 교실",
+    zone: "힐링센터",
+    status: "active",
+  },
+  {
+    time: "14:30",
+    name: "펫 포토 스냅 촬영",
+    zone: "A동 포토존",
+    status: "upcoming",
+  },
+  {
+    time: "15:00",
+    name: "강아지 수영 체험",
+    zone: "야외 수영장",
+    status: "upcoming",
+  },
+  {
+    time: "16:00",
+    name: "핸드메이드 목걸이 만들기",
+    zone: "공예 체험관",
+    status: "upcoming",
+  },
+];
 
 const STATUS_LABEL = { open: "참여 가능", full: "마감", soon: "예정" };
 
@@ -490,96 +554,14 @@ const UserPlusIcon = ({ size = 14 }) => (
   </svg>
 );
 
-function ExperienceDetail({ eventId }) {
-  const [programs, setPrograms] = useState([]);
+function ExperienceDetail() {
+  const [programs, setPrograms] = useState(INITIAL_PROGRAMS);
   const [registered, setRegistered] = useState(new Set());
   const [modal, setModal] = useState(null); // { type: 'register' | 'cancel', program }
   const [toast, setToast] = useState(null);
   const [toastOut, setToastOut] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
   const currentPath = "/program/experience";
-
-  useEffect(() => {
-    if (!eventId) return;
-    let mounted = true;
-    const load = async () => {
-      setLoading(true);
-      setErrorMsg("");
-      try {
-        const [list, boothRes] = await Promise.all([
-          programApi.getAllProgramsByEvent({
-            eventId: Number(eventId),
-            category: "EXPERIENCE",
-            sort: "startAt,asc",
-          }),
-          boothApi.getEventBooths({
-            eventId: Number(eventId),
-            page: 0,
-            size: 200,
-            sort: "boothId,asc",
-          }),
-        ]);
-        if (!mounted) return;
-
-        const booths = Array.isArray(boothRes?.data?.data?.content)
-          ? boothRes.data.data.content
-          : [];
-        const boothMap = new Map(
-          booths
-            .map((b) => [Number(b?.boothId), b?.placeName])
-            .filter(([id, name]) => Number.isFinite(id) && !!name),
-        );
-
-        const mapped = (Array.isArray(list) ? list : []).map((item, idx) => {
-          const color = CARD_COLORS[idx % CARD_COLORS.length];
-          const max = Number(item?.capacity ?? 20);
-          const current = Number(item?.experienceWait?.waitCount ?? 0);
-          const categoryKey = String(item?.category ?? "").toUpperCase();
-          let status = "soon";
-          if (item?.ongoing) status = "open";
-          else if (item?.ended) status = "full";
-
-          return {
-            id: Number(item?.programId ?? idx + 1),
-            name: item?.programTitle ?? "프로그램",
-            category: CATEGORY_LABEL[categoryKey] ?? "체험",
-            desc: item?.description ?? "",
-            time: formatTimeRange(item?.startAt, item?.endAt),
-            zone:
-              item?.boothName ??
-              boothMap.get(Number(item?.boothId)) ??
-              "장소 미정",
-            current: Number.isFinite(current) ? current : 0,
-            max: Number.isFinite(max) && max > 0 ? max : 20,
-            status,
-            featured: idx < 2,
-            bg: color.bg,
-            color: color.color,
-            startAt: item?.startAt ?? null,
-          };
-        });
-
-        setPrograms(mapped);
-      } catch (e) {
-        if (!mounted) return;
-        setPrograms([]);
-        setErrorMsg(
-          e?.response?.data?.message ||
-            e?.message ||
-            "체험 프로그램 데이터를 불러오지 못했습니다.",
-        );
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [eventId]);
 
   const showToast = (msg, icon) => {
     setToastOut(false);
@@ -639,18 +621,6 @@ function ExperienceDetail({ eventId }) {
   const registeredPrograms = programs.filter((p) => registered.has(p.id));
   const openCount = programs.filter((p) => p.status === "open").length;
   const totalParticipants = programs.reduce((sum, p) => sum + p.current, 0);
-  const timeline = [...programs]
-    .sort((a, b) => {
-      const at = parseDate(a.startAt)?.getTime() ?? 0;
-      const bt = parseDate(b.startAt)?.getTime() ?? 0;
-      return at - bt;
-    })
-    .map((p) => ({
-      time: p.time.split("~")[0] || "시간 미정",
-      name: p.name,
-      zone: p.zone,
-      status: p.status === "open" ? "active" : p.status === "full" ? "done" : "upcoming",
-    }));
 
   return (
     <div className="ex-root">
@@ -693,7 +663,7 @@ function ExperienceDetail({ eventId }) {
             },
             {
               label: "평균 만족도",
-              value: "-",
+              value: "4.8",
               icon: <StarIcon size={20} />,
               bg: "#fffbeb",
               iconColor: "#f59e0b",
@@ -760,14 +730,8 @@ function ExperienceDetail({ eventId }) {
             </div>
             <span className="ex-card-tag">총 {programs.length}개</span>
           </div>
-          {loading ? <div className="ex-card-tag">로딩 중...</div> : null}
-          {!loading && errorMsg ? <div className="ex-card-tag">{errorMsg}</div> : null}
-          {!loading && !errorMsg && programs.length === 0 ? (
-            <div className="ex-card-tag">표시할 체험 프로그램이 없습니다.</div>
-          ) : null}
-          {!loading && !errorMsg && programs.length > 0 ? (
-            <div className="ex-program-grid">
-              {programs.map((p) => {
+          <div className="ex-program-grid">
+            {programs.map((p) => {
               const isRegistered = registered.has(p.id);
               const canRegister = p.status === "open" && !isRegistered;
               const isFull = p.status === "full" && !isRegistered;
@@ -806,7 +770,7 @@ function ExperienceDetail({ eventId }) {
                         <div
                           className="ex-cap-fill"
                           style={{
-                            width: `${Math.min(100, (p.current / p.max) * 100)}%`,
+                            width: `${(p.current / p.max) * 100}%`,
                             background:
                               p.current >= p.max ? "#ef4444" : "#1a4fd6",
                           }}
@@ -850,9 +814,8 @@ function ExperienceDetail({ eventId }) {
                   </div>
                 </div>
               );
-              })}
-            </div>
-          ) : null}
+            })}
+          </div>
         </div>
 
         {/* Timeline */}
@@ -864,16 +827,14 @@ function ExperienceDetail({ eventId }) {
               </div>
               오늘 체험 타임라인
             </div>
-            <span className="ex-card-tag">{timeline.length}개 프로그램</span>
+            <span className="ex-card-tag">6개 프로그램</span>
           </div>
           <div className="ex-timeline">
-            {timeline.length === 0 ? (
-              <div className="ex-card-tag">타임라인 데이터가 없습니다.</div>
-            ) : timeline.map((t, i) => (
+            {TIMELINE.map((t, i) => (
               <div key={t.time + t.name} className="ex-timeline-item">
                 <div className="ex-timeline-line">
                   <div className={`ex-timeline-dot ${t.status}`} />
-                  {i < timeline.length - 1 && (
+                  {i < TIMELINE.length - 1 && (
                     <div className="ex-timeline-connector" />
                   )}
                 </div>
@@ -1012,50 +973,6 @@ export default function Experience() {
   const navigate = useNavigate();
   const { eventId } = useParams();
   const currentPath = "/program/experience";
-  const [events, setEvents] = useState([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
-
-  useEffect(() => {
-    if (eventId) return;
-    let mounted = true;
-    const load = async () => {
-      setEventsLoading(true);
-      try {
-        const res = await eventApi.getEvents({
-          page: 0,
-          size: 200,
-          sort: "startAt,desc",
-        });
-        if (!mounted) return;
-        const list = Array.isArray(res?.data?.data?.content)
-          ? res.data.data.content
-          : [];
-        setEvents(
-          list.map((evt) => ({
-            id: evt?.eventId,
-            name: evt?.eventName ?? "행사",
-            description: evt?.description ?? "",
-            date: formatDateRange(evt?.startAt, evt?.endAt),
-            location: evt?.location ?? "장소 미정",
-            organizer: evt?.eventName ?? "주최 정보 없음",
-            status: toEventStatus(evt?.status, evt?.startAt, evt?.endAt),
-            participants: 0,
-            thumbnail: null,
-            color: "#1a4fd6",
-          })),
-        );
-      } catch (_e) {
-        if (!mounted) return;
-        setEvents([]);
-      } finally {
-        if (mounted) setEventsLoading(false);
-      }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [eventId]);
 
   if (!eventId) {
     return (
@@ -1069,22 +986,16 @@ export default function Experience() {
           onNavigate={(path) => navigate(path)}
         />
         <EventSelectPage
-          events={events}
+          events={SAMPLE_EVENTS}
           basePath="/program/experience"
           sectionIcon={<Palette size={22} color="#ec4899" />}
           sectionColor="#ec4899"
           sectionTitle="체험 프로그램"
           sectionDesc="행사를 선택하면 체험 부스 목록과 참가 신청을 할 수 있어요"
         />
-        {eventsLoading ? (
-          <main className="ex-container">
-            <div className="ex-card-tag">행사 목록 불러오는 중...</div>
-          </main>
-        ) : null}
       </div>
     );
   }
 
-  return <ExperienceDetail eventId={eventId} />;
+  return <ExperienceDetail />;
 }
-

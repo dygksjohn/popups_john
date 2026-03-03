@@ -1,7 +1,6 @@
 package com.popups.pupoo.board.post.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
-import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
 import com.popups.pupoo.board.post.domain.enums.PostStatus;
 import com.popups.pupoo.board.post.dto.PostResponse;
@@ -29,15 +28,15 @@ class PostServiceTest {
     @InjectMocks private PostService postService;
 
     @Test
-    void getPublicPosts_byBoardType_usesPublishedOnlyQuery() {
+    void getPublicPosts_usesPublishedOnlyQuery() {
         Pageable pageable = PageRequest.of(0, 10);
+        Long boardId = 1L;
 
-        when(postRepository.searchByBoardType(BoardType.FREE, "keyword", PostStatus.PUBLISHED, pageable))
+        when(postRepository.search(boardId, "keyword", PostStatus.PUBLISHED, pageable))
                 .thenReturn(Page.empty(pageable));
 
         Page<PostResponse> result = postService.getPublicPosts(
-                null,
-                BoardType.FREE,
+                boardId,
                 SearchType.TITLE_CONTENT,
                 "keyword",
                 pageable
@@ -45,8 +44,8 @@ class PostServiceTest {
 
         assertThat(result.getContent()).isEmpty();
 
-        verify(postRepository).searchByBoardType(BoardType.FREE, "keyword", PostStatus.PUBLISHED, pageable);
-        verify(postRepository, never()).searchByBoardType(BoardType.FREE, "keyword", PostStatus.DRAFT, pageable);
-        verify(postRepository, never()).searchByBoardType(BoardType.FREE, "keyword", PostStatus.HIDDEN, pageable);
+        verify(postRepository).search(boardId, "keyword", PostStatus.PUBLISHED, pageable);
+        verify(postRepository, never()).search(boardId, "keyword", PostStatus.DRAFT, pageable);
+        verify(postRepository, never()).search(boardId, "keyword", PostStatus.HIDDEN, pageable);
     }
 }

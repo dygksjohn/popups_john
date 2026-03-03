@@ -72,7 +72,7 @@ class RefundAdminServiceIT {
         Refund refund = seedRequestedRefund(payment);
 
         Program program = seedProgram(eventId);
-        programApplyRepository.save(ProgramApply.create(userId, program.getProgramId()));
+        programApplyRepository.save(ProgramApply.create(userId, program.getProgramId(), null, null));
 
         Mockito.when(paymentGateway.cancel(any(Payment.class))).thenReturn(true);
 
@@ -120,7 +120,7 @@ class RefundAdminServiceIT {
         Refund refund = seedRequestedRefund(payment);
 
         Program program = seedProgram(eventId);
-        ProgramApply apply = programApplyRepository.save(ProgramApply.create(userId, program.getProgramId()));
+        ProgramApply apply = programApplyRepository.save(ProgramApply.create(userId, program.getProgramId(), null, null));
         Long programApplyId = apply.getProgramApplyId();
 
         Mockito.when(paymentGateway.cancel(any(Payment.class))).thenReturn(true);

@@ -19,6 +19,7 @@ import {
   Film,
   ImagePlus,
   Hash,
+  Check,
 } from "lucide-react";
 import ds from "../shared/designTokens";
 import { Pill } from "../shared/Components";
@@ -51,6 +52,11 @@ const api = {
   delete: (id) =>
     axiosInstance.delete(`/api/admin/galleries/${id}`, {
       headers: authHeaders(),
+    }),
+  batchDelete: (ids) =>
+    axiosInstance.delete("/api/admin/galleries/batch", {
+      headers: authHeaders(),
+      data: { ids },
     }),
 };
 
@@ -144,6 +150,32 @@ function Spinner({ size = 20 }) {
       color={ds.brand}
       style={{ animation: "spin 1s linear infinite" }}
     />
+  );
+}
+
+function Checkbox({ checked, onChange, size = 18 }) {
+  return (
+    <div
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange?.();
+      }}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 5,
+        border: checked ? "none" : "1.8px solid #CBD5E1",
+        background: checked ? ds.brand : "#fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        transition: "all .15s ease",
+        flexShrink: 0,
+      }}
+    >
+      {checked && <Check size={size - 6} color="#fff" strokeWidth={3} />}
+    </div>
   );
 }
 
@@ -1619,7 +1651,15 @@ function UserGalleryCard({ item, onClick, eventMap }) {
             marginBottom: 8,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              minWidth: 0,
+              flex: 1,
+            }}
+          >
             <div
               style={{
                 width: 28,
@@ -1632,22 +1672,48 @@ function UserGalleryCard({ item, onClick, eventMap }) {
                 fontSize: 11,
                 fontWeight: 800,
                 color: "#8B5CF6",
+                flexShrink: 0,
               }}
             >
               {(item.title || "?")[0]}
             </div>
-            <div>
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: ds.ink }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  color: ds.ink,
+                  display: "block",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {item.title}
               </span>
               {item.eventId && eventMap[item.eventId] && (
-                <div style={{ fontSize: 10.5, color: "#94A3B8" }}>
+                <div
+                  style={{
+                    fontSize: 10.5,
+                    color: "#94A3B8",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   🐾 {eventMap[item.eventId]}
                 </div>
               )}
             </div>
           </div>
-          <span style={{ fontSize: 10.5, color: "#CBD5E1" }}>
+          <span
+            style={{
+              fontSize: 10.5,
+              color: "#CBD5E1",
+              flexShrink: 0,
+              marginLeft: 6,
+            }}
+          >
             {fmtDate(item.createdAt)}
           </span>
         </div>
@@ -1661,6 +1727,8 @@ function UserGalleryCard({ item, onClick, eventMap }) {
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
             overflow: "hidden",
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
           }}
         >
           {desc || ""}
@@ -1825,6 +1893,7 @@ function SketchCard({ item, onClick, eventMap }) {
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+            wordBreak: "break-all",
           }}
         >
           {item.title}
@@ -1839,6 +1908,8 @@ function SketchCard({ item, onClick, eventMap }) {
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
             overflow: "hidden",
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
           }}
         >
           {desc || ""}
@@ -1882,6 +1953,8 @@ export default function Gallery() {
   const [panel, setPanel] = useState(null);
   const [toast, setToast] = useState(null);
   const [search, setSearch] = useState("");
+
+  const [selected, setSelected] = useState(new Set());
 
   const eventMap = useEventMap(events);
   const showToast = (msg, type = "success") => setToast({ msg, type });
@@ -1992,6 +2065,61 @@ export default function Gallery() {
     }
   };
 
+  /* ── 선택 삭제 ── */
+  const handleBatchDelete = async () => {
+    setSaving(true);
+    try {
+      const ids = [...selected];
+      await api.batchDelete(ids);
+      setModal(null);
+      setSelected(new Set());
+      showToast(`${ids.length}건이 삭제되었습니다.`);
+      fetchList(page);
+    } catch (err) {
+      console.error("[Gallery] batch delete error:", err);
+      setModal(null);
+      showToast("일괄 삭제에 실패했습니다.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* ── 전체 삭제 ── */
+  const handleDeleteAll = async () => {
+    setSaving(true);
+    try {
+      const ids = filtered.map((g) => g.galleryId);
+      await api.batchDelete(ids);
+      setModal(null);
+      setSelected(new Set());
+      showToast(`${ids.length}건이 전체 삭제되었습니다.`);
+      fetchList(page);
+    } catch (err) {
+      console.error("[Gallery] delete all error:", err);
+      setModal(null);
+      showToast("전체 삭제에 실패했습니다.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* ── 선택 토글 ── */
+  const isAllSelected =
+    filtered.length > 0 && filtered.every((g) => selected.has(g.galleryId));
+  const hasSelected = selected.size > 0;
+  const toggleAll = () => {
+    if (isAllSelected) setSelected(new Set());
+    else setSelected(new Set(filtered.map((g) => g.galleryId)));
+  };
+  const toggleOne = (id) => {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
+
   return (
     <div>
       <style>{styles}</style>
@@ -2015,7 +2143,10 @@ export default function Gallery() {
           >
             <button
               className={`gal-tab ${tab === "user" ? "active" : ""}`}
-              onClick={() => setTab("user")}
+              onClick={() => {
+                setTab("user");
+                setSelected(new Set());
+              }}
               style={{ fontFamily: ds.ff }}
             >
               <Users size={14} />
@@ -2023,7 +2154,10 @@ export default function Gallery() {
             </button>
             <button
               className={`gal-tab ${tab === "sketch" ? "active" : ""}`}
-              onClick={() => setTab("sketch")}
+              onClick={() => {
+                setTab("sketch");
+                setSelected(new Set());
+              }}
               style={{ fontFamily: ds.ff }}
             >
               <Film size={14} />
@@ -2039,6 +2173,10 @@ export default function Gallery() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Checkbox
+                checked={isAllSelected && filtered.length > 0}
+                onChange={toggleAll}
+              />
               <h3
                 style={{
                   fontSize: 14,
@@ -2056,8 +2194,64 @@ export default function Gallery() {
                   총 {filtered.length}개
                 </span>
               )}
+              {hasSelected && (
+                <span
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    color: ds.brand,
+                    background: `${ds.brand}0C`,
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                  }}
+                >
+                  {selected.size}건 선택됨
+                </span>
+              )}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {hasSelected && (
+                <button
+                  onClick={() => setModal({ type: "batchDelete" })}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "6px 12px",
+                    borderRadius: 7,
+                    border: "1px solid #FECACA",
+                    background: "#FEF2F2",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#DC2626",
+                    cursor: "pointer",
+                    fontFamily: ds.ff,
+                  }}
+                >
+                  <Trash2 size={12} /> 선택 삭제
+                </button>
+              )}
+              {filtered.length > 0 && (
+                <button
+                  onClick={() => setModal({ type: "deleteAll" })}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "6px 12px",
+                    borderRadius: 7,
+                    border: "1px solid #E2E8F0",
+                    background: "#fff",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#64748B",
+                    cursor: "pointer",
+                    fontFamily: ds.ff,
+                  }}
+                >
+                  <Trash2 size={12} /> 전체 삭제
+                </button>
+              )}
               <div style={{ position: "relative" }}>
                 <input
                   value={search}
@@ -2189,36 +2383,58 @@ export default function Gallery() {
             style={{
               padding: 20,
               display: "grid",
-              gridTemplateColumns:
-                tab === "user"
-                  ? "repeat(auto-fill, minmax(220px, 1fr))"
-                  : "repeat(auto-fill, minmax(280px, 1fr))",
+              gridTemplateColumns: "repeat(4, 1fr)",
               gap: 16,
             }}
           >
-            {filtered.map((g) =>
-              tab === "user" ? (
-                <UserGalleryCard
-                  key={g.galleryId}
-                  item={g}
-                  eventMap={eventMap}
-                  onClick={() => setModal({ type: "detail", item: g })}
-                />
-              ) : (
-                <SketchCard
-                  key={g.galleryId}
-                  item={g}
-                  eventMap={eventMap}
-                  onClick={() => setModal({ type: "detail", item: g })}
-                />
-              ),
-            )}
+            {filtered.map((g) => (
+              <div key={g.galleryId} style={{ position: "relative" }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 10,
+                    left: 10,
+                    zIndex: 10,
+                  }}
+                >
+                  <Checkbox
+                    checked={selected.has(g.galleryId)}
+                    onChange={() => toggleOne(g.galleryId)}
+                  />
+                </div>
+                {tab === "user" ? (
+                  <UserGalleryCard
+                    item={g}
+                    eventMap={eventMap}
+                    onClick={() => setModal({ type: "detail", item: g })}
+                  />
+                ) : (
+                  <SketchCard
+                    item={g}
+                    eventMap={eventMap}
+                    onClick={() => setModal({ type: "detail", item: g })}
+                  />
+                )}
+              </div>
+            ))}
           </div>
         )}
 
         {!loading && !error && filtered.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <Camera size={36} color="#CBD5E1" style={{ marginBottom: 12 }} />
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "60px 20px",
+            }}
+          >
+            <Camera
+              size={36}
+              color="#CBD5E1"
+              style={{ marginBottom: 12, display: "block" }}
+            />
             <div
               style={{
                 fontSize: 14,
@@ -2348,6 +2564,24 @@ export default function Gallery() {
           title="갤러리 삭제"
           msg={`"${modal.item.title}" 갤러리를 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
           onConfirm={handleDelete}
+          onCancel={() => setModal(null)}
+          loading={saving}
+        />
+      )}
+      {modal?.type === "batchDelete" && (
+        <ConfirmModal
+          title="선택 삭제"
+          msg={`선택한 ${selected.size}건을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          onConfirm={handleBatchDelete}
+          onCancel={() => setModal(null)}
+          loading={saving}
+        />
+      )}
+      {modal?.type === "deleteAll" && (
+        <ConfirmModal
+          title="전체 삭제"
+          msg={`현재 탭의 ${filtered.length}건을 전체 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          onConfirm={handleDeleteAll}
           onCancel={() => setModal(null)}
           loading={saving}
         />

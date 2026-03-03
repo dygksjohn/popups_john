@@ -3,7 +3,6 @@ package com.popups.pupoo.notification.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
-import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.notification.application.NotificationAdminService;
 import com.popups.pupoo.notification.dto.NotificationCreateRequest;
 import jakarta.validation.Valid;
@@ -28,10 +27,9 @@ public class AdminNotificationController {
      * - recipientScope: INTEREST_SUBSCRIBERS/EVENT_REGISTRANTS/EVENT_PAYERS (미지정 시 INTEREST_SUBSCRIBERS)
      */
     @PostMapping("/event")
-    public ApiResponse<MessageResponse> publishEvent(@Valid @RequestBody NotificationCreateRequest request) {
-        // Keep a non-null payload per SSOT response policy.
+    public ApiResponse<Void> publishEvent(@Valid @RequestBody NotificationCreateRequest request) {
         Long adminUserId = securityUtil.currentUserId();
         notificationAdminService.publishByEvent(request, adminUserId);
-        return ApiResponse.success(new MessageResponse("NOTIFICATION_PUBLISHED"));
+        return ApiResponse.success(null);
     }
 }

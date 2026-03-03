@@ -1,22 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import PageHeader from "../components/PageHeader";
 import {
   Smartphone,
+  Hash,
   Calendar,
   MapPin,
+  Ticket,
   ShieldCheck,
   MessageSquare,
   Download,
   CheckCircle2,
+  QrCode,
   Info,
   Clock,
-  RefreshCw,
 } from "lucide-react";
-import { axiosInstance } from "../../../app/http/axiosInstance";
-import { eventApi } from "../../../app/http/eventApi";
-import { tokenStore } from "../../../app/http/tokenStore";
-
+/* ─────────────────────────────────────────────
+   QR 패턴 (장식용)
+───────────────────────────────────────────── */
 const QR_MATRIX = [
   [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1],
   [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1],
@@ -40,34 +40,25 @@ const QR_MATRIX = [
   [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0],
   [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1],
 ];
-
-const SERVICE_CATEGORIES = [
+export const SERVICE_CATEGORIES = [
   { label: "행사 참가 신청", path: "/registration/apply" },
   { label: "신청 내역 조회", path: "/registration/applyhistory" },
   { label: "결제 내역", path: "/registration/paymenthistory" },
-  { label: "QR 체크인", path: "/registration/qrcheckin" },
+  {
+    label: "QR 체크인",
+    path: "/registration/qrcheckin",
+  },
 ];
 
-const SUBTITLE_MAP = {
+export const SUBTITLE_MAP = {
   "/registration/apply": "행사에 참가 신청하세요",
   "/registration/applyhistory": "나의 행사 참가 신청 이력을 확인하세요",
   "/registration/paymenthistory": "결제 완료된 내역을 확인하세요",
   "/registration/qrcheckin": "내 QR 코드를 확인하세요",
 };
-
-const STATUS_META = {
-  ISSUED: { label: "발급됨(비활성)", color: "#B45309", bg: "#FEF3C7", canEnter: false },
-  ACTIVE: { label: "활성", color: "#15803D", bg: "#DCFCE7", canEnter: true },
-  EXPIRED: { label: "만료", color: "#6B7280", bg: "#F3F4F6", canEnter: false },
-};
-
-const REGISTRATION_STATUS_LABEL = {
-  APPLIED: "신청완료",
-  APPROVED: "승인완료",
-  CANCELLED: "신청취소",
-  REJECTED: "승인거절",
-};
-
+/* ─────────────────────────────────────────────
+   STYLES
+───────────────────────────────────────────── */
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
 
@@ -97,64 +88,81 @@ const styles = `
     background: #EEF2FF; display: flex; align-items: center; justify-content: center; color: #1B50D9;
   }
 
+  /* QR Display */
   .qr-display-wrap { text-align: center; }
   .qr-box {
     width: 176px; height: 176px; margin: 0 auto 14px;
     background: #fff; border: 1.5px solid #EBEBEB; border-radius: 16px;
     padding: 14px; display: flex; align-items: center; justify-content: center;
     box-shadow: 0 2px 16px rgba(0,0,0,0.06);
-    overflow: hidden;
   }
   .qr-svg { width: 100%; height: 100%; }
-  .qr-img { width: 100%; height: 100%; object-fit: contain; }
   .qr-code-num {
     font-size: 13px; font-weight: 800; color: #1B50D9;
     font-family: 'Courier New', monospace; letter-spacing: 0.06em; margin-bottom: 3px;
   }
   .qr-event-name { font-size: 12.5px; color: #6B7280; }
+  .qr-person-name { font-size: 12px; color: #C9CDD4; margin-bottom: 18px; margin-top: 2px; }
 
+  /* Ticket info */
   .qr-ticket-info {
     background: #F5F8FF; border: 1.5px solid #DBEAFE; border-radius: 12px;
     padding: 14px 16px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;
   }
-  .qr-ticket-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; gap: 8px; }
-  .qr-ticket-label { display: flex; align-items: center; gap: 6px; color: #9CA3AF; white-space: nowrap; }
-  .qr-ticket-val { font-weight: 700; color: #111827; text-align: right; word-break: break-all; }
-  .qr-status-ok { display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: 13px; }
+  .qr-ticket-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+  .qr-ticket-label { display: flex; align-items: center; gap: 6px; color: #9CA3AF; }
+  .qr-ticket-val { font-weight: 700; color: #111827; }
+  .qr-status-ok { display: flex; align-items: center; gap: 5px; color: #15803D; font-weight: 700; font-size: 13px; }
 
+  /* Buttons */
   .qr-btn-row { display: flex; gap: 8px; }
   .qr-btn {
     flex: 1; padding: 10px 0; font-size: 13px; font-weight: 700;
-    border-radius: 10px; cursor: pointer; transition: all 0.15s;
+    border-radius: 10px; cursor: pointer; font-family: inherit; transition: all 0.15s;
     display: flex; align-items: center; justify-content: center; gap: 6px;
   }
   .qr-btn-outline { border: 1.5px solid #EBEBEB; background: #fff; color: #374151; }
   .qr-btn-outline:hover { border-color: #9CA3AF; }
   .qr-btn-primary { border: none; background: #1B50D9; color: #fff; }
   .qr-btn-primary:hover { background: #1640B8; }
-  .qr-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .qr-btn-sent { border: 1.5px solid #16A34A; background: #DCFCE7; color: #15803D; }
 
-  .qr-field { margin-bottom: 14px; }
+  /* Input section */
+  .qr-input-desc { font-size: 13px; color: #6B7280; margin-bottom: 18px; line-height: 1.6; }
   .qr-label { font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 7px; display: block; letter-spacing: 0.01em; }
-  .qr-select {
+  .qr-input {
     width: 100%; height: 42px; padding: 0 14px;
     border: 1.5px solid #EBEBEB; border-radius: 10px;
     font-size: 14px; color: #111827; outline: none;
-    background: #fff;
+    font-family: 'Courier New', monospace; background: #fff;
+    letter-spacing: 0.05em; transition: border-color 0.15s;
+    margin-bottom: 10px;
   }
-  .qr-select:focus { border-color: #1B50D9; box-shadow: 0 0 0 3px rgba(27,80,217,0.1); }
+  .qr-input:focus { border-color: #1B50D9; box-shadow: 0 0 0 3px rgba(27,80,217,0.1); }
+  .qr-input::placeholder { font-family: 'Pretendard Variable', sans-serif; letter-spacing: 0; color: #C9CDD4; }
 
+  .qr-submit-btn {
+    width: 100%; padding: 12px 0; font-size: 14px; font-weight: 700;
+    background: #1B50D9; color: #fff; border: none; border-radius: 10px;
+    cursor: pointer; font-family: inherit; transition: background 0.15s; margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+  }
+  .qr-submit-btn:hover { background: #1640B8; }
+  .qr-submit-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Result */
   .qr-result-ok {
     padding: 14px 16px; background: #DCFCE7; border: 1.5px solid #86EFAC; border-radius: 12px;
   }
   .qr-result-title { font-size: 14px; font-weight: 800; color: #15803D; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
   .qr-result-body { font-size: 13px; color: #166534; line-height: 1.6; }
+  .qr-result-time { font-size: 11.5px; color: #15803D; margin-top: 6px; display: block; opacity: 0.8; }
 
+  /* Notice */
   .qr-notice { margin-top: 22px; padding-top: 18px; border-top: 1px solid #F3F4F6; }
   .qr-notice-title { font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
   .qr-notice-item { font-size: 12.5px; color: #9CA3AF; line-height: 2; display: flex; align-items: flex-start; gap: 6px; }
   .qr-notice-dot { width: 3px; height: 3px; border-radius: 50%; background: #D1D5DB; flex-shrink: 0; margin-top: 9px; }
-  .qr-error { color: #B91C1C; font-size: 13px; margin-top: 8px; }
 
   @media (max-width: 680px) {
     .qr-grid { grid-template-columns: 1fr; }
@@ -162,178 +170,35 @@ const styles = `
   }
 `;
 
-function formatDateTime(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  const hh = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  return `${yyyy}.${mm}.${dd} ${hh}:${min}`;
-}
-
-function formatDateRange(startAt, endAt) {
-  if (!startAt && !endAt) return "일정 정보 없음";
-  const start = formatDateTime(startAt);
-  const end = formatDateTime(endAt);
-  return `${start} ~ ${end}`;
-}
-
-function formatRegistrationStatus(status) {
-  const key = String(status || "").toUpperCase();
-  return REGISTRATION_STATUS_LABEL[key] || String(status || "-");
-}
-
-export default function QRCheckin() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const query = new URLSearchParams(location.search);
-  const queryEventId = Number(query.get("eventId"));
-
+/* ─────────────────────────────────────────────
+   COMPONENT
+───────────────────────────────────────────── */
+export default function QRCheckin({ onNavigate }) {
   const currentPath = "/registration/qrcheckin";
-  const [registrations, setRegistrations] = useState([]);
-  const [selectedEventId, setSelectedEventId] = useState(null);
-  const [eventDetail, setEventDetail] = useState(null);
-  const [qrInfo, setQrInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingQr, setLoadingQr] = useState(false);
-  const [error, setError] = useState("");
+  const [code, setCode] = useState("");
+  const [checked, setChecked] = useState(false);
   const [smsSent, setSmsSent] = useState(false);
-  const [useImage, setUseImage] = useState(true);
 
-  const registrationMap = useMemo(() => {
-    return new Map(registrations.map((item) => [item.eventId, item]));
-  }, [registrations]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const fetchRegistrations = async () => {
-      if (!tokenStore.getAccess()) {
-        navigate("/auth/login");
-        return;
-      }
-
-      setLoading(true);
-      setError("");
-
-      try {
-        const res = await axiosInstance.get("/api/users/me/event-registrations", {
-          params: { page: 0, size: 200, sort: "appliedAt,desc" },
-        });
-
-        const rows = res?.data?.data?.content ?? [];
-        const dedup = [];
-        const seen = new Set();
-
-        for (const row of rows) {
-          if (!row?.eventId || seen.has(row.eventId)) continue;
-          seen.add(row.eventId);
-          dedup.push(row);
-        }
-
-        const approvedOnly = dedup.filter((r) => {
-          const status = String(r?.status || "").toUpperCase();
-          return status === "APPROVED" || status === "승인완료";
-        });
-
-        if (!mounted) return;
-        setRegistrations(approvedOnly);
-
-        const fallback = approvedOnly[0] || null;
-        const selected = Number.isFinite(queryEventId) && approvedOnly.some((r) => r.eventId === queryEventId)
-          ? queryEventId
-          : fallback?.eventId ?? null;
-
-        setSelectedEventId(selected);
-      } catch (e) {
-        if (!mounted) return;
-        const message = e?.response?.data?.error?.message || "신청 이벤트 목록을 불러오지 못했습니다.";
-        setError(message);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    fetchRegistrations();
-    return () => {
-      mounted = false;
-    };
-  }, [navigate, queryEventId]);
-
-  const loadQr = async (eventId) => {
-    if (!eventId) return;
-
-    setLoadingQr(true);
-    setError("");
-    setUseImage(true);
-
-    try {
-      const [qrRes, eventRes] = await Promise.all([
-        axiosInstance.get("/api/qr/me", { params: { eventId } }),
-        eventApi.getEventDetail(eventId),
-      ]);
-
-      setQrInfo(qrRes?.data?.data ?? null);
-      setEventDetail(eventRes?.data?.data ?? null);
-    } catch (e) {
-      const message = e?.response?.data?.error?.message || "QR 정보를 불러오지 못했습니다.";
-      setError(message);
-    } finally {
-      setLoadingQr(false);
-    }
+  const handleCheckin = () => {
+    if (code.trim()) setChecked(true);
   };
-
-  useEffect(() => {
-    if (!selectedEventId) {
-      setQrInfo(null);
-      setEventDetail(null);
-      return;
-    }
-    loadQr(selectedEventId);
-  }, [selectedEventId]);
-
-  const statusMeta = STATUS_META[qrInfo?.qrStatus] || {
-    label: "확인 필요",
-    color: "#6B7280",
-    bg: "#F3F4F6",
-    canEnter: false,
-  };
-
-  const selectedRegistration = selectedEventId ? registrationMap.get(selectedEventId) : null;
 
   const handleSendSMS = () => {
-    if (!qrInfo || !eventDetail) return;
-
-    const msg = encodeURIComponent(
-      `[${eventDetail.eventName || "이벤트"}]\n` +
-        `QR 번호: QR-${qrInfo.qrId}\n` +
-        `행사일: ${formatDateRange(eventDetail.startAt, eventDetail.endAt)}\n` +
-        `장소: ${eventDetail.location || "-"}\n` +
-        `상태: ${statusMeta.label}`,
+    const phoneNumber = "01012345678";
+    const message = encodeURIComponent(
+      "[2026 봄 반려동물 페스티벌]\n신청번호: REG-2026-003847\n행사일: 2026.04.12 (토) 10:00~18:00\n장소: 서울 올림픽공원 체조경기장\n티켓: 일반 입장 × 2\n\n본 문자를 행사 당일 입구에서 제시해 주세요.",
     );
-
-    window.location.href = `sms:${/iPhone|iPad|iPod/i.test(navigator.userAgent) ? "&" : "?"}body=${msg}`;
+    const smsUrl = `sms:${phoneNumber}${/iPhone|iPad|iPod/i.test(navigator.userAgent) ? "&" : "?"}body=${message}`;
+    window.location.href = smsUrl;
     setSmsSent(true);
     setTimeout(() => setSmsSent(false), 3000);
   };
 
-  const handleDownload = () => {
-    if (!qrInfo?.originalUrl) return;
-    const a = document.createElement("a");
-    a.href = qrInfo.originalUrl;
-    a.target = "_blank";
-    a.rel = "noreferrer";
-    a.click();
-  };
-
-  const notices = [
-    "QR 코드는 행사 시작 1시간 전부터 활성화됩니다.",
-    "이벤트별로 1인 1QR 정책이 적용됩니다.",
-    "행사 종료 시 QR은 자동 만료됩니다.",
-    "문제 발생 시 운영팀에 문의해 주세요.",
+  const NOTICES = [
+    "QR 코드는 행사 시작 1시간 전부터 유효합니다",
+    "1회 스캔 후 재사용이 불가합니다",
+    "본인 확인을 위해 신분증을 지참해 주세요",
+    "문의: 02-1234-5678 (평일 09:00~18:00)",
   ];
 
   return (
@@ -344,44 +209,55 @@ export default function QRCheckin() {
         title="QR 체크인"
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
+        currentPath={currentPath}
+        onNavigate={onNavigate}
       />
 
       <main className="qr-container">
-        <div className="qr-page-title">QR 발급/조회</div>
-        <div className="qr-page-sub">신청한 이벤트를 선택하면 QR을 조회하고, 없으면 자동 발급됩니다.</div>
+        <div className="qr-page-title">QR 체크인</div>
+        <div className="qr-page-sub">
+          행사 당일 QR 코드를 제시하거나 신청번호를 직접 입력하세요
+        </div>
 
         <div className="qr-grid">
+          {/* 왼쪽: 나의 QR 코드 */}
           <div className="qr-card">
             <div className="qr-card-title">
               <div className="qr-card-title-icon">
                 <Smartphone size={14} />
               </div>
-              내 QR 정보
+              나의 QR 코드
             </div>
 
             <div className="qr-display-wrap">
               <div className="qr-box">
-                {qrInfo?.originalUrl && useImage ? (
-                  <img
-                    className="qr-img"
-                    src={qrInfo.originalUrl}
-                    alt="QR 코드"
-                    onError={() => setUseImage(false)}
-                  />
-                ) : (
-                  <svg className="qr-svg" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
-                    {QR_MATRIX.map((row, ri) =>
-                      row.map((cell, ci) =>
-                        cell === 1 ? (
-                          <rect key={`${ri}-${ci}`} x={ci} y={ri} width="1" height="1" fill="#111827" rx="0.08" />
-                        ) : null,
-                      ),
-                    )}
-                  </svg>
-                )}
+                <svg
+                  className="qr-svg"
+                  viewBox="0 0 21 21"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  {QR_MATRIX.map((row, ri) =>
+                    row.map((cell, ci) =>
+                      cell === 1 ? (
+                        <rect
+                          key={`${ri}-${ci}`}
+                          x={ci}
+                          y={ri}
+                          width="1"
+                          height="1"
+                          fill="#111827"
+                          rx="0.08"
+                        />
+                      ) : null,
+                    ),
+                  )}
+                </svg>
               </div>
-              <div className="qr-code-num">{qrInfo?.qrId ? `QR-${qrInfo.qrId}` : "QR-"}</div>
-              <div className="qr-event-name">{eventDetail?.eventName || "이벤트를 선택해 주세요"}</div>
+              <div className="qr-code-num">REG-2026-003847</div>
+              <div className="qr-event-name">
+                2026 봄 반려동물 페스티벌 - Day 1
+              </div>
+              <div className="qr-person-name">홍길동 · 일반 입장</div>
             </div>
 
             <div className="qr-ticket-info">
@@ -389,100 +265,104 @@ export default function QRCheckin() {
                 <span className="qr-ticket-label">
                   <Calendar size={13} /> 행사일
                 </span>
-                <span className="qr-ticket-val">{formatDateRange(eventDetail?.startAt, eventDetail?.endAt)}</span>
+                <span className="qr-ticket-val">
+                  2026.04.12 (토) 10:00~18:00
+                </span>
               </div>
               <div className="qr-ticket-row">
                 <span className="qr-ticket-label">
                   <MapPin size={13} /> 장소
                 </span>
-                <span className="qr-ticket-val">{eventDetail?.location || "-"}</span>
+                <span className="qr-ticket-val">서울 올림픽공원</span>
               </div>
               <div className="qr-ticket-row">
                 <span className="qr-ticket-label">
-                  <Clock size={13} /> 활성 시작
+                  <Ticket size={13} /> 티켓
                 </span>
-                <span className="qr-ticket-val">{formatDateTime(qrInfo?.activeFrom)}</span>
+                <span className="qr-ticket-val">일반 입장 × 2</span>
               </div>
               <div className="qr-ticket-row">
                 <span className="qr-ticket-label">
                   <ShieldCheck size={13} /> 상태
                 </span>
-                <span className="qr-status-ok" style={{ color: statusMeta.color, background: statusMeta.bg, padding: "4px 10px", borderRadius: 999 }}>
-                  <CheckCircle2 size={13} /> {statusMeta.label}
+                <span className="qr-status-ok">
+                  <CheckCircle2 size={13} /> 입장 가능
                 </span>
               </div>
             </div>
 
             <div className="qr-btn-row">
-              <button className="qr-btn qr-btn-outline" onClick={handleSendSMS} disabled={!qrInfo}>
+              <button
+                className={`qr-btn ${smsSent ? "qr-btn-sent" : "qr-btn-outline"}`}
+                onClick={handleSendSMS}
+              >
                 <MessageSquare size={13} />
-                {smsSent ? "발송됨" : "문자 받기"}
+                {smsSent ? "발송됨!" : "문자 받기"}
               </button>
-              <button className="qr-btn qr-btn-primary" onClick={handleDownload} disabled={!qrInfo?.originalUrl}>
+              <button className="qr-btn qr-btn-primary">
                 <Download size={13} />
-                이미지 열기
+                이미지 저장
               </button>
             </div>
           </div>
 
+          {/* 오른쪽: 신청번호 체크인 */}
           <div className="qr-card">
             <div className="qr-card-title">
               <div className="qr-card-title-icon">
-                <RefreshCw size={14} />
+                <Hash size={14} />
               </div>
-              이벤트 선택
+              신청번호 체크인
             </div>
 
-            <div className="qr-field">
-              <label className="qr-label">신청한 이벤트</label>
-              <select
-                className="qr-select"
-                value={selectedEventId ?? ""}
-                onChange={(e) => setSelectedEventId(e.target.value ? Number(e.target.value) : null)}
-                disabled={loading || registrations.length === 0}
-              >
-                {registrations.length === 0 ? (
-                  <option value="">승인완료된 이벤트가 없습니다</option>
-                ) : (
-                  registrations.map((item) => (
-                    <option key={item.applyId ?? item.eventId} value={item.eventId}>
-                      이벤트 #{item.eventId} ({formatRegistrationStatus(item.status)})
-                    </option>
-                  ))
-                )}
-              </select>
+            <div className="qr-input-desc">
+              신청 확인 이메일에 포함된 신청번호를 입력하시면 바로 체크인됩니다.
             </div>
+
+            <label className="qr-label">신청번호</label>
+            <input
+              className="qr-input"
+              placeholder="REG-XXXX-XXXXXX"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCheckin()}
+            />
 
             <button
-              className="qr-btn qr-btn-primary"
-              style={{ width: "100%", marginBottom: 16 }}
-              onClick={() => loadQr(selectedEventId)}
-              disabled={!selectedEventId || loadingQr}
+              className="qr-submit-btn"
+              disabled={!code.trim()}
+              onClick={handleCheckin}
             >
-              <RefreshCw size={15} />
-              {loadingQr ? "조회 중..." : "QR 발급/조회"}
+              <QrCode size={15} />
+              체크인 확인
             </button>
 
-            {selectedRegistration && (
+            {checked && (
               <div className="qr-result-ok">
                 <div className="qr-result-title">
-                  <CheckCircle2 size={16} /> 신청 상태: {formatRegistrationStatus(selectedRegistration.status)}
+                  <CheckCircle2 size={16} />
+                  체크인이 완료되었습니다!
                 </div>
                 <div className="qr-result-body">
-                  신청일: {formatDateTime(selectedRegistration.appliedAt)}
-                  <br />
-                  만료 시각: {formatDateTime(qrInfo?.expiredAt)}
+                  2026 봄 반려동물 페스티벌 - Day 1<br />
+                  홍길동님 · 일반 입장 × 2
+                  <span className="qr-result-time">
+                    <Clock
+                      size={11}
+                      style={{ display: "inline", marginRight: 4 }}
+                    />
+                    입장 처리 시각: {new Date().toLocaleTimeString("ko-KR")}
+                  </span>
                 </div>
               </div>
             )}
 
-            {error ? <div className="qr-error">{error}</div> : null}
-
             <div className="qr-notice">
               <div className="qr-notice-title">
-                <Info size={13} color="#9CA3AF" /> 안내사항
+                <Info size={13} color="#9CA3AF" />
+                안내사항
               </div>
-              {notices.map((n, i) => (
+              {NOTICES.map((n, i) => (
                 <div key={i} className="qr-notice-item">
                   <div className="qr-notice-dot" />
                   {n}

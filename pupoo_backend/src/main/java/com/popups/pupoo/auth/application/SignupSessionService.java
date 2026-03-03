@@ -19,8 +19,6 @@ import com.popups.pupoo.user.dto.UserCreateRequest;
 import com.popups.pupoo.user.social.application.SocialAccountService;
 import com.popups.pupoo.user.social.dto.SocialLinkRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -46,7 +44,6 @@ import java.util.UUID;
 @Service
 public class SignupSessionService {
 
-    private static final Logger log = LoggerFactory.getLogger(SignupSessionService.class);
     private static final SecureRandom random = new SecureRandom();
     private static final String REFRESH_COOKIE_NAME = "refresh_token";
 
@@ -131,12 +128,12 @@ public class SignupSessionService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
+        if (isBlank(request.getEmail()) || isBlank(request.getPassword())) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+
         if (request.getSignupType() == SignupType.SOCIAL) {
             if (isBlank(request.getSocialProvider()) || isBlank(request.getSocialProviderUid())) {
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED);
-            }
-        } else {
-            if (isBlank(request.getEmail()) || isBlank(request.getPassword())) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED);
             }
         }
@@ -160,14 +157,8 @@ public class SignupSessionService {
         SignupSession session = new SignupSession();
         session.setSignupKey(UUID.randomUUID().toString());
         session.setSignupType(request.getSignupType());
-        String normalizedEmail = safeTrim(request.getEmail());
-        session.setEmail(isBlank(normalizedEmail) ? null : normalizedEmail);
-
-        String rawPassword = safeTrim(request.getPassword());
-        if (request.getSignupType() == SignupType.SOCIAL && isBlank(rawPassword)) {
-            rawPassword = UUID.randomUUID().toString();
-        }
-        session.setPasswordHash(passwordEncoder.encode(rawPassword));
+        session.setEmail(safeTrim(request.getEmail()));
+        session.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         session.setNickname(nickname);
         session.setPhone(phone);
 
@@ -281,10 +272,6 @@ public class SignupSessionService {
         String subject = "[POPUPS] 이메일 인증 코드";
         String body = "인증코드는 " + code + " 입니다. (" + emailTtlMinutes + "분 이내 입력)";
         notificationSender.sendEmail(List.of(session.getEmail()), subject, body);
-        if (exposeDevCode) {
-            log.info("[DEV] signup email code: signupKey={}, email={}, code={}",
-                    session.getSignupKey(), session.getEmail(), code);
-        }
 
         return new EmailVerificationRequestResponse(session.getEmailExpiresAt(), exposeDevCode ? code : null);
     }
@@ -353,11 +340,7 @@ public class SignupSessionService {
 
         // users 생성(최초 생성 지점)
         UserCreateRequest ucr = new UserCreateRequest();
-        String resolvedEmail = session.getEmail();
-        if (session.getSignupType() == SignupType.SOCIAL && isBlank(resolvedEmail)) {
-            resolvedEmail = buildSocialFallbackEmail(session);
-        }
-        ucr.setEmail(resolvedEmail);
+        ucr.setEmail(session.getEmail());
         ucr.setNickname(session.getNickname());
         ucr.setPhone(session.getPhone());
 
@@ -458,23 +441,6 @@ public class SignupSessionService {
 
     private boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
-    }
-
-    private String buildSocialFallbackEmail(SignupSession session) {
-        String provider = safeTrim(session.getSocialProvider());
-        String providerUid = safeTrim(session.getSocialProviderUid());
-
-        String providerPart = isBlank(provider) ? "social" : provider.toLowerCase();
-        String uidPart = isBlank(providerUid) ? UUID.randomUUID().toString() : providerUid.toLowerCase();
-        String localPart = (providerPart + "_" + uidPart).replaceAll("[^a-z0-9._-]", "");
-
-        if (localPart.isBlank()) {
-            localPart = "social_" + UUID.randomUUID().toString().replace("-", "");
-        }
-        if (localPart.length() > 64) {
-            localPart = localPart.substring(0, 64);
-        }
-        return localPart + "@social.pupoo.local";
     }
 
     /**

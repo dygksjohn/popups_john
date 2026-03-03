@@ -1,35 +1,139 @@
-import { useState, useEffect } from "react";
+/**
+ * PaymentManage — 결제 관리 (DB 연동)
+ *
+ * ★ 연동 포인트:
+ *   1. 홈(사이트) 사전신청 → /api/events/{id}/payments (결제 생성)
+ *   2. 카카오페이 결제 완료 → /api/payments/{id}/approve (승인)
+ *   3. 이 페이지에서 결제 내역 조회·환불 처리
+ *
+ * ★ 환불 정책:
+ *   - 이벤트 시작 전: 환불 가능
+ *   - 이벤트 시작 후: 환불 불가 (추후 관리자 승인 기능 추가 예정)
+ *
+ * API:
+ *   GET  /api/admin/dashboard/events                      — 행사 목록
+ *   GET  /api/admin/dashboard/events/{eventId}/payments    — 결제 목록
+ *   POST /api/admin/dashboard/payments/{paymentId}/refund  — 환불 처리
+ *   POST /api/admin/dashboard/payments/bulk-refund         — 일괄 환불
+ */
+import { useState, useEffect, useCallback } from "react";
 import {
-  Plus,
-  X,
-  Pencil,
-  Trash2,
   Search,
-  Eye,
   Check,
-  ChevronDown,
+  ChevronLeft,
   AlertTriangle,
-  PawPrint,
-  Phone,
-  Mail,
-  Calendar,
-  UserCheck,
   CreditCard,
-  QrCode,
-  Users,
-  Clock,
+  CalendarDays,
+  MapPin,
+  ArrowRight,
+  RefreshCw,
+  Ban,
+  Receipt,
+  TrendingUp,
+  X,
+  Loader2,
 } from "lucide-react";
-import ds from "../shared/designTokens";
-import DATA from "../shared/data";
+import ds, { statusMap } from "../shared/designTokens";
+import { Pill } from "../shared/Components";
+import { axiosInstance } from "../../../app/http/axiosInstance";
+import { getToken } from "../../../api/noticeApi";
 
+/* ── 스타일 ── */
 const styles = `
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 `;
 
-/* ── 공통 컴포넌트 ── */
+/* ── 인증 ── */
+function authHeaders() {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/* ── 상태 계산 ── */
+const calcStatus = (s, e) => {
+  if (!s && !e) return "pending";
+  const now = new Date();
+  const st = s ? new Date(s.includes("T") ? s : s + "T00:00:00") : null;
+  const ed = e ? new Date(e.includes("T") ? e : e + "T23:59:59") : null;
+  if (ed && now > ed) return "ended";
+  if (st && now >= st) return "active";
+  return "pending";
+};
+
+/* ── 결제 상태 매핑 ── */
+const PAY_STATUS = {
+  APPROVED: { l: "결제완료", c: "#059669", bg: "#ECFDF5" },
+  READY: { l: "결제대기", c: "#D97706", bg: "#FFFBEB" },
+  PENDING: { l: "처리중", c: "#D97706", bg: "#FFFBEB" },
+  CANCELLED: { l: "취소", c: "#94A3B8", bg: "#F1F5F9" },
+  REFUNDED: { l: "환불완료", c: "#EF4444", bg: "#FEF2F2" },
+  FAILED: { l: "실패", c: "#EF4444", bg: "#FEF2F2" },
+};
+
+/* ── 결제수단 매핑 ── */
+const METHOD_LABEL = {
+  KAKAOPAY: "카카오페이",
+  CARD: "카드",
+  BANK: "계좌이체",
+  NAVERPAY: "네이버페이",
+  TOSSPAY: "토스페이",
+};
+
+/* ── 날짜·금액 포맷 ── */
+function fmtDateTime(dt) {
+  if (!dt) return "-";
+  const d = new Date(dt);
+  const date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${date} ${time}`;
+}
+function fmtAmount(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return "\u20A90";
+  return `\u20A9${num.toLocaleString("ko-KR")}`;
+}
+
+/* ── 이벤트 시작 여부 ── */
+function hasEventStarted(event) {
+  if (!event) return false;
+  const startStr = event.startAt || event.date?.split("~")[0]?.trim();
+  if (!startStr) return false;
+  const start = new Date(
+    startStr.includes("T") ? startStr : startStr + "T00:00:00",
+  );
+  return new Date() >= start;
+}
+
+/* ══════════════════ 공통 UI ══════════════════ */
+function Checkbox({ checked, onChange, size = 18 }) {
+  return (
+    <div
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange?.();
+      }}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 5,
+        border: checked ? "none" : "1.8px solid #CBD5E1",
+        background: checked ? ds.brand : "#fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        transition: "all .15s ease",
+        flexShrink: 0,
+      }}
+    >
+      {checked && <Check size={size - 6} color="#fff" strokeWidth={3} />}
+    </div>
+  );
+}
+
 function Toast({ msg, type = "success", onDone }) {
   useEffect(() => {
     const t = setTimeout(onDone, 2200);
@@ -58,11 +162,12 @@ function Toast({ msg, type = "success", onDone }) {
         gap: 8,
       }}
     >
-      {type === "success" ? "✓" : "✕"} {msg}
+      {type === "success" ? "\u2713" : "\u2715"} {msg}
     </div>
   );
 }
-function Overlay({ children, onClose, wide }) {
+
+function Overlay({ children, onClose }) {
   return (
     <div
       onClick={onClose}
@@ -83,8 +188,8 @@ function Overlay({ children, onClose, wide }) {
         style={{
           background: "#fff",
           borderRadius: 16,
-          width: wide ? 600 : 520,
-          maxHeight: "88vh",
+          width: 520,
+          maxHeight: "85vh",
           overflow: "auto",
           boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
           animation: "slideUp .2s ease",
@@ -95,178 +200,47 @@ function Overlay({ children, onClose, wide }) {
     </div>
   );
 }
-function ConfirmModal({ title, msg, onConfirm, onCancel }) {
-  return (
-    <Overlay onClose={onCancel}>
-      <div style={{ padding: 28 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            marginBottom: 14,
-          }}
-        >
-          <div
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 10,
-              background: "#FEF2F2",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <AlertTriangle size={18} color="#EF4444" />
-          </div>
-          <h3
-            style={{ fontSize: 16, fontWeight: 800, color: ds.ink, margin: 0 }}
-          >
-            {title}
-          </h3>
-        </div>
-        <p
-          style={{
-            fontSize: 13.5,
-            color: "#64748B",
-            lineHeight: 1.6,
-            whiteSpace: "pre-line",
-            margin: "0 0 24px",
-          }}
-        >
-          {msg}
-        </p>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: "9px 20px",
-              borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: ds.ff,
-              color: "#64748B",
-            }}
-          >
-            취소
-          </button>
-          <button
-            onClick={onConfirm}
-            style={{
-              padding: "9px 20px",
-              borderRadius: 8,
-              border: "none",
-              background: "#EF4444",
-              color: "#fff",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: ds.ff,
-            }}
-          >
-            삭제
-          </button>
-        </div>
-      </div>
-    </Overlay>
-  );
-}
-function Field({ label, children, required }) {
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <label
-        style={{
-          fontSize: 12,
-          fontWeight: 700,
-          color: "#64748B",
-          marginBottom: 7,
-          display: "block",
-        }}
-      >
-        {label} {required && <span style={{ color: "#EF4444" }}>*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-const inputStyle = {
-  width: "100%",
-  padding: "10px 14px",
-  borderRadius: 9,
-  border: "1.5px solid #E2E8F0",
-  fontSize: 13.5,
-  fontFamily: ds.ff,
-  color: ds.ink,
-  outline: "none",
-  boxSizing: "border-box",
-  transition: "border-color .15s, box-shadow .15s",
-  background: "#fff",
-};
-const inputFocus = (e) => {
-  e.target.style.borderColor = ds.brand;
-  e.target.style.boxShadow = `0 0 0 3px ${ds.brand}15`;
-};
-const inputBlur = (e) => {
-  e.target.style.borderColor = "#E2E8F0";
-  e.target.style.boxShadow = "none";
-};
 
-function Checkbox({ checked, onChange, size = 18 }) {
+function Spinner({ size = 20 }) {
   return (
-    <div
-      onClick={(e) => {
-        e.stopPropagation();
-        onChange?.();
-      }}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 5,
-        border: checked ? "none" : "1.8px solid #CBD5E1",
-        background: checked ? ds.brand : "#fff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
-        transition: "all .15s",
-        flexShrink: 0,
-      }}
-    >
-      {checked && <Check size={size - 6} color="#fff" strokeWidth={3} />}
-    </div>
+    <Loader2
+      size={size}
+      color={ds.brand}
+      style={{ animation: "spin 1s linear infinite" }}
+    />
   );
 }
-function StatCard({ icon: I, label, value, sub }) {
+
+function StatCard({ icon: I, label, value, color, bg }) {
   return (
     <div
       style={{
         background: "#fff",
-        borderRadius: 10,
+        borderRadius: 12,
         border: "1px solid #F1F5F9",
-        padding: 16,
+        padding: "18px 20px",
         display: "flex",
         alignItems: "center",
-        gap: 12,
+        gap: 14,
+        flex: 1,
+        minWidth: 0,
       }}
     >
       <div
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 9,
-          background: "#F8FAFC",
+          width: 40,
+          height: 40,
+          borderRadius: 10,
+          background: bg || "#F8FAFC",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          flexShrink: 0,
         }}
       >
-        <I size={16} color="#64748B" />
+        <I size={18} color={color || "#64748B"} />
       </div>
-      <div>
+      <div style={{ minWidth: 0 }}>
         <div
           style={{
             fontSize: 11,
@@ -277,989 +251,211 @@ function StatCard({ icon: I, label, value, sub }) {
         >
           {label}
         </div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: ds.ink }}>
+        <div
+          style={{
+            fontSize: 18,
+            fontWeight: 800,
+            color: ds.ink,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
           {value}
         </div>
-        {sub && (
-          <div style={{ fontSize: 10.5, color: "#94A3B8", marginTop: 1 }}>
-            {sub}
-          </div>
-        )}
       </div>
     </div>
   );
 }
-function StatusDot({ status, label }) {
-  const map = {
-    approved: { bg: "#ECFDF5", color: "#059669", dot: "#10B981" },
-    pending: { bg: "#FFF7ED", color: "#D97706", dot: "#F59E0B" },
-    cancelled: { bg: "#FEF2F2", color: "#DC2626", dot: "#EF4444" },
-    paid: { bg: "#ECFDF5", color: "#059669", dot: "#10B981" },
-    unpaid: { bg: "#FFF7ED", color: "#D97706", dot: "#F59E0B" },
-    refunded: { bg: "#FEF2F2", color: "#DC2626", dot: "#EF4444" },
-  };
-  const s = map[status] || map.pending;
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        fontSize: 11,
-        fontWeight: 700,
-        padding: "3px 10px",
-        borderRadius: 99,
-        background: s.bg,
-        color: s.color,
-      }}
-    >
-      <span
-        style={{ width: 5, height: 5, borderRadius: "50%", background: s.dot }}
-      />
-      {label}
-    </span>
-  );
-}
-const STATUS_LABEL = { approved: "승인", pending: "대기", cancelled: "취소" };
-const PAY_LABEL = { paid: "결제완료", unpaid: "미결제", refunded: "환불" };
 
-/* ── 상세 모달 ── */
-function DetailModal({ item, onClose, onEdit, onDelete }) {
-  const sessions = (DATA.sessionParticipation || []).filter(
-    (s) => s.participant === item.name,
-  );
-  return (
-    <Overlay onClose={onClose} wide>
-      <div>
-        <div
-          style={{
-            background: "#F8FAFC",
-            padding: "22px 28px",
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            borderRadius: "16px 16px 0 0",
-          }}
-        >
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              background: "#fff",
-              border: "1px solid #F1F5F9",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 18,
-              fontWeight: 800,
-              color: ds.brand,
-            }}
-          >
-            {item.name[0]}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: ds.ink }}>
-              {item.name}
-            </div>
-            <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>
-              {item.id} · {item.event}
-            </div>
-          </div>
-          <StatusDot
-            status={item.status}
-            label={STATUS_LABEL[item.status] || item.status}
-          />
-          <button
-            onClick={onClose}
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 7,
-              border: "none",
-              background: "#E2E8F0",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <X size={13} color="#64748B" />
-          </button>
-        </div>
-        <div style={{ padding: "20px 28px 24px" }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 8,
-              marginBottom: 18,
-            }}
-          >
-            {[
-              { icon: Phone, l: "연락처", v: item.phone },
-              { icon: Mail, l: "이메일", v: item.email },
-              {
-                icon: PawPrint,
-                l: "반려견",
-                v: `${item.petName} (${item.petBreed}, ${item.petAge})`,
-              },
-              { icon: Calendar, l: "등록일", v: item.regDate },
-              {
-                icon: UserCheck,
-                l: "체크인",
-                v: item.checkedIn ? `${item.checkinTime} 완료` : "미체크인",
-              },
-              {
-                icon: CreditCard,
-                l: "결제",
-                v: `${item.amount.toLocaleString()}원 (${item.payMethod})`,
-              },
-            ].map((x) => (
-              <div
-                key={x.l}
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 9,
-                  background: "#F8FAFC",
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "flex-start",
-                }}
-              >
-                <x.icon
-                  size={13}
-                  color="#94A3B8"
-                  style={{ marginTop: 2, flexShrink: 0 }}
-                />
-                <div>
-                  <div
-                    style={{ fontSize: 10, color: "#94A3B8", marginBottom: 2 }}
-                  >
-                    {x.l}
-                  </div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: ds.ink }}>
-                    {x.v}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 10,
-              marginBottom: 18,
-            }}
-          >
-            <div
-              style={{
-                padding: "12px 14px",
-                borderRadius: 9,
-                border: "1px solid #F1F5F9",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#94A3B8",
-                  fontWeight: 600,
-                  marginBottom: 6,
-                }}
-              >
-                신청 상태
-              </div>
-              <StatusDot
-                status={item.status}
-                label={STATUS_LABEL[item.status] || item.status}
-              />
-            </div>
-            <div
-              style={{
-                padding: "12px 14px",
-                borderRadius: 9,
-                border: "1px solid #F1F5F9",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#94A3B8",
-                  fontWeight: 600,
-                  marginBottom: 6,
-                }}
-              >
-                결제 상태
-              </div>
-              <StatusDot
-                status={item.payStatus}
-                label={PAY_LABEL[item.payStatus] || item.payStatus}
-              />
-            </div>
-          </div>
-          {sessions.length > 0 && (
-            <div style={{ marginBottom: 18 }}>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: ds.ink,
-                  marginBottom: 8,
-                }}
-              >
-                참여 이력
-              </div>
-              {sessions.map((s) => (
-                <div
-                  key={s.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "9px 0",
-                    borderBottom: "1px solid #F8FAFC",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{ fontSize: 12, fontWeight: 600, color: ds.ink }}
-                    >
-                      {s.session}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#94A3B8" }}>
-                      {s.pet} · {s.callTime}
-                    </div>
-                  </div>
-                  <StatusDot
-                    status={
-                      s.result === "완료"
-                        ? "approved"
-                        : s.result === "진행중"
-                          ? "pending"
-                          : "cancelled"
-                    }
-                    label={s.result}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button
-              onClick={() => {
-                onClose();
-                onDelete(item);
-              }}
-              style={{
-                padding: "9px 16px",
-                borderRadius: 8,
-                border: "1px solid #FECACA",
-                background: "#FEF2F2",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: ds.ff,
-                color: "#DC2626",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <Trash2 size={13} /> 삭제
-            </button>
-            <button
-              onClick={() => {
-                onClose();
-                onEdit(item);
-              }}
-              style={{
-                padding: "9px 16px",
-                borderRadius: 8,
-                border: "none",
-                background: ds.brand,
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: ds.ff,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <Pencil size={13} /> 수정하기
-            </button>
-          </div>
-        </div>
-      </div>
-    </Overlay>
-  );
-}
-
-/* ── 슬라이드 패널 ── */
-function SlidePanel({ item, onSave, onClose, isEdit }) {
-  const [form, setForm] = useState(
-    item || {
-      name: "",
-      phone: "",
-      email: "",
-      event: "반려견 페스티벌",
-      petName: "",
-      petBreed: "",
-      petAge: "",
-      status: "pending",
-      payStatus: "unpaid",
-      payMethod: "카드",
-      amount: 0,
-    },
-  );
-  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
-  const [err, setErr] = useState("");
-  const handleSave = () => {
-    if (!form.name || !form.phone) {
-      setErr("이름과 연락처는 필수입니다.");
-      return;
-    }
-    onSave(form);
-  };
-
-  return (
-    <>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 4999,
-          background: "rgba(0,0,0,0.15)",
-          animation: "fadeIn .15s ease",
-        }}
-      />
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 5000,
-          width: 460,
-          background: "#fff",
-          boxShadow: "-4px 0 30px rgba(0,0,0,0.08)",
-          display: "flex",
-          flexDirection: "column",
-          animation: "slideIn .25s cubic-bezier(.22,1,.36,1)",
-        }}
-      >
-        <div
-          style={{
-            padding: "20px 24px",
-            borderBottom: "1px solid #F1F5F9",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexShrink: 0,
-          }}
-        >
-          <div>
-            <h3
-              style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: ds.ink,
-                margin: 0,
-              }}
-            >
-              {isEdit ? "참가자 수정" : "새 참가자 등록"}
-            </h3>
-            <p style={{ fontSize: 11.5, color: "#94A3B8", margin: "3px 0 0" }}>
-              {isEdit ? "참가자 정보를 수정합니다" : "새 참가자를 등록합니다"}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <X size={14} color="#94A3B8" />
-          </button>
-        </div>
-        <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
-          {err && (
-            <div
-              style={{
-                background: "#FEF2F2",
-                border: "1px solid #FECACA",
-                borderRadius: 9,
-                padding: "10px 14px",
-                fontSize: 12.5,
-                color: "#DC2626",
-                marginBottom: 18,
-                fontWeight: 600,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <AlertTriangle size={14} /> {err}
-            </div>
-          )}
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
-          >
-            <Field label="이름" required>
-              <input
-                style={inputStyle}
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-                placeholder="참가자명"
-              />
-            </Field>
-            <Field label="연락처" required>
-              <input
-                style={inputStyle}
-                value={form.phone}
-                onChange={(e) => set("phone", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-                placeholder="010-0000-0000"
-              />
-            </Field>
-          </div>
-          <Field label="이메일">
-            <input
-              style={inputStyle}
-              value={form.email || ""}
-              onChange={(e) => set("email", e.target.value)}
-              onFocus={inputFocus}
-              onBlur={inputBlur}
-              placeholder="email@example.com"
-            />
-          </Field>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: 12,
-            }}
-          >
-            <Field label="반려견 이름">
-              <input
-                style={inputStyle}
-                value={form.petName}
-                onChange={(e) => set("petName", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-                placeholder="몽이"
-              />
-            </Field>
-            <Field label="견종">
-              <input
-                style={inputStyle}
-                value={form.petBreed}
-                onChange={(e) => set("petBreed", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-                placeholder="말티즈"
-              />
-            </Field>
-            <Field label="나이">
-              <input
-                style={inputStyle}
-                value={form.petAge}
-                onChange={(e) => set("petAge", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-                placeholder="3살"
-              />
-            </Field>
-          </div>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
-          >
-            <Field label="행사">
-              <input
-                style={inputStyle}
-                value={form.event}
-                onChange={(e) => set("event", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-              />
-            </Field>
-            <Field label="참가비">
-              <input
-                type="number"
-                style={inputStyle}
-                value={form.amount}
-                onChange={(e) => set("amount", +e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-              />
-            </Field>
-          </div>
-        </div>
-        <div
-          style={{
-            padding: "14px 24px",
-            borderTop: "1px solid #F1F5F9",
-            display: "flex",
-            gap: 10,
-            flexShrink: 0,
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              flex: 1,
-              padding: "11px 0",
-              borderRadius: 9,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: ds.ff,
-              color: "#64748B",
-            }}
-          >
-            취소
-          </button>
-          <button
-            onClick={handleSave}
-            style={{
-              flex: 1,
-              padding: "11px 0",
-              borderRadius: 9,
-              border: "none",
-              background: ds.brand,
-              color: "#fff",
-              fontSize: 13.5,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: ds.ff,
-            }}
-          >
-            {isEdit ? "수정 완료" : "등록하기"}
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   서브탭: 참가자 목록
-   ═══════════════════════════════════════════ */
-function TabList({ items, setItems }) {
-  const [modal, setModal] = useState(null);
-  const [panel, setPanel] = useState(null);
-  const [toast, setToast] = useState(null);
+/* ══════════════════════════════════════════
+   메인 컴포넌트
+   ══════════════════════════════════════════ */
+export default function PaymentManage() {
+  const [events, setEvents] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingPayments, setLoadingPayments] = useState(false);
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState([]);
-  const showToast = (msg, type = "success") => setToast({ msg, type });
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [selected, setSelected] = useState(new Set());
+  const [modal, setModal] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [detailItem, setDetailItem] = useState(null);
 
-  const visible = items.filter((e) => e._visible);
-  const rows = visible.filter(
-    (e) => !search || e.name.includes(search) || e.id.includes(search),
-  );
-  const total = visible.length;
-  const approved = visible.filter((p) => p.status === "approved").length;
-  const checked = visible.filter((p) => p.checkedIn).length;
+  const showToast = useCallback((msg, type = "success") => {
+    setToast({ msg, type });
+  }, []);
 
-  const toggleAll = () =>
-    setSelected(selected.length === rows.length ? [] : rows.map((r) => r.id));
-  const toggle = (id) =>
-    setSelected((p) =>
-      p.includes(id) ? p.filter((x) => x !== id) : [...p, id],
-    );
-
-  const handleCreate = (f) => {
-    const d = new Date();
-    setItems((p) => [
-      {
-        ...f,
-        id: `PT-${String(p.length + 1).padStart(3, "0")}`,
-        regDate: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`,
-        checkedIn: false,
-        checkinTime: null,
-        _visible: true,
-      },
-      ...p,
-    ]);
-    setPanel(null);
-    showToast("참가자가 등록되었습니다.");
+  /* ── 행사 목록 로드 ── */
+  const loadEvents = async () => {
+    setLoading(true);
+    try {
+      const res = await axiosInstance.get("/api/admin/dashboard/events", {
+        headers: authHeaders(),
+      });
+      const list = res.data?.data || res.data || [];
+      setEvents(
+        list.map((e) => ({
+          ...e,
+          status: calcStatus(
+            e.startAt || e.date?.split("~")[0]?.trim(),
+            e.endAt || e.date?.split("~")[1]?.trim(),
+          ),
+        })),
+      );
+    } catch (err) {
+      console.error("행사 로드 실패:", err);
+    } finally {
+      setLoading(false);
+    }
   };
-  const handleUpdate = (f) => {
-    setItems((p) => p.map((e) => (e.id === f.id ? { ...e, ...f } : e)));
-    setPanel(null);
-    showToast("참가자 정보가 수정되었습니다.");
+
+  /* ── 결제 내역 로드 ── */
+  const loadPayments = async (eventId) => {
+    setLoadingPayments(true);
+    try {
+      const res = await axiosInstance.get(
+        `/api/admin/dashboard/events/${eventId}/payments`,
+        { headers: authHeaders() },
+      );
+      const list = res.data?.data?.content || res.data?.data || res.data || [];
+      setPayments(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("결제 내역 로드 실패:", err);
+      setPayments([]);
+    } finally {
+      setLoadingPayments(false);
+    }
   };
-  const handleDelete = () => {
-    const id = modal.item.id;
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
+
+  const selectEvent = (ev) => {
+    setSelectedEvent(ev);
+    setSelected(new Set());
+    setSearch("");
+    setStatusFilter("ALL");
+    const eid = ev.eventId || ev.id?.replace?.("EV-", "") || ev.id;
+    loadPayments(eid);
+  };
+
+  const goBack = () => {
+    setSelectedEvent(null);
+    setPayments([]);
+    setSelected(new Set());
+    setSearch("");
+    setStatusFilter("ALL");
+  };
+
+  /* ── 환불 처리 ── */
+  const handleRefund = async (paymentId) => {
     setModal(null);
-    setItems((p) =>
-      p.map((e) => (e.id === id ? { ...e, _visible: false } : e)),
-    );
-    showToast("참가자가 삭제되었습니다.");
+    setDetailItem(null);
+    try {
+      await axiosInstance.post(
+        `/api/admin/dashboard/payments/${paymentId}/refund`,
+        {},
+        { headers: authHeaders() },
+      );
+      const eid =
+        selectedEvent.eventId ||
+        selectedEvent.id?.replace?.("EV-", "") ||
+        selectedEvent.id;
+      await loadPayments(eid);
+      showToast("환불이 완료되었습니다.");
+    } catch (err) {
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        "환불 처리에 실패했습니다.";
+      showToast(msg, "error");
+    }
   };
 
+  /* ── 일괄 환불 ── */
+  const handleBulkRefund = async () => {
+    setModal(null);
+    const ids = [...selected];
+    try {
+      await axiosInstance.post(
+        "/api/admin/dashboard/payments/bulk-refund",
+        { paymentIds: ids },
+        { headers: authHeaders() },
+      );
+      const eid =
+        selectedEvent.eventId ||
+        selectedEvent.id?.replace?.("EV-", "") ||
+        selectedEvent.id;
+      await loadPayments(eid);
+      setSelected(new Set());
+      showToast(`${ids.length}건 환불이 완료되었습니다.`);
+    } catch (err) {
+      showToast("일괄 환불 처리에 실패했습니다.", "error");
+    }
+  };
+
+  const handleRefresh = () => {
+    if (!selectedEvent) return;
+    const eid =
+      selectedEvent.eventId ||
+      selectedEvent.id?.replace?.("EV-", "") ||
+      selectedEvent.id;
+    loadPayments(eid);
+  };
+
+  /* ── 필터링 ── */
+  const filtered = payments.filter((p) => {
+    if (statusFilter !== "ALL" && p.status !== statusFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (
+        (p.buyerName || "").toLowerCase().includes(q) ||
+        (p.buyerEmail || "").toLowerCase().includes(q) ||
+        (p.orderNo || "").toLowerCase().includes(q) ||
+        String(p.paymentId || "").includes(q)
+      );
+    }
+    return true;
+  });
+
+  /* ── 선택 관리 ── */
+  const refundableFiltered = filtered.filter((p) => p.status === "APPROVED");
+  const isAllSelected =
+    refundableFiltered.length > 0 &&
+    refundableFiltered.every((r) => selected.has(r.paymentId));
+  const hasSelected = selected.size > 0;
+  const toggleAll = () => {
+    if (isAllSelected) setSelected(new Set());
+    else setSelected(new Set(refundableFiltered.map((r) => r.paymentId)));
+  };
+  const toggleOne = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  /* ── 통계 ── */
+  const stats = {
+    total: payments.length,
+    approved: payments.filter((p) => p.status === "APPROVED").length,
+    refunded: payments.filter((p) => p.status === "REFUNDED").length,
+    totalAmount: payments
+      .filter((p) => p.status === "APPROVED")
+      .reduce((acc, p) => acc + (Number(p.amount) || 0), 0),
+  };
+
+  const eventStarted = hasEventStarted(selectedEvent);
+
+  /* ═══════════════════════ RENDER ═══════════════════════ */
   return (
-    <>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <StatCard icon={Users} label="전체 참가자" value={total} />
-        <StatCard icon={UserCheck} label="승인 완료" value={approved} />
-        <StatCard
-          icon={QrCode}
-          label="체크인 완료"
-          value={checked}
-          sub={`${total ? Math.round((checked / total) * 100) : 0}%`}
-        />
-        <StatCard icon={Clock} label="대기 중" value={total - approved} />
-      </div>
-
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 12,
-          border: "1px solid #F1F5F9",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            padding: "12px 20px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: "1px solid #F1F5F9",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
-              참가자 목록
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
-              {rows.length}명
-            </span>
-            {selected.length > 0 && (
-              <button
-                onClick={() => {}}
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 6,
-                  border: "1px solid #FECACA",
-                  background: "#FEF2F2",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "#DC2626",
-                  cursor: "pointer",
-                  fontFamily: ds.ff,
-                }}
-              >
-                {selected.length}명 삭제
-              </button>
-            )}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ position: "relative" }}>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="검색"
-                style={{
-                  width: 160,
-                  padding: "6px 12px 6px 30px",
-                  borderRadius: 7,
-                  border: "1px solid #E2E8F0",
-                  fontSize: 12.5,
-                  fontFamily: ds.ff,
-                  color: ds.ink,
-                  outline: "none",
-                }}
-                onFocus={(e) => (e.target.style.borderColor = ds.brand)}
-                onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
-              />
-              <Search
-                size={13}
-                color="#94A3B8"
-                style={{
-                  position: "absolute",
-                  left: 10,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                }}
-              />
-            </div>
-            <button
-              onClick={() => setPanel({ type: "create" })}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "6px 14px",
-                borderRadius: 7,
-                border: "none",
-                background: ds.brand,
-                color: "#fff",
-                fontSize: 12.5,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: ds.ff,
-              }}
-            >
-              <Plus size={13} strokeWidth={2.5} /> 등록
-            </button>
-          </div>
-        </div>
-
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid #F1F5F9" }}>
-              <th style={{ width: 44, padding: "10px 0", textAlign: "center" }}>
-                <Checkbox
-                  checked={rows.length > 0 && selected.length === rows.length}
-                  onChange={toggleAll}
-                />
-              </th>
-              {[
-                "이름",
-                "연락처",
-                "행사",
-                "반려견",
-                "체크인",
-                "결제",
-                "상태",
-                "액션",
-              ].map((h) => (
-                <th
-                  key={h}
-                  style={{
-                    padding: "10px 12px",
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    color: "#94A3B8",
-                    textAlign: "left",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr
-                key={r.id}
-                onClick={() => setModal({ type: "detail", item: r })}
-                style={{
-                  borderBottom: "1px solid #F8FAFC",
-                  cursor: "pointer",
-                  transition: "background .1s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#F4F6F8")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
-              >
-                <td
-                  style={{ width: 44, textAlign: "center", padding: "10px 0" }}
-                >
-                  <Checkbox
-                    checked={selected.includes(r.id)}
-                    onChange={() => toggle(r.id)}
-                  />
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: ds.ink }}>
-                    {r.name}
-                  </div>
-                  <div style={{ fontSize: 10.5, color: "#94A3B8" }}>{r.id}</div>
-                </td>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    fontSize: 12.5,
-                    color: "#475569",
-                  }}
-                >
-                  {r.phone}
-                </td>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    fontSize: 12.5,
-                    color: "#475569",
-                  }}
-                >
-                  {r.event}
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      fontSize: 12,
-                      color: "#475569",
-                    }}
-                  >
-                    <PawPrint size={11} color="#8B5CF6" />
-                    {r.petName} ({r.petBreed})
-                  </span>
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  {r.checkedIn ? (
-                    <StatusDot status="approved" label={r.checkinTime} />
-                  ) : (
-                    <StatusDot status="cancelled" label="미체크인" />
-                  )}
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  <StatusDot
-                    status={r.payStatus}
-                    label={PAY_LABEL[r.payStatus] || r.payStatus}
-                  />
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  <StatusDot
-                    status={r.status}
-                    label={STATUS_LABEL[r.status] || r.status}
-                  />
-                </td>
-                <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                  <div style={{ display: "flex", gap: 3 }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setModal({ type: "detail", item: r });
-                      }}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: 5,
-                        border: "1px solid #E2E8F0",
-                        background: "#F8FAFC",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "#64748B",
-                        cursor: "pointer",
-                        fontFamily: ds.ff,
-                      }}
-                    >
-                      상세
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPanel({ type: "edit", item: r });
-                      }}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: 5,
-                        border: `1px solid ${ds.brand}20`,
-                        background: `${ds.brand}06`,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: ds.brand,
-                        cursor: "pointer",
-                        fontFamily: ds.ff,
-                      }}
-                    >
-                      수정
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setModal({ type: "delete", item: r });
-                      }}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: 5,
-                        border: "1px solid transparent",
-                        background: "transparent",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "#EF4444",
-                        cursor: "pointer",
-                        fontFamily: ds.ff,
-                        opacity: 0.5,
-                        transition: "opacity .12s",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.opacity = "1")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.opacity = "0.5")
-                      }
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {rows.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <Users size={36} color="#CBD5E1" style={{ marginBottom: 12 }} />
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#64748B" }}>
-              참가자가 없습니다
-            </div>
-          </div>
-        )}
-      </div>
-
-      {panel?.type === "create" && (
-        <SlidePanel onSave={handleCreate} onClose={() => setPanel(null)} />
-      )}
-      {panel?.type === "edit" && (
-        <SlidePanel
-          item={panel.item}
-          isEdit
-          onSave={handleUpdate}
-          onClose={() => setPanel(null)}
-        />
-      )}
-      {modal?.type === "detail" && (
-        <DetailModal
-          item={modal.item}
-          onClose={() => setModal(null)}
-          onEdit={(item) => {
-            setModal(null);
-            setPanel({ type: "edit", item });
-          }}
-          onDelete={(item) => setModal({ type: "delete", item })}
-        />
-      )}
-      {modal?.type === "delete" && (
-        <ConfirmModal
-          title="참가자 삭제"
-          msg={`"${modal.item.name}" 참가자를 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
-          onConfirm={handleDelete}
-          onCancel={() => setModal(null)}
-        />
-      )}
+    <div>
+      <style>{styles}</style>
       {toast && (
         <Toast
           msg={toast.msg}
@@ -1267,348 +463,997 @@ function TabList({ items, setItems }) {
           onDone={() => setToast(null)}
         />
       )}
-    </>
-  );
-}
 
-/* ═══════════════════════════════════════════
-   서브탭: 체크인 관리
-   ═══════════════════════════════════════════ */
-function TabCheckin({ items }) {
-  const total = items.filter((e) => e._visible).length;
-  const checked = items.filter((e) => e._visible && e.checkedIn).length;
-  const checkins = DATA.checkins || [];
-
-  return (
-    <>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <StatCard icon={Users} label="전체 참가자" value={total} />
-        <StatCard
-          icon={UserCheck}
-          label="체크인 완료"
-          value={checked}
-          sub={`${total ? Math.round((checked / total) * 100) : 0}% 완료`}
-        />
-        <StatCard icon={Clock} label="미체크인" value={total - checked} />
-      </div>
-
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 12,
-          border: "1px solid #F1F5F9",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            padding: "12px 20px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: "1px solid #F1F5F9",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
-              체크인 내역
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
-              {checkins.length}건
-            </span>
+      {/* ═══ VIEW 1: 행사 선택 ═══ */}
+      {!selectedEvent && (
+        <div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 24,
+            }}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: ds.brandSoft,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <CreditCard size={20} color={ds.brand} />
+            </div>
+            <div>
+              <h2
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: ds.ink,
+                  margin: 0,
+                }}
+              >
+                결제 관리
+              </h2>
+              <p
+                style={{
+                  fontSize: 12.5,
+                  color: "#94A3B8",
+                  margin: 0,
+                  marginTop: 2,
+                }}
+              >
+                행사를 선택하여 결제 내역을 관리합니다
+              </p>
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            {[
-              { icon: QrCode, label: "QR 스캔", c: ds.brand },
-              { icon: UserCheck, label: "수동 체크인", c: "#059669" },
-            ].map((a) => (
-              <button
-                key={a.label}
+
+          {loading ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: 60,
+                color: "#94A3B8",
+                fontSize: 13,
+              }}
+            >
+              <Spinner size={28} />
+              <div style={{ marginTop: 12 }}>행사 목록을 불러오는 중...</div>
+            </div>
+          ) : events.length === 0 ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "60px 20px",
+              }}
+            >
+              <CreditCard
+                size={36}
+                color="#CBD5E1"
+                style={{ marginBottom: 12, display: "block" }}
+              />
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "#64748B",
+                  marginBottom: 4,
+                }}
+              >
+                등록된 행사가 없습니다
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                gap: 14,
+              }}
+            >
+              {events.map((ev) => {
+                const st = statusMap[ev.status] || statusMap.pending;
+                return (
+                  <div
+                    key={ev.eventId || ev.id}
+                    onClick={() => selectEvent(ev)}
+                    style={{
+                      background: "#fff",
+                      borderRadius: 14,
+                      border: "1px solid #F1F5F9",
+                      padding: "20px",
+                      cursor: "pointer",
+                      transition: "all .2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = ds.brand;
+                      e.currentTarget.style.boxShadow = `0 4px 20px ${ds.brand}12`;
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "#F1F5F9";
+                      e.currentTarget.style.boxShadow = "none";
+                      e.currentTarget.style.transform = "none";
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: ds.ink,
+                          lineHeight: 1.3,
+                          flex: 1,
+                          marginRight: 8,
+                        }}
+                      >
+                        {ev.title || ev.name || "행사"}
+                      </div>
+                      <Pill c={st.c} bg={st.bg}>
+                        {st.l}
+                      </Pill>
+                    </div>
+                    {ev.date && (
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#94A3B8",
+                          margin: "0 0 4px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <CalendarDays size={12} /> {ev.date}
+                      </p>
+                    )}
+                    {ev.location && (
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#94A3B8",
+                          margin: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <MapPin size={12} /> {ev.location}
+                      </p>
+                    )}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        marginTop: 12,
+                        color: ds.brand,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        gap: 4,
+                      }}
+                    >
+                      결제 내역 보기 <ArrowRight size={14} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ VIEW 2: 결제 내역 ═══ */}
+      {selectedEvent && (
+        <div>
+          {/* 헤더 */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 20,
+            }}
+          >
+            <button
+              onClick={goBack}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 8,
+                border: "1px solid #E2E8F0",
+                background: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
+            >
+              <ChevronLeft size={16} color="#64748B" />
+            </button>
+            <div style={{ flex: 1 }}>
+              <h2
+                style={{
+                  fontSize: 17,
+                  fontWeight: 800,
+                  color: ds.ink,
+                  margin: 0,
+                }}
+              >
+                {selectedEvent.title || selectedEvent.name || "행사"}
+              </h2>
+              <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 5,
-                  padding: "6px 12px",
+                  gap: 8,
+                  marginTop: 4,
+                }}
+              >
+                <Pill
+                  c={(statusMap[selectedEvent.status] || statusMap.pending).c}
+                  bg={(statusMap[selectedEvent.status] || statusMap.pending).bg}
+                >
+                  {(statusMap[selectedEvent.status] || statusMap.pending).l}
+                </Pill>
+                {selectedEvent.date && (
+                  <span style={{ fontSize: 12, color: "#94A3B8" }}>
+                    {selectedEvent.date}
+                  </span>
+                )}
+                {eventStarted && (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#D97706",
+                      background: "#FFFBEB",
+                      padding: "2px 8px",
+                      borderRadius: 4,
+                    }}
+                  >
+                    행사 시작됨 · 환불 제한
+                  </span>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={handleRefresh}
+              title="새로고침"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 8,
+                border: "1px solid #E2E8F0",
+                background: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
+            >
+              <RefreshCw size={14} color="#64748B" />
+            </button>
+          </div>
+
+          {/* 통계 카드 */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 12,
+              marginBottom: 20,
+            }}
+          >
+            <StatCard
+              icon={Receipt}
+              label="전체 결제"
+              value={`${stats.total}건`}
+              color="#64748B"
+              bg="#F8FAFC"
+            />
+            <StatCard
+              icon={CreditCard}
+              label="결제 완료"
+              value={`${stats.approved}건`}
+              color="#059669"
+              bg="#ECFDF5"
+            />
+            <StatCard
+              icon={Ban}
+              label="환불 완료"
+              value={`${stats.refunded}건`}
+              color="#EF4444"
+              bg="#FEF2F2"
+            />
+            <StatCard
+              icon={TrendingUp}
+              label="총 결제액"
+              value={fmtAmount(stats.totalAmount)}
+              color={ds.brand}
+              bg={ds.brandSoft}
+            />
+          </div>
+
+          {/* 툴바 */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 14,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+              <Search
+                size={14}
+                color="#94A3B8"
+                style={{
+                  position: "absolute",
+                  left: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                }}
+              />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="이름, 이메일, 주문번호 검색..."
+                style={{
+                  width: "100%",
+                  padding: "8px 12px 8px 34px",
+                  borderRadius: 8,
+                  border: "1.5px solid #E2E8F0",
+                  fontSize: 13,
+                  fontFamily: ds.ff,
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = ds.brand)}
+                onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1.5px solid #E2E8F0",
+                fontSize: 13,
+                fontFamily: ds.ff,
+                color: ds.ink,
+                background: "#fff",
+                cursor: "pointer",
+                outline: "none",
+              }}
+            >
+              <option value="ALL">전체 상태</option>
+              <option value="APPROVED">결제완료</option>
+              <option value="READY">결제대기</option>
+              <option value="REFUNDED">환불완료</option>
+              <option value="CANCELLED">취소</option>
+              <option value="FAILED">실패</option>
+            </select>
+            {hasSelected && !eventStarted && (
+              <button
+                onClick={() =>
+                  setModal({ type: "bulkRefund", count: selected.size })
+                }
+                style={{
+                  padding: "6px 14px",
                   borderRadius: 7,
-                  border: `1px solid ${a.c}20`,
-                  background: `${a.c}06`,
-                  color: a.c,
+                  border: "1px solid #FECACA",
+                  background: "#FEF2F2",
+                  color: "#DC2626",
                   fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: ds.ff,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                }}
+              >
+                <Ban size={12} /> 선택 환불 ({selected.size})
+              </button>
+            )}
+          </div>
+
+          {/* 테이블 */}
+          {loadingPayments ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: 60,
+                color: "#94A3B8",
+                fontSize: 13,
+              }}
+            >
+              <Spinner size={28} />
+              <div style={{ marginTop: 12 }}>결제 내역을 불러오는 중...</div>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "60px 20px",
+              }}
+            >
+              <CreditCard
+                size={36}
+                color="#CBD5E1"
+                style={{ marginBottom: 12, display: "block" }}
+              />
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "#64748B",
+                  marginBottom: 4,
+                }}
+              >
+                {search || statusFilter !== "ALL"
+                  ? "검색 결과가 없습니다"
+                  : "결제 내역이 없습니다"}
+              </div>
+              <div style={{ fontSize: 12.5, color: "#94A3B8" }}>
+                {search || statusFilter !== "ALL"
+                  ? "검색 조건을 변경해보세요"
+                  : "홈에서 사전신청 결제가 진행되면 여기에 표시됩니다"}
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 12,
+                border: "1px solid #F1F5F9",
+                overflow: "hidden",
+              }}
+            >
+              {/* 테이블 헤더 */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "36px 1fr 1fr 120px 110px 120px 80px",
+                  padding: "10px 16px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "#94A3B8",
+                  borderBottom: "1px solid #F1F5F9",
+                  background: "#FAFBFC",
+                  alignItems: "center",
+                }}
+              >
+                <Checkbox checked={isAllSelected} onChange={toggleAll} />
+                <span>주문 정보</span>
+                <span>결제자</span>
+                <span>결제 수단</span>
+                <span>금액</span>
+                <span>결제일</span>
+                <span style={{ textAlign: "center" }}>상태</span>
+              </div>
+
+              {filtered.map((p) => {
+                const ps = PAY_STATUS[p.status] || PAY_STATUS.PENDING;
+                const isChecked = selected.has(p.paymentId);
+                return (
+                  <div
+                    key={p.paymentId || p.orderNo}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "36px 1fr 1fr 120px 110px 120px 80px",
+                      padding: "14px 16px",
+                      fontSize: 13,
+                      color: ds.ink,
+                      borderBottom: "1px solid #F8F9FA",
+                      alignItems: "center",
+                      background: isChecked ? `${ds.brand}06` : "transparent",
+                      transition: "background .15s",
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isChecked)
+                        e.currentTarget.style.background = "#F8FAFC";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = isChecked
+                        ? `${ds.brand}06`
+                        : "transparent";
+                    }}
+                    onClick={() => setDetailItem(p)}
+                  >
+                    <Checkbox
+                      checked={isChecked}
+                      onChange={() => toggleOne(p.paymentId)}
+                    />
+                    <div>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          fontSize: 13,
+                          color: ds.ink,
+                          marginBottom: 2,
+                        }}
+                      >
+                        {p.eventTitle || selectedEvent.title || "행사 결제"}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#94A3B8" }}>
+                        {p.orderNo || `#${p.paymentId}`}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>
+                        {p.buyerName || p.nickname || "-"}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#94A3B8" }}>
+                        {p.buyerEmail || p.email || ""}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 12.5 }}>
+                      {METHOD_LABEL[p.paymentMethod] || p.paymentMethod || "-"}
+                    </span>
+                    <span
+                      style={{ fontWeight: 700, fontSize: 13, color: ds.ink }}
+                    >
+                      {fmtAmount(p.amount)}
+                    </span>
+                    <span style={{ fontSize: 12, color: "#64748B" }}>
+                      {fmtDateTime(p.requestedAt || p.createdAt)}
+                    </span>
+                    <div style={{ textAlign: "center" }}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "3px 10px",
+                          borderRadius: 99,
+                          background: ps.bg,
+                          color: ps.c,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 5,
+                            height: 5,
+                            borderRadius: "50%",
+                            background: ps.c,
+                          }}
+                        />
+                        {ps.l}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {filtered.length > 0 && (
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 12,
+                color: "#94A3B8",
+                textAlign: "right",
+              }}
+            >
+              총 {filtered.length}건
+              {statusFilter !== "ALL" &&
+                ` (필터: ${PAY_STATUS[statusFilter]?.l || statusFilter})`}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ 상세 모달 ═══ */}
+      {detailItem && (
+        <Overlay onClose={() => setDetailItem(null)}>
+          <div style={{ padding: 28 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 20,
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: 17,
+                  fontWeight: 800,
+                  color: ds.ink,
+                  margin: 0,
+                }}
+              >
+                결제 상세
+              </h3>
+              <button
+                onClick={() => setDetailItem(null)}
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#F1F5F9",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <X size={14} color="#64748B" />
+              </button>
+            </div>
+
+            {(() => {
+              const ps = PAY_STATUS[detailItem.status] || PAY_STATUS.PENDING;
+              return (
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 14px",
+                    borderRadius: 99,
+                    background: ps.bg,
+                    color: ps.c,
+                    fontWeight: 700,
+                    fontSize: 13,
+                    marginBottom: 20,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: "50%",
+                      background: ps.c,
+                    }}
+                  />
+                  {ps.l}
+                </div>
+              );
+            })()}
+
+            <div
+              style={{
+                background: "#F8FAFC",
+                borderRadius: 12,
+                padding: 20,
+                marginBottom: 20,
+              }}
+            >
+              {[
+                {
+                  l: "주문번호",
+                  v: detailItem.orderNo || `#${detailItem.paymentId}`,
+                },
+                {
+                  l: "행사명",
+                  v: detailItem.eventTitle || selectedEvent?.title || "-",
+                },
+                {
+                  l: "결제자",
+                  v: detailItem.buyerName || detailItem.nickname || "-",
+                },
+                {
+                  l: "이메일",
+                  v: detailItem.buyerEmail || detailItem.email || "-",
+                },
+                {
+                  l: "전화번호",
+                  v: detailItem.buyerPhone || detailItem.phone || "-",
+                },
+                {
+                  l: "결제 수단",
+                  v:
+                    METHOD_LABEL[detailItem.paymentMethod] ||
+                    detailItem.paymentMethod ||
+                    "-",
+                },
+                { l: "결제 금액", v: fmtAmount(detailItem.amount) },
+                {
+                  l: "결제일시",
+                  v: fmtDateTime(
+                    detailItem.requestedAt || detailItem.createdAt,
+                  ),
+                },
+                ...(detailItem.refundedAt
+                  ? [{ l: "환불일시", v: fmtDateTime(detailItem.refundedAt) }]
+                  : []),
+              ].map((r) => (
+                <div
+                  key={r.l}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    padding: "8px 0",
+                    borderBottom: "1px solid #EEF2F6",
+                    fontSize: 13,
+                  }}
+                >
+                  <span style={{ color: "#94A3B8", fontWeight: 600 }}>
+                    {r.l}
+                  </span>
+                  <span
+                    style={{
+                      color: ds.ink,
+                      fontWeight: r.l === "결제 금액" ? 700 : 500,
+                    }}
+                  >
+                    {r.v}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {detailItem.status === "APPROVED" && (
+              <div>
+                {eventStarted ? (
+                  <div
+                    style={{
+                      background: "#FFFBEB",
+                      border: "1px solid #FDE68A",
+                      borderRadius: 10,
+                      padding: "12px 16px",
+                      fontSize: 12.5,
+                      color: "#92400E",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <AlertTriangle size={15} />
+                    행사가 이미 시작되어 자동 환불이 불가합니다. 관리자 환불
+                    승인 기능은 추후 업데이트 예정입니다.
+                  </div>
+                ) : (
+                  <button
+                    onClick={() =>
+                      setModal({
+                        type: "refund",
+                        paymentId: detailItem.paymentId,
+                        name: detailItem.buyerName || detailItem.nickname,
+                        amount: detailItem.amount,
+                      })
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      borderRadius: 10,
+                      border: "1px solid #FECACA",
+                      background: "#FEF2F2",
+                      color: "#DC2626",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontFamily: ds.ff,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <Ban size={15} /> 환불 처리
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </Overlay>
+      )}
+
+      {/* ═══ 환불 확인 모달 ═══ */}
+      {modal?.type === "refund" && (
+        <Overlay onClose={() => setModal(null)}>
+          <div style={{ padding: 28 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 14,
+              }}
+            >
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: "#FEF2F2",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <AlertTriangle size={18} color="#EF4444" />
+              </div>
+              <h3
+                style={{
+                  fontSize: 16,
+                  fontWeight: 800,
+                  color: ds.ink,
+                  margin: 0,
+                }}
+              >
+                환불 처리
+              </h3>
+            </div>
+            <p
+              style={{
+                fontSize: 13.5,
+                color: "#64748B",
+                lineHeight: 1.6,
+                margin: "0 0 8px",
+              }}
+            >
+              <strong>{modal.name}</strong>님의 결제를 환불하시겠습니까?
+            </p>
+            <p
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: ds.ink,
+                margin: "0 0 8px",
+              }}
+            >
+              환불 금액: {fmtAmount(modal.amount)}
+            </p>
+            <p style={{ fontSize: 12, color: "#EF4444", margin: "0 0 24px" }}>
+              환불 처리된 결제는 복구할 수 없습니다.
+            </p>
+            <div
+              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
+            >
+              <button
+                onClick={() => setModal(null)}
+                style={{
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "1px solid #E2E8F0",
+                  background: "#fff",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: ds.ff,
+                  color: "#64748B",
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={() => handleRefund(modal.paymentId)}
+                style={{
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#EF4444",
+                  color: "#fff",
+                  fontSize: 13,
                   fontWeight: 700,
                   cursor: "pointer",
                   fontFamily: ds.ff,
                 }}
               >
-                <a.icon size={13} /> {a.label}
+                환불 확인
               </button>
-            ))}
+            </div>
           </div>
-        </div>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid #F1F5F9" }}>
-              {["ID", "참가자", "행사", "방식", "체크인 시간", "게이트"].map(
-                (h) => (
-                  <th
-                    key={h}
-                    style={{
-                      padding: "10px 14px",
-                      fontSize: 11.5,
-                      fontWeight: 700,
-                      color: "#94A3B8",
-                      textAlign: "left",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {checkins.map((r) => (
-              <tr
-                key={r.id}
-                style={{
-                  borderBottom: "1px solid #F8FAFC",
-                  transition: "background .1s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#F4F6F8")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
-              >
-                <td
-                  style={{
-                    padding: "10px 14px",
-                    fontSize: 12.5,
-                    color: "#94A3B8",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {r.participantId}
-                </td>
-                <td
-                  style={{
-                    padding: "10px 14px",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: ds.ink,
-                  }}
-                >
-                  {r.name}
-                </td>
-                <td
-                  style={{
-                    padding: "10px 14px",
-                    fontSize: 12.5,
-                    color: "#475569",
-                  }}
-                >
-                  {r.event}
-                </td>
-                <td style={{ padding: "10px 14px" }}>
-                  <StatusDot
-                    status={r.method === "QR" ? "approved" : "pending"}
-                    label={r.method}
-                  />
-                </td>
-                <td
-                  style={{
-                    padding: "10px 14px",
-                    fontSize: 12.5,
-                    color: "#475569",
-                  }}
-                >
-                  {r.time}
-                </td>
-                <td
-                  style={{
-                    padding: "10px 14px",
-                    fontSize: 12.5,
-                    color: "#475569",
-                  }}
-                >
-                  {r.gate}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
+        </Overlay>
+      )}
 
-/* ═══════════════════════════════════════════
-   서브탭: 체험 세션
-   ═══════════════════════════════════════════ */
-function TabSession() {
-  const sessions = DATA.sessionParticipation || [];
-  return (
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: 12,
-        border: "1px solid #F1F5F9",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          padding: "12px 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          borderBottom: "1px solid #F1F5F9",
-        }}
-      >
-        <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
-          체험 세션 참여 이력
-        </span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
-          {sessions.length}건
-        </span>
-      </div>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ borderBottom: "1px solid #F1F5F9" }}>
-            {["참가자", "반려견", "세션", "호출", "시작", "종료", "결과"].map(
-              (h) => (
-                <th
-                  key={h}
-                  style={{
-                    padding: "10px 14px",
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    color: "#94A3B8",
-                    textAlign: "left",
-                  }}
-                >
-                  {h}
-                </th>
-              ),
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {sessions.map((r) => (
-            <tr
-              key={r.id}
+      {/* ═══ 일괄 환불 확인 모달 ═══ */}
+      {modal?.type === "bulkRefund" && (
+        <Overlay onClose={() => setModal(null)}>
+          <div style={{ padding: 28 }}>
+            <div
               style={{
-                borderBottom: "1px solid #F8FAFC",
-                transition: "background .1s",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 14,
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "#F4F6F8")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
             >
-              <td
+              <div
                 style={{
-                  padding: "10px 14px",
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: "#FEF2F2",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <AlertTriangle size={18} color="#EF4444" />
+              </div>
+              <h3
+                style={{
+                  fontSize: 16,
+                  fontWeight: 800,
+                  color: ds.ink,
+                  margin: 0,
+                }}
+              >
+                일괄 환불
+              </h3>
+            </div>
+            <p
+              style={{
+                fontSize: 13.5,
+                color: "#64748B",
+                lineHeight: 1.6,
+                margin: "0 0 8px",
+              }}
+            >
+              선택한 <strong>{modal.count}건</strong>의 결제를 모두
+              환불하시겠습니까?
+            </p>
+            <p style={{ fontSize: 12, color: "#EF4444", margin: "0 0 24px" }}>
+              환불 처리된 결제는 복구할 수 없습니다.
+            </p>
+            <div
+              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
+            >
+              <button
+                onClick={() => setModal(null)}
+                style={{
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "1px solid #E2E8F0",
+                  background: "#fff",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: ds.ff,
+                  color: "#64748B",
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleBulkRefund}
+                style={{
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#EF4444",
+                  color: "#fff",
                   fontSize: 13,
                   fontWeight: 700,
-                  color: ds.ink,
+                  cursor: "pointer",
+                  fontFamily: ds.ff,
                 }}
               >
-                {r.participant}
-              </td>
-              <td style={{ padding: "10px 14px" }}>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    fontSize: 12.5,
-                    color: "#475569",
-                  }}
-                >
-                  <PawPrint size={11} color="#8B5CF6" />
-                  {r.pet}
-                </span>
-              </td>
-              <td
-                style={{
-                  padding: "10px 14px",
-                  fontSize: 12.5,
-                  color: "#475569",
-                }}
-              >
-                {r.session}
-              </td>
-              <td
-                style={{
-                  padding: "10px 14px",
-                  fontSize: 12.5,
-                  color: "#475569",
-                }}
-              >
-                {r.callTime}
-              </td>
-              <td
-                style={{
-                  padding: "10px 14px",
-                  fontSize: 12.5,
-                  color: "#475569",
-                }}
-              >
-                {r.startTime || "—"}
-              </td>
-              <td
-                style={{
-                  padding: "10px 14px",
-                  fontSize: 12.5,
-                  color: "#475569",
-                }}
-              >
-                {r.endTime || "—"}
-              </td>
-              <td style={{ padding: "10px 14px" }}>
-                <StatusDot
-                  status={
-                    r.result === "완료"
-                      ? "approved"
-                      : r.result === "진행중"
-                        ? "pending"
-                        : "cancelled"
-                  }
-                  label={r.result}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   메인 컴포넌트
-   ═══════════════════════════════════════════ */
-export default function ParticipantList({ subTab = "list" }) {
-  const [items, setItems] = useState(() =>
-    (DATA.participants || []).map((e) => ({ ...e, _visible: true })),
-  );
-
-  return (
-    <div>
-      <style>{styles}</style>
-      {subTab === "list" && <TabList items={items} setItems={setItems} />}
-      {subTab === "checkin" && <TabCheckin items={items} />}
-      {subTab === "session" && <TabSession />}
+                일괄 환불
+              </button>
+            </div>
+          </div>
+        </Overlay>
+      )}
     </div>
   );
 }

@@ -4,8 +4,6 @@ package com.popups.pupoo.board.qna.application;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.post.domain.model.Post;
 import com.popups.pupoo.board.qna.persistence.QnaRepository;
-import com.popups.pupoo.common.audit.application.AdminLogService;
-import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class QnaAdminService {
 
     private final QnaRepository qnaRepository;
-    private final AdminLogService adminLogService;
 
     public void writeAnswer(Long qnaId, String answerContent) {
         Post post = qnaRepository.findQnaById(qnaId)
@@ -30,7 +27,6 @@ public class QnaAdminService {
 
         post.writeAnswer(answerContent);
         qnaRepository.save(post);
-        adminLogService.write("QNA_ANSWER", AdminTargetType.POST, qnaId);
     }
 
     public void clearAnswer(Long qnaId) {
@@ -43,6 +39,5 @@ public class QnaAdminService {
 
         post.clearAnswer();
         qnaRepository.save(post);
-        adminLogService.write("QNA_ANSWER_CLEAR", AdminTargetType.POST, qnaId);
     }
 }

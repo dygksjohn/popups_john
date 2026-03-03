@@ -131,10 +131,13 @@ public class ContestVoteService {
                 .map(v -> new ContestVoteResultResponse.Item(v.getProgramApplyId(), v.getVoteCount()))
                 .toList();
 
-        Long myProgramApplyId = voteRepository
-                .findFirstByProgramIdAndUserIdAndStatus(programId, userId, VoteStatus.ACTIVE)
-                .map(ContestVote::getProgramApplyId)
-                .orElse(null);
+        Long myProgramApplyId = null;
+        if (userId != null) {
+            myProgramApplyId = voteRepository
+                    .findFirstByProgramIdAndUserIdAndStatus(programId, userId, VoteStatus.ACTIVE)
+                    .map(ContestVote::getProgramApplyId)
+                    .orElse(null);
+        }
 
         return new ContestVoteResultResponse(programId, total, items, myProgramApplyId);
     }

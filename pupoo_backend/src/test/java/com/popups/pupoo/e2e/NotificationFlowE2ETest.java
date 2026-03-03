@@ -43,7 +43,7 @@ class NotificationFlowE2ETest {
                 "공지 알림",
                 "새 공지가 등록되었습니다.",
                 LocalDateTime.now(),
-                InboxTargetType.REVIEW,
+                InboxTargetType.NOTICE,
                 9001L
         );
 
@@ -58,7 +58,7 @@ class NotificationFlowE2ETest {
         when(securityUtil.currentUserId()).thenReturn(88L);
         when(notificationService.getMyInbox(eq(88L), any())).thenReturn(listResponse);
         when(notificationService.click(88L, 501L))
-                .thenReturn(new NotificationResponse(InboxTargetType.REVIEW, 9001L));
+                .thenReturn(new NotificationResponse(InboxTargetType.NOTICE, 9001L));
 
         mockMvc.perform(get("/api/notifications")
                         .param("page", "0")
@@ -66,14 +66,13 @@ class NotificationFlowE2ETest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.items[0].inboxId").value(501L))
-                .andExpect(jsonPath("$.data.items[0].targetType").value("REVIEW"))
+                .andExpect(jsonPath("$.data.items[0].targetType").value("NOTICE"))
                 .andExpect(jsonPath("$.data.items[0].targetId").value(9001L));
 
         mockMvc.perform(post("/api/notifications/501/click"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.targetType").value("REVIEW"))
+                .andExpect(jsonPath("$.data.targetType").value("NOTICE"))
                 .andExpect(jsonPath("$.data.targetId").value(9001L));
     }
 }
-

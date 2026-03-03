@@ -43,7 +43,6 @@ public class AuthService {
 
     private final boolean refreshCookieSecure;
     private final int refreshCookieMaxAgeSeconds;
-    private final String refreshCookiePath;
 
     public AuthService(
             UserRepository userRepository,
@@ -54,8 +53,7 @@ public class AuthService {
             JwtProvider jwtProvider,
             EmailVerificationService emailVerificationService,
             @Value("${auth.refresh.cookie.secure:true}") boolean refreshCookieSecure,
-            @Value("${auth.refresh.cookie.max-age-seconds:1209600}") int refreshCookieMaxAgeSeconds,
-            @Value("${auth.refresh.cookie.path:/api/auth}") String refreshCookiePath
+            @Value("${auth.refresh.cookie.max-age-seconds:1209600}") int refreshCookieMaxAgeSeconds
     ) {
         this.userRepository = userRepository;
         this.userService = userService;
@@ -66,7 +64,6 @@ public class AuthService {
         this.emailVerificationService = emailVerificationService;
         this.refreshCookieSecure = refreshCookieSecure;
         this.refreshCookieMaxAgeSeconds = refreshCookieMaxAgeSeconds;
-        this.refreshCookiePath = refreshCookiePath;
     }
 
     /**
@@ -251,7 +248,7 @@ public class AuthService {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, token)
                 .httpOnly(true)
                 .secure(refreshCookieSecure)
-                .path(refreshCookiePath)
+                .path("/api/auth")
                 .sameSite("Lax")
                 .maxAge(refreshCookieMaxAgeSeconds)
                 .build();
@@ -263,7 +260,7 @@ public class AuthService {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
                 .httpOnly(true)
                 .secure(refreshCookieSecure)
-                .path(refreshCookiePath)
+                .path("/api/auth")
                 .sameSite("Lax")
                 .maxAge(0)
                 .build();

@@ -28,12 +28,11 @@ public class ProgramApply {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    /**
-     * DB: pet_id (BIGINT)
-     * 목적: 프로그램 참가 시 선택한 반려동물 ID. 사용자가 여러 반려동물을 보유할 수 있으므로 null 허용.
-     */
     @Column(name = "pet_id")
     private Long petId;
+
+    @Column(name = "image_url")
+    private String imageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -80,34 +79,12 @@ public class ProgramApply {
     @Column(name = "active_flag", insertable = false, updatable = false)
     private Byte activeFlag;
 
-    public static ProgramApply create(Long userId, Long programId) {
-        return ProgramApply.builder()
-                .userId(userId)
-                .programId(programId)
-                .petId(null)
-                .status(ApplyStatus.APPLIED)
-                .ticketNo(null)
-                .etaMin(null)
-                .notifiedAt(null)
-                .checkedInAt(null)
-                .createdAt(LocalDateTime.now())
-                .cancelledAt(null)
-                .build();
-    }
-
-    /**
-     * 프로그램 신청 엔티티 생성 메서드.
-     *
-     * @param userId    신청 사용자 ID
-     * @param programId 신청 프로그램 ID
-     * @param petId     신청에 사용된 반려동물 ID (null 가능)
-     * @return ProgramApply 인스턴스
-     */
-    public static ProgramApply create(Long userId, Long programId, Long petId) {
+    public static ProgramApply create(Long userId, Long programId, Long petId, String imageUrl) {
         return ProgramApply.builder()
                 .userId(userId)
                 .programId(programId)
                 .petId(petId)
+                .imageUrl(imageUrl)
                 .status(ApplyStatus.APPLIED)
                 .ticketNo(null)
                 .etaMin(null)

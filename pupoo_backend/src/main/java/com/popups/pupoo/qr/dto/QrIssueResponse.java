@@ -1,55 +1,38 @@
-// file: src/main/java/com/popups/pupoo/qr/dto/QrIssueResponse.java
 package com.popups.pupoo.qr.dto;
-
-import com.popups.pupoo.qr.domain.model.QrCode;
-import lombok.*;
 
 import java.time.LocalDateTime;
 
-@Getter
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-public class QrIssueResponse {
-    private static final String ISSUED = "ISSUED";
-    private static final String ACTIVE = "ACTIVE";
-    private static final String EXPIRED = "EXPIRED";
+import com.popups.pupoo.qr.domain.model.QrCode;
 
+/**
+ * Data transfer object representing a QR issue response. This simplified
+ * version corresponds to the develop branch which did not include status
+ * fields or activation windows. It simply returns basic metadata about the
+ * QR code.
+ */
+public class QrIssueResponse {
     private Long qrId;
     private Long eventId;
     private String originalUrl;
     private String mimeType;
     private LocalDateTime issuedAt;
     private LocalDateTime expiredAt;
-    private LocalDateTime activeFrom;
-    private String qrStatus;
 
-    public static QrIssueResponse from(QrCode qr, LocalDateTime now) {
-        LocalDateTime activeFrom = qr.getEvent().getStartAt() == null
-                ? null
-                : qr.getEvent().getStartAt().minusHours(1);
-        LocalDateTime expiredAt = qr.getExpiredAt();
-        String status = resolveStatus(now, activeFrom, expiredAt);
-
-        return QrIssueResponse.builder()
-                .qrId(qr.getQrId())
-                .eventId(qr.getEvent().getEventId())
-                .originalUrl(qr.getOriginalUrl())
-                .mimeType(qr.getMimeType() == null ? null : qr.getMimeType().name())
-                .issuedAt(qr.getIssuedAt())
-                .expiredAt(expiredAt)
-                .activeFrom(activeFrom)
-                .qrStatus(status)
-                .build();
+    public static QrIssueResponse from(QrCode qr) {
+        QrIssueResponse response = new QrIssueResponse();
+        response.qrId = qr.getQrId();
+        response.eventId = qr.getEvent() == null ? null : qr.getEvent().getEventId();
+        response.originalUrl = qr.getOriginalUrl();
+        response.mimeType = qr.getMimeType() == null ? null : qr.getMimeType().dbValue();
+        response.issuedAt = qr.getIssuedAt();
+        response.expiredAt = qr.getExpiredAt();
+        return response;
     }
 
-    private static String resolveStatus(LocalDateTime now, LocalDateTime activeFrom, LocalDateTime expiredAt) {
-        if (expiredAt != null && !now.isBefore(expiredAt)) {
-            return EXPIRED;
-        }
-        if (activeFrom != null && !now.isBefore(activeFrom)) {
-            return ACTIVE;
-        }
-        return ISSUED;
-    }
+    public Long getQrId() { return qrId; }
+    public Long getEventId() { return eventId; }
+    public String getOriginalUrl() { return originalUrl; }
+    public String getMimeType() { return mimeType; }
+    public LocalDateTime getIssuedAt() { return issuedAt; }
+    public LocalDateTime getExpiredAt() { return expiredAt; }
 }

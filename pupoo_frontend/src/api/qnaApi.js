@@ -40,9 +40,6 @@ export const qnaApi = {
     }),
 
   delete: (qnaId) => axiosInstance.delete(`/api/qnas/${qnaId}`),
-
-  /** 질문 마감(본인) — POST /api/qnas/{qnaId}/close */
-  close: (qnaId) => axiosInstance.post(`/api/qnas/${qnaId}/close`),
 };
 
 /* ── 관리자용 (BoardManage) ── */

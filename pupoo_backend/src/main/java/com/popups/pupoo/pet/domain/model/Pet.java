@@ -48,14 +48,13 @@ public class Pet {
 
     /**
      * ServiceImpl에서 사용 중인 생성자 시그니처 정합:
-     * new Pet(userId, petName, petBreed, petAge, petWeight)
+     * new Pet(userId, petName, petBreed, petAge)
      */
-    public Pet(Long userId, String petName, AnimalType petBreed, Integer petAge, PetWeight petWeight) {
+    public Pet(Long userId, String petName, AnimalType petBreed, Integer petAge) {
         this.userId = userId;
         this.petName = petName;
         this.petBreed = petBreed;
         this.petAge = petAge;
-        this.petWeight = petWeight;
     }
 
     /**

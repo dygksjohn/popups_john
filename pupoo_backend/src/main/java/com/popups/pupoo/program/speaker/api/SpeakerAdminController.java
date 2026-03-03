@@ -2,7 +2,6 @@
 package com.popups.pupoo.program.speaker.api;
 
 import com.popups.pupoo.common.api.ApiResponse;
-import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.common.audit.annotation.AdminAudit;
 import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.program.speaker.application.SpeakerAdminService;
@@ -37,9 +36,8 @@ public class SpeakerAdminController {
 
     @DeleteMapping("/{speakerId}")
     @AdminAudit(action = "SPEAKER_DELETE", targetType = AdminTargetType.OTHER, targetIdSpel = "#speakerId")
-    public ApiResponse<MessageResponse> deleteSpeaker(@PathVariable("speakerId") Long speakerId) {
-        // Keep a non-null payload per SSOT response policy.
+    public ApiResponse<Void> deleteSpeaker(@PathVariable("speakerId") Long speakerId) {
         speakerAdminService.deleteSpeaker(speakerId);
-        return ApiResponse.success(new MessageResponse("SPEAKER_DELETED:" + speakerId));
+        return ApiResponse.success(null);
     }
 }

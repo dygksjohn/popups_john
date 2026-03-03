@@ -2,18 +2,13 @@
 package com.popups.pupoo.board.post.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
-import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.post.application.PostService;
 import com.popups.pupoo.board.post.dto.PostCreateRequest;
 import com.popups.pupoo.board.post.dto.PostResponse;
 import com.popups.pupoo.board.post.dto.PostUpdateRequest;
-import com.popups.pupoo.common.audit.application.AdminLogService;
-import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.IdResponse;
 import com.popups.pupoo.common.api.MessageResponse;
-import com.popups.pupoo.common.exception.BusinessException;
-import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.report.application.ReportService;
 import com.popups.pupoo.report.dto.ReportCreateRequest;
 import com.popups.pupoo.report.dto.ReportResponse;
@@ -37,25 +32,17 @@ public class PostController {
 
     private final PostService postService;
     private final SecurityUtil securityUtil;
-    private final AdminLogService adminLogService;
     private final ReportService reportService;
 
     /**
      * 게시글 목록 조회(공개)
      */
     @GetMapping
-    public ApiResponse<Page<PostResponse>> getPosts(@RequestParam(required = false) Long boardId,
-                                                    @RequestParam(required = false) String boardType,
+    public ApiResponse<Page<PostResponse>> getPosts(@RequestParam Long boardId,
                                                     @RequestParam(required = false) String searchType,
                                                     @RequestParam(required = false) String keyword,
                                                     Pageable pageable) {
-        return ApiResponse.success(postService.getPublicPosts(
-                boardId,
-                parseBoardType(boardType),
-                SearchType.from(searchType),
-                keyword,
-                pageable
-        ));
+        return ApiResponse.success(postService.getPublicPosts(boardId, SearchType.from(searchType), keyword, pageable));
     }
 
     /**
@@ -81,9 +68,7 @@ public class PostController {
     @PostMapping
     public ApiResponse<Long> createPost(@RequestBody PostCreateRequest req) {
         Long userId = securityUtil.currentUserId();
-        Long postId = postService.createPost(userId, req);
-        writeAdminLogIfNeeded("POST_CREATE", postId);
-        return ApiResponse.success(postId);
+        return ApiResponse.success(postService.createPost(userId, req));
     }
 
     /**
@@ -93,7 +78,6 @@ public class PostController {
     public ApiResponse<PostResponse> updatePost(@PathVariable Long postId, @RequestBody PostUpdateRequest req) {
         Long userId = securityUtil.currentUserId();
         postService.updatePost(userId, postId, req);
-        writeAdminLogIfNeeded("POST_UPDATE", postId);
         return ApiResponse.success(postService.getPublicPost(postId));
     }
 
@@ -104,7 +88,6 @@ public class PostController {
     public ApiResponse<IdResponse> deletePost(@PathVariable Long postId) {
         Long userId = securityUtil.currentUserId();
         postService.deletePost(userId, postId);
-        writeAdminLogIfNeeded("POST_DELETE", postId);
         return ApiResponse.success(new IdResponse(postId));
     }
 
@@ -115,24 +98,8 @@ public class PostController {
     public ApiResponse<PostResponse> closePost(@PathVariable Long postId) {
         Long userId = securityUtil.currentUserId();
         postService.closePost(userId, postId);
-        writeAdminLogIfNeeded("POST_CLOSE", postId);
         return ApiResponse.success(postService.getPublicPost(postId));
     }
 
-    private BoardType parseBoardType(String raw) {
-        if (raw == null || raw.isBlank()) return null;
-        try {
-            return BoardType.valueOf(raw.trim().toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "invalid boardType: " + raw);
-        }
-    }
-
-    private void writeAdminLogIfNeeded(String action, Long postId) {
-        if (!securityUtil.isAdmin()) {
-            return;
-        }
-        adminLogService.write(action, AdminTargetType.POST, postId);
-    }
 
 }

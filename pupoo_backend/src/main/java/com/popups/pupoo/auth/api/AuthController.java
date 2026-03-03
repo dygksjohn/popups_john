@@ -25,7 +25,6 @@ import com.popups.pupoo.common.exception.ErrorCode;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
@@ -41,19 +40,13 @@ public class AuthController {
     private final AuthService authService;
     private final SignupSessionService signupSessionService;
     private final KakaoOAuthService kakaoOAuthService;
-    private final boolean refreshCookieSecure;
-    private final String refreshCookiePath;
 
     public AuthController(AuthService authService,
                           SignupSessionService signupSessionService,
-                          KakaoOAuthService kakaoOAuthService,
-                          @Value("${auth.refresh.cookie.secure:false}") boolean refreshCookieSecure,
-                          @Value("${auth.refresh.cookie.path:/api/auth}") String refreshCookiePath) {
+                          KakaoOAuthService kakaoOAuthService) {
         this.authService = authService;
         this.signupSessionService = signupSessionService;
         this.kakaoOAuthService = kakaoOAuthService;
-        this.refreshCookieSecure = refreshCookieSecure;
-        this.refreshCookiePath = refreshCookiePath;
     }
 
     /**
@@ -211,14 +204,15 @@ public class AuthController {
 
     /**
      * ✅ refresh_token 쿠키 만료를 ResponseCookie로 명시적으로 내려줌
-     * - Path는 로그인 시 발급한 경로와 동일해야 브라우저에서 확실히 제거됨
+     * - Path는 "/"로 통일해야 브라우저에서 확실히 제거됨
+     * - 로컬 http 환경: secure=false
      */
     private void expireRefreshCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
                 .httpOnly(true)
-                .secure(refreshCookieSecure)
+                .secure(false)
                 .sameSite("Lax")
-                .path(refreshCookiePath)
+                .path("/")               // 🔥 매우 중요
                 .maxAge(Duration.ZERO)
                 .build();
 

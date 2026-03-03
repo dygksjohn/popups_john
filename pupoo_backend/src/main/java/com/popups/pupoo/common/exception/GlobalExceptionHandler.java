@@ -5,17 +5,17 @@ import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.ErrorResponse;
 import com.popups.pupoo.common.api.FieldErrorItem;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     private static final String UK_PAYMENTS_EVENT_USER_ACTIVE = "uk_payments_event_user_active";
@@ -56,26 +56,6 @@ public class GlobalExceptionHandler {
                         .toList()
         );
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getStatus()).body(ApiResponse.fail(body));
-    }
-
-    /**
-     * 쿼리스트링/폼 필수 파라미터 누락을 400으로 정규화한다.
-     */
-    @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ApiResponse<Void>> handleMissingParam(MissingServletRequestParameterException e,
-                                                                HttpServletRequest request) {
-        String msg = e.getParameterName() + ": is required";
-        return build(request, ErrorCode.VALIDATION_FAILED, ErrorCode.VALIDATION_FAILED.getStatus(), msg);
-    }
-
-    /**
-     * 파라미터 타입 변환 실패를 400으로 정규화한다.
-     */
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException e,
-                                                                HttpServletRequest request) {
-        String msg = e.getName() + ": type mismatch";
-        return build(request, ErrorCode.VALIDATION_FAILED, ErrorCode.VALIDATION_FAILED.getStatus(), msg);
     }
 
     //  결제 UNIQUE 멱등성 포함: DB 무결성 예외 처리
@@ -163,6 +143,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnknown(Exception e, HttpServletRequest request) {
+        log.error("Unhandled exception: method={} uri={}", request.getMethod(), request.getRequestURI(), e);
         ErrorResponse body = new ErrorResponse(
                 ErrorCode.INTERNAL_ERROR.getCode(),
                 ErrorCode.INTERNAL_ERROR.getMessage(),

@@ -4,8 +4,6 @@ package com.popups.pupoo.gallery.application;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,31 +30,6 @@ public class GalleryAdminService {
     private final GalleryRepository galleryRepository;
     private final GalleryImageRepository galleryImageRepository;
     private final AdminLogService adminLogService;
-
-    public Page<GalleryResponse> list(int page, int size, GalleryStatus status) {
-        Page<Gallery> source = (status == null)
-                ? galleryRepository.findAll(PageRequest.of(page, size))
-                : galleryRepository.findByGalleryStatus(status, PageRequest.of(page, size));
-
-        return source.map(g -> {
-            List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
-                    .stream().map(GalleryImage::getOriginalUrl).toList();
-
-            return GalleryResponse.builder()
-                    .galleryId(g.getGalleryId())
-                    .eventId(g.getEventId())
-                    .userId(g.getUserId())
-                    .title(g.getGalleryTitle())
-                    .description(g.getDescription())
-                    .viewCount(g.getViewCount())
-                    .thumbnailImageId(g.getThumbnailImageId())
-                    .status(g.getGalleryStatus())
-                    .imageUrls(urls)
-                    .createdAt(g.getCreatedAt())
-                    .updatedAt(g.getUpdatedAt())
-                    .build();
-        });
-    }
 
     /**
  * 관리자 갤러리 등록. user_id에 현재 관리자 ID를 저장(DB NOT NULL 대응).

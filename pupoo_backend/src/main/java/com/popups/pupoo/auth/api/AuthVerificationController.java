@@ -3,8 +3,6 @@ package com.popups.pupoo.auth.api;
 
 import com.popups.pupoo.auth.application.EmailVerificationService;
 import com.popups.pupoo.auth.application.PhoneVerificationService;
-import com.popups.pupoo.auth.dto.EmailChangeConfirmRequest;
-import com.popups.pupoo.auth.dto.EmailChangeRequest;
 import com.popups.pupoo.auth.dto.EmailVerificationRequestResponse;
 import com.popups.pupoo.auth.dto.PhoneVerificationConfirmRequest;
 import com.popups.pupoo.auth.dto.PhoneVerificationRequest;
@@ -53,23 +51,6 @@ public class AuthVerificationController {
         return ApiResponse.success(emailVerificationService.requestEmailVerification(userId));
     }
 
-    @PostMapping("/api/users/me/email-change/request")
-    public ApiResponse<EmailVerificationRequestResponse> requestEmailChange(
-            @Valid @RequestBody EmailChangeRequest request
-    ) {
-        Long userId = securityUtil.currentUserId();
-        return ApiResponse.success(emailVerificationService.requestEmailChange(userId, request));
-    }
-
-    @PostMapping("/api/users/me/email-change/confirm")
-    public ApiResponse<MessageResponse> confirmEmailChange(
-            @Valid @RequestBody EmailChangeConfirmRequest request
-    ) {
-        Long userId = securityUtil.currentUserId();
-        emailVerificationService.confirmEmailChange(userId, request.getToken());
-        return ApiResponse.success(new MessageResponse("EMAIL_CHANGED"));
-    }
-
     /**
      * 이메일 인증 확인(링크 클릭)
      *
@@ -100,22 +81,5 @@ public class AuthVerificationController {
         Long userId = securityUtil.currentUserId();
         phoneVerificationService.confirmPhoneVerification(userId, request);
         return ApiResponse.success(new MessageResponse("PHONE_VERIFIED"));
-    }
-
-    @PostMapping("/api/users/me/phone-change/request")
-    public ApiResponse<PhoneVerificationRequestResponse> requestPhoneChange(
-            @Valid @RequestBody PhoneVerificationRequest request
-    ) {
-        Long userId = securityUtil.currentUserId();
-        return ApiResponse.success(phoneVerificationService.requestPhoneChange(userId, request));
-    }
-
-    @PostMapping("/api/users/me/phone-change/confirm")
-    public ApiResponse<MessageResponse> confirmPhoneChange(
-            @Valid @RequestBody PhoneVerificationConfirmRequest request
-    ) {
-        Long userId = securityUtil.currentUserId();
-        phoneVerificationService.confirmPhoneChange(userId, request);
-        return ApiResponse.success(new MessageResponse("PHONE_CHANGED"));
     }
 }

@@ -1,6 +1,5 @@
 // src/pages/site/community/Notice.jsx
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation, useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import { ChevronLeft, ChevronRight, Search, Loader2, X } from "lucide-react";
 import { noticeApi, unwrap } from "../../../api/noticeApi";
@@ -10,14 +9,6 @@ const SERVICE_CATEGORIES = [
   { label: "공지사항", path: "/community/notice" },
   { label: "행사후기", path: "/community/review" },
   { label: "질문/답변", path: "/community/qna" },
-];
-
-const PAGE_SIZE = 10;
-const SEARCH_TYPES = [
-  { value: "TITLE_CONTENT", label: "제목+내용" },
-  { value: "TITLE", label: "제목" },
-  { value: "CONTENT", label: "내용" },
-  { value: "WRITER", label: "작성자" },
 ];
 
 function fmtDate(dt) {
@@ -220,83 +211,45 @@ function DetailModal({ item, onClose }) {
 }
 
 export default function Notice() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { noticeId: routeNoticeId } = useParams();
-  const currentPath = location.pathname;
-
-  const [searchType, setSearchType] = useState("TITLE_CONTENT");
-  const [searchInput, setSearchInput] = useState("");
-  const [keyword, setKeyword] = useState("");
-  const [selected, setSelected] = useState(null);
+  const [currentPath, setCurrentPath] = useState("/community/notice");
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(null); // 상세보기용
 
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const PAGE_SIZE = 10;
 
-  const fetchNotices = useCallback(
-    async (p = 1, searchOverrides = {}) => {
-      const kw = searchOverrides.keyword !== undefined ? searchOverrides.keyword : keyword;
-      const st = searchOverrides.searchType !== undefined ? searchOverrides.searchType : searchType;
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await noticeApi.list(
-          p,
-          PAGE_SIZE,
-          kw?.trim() ? st : undefined,
-          kw?.trim() || undefined
-        );
-        const d = unwrap(res);
-        setNotices(d?.content || []);
-        setTotalPages(d?.totalPages ?? 0);
-        setTotalElements(d?.totalElements ?? 0);
-        setPage(p);
-      } catch (err) {
-        console.error("[Notice] fetch error:", err);
-        setError("공지사항을 불러오는데 실패했습니다.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [keyword, searchType]
-  );
+  const fetchNotices = useCallback(async (p = 1) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await noticeApi.list(p, PAGE_SIZE);
+      const d = unwrap(res);
+      setNotices(d.content || []);
+      setTotalPages(d.totalPages || 0);
+      setTotalElements(d.totalElements ?? d.content?.length ?? 0);
+      setPage(p);
+    } catch (err) {
+      console.error("[Notice] fetch error:", err);
+      setError("공지사항을 불러오는데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchNotices(1);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchNotices]);
 
-  useEffect(() => {
-    const parsed = Number(routeNoticeId);
-    if (!routeNoticeId || Number.isNaN(parsed)) {
-      return;
-    }
-
-    noticeApi
-      .get(parsed)
-      .then((res) => setSelected(unwrap(res)))
-      .catch((err) => {
-        console.error("[Notice] route detail error:", err);
-      });
-  }, [routeNoticeId]);
-
-  const handleSearch = () => {
-    const nextKeyword = searchInput.trim();
-    setKeyword(nextKeyword);
-    fetchNotices(1, { keyword: nextKeyword, searchType });
-  };
-
-  const openDetail = async (notice) => {
-    try {
-      const res = await noticeApi.get(notice.noticeId);
-      setSelected(unwrap(res));
-    } catch (err) {
-      console.error("[Notice] detail error:", err);
-    }
-  };
+  const filtered = notices.filter((n) => {
+    if (!search) return true;
+    return n.title?.includes(search) || n.content?.includes(search);
+  });
 
   return (
     <>
@@ -305,7 +258,7 @@ export default function Notice() {
         subtitle="플랫폼 운영 및 주요 안내 사항을 공지하는 공간입니다."
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
-        onNavigate={(path) => navigate(path)}
+        onNavigate={setCurrentPath}
       />
       <main
         style={{
@@ -328,25 +281,7 @@ export default function Notice() {
           <span style={{ fontSize: "15px", fontWeight: "600", color: "#222" }}>
             총 {totalElements}개
           </span>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <select
-              value={searchType}
-              onChange={(e) => setSearchType(e.target.value)}
-              style={{
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                padding: "7px 32px 7px 12px",
-                fontSize: "14px",
-                color: "#333",
-                background: "#fff",
-                cursor: "pointer",
-                minWidth: "100px",
-              }}
-            >
-              {SEARCH_TYPES.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div
               style={{
                 display: "flex",
@@ -360,22 +295,19 @@ export default function Notice() {
               <input
                 type="text"
                 placeholder="검색어를 입력하세요."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 style={{
                   border: "none",
                   outline: "none",
                   padding: "8px 12px",
                   fontSize: "14px",
                   color: "#333",
-                  width: "200px",
+                  width: "240px",
                   background: "transparent",
                 }}
               />
               <button
-                type="button"
-                onClick={handleSearch}
                 style={{
                   border: "none",
                   background: "#fff",
@@ -450,10 +382,10 @@ export default function Notice() {
 
         {!loading && !error && (
           <div>
-            {notices.map((notice) => (
+            {filtered.map((notice) => (
               <div
                 key={notice.noticeId}
-                onClick={() => openDetail(notice)}
+                onClick={() => setSelected(notice)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -504,7 +436,7 @@ export default function Notice() {
                 </span>
               </div>
             ))}
-            {notices.length === 0 && (
+            {filtered.length === 0 && (
               <div
                 style={{
                   textAlign: "center",
@@ -513,7 +445,7 @@ export default function Notice() {
                   fontSize: "14px",
                 }}
               >
-                {keyword ? "검색 결과가 없습니다." : "공지사항이 없습니다."}
+                {search ? "검색 결과가 없습니다." : "공지사항이 없습니다."}
               </div>
             )}
           </div>
@@ -530,7 +462,6 @@ export default function Notice() {
             }}
           >
             <button
-              type="button"
               onClick={() => fetchNotices(page - 1)}
               disabled={page <= 1}
               style={{
@@ -546,7 +477,6 @@ export default function Notice() {
             {Array.from({ length: totalPages }, (_, i) => (
               <button
                 key={i}
-                type="button"
                 onClick={() => fetchNotices(i + 1)}
                 style={{
                   fontSize: "14px",
@@ -563,7 +493,6 @@ export default function Notice() {
               </button>
             ))}
             <button
-              type="button"
               onClick={() => fetchNotices(page + 1)}
               disabled={page >= totalPages}
               style={{

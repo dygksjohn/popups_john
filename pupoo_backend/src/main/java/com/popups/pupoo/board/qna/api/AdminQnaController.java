@@ -4,7 +4,6 @@ package com.popups.pupoo.board.qna.api;
 import com.popups.pupoo.board.qna.application.QnaAdminService;
 import com.popups.pupoo.board.qna.dto.QnaAnswerRequest;
 import com.popups.pupoo.common.api.ApiResponse;
-import com.popups.pupoo.common.api.MessageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -17,16 +16,14 @@ public class AdminQnaController {
     private final QnaAdminService qnaAdminService;
 
     @PutMapping("/{qnaId}/answer")
-    public ApiResponse<MessageResponse> writeAnswer(@PathVariable Long qnaId, @Valid @RequestBody QnaAnswerRequest request) {
-        // Keep a non-null payload per SSOT response policy.
+    public ApiResponse<Void> writeAnswer(@PathVariable Long qnaId, @Valid @RequestBody QnaAnswerRequest request) {
         qnaAdminService.writeAnswer(qnaId, request.getAnswerContent());
-        return ApiResponse.success(new MessageResponse("QNA_ANSWERED:" + qnaId));
+        return ApiResponse.success(null);
     }
 
     @DeleteMapping("/{qnaId}/answer")
-    public ApiResponse<MessageResponse> clearAnswer(@PathVariable Long qnaId) {
-        // Keep a non-null payload per SSOT response policy.
+    public ApiResponse<Void> clearAnswer(@PathVariable Long qnaId) {
         qnaAdminService.clearAnswer(qnaId);
-        return ApiResponse.success(new MessageResponse("QNA_ANSWER_CLEARED:" + qnaId));
+        return ApiResponse.success(null);
     }
 }

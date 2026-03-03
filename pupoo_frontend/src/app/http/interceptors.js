@@ -1,26 +1,10 @@
-﻿import { tokenStore } from "./tokenStore";
-import { emitAuthLogout } from "./authEvents";
-
-let refreshPromise = null;
-
-function readAccessTokenFromResponse(response) {
-  const body = response?.data;
-  if (!body) return null;
-
-  // ApiResponse<TokenResponse>
-  if (body.success && body.data?.accessToken) {
-    return body.data.accessToken;
-  }
-
-  // Fallback: already unwrapped or custom shape
-  return body?.accessToken ?? body?.data?.accessToken ?? null;
-}
+import { tokenStore } from "./tokenStore";
 
 export function attachInterceptors(instance) {
   instance.interceptors.request.use((config) => {
     const url = config?.url || "";
 
-    // Do not attach Authorization header to auth endpoints.
+    // ✅ auth 계열은 Authorization 헤더를 붙이지 않는다
     if (url.includes("/api/auth/")) {
       return config;
     }
@@ -40,6 +24,7 @@ export function attachInterceptors(instance) {
       const original = err?.config;
       if (!original) return Promise.reject(err);
 
+      // auth endpoint 제외
       const url = original?.url || "";
       const isAuth = url.includes("/api/auth/");
 
@@ -49,39 +34,12 @@ export function attachInterceptors(instance) {
 
       if (original._retry) {
         tokenStore.clear();
-        emitAuthLogout("unauthorized");
         return Promise.reject(err);
       }
 
-      original._retry = true;
-
-      try {
-        if (!refreshPromise) {
-          refreshPromise = instance
-            .post("/api/auth/refresh", null, {
-              withCredentials: true,
-            })
-            .then((refreshRes) => {
-              const nextAccess = readAccessTokenFromResponse(refreshRes);
-              if (!nextAccess) throw new Error("REFRESH_ACCESS_TOKEN_MISSING");
-              tokenStore.setAccess(nextAccess);
-              return nextAccess;
-            })
-            .finally(() => {
-              refreshPromise = null;
-            });
-        }
-
-        const nextAccess = await refreshPromise;
-        original.headers = original.headers || {};
-        original.headers.Authorization = `Bearer ${nextAccess}`;
-
-        return instance(original);
-      } catch (refreshError) {
-        tokenStore.clear();
-        emitAuthLogout("refresh_failed");
-        return Promise.reject(refreshError);
-      }
+      // ✅ (일단) refresh 로직 없으니 여기서 그냥 clear하고 로그인 유도
+      tokenStore.clear();
+      return Promise.reject(err);
     },
   );
 }

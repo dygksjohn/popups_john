@@ -738,9 +738,9 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
                     l: "운영 중",
                     c: "#059669",
                     bg: "#ECFDF5",
-                    icon: "🟢",
+                    icon: "●",
                   },
-                  ended: { l: "종료", c: "#94A3B8", bg: "#F1F5F9", icon: "⏹" },
+                  ended: { l: "종료", c: "#94A3B8", bg: "#F1F5F9", icon: "■" },
                 };
                 const s = map[auto];
                 return (
@@ -1217,6 +1217,25 @@ export default function ProgramManage({ subTab = "all" }) {
     }
   };
 
+  const handleDeleteAll = async () => {
+    const eventId =
+      selectedEvent.eventId || selectedEvent.id?.replace("EV-", "");
+    setModal(null);
+    try {
+      const programIds = rows.map((r) => r.programId || Number(String(r.id).replace("PG-", "")));
+      await axiosInstance.post(
+        "/api/admin/dashboard/programs/bulk-delete",
+        { programIds },
+        { headers: authHeaders() },
+      );
+      await loadPrograms(eventId);
+      setSelected(new Set());
+      showToast(`${rows.length}건이 전체 삭제되었습니다.`);
+    } catch (err) {
+      showToast("전체 삭제 실패", "error");
+    }
+  };
+
   /* ── 필터/통계 ── */
   const filterFn =
     {
@@ -1254,19 +1273,26 @@ export default function ProgramManage({ subTab = "all" }) {
       {!selectedEvent && (
         <>
           <div style={{ marginBottom: 20 }}>
-            <h3
-              style={{
-                fontSize: 17,
-                fontWeight: 800,
-                color: ds.ink,
-                margin: "0 0 6px",
-              }}
-            >
-              프로그램 관리
-            </h3>
-            <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>
-              프로그램을 등록할 행사를 선택하세요
-            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: `${ds.brand}12`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Clipboard size={22} color={ds.brand} strokeWidth={2} />
+              </div>
+              <div>
+                <h3
+                  style={{
+                    fontSize: 17,
+                    fontWeight: 800,
+                    color: ds.ink,
+                    margin: "0 0 6px",
+                  }}
+                >
+                  프로그램 관리
+                </h3>
+                <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>
+                  프로그램을 등록할 행사를 선택하세요
+                </p>
+              </div>
+            </div>
           </div>
 
           {loadingEvents ? (
@@ -1410,14 +1436,24 @@ export default function ProgramManage({ subTab = "all" }) {
                         paddingTop: 12,
                         borderTop: "1px solid #F1F5F9",
                         display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 12,
-                        color: ds.brand,
-                        fontWeight: 700,
+                        justifyContent: "center",
                       }}
                     >
-                      <Clipboard size={13} /> 프로그램 관리하기
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: "#fff",
+                          background: ds.brand,
+                          padding: "6px 16px",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Clipboard size={13} /> 프로그램 관리하기
+                      </span>
                     </div>
                   </div>
                 );
@@ -1605,6 +1641,27 @@ export default function ProgramManage({ subTab = "all" }) {
                     }}
                   >
                     <Trash2 size={12} /> 선택 삭제
+                  </button>
+                )}
+                {rows.length > 0 && (
+                  <button
+                    onClick={() => setModal({ type: "deleteAll" })}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "6px 12px",
+                      borderRadius: 7,
+                      border: "1px solid #E2E8F0",
+                      background: "#fff",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#64748B",
+                      cursor: "pointer",
+                      fontFamily: ds.ff,
+                    }}
+                  >
+                    <Trash2 size={12} /> 전체 삭제
                   </button>
                 )}
                 <button
@@ -1955,6 +2012,14 @@ export default function ProgramManage({ subTab = "all" }) {
           title="선택 프로그램 삭제"
           msg={`선택한 ${selected.size}건의 프로그램을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
           onConfirm={handleBulkDelete}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === "deleteAll" && (
+        <ConfirmModal
+          title="전체 프로그램 삭제"
+          msg={`현재 목록의 ${rows.length}건을 전체 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          onConfirm={handleDeleteAll}
           onCancel={() => setModal(null)}
         />
       )}

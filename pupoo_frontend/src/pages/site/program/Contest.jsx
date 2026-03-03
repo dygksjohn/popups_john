@@ -1,10 +1,13 @@
-﻿import { useState, useCallback, useEffect, useMemo } from "react";
+﻿﻿﻿import { useState, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import EventSelectPage from "../components/EventSelectPage";
 import { SERVICE_CATEGORIES, SUBTITLE_MAP } from "../constants/programConstants";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
+import { petApi } from "../../../app/http/petApi";
+import { tokenStore } from "../../../app/http/tokenStore";
+import { authApi } from "../auth/api/authApi";
 import {
   Trophy,
   Users,
@@ -30,7 +33,7 @@ const styles = `
   .ct-root {
     box-sizing: border-box;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    background: #f6f7fb;
+    background: #f8f9fc;
     min-height: 100vh;
   }
   .ct-root *, .ct-root *::before, .ct-root *::after { box-sizing: border-box; font-family: inherit; }
@@ -41,7 +44,7 @@ const styles = `
     display: inline-flex; align-items: center; gap: 6px;
     padding: 5px 14px; background: #fff0f0; border: 1px solid #fecaca;
     border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.5px; margin-bottom: 20px;
   }
   .ct-live-dot {
     width: 7px; height: 7px; border-radius: 50%; background: #ef4444;
@@ -53,16 +56,14 @@ const styles = `
   }
 
   /* ?? Stat cards ?? */
-  .ct-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .ct-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
   .ct-stat-card {
-    background: #fff; border: 1px solid #eceef3; border-radius: 14px; padding: 20px;
+    background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 20px 22px;
     display: flex; align-items: center; gap: 14px;
-    transition: transform 0.2s, box-shadow 0.2s;
   }
-  .ct-stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
-  .ct-stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .ct-stat-label { font-size: 12px; color: #868e9c; font-weight: 500; margin-bottom: 2px; }
-  .ct-stat-value { font-size: 22px; font-weight: 800; color: #1a1d24; letter-spacing: -0.5px; }
+  .ct-stat-icon { width: 44px; height: 44px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .ct-stat-label { font-size: 12px; color: #6b7280; font-weight: 500; margin-bottom: 2px; }
+  .ct-stat-value { font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.2px; }
 
   /* ?? Current contest highlight ?? */
   .ct-highlight {
@@ -95,12 +96,12 @@ const styles = `
   .ct-progress-fill { height: 100%; background: #fbbf24; border-radius: 100px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
 
   /* ?? Main layout ?? */
-  .ct-main-grid { display: grid; grid-template-columns: 1fr 360px; gap: 16px; }
+  .ct-main-grid { display: block; }
 
   /* ?? Card base ?? */
   .ct-card {
-    background: #fff; border: 1px solid #eceef3; border-radius: 14px;
-    padding: 22px 24px; margin-bottom: 0;
+    background: #fff; border: 1px solid #e9ecef; border-radius: 13px;
+    padding: 24px 28px; margin-bottom: 16px;
   }
   .ct-card-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -111,28 +112,62 @@ const styles = `
   .ct-card-tag { font-size: 11px; font-weight: 600; color: #868e9c; background: #f3f4f7; padding: 4px 10px; border-radius: 100px; }
 
   /* ?? Contest list ?? */
-  .ct-contest-list { display: flex; flex-direction: column; gap: 8px; }
+  .ct-contest-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .ct-contest-item {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 16px; border: 1.5px solid #eceef3; border-radius: 12px;
-    background: #fff; transition: all 0.18s; cursor: pointer;
+    min-height: 230px;
+    padding: 20px;
+    border: 1.5px solid #f59e0b;
+    border-radius: 14px;
+    background: #f8fafc;
+    transition: all 0.18s; cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
-  .ct-contest-item:hover { border-color: #c4b5fd; background: #faf8ff; }
-  .ct-contest-item.active { border-color: #8b5cf6; background: #f5f0ff; box-shadow: 0 0 0 3px rgba(139,92,246,0.08); }
+  .ct-contest-item:hover { border-color: #f59e0b; background: #f8fafc; box-shadow: 0 4px 14px rgba(15,23,42,0.06); }
+  .ct-contest-item.active { border-color: #f59e0b; background: #f8fafc; box-shadow: 0 0 0 3px rgba(245,158,11,0.14); }
+  .ct-contest-top { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
   .ct-contest-icon {
     width: 42px; height: 42px; border-radius: 11px;
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .ct-contest-info { flex: 1; min-width: 0; }
-  .ct-contest-name { font-size: 14px; font-weight: 700; color: #1a1d24; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ct-contest-sub { font-size: 12px; color: #a0a7b5; margin-top: 3px; display: flex; align-items: center; gap: 10px; }
+  .ct-contest-info { flex: 1; min-width: 0; width: 100%; }
+  .ct-contest-name { font-size: 15px; font-weight: 700; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ct-contest-cat { font-size: 12px; color: #9ca3af; margin-top: 2px; font-weight: 600; }
+  .ct-contest-desc { font-size: 12.5px; color: #6b7280; margin-top: 8px; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .ct-contest-sub { font-size: 12px; color: #9ca3af; margin-top: 3px; display: flex; align-items: center; gap: 10px; }
   .ct-contest-badge {
     display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; flex-shrink: 0;
+    padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 700; flex-shrink: 0;
   }
   .ct-contest-badge.live { background: #fef3c7; color: #d97706; }
-  .ct-contest-badge.upcoming { background: #eef2ff; color: #4f46e5; }
-  .ct-contest-badge.ended { background: #f3f4f6; color: #9ca3af; }
+  .ct-contest-badge.upcoming { background: #e0f2fe; color: #0284c7; }
+  .ct-contest-badge.ended { background: #fee2e2; color: #ef4444; }
+  .ct-contest-head-row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .ct-contest-meta-row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .ct-contest-divider { width: 100%; height: 1px; background: #e5e7eb; margin-top: 10px; }
+  .ct-contest-bottom { width: 100%; margin-top: 2px; }
+  .ct-contest-capacity { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .ct-contest-capacity-text { font-size: 34px; font-weight: 800; color: #111827; }
+  .ct-contest-state-pill { border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 700; }
+  .ct-contest-state-pill.live { background: #dcfce7; color: #15803d; }
+  .ct-contest-state-pill.upcoming { background: #e0f2fe; color: #0284c7; }
+  .ct-contest-state-pill.ended { background: #fee2e2; color: #ef4444; }
+  .ct-contest-progress { width: 100%; height: 8px; border-radius: 999px; background: #e5e7eb; overflow: hidden; margin-bottom: 10px; }
+  .ct-contest-progress-fill { height: 100%; border-radius: 999px; background: #3b82f6; transition: width 0.3s; }
+  .ct-contest-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .ct-list-btn {
+    height: 34px; border-radius: 8px; font-size: 10px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .ct-list-btn.primary { border: none; background: #1d4ed8; color: #fff; }
+  .ct-list-btn.primary:hover { background: #1e40af; }
+  .ct-list-btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ct-list-btn.outline { border: 1.5px solid #d1d5db; background: #fff; color: #6b7280; }
+  .ct-list-btn.outline:hover { border-color: #9ca3af; }
+  @media (max-width: 1080px) {
+    .ct-contest-list { grid-template-columns: 1fr; }
+  }
 
   /* ?? Candidate voting cards ?? */
   .ct-vote-area { margin-bottom: 0; }
@@ -365,10 +400,57 @@ const styles = `
     .ct-highlight-info { flex-wrap: wrap; gap: 10px; }
     .ct-modal { max-width: 100%; }
   }
+
+  .ct-pet-modal-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0, 0, 0, 0.4); display: flex;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .ct-pet-modal {
+    width: 100%; max-width: 420px; background: #fff;
+    border-radius: 14px; border: 1px solid #e9ecef; padding: 20px;
+  }
+  .ct-pet-title { font-size: 16px; font-weight: 800; color: #111827; margin-bottom: 6px; }
+  .ct-pet-sub { font-size: 13px; color: #6b7280; margin-bottom: 12px; }
+  .ct-pet-select {
+    width: 100%; height: 42px; border-radius: 8px; border: 1px solid #d1d5db;
+    padding: 0 10px; font-size: 14px; color: #111827; margin-bottom: 14px;
+    background: #fff;
+  }
+  .ct-pet-btns { display: flex; gap: 8px; }
+  .ct-pet-btn {
+    flex: 1; height: 38px; border-radius: 8px; font-size: 13px; font-weight: 700;
+    cursor: pointer;
+  }
+  .ct-pet-btn.cancel { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; }
+  .ct-pet-btn.confirm { background: #1d4ed8; color: #fff; border: none; }
+  .ct-pet-upload-label {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 100%; height: 38px; border-radius: 8px;
+    border: 1px dashed #cbd5e1; background: #f8fafc;
+    color: #475569; font-size: 12px; font-weight: 700; cursor: pointer;
+    margin-bottom: 10px;
+  }
+  .ct-pet-upload-input { display: none; }
+  .ct-pet-upload-preview {
+    width: 100%; height: 160px; border-radius: 10px; overflow: hidden;
+    border: 1px solid #e5e7eb; margin-bottom: 10px; background: #f8fafc;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ct-pet-upload-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ct-pet-upload-help { font-size: 11px; color: #94a3b8; margin-bottom: 12px; }
 `;
 
 const CARD_BG = ["#fef3c7", "#eef2ff", "#fdf2f8", "#ecfdf5"];
 const CANDIDATE_COLORS = ["#8b5cf6", "#a78bfa", "#c4b5fd", "#7c3aed", "#6d28d9"];
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
+const MAX_UPLOAD_IMAGE_BYTES = 2 * 1024 * 1024;
 
 function parseDate(value) {
   if (!value) return null;
@@ -518,15 +600,19 @@ function RankingItem({ candidate, rank, maxVotes }) {
 }
 
 function ContestContent({ eventId }) {
+  const navigate = useNavigate();
   const [contests, setContests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [selectedContestId, setSelectedContestId] = useState(null);
-  const [selectedCandidates, setSelectedCandidates] = useState([]);
-  const [candidateLoading, setCandidateLoading] = useState(false);
-  const [candidateMsg, setCandidateMsg] = useState("");
-  const [myVotes, setMyVotes] = useState({});
-  const [modalCandidate, setModalCandidate] = useState(null);
+  const [myApplyByProgram, setMyApplyByProgram] = useState({});
+  const [applySubmittingId, setApplySubmittingId] = useState(null);
+  const [petModalOpen, setPetModalOpen] = useState(false);
+  const [petModalContestId, setPetModalContestId] = useState(null);
+  const [petOptions, setPetOptions] = useState([]);
+  const [selectedPetId, setSelectedPetId] = useState(null);
+  const [applyImageUrl, setApplyImageUrl] = useState("");
+  const [petLoading, setPetLoading] = useState(false);
 
   useEffect(() => {
     if (!eventId) return;
@@ -535,15 +621,20 @@ function ContestContent({ eventId }) {
       setLoading(true);
       setErrorMsg("");
       try {
-        const list = await programApi.getAllProgramsByEvent({ eventId: Number(eventId), category: "CONTEST", sort: "startAt,asc" });
+        const list = await programApi.getAllProgramsByEvent({
+          eventId: Number(eventId),
+          category: "CONTEST",
+          sort: "startAt,asc",
+        });
         if (!mounted) return;
         const mapped = (Array.isArray(list) ? list : []).map((item, idx) => {
           const status = getContestStatus(item);
           return {
             id: Number(item?.programId),
             name: item?.programTitle ?? "콘테스트",
+            description: item?.description ?? "콘테스트 프로그램",
+            location: item?.boothId ? `부스 ${item.boothId}` : "장소 미정",
             participants: 0,
-            totalVotes: 0,
             time: formatTimeRange(item?.startAt, item?.endAt),
             status,
             statusLabel: statusLabel(status),
@@ -555,161 +646,366 @@ function ContestContent({ eventId }) {
         setSelectedContestId(mapped[0]?.id ?? null);
       } catch (e) {
         if (!mounted) return;
-        setErrorMsg(e?.response?.data?.message || e?.message || "콘테스트 데이터를 불러오지 못했습니다.");
+        setErrorMsg(
+          e?.response?.data?.message ||
+            e?.message ||
+            "콘테스트 데이터를 불러오지 못했습니다.",
+        );
         setContests([]);
       } finally {
         if (mounted) setLoading(false);
       }
     };
     loadContests();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [eventId]);
 
-  const selectedContest = useMemo(() => contests.find((c) => c.id === selectedContestId) ?? null, [contests, selectedContestId]);
-
   useEffect(() => {
-    if (!selectedContestId) return;
     let mounted = true;
-    const loadCandidates = async () => {
-      setCandidateLoading(true);
-      setCandidateMsg("");
+    const loadMyApplies = async () => {
+      if (!tokenStore.getAccess()) {
+        if (mounted) setMyApplyByProgram({});
+        return;
+      }
       try {
-        const [candRes, voteRes] = await Promise.allSettled([
-          programApi.getCandidates(selectedContestId, { page: 0, size: 200 }),
-          programApi.getContestVoteResult(selectedContestId),
+        const res = await programApi.getMyProgramApplies({
+          page: 0,
+          size: 200,
+          sort: "createdAt,desc",
+        });
+        const content = Array.isArray(res?.data?.data?.content)
+          ? res.data.data.content
+          : [];
+        const activeStatuses = new Set([
+          "APPLIED",
+          "WAITING",
+          "APPROVED",
+          "CHECKED_IN",
         ]);
-
-        if (!mounted) return;
-
-        let candidates = [];
-        let voteMap = new Map();
-        let totalVotes = 0;
-        let myProgramApplyId = null;
-
-        if (candRes.status === "fulfilled") {
-          const content = candRes.value?.data?.data?.content;
-          candidates = Array.isArray(content) ? content : [];
-        } else if (candRes.reason?.response?.status === 401) {
-          setCandidateMsg("후보 목록은 로그인 후 확인할 수 있습니다.");
+        const next = {};
+        for (const row of content) {
+          const pid = Number(row?.programId);
+          if (!pid || next[pid]) continue;
+          if (activeStatuses.has(String(row?.status || "").toUpperCase())) {
+            next[pid] = String(row?.status || "").toUpperCase();
+          }
         }
-
-        if (voteRes.status === "fulfilled") {
-          const data = voteRes.value?.data?.data ?? {};
-          const results = Array.isArray(data?.results) ? data.results : [];
-          voteMap = new Map(results.map((r) => [Number(r?.programApplyId), Number(r?.voteCount ?? 0)]));
-          totalVotes = Number(data?.totalVotes ?? 0);
-          myProgramApplyId = data?.myProgramApplyId ?? null;
-        } else if (voteRes.reason?.response?.status === 401) {
-          setCandidateMsg((prev) => prev || "투표 결과는 로그인 후 확인할 수 있습니다.");
-        }
-
-        const mappedCandidates = candidates.map((item, idx) => ({
-          id: Number(item?.programApplyId ?? idx + 1),
-          name: item?.ticketNo ? `참가자 ${item.ticketNo}` : `참가자 #${item?.programApplyId ?? idx + 1}`,
-          breed: item?.status ? `상태: ${item.status}` : "참가자",
-          votes: voteMap.get(Number(item?.programApplyId)) ?? 0,
-          color: CANDIDATE_COLORS[idx % CANDIDATE_COLORS.length],
-          image: `https://picsum.photos/seed/contest-${selectedContestId}-${idx + 1}/400/300`,
-        }));
-
-        setSelectedCandidates(mappedCandidates);
-        setMyVotes((prev) => ({ ...prev, [selectedContestId]: myProgramApplyId }));
-        setContests((prev) => prev.map((c) => c.id === selectedContestId ? { ...c, participants: mappedCandidates.length, totalVotes } : c));
-      } catch (e) {
-        if (!mounted) return;
-        setCandidateMsg(e?.response?.data?.message || e?.message || "후보 데이터를 불러오지 못했습니다.");
-        setSelectedCandidates([]);
-      } finally {
-        if (mounted) setCandidateLoading(false);
+        if (mounted) setMyApplyByProgram(next);
+      } catch {
+        if (mounted) setMyApplyByProgram({});
       }
     };
-    loadCandidates();
-    return () => { mounted = false; };
-  }, [selectedContestId]);
+    loadMyApplies();
+    return () => {
+      mounted = false;
+    };
+  }, [eventId]);
 
-  const liveContest = contests.find((c) => c.status === "live");
-  const sortedCandidates = [...selectedCandidates].sort((a, b) => b.votes - a.votes);
-  const maxVotes = sortedCandidates[0]?.votes ?? 0;
-  const myVoteForContest = selectedContestId ? myVotes[selectedContestId] : null;
-  const votedCandidateName = sortedCandidates.find((c) => c.id === myVoteForContest)?.name;
-
-  const handleVoteClick = useCallback((candidate) => setModalCandidate(candidate), []);
-
-  const handleConfirmVote = useCallback(async () => {
-    if (!modalCandidate || !selectedContestId) return;
-    try {
-      await programApi.voteContest(selectedContestId, modalCandidate.id);
-      setMyVotes((prev) => ({ ...prev, [selectedContestId]: modalCandidate.id }));
-      setModalCandidate(null);
-    } catch (e) {
-      setCandidateMsg(e?.response?.data?.message || e?.message || "투표에 실패했습니다.");
-      setModalCandidate(null);
+  const handleContestApply = async (contestId) => {
+    if (!contestId || applySubmittingId) return;
+    if (!tokenStore.getAccess()) {
+      try {
+        const refreshed = await authApi.refresh();
+        if (refreshed?.accessToken) {
+          tokenStore.setAccess(refreshed.accessToken);
+        }
+      } catch {
+        navigate("/auth/login", { state: { from: `/program/contest/${eventId}` } });
+        return;
+      }
     }
-  }, [modalCandidate, selectedContestId]);
+
+    setPetLoading(true);
+    try {
+      const petRes = await petApi.getMyPets();
+      const pets = Array.isArray(petRes?.pets)
+        ? petRes.pets
+        : Array.isArray(petRes)
+          ? petRes
+          : [];
+
+      if (!pets.length) {
+        window.alert("등록된 반려동물이 없습니다. 반려동물 등록 후 신청해주세요.");
+        navigate("/auth/mypage");
+        return;
+      }
+
+      setPetOptions(pets);
+      setSelectedPetId(pets[0]?.petId ?? null);
+      setApplyImageUrl("");
+      setPetModalContestId(contestId);
+      setPetModalOpen(true);
+    } catch (e) {
+      if (e?.response?.status === 401) {
+        navigate("/auth/login", { state: { from: `/program/contest/${eventId}` } });
+      }
+    } finally {
+      setPetLoading(false);
+    }
+  };
+
+  const submitContestApplyWithPet = async () => {
+    if (!petModalContestId || !selectedPetId || applySubmittingId) return;
+
+    setApplySubmittingId(petModalContestId);
+    try {
+      await programApi.createProgramApply({
+        programId: petModalContestId,
+        petId: Number(selectedPetId),
+        imageUrl: applyImageUrl || null,
+      });
+      setMyApplyByProgram((prev) => ({ ...prev, [petModalContestId]: "APPLIED" }));
+      setPetModalOpen(false);
+      setApplyImageUrl("");
+    } catch (e) {
+      if (e?.response?.status === 409) {
+        setMyApplyByProgram((prev) => ({ ...prev, [petModalContestId]: "APPLIED" }));
+        setPetModalOpen(false);
+        setApplyImageUrl("");
+      } else if (e?.response?.status === 401) {
+        navigate("/auth/login", { state: { from: `/program/contest/${eventId}` } });
+      }
+    } finally {
+      setApplySubmittingId(null);
+    }
+  };
+
+  const handleApplyImageChange = (e) => {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    const fileType = String(file.type || "").toLowerCase();
+    if (!ALLOWED_IMAGE_MIME_TYPES.has(fileType)) {
+      window.alert("jpg, jpeg, png, gif, webp 파일만 업로드할 수 있습니다.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_UPLOAD_IMAGE_BYTES) {
+      window.alert("이미지 용량은 2MB 이하만 가능합니다.");
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      setApplyImageUrl(String(evt?.target?.result || ""));
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (loading) return <div className="ct-card-tag">콘테스트 불러오는 중...</div>;
   if (!loading && errorMsg) return <div className="ct-card-tag">{errorMsg}</div>;
   if (!loading && contests.length === 0) return <div className="ct-card-tag">표시할 콘테스트가 없습니다.</div>;
 
+  const liveCount = contests.filter((c) => c.status === "live").length;
+  const upcomingCount = contests.filter((c) => c.status === "upcoming").length;
+  const endedCount = contests.filter((c) => c.status === "ended").length;
+
   return (
     <>
-      <VoteConfirmModal candidate={modalCandidate} onConfirm={handleConfirmVote} onCancel={() => setModalCandidate(null)} />
-
-      {liveContest ? <div style={{ marginBottom: 20 }}><div className="ct-live-badge"><div className="ct-live-dot" /> LIVE 투표 진행 중</div></div> : null}
+      <div className="ct-live-badge">
+        <span className="ct-live-dot" /> LIVE
+      </div>
 
       <div className="ct-stat-grid">
-        {[{ label: "진행 중", value: `${contests.filter((c) => c.status === "live").length}개`, icon: <Trophy size={20} color="#d97706" />, bg: "#fffbeb" }, { label: "총 참가자", value: `${contests.reduce((a, c) => a + (c.participants || 0), 0)}명`, icon: <Users size={20} color="#4f46e5" />, bg: "#eef2ff" }, { label: "총 투표수", value: `${contests.reduce((a, c) => a + (c.totalVotes || 0), 0)}표`, icon: <Heart size={20} color="#ec4899" />, bg: "#fdf2f8" }, { label: "예정 대회", value: `${contests.filter((c) => c.status === "upcoming").length}개`, icon: <Timer size={20} color="#059669" />, bg: "#ecfdf5" }].map((s) => (
-          <div key={s.label} className="ct-stat-card"><div className="ct-stat-icon" style={{ background: s.bg }}>{s.icon}</div><div><div className="ct-stat-label">{s.label}</div><div className="ct-stat-value">{s.value}</div></div></div>
+        {[
+          {
+            label: "전체 콘테스트",
+            value: `${contests.length}개`,
+            icon: <Trophy size={20} color="#7c3aed" />,
+            bg: "#f3f0ff",
+          },
+          {
+            label: "진행 중",
+            value: `${liveCount}개`,
+            icon: <AlertCircle size={20} color="#10b981" />,
+            bg: "#ecfdf5",
+          },
+          {
+            label: "예정",
+            value: `${upcomingCount}개`,
+            icon: <Clock size={20} color="#1a4fd6" />,
+            bg: "#eff4ff",
+          },
+          {
+            label: "종료",
+            value: `${endedCount}개`,
+            icon: <CheckCircle2 size={20} color="#ef4444" />,
+            bg: "#fff0f0",
+          },
+        ].map((s) => (
+          <div key={s.label} className="ct-stat-card">
+            <div className="ct-stat-icon" style={{ background: s.bg }}>
+              {s.icon}
+            </div>
+            <div>
+              <div className="ct-stat-label">{s.label}</div>
+              <div className="ct-stat-value">{s.value}</div>
+            </div>
+          </div>
         ))}
       </div>
 
       <div className="ct-main-grid">
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="ct-card">
-            <div className="ct-card-header"><div className="ct-card-title"><div className="ct-card-title-icon" style={{ background: "#fffbeb" }}><Trophy size={14} color="#f59e0b" /></div>콘테스트 목록</div><span className="ct-card-tag">총 {contests.length}개</span></div>
+            <div className="ct-card-header">
+              <div className="ct-card-title">
+                <div className="ct-card-title-icon" style={{ background: "#fffbeb" }}>
+                  <Trophy size={14} color="#f59e0b" />
+                </div>
+                콘테스트 목록
+              </div>
+              <span className="ct-card-tag">총 {contests.length}개</span>
+            </div>
             <div className="ct-contest-list">
               {contests.map((c) => (
-                <div key={c.id} className={"ct-contest-item" + (selectedContestId === c.id ? " active" : "")} onClick={() => setSelectedContestId(c.id)}>
-                  <div className="ct-contest-icon" style={{ background: c.bg }}><Trophy size={20} color="#6b7280" /></div>
-                  <div className="ct-contest-info"><div className="ct-contest-name">{c.name}</div><div className="ct-contest-sub"><span style={{ display: "flex", alignItems: "center", gap: 3 }}><Users size={11} /> {c.participants}명</span><span style={{ display: "flex", alignItems: "center", gap: 3 }}><Clock size={11} /> {c.time}</span></div></div>
-                  <span className={"ct-contest-badge " + c.status}>{c.status === "live" ? <CircleDot size={10} /> : null}{c.statusLabel}</span>
-                  <ChevronRight size={16} style={{ color: "#d1d5db" }} />
+                <div
+                  key={c.id}
+                  className={"ct-contest-item" + (selectedContestId === c.id ? " active" : "")}
+                  onClick={() => setSelectedContestId(c.id)}
+                >
+                  <div className="ct-contest-top">
+                    <div className="ct-contest-head-row">
+                      <div className="ct-contest-icon" style={{ background: c.bg }}>
+                        <Trophy size={20} color="#6b7280" />
+                      </div>
+                      <ChevronRight size={16} style={{ color: "#d1d5db" }} />
+                    </div>
+                    <div className="ct-contest-info">
+                      <div className="ct-contest-name">{c.name}</div>
+                      <div className="ct-contest-cat">콘테스트</div>
+                      <div className="ct-contest-desc">{c.description}</div>
+                    </div>
+                    <div className="ct-contest-meta-row">
+                      <div className="ct-contest-sub">
+                        <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                          <Clock size={11} /> {c.time}
+                        </span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                          <Info size={11} /> {c.location}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={"ct-contest-badge " + c.status}>
+                      {c.status === "live" ? <CircleDot size={10} /> : null}
+                      {c.statusLabel}
+                    </span>
+                  </div>
+                  <div className="ct-contest-divider" />
+                  <div className="ct-contest-bottom">
+                    <div className="ct-contest-capacity">
+                      <div className="ct-contest-capacity-text">
+                        {c.status === "ended" ? "종료" : c.status === "live" ? "진행 중" : "예정"}
+                      </div>
+                      <div className={"ct-contest-state-pill " + c.status}>
+                        {c.status === "ended" ? "마감" : c.status === "live" ? "진행 중" : "예정"}
+                      </div>
+                    </div>
+                    <div className="ct-contest-progress">
+                      <div
+                        className="ct-contest-progress-fill"
+                        style={{ width: `${c.progress ?? 0}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="ct-contest-actions">
+                    <button
+                      type="button"
+                      className="ct-list-btn primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleContestApply(c.id);
+                      }}
+                      disabled={Boolean(myApplyByProgram[c.id]) || applySubmittingId === c.id || petLoading}
+                    >
+                      {myApplyByProgram[c.id]
+                        ? "신청완료"
+                        : applySubmittingId === c.id
+                          ? "신청 중..."
+                          : petLoading
+                            ? "준비 중..."
+                          : "참여신청"}
+                    </button>
+                    <button
+                      type="button"
+                      className="ct-list-btn outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/program/contest/${eventId}/detail/${c.id}#candidates`);
+                      }}
+                    >
+                      후보보기
+                    </button>
+                    <button
+                      type="button"
+                      className="ct-list-btn outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/program/contest/${eventId}/detail/${c.id}#results`);
+                      }}
+                    >
+                      실시간 투표현황 및 결과
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-
-          <div className="ct-card ct-vote-area">
-            <div className="ct-card-header"><div className="ct-card-title"><div className="ct-card-title-icon" style={{ background: "#f5f0ff" }}><Vote size={14} color="#7c3aed" /></div>{selectedContest?.name}</div><span className="ct-card-tag">{selectedContest?.totalVotes?.toLocaleString?.() ?? 0}표</span></div>
-
-            {myVoteForContest ? <div className="ct-my-vote"><div className="ct-my-vote-icon"><CheckCircle2 size={18} color="#fff" /></div><div className="ct-my-vote-text"><span className="ct-my-vote-name">{votedCandidateName}</span> 에게 투표 완료!</div></div> : null}
-            {candidateLoading ? <div className="ct-card-tag">후보 목록 불러오는 중...</div> : null}
-            {!candidateLoading && candidateMsg ? <div className="ct-card-tag">{candidateMsg}</div> : null}
-            {!candidateLoading && sortedCandidates.length > 0 ? (
-              <div className="ct-candidates-grid" key={selectedContestId}>
-                {sortedCandidates.map((c, i) => (
-                  <CandidateCard key={c.id} candidate={c} rank={i + 1} contestStatus={selectedContest?.status === "ended" ? "ended" : "live"} isVoted={!!myVoteForContest} isMyVote={myVoteForContest === c.id} onVoteClick={handleVoteClick} totalVotes={selectedContest?.totalVotes ?? 0} />
-                ))}
-              </div>
-            ) : null}
-            {!candidateLoading && sortedCandidates.length === 0 ? <div className="ct-card-tag">후보 데이터가 없습니다.</div> : null}
-          </div>
         </div>
+      </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div className="ct-card">
-            <div className="ct-card-header"><div className="ct-card-title"><div className="ct-card-title-icon" style={{ background: "#fffbeb" }}><Crown size={14} color="#f59e0b" /></div>실시간 순위</div><span className="ct-card-tag">{selectedContest?.name}</span></div>
-            {sortedCandidates.length > 0 ? <div className="ct-ranking-list">{sortedCandidates.map((c, i) => <RankingItem key={c.id} candidate={c} rank={i + 1} maxVotes={maxVotes} />)}</div> : <div style={{ textAlign: "center", padding: "30px 0", color: "#9ca3af", fontSize: 13 }}>표시할 순위 데이터가 없습니다.</div>}
-          </div>
-
-          <div className="ct-card" style={{ background: "linear-gradient(135deg, #faf8ff 0%, #f5f0ff 100%)", borderColor: "#ede9fe" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#4c1d95", marginBottom: 14, display: "flex", alignItems: "center", gap: 7 }}><Info size={16} color="#7c3aed" /> 투표 안내</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {[{ icon: <Heart size={13} color="#7c3aed" />, text: "콘테스트별 1회 투표 가능합니다." }, { icon: <AlertCircle size={13} color="#7c3aed" />, text: "투표 후 변경은 불가합니다." }, { icon: <Sparkles size={13} color="#7c3aed" />, text: "결과는 실시간 반영됩니다." }, { icon: <TrendingUp size={13} color="#7c3aed" />, text: "후보/투표 데이터는 로그인 시 조회됩니다." }].map((item, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#5b21b6", fontWeight: 500 }}>{item.icon} {item.text}</div>)}
+      {petModalOpen ? (
+        <div className="ct-pet-modal-overlay" onClick={() => setPetModalOpen(false)}>
+          <div className="ct-pet-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ct-pet-title">참여 반려동물 선택</div>
+            <div className="ct-pet-sub">신청에 사용할 반려동물을 선택해주세요.</div>
+            <select
+              className="ct-pet-select"
+              value={selectedPetId ?? ""}
+              onChange={(e) => setSelectedPetId(Number(e.target.value))}
+            >
+              {petOptions.map((pet) => (
+                <option key={pet.petId} value={pet.petId}>
+                  {pet.petName || `Pet #${pet.petId}`}
+                </option>
+              ))}
+            </select>
+            <label className="ct-pet-upload-label">
+              후보 이미지 업로드
+              <input
+                type="file"
+                accept="image/*"
+                className="ct-pet-upload-input"
+                onChange={handleApplyImageChange}
+              />
+            </label>
+            <div className="ct-pet-upload-preview">
+              {applyImageUrl ? <img src={applyImageUrl} alt="preview" /> : <span>이미지 미선택</span>}
+            </div>
+            <div className="ct-pet-upload-help">업로드한 이미지는 후보 카드에 표시됩니다.</div>
+            <div className="ct-pet-btns">
+              <button
+                type="button"
+                className="ct-pet-btn cancel"
+                onClick={() => {
+                  setPetModalOpen(false);
+                  setApplyImageUrl("");
+                }}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="ct-pet-btn confirm"
+                onClick={submitContestApplyWithPet}
+              >
+                선택 후 신청
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </>
   );
 }
@@ -763,4 +1059,3 @@ export default function Contest() {
     </div>
   );
 }
-

@@ -15,11 +15,10 @@ public class ProgramApplyResponse {
     private Long programApplyId;
     private Long programId;
     private Long userId;
-
-    /**
-     * 신청에 사용된 반려동물 ID. null인 경우 사용자가 반려동물을 선택하지 않았음을 의미한다.
-     */
     private Long petId;
+    private String petName;
+    private String ownerNickname;
+    private String imageUrl;
 
     private ApplyStatus status;
 
@@ -43,6 +42,53 @@ public class ProgramApplyResponse {
                 .programId(a.getProgramId())
                 .userId(a.getUserId())
                 .petId(a.getPetId())
+                .petName(null)
+                .ownerNickname(null)
+                .imageUrl(a.getImageUrl())
+                .status(a.getStatus())
+                .ticketNo(a.getTicketNo())
+                .etaMin(a.getEtaMin())
+                .notifiedAt(a.getNotifiedAt())
+                .checkedInAt(a.getCheckedInAt())
+                .createdAt(a.getCreatedAt())
+                .build();
+    }
+
+    public static ProgramApplyResponse from(ProgramApply a, String petName) {
+        if (a == null) {
+            throw new IllegalArgumentException("ProgramApply is null");
+        }
+
+        return ProgramApplyResponse.builder()
+                .programApplyId(a.getProgramApplyId())
+                .programId(a.getProgramId())
+                .userId(a.getUserId())
+                .petId(a.getPetId())
+                .petName(petName)
+                .ownerNickname(null)
+                .imageUrl(a.getImageUrl())
+                .status(a.getStatus())
+                .ticketNo(a.getTicketNo())
+                .etaMin(a.getEtaMin())
+                .notifiedAt(a.getNotifiedAt())
+                .checkedInAt(a.getCheckedInAt())
+                .createdAt(a.getCreatedAt())
+                .build();
+    }
+
+    public static ProgramApplyResponse from(ProgramApply a, String petName, String ownerNickname) {
+        if (a == null) {
+            throw new IllegalArgumentException("ProgramApply is null");
+        }
+
+        return ProgramApplyResponse.builder()
+                .programApplyId(a.getProgramApplyId())
+                .programId(a.getProgramId())
+                .userId(a.getUserId())
+                .petId(a.getPetId())
+                .petName(petName)
+                .ownerNickname(ownerNickname)
+                .imageUrl(a.getImageUrl())
                 .status(a.getStatus())
                 .ticketNo(a.getTicketNo())
                 .etaMin(a.getEtaMin())

@@ -2,7 +2,6 @@
 package com.popups.pupoo.pet.dto;
 
 import com.popups.pupoo.pet.domain.enums.AnimalType;
-import com.popups.pupoo.pet.domain.enums.PetWeight;
 import com.popups.pupoo.pet.domain.model.Pet;
 
 /**
@@ -13,8 +12,7 @@ public record PetResponse(
         Long petId,
         String petName,
         AnimalType petBreed,
-        Integer petAge,
-        PetWeight petWeight
+        Integer petAge
 ) {
 
     /**
@@ -25,8 +23,7 @@ public record PetResponse(
                 pet.getPetId(),
                 pet.getPetName(),
                 pet.getPetBreed(),
-                pet.getPetAge(),
-                pet.getPetWeight()
+                pet.getPetAge()
         );
     }
 }

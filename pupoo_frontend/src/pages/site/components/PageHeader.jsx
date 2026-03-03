@@ -55,6 +55,7 @@ export default function PageHeader({ title, subtitle, categories }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const hiddenPaths = new Set(["/event/preregister", "/event/eventschedule"]);
   const programMatch = location.pathname.match(
     /^\/program\/(?:all|schedule|experience|session|contest|booth)(?:\/([^/?#]+))?/,
   );
@@ -77,15 +78,19 @@ export default function PageHeader({ title, subtitle, categories }) {
     return `${path}/${currentEventId}`;
   };
 
+  const filteredCategories = (categories || []).filter(
+    (cat) => !hiddenPaths.has(cat.path),
+  );
+
   return (
     <div style={styles.pageHeader}>
       <div style={styles.inner}>
         <h1 style={styles.title}>{title}</h1>
         {subtitle && <p style={styles.subtitle}>{subtitle}</p>}
 
-        {categories && categories.length > 0 && (
+        {filteredCategories.length > 0 && (
           <div style={styles.tabs}>
-            {categories.map((cat, i) => {
+            {filteredCategories.map((cat, i) => {
               const targetPath = resolveTargetPath(cat.path);
               const isActive = location.pathname === targetPath;
               const isHovered = hoveredIdx === i;
@@ -103,7 +108,7 @@ export default function PageHeader({ title, subtitle, categories }) {
                 <button
                   key={cat.path}
                   style={btnStyle}
-                  onClick={() => navigate(targetPath)}
+                  onClick={() => navigate(cat.path)}
                   onMouseEnter={() => setHoveredIdx(i)}
                   onMouseLeave={() => setHoveredIdx(null)}
                   aria-current={isActive ? "page" : undefined}

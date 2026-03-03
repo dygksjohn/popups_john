@@ -14,8 +14,6 @@ import {
   Clock,
   MapPin,
   Users,
-  ChevronRight,
-  Tag,
   CheckCircle2,
   Circle,
   AlertCircle,
