@@ -17,6 +17,7 @@ public class ReplyResponse {
     private Long targetId;
 
     private Long userId;
+    private String writerEmail;
     private String content;
 
     private ReplyStatus status;

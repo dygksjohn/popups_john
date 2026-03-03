@@ -40,10 +40,13 @@ public class ReviewService {
         // 금칙어 검증 (리뷰 작성 포함)
         bannedWordService.validate(reviewBoardId, request.getContent());
 
+        String reviewTitle = deriveTitleFromContent(request.getContent());
+
         Review review = Review.builder()
                 .eventId(request.getEventId())
                 .userId(userId)
                 .rating((byte) request.getRating().shortValue())
+                .reviewTitle(reviewTitle)
                 .content(request.getContent())
                 .viewCount(0)
                 .createdAt(LocalDateTime.now())
@@ -109,6 +112,7 @@ public class ReviewService {
                 .eventId(review.getEventId())
                 .userId(review.getUserId())
                 .rating((byte) request.getRating().shortValue())
+                .reviewTitle(review.getReviewTitle() != null ? review.getReviewTitle() : deriveTitleFromContent(request.getContent()))
                 .content(request.getContent())
                 .viewCount(review.getViewCount())
                 .createdAt(review.getCreatedAt())
@@ -149,6 +153,13 @@ public class ReviewService {
      * - page는 0 이상
      * - size는 1~100 범위
      */
+    /** content 첫 줄을 제목으로 사용(최대 255자) */
+    private static String deriveTitleFromContent(String content) {
+        if (content == null || content.isBlank()) return "행사 후기";
+        String firstLine = content.lines().map(String::trim).filter(s -> !s.isEmpty()).findFirst().orElse("행사 후기");
+        return firstLine.length() > 255 ? firstLine.substring(0, 255) : firstLine;
+    }
+
     private void validatePageRequest(int page, int size) {
         if (page < 0) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "page는 0 이상이어야 합니다.");
