@@ -51,6 +51,20 @@ public interface QnaRepository extends JpaRepository<Post, Long> {
         where b.boardType = com.popups.pupoo.board.boardinfo.domain.enums.BoardType.QNA
           and p.deleted = false
           and p.status = :status
+          and (:answeredOnly is null or ((:answeredOnly = true and p.answeredAt is not null) or (:answeredOnly = false and p.answeredAt is null)))
+        order by p.createdAt desc
+    """)
+    Page<Post> findAllQnaPublishedWithAnsweredFilter(@Param("status") PostStatus status,
+                                                     @Param("answeredOnly") Boolean answeredOnly,
+                                                     Pageable pageable);
+
+    @Query("""
+        select p
+        from Post p
+        join p.board b
+        where b.boardType = com.popups.pupoo.board.boardinfo.domain.enums.BoardType.QNA
+          and p.deleted = false
+          and p.status = :status
           and p.postId = :postId
     """)
     Optional<Post> findQnaPublishedById(@Param("postId") Long postId, @Param("status") PostStatus status);

@@ -17,10 +17,11 @@ export const reviewApi = {
    * @param {object} opts - { page (0-based), size, searchType, keyword }
    */
   list(opts = {}) {
-    const { page = 0, size = 10, searchType, keyword } = opts;
+    const { page = 0, size = 10, searchType, keyword, rating } = opts;
     const params = { page, size };
     if (searchType != null && searchType !== "") params.searchType = searchType;
     if (keyword != null && keyword !== "") params.keyword = keyword;
+    if (rating != null && rating >= 1 && rating <= 5) params.rating = rating;
     return axiosInstance.get("/api/reviews", { params }).then((res) => unwrap(res));
   },
 

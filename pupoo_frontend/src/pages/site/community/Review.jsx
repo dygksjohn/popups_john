@@ -46,9 +46,19 @@ function maskWriterEmail(email) {
   return (first2 + "***").slice(0, 5);
 }
 
+const RATING_FILTER_OPTIONS = [
+  { value: "", label: "전체" },
+  { value: "5", label: "★★★★★" },
+  { value: "4", label: "★★★★" },
+  { value: "3", label: "★★★" },
+  { value: "2", label: "★★" },
+  { value: "1", label: "★" },
+];
+
 export default function Review() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [ratingFilter, setRatingFilter] = useState("");
   const [currentPath, setCurrentPath] = useState("/community/review");
 
   const [items, setItems] = useState([]);
@@ -106,8 +116,12 @@ export default function Review() {
   const fetchList = useCallback(async (p = 1) => {
     setLoading(true);
     setError(null);
+    const ratingNum = ratingFilter === "" ? undefined : parseInt(ratingFilter, 10);
+    const opts = { page: p - 1, size: PAGE_SIZE };
+    if (ratingNum >= 1 && ratingNum <= 5) opts.rating = ratingNum;
+    if (search?.trim()) opts.keyword = search.trim();
     try {
-      const d = await reviewApi.list({ page: p - 1, size: PAGE_SIZE });
+      const d = await reviewApi.list(opts);
       const content = Array.isArray(d?.content) ? d.content : [];
       setItems(content);
       setTotalPages(d?.totalPages || 0);
@@ -119,7 +133,7 @@ export default function Review() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [ratingFilter, search]);
 
   useEffect(() => {
     fetchList(1);
@@ -179,11 +193,7 @@ export default function Review() {
     }
   };
 
-  const filtered = items.filter((item) => {
-    if (!search.trim()) return true;
-    const q = search.trim();
-    return getDisplayTitle(item).includes(q) || (item.content || "").includes(q);
-  });
+  const filtered = items;
 
   const badge = getBoardBadge("REVIEW");
 
@@ -227,6 +237,44 @@ export default function Review() {
               gap: 8,
             }}
           >
+            <div style={{ position: "relative" }}>
+              <select
+                value={ratingFilter}
+                onChange={(e) => setRatingFilter(e.target.value)}
+                style={{
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  border: "1px solid #ccc",
+                  borderRadius: "6px",
+                  padding: "8px 32px 8px 12px",
+                  fontSize: "14px",
+                  color: "#333",
+                  background: "#fff",
+                  cursor: "pointer",
+                  outline: "none",
+                  minWidth: "90px",
+                }}
+              >
+                {RATING_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.value || "all"} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <span
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <ChevronDown size={14} color="#666" />
+              </span>
+            </div>
             <div
               style={{
                 display: "flex",

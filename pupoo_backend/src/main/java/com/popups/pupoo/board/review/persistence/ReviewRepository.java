@@ -24,6 +24,26 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     Page<Review> findByDeletedFalseAndReviewStatus(ReviewStatus reviewStatus, Pageable pageable);
 
     @Query("""
+        select r from Review r
+        where r.deleted = false and r.reviewStatus = :status and r.rating = :rating
+        order by r.createdAt desc, r.reviewId desc
+        """)
+    Page<Review> findByDeletedFalseAndReviewStatusAndRating(@Param("status") ReviewStatus reviewStatus,
+                                                           @Param("rating") byte rating,
+                                                           Pageable pageable);
+
+    @Query("""
+        select r from Review r
+        where r.deleted = false and r.reviewStatus = :status and r.rating = :rating
+          and (:keyword is null or :keyword = '' or r.content like concat('%', :keyword, '%'))
+        order by r.createdAt desc, r.reviewId desc
+        """)
+    Page<Review> searchPublicByContentAndRating(@Param("status") ReviewStatus reviewStatus,
+                                                 @Param("keyword") String keyword,
+                                                 @Param("rating") byte rating,
+                                                 Pageable pageable);
+
+    @Query("""
         select r
         from Review r
         where r.deleted = false

@@ -15,6 +15,32 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     // 공개 조회: PUBLISHED 상태 공지만 조회
     Page<Notice> findByStatus(NoticeStatus status, Pageable pageable);
 
+    @Query("""
+        select n from Notice n
+        where n.status = :status
+          and (:scope is null or n.scope = :scope)
+          and (:pinned is null or n.pinned = :pinned)
+        order by n.pinned desc, n.createdAt desc, n.noticeId desc
+        """)
+    Page<Notice> findByStatusWithScopeAndPinned(@Param("status") NoticeStatus status,
+                                               @Param("scope") String scope,
+                                               @Param("pinned") Boolean pinned,
+                                               Pageable pageable);
+
+    @Query("""
+        select n from Notice n
+        where n.status = :status
+          and (:scope is null or n.scope = :scope)
+          and (:pinned is null or n.pinned = :pinned)
+          and (:keyword is null or :keyword = '' or n.noticeTitle like concat('%', :keyword, '%') or n.content like concat('%', :keyword, '%'))
+        order by n.pinned desc, n.createdAt desc, n.noticeId desc
+        """)
+    Page<Notice> searchByTitleOrContentWithScopeAndPinned(@Param("status") NoticeStatus status,
+                                                          @Param("keyword") String keyword,
+                                                          @Param("scope") String scope,
+                                                          @Param("pinned") Boolean pinned,
+                                                          Pageable pageable);
+
     Page<Notice> findByStatusAndCreatedByAdminId(NoticeStatus status, Long createdByAdminId, Pageable pageable);
 
     @Query("""

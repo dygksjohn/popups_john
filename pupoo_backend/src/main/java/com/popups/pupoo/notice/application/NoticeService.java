@@ -43,7 +43,7 @@ public class NoticeService {
      * - 검색 분기 로직은 SearchType.TITLE_CONTENT + 빈 키워드로 통일한다. (null 사용 안 함)
      */
     public Page<NoticeResponse> list(int page, int size) {
-        return list(SearchType.TITLE_CONTENT, "", page, size);
+        return list(SearchType.TITLE_CONTENT, "", page, size, null, null);
     }
 
     /** 공지 목록 정렬: 고정(pinned) 내림차순, 작성일(createdAt) 내림차순 (전체 항목 기준) */
@@ -52,14 +52,25 @@ public class NoticeService {
             Sort.Order.desc("createdAt")
     );
 
-    public Page<NoticeResponse> list(SearchType searchType, String keyword, int page, int size) {
+    public Page<NoticeResponse> list(SearchType searchType, String keyword, int page, int size, String scope, Boolean pinned) {
         validatePageRequest(page, size);
         PageRequest pageable = PageRequest.of(page, size, NOTICE_LIST_SORT);
 
         SearchType type = (searchType == null) ? SearchType.TITLE_CONTENT : searchType;
         String kw = (keyword == null) ? "" : keyword.trim();
+        boolean hasFilter = (scope != null && !scope.isBlank()) || pinned != null;
 
-        // 키워드가 비어있으면 "검색"이 아니라 전체 목록으로 처리 (일관된 정책)
+        if (hasFilter) {
+            if (kw.isBlank()) {
+                return noticeRepository.findByStatusWithScopeAndPinned(NoticeStatus.PUBLISHED, scope, pinned, pageable)
+                        .map(this::toResponse);
+            }
+            if (type == SearchType.TITLE_CONTENT) {
+                return noticeRepository.searchByTitleOrContentWithScopeAndPinned(NoticeStatus.PUBLISHED, kw, scope, pinned, pageable)
+                        .map(this::toResponse);
+            }
+        }
+
         if (kw.isBlank()) {
             return noticeRepository.findByStatus(NoticeStatus.PUBLISHED, pageable)
                     .map(this::toResponse);

@@ -32,8 +32,9 @@ public class QnaController {
 
     @GetMapping
     public ApiResponse<PageResponse<QnaResponse>> list(@RequestParam(defaultValue = "0") int page,
-                                                       @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.success(PageResponse.from(qnaService.list(page, size)));
+                                                       @RequestParam(defaultValue = "10") int size,
+                                                       @RequestParam(required = false) String statusFilter) {
+        return ApiResponse.success(PageResponse.from(qnaService.list(page, size, statusFilter)));
     }
 
     @PatchMapping("/{qnaId}")

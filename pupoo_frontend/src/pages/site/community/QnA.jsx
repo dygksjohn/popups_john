@@ -15,7 +15,7 @@ import {
 import { qnaApi, unwrap } from "../../../api/qnaApi";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 
-const FILTER_OPTIONS = ["전체", "답변완료", "미답변"];
+const FILTER_OPTIONS = ["전체", "미답변", "답변완료"];
 
 /* ── 날짜 포맷 ── */
 function fmtDate(dt) {
@@ -421,36 +421,40 @@ export default function ServicePage() {
     }
   };
 
-  /* ── 목록 조회 ── */
-  const fetchList = useCallback(async (p = 1) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await qnaApi.list(p, PAGE_SIZE);
-      const d = unwrap(res);
-      setItems(d.content || []);
-      setTotalPages(d.totalPages || 0);
-      setTotalElements(d.totalElements ?? d.content?.length ?? 0);
-      setPage(p);
-    } catch (err) {
-      console.error("[QnA] fetch error:", err);
-      setError("질문 목록을 불러오는데 실패했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  /* ── 목록 조회 (서버에서 statusFilter 적용) ── */
+  const statusFilterParam =
+    filter === "전체" ? undefined : filter === "미답변" ? "WAITING" : "ANSWERED";
+
+  const fetchList = useCallback(
+    async (p = 1) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await qnaApi.list(p, PAGE_SIZE, statusFilterParam);
+        const d = unwrap(res);
+        setItems(d.content || []);
+        setTotalPages(d.totalPages || 0);
+        setTotalElements(d.totalElements ?? d.content?.length ?? 0);
+        setPage(p);
+      } catch (err) {
+        console.error("[QnA] fetch error:", err);
+        setError("질문 목록을 불러오는데 실패했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [statusFilterParam],
+  );
 
   useEffect(() => {
     fetchList(1);
   }, [fetchList]);
 
-  /* ── 필터링 ── */
+  /* ── 검색만 클라이언트 (목록은 서버 필터) ── */
   const filtered = items.filter((q) => {
-    const status = q.status === "ANSWERED" ? "답변완료" : "미답변";
-    const matchFilter = filter === "전체" || filter === status;
     const matchSearch =
       !search || q.title?.includes(search) || q.content?.includes(search);
-    return matchFilter && matchSearch;
+    return matchSearch;
   });
 
   /* ── 등록 ── */
