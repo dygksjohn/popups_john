@@ -11,8 +11,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 @Slf4j
@@ -40,7 +42,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException e, HttpServletRequest request) {
         String msg = "Validation failed";
         FieldError fe = e.getBindingResult().getFieldError();
-        if (fe != null) msg = fe.getField() + ": " + fe.getDefaultMessage();
+        if (fe != null) {
+            msg = fe.getField() + ": " + fe.getDefaultMessage();
+        }
 
         ErrorResponse body = new ErrorResponse(
                 ErrorCode.VALIDATION_FAILED.getCode(),
@@ -49,7 +53,6 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
 
-        // fieldErrors 채우기(정책: 필드 에러 포함)
         body.setFieldErrors(
                 e.getBindingResult().getFieldErrors().stream()
                         .map(err -> new FieldErrorItem(err.getField(), err.getDefaultMessage()))
@@ -58,49 +61,62 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getStatus()).body(ApiResponse.fail(body));
     }
 
-    //  결제 UNIQUE 멱등성 포함: DB 무결성 예외 처리
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParam(
+            MissingServletRequestParameterException e,
+            HttpServletRequest request
+    ) {
+        String msg = e.getParameterName() + ": is required";
+        return build(request, ErrorCode.VALIDATION_FAILED, ErrorCode.VALIDATION_FAILED.getStatus(), msg);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(
+            MethodArgumentTypeMismatchException e,
+            HttpServletRequest request
+    ) {
+        String msg = e.getName() + ": type mismatch";
+        return build(request, ErrorCode.VALIDATION_FAILED, ErrorCode.VALIDATION_FAILED.getStatus(), msg);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException e, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(
+            DataIntegrityViolationException e,
+            HttpServletRequest request
+    ) {
         String root = rootMessage(e);
         String lower = (root == null) ? "" : root.toLowerCase();
 
-        // payments(event_id, user_id, active_flag) UNIQUE 충돌 → 활성 결제 중복
         if (lower.contains(UK_PAYMENTS_EVENT_USER_ACTIVE)) {
             ErrorCode ec = ErrorCode.PAYMENT_DUPLICATE_ACTIVE;
             return build(request, ec, ec.getStatus(), ec.getMessage());
         }
 
-        // refunds(payment_id) UNIQUE 충돌 → 결제 1건당 환불 1건 정책 위반
         if (lower.contains(UK_REFUNDS_PAYMENT_ID)) {
             ErrorCode ec = ErrorCode.REFUND_ALREADY_EXISTS;
             return build(request, ec, ec.getStatus(), ec.getMessage());
         }
 
-        // contest_votes(program_id, user_id, active_flag) UNIQUE 충돌 → 중복 투표
         if (lower.contains(UK_CONTEST_VOTES_ACTIVE)) {
             ErrorCode ec = ErrorCode.CONTEST_VOTE_ALREADY;
             return build(request, ec, ec.getStatus(), ec.getMessage());
         }
 
-        // payment_transactions UNIQUE 충돌 → 결제 트랜잭션 중복(멱등성)
         if (lower.contains(UK_PAYMENT_TX_PAYMENT_ID) || lower.contains(UK_PAYMENT_TX_PROVIDER_TID)) {
             ErrorCode ec = ErrorCode.PAYMENT_TX_ALREADY_EXISTS;
             return build(request, ec, ec.getStatus(), ec.getMessage());
         }
 
-        // payments(order_no) UNIQUE 충돌 → 주문번호 중복
         if (lower.contains(UK_PAYMENTS_ORDER_NO)) {
             ErrorCode ec = ErrorCode.DUPLICATE_RESOURCE;
             return build(request, ec, ec.getStatus(), "Duplicate order_no");
         }
 
-        // 그 외 "Duplicate entry"는 공통 409로 정규화
         if (lower.contains("duplicate entry")) {
             ErrorCode ec = ErrorCode.DUPLICATE_RESOURCE;
             return build(request, ec, ec.getStatus(), "Duplicate entry");
         }
 
-        // 그 외 DB 무결성(기본 400 처리)
         return build(request, ErrorCode.INVALID_REQUEST, HttpStatus.BAD_REQUEST, "DATA_INTEGRITY_VIOLATION");
     }
 
@@ -114,14 +130,19 @@ public class GlobalExceptionHandler {
         if ("QR_EXPIRED".equals(key)) {
             return build(request, ErrorCode.QR_EXPIRED, ErrorCode.QR_EXPIRED.getStatus(), key);
         }
-        if ("ALREADY_CHECKED_IN".equals(key) ||
-            "ALREADY_CHECKED_OUT".equals(key) ||
-            "CHECKOUT_REQUIRES_CHECKIN".equals(key) ||
-            "ALREADY_IN_SAME_STATE".equals(key)) {
+        if ("ALREADY_CHECKED_IN".equals(key)
+                || "ALREADY_CHECKED_OUT".equals(key)
+                || "CHECKOUT_REQUIRES_CHECKIN".equals(key)
+                || "ALREADY_IN_SAME_STATE".equals(key)) {
             return build(request, ErrorCode.QR_CHECK_CONFLICT, ErrorCode.QR_CHECK_CONFLICT.getStatus(), key);
         }
 
-        return build(request, ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.getStatus(), ErrorCode.INTERNAL_ERROR.getMessage());
+        return build(
+                request,
+                ErrorCode.INTERNAL_ERROR,
+                ErrorCode.INTERNAL_ERROR.getStatus(),
+                ErrorCode.INTERNAL_ERROR.getMessage()
+        );
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -160,7 +181,9 @@ public class GlobalExceptionHandler {
 
     private String rootMessage(Throwable t) {
         Throwable cur = t;
-        while (cur.getCause() != null) cur = cur.getCause();
+        while (cur.getCause() != null) {
+            cur = cur.getCause();
+        }
         return cur.getMessage();
     }
 }

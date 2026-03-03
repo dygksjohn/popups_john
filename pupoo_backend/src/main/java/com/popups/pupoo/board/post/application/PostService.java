@@ -1,9 +1,10 @@
 // file: src/main/java/com/popups/pupoo/board/post/application/PostService.java
 package com.popups.pupoo.board.post.application;
 
+import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.domain.model.Board;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
-import com.popups.pupoo.board.bannedword.application.BannedWordService;
 import com.popups.pupoo.board.post.domain.enums.PostStatus;
 import com.popups.pupoo.board.post.domain.model.Post;
 import com.popups.pupoo.board.post.dto.PostCreateRequest;
@@ -28,40 +29,47 @@ public class PostService {
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
 
+    private Long resolveBoardId(Long boardId, BoardType boardType) {
+        if (boardId != null) return boardId;
+        if (boardType == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId or boardType is required");
+        }
+        return boardRepository.findByBoardType(boardType)
+                .map(Board::getBoardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Board not found for boardType: " + boardType));
+    }
+
     public Page<PostResponse> getPosts(Long boardId, String keyword, PostStatus status, Pageable pageable) {
         if (boardId == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId는 필수입니다.");
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId is required");
         }
         return postRepository.search(boardId, keyword, status, pageable).map(PostResponse::from);
     }
 
-    /**
-     * 게시글 목록 공개 조회
-     * - 정책: PUBLISHED + deleted=false만 조회한다.
-     */
     public Page<PostResponse> getPublicPosts(Long boardId, String keyword, Pageable pageable) {
-        if (boardId == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId는 필수입니다.");
-        }
-        return postRepository.search(boardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+        return getPublicPosts(boardId, (BoardType) null, keyword, pageable);
     }
 
-    /**
-     * 게시글 목록 공개 조회(검색 타입 지원)
-     */
+    public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, String keyword, Pageable pageable) {
+        Long resolvedBoardId = resolveBoardId(boardId, boardType);
+        return postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+    }
+
     public Page<PostResponse> getPublicPosts(Long boardId, SearchType searchType, String keyword, Pageable pageable) {
-        if (boardId == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId는 필수입니다.");
-        }
+        return getPublicPosts(boardId, null, searchType, keyword, pageable);
+    }
+
+    public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, SearchType searchType, String keyword, Pageable pageable) {
+        Long resolvedBoardId = resolveBoardId(boardId, boardType);
 
         return switch (searchType) {
-            case TITLE -> postRepository.searchByTitle(boardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
-            case CONTENT -> postRepository.searchByContent(boardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+            case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+            case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
             case WRITER -> {
                 Long writerId = parseLongOrNull(keyword);
-                yield postRepository.searchByWriter(boardId, writerId, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+                yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
             }
-            case TITLE_CONTENT -> postRepository.search(boardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
+            case TITLE_CONTENT -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(PostResponse::from);
         };
     }
 
@@ -74,23 +82,19 @@ public class PostService {
         }
     }
 
-    /**
-     * 게시글 단건 공개 조회
-     * - 정책: PUBLISHED + deleted=false만 조회한다.
-     */
     @Transactional
     public PostResponse getPublicPost(Long postId) {
         if (postId == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postId는 필수입니다.");
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postId is required");
         }
 
         postRepository.increaseViewCount(postId);
 
         Post post = postRepository.findByPostIdAndDeletedFalse(postId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글이 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Post not found"));
 
         if (post.getStatus() != PostStatus.PUBLISHED) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글이 존재하지 않습니다.");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Post not found");
         }
         return PostResponse.from(post);
     }
@@ -98,13 +102,13 @@ public class PostService {
     @Transactional
     public PostResponse getPost(Long postId) {
         if (postId == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postId는 필수입니다.");
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postId is required");
         }
 
         postRepository.increaseViewCount(postId);
 
         Post post = postRepository.findByPostIdAndDeletedFalse(postId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글이 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Post not found"));
 
         return PostResponse.from(post);
     }
@@ -114,13 +118,12 @@ public class PostService {
         if (userId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         if (req.getBoardId() == null || req.getPostTitle() == null || req.getPostTitle().isBlank() || req.getContent() == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId/postTitle/content는 필수입니다.");
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId/postTitle/content is required");
         }
 
         Board board = boardRepository.findById(req.getBoardId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시판이 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Board not found"));
 
-        // 금칙어 검증 (DB: board_banned_words)
         bannedWordService.validate(board.getBoardId(), req.getPostTitle(), req.getContent());
 
         Post post = Post.builder()
@@ -143,13 +146,12 @@ public class PostService {
         if (userId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         Post post = postRepository.findByPostIdAndUserIdAndDeletedFalse(postId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "No permission to update"));
 
         if (req.getPostTitle() == null || req.getPostTitle().isBlank() || req.getContent() == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content는 필수입니다.");
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content is required");
         }
 
-        // 금칙어 검증 (게시글 수정 포함)
         bannedWordService.validate(post.getBoard().getBoardId(), req.getPostTitle(), req.getContent());
 
         post.updateTitleAndContent(req.getPostTitle(), req.getContent());
@@ -160,7 +162,7 @@ public class PostService {
         if (userId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         Post post = postRepository.findByPostIdAndUserIdAndDeletedFalse(postId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "삭제 권한이 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "No permission to delete"));
 
         post.markDeleted();
     }
@@ -170,20 +172,15 @@ public class PostService {
         if (userId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         Post post = postRepository.findByPostIdAndUserIdAndDeletedFalse(postId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "권한이 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "No permission"));
 
         post.close();
     }
 
-    /**
-     * 관리자 강제 삭제
-     * - 작성자(userId) 검증을 수행하지 않는다.
-     * - 삭제 정책은 소프트 삭제(markDeleted)로 통일한다.
-     */
     @Transactional
     public void adminDelete(Long postId) {
         Post post = postRepository.findByPostIdAndDeletedFalse(postId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글이 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Post not found"));
         post.markDeleted();
     }
 }

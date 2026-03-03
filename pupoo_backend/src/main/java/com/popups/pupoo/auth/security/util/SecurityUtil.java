@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 /**
  * SecurityContextHolder 기반 현재 사용자 식별 유틸.
  *
- * 프로젝트 표준
+ * 프로젝트 전제:
  * - JwtAuthenticationFilter에서 principal = userId(Long)로 세팅한다.
  */
 @Component

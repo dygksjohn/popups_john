@@ -2,6 +2,7 @@
 package com.popups.pupoo.board.post.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
+import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.post.application.PostService;
 import com.popups.pupoo.board.post.dto.PostCreateRequest;
 import com.popups.pupoo.board.post.dto.PostResponse;
@@ -9,6 +10,8 @@ import com.popups.pupoo.board.post.dto.PostUpdateRequest;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.IdResponse;
 import com.popups.pupoo.common.api.MessageResponse;
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.report.application.ReportService;
 import com.popups.pupoo.report.dto.ReportCreateRequest;
 import com.popups.pupoo.report.dto.ReportResponse;
@@ -38,11 +41,18 @@ public class PostController {
      * 게시글 목록 조회(공개)
      */
     @GetMapping
-    public ApiResponse<Page<PostResponse>> getPosts(@RequestParam Long boardId,
+    public ApiResponse<Page<PostResponse>> getPosts(@RequestParam(required = false) Long boardId,
+                                                    @RequestParam(required = false) String boardType,
                                                     @RequestParam(required = false) String searchType,
                                                     @RequestParam(required = false) String keyword,
                                                     Pageable pageable) {
-        return ApiResponse.success(postService.getPublicPosts(boardId, SearchType.from(searchType), keyword, pageable));
+        return ApiResponse.success(postService.getPublicPosts(
+                boardId,
+                parseBoardType(boardType),
+                SearchType.from(searchType),
+                keyword,
+                pageable
+        ));
     }
 
     /**
@@ -101,5 +111,13 @@ public class PostController {
         return ApiResponse.success(postService.getPublicPost(postId));
     }
 
+    private BoardType parseBoardType(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return BoardType.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "invalid boardType: " + raw);
+        }
+    }
 
 }

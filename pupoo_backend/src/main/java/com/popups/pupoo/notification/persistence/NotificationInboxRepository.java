@@ -16,6 +16,12 @@ import java.util.Optional;
 public interface NotificationInboxRepository extends JpaRepository<NotificationInbox, Long> {
 
     /**
+     * 읽지 않은 알림 수(인박스 건수). 배지 등에 사용.
+     */
+    @Query("select count(i) from NotificationInbox i where i.userId = :userId")
+    long countByUserId(@Param("userId") Long userId);
+
+    /**
      * 내 미열람(=인박스) 목록 조회.
      * - inbox.createdAt DESC
      */

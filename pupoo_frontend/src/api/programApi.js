@@ -117,37 +117,37 @@ export const programApplyApi = {
 
 /** 관리자 프로그램 공통 */
 const adminProgramBase = {
-  list: (category, page = 0, size = 20) =>
-    axiosInstance.get("/api/admin/programs", {
+  list: (eventId, category, page = 0, size = 20) =>
+    axiosInstance.get(`/api/admin/dashboard/events/${eventId}/programs`, {
       params: { category, page, size },
       headers: adminAuthHeaders(),
     }),
 
   get: (programId) =>
-    axiosInstance.get(`/api/admin/programs/${programId}`, {
+    axiosInstance.get(`/api/programs/${programId}`, {
       headers: adminAuthHeaders(),
     }),
 
   create: (data) =>
-    axiosInstance.post("/api/admin/programs", data, {
+    axiosInstance.post("/api/admin/dashboard/programs", data, {
       headers: adminAuthHeaders(),
     }),
 
   update: (programId, data) =>
-    axiosInstance.patch(`/api/admin/programs/${programId}`, data, {
+    axiosInstance.patch(`/api/admin/dashboard/programs/${programId}`, data, {
       headers: adminAuthHeaders(),
     }),
 
   delete: (programId) =>
-    axiosInstance.delete(`/api/admin/programs/${programId}`, {
+    axiosInstance.delete(`/api/admin/dashboard/programs/${programId}`, {
       headers: adminAuthHeaders(),
     }),
 };
 
 /** 체험존 관리 (Admin) */
 export const adminExperienceApi = {
-  list: (page = 0, size = 20) =>
-    adminProgramBase.list("EXPERIENCE", page, size),
+  list: (eventId = 1, page = 0, size = 20) =>
+    adminProgramBase.list(eventId, "EXPERIENCE", page, size),
 
   get: (programId) => adminProgramBase.get(programId),
 
@@ -176,7 +176,8 @@ export const adminExperienceApi = {
 
 /** 콘테스트 관리 (Admin) */
 export const adminContestApi = {
-  list: (page = 0, size = 20) => adminProgramBase.list("CONTEST", page, size),
+  list: (eventId = 1, page = 0, size = 20) =>
+    adminProgramBase.list(eventId, "CONTEST", page, size),
 
   get: (programId) => adminProgramBase.get(programId),
 
@@ -205,7 +206,8 @@ export const adminContestApi = {
 
 /** 세션/강연 관리 (Admin) */
 export const adminSessionApi = {
-  list: (page = 0, size = 20) => adminProgramBase.list("SESSION", page, size),
+  list: (eventId = 1, page = 0, size = 20) =>
+    adminProgramBase.list(eventId, "SESSION", page, size),
 
   get: (programId) => adminProgramBase.get(programId),
 

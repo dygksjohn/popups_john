@@ -119,10 +119,12 @@ public class ProgramApplyService {
 
         Long petId = req.getPetId();
         String imageUrl = req.getImageUrl();
-        if (program.getCategory() == ProgramCategory.CONTEST) {
-            if (petId == null) {
-                throw new BusinessException(ErrorCode.INVALID_REQUEST, "petId is required for contest apply");
-            }
+
+        if (program.getCategory() == ProgramCategory.CONTEST && petId == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "petId is required for contest apply");
+        }
+
+        if (petId != null) {
             petRepository.findByPetIdAndUserId(petId, userId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
         }

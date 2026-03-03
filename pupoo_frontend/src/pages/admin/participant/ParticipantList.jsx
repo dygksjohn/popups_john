@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import ds, { statusMap } from "../shared/designTokens";
 import { Pill } from "../shared/Components";
+import DATA from "../shared/data";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 
@@ -747,6 +748,14 @@ export default function ParticipantList({ subTab = "list" }) {
       return n;
     });
   };
+
+  if (subTab === "checkin") {
+    return <ParticipantCheckinPanel checkins={DATA.checkins || []} />;
+  }
+
+  if (subTab === "session") {
+    return <ParticipantSessionPanel sessions={DATA.sessionParticipation || []} />;
+  }
 
   /* ═══════════════════════════════════════════
      렌더링
@@ -1513,6 +1522,131 @@ export default function ParticipantList({ subTab = "list" }) {
           onDone={() => setToast(null)}
         />
       )}
+    </div>
+  );
+}
+
+function ParticipantCheckinPanel({ checkins }) {
+  return (
+    <div>
+      <style>{styles}</style>
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 12,
+          border: "1px solid #F1F5F9",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            padding: "12px 20px",
+            borderBottom: "1px solid #F1F5F9",
+            fontSize: 14,
+            fontWeight: 800,
+            color: ds.ink,
+          }}
+        >
+          체크인 내역 ({checkins.length})
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid #F1F5F9" }}>
+              {["ID", "참가자", "행사", "방식", "체크인 시간", "게이트"].map((h) => (
+                <th
+                  key={h}
+                  style={{
+                    padding: "10px 14px",
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    color: "#94A3B8",
+                    textAlign: "left",
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {checkins.map((r, idx) => (
+              <tr key={r.id || idx} style={{ borderBottom: "1px solid #F8FAFC" }}>
+                <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#94A3B8", fontFamily: "monospace" }}>
+                  {r.participantId || "-"}
+                </td>
+                <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, color: ds.ink }}>
+                  {r.name || "-"}
+                </td>
+                <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#475569" }}>{r.event || "-"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#475569" }}>{r.method || "-"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#475569" }}>{r.time || "-"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#475569" }}>{r.gate || "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ParticipantSessionPanel({ sessions }) {
+  return (
+    <div>
+      <style>{styles}</style>
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 12,
+          border: "1px solid #F1F5F9",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            padding: "12px 20px",
+            borderBottom: "1px solid #F1F5F9",
+            fontSize: 14,
+            fontWeight: 800,
+            color: ds.ink,
+          }}
+        >
+          체험 세션 참여 이력 ({sessions.length})
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid #F1F5F9" }}>
+              {["참가자", "반려견", "세션", "호출", "시작", "종료", "결과"].map((h) => (
+                <th
+                  key={h}
+                  style={{
+                    padding: "10px 14px",
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    color: "#94A3B8",
+                    textAlign: "left",
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sessions.map((r, idx) => (
+              <tr key={r.id || idx} style={{ borderBottom: "1px solid #F8FAFC" }}>
+                <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, color: ds.ink }}>{r.participant || "-"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#475569" }}>{r.pet || "-"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#475569" }}>{r.session || "-"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#475569" }}>{r.callTime || "-"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#475569" }}>{r.startTime || "-"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#475569" }}>{r.endTime || "-"}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#475569" }}>{r.result || "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,20 @@
 import { Outlet } from "react-router-dom";
-import AdminSidebar from "../admin/AdminSidebar";
-import AdminTopbar from "../admin/AdminTopbar";
+
+function AdminSidebar() {
+  return (
+    <aside className="w-64 border-r border-slate-200 bg-white">
+      <div className="px-5 py-4 text-sm font-semibold text-slate-700">Admin</div>
+    </aside>
+  );
+}
+
+function AdminTopbar() {
+  return (
+    <header className="h-14 border-b border-slate-200 bg-white px-6 text-sm font-semibold text-slate-700 flex items-center">
+      Dashboard
+    </header>
+  );
+}
 
 export default function AdminLayout() {
   return (

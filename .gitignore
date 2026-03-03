@@ -89,6 +89,13 @@ application-test.properties
 
 .env
 .env.*
+!.env.example
+
+############################################
+# Uploaded files (로컬/개발 저장소, Git 제외)
+############################################
+uploads/
+**/uploads/
 
 ############################################
 # Temporary

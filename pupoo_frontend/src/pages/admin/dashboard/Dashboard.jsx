@@ -176,6 +176,7 @@ const PAGE_TABS = {
   participantList: [
     { id: "list", label: "참가자 목록" },
     { id: "checkin", label: "체크인 관리" },
+    { id: "session", label: "체험 세션" },
   ],
   paymentManage: [{ id: "all", label: "결제 내역" }],
   alertManage: [{ id: "all", label: "알림 내역" }],

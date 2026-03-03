@@ -28,8 +28,19 @@ export const authApi = {
 
 /* ── 공지사항 API (사용자 - 인증 불필요) ── */
 export const noticeApi = {
-  list: (uiPage = 1, size = 10) =>
-    axiosInstance.get("/api/notices", { params: { page: uiPage - 1, size } }),
+  /**
+   * GET /api/notices — 공지 목록 (페이징, 검색)
+   * @param {number} uiPage - 1-based 페이지
+   * @param {number} size - 페이지 크기
+   * @param {string} [searchType] - TITLE | CONTENT | TITLE_CONTENT | WRITER
+   * @param {string} [keyword] - 검색어
+   */
+  list: (uiPage = 1, size = 10, searchType, keyword) => {
+    const params = { page: uiPage - 1, size };
+    if (searchType != null && searchType !== "") params.searchType = searchType;
+    if (keyword != null && keyword !== "") params.keyword = keyword;
+    return axiosInstance.get("/api/notices", { params });
+  },
   get: (noticeId) => axiosInstance.get(`/api/notices/${noticeId}`),
 };
 

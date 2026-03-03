@@ -28,6 +28,7 @@ import Home from "./pages/site/home/Home";
 /* Auth */
 import Login from "./pages/site/auth/Login";
 import Mypage from "./pages/site/auth/mypage";
+import MypageQr from "./pages/site/auth/MypageQr";
 import JoinSelect from "./pages/site/auth/join/JoinSelect";
 import JoinNormal from "./pages/site/auth/join/JoinNormal";
 import JoinSocial from "./pages/site/auth/join/JoinSocial";
@@ -181,7 +182,9 @@ export default function App() {
           {/* Auth */}
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/mypage" element={<Mypage />} />
+          <Route path="/auth/mypage/qr" element={<MypageQr />} />
           <Route path="/mypage" element={<Mypage />} />
+          <Route path="/mypage/qr" element={<MypageQr />} />
           <Route
             path="/auth/join/joinselect"
             element={
@@ -207,14 +210,7 @@ export default function App() {
             }
           />
           {/* Kakao */}
-          <Route
-            path="/auth/kakao/callback"
-            element={
-              <PublicOnly>
-                <KakaoCallback />
-              </PublicOnly>
-            }
-          />
+          <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
           <Route
             path="/auth/join/kakao"
             element={

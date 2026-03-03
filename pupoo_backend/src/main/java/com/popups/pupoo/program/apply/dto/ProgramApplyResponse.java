@@ -26,10 +26,6 @@ public class ProgramApplyResponse {
     private Integer etaMin;
     private LocalDateTime notifiedAt;
     private LocalDateTime checkedInAt;
-
-    /**
-     * DB 컬럼 created_at 기준: "최초 신청 레코드 생성 시각"
-     */
     private LocalDateTime createdAt;
 
     public static ProgramApplyResponse from(ProgramApply a) {

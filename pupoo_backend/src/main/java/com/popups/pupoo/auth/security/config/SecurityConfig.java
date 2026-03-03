@@ -1,5 +1,6 @@
 // file: src/main/java/com/popups/pupoo/auth/security/config/SecurityConfig.java
 package com.popups.pupoo.auth.security.config;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popups.pupoo.auth.security.authentication.filter.JwtAuthenticationFilter;
 import com.popups.pupoo.auth.security.handler.JwtAccessDeniedHandler;
@@ -37,6 +38,7 @@ public class SecurityConfig {
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
         config.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
@@ -57,10 +59,8 @@ public class SecurityConfig {
         );
 
         http.authorizeHttpRequests(auth -> auth
-            // CORS Preflight
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-            // Auth endpoints
             .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
@@ -69,18 +69,18 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/auth/oauth/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/auth/email/verification/confirm").permitAll()
 
-            // Ops/docs
             .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
             .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
             .requestMatchers("/swagger-ui/**").permitAll()
             .requestMatchers("/v3/api-docs/**").permitAll()
             .requestMatchers("/error").permitAll()
 
-            // Public GET
             .requestMatchers(HttpMethod.GET, "/api/posts").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/posts/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/notices").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/notices/*").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/boards").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/faqs").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/faqs/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
@@ -107,13 +107,20 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/replies").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/report-reasons").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/files/*").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/files/by-post/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/files/*/download").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/users/check-nickname").permitAll()
             .requestMatchers("/uploads/**").permitAll()
+            .requestMatchers("/static/**").permitAll()
 
-            // ADMIN
+            // 갤러리 쓰기 API는 로그인 사용자만 허용합니다.
+            .requestMatchers(HttpMethod.POST, "/api/galleries/image/upload").hasRole("USER")
+            .requestMatchers(HttpMethod.POST, "/api/galleries").hasRole("USER")
+            .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasRole("USER")
+            .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasRole("USER")
+
             .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-            // USER
             .requestMatchers("/api/users/me/**").hasRole("USER")
             .requestMatchers("/api/payments/**").hasRole("USER")
             .requestMatchers("/api/refunds/**").hasRole("USER")
@@ -122,7 +129,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**").hasRole("USER")
             .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations").hasRole("USER")
 
-            .anyRequest().hasAnyRole("USER", "ADMIN")
+            .anyRequest().hasRole("USER")
         );
 
         http.addFilterBefore(

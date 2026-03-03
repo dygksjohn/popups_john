@@ -3,6 +3,7 @@ package com.popups.pupoo.auth.token;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 import javax.crypto.SecretKey;
 
@@ -63,6 +64,8 @@ public class JwtProviderImpl implements JwtProvider {
         return Jwts.builder()
                 .setIssuer(issuer)
                 .setSubject(String.valueOf(userId))
+                // Ensure refresh rotation always issues a unique token even within the same second.
+                .setId(UUID.randomUUID().toString())
                 .setIssuedAt(new Date(now))
                 .setExpiration(new Date(now + ttlSeconds * 1000))
                 .signWith(secretKey, SignatureAlgorithm.HS256)

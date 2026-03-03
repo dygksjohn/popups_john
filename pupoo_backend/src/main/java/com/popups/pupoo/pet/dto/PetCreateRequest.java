@@ -2,6 +2,7 @@
 package com.popups.pupoo.pet.dto;
 
 import com.popups.pupoo.pet.domain.enums.AnimalType;
+import com.popups.pupoo.pet.domain.enums.PetWeight;
 import jakarta.validation.constraints.*;
 
 public record PetCreateRequest(
@@ -16,6 +17,9 @@ public record PetCreateRequest(
         @NotNull(message = "반려동물 나이는 필수입니다.")
         @Min(value = 0, message = "나이는 0 이상이어야 합니다.")
         @Max(value = 100, message = "나이는 100 이하로 입력하세요.")
-        Integer petAge
+        Integer petAge,
+
+        @NotNull(message = "petWeight is required")
+        PetWeight petWeight
 ) {
 }
