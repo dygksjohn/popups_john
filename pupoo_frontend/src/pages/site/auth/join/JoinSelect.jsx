@@ -10,9 +10,24 @@ const KakaoIcon = () => (
   </svg>
 );
 
-const NaverIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" />
+const GoogleIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 48 48">
+    <path
+      fill="#FFC107"
+      d="M43.611 20.083H42V20H24v8h11.303C33.677 32.91 29.243 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.061 0 5.854 1.154 7.97 3.042l5.657-5.657C34.046 6.053 29.27 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+    />
+    <path
+      fill="#FF3D00"
+      d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.061 0 5.854 1.154 7.97 3.042l5.657-5.657C34.046 6.053 29.27 4 24 4c-7.732 0-14.41 4.386-17.694 10.691z"
+    />
+    <path
+      fill="#4CAF50"
+      d="M24 44c5.184 0 9.88-1.977 13.409-5.193l-6.191-5.238C29.211 35.091 26.715 36 24 36c-5.217 0-9.645-3.063-11.273-7.484l-6.525 5.03C9.435 39.556 16.216 44 24 44z"
+    />
+    <path
+      fill="#1976D2"
+      d="M43.611 20.083H42V20H24v8h11.303c-1.056 2.89-3.207 5.259-6.085 6.57l.003-.002 6.191 5.238C36.973 37.342 44 31.245 44 24c0-1.341-.138-2.65-.389-3.917z"
+    />
   </svg>
 );
 
@@ -45,15 +60,17 @@ const socialProviders = [
     bg: "#FEE500",
     color: "#191919",
     hoverBg: "#e6cf00",
+    border: "none",
     icon: KakaoIcon,
   },
   {
-    id: "naver",
-    label: "네이버로 계속하기",
-    bg: "#03C75A",
-    color: "#ffffff",
-    hoverBg: "#02b04d",
-    icon: NaverIcon,
+    id: "google",
+    label: "구글로 계속하기",
+    bg: "#FFFFFF",
+    color: "#202124",
+    hoverBg: "#F3F4F6",
+    border: "1.5px solid #DADCE0",
+    icon: GoogleIcon,
   },
   {
     id: "apple",
@@ -61,6 +78,7 @@ const socialProviders = [
     bg: "#000000",
     color: "#ffffff",
     hoverBg: "#222222",
+    border: "none",
     icon: AppleIcon,
   },
 ];
@@ -193,7 +211,7 @@ export default function JoinSelect() {
                 width: "100%",
                 height: 52,
                 borderRadius: 12,
-                border: "none",
+                border: p.border || "none",
                 cursor: "pointer",
                 fontSize: 15,
                 fontWeight: 600,

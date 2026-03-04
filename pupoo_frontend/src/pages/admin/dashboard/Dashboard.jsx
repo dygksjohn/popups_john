@@ -774,6 +774,14 @@ export default function Dashboard() {
   const [pageTabs, setPageTabs] = useState(DEFAULT_PAGE_TABS);
   const [eventMenuBadge, setEventMenuBadge] = useState(0);
 
+  useEffect(() => {
+    const prevBg = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = ds.bg;
+    return () => {
+      document.body.style.backgroundColor = prevBg;
+    };
+  }, []);
+
   const loadTabCounts = useCallback(async () => {
     try {
       const [eventRes, programRes] = await Promise.all([

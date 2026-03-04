@@ -789,6 +789,13 @@ export default function MyPage() {
                 >
                   회원정보 수정
                 </button>
+                <button
+                  type="button"
+                  className="mp-btn ghost"
+                  onClick={() => navigate("/mypage/pets/new")}
+                >
+                  반려동물 추가/수정
+                </button>
                 <button type="button" className="mp-btn ghost" onClick={openQrModal}>
                   QR 코드
                 </button>

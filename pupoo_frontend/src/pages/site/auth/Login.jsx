@@ -483,10 +483,10 @@ const LoginPage = ({ leftBgImage = null }) => {
                 }}
               >
                 <a
-                  href="#"
+                  href="/auth/join/joinselect"
                   onClick={(e) => {
                     e.preventDefault();
-                    console.log("Sign up clicked");
+                    navigate("/auth/join/joinselect");
                   }}
                   style={{
                     fontSize: 13,
@@ -499,10 +499,10 @@ const LoginPage = ({ leftBgImage = null }) => {
                   회원가입하기
                 </a>
                 <a
-                  href="#"
+                  href="/auth/find-password"
                   onClick={(e) => {
                     e.preventDefault();
-                    console.log("Find password clicked");
+                    navigate("/auth/find-password");
                   }}
                   style={{
                     fontSize: 13,

@@ -3,6 +3,28 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "../api/authApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
+import { petApi } from "../../../../features/pet/api/petApi";
+
+const PET_TYPE_OPTIONS = [
+  { value: "DOG", label: "강아지 (DOG)" },
+  { value: "CAT", label: "고양이 (CAT)" },
+  { value: "OTHER", label: "기타동물 (OTHER)" },
+];
+
+const PET_WEIGHT_OPTIONS = [
+  { value: "XS", label: "XS (5kg 미만)" },
+  { value: "S", label: "S (5kg ~ 9.9kg)" },
+  { value: "M", label: "M (10kg ~ 19.9kg)" },
+  { value: "L", label: "L (20kg ~ 34.9kg)" },
+  { value: "XL", label: "XL (35kg 이상)" },
+];
+
+const DEFAULT_PET = {
+  name: "",
+  type: "DOG",
+  age: "",
+  weight: "M",
+};
 
 /**
  * ✅ JoinNormal (EMAIL 회원가입)
@@ -289,6 +311,21 @@ const styles = `
     border-color: #1a9ac9;
   }
 
+  .pet-name-input {
+    height: 38px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 0 10px;
+    font-size: 14px;
+    color: #333;
+    outline: none;
+    width: 120px;
+  }
+
+  .pet-name-input:focus {
+    border-color: #1a9ac9;
+  }
+
   .pet-age-input {
     height: 38px;
     border: 1px solid #ddd;
@@ -302,6 +339,28 @@ const styles = `
 
   .pet-age-input:focus {
     border-color: #1a9ac9;
+  }
+
+  .pet-size-select {
+    height: 38px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 0 10px;
+    font-size: 13px;
+    color: #333;
+    background: #fff;
+    outline: none;
+    cursor: pointer;
+    min-width: 160px;
+  }
+
+  .pet-size-select:focus {
+    border-color: #1a9ac9;
+  }
+
+  .pet-size-note {
+    font-size: 12px;
+    color: #666;
   }
 
   .pet-age-unit {
@@ -423,6 +482,46 @@ function getApiData(res) {
 
 const digitsOnly = (s) => (s || "").replace(/[^0-9]/g, "");
 
+function parsePetsForCreate(pets) {
+  const rows = Array.isArray(pets) ? pets : [];
+  const payloads = [];
+
+  for (const pet of rows) {
+    const petName = String(pet?.name || "").trim();
+    const rawAge = String(pet?.age ?? "").trim();
+    const hasAnyInput = petName || rawAge;
+    if (!hasAnyInput) continue;
+
+    if (!petName) {
+      throw new Error("반려동물 이름을 입력해 주세요.");
+    }
+    if (!rawAge) {
+      throw new Error("반려동물 나이를 입력해 주세요.");
+    }
+
+    const petAge = Number(rawAge);
+    if (!Number.isInteger(petAge) || petAge < 0 || petAge > 100) {
+      throw new Error("반려동물 나이는 0~100 사이 정수로 입력해 주세요.");
+    }
+
+    const type = String(pet?.type || "DOG").toUpperCase();
+    const petBreed = ["DOG", "CAT", "OTHER"].includes(type) ? type : "DOG";
+    const selectedWeight = String(pet?.weight || "M").toUpperCase();
+    const petWeight = ["XS", "S", "M", "L", "XL"].includes(selectedWeight)
+      ? selectedWeight
+      : "M";
+
+    payloads.push({
+      petName,
+      petBreed,
+      petAge,
+      petWeight: petBreed === "DOG" ? petWeight : "M",
+    });
+  }
+
+  return payloads;
+}
+
 export default function JoinNormal() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -449,7 +548,7 @@ export default function JoinNormal() {
     employeeId: "",
   });
 
-  const [pets, setPets] = useState([{ type: "dog", age: "" }]);
+  const [pets, setPets] = useState([{ ...DEFAULT_PET }]);
   const [error, setError] = useState("");
 
   // ✅ 플로우
@@ -515,12 +614,20 @@ export default function JoinNormal() {
   const handlePetChange = (index, field, value) => {
     setPets((prev) => {
       const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
+      const next = { ...updated[index], [field]: value };
+
+      if (field === "type") {
+        const type = String(value || "DOG").toUpperCase();
+        next.type = type;
+        if (type !== "DOG") next.weight = "M";
+      }
+
+      updated[index] = next;
       return updated;
     });
   };
 
-  const addPet = () => setPets((prev) => [...prev, { type: "dog", age: "" }]);
+  const addPet = () => setPets((prev) => [...prev, { ...DEFAULT_PET }]);
 
   const removePet = (index) => {
     if (pets.length === 1) return;
@@ -742,6 +849,7 @@ export default function JoinNormal() {
     if (loading) return;
     if (!signupKey) throw new Error("signupKey가 없습니다. 다시 시도해주세요.");
     if (!emailVerified) throw new Error("이메일 인증을 완료해주세요.");
+    const petPayloads = parsePetsForCreate(pets);
 
     setLoading(true);
     setError("");
@@ -758,6 +866,18 @@ export default function JoinNormal() {
 
       tokenStore.setAccess(accessToken);
       login();
+
+      if (petPayloads.length > 0) {
+        try {
+          await Promise.all(petPayloads.map((pet) => petApi.createPet(pet)));
+        } catch (petError) {
+          console.error("[JoinNormal] pet create failed:", petError);
+          window.alert(
+            "회원가입은 완료되었지만 반려동물 저장에 실패했습니다. 마이페이지에서 다시 등록해 주세요.",
+          );
+        }
+      }
+
       navigate("/");
     } finally {
       setLoading(false);
@@ -1248,6 +1368,17 @@ export default function JoinNormal() {
                     <div className="pet-row" key={index}>
                       <span className="pet-label">Pet {index + 1}</span>
 
+                      <input
+                        className="pet-name-input"
+                        type="text"
+                        value={pet.name}
+                        onChange={(e) =>
+                          handlePetChange(index, "name", e.target.value)
+                        }
+                        placeholder="이름"
+                        disabled={loading}
+                      />
+
                       <select
                         className="pet-select"
                         value={pet.type}
@@ -1256,15 +1387,18 @@ export default function JoinNormal() {
                         }
                         disabled={loading}
                       >
-                        <option value="dog">🐶 강아지 (Dog)</option>
-                        <option value="cat">🐱 고양이 (Cat)</option>
+                        {PET_TYPE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
                       </select>
 
                       <input
                         className="pet-age-input"
                         type="number"
                         min="0"
-                        max="30"
+                        max="100"
                         value={pet.age}
                         onChange={(e) =>
                           handlePetChange(index, "age", e.target.value)
@@ -1273,6 +1407,27 @@ export default function JoinNormal() {
                         disabled={loading}
                       />
                       <span className="pet-age-unit">살</span>
+
+                      {pet.type === "DOG" ? (
+                        <select
+                          className="pet-size-select"
+                          value={pet.weight}
+                          onChange={(e) =>
+                            handlePetChange(index, "weight", e.target.value)
+                          }
+                          disabled={loading}
+                        >
+                          {PET_WEIGHT_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="pet-size-note">
+                          강아지가 아닐 경우 사이즈는 기본값(M)으로 저장됩니다.
+                        </span>
+                      )}
 
                       <button
                         type="button"
@@ -1296,8 +1451,7 @@ export default function JoinNormal() {
                   ))}
                 </div>
                 <div style={{ marginTop: 8, fontSize: 12, color: "#777" }}>
-                  ※ 반려동물 정보는 현재 가입 플로우에 포함되지 않습니다(추후
-                  mypage/pet 등록으로 확장).
+                  ※ 입력한 반려동물 정보는 가입 완료 후 내 계정에 자동 등록됩니다.
                 </div>
               </td>
             </tr>

@@ -28,6 +28,7 @@ import Home from "./pages/site/home/Home";
 
 /* Auth */
 import Login from "./pages/site/auth/Login";
+import FindPassword from "./pages/site/auth/FindPassword";
 import Mypage from "./pages/site/auth/mypage";
 import MypageQr from "./pages/site/auth/MypageQr";
 import MypageProfileEdit from "./pages/site/auth/MypageProfileEdit";
@@ -226,6 +227,7 @@ export default function App() {
         <Route element={<SiteLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/auth/login" element={<PublicOnly><Login /></PublicOnly>} />
+          <Route path="/auth/find-password" element={<PublicOnly><FindPassword /></PublicOnly>} />
           <Route path="/auth/mypage" element={<Mypage />} />
           <Route path="/auth/mypage/qr" element={<MypageQr />} />
           <Route path="/auth/mypage/profile" element={<MypageProfileEdit />} />
@@ -245,6 +247,7 @@ export default function App() {
           <Route path="/auth/join/kakao" element={<PublicOnly><KakaoJoin /></PublicOnly>} />
           <Route path="/auth/join/kakao/otp" element={<PublicOnly><KakaoOtp /></PublicOnly>} />
           <Route path="/join" element={<JoinSelect />} />
+          <Route path="/find-password" element={<FindPassword />} />
           <Route path="/join/select" element={<JoinSelect />} />
           <Route path="/join/normal" element={<JoinNormal />} />
           <Route path="/join/social" element={<JoinSocial />} />
