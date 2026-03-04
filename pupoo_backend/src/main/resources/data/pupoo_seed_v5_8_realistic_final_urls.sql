@@ -15833,6 +15833,11 @@ WHERE event_id BETWEEN 31 AND 42
   AND status <> 'CANCELLED';
 
 -- 3) Organizer contacts (deterministic sample data for v5.8)
+-- Ensure columns exist even when schema has not been re-applied yet.
+ALTER TABLE event
+  ADD COLUMN IF NOT EXISTS organizer_phone VARCHAR(30) NULL,
+  ADD COLUMN IF NOT EXISTS organizer_email VARCHAR(255) NULL;
+
 UPDATE event
 SET
   organizer_phone = CONCAT(

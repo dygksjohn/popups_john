@@ -36,7 +36,7 @@ public class ProgramService {
                 .orElseThrow(() -> new EntityNotFoundException("PROGRAM_NOT_FOUND"));
         ProgramResponse base = ProgramResponse.from(program);
 
-        // 泥댄뿕 ?湲곗뿴(?좏깮): experience_waits (program_id 1:1)
+        // 체험 대기열(선택): experience_waits (program_id 1:1)
         ExperienceWaitResponse wait = experienceWaitRepository.findByProgramId(programId)
                 .map(ExperienceWaitResponse::from)
                 .orElse(null);
