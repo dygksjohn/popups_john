@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import {
@@ -50,13 +50,13 @@ const SERVICE_CATEGORIES = [
 
 const SUBTITLE_MAP = {
   "/registration/apply": "행사에 참가 신청하세요",
-  "/registration/applyhistory": "나의 행사 참가 신청 이력을 확인하세요",
-  "/registration/paymenthistory": "결제 완료된 내역을 확인하세요",
+  "/registration/applyhistory": "참가 신청 내역을 확인하세요",
+  "/registration/paymenthistory": "결제 완료 내역을 확인하세요",
   "/registration/qrcheckin": "내 QR 코드를 확인하세요",
 };
 
 const STATUS_META = {
-  ISSUED: { label: "발급됨(비활성)", color: "#B45309", bg: "#FEF3C7", canEnter: false },
+  ISSUED: { label: "발급(비활성)", color: "#B45309", bg: "#FEF3C7", canEnter: false },
   ACTIVE: { label: "활성", color: "#15803D", bg: "#DCFCE7", canEnter: true },
   EXPIRED: { label: "만료", color: "#6B7280", bg: "#F3F4F6", canEnter: false },
 };
@@ -194,6 +194,7 @@ export default function QRCheckin() {
 
   const currentPath = "/registration/qrcheckin";
   const [registrations, setRegistrations] = useState([]);
+  const [eventNameMap, setEventNameMap] = useState(new Map());
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [eventDetail, setEventDetail] = useState(null);
   const [qrInfo, setQrInfo] = useState(null);
@@ -239,8 +240,28 @@ export default function QRCheckin() {
           return status === "APPROVED" || status === "승인완료";
         });
 
+        const eventIds = [
+          ...new Set(
+            approvedOnly
+              .map((item) => Number(item?.eventId))
+              .filter((id) => Number.isFinite(id)),
+          ),
+        ];
+
+        const eventNameEntries = await Promise.all(
+          eventIds.map(async (eventId) => {
+            try {
+              const detail = await eventApi.getEventDetail(eventId);
+              return [eventId, detail?.data?.data?.eventName || ""];
+            } catch {
+              return [eventId, ""];
+            }
+          }),
+        );
+
         if (!mounted) return;
         setRegistrations(approvedOnly);
+        setEventNameMap(new Map(eventNameEntries));
 
         const fallback = approvedOnly[0] || null;
         const selected = Number.isFinite(queryEventId) && approvedOnly.some((r) => r.eventId === queryEventId)
@@ -252,6 +273,7 @@ export default function QRCheckin() {
         if (!mounted) return;
         const message = e?.response?.data?.error?.message || "신청 이벤트 목록을 불러오지 못했습니다.";
         setError(message);
+        setEventNameMap(new Map());
       } finally {
         if (mounted) setLoading(false);
       }
@@ -333,7 +355,7 @@ export default function QRCheckin() {
     "QR 코드는 행사 시작 1시간 전부터 활성화됩니다.",
     "이벤트별로 1인 1QR 정책이 적용됩니다.",
     "행사 종료 시 QR은 자동 만료됩니다.",
-    "문제 발생 시 운영팀에 문의해 주세요.",
+    "문제 발생 시 운영데스크에 문의해 주세요.",
   ];
 
   return (
@@ -420,7 +442,7 @@ export default function QRCheckin() {
               </button>
               <button className="qr-btn qr-btn-primary" onClick={handleDownload} disabled={!qrInfo?.originalUrl}>
                 <Download size={13} />
-                이미지 열기
+                이미지 저장
               </button>
             </div>
           </div>
@@ -446,7 +468,7 @@ export default function QRCheckin() {
                 ) : (
                   registrations.map((item) => (
                     <option key={item.applyId ?? item.eventId} value={item.eventId}>
-                      이벤트 #{item.eventId} ({formatRegistrationStatus(item.status)})
+                      {item.eventName || eventNameMap.get(item.eventId) || `이벤트 #${item.eventId}`} ({formatRegistrationStatus(item.status)})
                     </option>
                   ))
                 )}
