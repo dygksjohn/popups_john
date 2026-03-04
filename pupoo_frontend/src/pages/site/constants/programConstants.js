@@ -4,8 +4,8 @@ export const SERVICE_CATEGORIES = [
   { label: "프로그램 일정", path: "/program/all" },
   { label: "전체 프로그램", path: "/program/schedule" },
   { label: "체험존 안내", path: "/program/experience" },
-  { label: "세션강연", path: "/program/session" },
-  { label: "콘테스트 안내", path: "/program/contest" },
+  { label: "세션/강연", path: "/program/session" },
+  { label: "콘테스트 및 투표", path: "/program/contest" },
   { label: "부스 안내", path: "/program/booth" },
 ];
 
