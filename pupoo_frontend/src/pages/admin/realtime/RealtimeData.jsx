@@ -17,9 +17,9 @@ function StatCard({ icon: I, label, value, sub }) {
   return (
     <div
       style={{
-        background: "#fff",
+        background: ds.card,
         borderRadius: 10,
-        border: "1px solid #F1F5F9",
+        border: `1px solid ${ds.line}`,
         padding: 16,
         display: "flex",
         alignItems: "center",
@@ -31,19 +31,19 @@ function StatCard({ icon: I, label, value, sub }) {
           width: 36,
           height: 36,
           borderRadius: 9,
-          background: "#F8FAFC",
+          background: ds.bg,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <I size={16} color="#64748B" />
+        <I size={16} color={ds.ink3} />
       </div>
       <div>
         <div
           style={{
             fontSize: 11,
-            color: "#94A3B8",
+            color: ds.ink4,
             fontWeight: 600,
             marginBottom: 2,
           }}
@@ -54,7 +54,7 @@ function StatCard({ icon: I, label, value, sub }) {
           {value}
         </div>
         {sub && (
-          <div style={{ fontSize: 10.5, color: "#94A3B8", marginTop: 1 }}>
+          <div style={{ fontSize: 10.5, color: ds.ink4, marginTop: 1 }}>
             {sub}
           </div>
         )}
@@ -72,7 +72,7 @@ function ProgressBar({ pct, height = 5 }) {
         flex: 1,
         height,
         borderRadius: height / 2,
-        background: "#F1F5F9",
+        background: ds.lineSoft,
       }}
     >
       <div
@@ -92,10 +92,10 @@ function ProgressBar({ pct, height = 5 }) {
 function CongestionLabel({ pct }) {
   const level =
     pct >= 80
-      ? { label: "혼잡", bg: "#FEF2F2", color: "#DC2626" }
+      ? { label: "혼잡", bg: ds.redSoft, color: ds.red }
       : pct >= 50
-        ? { label: "보통", bg: "#FFF7ED", color: "#D97706" }
-        : { label: "여유", bg: "#ECFDF5", color: "#059669" };
+        ? { label: "보통", bg: ds.amberSoft, color: "#D97706" }
+        : { label: "여유", bg: ds.greenSoft, color: "#059669" };
   return (
     <span
       style={{
@@ -165,16 +165,16 @@ export default function RealtimeData() {
           {/* 체험 존 현황 */}
           <div
             style={{
-              background: "#fff",
+              background: ds.card,
               borderRadius: 12,
-              border: "1px solid #F1F5F9",
+              border: `1px solid ${ds.line}`,
               overflow: "hidden",
             }}
           >
             <div
               style={{
                 padding: "12px 20px",
-                borderBottom: "1px solid #F1F5F9",
+                borderBottom: `1px solid ${ds.line}`,
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
@@ -183,7 +183,7 @@ export default function RealtimeData() {
               <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
                 체험 존 현황
               </span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: ds.ink4 }}>
                 {zones.length}개
               </span>
             </div>
@@ -191,7 +191,7 @@ export default function RealtimeData() {
               {zones.map((z) => {
                 const p = Math.round((z.cur / z.max) * 100);
                 const iconColor =
-                  p >= 80 ? "#EF4444" : p >= 50 ? "#F59E0B" : "#64748B";
+                  p >= 80 ? "#EF4444" : p >= 50 ? "#F59E0B" : ds.ink4;
                 const Icon = p >= 80 ? Flame : p >= 50 ? Zap : CheckCircle2;
                 return (
                   <div
@@ -201,7 +201,7 @@ export default function RealtimeData() {
                       alignItems: "center",
                       gap: 10,
                       padding: "8px 0",
-                      borderBottom: "1px solid #F8FAFC",
+                      borderBottom: `1px solid ${ds.lineSoft}`,
                     }}
                   >
                     <div
@@ -209,7 +209,7 @@ export default function RealtimeData() {
                         width: 30,
                         height: 30,
                         borderRadius: 8,
-                        background: "#F8FAFC",
+                        background: ds.bg,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -235,7 +235,7 @@ export default function RealtimeData() {
                         >
                           {z.name}
                         </span>
-                        <span style={{ fontSize: 11, color: "#94A3B8" }}>
+                        <span style={{ fontSize: 11, color: ds.ink4 }}>
                           {z.cur}/{z.max}
                         </span>
                       </div>
@@ -250,16 +250,16 @@ export default function RealtimeData() {
           {/* 부스 혼잡도 */}
           <div
             style={{
-              background: "#fff",
+              background: ds.card,
               borderRadius: 12,
-              border: "1px solid #F1F5F9",
+              border: `1px solid ${ds.line}`,
               overflow: "hidden",
             }}
           >
             <div
               style={{
                 padding: "12px 20px",
-                borderBottom: "1px solid #F1F5F9",
+                borderBottom: `1px solid ${ds.line}`,
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
@@ -268,7 +268,7 @@ export default function RealtimeData() {
               <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
                 부스 혼잡도
               </span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: ds.ink4 }}>
                 {congestion.length}개
               </span>
             </div>
@@ -278,7 +278,7 @@ export default function RealtimeData() {
                   key={z.zone}
                   style={{
                     padding: "8px 0",
-                    borderBottom: "1px solid #F8FAFC",
+                    borderBottom: `1px solid ${ds.lineSoft}`,
                   }}
                 >
                   <div
@@ -308,14 +308,14 @@ export default function RealtimeData() {
       <div style={{ width: 260, flexShrink: 0 }}>
         <div
           style={{
-            background: "#fff",
+            background: ds.card,
             borderRadius: 12,
-            border: "1px solid #F1F5F9",
+            border: `1px solid ${ds.line}`,
             overflow: "hidden",
           }}
         >
           <div
-            style={{ padding: "12px 20px", borderBottom: "1px solid #F1F5F9" }}
+            style={{ padding: "12px 20px", borderBottom: `1px solid ${ds.line}` }}
           >
             <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
               콘테스트 현황
@@ -330,7 +330,7 @@ export default function RealtimeData() {
                   alignItems: "center",
                   justifyContent: "space-between",
                   padding: "12px 0",
-                  borderBottom: "1px solid #F8FAFC",
+                  borderBottom: `1px solid ${ds.lineSoft}`,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -339,13 +339,13 @@ export default function RealtimeData() {
                       width: 28,
                       height: 28,
                       borderRadius: 7,
-                      background: "#F8FAFC",
+                      background: ds.bg,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    <Trophy size={13} color="#64748B" />
+                    <Trophy size={13} color={ds.ink3} />
                   </div>
                   <div>
                     <div
@@ -353,7 +353,7 @@ export default function RealtimeData() {
                     >
                       {c.name}
                     </div>
-                    <div style={{ fontSize: 11, color: "#94A3B8" }}>
+                    <div style={{ fontSize: 11, color: ds.ink4 }}>
                       {c.teams}팀
                     </div>
                   </div>
@@ -364,7 +364,7 @@ export default function RealtimeData() {
                     <span
                       style={{
                         fontSize: 10,
-                        color: "#94A3B8",
+                        color: ds.ink4,
                         fontWeight: 400,
                       }}
                     >
@@ -381,7 +381,7 @@ export default function RealtimeData() {
                       fontWeight: 700,
                       padding: "2px 8px",
                       borderRadius: 99,
-                      background: c.live ? "#ECFDF5" : "#FFF7ED",
+                      background: c.live ? ds.greenSoft : ds.amberSoft,
                       color: c.live ? "#059669" : "#D97706",
                     }}
                   >

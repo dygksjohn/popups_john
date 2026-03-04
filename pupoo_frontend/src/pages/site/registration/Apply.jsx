@@ -82,21 +82,6 @@ const styles = `
     border-color: #1B50D9;
     box-shadow: 0 0 0 3px rgba(27,80,217,0.1);
   }
-  .reg-date-input {
-    height: 32px;
-    min-width: 150px;
-    padding: 0 10px;
-    border-radius: 10px;
-    border: 1.5px solid #E5E7EB;
-    background: #fff;
-    color: #111827;
-    font-size: 12.5px;
-    outline: none;
-  }
-  .reg-date-input:focus {
-    border-color: #1B50D9;
-    box-shadow: 0 0 0 3px rgba(27,80,217,0.1);
-  }
 
   .reg-event-scroll {
     overflow-y: auto;
@@ -172,7 +157,6 @@ const styles = `
     .reg-container { padding: 20px 16px 64px; }
     .reg-event-scroll { max-height: 520px; }
     .reg-search-input { min-width: 150px; }
-    .reg-date-input { min-width: 140px; }
   }
 `;
 
@@ -186,13 +170,6 @@ function formatDate(value) {
 
 function normalizeDateKeyword(value) {
   return String(value || "").trim().replace(/\./g, "-");
-}
-
-function toDateOnlyNumber(value) {
-  if (!value) return null;
-  const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  return Number(`${m[1]}${m[2]}${m[3]}`);
 }
 
 function formatPrice(value) {
@@ -209,7 +186,6 @@ export default function Apply() {
   const [events, setEvents] = useState([]);
   const [statusFilter, setStatusFilter] = useState("ONGOING");
   const [searchKeyword, setSearchKeyword] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [registrationStatusByEvent, setRegistrationStatusByEvent] = useState({});
   const [loading, setLoading] = useState(true);
@@ -275,19 +251,8 @@ export default function Apply() {
     const keywordRaw = searchKeyword.trim();
     const keyword = keywordRaw.toLowerCase();
     const keywordDate = normalizeDateKeyword(keywordRaw);
-    const selectedDateNum = toDateOnlyNumber(selectedDate);
     return events.filter((e) => {
       if (e?.status !== statusFilter) return false;
-
-      if (selectedDateNum) {
-        const startNum = toDateOnlyNumber(e?.startAt);
-        const endNum = toDateOnlyNumber(e?.endAt);
-        if (startNum && endNum && (selectedDateNum < startNum || selectedDateNum > endNum)) return false;
-        if (startNum && !endNum && selectedDateNum < startNum) return false;
-        if (!startNum && endNum && selectedDateNum > endNum) return false;
-        if (!startNum && !endNum) return false;
-      }
-
       if (!keyword) return true;
       const name = String(e?.eventName || "").toLowerCase();
       const location = String(e?.location || "").toLowerCase();
@@ -300,7 +265,7 @@ export default function Apply() {
         endDate.includes(keywordDate)
       );
     });
-  }, [events, statusFilter, searchKeyword, selectedDate]);
+  }, [events, statusFilter, searchKeyword]);
 
   useEffect(() => {
     if (!filteredEvents.some((e) => Number(e.eventId) === Number(selectedEventId))) {
@@ -396,13 +361,6 @@ export default function Apply() {
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
               placeholder="행사명/장소 검색"
-            />
-            <input
-              className="reg-date-input"
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              aria-label="행사 날짜 검색"
             />
           </div>
 

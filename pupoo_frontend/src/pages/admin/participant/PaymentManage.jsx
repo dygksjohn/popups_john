@@ -35,11 +35,13 @@ import {
 } from "lucide-react";
 import ds, { statusMap } from "../shared/designTokens";
 import { Pill } from "../shared/Components";
+import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 
 /* ── 스타일 ── */
 const styles = `
+.card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;filter:none!important;opacity:1!important;-webkit-tap-highlight-color:transparent;}
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -65,12 +67,12 @@ const calcStatus = (s, e) => {
 
 /* ── 결제 상태 매핑 ── */
 const PAY_STATUS = {
-  APPROVED: { l: "결제완료", c: "#059669", bg: "#ECFDF5" },
-  READY: { l: "결제대기", c: "#D97706", bg: "#FFFBEB" },
-  PENDING: { l: "처리중", c: "#D97706", bg: "#FFFBEB" },
-  CANCELLED: { l: "취소", c: "#94A3B8", bg: "#F1F5F9" },
-  REFUNDED: { l: "환불완료", c: "#EF4444", bg: "#FEF2F2" },
-  FAILED: { l: "실패", c: "#EF4444", bg: "#FEF2F2" },
+  APPROVED: { l: "결제완료", c: ds.green, bg: ds.greenSoft },
+  READY: { l: "결제대기", c: ds.amber, bg: ds.amberSoft },
+  PENDING: { l: "처리중", c: ds.amber, bg: ds.amberSoft },
+  CANCELLED: { l: "취소", c: ds.ink4, bg: ds.lineSoft },
+  REFUNDED: { l: "환불완료", c: "#EF4444", bg: ds.redSoft },
+  FAILED: { l: "실패", c: "#EF4444", bg: ds.redSoft },
 };
 
 /* ── 결제수단 매핑 ── */
@@ -119,8 +121,8 @@ function Checkbox({ checked, onChange, size = 18 }) {
         width: size,
         height: size,
         borderRadius: 5,
-        border: checked ? "none" : "1.8px solid #CBD5E1",
-        background: checked ? ds.brand : "#fff",
+        border: checked ? "none" : `1.8px solid ${ds.line}`,
+        background: checked ? ds.brand : ds.bg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -186,7 +188,7 @@ function Overlay({ children, onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 16,
           width: 520,
           maxHeight: "85vh",
@@ -215,9 +217,9 @@ function StatCard({ icon: I, label, value, color, bg }) {
   return (
     <div
       style={{
-        background: "#fff",
+        background: ds.card,
         borderRadius: 12,
-        border: "1px solid #F1F5F9",
+        border: `1px solid ${ds.line}`,
         padding: "18px 20px",
         display: "flex",
         alignItems: "center",
@@ -231,20 +233,20 @@ function StatCard({ icon: I, label, value, color, bg }) {
           width: 40,
           height: 40,
           borderRadius: 10,
-          background: bg || "#F8FAFC",
+          background: bg || ds.bg,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
         }}
       >
-        <I size={18} color={color || "#64748B"} />
+        <I size={18} color={color || ds.ink3} />
       </div>
       <div style={{ minWidth: 0 }}>
         <div
           style={{
             fontSize: 11,
-            color: "#94A3B8",
+            color: ds.ink4,
             fontWeight: 600,
             marginBottom: 2,
           }}
@@ -271,7 +273,7 @@ function StatCard({ icon: I, label, value, color, bg }) {
 /* ══════════════════════════════════════════
    메인 컴포넌트
    ══════════════════════════════════════════ */
-export default function PaymentManage() {
+export default function PaymentManage({ subTab = "all" }) {
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [payments, setPayments] = useState([]);
@@ -283,6 +285,7 @@ export default function PaymentManage() {
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState(null);
   const [detailItem, setDetailItem] = useState(null);
+  // eventFilter는 Dashboard subTab으로 대체
 
   const showToast = useCallback((msg, type = "success") => {
     setToast({ msg, type });
@@ -292,19 +295,19 @@ export default function PaymentManage() {
   const loadEvents = async () => {
     setLoading(true);
     try {
+      await loadImageCache();
       const res = await axiosInstance.get("/api/admin/dashboard/events", {
         headers: authHeaders(),
       });
       const list = res.data?.data || res.data || [];
-      setEvents(
-        list.map((e) => ({
-          ...e,
-          status: calcStatus(
-            e.startAt || e.date?.split("~")[0]?.trim(),
-            e.endAt || e.date?.split("~")[1]?.trim(),
-          ),
-        })),
-      );
+      const mapped = list.map((e) => ({
+        ...e,
+        status: calcStatus(
+          e.startAt || e.date?.split("~")[0]?.trim(),
+          e.endAt || e.date?.split("~")[1]?.trim(),
+        ),
+      }));
+      setEvents(injectEventImages(mapped));
     } catch (err) {
       console.error("행사 로드 실패:", err);
     } finally {
@@ -467,57 +470,16 @@ export default function PaymentManage() {
       {/* ═══ VIEW 1: 행사 선택 ═══ */}
       {!selectedEvent && (
         <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              marginBottom: 24,
-            }}
-          >
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: ds.brandSoft,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <CreditCard size={20} color={ds.brand} />
-            </div>
-            <div>
-              <h2
-                style={{
-                  fontSize: 18,
-                  fontWeight: 800,
-                  color: ds.ink,
-                  margin: 0,
-                }}
-              >
-                결제 관리
-              </h2>
-              <p
-                style={{
-                  fontSize: 12.5,
-                  color: "#94A3B8",
-                  margin: 0,
-                  marginTop: 2,
-                }}
-              >
-                행사를 선택하여 결제 내역을 관리합니다
-              </p>
-            </div>
-          </div>
+          <p style={{ fontSize: 13, color: ds.ink4, margin: "0 0 16px" }}>
+            관리할 행사를 선택하세요
+          </p>
 
           {loading ? (
             <div
               style={{
                 textAlign: "center",
                 padding: 60,
-                color: "#94A3B8",
+                color: ds.ink4,
                 fontSize: 13,
               }}
             >
@@ -536,124 +498,85 @@ export default function PaymentManage() {
             >
               <CreditCard
                 size={36}
-                color="#CBD5E1"
+                color={ds.ink4}
                 style={{ marginBottom: 12, display: "block" }}
               />
               <div
                 style={{
                   fontSize: 14,
                   fontWeight: 600,
-                  color: "#64748B",
+                  color: ds.ink3,
                   marginBottom: 4,
                 }}
               >
                 등록된 행사가 없습니다
               </div>
             </div>
-          ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                gap: 14,
-              }}
-            >
-              {events.map((ev) => {
+          ) : (() => {
+            const filteredEvents = events.filter(
+              subTab === "all" ? () => true :
+              subTab === "active" ? (e) => e.status === "active" :
+              subTab === "ended" ? (e) => e.status === "ended" :
+              (e) => e.status === "pending"
+            );
+            return (<>
+            {filteredEvents.length === 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 0" }}>
+                <CalendarDays size={36} color={ds.ink4} strokeWidth={1.5} />
+                <div style={{ fontSize: 14, fontWeight: 600, color: ds.ink4, marginTop: 10 }}>해당 상태의 행사가 없습니다</div>
+              </div>
+            ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+              {filteredEvents.map((ev) => {
                 const st = statusMap[ev.status] || statusMap.pending;
+                const hasImg = !!ev.imageUrl;
                 return (
-                  <div
-                    key={ev.eventId || ev.id}
-                    onClick={() => selectEvent(ev)}
-                    style={{
-                      background: "#fff",
-                      borderRadius: 14,
-                      border: "1px solid #F1F5F9",
-                      padding: "20px",
-                      cursor: "pointer",
-                      transition: "all .2s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = ds.brand;
-                      e.currentTarget.style.boxShadow = `0 4px 20px ${ds.brand}12`;
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "#F1F5F9";
-                      e.currentTarget.style.boxShadow = "none";
-                      e.currentTarget.style.transform = "none";
-                    }}
+                  <div key={ev.eventId || ev.id} onClick={() => selectEvent(ev)}
+                    style={{ borderRadius: 18, overflow: "hidden", cursor: "pointer", position: "relative", height: 320, display: "flex", flexDirection: "column", background: hasImg ? "#000" : ds.brand, boxShadow: "0 4px 24px rgba(0,0,0,0.08)", transition: "transform 0.22s ease, box-shadow 0.22s ease" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 36px rgba(0,0,0,0.16)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 24px rgba(0,0,0,0.08)"; }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        marginBottom: 10,
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 15,
-                          fontWeight: 700,
-                          color: ds.ink,
-                          lineHeight: 1.3,
-                          flex: 1,
-                          marginRight: 8,
-                        }}
-                      >
+                    {hasImg ? (
+                      <div style={{ position: "absolute", inset: 0 }}>
+                        <img src={ev.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.6) 100%)" }} />
+                      </div>
+                    ) : (
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.12 }}>
+                        <CreditCard size={90} color="#fff" strokeWidth={1} />
+                      </div>
+                    )}
+                    <div style={{ position: "relative", zIndex: 1, padding: "22px 20px 0", flex: 1 }}>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: -0.3, textShadow: "0 1px 8px rgba(0,0,0,0.3)", marginBottom: 6, fontFamily: ds.ff }}>
                         {ev.title || ev.name || "행사"}
                       </div>
-                      <Pill c={st.c} bg={st.bg}>
-                        {st.l}
-                      </Pill>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(0,0,0,0.35)", borderRadius: 20, padding: "3px 10px" }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: st.c }} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{st.l}</span>
+                      </div>
                     </div>
-                    {ev.date && (
-                      <p
-                        style={{
-                          fontSize: 12,
-                          color: "#94A3B8",
-                          margin: "0 0 4px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
+                    <div style={{ position: "relative", zIndex: 1, padding: "0 20px 18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {ev.date && <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", gap: 4 }}><CalendarDays size={11} /> {ev.date}</div>}
+                          {ev.location && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", gap: 4, marginTop: 1 }}><MapPin size={10} /> {ev.location}</div>}
+                        </div>
+                      </div>
+                      <button style={{ width: "100%", padding: "9px 0", borderRadius: 10, border: "none", background: ds.brand, color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: ds.ff, transition: "all .15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, outline: "none", WebkitTapHighlightColor: "transparent" }}
+                        className="card-manage-btn" onMouseEnter={(e) => { e.currentTarget.style.background = ds.brandDark; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = ds.brand; }}
+                        onClick={(e) => { e.stopPropagation(); selectEvent(ev); }}
                       >
-                        <CalendarDays size={12} /> {ev.date}
-                      </p>
-                    )}
-                    {ev.location && (
-                      <p
-                        style={{
-                          fontSize: 12,
-                          color: "#94A3B8",
-                          margin: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <MapPin size={12} /> {ev.location}
-                      </p>
-                    )}
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "flex-end",
-                        marginTop: 12,
-                        color: ds.brand,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        gap: 4,
-                      }}
-                    >
-                      결제 내역 보기 <ArrowRight size={14} />
+                        <CreditCard size={13} /> 결제 내역 보기
+                      </button>
                     </div>
                   </div>
                 );
               })}
             </div>
-          )}
+            )}
+            </>);
+          })()}
         </div>
       )}
 
@@ -675,15 +598,15 @@ export default function PaymentManage() {
                 width: 34,
                 height: 34,
                 borderRadius: 8,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
               }}
             >
-              <ChevronLeft size={16} color="#64748B" />
+              <ChevronLeft size={16} color={ds.ink3} />
             </button>
             <div style={{ flex: 1 }}>
               <h2
@@ -711,7 +634,7 @@ export default function PaymentManage() {
                   {(statusMap[selectedEvent.status] || statusMap.pending).l}
                 </Pill>
                 {selectedEvent.date && (
-                  <span style={{ fontSize: 12, color: "#94A3B8" }}>
+                  <span style={{ fontSize: 12, color: ds.ink4 }}>
                     {selectedEvent.date}
                   </span>
                 )}
@@ -721,7 +644,7 @@ export default function PaymentManage() {
                       fontSize: 11,
                       fontWeight: 700,
                       color: "#D97706",
-                      background: "#FFFBEB",
+                      background: ds.amberSoft,
                       padding: "2px 8px",
                       borderRadius: 4,
                     }}
@@ -738,15 +661,15 @@ export default function PaymentManage() {
                 width: 34,
                 height: 34,
                 borderRadius: 8,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
               }}
             >
-              <RefreshCw size={14} color="#64748B" />
+              <RefreshCw size={14} color={ds.ink3} />
             </button>
           </div>
 
@@ -763,22 +686,22 @@ export default function PaymentManage() {
               icon={Receipt}
               label="전체 결제"
               value={`${stats.total}건`}
-              color="#64748B"
-              bg="#F8FAFC"
+              color={ds.ink3}
+              bg={ds.bg}
             />
             <StatCard
               icon={CreditCard}
               label="결제 완료"
               value={`${stats.approved}건`}
               color="#059669"
-              bg="#ECFDF5"
+              bg={ds.greenSoft}
             />
             <StatCard
               icon={Ban}
               label="환불 완료"
               value={`${stats.refunded}건`}
               color="#EF4444"
-              bg="#FEF2F2"
+              bg={ds.redSoft}
             />
             <StatCard
               icon={TrendingUp}
@@ -802,7 +725,7 @@ export default function PaymentManage() {
             <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
               <Search
                 size={14}
-                color="#94A3B8"
+                color={ds.ink4}
                 style={{
                   position: "absolute",
                   left: 12,
@@ -818,14 +741,16 @@ export default function PaymentManage() {
                   width: "100%",
                   padding: "8px 12px 8px 34px",
                   borderRadius: 8,
-                  border: "1.5px solid #E2E8F0",
+                  border: `1.5px solid ${ds.line}`,
                   fontSize: 13,
                   fontFamily: ds.ff,
+                  color: ds.ink,
                   outline: "none",
+                  background: ds.bg,
                   boxSizing: "border-box",
                 }}
                 onFocus={(e) => (e.target.style.borderColor = ds.brand)}
-                onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+                onBlur={(e) => (e.target.style.borderColor = ds.line)}
               />
             </div>
             <select
@@ -834,11 +759,11 @@ export default function PaymentManage() {
               style={{
                 padding: "8px 12px",
                 borderRadius: 8,
-                border: "1.5px solid #E2E8F0",
+                border: `1.5px solid ${ds.line}`,
                 fontSize: 13,
                 fontFamily: ds.ff,
                 color: ds.ink,
-                background: "#fff",
+                background: ds.card,
                 cursor: "pointer",
                 outline: "none",
               }}
@@ -858,9 +783,9 @@ export default function PaymentManage() {
                 style={{
                   padding: "6px 14px",
                   borderRadius: 7,
-                  border: "1px solid #FECACA",
-                  background: "#FEF2F2",
-                  color: "#DC2626",
+                  border: `1px solid ${ds.red}33`,
+                  background: ds.redSoft,
+                  color: ds.red,
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -881,7 +806,7 @@ export default function PaymentManage() {
               style={{
                 textAlign: "center",
                 padding: 60,
-                color: "#94A3B8",
+                color: ds.ink4,
                 fontSize: 13,
               }}
             >
@@ -900,14 +825,14 @@ export default function PaymentManage() {
             >
               <CreditCard
                 size={36}
-                color="#CBD5E1"
+                color={ds.ink4}
                 style={{ marginBottom: 12, display: "block" }}
               />
               <div
                 style={{
                   fontSize: 14,
                   fontWeight: 600,
-                  color: "#64748B",
+                  color: ds.ink3,
                   marginBottom: 4,
                 }}
               >
@@ -915,7 +840,7 @@ export default function PaymentManage() {
                   ? "검색 결과가 없습니다"
                   : "결제 내역이 없습니다"}
               </div>
-              <div style={{ fontSize: 12.5, color: "#94A3B8" }}>
+              <div style={{ fontSize: 12.5, color: ds.ink4 }}>
                 {search || statusFilter !== "ALL"
                   ? "검색 조건을 변경해보세요"
                   : "홈에서 사전신청 결제가 진행되면 여기에 표시됩니다"}
@@ -924,9 +849,9 @@ export default function PaymentManage() {
           ) : (
             <div
               style={{
-                background: "#fff",
+                background: ds.card,
                 borderRadius: 12,
-                border: "1px solid #F1F5F9",
+                border: `1px solid ${ds.line}`,
                 overflow: "hidden",
               }}
             >
@@ -938,9 +863,9 @@ export default function PaymentManage() {
                   padding: "10px 16px",
                   fontSize: 11,
                   fontWeight: 700,
-                  color: "#94A3B8",
-                  borderBottom: "1px solid #F1F5F9",
-                  background: "#FAFBFC",
+                  color: ds.ink4,
+                  borderBottom: `1px solid ${ds.line}`,
+                  background: ds.bg,
                   alignItems: "center",
                 }}
               >
@@ -974,7 +899,7 @@ export default function PaymentManage() {
                     }}
                     onMouseEnter={(e) => {
                       if (!isChecked)
-                        e.currentTarget.style.background = "#F8FAFC";
+                        e.currentTarget.style.background = ds.bg;
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = isChecked
@@ -998,7 +923,7 @@ export default function PaymentManage() {
                       >
                         {p.eventTitle || selectedEvent.title || "행사 결제"}
                       </div>
-                      <div style={{ fontSize: 11, color: "#94A3B8" }}>
+                      <div style={{ fontSize: 11, color: ds.ink4 }}>
                         {p.orderNo || `#${p.paymentId}`}
                       </div>
                     </div>
@@ -1006,7 +931,7 @@ export default function PaymentManage() {
                       <div style={{ fontWeight: 600, fontSize: 13 }}>
                         {p.buyerName || p.nickname || "-"}
                       </div>
-                      <div style={{ fontSize: 11, color: "#94A3B8" }}>
+                      <div style={{ fontSize: 11, color: ds.ink4 }}>
                         {p.buyerEmail || p.email || ""}
                       </div>
                     </div>
@@ -1018,7 +943,7 @@ export default function PaymentManage() {
                     >
                       {fmtAmount(p.amount)}
                     </span>
-                    <span style={{ fontSize: 12, color: "#64748B" }}>
+                    <span style={{ fontSize: 12, color: ds.ink3 }}>
                       {fmtDateTime(p.requestedAt || p.createdAt)}
                     </span>
                     <div style={{ textAlign: "center" }}>
@@ -1056,7 +981,7 @@ export default function PaymentManage() {
               style={{
                 marginTop: 10,
                 fontSize: 12,
-                color: "#94A3B8",
+                color: ds.ink4,
                 textAlign: "right",
               }}
             >
@@ -1097,14 +1022,14 @@ export default function PaymentManage() {
                   height: 30,
                   borderRadius: 8,
                   border: "none",
-                  background: "#F1F5F9",
+                  background: ds.lineSoft,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
                 }}
               >
-                <X size={14} color="#64748B" />
+                <X size={14} color={ds.ink3} />
               </button>
             </div>
 
@@ -1140,7 +1065,7 @@ export default function PaymentManage() {
 
             <div
               style={{
-                background: "#F8FAFC",
+                background: ds.bg,
                 borderRadius: 12,
                 padding: 20,
                 marginBottom: 20,
@@ -1195,7 +1120,7 @@ export default function PaymentManage() {
                     fontSize: 13,
                   }}
                 >
-                  <span style={{ color: "#94A3B8", fontWeight: 600 }}>
+                  <span style={{ color: ds.ink4, fontWeight: 600 }}>
                     {r.l}
                   </span>
                   <span
@@ -1215,12 +1140,12 @@ export default function PaymentManage() {
                 {eventStarted ? (
                   <div
                     style={{
-                      background: "#FFFBEB",
+                      background: ds.amberSoft,
                       border: "1px solid #FDE68A",
                       borderRadius: 10,
                       padding: "12px 16px",
                       fontSize: 12.5,
-                      color: "#92400E",
+                      color: ds.amber,
                       display: "flex",
                       alignItems: "center",
                       gap: 8,
@@ -1244,9 +1169,9 @@ export default function PaymentManage() {
                       width: "100%",
                       padding: "12px",
                       borderRadius: 10,
-                      border: "1px solid #FECACA",
-                      background: "#FEF2F2",
-                      color: "#DC2626",
+                      border: `1px solid ${ds.red}33`,
+                      background: ds.redSoft,
+                      color: ds.red,
                       fontSize: 14,
                       fontWeight: 700,
                       cursor: "pointer",
@@ -1283,7 +1208,7 @@ export default function PaymentManage() {
                   width: 38,
                   height: 38,
                   borderRadius: 10,
-                  background: "#FEF2F2",
+                  background: ds.redSoft,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -1305,7 +1230,7 @@ export default function PaymentManage() {
             <p
               style={{
                 fontSize: 13.5,
-                color: "#64748B",
+                color: ds.ink3,
                 lineHeight: 1.6,
                 margin: "0 0 8px",
               }}
@@ -1333,13 +1258,13 @@ export default function PaymentManage() {
                 style={{
                   padding: "9px 20px",
                   borderRadius: 8,
-                  border: "1px solid #E2E8F0",
-                  background: "#fff",
+                  border: `1px solid ${ds.line}`,
+                  background: ds.card,
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: "pointer",
                   fontFamily: ds.ff,
-                  color: "#64748B",
+                  color: ds.ink3,
                 }}
               >
                 취소
@@ -1382,7 +1307,7 @@ export default function PaymentManage() {
                   width: 38,
                   height: 38,
                   borderRadius: 10,
-                  background: "#FEF2F2",
+                  background: ds.redSoft,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -1404,7 +1329,7 @@ export default function PaymentManage() {
             <p
               style={{
                 fontSize: 13.5,
-                color: "#64748B",
+                color: ds.ink3,
                 lineHeight: 1.6,
                 margin: "0 0 8px",
               }}
@@ -1423,13 +1348,13 @@ export default function PaymentManage() {
                 style={{
                   padding: "9px 20px",
                   borderRadius: 8,
-                  border: "1px solid #E2E8F0",
-                  background: "#fff",
+                  border: `1px solid ${ds.line}`,
+                  background: ds.card,
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: "pointer",
                   fontFamily: ds.ff,
-                  color: "#64748B",
+                  color: ds.ink3,
                 }}
               >
                 취소

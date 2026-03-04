@@ -5,6 +5,7 @@ import {
   Archive,
   Megaphone,
   Bell,
+  LogOut,
   Settings,
   PawPrint,
   LayoutGrid,
@@ -36,7 +37,7 @@ import ds, { cardStyle } from "../shared/designTokens";
 import { KpiCard, ChartTip } from "../shared/Components";
 import DATA from "../shared/data";
 import { axiosInstance } from "../../../app/http/axiosInstance";
-import { getToken } from "../../../api/noticeApi";
+import { getToken, clearToken } from "../../../api/noticeApi";
 
 /* 페이지 import */
 import EventManage from "../event/eventManage";
@@ -79,17 +80,17 @@ const globalStyles = `
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(30, 30, 40, 0.15);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(30, 30, 40, 0.32);
+  background: rgba(255, 255, 255, 0.2);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-/* 사이드바 전용 (밝은 톤 thumb) */
+/* 사이드바 전용 */
 aside ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.07);
 }
@@ -100,7 +101,7 @@ aside ::-webkit-scrollbar-thumb:hover {
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(30, 30, 40, 0.15) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 aside * {
   scrollbar-color: rgba(255, 255, 255, 0.07) transparent;
@@ -164,9 +165,24 @@ const DEFAULT_PAGE_TABS = {
     { id: "pending", label: "대기", count: 0 },
   ],
   pastEvents: [{ id: "all", label: "전체 행사" }],
-  zoneManage: [{ id: "all", label: "체험존 목록" }],
-  contestManage: [{ id: "all", label: "콘테스트 목록" }],
-  sessionManage: [{ id: "all", label: "세션 목록" }],
+  zoneManage: [
+    { id: "all", label: "전체", count: 0 },
+    { id: "active", label: "운영 중", count: 0 },
+    { id: "ended", label: "종료", count: 0 },
+    { id: "pending", label: "대기", count: 0 },
+  ],
+  contestManage: [
+    { id: "all", label: "전체", count: 0 },
+    { id: "active", label: "운영 중", count: 0 },
+    { id: "ended", label: "종료", count: 0 },
+    { id: "pending", label: "대기", count: 0 },
+  ],
+  sessionManage: [
+    { id: "all", label: "전체", count: 0 },
+    { id: "active", label: "운영 중", count: 0 },
+    { id: "ended", label: "종료", count: 0 },
+    { id: "pending", label: "대기", count: 0 },
+  ],
   boardManage: [
     { id: "free", label: "자유게시판" },
     { id: "info", label: "정보게시판" },
@@ -181,7 +197,12 @@ const DEFAULT_PAGE_TABS = {
     { id: "checkin", label: "체크인 관리" },
     { id: "session", label: "체험 세션" },
   ],
-  paymentManage: [{ id: "all", label: "결제 내역" }],
+  paymentManage: [
+    { id: "all", label: "전체", count: 0 },
+    { id: "active", label: "운영 중", count: 0 },
+    { id: "ended", label: "종료", count: 0 },
+    { id: "pending", label: "대기", count: 0 },
+  ],
   alertManage: [{ id: "all", label: "알림 내역" }],
 };
 
@@ -225,20 +246,20 @@ function TodayGreeting() {
           display: "flex",
           alignItems: "center",
           gap: 6,
-          background: "#F8FAFC",
+          background: ds.bg,
           borderRadius: 8,
           padding: "5px 12px",
         }}
       >
-        <CalendarDays size={13} color="#94A3B8" />
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+        <CalendarDays size={13} color={ds.ink4} />
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: ds.ink3 }}>
           {formatted}
         </span>
-        <span style={{ fontSize: 11, color: "#94A3B8", fontWeight: 500 }}>
+        <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 500 }}>
           {timeStr}
         </span>
       </div>
-      <span style={{ fontSize: 12.5, color: "#94A3B8", fontWeight: 500 }}>
+      <span style={{ fontSize: 12.5, color: ds.ink4, fontWeight: 500 }}>
         {greeting} 👋
       </span>
     </div>
@@ -715,7 +736,7 @@ function PageHome() {
                     width: 30,
                     height: 30,
                     borderRadius: 8,
-                    background: `linear-gradient(135deg, ${colors[i]}22, ${colors[i]}44)`,
+                    background: `${colors[i]}22`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -749,7 +770,8 @@ function PageHome() {
 export default function Dashboard() {
   const [nav, setNav] = useState("dashboard");
   const [subTab, setSubTab] = useState(null);
-  const [bellAnim, setBellAnim] = useState(false);
+  // bellAnim removed — logout button now
+  const [showContestTabs, setShowContestTabs] = useState(true);
   const [pageTabs, setPageTabs] = useState(DEFAULT_PAGE_TABS);
   const [eventMenuBadge, setEventMenuBadge] = useState(0);
 
@@ -770,19 +792,61 @@ export default function Dashboard() {
       const events = Array.isArray(eventList) ? eventList : [];
       const programs = Array.isArray(programList) ? programList : [];
 
+      /* 날짜 기반 상태 계산 — 각 관리 페이지의 calcStatus와 동일 로직 */
+      const calcSt = (startAt, endAt) => {
+        if (!startAt && !endAt) return "pending";
+        const now = new Date();
+        const s = startAt
+          ? new Date(
+              String(startAt).includes("T")
+                ? startAt
+                : startAt + "T00:00:00+09:00",
+            )
+          : null;
+        const e = endAt
+          ? new Date(
+              String(endAt).includes("T") ? endAt : endAt + "T23:59:59+09:00",
+            )
+          : null;
+        if (e && now > e) return "ended";
+        if (s && now < s) return "pending";
+        return "active";
+      };
+
+      const evComputed = events.map((e) =>
+        calcSt(
+          e.startAt ??
+            e.startDateTime ??
+            e.startDate ??
+            e.date?.split("~")[0]?.trim(),
+          e.endAt ??
+            e.endDateTime ??
+            e.endDate ??
+            e.date?.split("~")[1]?.trim(),
+        ),
+      );
+      const prComputed = programs.map((p) => calcSt(p.startAt, p.endAt));
+
       const eventCounts = {
         all: events.length,
-        active: events.filter((e) => e?.status === "active").length,
-        ended: events.filter((e) => e?.status === "ended").length,
-        new: events.filter((e) => e?.status === "pending").length,
+        active: evComputed.filter((s) => s === "active").length,
+        ended: evComputed.filter((s) => s === "ended").length,
+        pending: evComputed.filter((s) => s === "pending").length,
       };
 
       const programCounts = {
         all: programs.length,
-        active: programs.filter((p) => p?.status === "active").length,
-        ended: programs.filter((p) => p?.status === "ended").length,
-        pending: programs.filter((p) => p?.status === "pending").length,
+        active: prComputed.filter((s) => s === "active").length,
+        ended: prComputed.filter((s) => s === "ended").length,
+        pending: prComputed.filter((s) => s === "pending").length,
       };
+
+      const evTabRow = (label = "전체") => [
+        { id: "all", label, count: eventCounts.all },
+        { id: "active", label: "운영 중", count: eventCounts.active },
+        { id: "ended", label: "종료", count: eventCounts.ended },
+        { id: "pending", label: "대기", count: eventCounts.pending },
+      ];
 
       setPageTabs((prev) => ({
         ...prev,
@@ -790,7 +854,7 @@ export default function Dashboard() {
           { id: "all", label: "전체 이벤트", count: eventCounts.all },
           { id: "active", label: "진행 중", count: eventCounts.active },
           { id: "ended", label: "종료", count: eventCounts.ended },
-          { id: "new", label: "신규", count: eventCounts.new },
+          { id: "new", label: "신규", count: eventCounts.pending },
         ],
         programManage: [
           { id: "all", label: "전체", count: programCounts.all },
@@ -798,6 +862,10 @@ export default function Dashboard() {
           { id: "ended", label: "종료", count: programCounts.ended },
           { id: "pending", label: "대기", count: programCounts.pending },
         ],
+        zoneManage: evTabRow("전체"),
+        contestManage: evTabRow("전체"),
+        sessionManage: evTabRow("전체"),
+        paymentManage: evTabRow("전체"),
       }));
       setEventMenuBadge(eventCounts.all);
     } catch (err) {
@@ -806,9 +874,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (nav === "dashboard" || nav === "eventManage" || nav === "programManage") {
-      loadTabCounts();
-    }
+    loadTabCounts();
   }, [nav, loadTabCounts]);
 
   const tabs = pageTabs[nav] || [];
@@ -829,11 +895,17 @@ export default function Dashboard() {
       case "pastEvents":
         return <PastEvents />;
       case "zoneManage":
-        return <ZoneManage />;
+        return <ZoneManage subTab={activeTab} />;
       case "contestManage":
-        return <ContestManage />;
+        return (
+          <ContestManage
+            subTab={activeTab}
+            onDetailEnter={() => setShowContestTabs(false)}
+            onDetailLeave={() => setShowContestTabs(true)}
+          />
+        );
       case "sessionManage":
-        return <SessionManage />;
+        return <SessionManage subTab={activeTab} />;
       case "boardManage":
         return <BoardManage subTab={activeTab} />;
       case "notice":
@@ -843,7 +915,7 @@ export default function Dashboard() {
       case "participantList":
         return <ParticipantList subTab={activeTab} />;
       case "paymentManage":
-        return <PaymentManage />;
+        return <PaymentManage subTab={activeTab} />;
       case "alertManage":
         return <AlertManage />;
       default:
@@ -852,343 +924,335 @@ export default function Dashboard() {
   };
 
   return (
-      <div
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        fontFamily: ds.ff,
+        background: ds.bg,
+        overflow: "hidden",
+      }}
+    >
+      <style>{globalStyles}</style>
+
+      {/* ─── SIDEBAR ─── */}
+      <aside
         style={{
+          width: 240,
+          background: ds.sidebar,
           display: "flex",
-          height: "100vh",
-          fontFamily: ds.ff,
-          background: ds.bg,
-          overflow: "hidden",
+          flexDirection: "column",
+          flexShrink: 0,
         }}
       >
-        <style>{globalStyles}</style>
-
-        {/* ─── SIDEBAR ─── */}
-        <aside
+        {/* 로고 */}
+        <div
           style={{
-            width: 240,
-            background: ds.sidebar,
+            padding: "22px 18px 16px",
             display: "flex",
-            flexDirection: "column",
-            flexShrink: 0,
+            alignItems: "center",
+            gap: 10,
           }}
         >
-          {/* 로고 */}
           <div
             style={{
-              padding: "22px 18px 16px",
+              width: 34,
+              height: 34,
+              borderRadius: 9,
+              background: ds.brand,
               display: "flex",
               alignItems: "center",
-              gap: 10,
+              justifyContent: "center",
+              boxShadow: `0 2px 10px ${ds.brand}44`,
             }}
           >
+            <PawPrint size={18} color="#fff" strokeWidth={2.5} />
+          </div>
+          <div>
             <div
               style={{
-                width: 34,
-                height: 34,
-                borderRadius: 9,
-                background: "linear-gradient(135deg, #4361EE, #3d34c1)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 2px 10px rgba(67,97,238,0.3)",
+                fontSize: 16,
+                fontWeight: 800,
+                color: ds.inkW,
+                letterSpacing: -0.5,
               }}
             >
-              <PawPrint size={18} color="#fff" strokeWidth={2.5} />
-            </div>
-            <div>
-              <div
+              <img
+                src="/logo_white.png"
+                alt="pupoo logo"
                 style={{
-                  fontSize: 16,
-                  fontWeight: 800,
-                  color: ds.inkW,
-                  letterSpacing: -0.5,
+                  height: 20,
+                  objectFit: "contain",
+                  cursor: "pointer",
                 }}
-              >
-                <img
-                  src="/logo_white.png"
-                  alt="pupoo logo"
-                  style={{
-                    height: 20,
-                    objectFit: "contain",
-                    cursor: "pointer",
-                  }}
-                />
-              </div>
+              />
+            </div>
+            <div
+              style={{
+                fontSize: 8,
+                fontWeight: 600,
+                color: ds.inkWG,
+                letterSpacing: 1.2,
+                textTransform: "uppercase",
+              }}
+            >
+              Admin Console
+            </div>
+          </div>
+        </div>
+
+        {/* 메뉴 그룹 */}
+        <nav style={{ flex: 1, padding: "0 10px", overflow: "auto" }}>
+          {NAV.map((group) => (
+            <div key={group.section}>
               <div
                 style={{
-                  fontSize: 8,
-                  fontWeight: 600,
+                  fontSize: 9.5,
+                  fontWeight: 700,
                   color: ds.inkWG,
                   letterSpacing: 1.2,
                   textTransform: "uppercase",
+                  padding: "14px 10px 6px",
                 }}
               >
-                Admin Console
+                {group.section}
               </div>
-            </div>
-          </div>
-
-          {/* 메뉴 그룹 */}
-          <nav style={{ flex: 1, padding: "0 10px", overflow: "auto" }}>
-            {NAV.map((group) => (
-              <div key={group.section}>
-                <div
-                  style={{
-                    fontSize: 9.5,
-                    fontWeight: 700,
-                    color: ds.inkWG,
-                    letterSpacing: 1.2,
-                    textTransform: "uppercase",
-                    padding: "14px 10px 6px",
-                  }}
-                >
-                  {group.section}
-                </div>
-                {group.items.map((item) => {
-                  const on = nav === item.id;
-                  const I = item.icon;
-                  const badgeValue =
-                    item.id === "eventManage" ? eventMenuBadge : item.badge;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => handleNav(item.id)}
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 9,
-                        padding: "8px 10px",
-                        borderRadius: ds.rs,
-                        border: "none",
-                        cursor: "pointer",
-                        fontFamily: ds.ff,
-                        fontSize: 13,
-                        background: on ? ds.sideActive : "transparent",
-                        color: on ? ds.inkW : ds.inkWD,
-                        fontWeight: on ? 700 : 500,
-                        marginBottom: 1,
-                        transition: "all .08s",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!on)
-                          e.currentTarget.style.background = ds.sideHover;
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!on)
-                          e.currentTarget.style.background = "transparent";
-                      }}
-                    >
-                      <I size={16} strokeWidth={on ? 2.2 : 1.8} />
-                      <span style={{ flex: 1, textAlign: "left" }}>
-                        {item.label}
-                      </span>
-                      {badgeValue != null && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            padding: "1px 6px",
-                            borderRadius: 9,
-                            background: on
-                              ? ds.brand
-                              : "rgba(255,255,255,0.12)",
-                            color: "#fff",
-                            lineHeight: "15px",
-                          }}
-                        >
-                          {badgeValue}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-
-          {/* 유저 */}
-          <div
-            style={{
-              padding: "12px 14px 16px",
-              borderTop: `1px solid ${ds.lineD}`,
-              display: "flex",
-              alignItems: "center",
-              gap: 9,
-            }}
-          >
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                background: "linear-gradient(135deg, #818CF8, #7C3AED)",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 11,
-                fontWeight: 800,
-              }}
-            >
-              김
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: ds.inkW }}>
-                김관리
-              </div>
-              <div style={{ fontSize: 10.5, color: ds.inkWG }}>Super Admin</div>
-            </div>
-            <Settings
-              size={14}
-              color={ds.inkWG}
-              style={{ cursor: "pointer" }}
-            />
-          </div>
-        </aside>
-
-        {/* ─── MAIN ─── */}
-        <main
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          {/* 헤더 */}
-          <header
-            style={{
-              background: ds.card,
-              padding: "0 28px",
-              height: 52,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              borderBottom: `1px solid ${ds.line}`,
-            }}
-          >
-            <h1
-              style={{
-                fontSize: 17,
-                fontWeight: 800,
-                margin: 0,
-                color: ds.ink,
-                letterSpacing: -0.3,
-              }}
-            >
-              {PAGE_TITLES[nav] || "대시보드"}
-            </h1>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {/* ── 오늘 날짜 + 인사말 ── */}
-              <TodayGreeting />
-
-              {/* 벨 아이콘 */}
-              <div
-                style={{ position: "relative" }}
-                onMouseEnter={() => setBellAnim(true)}
-                onAnimationEnd={() => setBellAnim(false)}
-              >
-                <button
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: ds.rs,
-                    border: `1px solid ${ds.line}`,
-                    background: ds.card,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transformOrigin: "top center",
-                    animation: bellAnim ? "bellRing 0.8s ease-in-out" : "none",
-                  }}
-                >
-                  <Bell size={15} color={ds.ink3} />
-                </button>
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 5,
-                    right: 5,
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: ds.red,
-                    border: "2px solid #fff",
-                  }}
-                />
-              </div>
-            </div>
-          </header>
-
-          {/* 탭 (2개 이상일 때만 표시) */}
-          {tabs.length > 1 && (
-            <div
-              style={{
-                background: ds.card,
-                padding: "0 28px",
-                borderBottom: `1px solid ${ds.line}`,
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              {tabs.map((t) => {
-                const on = activeTab === t.id;
+              {group.items.map((item) => {
+                const on = nav === item.id;
+                const I = item.icon;
+                const badgeValue =
+                  item.id === "eventManage" ? eventMenuBadge : item.badge;
                 return (
                   <button
-                    key={t.id}
-                    onClick={() => setSubTab(t.id)}
+                    key={item.id}
+                    onClick={() => handleNav(item.id)}
                     style={{
-                      padding: "10px 16px",
-                      border: "none",
-                      cursor: "pointer",
-                      background: "none",
-                      fontSize: 13,
-                      fontWeight: on ? 700 : 500,
-                      color: on ? ds.brand : ds.ink4,
-                      borderBottom: `2px solid ${on ? ds.brand : "transparent"}`,
-                      transition: "all .1s",
+                      width: "100%",
                       display: "flex",
                       alignItems: "center",
-                      gap: 5,
+                      gap: 9,
+                      padding: "8px 10px",
+                      borderRadius: ds.rs,
+                      border: "none",
+                      cursor: "pointer",
                       fontFamily: ds.ff,
+                      fontSize: 13,
+                      background: on ? ds.sideActive : "transparent",
+                      color: on ? ds.inkW : ds.inkWD,
+                      fontWeight: on ? 700 : 500,
+                      marginBottom: 1,
+                      transition: "all .08s",
                     }}
                     onMouseEnter={(e) => {
-                      if (!on) e.currentTarget.style.color = ds.ink3;
+                      if (!on) e.currentTarget.style.background = ds.sideHover;
                     }}
                     onMouseLeave={(e) => {
-                      if (!on) e.currentTarget.style.color = ds.ink4;
+                      if (!on) e.currentTarget.style.background = "transparent";
                     }}
                   >
-                    {t.label}
-                    {t.count != null && (
+                    <I size={16} strokeWidth={on ? 2.2 : 1.8} />
+                    <span style={{ flex: 1, textAlign: "left" }}>
+                      {item.label}
+                    </span>
+                    {badgeValue != null && (
                       <span
                         style={{
                           fontSize: 10,
                           fontWeight: 700,
-                          padding: "0 6px",
+                          padding: "1px 6px",
                           borderRadius: 9,
-                          lineHeight: "17px",
-                          background: on ? ds.brandSoft : ds.lineSoft,
-                          color: on ? ds.brand : ds.ink4,
+                          background: on ? ds.brand : "rgba(255,255,255,0.12)",
+                          color: "#fff",
+                          lineHeight: "15px",
                         }}
                       >
-                        {t.count}
+                        {badgeValue}
                       </span>
                     )}
                   </button>
                 );
               })}
             </div>
-          )}
+          ))}
+        </nav>
 
-          {/* 페이지 콘텐츠 */}
-          <div style={{ flex: 1, overflow: "auto", padding: "20px 28px 28px" }}>
-            {renderPage()}
+        {/* 유저 */}
+        <div
+          style={{
+            padding: "12px 14px 16px",
+            borderTop: `1px solid ${ds.lineD}`,
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
+          }}
+        >
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              background: ds.brand,
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 11,
+              fontWeight: 800,
+            }}
+          >
+            김
           </div>
-        </main>
-      </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: ds.inkW }}>
+              김관리
+            </div>
+            <div style={{ fontSize: 10.5, color: ds.inkWG }}>Super Admin</div>
+          </div>
+          <Settings size={14} color={ds.inkWG} style={{ cursor: "pointer" }} />
+        </div>
+      </aside>
+
+      {/* ─── MAIN ─── */}
+      <main
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {/* 헤더 */}
+        <header
+          style={{
+            background: ds.card,
+            padding: "0 28px",
+            height: 52,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderBottom: `1px solid ${ds.line}`,
+          }}
+        >
+          <h1
+            style={{
+              fontSize: 17,
+              fontWeight: 800,
+              margin: 0,
+              color: ds.ink,
+              letterSpacing: -0.3,
+            }}
+          >
+            {PAGE_TITLES[nav] || "대시보드"}
+          </h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* ── 오늘 날짜 + 인사말 ── */}
+            <TodayGreeting />
+
+            {/* 로그아웃 */}
+            <button
+              onClick={() => {
+                clearToken();
+                window.location.href = "/admin/login";
+              }}
+              style={{
+                height: 32,
+                padding: "0 12px",
+                borderRadius: ds.rs,
+                border: `1px solid ${ds.line}`,
+                background: ds.bg,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                color: ds.ink3,
+                fontFamily: ds.ff,
+                transition: "all .15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = ds.redSoft;
+                e.currentTarget.style.color = ds.red;
+                e.currentTarget.style.borderColor = `${ds.red}33`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = ds.bg;
+                e.currentTarget.style.color = ds.ink3;
+                e.currentTarget.style.borderColor = ds.line;
+              }}
+            >
+              <LogOut size={13} />
+              로그아웃
+            </button>
+          </div>
+        </header>
+
+        {/* 탭 (2개 이상일 때만 표시, 콘테스트 상세 진입 시 숨김) */}
+        {tabs.length > 1 && (nav !== "contestManage" || showContestTabs) && (
+          <div
+            style={{
+              background: ds.card,
+              padding: "0 28px",
+              borderBottom: `1px solid ${ds.line}`,
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            {tabs.map((t) => {
+              const on = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setSubTab(t.id)}
+                  style={{
+                    padding: "10px 16px",
+                    border: "none",
+                    cursor: "pointer",
+                    background: "none",
+                    fontSize: 13,
+                    fontWeight: on ? 700 : 500,
+                    color: on ? ds.brand : ds.ink4,
+                    borderBottom: `2px solid ${on ? ds.brand : "transparent"}`,
+                    transition: "all .1s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontFamily: ds.ff,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!on) e.currentTarget.style.color = ds.ink3;
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!on) e.currentTarget.style.color = ds.ink4;
+                  }}
+                >
+                  {t.label}
+                  {t.count != null && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "0 6px",
+                        borderRadius: 9,
+                        lineHeight: "17px",
+                        background: on ? ds.brandSoft : ds.lineSoft,
+                        color: on ? ds.brand : ds.ink4,
+                      }}
+                    >
+                      {t.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 페이지 콘텐츠 */}
+        <div style={{ flex: 1, overflow: "auto", padding: "20px 28px 28px" }}>
+          {renderPage()}
+        </div>
+      </main>
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import PageHeader from "../components/PageHeader";
 import { Search, Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { postApi } from "../../../app/http/postApi";
@@ -17,9 +17,6 @@ function DetailModal({ item, onClose }) {
 
   return (
     <>
-      <style>{`
-        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-      `}</style>
       <div
         onClick={onClose}
         style={{
@@ -28,7 +25,6 @@ function DetailModal({ item, onClose }) {
           zIndex: 5000,
           background: "rgba(0,0,0,0.4)",
           backdropFilter: "blur(4px)",
-          animation: "fadeIn .15s ease",
         }}
       />
       <div
@@ -46,7 +42,6 @@ function DetailModal({ item, onClose }) {
           maxHeight: "85vh",
           overflow: "auto",
           boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
-          animation: "fadeIn .15s ease",
         }}
       >
         <div
@@ -160,21 +155,6 @@ export default function InfoBoard() {
   useEffect(() => {
     fetchList(1);
   }, [fetchList]);
-
-  const openDetail = async (item) => {
-    try {
-      const fresh = await postApi.get(item.postId);
-      setSelected(fresh);
-      setItems((prev) =>
-        prev.map((it) =>
-          it.postId === item.postId ? { ...it, viewCount: fresh.viewCount } : it,
-        ),
-      );
-    } catch (e) {
-      console.error("[InfoBoard] detail fetch failed:", e);
-      setSelected(item);
-    }
-  };
 
   const filtered = items.filter((item) => {
     if (!search.trim()) return true;
@@ -299,7 +279,7 @@ export default function InfoBoard() {
               {filtered.map((item) => (
                 <div
                   key={item.postId}
-                  onClick={() => openDetail(item)}
+                  onClick={() => setSelected(item)}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -315,27 +295,8 @@ export default function InfoBoard() {
                   <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500 }}>
                     {item.postTitle}
                   </span>
-                  <span
-                    style={{
-                      fontSize: "13px",
-                      color: "#999",
-                      whiteSpace: "nowrap",
-                      marginLeft: "12px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    작성일 {fmtDate(item.createdAt)}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "13px",
-                      color: "#999",
-                      whiteSpace: "nowrap",
-                      marginLeft: "12px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    조회수 {item.viewCount ?? 0}
+                  <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap" }}>
+                    {fmtDate(item.createdAt)}
                   </span>
                 </div>
               ))}

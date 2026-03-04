@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import ds from "./designTokens";
 import {
   authApi,
   unwrap,
@@ -217,7 +218,7 @@ function LoginOverlay({ onSuccess }) {
       {/* 모달 카드 */}
       <div
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 24,
           padding: "44px 40px 36px",
           width: 400,
@@ -238,7 +239,7 @@ function LoginOverlay({ onSuccess }) {
               width: 56,
               height: 56,
               borderRadius: 16,
-              background: `linear-gradient(135deg, ${ds.brand}18, ${ds.brand}08)`,
+              background: ds.brandSoft,
               border: `1.5px solid ${ds.brand}20`,
               display: "inline-flex",
               alignItems: "center",
@@ -262,7 +263,7 @@ function LoginOverlay({ onSuccess }) {
           <p
             style={{
               fontSize: 13.5,
-              color: "#94A3B8",
+              color: ds.ink4,
               margin: 0,
               lineHeight: 1.5,
             }}
@@ -275,12 +276,12 @@ function LoginOverlay({ onSuccess }) {
         {err && (
           <div
             style={{
-              background: "#FEF2F2",
-              border: "1px solid #FECACA",
+              background: ds.redSoft,
+              border: `1px solid ${ds.red}33`,
               borderRadius: 12,
               padding: "10px 14px",
               fontSize: 12.5,
-              color: "#DC2626",
+              color: ds.red,
               fontWeight: 600,
               marginBottom: 16,
               textAlign: "center",
@@ -296,7 +297,7 @@ function LoginOverlay({ onSuccess }) {
             style={{
               fontSize: 12,
               fontWeight: 700,
-              color: "#64748B",
+              color: ds.ink3,
               marginBottom: 6,
               display: "block",
             }}
@@ -312,7 +313,7 @@ function LoginOverlay({ onSuccess }) {
               width: "100%",
               padding: "12px 14px",
               borderRadius: 12,
-              border: "1.5px solid #E2E8F0",
+              border: `1.5px solid ${ds.line}`,
               fontSize: 14,
               fontFamily: ds.ff,
               color: ds.ink,
@@ -325,7 +326,7 @@ function LoginOverlay({ onSuccess }) {
               e.target.style.boxShadow = `0 0 0 3px ${ds.brand}15`;
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = "#E2E8F0";
+              e.target.style.borderColor = ds.line;
               e.target.style.boxShadow = "none";
             }}
           />
@@ -337,7 +338,7 @@ function LoginOverlay({ onSuccess }) {
             style={{
               fontSize: 12,
               fontWeight: 700,
-              color: "#64748B",
+              color: ds.ink3,
               marginBottom: 6,
               display: "block",
             }}
@@ -353,7 +354,7 @@ function LoginOverlay({ onSuccess }) {
               width: "100%",
               padding: "12px 14px",
               borderRadius: 12,
-              border: "1.5px solid #E2E8F0",
+              border: `1.5px solid ${ds.line}`,
               fontSize: 14,
               fontFamily: ds.ff,
               color: ds.ink,
@@ -366,7 +367,7 @@ function LoginOverlay({ onSuccess }) {
               e.target.style.boxShadow = `0 0 0 3px ${ds.brand}15`;
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = "#E2E8F0";
+              e.target.style.borderColor = ds.line;
               e.target.style.boxShadow = "none";
             }}
           />
@@ -381,7 +382,7 @@ function LoginOverlay({ onSuccess }) {
             padding: "13px 0",
             borderRadius: 12,
             border: "none",
-            background: loading ? "#94A3B8" : ds.brand,
+            background: loading ? ds.ink4 : ds.brand,
             color: "#fff",
             fontSize: 15,
             fontWeight: 700,
@@ -407,7 +408,7 @@ function LoginOverlay({ onSuccess }) {
           style={{
             textAlign: "center",
             fontSize: 11,
-            color: "#CBD5E1",
+            color: ds.ink4,
             marginTop: 18,
             marginBottom: 0,
           }}

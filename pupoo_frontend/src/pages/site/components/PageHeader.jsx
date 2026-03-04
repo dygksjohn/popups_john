@@ -46,10 +46,6 @@ const styles = {
     color: "#1a4fd6",
     borderBottomColor: "#1a4fd6",
   },
-  tabClosedActive: {
-    fontSize: 18,
-    fontWeight: 800,
-  },
   tabHover: {
     color: "#1a4fd6",
   },
@@ -59,35 +55,7 @@ export default function PageHeader({ title, subtitle, categories }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const isProgramSection = /^\/program\//.test(location.pathname);
-  const isRegistrationSection = /^\/registration\//.test(location.pathname);
-  const isCompactSection = isProgramSection || isRegistrationSection;
-  const effectiveTitle = isCompactSection ? "" : title;
-  const effectiveSubtitle = isCompactSection ? "" : subtitle;
-  const emphasizedTabs = new Set([
-    "/event/current",
-    "/event/upcoming",
-    "/event/closed",
-    "/program/schedule",
-    "/program/experience",
-    "/program/session",
-    "/program/contest",
-    "/program/booth",
-    "/registration/apply",
-    "/registration/applyhistory",
-    "/registration/paymenthistory",
-    "/registration/qrcheckin",
-  ]);
-  const isCompact = !effectiveTitle && !effectiveSubtitle;
-  const pageHeaderStyle = {
-    ...styles.pageHeader,
-    paddingTop: isCompact ? 75 : styles.pageHeader.paddingTop,
-  };
-  const hiddenPaths = new Set([
-    "/event/preregister",
-    "/event/eventschedule",
-    "/program/all",
-  ]);
+  const hiddenPaths = new Set(["/event/preregister", "/event/eventschedule"]);
   const programMatch = location.pathname.match(
     /^\/program\/(?:all|schedule|experience|session|contest|booth)(?:\/([^/?#]+))?/,
   );
@@ -115,10 +83,10 @@ export default function PageHeader({ title, subtitle, categories }) {
   );
 
   return (
-    <div style={pageHeaderStyle}>
+    <div style={styles.pageHeader}>
       <div style={styles.inner}>
-        {effectiveTitle && <h1 style={styles.title}>{effectiveTitle}</h1>}
-        {effectiveSubtitle && <p style={styles.subtitle}>{effectiveSubtitle}</p>}
+        <h1 style={styles.title}>{title}</h1>
+        {subtitle && <p style={styles.subtitle}>{subtitle}</p>}
 
         {filteredCategories.length > 0 && (
           <div style={styles.tabs}>
@@ -130,9 +98,6 @@ export default function PageHeader({ title, subtitle, categories }) {
               let btnStyle = { ...styles.tabBase };
               if (isActive) {
                 btnStyle = { ...btnStyle, ...styles.tabActive };
-                if (emphasizedTabs.has(cat.path)) {
-                  btnStyle = { ...btnStyle, ...styles.tabClosedActive };
-                }
               } else if (isHovered) {
                 btnStyle = { ...btnStyle, ...styles.tabHover };
               } else {

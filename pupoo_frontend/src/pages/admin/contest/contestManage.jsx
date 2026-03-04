@@ -7,15 +7,14 @@ import {
   ChevronLeft,
   Trophy,
   Users,
-  Clock,
   Check,
   CalendarDays,
+  MapPin,
   ImagePlus,
   BarChart3,
   Heart,
   Award,
   Crown,
-  ChevronRight,
   Dog,
   Camera,
   Star,
@@ -23,21 +22,35 @@ import {
   AlertCircle,
   Info,
 } from "lucide-react";
-import ds from "../shared/designTokens";
+import ds, { statusMap } from "../shared/designTokens";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
+import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 
-/* ═══════════════════════════════════════════
-   Styles
-═══════════════════════════════════════════ */
+/* ═══ Styles ═══ */
 const styles = `
+.card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;filter:none!important;opacity:1!important;-webkit-tap-highlight-color:transparent;}
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulseGlow{0%,100%{opacity:.6}50%{opacity:1}}
 @keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.add-p-card{border:1.5px dashed #3D4A5C;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;min-height:260px;background:#1C2333;transition:border-color .18s;}
+.add-p-card:hover{border-color:#EF4444 !important;}
+.add-p-card:hover .add-p-icon{background:#EF4444 !important;}
+.add-p-card:hover .add-p-label{color:#EF4444 !important;}
 `;
+
+const RED = {
+  primary: "#EF4444",
+  dark: "#DC2626",
+  darker: "#B91C1C",
+  soft: "#FEE2E2",
+  softer: "#FFF5F5",
+  border: "#FECACA",
+  text: "#991B1B",
+  textDark: "#7F1D1D",
+};
 
 /* ═══ 공통 ═══ */
 const authHeaders = () => {
@@ -48,19 +61,19 @@ const inputStyle = {
   width: "100%",
   padding: "10px 14px",
   borderRadius: 9,
-  border: "1.5px solid #E2E8F0",
+  border: `1.5px solid ${ds.line}`,
   fontSize: 13.5,
   fontFamily: ds.ff,
   color: ds.ink,
   outline: "none",
   boxSizing: "border-box",
-  background: "#fff",
+  background: ds.bg,
 };
 const inputFocus = (e) => {
-  e.target.style.borderColor = "#8B5CF6";
+  e.target.style.borderColor = RED.primary;
 };
 const inputBlur = (e) => {
-  e.target.style.borderColor = "#E2E8F0";
+  e.target.style.borderColor = ds.line;
 };
 const calcStatus = (s, e) => {
   if (!s && !e) return "pending";
@@ -116,13 +129,13 @@ function Checkbox({ checked, onChange, size = 18 }) {
         width: size,
         height: size,
         borderRadius: 5,
-        border: checked ? "none" : "1.8px solid #CBD5E1",
-        background: checked ? ds.brand : "#fff",
+        border: checked ? "none" : `1.8px solid ${ds.line}`,
+        background: checked ? RED.primary : ds.bg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         cursor: "pointer",
-        transition: "all .15s ease",
+        transition: "all .15s",
         flexShrink: 0,
       }}
     >
@@ -152,13 +165,14 @@ function Overlay({ children, onClose }) {
     </div>
   );
 }
+
 function ConfirmModal({ title, msg, onConfirm, onCancel }) {
   return (
     <Overlay onClose={onCancel}>
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 16,
           padding: 28,
           width: 380,
@@ -180,9 +194,10 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
         <div
           style={{
             fontSize: 13.5,
-            color: "#64748B",
+            color: ds.ink3,
             lineHeight: 1.6,
             marginBottom: 22,
+            whiteSpace: "pre-line",
           }}
         >
           {msg}
@@ -194,9 +209,9 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
               flex: 1,
               padding: "11px 0",
               borderRadius: 10,
-              border: "1.5px solid #E2E8F0",
-              background: "#F8FAFC",
-              color: "#64748B",
+              border: `1.5px solid ${ds.line}`,
+              background: ds.bg,
+              color: ds.ink3,
               fontSize: 13.5,
               fontWeight: 700,
               cursor: "pointer",
@@ -227,6 +242,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
     </Overlay>
   );
 }
+
 function Field({ label, children, required }) {
   return (
     <div style={{ marginBottom: 16 }}>
@@ -234,7 +250,7 @@ function Field({ label, children, required }) {
         style={{
           fontSize: 12.5,
           fontWeight: 700,
-          color: "#475569",
+          color: ds.ink3,
           marginBottom: 6,
         }}
       >
@@ -245,26 +261,24 @@ function Field({ label, children, required }) {
     </div>
   );
 }
-const contestBadge = (status) => {
-  const m = {
-    pending: { l: "투표 예정", c: "#6B7280", bg: "#F3F4F6", dot: false },
-    active: { l: "투표 진행 중", c: "#8B5CF6", bg: "#F3E8FF", dot: true },
-    ended: { l: "투표 종료", c: "#94A3B8", bg: "#F1F5F9", dot: false },
-  };
-  return m[status] || m.pending;
-};
+
+const contestBadge = (status) =>
+  ({
+    pending: { l: "투표 예정", c: "#FFFFFF", bg: "#6B7280", dot: false },
+    active: { l: "투표 진행 중", c: "#FFFFFF", bg: "#EF4444", dot: true },
+    ended: { l: "투표 종료", c: "#FFFFFF", bg: "#374151", dot: false },
+  })[status] || { l: "투표 예정", c: "#FFFFFF", bg: "#6B7280", dot: false };
+
 const ICON_POOL = [
-  { icon: Trophy, bg: "#FFFBEB", color: "#D97706" },
-  { icon: Camera, bg: "#EEF2FF", color: "#6366F1" },
-  { icon: Dog, bg: "#FDF2F8", color: "#EC4899" },
-  { icon: Star, bg: "#F5F3FF", color: "#8B5CF6" },
-  { icon: Award, bg: "#FEF3C7", color: "#D97706" },
-  { icon: Crown, bg: "#ECFDF5", color: "#059669" },
-  { icon: Medal, bg: "#FFF7ED", color: "#EA580C" },
-  { icon: Trophy, bg: "#FFFBEB", color: "#D97706" },
+  { icon: Trophy, bg: ds.amberSoft, color: "#D97706" },
+  { icon: Camera, bg: "#FFF1F2", color: RED.primary },
+  { icon: Dog, bg: RED.soft, color: RED.dark },
+  { icon: Star, bg: RED.soft, color: RED.primary },
+  { icon: Award, bg: ds.amberSoft, color: "#D97706" },
+  { icon: Crown, bg: ds.greenSoft, color: "#059669" },
+  { icon: Medal, bg: ds.amberSoft, color: "#EA580C" },
 ];
 
-/* ═══ Mock 참가자 (DB 연동 전) ═══ */
 const MOCK_PARTICIPANTS = [
   {
     id: 1,
@@ -312,17 +326,140 @@ const MOCK_PARTICIPANTS = [
     status: "APPLIED",
   },
 ];
-const RANK_COLORS = ["#F59E0B", "#94A3B8", "#CD7F32", "#94A3B8"];
+
+const RANK_COLORS = ["#F59E0B", "#94A3B8", "#CD7F32"];
 const CARD_COLORS = [
-  "#8B5CF6",
-  "#A78BFA",
-  "#C4B5FD",
-  "#7C3AED",
-  "#6D28D9",
-  "#DDD6FE",
+  RED.primary,
+  RED.dark,
+  "#F87171",
+  RED.darker,
+  "#991B1B",
+  ds.line,
 ];
 
-/* ═══ 콘테스트 생성/수정 모달 ═══ */
+/* ═══ 다크 이미지 업로드 영역 ═══ */
+function DarkImageUpload({
+  preview,
+  onFile,
+  label = "클릭하거나 이미지를 드래그하세요",
+  hint = "JPG, PNG, WEBP · 최대 10MB",
+  aspectRatio = null,
+}) {
+  const fileRef = useRef(null);
+  const handleFile = (file) => {
+    if (
+      !file ||
+      !file.type.startsWith("image/") ||
+      file.size > 10 * 1024 * 1024
+    )
+      return;
+    const r = new FileReader();
+    r.onload = (e) => onFile(e.target.result, file);
+    r.readAsDataURL(file);
+  };
+  return (
+    <div
+      onClick={() => fileRef.current?.click()}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        handleFile(e.dataTransfer.files[0]);
+      }}
+      style={{
+        width: "100%",
+        ...(aspectRatio ? { aspectRatio } : { height: 160 }),
+        borderRadius: 12,
+        border: "1.5px dashed #4B5563",
+        background: preview
+          ? `url(${preview}) center/cover no-repeat`
+          : "#1F2937",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        position: "relative",
+        overflow: "hidden",
+        transition: "border-color .2s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = RED.primary;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "#4B5563";
+      }}
+    >
+      {!preview && (
+        <>
+          {/* 아이콘 배경 */}
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              background: "rgba(239,68,68,0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 12,
+            }}
+          >
+            <ImagePlus size={22} color={RED.primary} />
+          </div>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: "#E5E7EB",
+              marginBottom: 4,
+            }}
+          >
+            {label}
+          </div>
+          <div style={{ fontSize: 12, color: "#6B7280" }}>{hint}</div>
+        </>
+      )}
+      {preview && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: 0,
+            transition: "opacity .2s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = 0)}
+        >
+          <Camera size={22} color="#fff" />
+          <span
+            style={{
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 700,
+              marginTop: 6,
+            }}
+          >
+            이미지 변경
+          </span>
+        </div>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => handleFile(e.target.files[0])}
+      />
+    </div>
+  );
+}
+
+/* ═══ 콘테스트 폼 모달 ═══ */
 function ContestFormModal({ item, onSave, onClose, isEdit }) {
   const [form, setForm] = useState(
     item
@@ -336,47 +473,29 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const [err, setErr] = useState("");
   const [visible, setVisible] = useState(false);
-  const [imagePreview, setImagePreview] = useState(item?.imageUrl || null);
-  const fileInputRef = useRef(null);
-  const handleImageFile = (file) => {
-    if (
-      !file ||
-      !file.type.startsWith("image/") ||
-      file.size > 10 * 1024 * 1024
-    )
-      return;
-    const r = new FileReader();
-    r.onload = (e) => setImagePreview(e.target.result);
-    r.readAsDataURL(file);
-  };
+  const [preview, setPreview] = useState(item?.imageUrl || null);
+
   const handleSave = () => {
     if (!form.name) {
       setErr("콘테스트명은 필수입니다.");
       return;
     }
-    onSave({ ...form, imageUrl: imagePreview });
+    onSave({ ...form, imageUrl: preview });
   };
   const autoStatus =
     form.startAt || form.endAt
-      ? (() => {
-          const s = calcStatus(form.startAt, form.endAt);
-          const map = {
-            pending: { l: "투표 예정", c: "#6B7280", bg: "#F3F4F6" },
-            active: { l: "투표 진행 중", c: "#8B5CF6", bg: "#F3E8FF" },
-            ended: { l: "투표 종료", c: "#94A3B8", bg: "#F1F5F9" },
-          };
-          return map[s];
-        })()
+      ? contestBadge(calcStatus(form.startAt, form.endAt))
       : null;
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
   }, []);
+
   return (
     <Overlay onClose={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 18,
           width: 440,
           maxWidth: "100%",
@@ -389,9 +508,10 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
           transition: "all .25s cubic-bezier(.34,1.56,.64,1)",
         }}
       >
+        {/* 헤더 */}
         <div
           style={{
-            background: "linear-gradient(135deg, #7C3AED, #A78BFA)",
+            background: RED.primary,
             padding: "22px 26px 18px",
             color: "#fff",
             position: "relative",
@@ -441,6 +561,7 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
             </div>
           )}
         </div>
+        {/* 바디 */}
         <div
           style={{
             padding: "22px 26px 20px",
@@ -448,72 +569,12 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
             overflowY: "auto",
           }}
         >
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              handleImageFile(e.dataTransfer.files[0]);
-            }}
-            style={{
-              width: "100%",
-              height: 140,
-              borderRadius: 12,
-              border: "2px dashed #E2E8F0",
-              background: imagePreview
-                ? `url(${imagePreview}) center/cover`
-                : "#F8FAFC",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              marginBottom: 18,
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            {!imagePreview && (
-              <>
-                <ImagePlus size={24} color="#94A3B8" />
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "#94A3B8",
-                    marginTop: 6,
-                    fontWeight: 600,
-                  }}
-                >
-                  이미지 업로드 (선택)
-                </div>
-              </>
-            )}
-            {imagePreview && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "rgba(0,0,0,0.3)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity: 0,
-                  transition: "opacity .2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = 0)}
-              >
-                <Camera size={20} color="#fff" />
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={(e) => handleImageFile(e.target.files[0])}
+          <Field label="프로그램 이미지">
+            <DarkImageUpload
+              preview={preview}
+              onFile={(dataUrl) => setPreview(dataUrl)}
             />
-          </div>
+          </Field>
           <Field label="콘테스트명" required>
             <input
               value={form.name}
@@ -530,7 +591,7 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
                 type="date"
                 value={form.startAt}
                 onChange={(e) => set("startAt", e.target.value)}
-                style={{ ...inputStyle, flex: 1 }}
+                style={inputStyle}
                 onFocus={inputFocus}
                 onBlur={inputBlur}
               />
@@ -540,7 +601,7 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
                 type="date"
                 value={form.endAt}
                 onChange={(e) => set("endAt", e.target.value)}
-                style={{ ...inputStyle, flex: 1 }}
+                style={inputStyle}
                 onFocus={inputFocus}
                 onBlur={inputBlur}
               />
@@ -570,6 +631,7 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
             </div>
           )}
         </div>
+        {/* 푸터 */}
         <div style={{ padding: "14px 26px 20px", display: "flex", gap: 10 }}>
           <button
             onClick={onClose}
@@ -577,9 +639,9 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
               flex: 1,
               padding: "11px 0",
               borderRadius: 10,
-              border: "1.5px solid #E2E8F0",
-              background: "#F8FAFC",
-              color: "#64748B",
+              border: `1.5px solid ${ds.line}`,
+              background: ds.bg,
+              color: ds.ink3,
               fontSize: 13.5,
               fontWeight: 700,
               cursor: "pointer",
@@ -595,7 +657,7 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
               padding: "11px 0",
               borderRadius: 10,
               border: "none",
-              background: "linear-gradient(135deg,#7C3AED,#A78BFA)",
+              background: RED.primary,
               color: "#fff",
               fontSize: 13.5,
               fontWeight: 700,
@@ -611,48 +673,35 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
   );
 }
 
-/* ═══ 참가자 등록/수정 모달 ═══ */
+/* ═══ 참가자 폼 모달 ═══ */
 function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
   const [form, setForm] = useState(
     item || { petName: "", breedDetail: "", imageUrl: "" },
   );
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const [err, setErr] = useState("");
-  const [imagePreview, setImagePreview] = useState(item?.imageUrl || null);
-  const fileInputRef = useRef(null);
+  const [preview, setPreview] = useState(item?.imageUrl || null);
   const [visible, setVisible] = useState(false);
-  const handleImageFile = (file) => {
-    if (
-      !file ||
-      !file.type.startsWith("image/") ||
-      file.size > 10 * 1024 * 1024
-    )
-      return;
-    const r = new FileReader();
-    r.onload = (e) => {
-      setImagePreview(e.target.result);
-      set("imageUrl", e.target.result);
-    };
-    r.readAsDataURL(file);
-  };
+
   const handleSave = () => {
     if (!form.petName) {
       setErr("반려동물 이름은 필수입니다.");
       return;
     }
-    onSave({ ...form, imageUrl: imagePreview });
+    onSave({ ...form, imageUrl: preview });
   };
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
   }, []);
+
   return (
     <Overlay onClose={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 18,
-          width: 400,
+          width: 420,
           maxWidth: "100%",
           overflow: "hidden",
           boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
@@ -663,9 +712,10 @@ function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
           transition: "all .25s cubic-bezier(.34,1.56,.64,1)",
         }}
       >
+        {/* 헤더 */}
         <div
           style={{
-            background: "linear-gradient(135deg, #7C3AED, #A78BFA)",
+            background: RED.primary,
             padding: "22px 26px 18px",
             color: "#fff",
             position: "relative",
@@ -701,87 +751,21 @@ function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
             콘테스트에 참가할 반려동물 정보
           </div>
         </div>
+        {/* 바디 */}
         <div style={{ padding: "22px 26px 10px" }}>
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              handleImageFile(e.dataTransfer.files[0]);
-            }}
-            style={{
-              width: "100%",
-              aspectRatio: "1/1",
-              maxHeight: 220,
-              borderRadius: 14,
-              border: "2px dashed #DDD6FE",
-              background: imagePreview
-                ? `url(${imagePreview}) center/cover`
-                : "linear-gradient(135deg, #FAF5FF, #EDE9FE)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              marginBottom: 18,
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            {!imagePreview && (
-              <>
-                <Camera size={28} color="#8B5CF6" />
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "#7C3AED",
-                    marginTop: 8,
-                    fontWeight: 700,
-                  }}
-                >
-                  반려동물 사진 업로드
-                </div>
-                <div style={{ fontSize: 11, color: "#A78BFA", marginTop: 2 }}>
-                  정사각형 이미지 권장
-                </div>
-              </>
-            )}
-            {imagePreview && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "rgba(0,0,0,0.3)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity: 0,
-                  transition: "opacity .2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = 0)}
-              >
-                <Camera size={24} color="#fff" />
-                <span
-                  style={{
-                    color: "#fff",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    marginLeft: 6,
-                  }}
-                >
-                  변경
-                </span>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={(e) => handleImageFile(e.target.files[0])}
+          {/* ─── 다크 이미지 업로드 ─── */}
+          <Field label="반려동물 사진">
+            <DarkImageUpload
+              preview={preview}
+              onFile={(dataUrl) => {
+                setPreview(dataUrl);
+                set("imageUrl", dataUrl);
+              }}
+              label="클릭하거나 이미지를 드래그하세요"
+              hint="JPG, PNG, WEBP · 최대 10MB"
+              aspectRatio="4/3"
             />
-          </div>
+          </Field>
           <Field label="반려동물 이름" required>
             <input
               value={form.petName}
@@ -815,6 +799,7 @@ function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
             </div>
           )}
         </div>
+        {/* 푸터 */}
         <div style={{ padding: "8px 26px 20px", display: "flex", gap: 10 }}>
           <button
             onClick={onClose}
@@ -822,9 +807,9 @@ function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
               flex: 1,
               padding: "11px 0",
               borderRadius: 10,
-              border: "1.5px solid #E2E8F0",
-              background: "#F8FAFC",
-              color: "#64748B",
+              border: `1.5px solid ${ds.line}`,
+              background: ds.bg,
+              color: ds.ink3,
               fontSize: 13.5,
               fontWeight: 700,
               cursor: "pointer",
@@ -840,7 +825,7 @@ function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
               padding: "11px 0",
               borderRadius: 10,
               border: "none",
-              background: "linear-gradient(135deg,#7C3AED,#A78BFA)",
+              background: RED.primary,
               color: "#fff",
               fontSize: 13.5,
               fontWeight: 700,
@@ -856,105 +841,182 @@ function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
   );
 }
 
-/* ═══ 콘테스트 카드 (좌측) ═══ */
-function ContestCard({ item, idx, isSelected, onClick, participantCount }) {
+/* ═══ ContestCard — 선택 시 흰 배경 + 레드 테두리, 핑크 배경 없음 ═══ */
+function ContestCard({
+  item,
+  idx,
+  isSelected,
+  onClick,
+  participantCount,
+  onEdit,
+  onDelete,
+}) {
   const badge = contestBadge(item.status);
   const icon = ICON_POOL[idx % ICON_POOL.length];
   return (
     <div
       onClick={onClick}
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        padding: "14px 16px",
-        border: isSelected ? "1.5px solid #8B5CF6" : "1.5px solid #ECEEF3",
+        /* 선택 시 다크모드 어울리는 블루 테두리 */
+        border: isSelected ? `2px solid #4F7FEF` : `1.5px solid #2E3A4E`,
         borderRadius: 12,
-        background: isSelected ? "#F5F0FF" : "#fff",
-        boxShadow: isSelected ? "0 0 0 3px rgba(139,92,246,0.08)" : "none",
+        background: isSelected ? "#1A2540" : ds.card,
+        boxShadow: isSelected ? `0 0 0 3px #4F7FEF22` : "none",
         cursor: "pointer",
         transition: "all .18s",
+        overflow: "hidden",
       }}
     >
+      {/* 상단 행 */}
       <div
         style={{
-          width: 42,
-          height: 42,
-          borderRadius: 11,
-          background: icon.bg,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
+          gap: 12,
+          padding: "12px 14px 10px",
         }}
       >
-        {icon.icon && <icon.icon size={20} color={icon.color} strokeWidth={2} />}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontSize: 14,
-            fontWeight: 700,
-            color: ds.ink,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {item.name}
-        </div>
-        <div
-          style={{
-            fontSize: 12,
-            color: "#A0A7B5",
-            marginTop: 3,
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: icon.bg,
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            justifyContent: "center",
+            flexShrink: 0,
           }}
         >
-          <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-            <Users size={11} /> {participantCount}팀
-          </span>
-          {item.startAt && (
-            <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-              <CalendarDays size={11} /> {item.startAt.split("T")[0]}
-            </span>
-          )}
+          <icon.icon size={19} color={icon.color} strokeWidth={2} />
         </div>
-      </div>
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-          padding: "3px 10px",
-          borderRadius: 100,
-          fontSize: 11,
-          fontWeight: 600,
-          background: badge.bg,
-          color: badge.c,
-        }}
-      >
-        {badge.dot && (
-          <span
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
             style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: badge.c,
-              animation: "pulseGlow 2s infinite",
+              fontSize: 14,
+              fontWeight: 700,
+              color: ds.ink,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
-          />
-        )}
-        {badge.l}
-      </span>
-      <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
+          >
+            {item.name}
+          </div>
+          <div
+            style={{
+              fontSize: 11.5,
+              color: "#A0A7B5",
+              marginTop: 2,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <Users size={10} /> {participantCount}팀
+            </span>
+            {item.startAt && (
+              <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                <CalendarDays size={10} /> {item.startAt.split("T")[0]}
+              </span>
+            )}
+          </div>
+        </div>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "4px 12px",
+            borderRadius: 100,
+            fontSize: 11.5,
+            fontWeight: 700,
+            background: badge.bg,
+            color: badge.c,
+            flexShrink: 0,
+            letterSpacing: 0.2,
+            boxShadow: "0 2px 6px rgba(0,0,0,0.18)",
+          }}
+        >
+          {badge.dot && (
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#fff",
+                animation: "pulseGlow 2s infinite",
+                flexShrink: 0,
+              }}
+            />
+          )}
+          {badge.l}
+        </span>
+      </div>
+
+      {/* 하단 수정/삭제 — 선택된 카드에만, 얇은 구분선 */}
+      {isSelected && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 6,
+            padding: "7px 14px 10px",
+            borderTop: `1px solid #2E3A4E`,
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(item);
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "5px 14px",
+              borderRadius: 7,
+              background: "#232F45",
+              border: "1px solid #3D4A5C",
+              color: "#A8B4CC",
+              fontSize: 11.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: ds.ff,
+            }}
+          >
+            <Pencil size={11} color="#A8B4CC" /> 수정
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(item);
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "5px 14px",
+              borderRadius: 7,
+              background: RED.soft,
+              border: `1px solid ${RED.border}`,
+              color: RED.primary,
+              fontSize: 11.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: ds.ff,
+            }}
+          >
+            <Trash2 size={11} /> 삭제
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ═══ 참가자 카드 (우측 그리드) ═══ */
+/* ═══ 참가자 카드 ═══ */
 function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
   const pct = totalVotes > 0 ? Math.round((p.votes / totalVotes) * 100) : 0;
   const barPct = totalVotes > 0 ? (p.votes / totalVotes) * 100 : 0;
@@ -963,25 +1025,20 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
   return (
     <div
       style={{
-        background: "#fff",
+        background: ds.card,
         border: "1.5px solid #ECEEF3",
         borderRadius: 16,
         overflow: "hidden",
-        transition: "all .22s",
         animation: `cardIn .35s ease ${(rank - 1) * 0.07}s both`,
-        position: "relative",
       }}
     >
-      {/* 정사각형 이미지 */}
       <div
         style={{
           width: "100%",
           aspectRatio: "1/1",
           position: "relative",
           overflow: "hidden",
-          background: p.imageUrl
-            ? "#F1F3F6"
-            : `linear-gradient(135deg, ${cardColor}20, ${cardColor}08)`,
+          background: p.imageUrl ? ds.lineSoft : `${cardColor}15`,
         }}
       >
         {p.imageUrl ? (
@@ -1011,11 +1068,10 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
             position: "absolute",
             inset: 0,
             background:
-              "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.35) 100%)",
+              "linear-gradient(180deg,transparent 50%,rgba(0,0,0,0.35) 100%)",
             pointerEvents: "none",
           }}
         />
-        {/* 순위 */}
         <div
           style={{
             position: "absolute",
@@ -1030,16 +1086,12 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
             fontSize: 13,
             fontWeight: 800,
             color: "#fff",
-            background:
-              rank <= 3
-                ? `linear-gradient(135deg, ${rankColor}, ${rankColor}cc)`
-                : "rgba(0,0,0,0.4)",
+            background: rank <= 3 ? rankColor : "rgba(0,0,0,0.4)",
             zIndex: 2,
           }}
         >
           {rank}
         </div>
-        {/* 투표수 */}
         <div
           style={{
             position: "absolute",
@@ -1060,7 +1112,6 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
         >
           <Heart size={11} fill="#fff" /> {p.votes.toLocaleString()}표
         </div>
-        {/* 관리 버튼 */}
         <div
           style={{
             position: "absolute",
@@ -1111,7 +1162,6 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
           </button>
         </div>
       </div>
-      {/* 하단 */}
       <div style={{ padding: "14px 16px 16px" }}>
         <div
           style={{
@@ -1125,7 +1175,7 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
             {p.petName}
           </span>
           {totalVotes > 0 && (
-            <span style={{ fontSize: 14, fontWeight: 800, color: "#6D28D9" }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: RED.dark }}>
               {pct}%
             </span>
           )}
@@ -1144,7 +1194,7 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
           <div
             style={{
               height: 6,
-              background: "#F1F3F6",
+              background: ds.lineSoft,
               borderRadius: 100,
               overflow: "hidden",
               marginBottom: 10,
@@ -1168,7 +1218,7 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
               fontWeight: 600,
               padding: "2px 8px",
               borderRadius: 100,
-              background: p.status === "APPROVED" ? "#ECFDF5" : "#FEF3C7",
+              background: p.status === "APPROVED" ? ds.greenSoft : ds.amberSoft,
               color: p.status === "APPROVED" ? "#059669" : "#D97706",
             }}
           >
@@ -1195,9 +1245,17 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
 }
 
 /* ═══════════════════════════════════════════
-   메인 컴포넌트
+   메인
+   Props
+     subTab          — 행사 목록 필터
+     onDetailEnter() — 콘테스트 대시보드 진입 → 부모 탭 숨김
+     onDetailLeave() — 행사 목록으로 복귀   → 부모 탭 복원
 ═══════════════════════════════════════════ */
-export default function ContestManage({ subTab = "all" }) {
+export default function ContestManage({
+  subTab = "all",
+  onDetailEnter,
+  onDetailLeave,
+}) {
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [items, setItems] = useState([]);
@@ -1209,47 +1267,61 @@ export default function ContestManage({ subTab = "all" }) {
   const [participantModal, setParticipantModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteParticipant, setDeleteParticipant] = useState(null);
+  const [internalTab, setInternalTab] = useState("all"); // 탭 내부 관리
   const imageMapRef = useRef({});
   const [participantsMap, setParticipantsMap] = useState({});
   const [selected, setSelected] = useState(new Set());
+
   const showToast = (msg, type = "success") => setToast({ msg, type });
 
-  const getRowId = (r) => r.programId || r.id;
-  const isAllSelected = items.length > 0 && items.every((r) => selected.has(getRowId(r)));
-  const hasSelected = selected.size > 0;
-  const toggleAll = () => {
-    if (isAllSelected) setSelected(new Set());
-    else setSelected(new Set(items.map(getRowId)));
-  };
-  const toggleOne = (id) => {
-    setSelected((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  };
-
-  const getParticipants = useCallback(
-    (contestId) => participantsMap[contestId] || [],
-    [participantsMap],
+  /* ── 탭 콜백 ── */
+  const enterDetail = useCallback(
+    (ev) => {
+      setSelectedEvent(ev);
+      onDetailEnter?.();
+    },
+    [onDetailEnter],
   );
 
+  const leaveDetail = useCallback(() => {
+    setSelectedEvent(null);
+    setSelectedContest(null);
+    setItems([]);
+    onDetailLeave?.();
+  }, [onDetailLeave]);
+
+  /* ── 체크박스 ── */
+  const getRowId = (r) => r.programId || r.id;
+  const isAllSelected =
+    items.length > 0 && items.every((r) => selected.has(getRowId(r)));
+  const hasSelected = selected.size > 0;
+  const toggleAll = () =>
+    isAllSelected
+      ? setSelected(new Set())
+      : setSelected(new Set(items.map(getRowId)));
+  const toggleOne = (id) =>
+    setSelected((p) => {
+      const n = new Set(p);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+
+  const getParticipants = useCallback(
+    (id) => participantsMap[id] || [],
+    [participantsMap],
+  );
   const selectContest = useCallback(
     (contest) => {
       setSelectedContest(contest);
-      if (!participantsMap[contest.programId]) {
-        // 첫 번째 콘테스트만 mock 데이터
-        setParticipantsMap((prev) => {
-          if (prev[contest.programId]) return prev;
-          const isFirst =
-            items.length > 0 && items[0].programId === contest.programId;
-          return {
-            ...prev,
-            [contest.programId]: isFirst ? MOCK_PARTICIPANTS : [],
-          };
-        });
-      }
+      setParticipantsMap((prev) => {
+        if (prev[contest.programId]) return prev;
+        const isFirst =
+          items.length > 0 && items[0].programId === contest.programId;
+        return {
+          ...prev,
+          [contest.programId]: isFirst ? MOCK_PARTICIPANTS : [],
+        };
+      });
     },
     [participantsMap, items],
   );
@@ -1257,12 +1329,13 @@ export default function ContestManage({ subTab = "all" }) {
   /* ── API ── */
   const loadEvents = async () => {
     try {
+      await loadImageCache();
       const res = await axiosInstance.get("/api/admin/dashboard/events", {
         headers: authHeaders(),
       });
       const list = res.data?.data || res.data || [];
       setEvents(
-        list.map((e) => ({
+        injectEventImages(list).map((e) => ({
           ...e,
           status: calcStatus(
             e.startAt || e.date?.split("~")[0]?.trim()?.replace(/\./g, "-"),
@@ -1289,6 +1362,7 @@ export default function ContestManage({ subTab = "all" }) {
         imageUrl: imageMapRef.current[p.programId] || p.imageUrl || null,
       }));
       setItems(list);
+      setSelected(new Set());
       if (list.length > 0) selectContest(list[0]);
       else setSelectedContest(null);
     } catch {
@@ -1301,19 +1375,24 @@ export default function ContestManage({ subTab = "all" }) {
     loadEvents();
   }, []);
 
-  /* ── 콘테스트 CRUD ── */
+  /* ── CRUD ── */
   const saveContest = async (form) => {
     const isEdit = !!modal?.item;
     const eventId = selectedEvent?.eventId || selectedEvent?.id;
+    if (!isEdit && !eventId) {
+      showToast("행사가 선택되지 않았습니다.", "error");
+      return;
+    }
     try {
       if (isEdit) {
-        await axiosInstance.put(
+        // ✅ PATCH /api/admin/dashboard/programs/{id}  필드명: programTitle
+        await axiosInstance.patch(
           `/api/admin/dashboard/programs/${modal.item.programId}`,
           {
-            name: form.name,
+            programTitle: form.name,
             description: form.description || "",
-            startAt: form.startAt || null,
-            endAt: form.endAt || null,
+            startAt: form.startAt ? `${form.startAt}T00:00:00` : null,
+            endAt: form.endAt ? `${form.endAt}T23:59:59` : null,
             category: "CONTEST",
           },
           { headers: authHeaders() },
@@ -1321,25 +1400,27 @@ export default function ContestManage({ subTab = "all" }) {
         if (form.imageUrl)
           imageMapRef.current[modal.item.programId] = form.imageUrl;
       } else {
+        // ✅ POST /api/admin/dashboard/programs  eventId는 body에, 필드명: programTitle
         const res = await axiosInstance.post(
-          `/api/admin/dashboard/events/${eventId}/programs`,
+          `/api/admin/dashboard/programs`,
           {
-            name: form.name,
+            eventId: eventId,
+            programTitle: form.name,
             description: form.description || "",
-            startAt: form.startAt || null,
-            endAt: form.endAt || null,
+            startAt: form.startAt ? `${form.startAt}T00:00:00` : null,
+            endAt: form.endAt ? `${form.endAt}T23:59:59` : null,
             category: "CONTEST",
           },
           { headers: authHeaders() },
         );
-        const newId = res.data?.data?.programId || res.data?.data;
+        const newId = res.data?.data?.programId;
         if (form.imageUrl && newId) imageMapRef.current[newId] = form.imageUrl;
       }
       showToast(
         isEdit ? "콘테스트가 수정되었습니다" : "콘테스트가 등록되었습니다",
       );
       setModal(null);
-      await loadItems(eventId);
+      await loadItems(selectedEvent?.eventId || selectedEvent?.id);
     } catch (e) {
       showToast(e.response?.data?.message || "저장 실패", "error");
     }
@@ -1360,8 +1441,49 @@ export default function ContestManage({ subTab = "all" }) {
       showToast(e.response?.data?.message || "삭제 실패", "error");
     }
   };
-
-  /* ── 참가자 CRUD (mock) ── */
+  const handleBulkDelete = async () => {
+    if (!selectedEvent || selected.size === 0) {
+      setModal(null);
+      return;
+    }
+    try {
+      await Promise.all(
+        [...selected].map((id) =>
+          axiosInstance.delete(`/api/admin/dashboard/programs/${id}`, {
+            headers: authHeaders(),
+          }),
+        ),
+      );
+      showToast(`${selected.size}건이 삭제되었습니다`);
+      setSelected(new Set());
+      setModal(null);
+      await loadItems(selectedEvent.eventId || selectedEvent.id);
+    } catch (e) {
+      showToast(e.response?.data?.message || "삭제 실패", "error");
+    }
+  };
+  const handleDeleteAll = async () => {
+    if (!selectedEvent || items.length === 0) {
+      setModal(null);
+      return;
+    }
+    try {
+      await Promise.all(
+        items.map((it) =>
+          axiosInstance.delete(
+            `/api/admin/dashboard/programs/${it.programId}`,
+            { headers: authHeaders() },
+          ),
+        ),
+      );
+      showToast("전체 삭제되었습니다");
+      setModal(null);
+      setSelectedContest(null);
+      await loadItems(selectedEvent.eventId || selectedEvent.id);
+    } catch (e) {
+      showToast(e.response?.data?.message || "삭제 실패", "error");
+    }
+  };
   const saveParticipant = (form) => {
     const cid = selectedContest.programId;
     setParticipantsMap((prev) => {
@@ -1369,9 +1491,8 @@ export default function ContestManage({ subTab = "all" }) {
       if (participantModal?.item) {
         const idx = list.findIndex((p) => p.id === participantModal.item.id);
         if (idx >= 0) list[idx] = { ...list[idx], ...form };
-      } else {
+      } else
         list.push({ ...form, id: Date.now(), votes: 0, status: "APPLIED" });
-      }
       return { ...prev, [cid]: list };
     });
     showToast(
@@ -1402,12 +1523,336 @@ export default function ContestManage({ subTab = "all" }) {
     0,
   );
 
-  /* ═══ 이벤트 선택 화면 ═══ */
+  /* ═══ 행사 선택 화면 ═══ */
   if (!selectedEvent) {
+    const filteredEvents = events.filter(
+      subTab === "all"
+        ? () => true
+        : subTab === "active"
+          ? (e) => e.status === "active"
+          : subTab === "ended"
+            ? (e) => e.status === "ended"
+            : (e) => e.status === "pending",
+    );
     return (
       <div style={{ fontFamily: ds.ff }}>
         <style>{styles}</style>
-              {modal?.type === "bulkDelete" && (
+        {toast && (
+          <Toast
+            msg={toast.msg}
+            type={toast.type}
+            onDone={() => setToast(null)}
+          />
+        )}
+        {loadingEvents ? (
+          <div style={{ textAlign: "center", padding: 60, color: ds.ink4 }}>
+            로딩 중...
+          </div>
+        ) : events.length === 0 ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "80px 0",
+            }}
+          >
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: "50%",
+                background: ds.lineSoft,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 14,
+              }}
+            >
+              <Trophy size={28} color={ds.ink4} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: ds.ink3 }}>
+              등록된 행사가 없습니다
+            </div>
+          </div>
+        ) : filteredEvents.length === 0 ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "80px 0",
+            }}
+          >
+            <CalendarDays size={36} color={ds.ink4} strokeWidth={1.5} />
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: ds.ink4,
+                marginTop: 10,
+              }}
+            >
+              해당 상태의 행사가 없습니다
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: 14,
+            }}
+          >
+            {filteredEvents.map((ev) => {
+              const st = statusMap[ev.status] || statusMap.pending;
+              const hasImg = !!ev.imageUrl;
+              return (
+                <div
+                  key={ev.eventId || ev.id}
+                  onClick={() => {
+                    enterDetail(ev);
+                    loadItems(ev.eventId || ev.id);
+                  }}
+                  style={{
+                    borderRadius: 18,
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    position: "relative",
+                    height: 320,
+                    display: "flex",
+                    flexDirection: "column",
+                    background: hasImg ? "#000" : RED.primary,
+                    boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+                    transition: "transform 0.22s ease, box-shadow 0.22s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-4px)";
+                    e.currentTarget.style.boxShadow =
+                      "0 12px 36px rgba(0,0,0,0.16)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow =
+                      "0 4px 24px rgba(0,0,0,0.08)";
+                  }}
+                >
+                  {hasImg ? (
+                    <div style={{ position: "absolute", inset: 0 }}>
+                      <img
+                        src={ev.imageUrl}
+                        alt=""
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          background:
+                            "linear-gradient(to bottom,rgba(0,0,0,0.05) 0%,rgba(0,0,0,0.6) 100%)",
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        opacity: 0.12,
+                      }}
+                    >
+                      <Trophy size={90} color="#fff" strokeWidth={1} />
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      position: "relative",
+                      zIndex: 1,
+                      padding: "22px 20px 0",
+                      flex: 1,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 800,
+                        color: "#fff",
+                        letterSpacing: -0.3,
+                        textShadow: "0 1px 8px rgba(0,0,0,0.3)",
+                        marginBottom: 6,
+                        fontFamily: ds.ff,
+                      }}
+                    >
+                      {ev.name || ev.eventName}
+                    </div>
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        background: st.bg,
+                        borderRadius: 20,
+                        padding: "3px 10px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          background: st.c,
+                        }}
+                      />
+                      <span
+                        style={{ fontSize: 11, fontWeight: 700, color: st.c }}
+                      >
+                        {st.l}
+                      </span>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      position: "relative",
+                      zIndex: 1,
+                      padding: "0 20px 18px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        marginBottom: 12,
+                      }}
+                    >
+                      {hasImg && (
+                        <div
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: 8,
+                            overflow: "hidden",
+                            border: "2px solid rgba(255,255,255,0.4)",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <img
+                            src={ev.imageUrl}
+                            alt=""
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {ev.date && (
+                          <div
+                            style={{
+                              fontSize: 11.5,
+                              fontWeight: 600,
+                              color: "rgba(255,255,255,0.9)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            <CalendarDays size={11} /> {ev.date}
+                          </div>
+                        )}
+                        {ev.location && (
+                          <div
+                            style={{
+                              fontSize: 10.5,
+                              color: "rgba(255,255,255,0.65)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              marginTop: 1,
+                            }}
+                          >
+                            <MapPin size={10} /> {ev.location}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      className="card-manage-btn"
+                      style={{
+                        width: "100%",
+                        padding: "9px 0",
+                        borderRadius: 10,
+                        border: "none",
+                        background: ds.brand,
+                        color: "#fff",
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        fontFamily: ds.ff,
+                        transition: "all .15s",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 6,
+                        outline: "none",
+                        WebkitTapHighlightColor: "transparent",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = ds.brandDark;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = ds.brand;
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        enterDetail(ev);
+                        loadItems(ev.eventId || ev.id);
+                      }}
+                    >
+                      <Trophy size={13} /> 콘테스트 관리하기
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ═══ 콘테스트 대시보드 ═══ */
+  return (
+    <div style={{ fontFamily: ds.ff }}>
+      <style>{styles}</style>
+      {toast && (
+        <Toast
+          msg={toast.msg}
+          type={toast.type}
+          onDone={() => setToast(null)}
+        />
+      )}
+
+      {modal && modal.type !== "bulkDelete" && modal.type !== "deleteAll" && (
+        <ContestFormModal
+          item={modal.item}
+          onSave={saveContest}
+          onClose={() => setModal(null)}
+          isEdit={!!modal.item}
+        />
+      )}
+      {modal?.type === "bulkDelete" && (
         <ConfirmModal
           title="선택 삭제"
           msg={`선택한 ${selected.size}건을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
@@ -1421,158 +1866,6 @@ export default function ContestManage({ subTab = "all" }) {
           msg={`현재 목록의 ${items.length}건을 전체 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
           onConfirm={handleDeleteAll}
           onCancel={() => setModal(null)}
-        />
-      )}
-{toast && (
-          <Toast
-            msg={toast.msg}
-            type={toast.type}
-            onDone={() => setToast(null)}
-          />
-        )}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 24,
-          }}
-        >
-          <div
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 10,
-              background: ds.brand,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Trophy size={18} color="#fff" />
-          </div>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: ds.ink }}>
-              콘테스트 관리
-            </div>
-            <div style={{ fontSize: 13, color: "#94A3B8" }}>
-              행사를 선택해 콘테스트를 관리하세요
-            </div>
-          </div>
-        </div>
-        {loadingEvents ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#94A3B8" }}>
-            로딩 중...
-          </div>
-        ) : events.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 60 }}>
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: "50%",
-                background: "#F3F4F6",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto 12px",
-              }}
-            >
-              <Trophy size={22} color="#94A3B8" />
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#6B7280" }}>
-              등록된 행사가 없습니다
-            </div>
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-              gap: 14,
-            }}
-          >
-            {events.map((ev) => (
-              <div
-                key={ev.eventId || ev.id}
-                onClick={() => {
-                  setSelectedEvent(ev);
-                  loadItems(ev.eventId || ev.id);
-                }}
-                style={{
-                  background: "#fff",
-                  border: "1.5px solid #ECEEF3",
-                  borderRadius: 14,
-                  padding: "20px 22px",
-                  cursor: "pointer",
-                  transition: "all .18s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = ds.brand;
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "#ECEEF3";
-                  e.currentTarget.style.transform = "";
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 800,
-                    color: ds.ink,
-                    marginBottom: 6,
-                  }}
-                >
-                  {ev.name}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12.5,
-                    color: "#94A3B8",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
-                  <span
-                    style={{ display: "flex", alignItems: "center", gap: 4 }}
-                  >
-                    <CalendarDays size={12} /> {ev.date || "날짜 미정"}
-                  </span>
-                  {ev.location && (
-                    <span
-                      style={{ display: "flex", alignItems: "center", gap: 4 }}
-                    >
-                      {ev.location}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  /* ═══ 콘테스트 대시보드 (3단계) ═══ */
-  return (
-    <div style={{ fontFamily: ds.ff }}>
-      <style>{styles}</style>
-      {toast && (
-        <Toast
-          msg={toast.msg}
-          type={toast.type}
-          onDone={() => setToast(null)}
-        />
-      )}
-      {modal && (
-        <ContestFormModal
-          item={modal.item}
-          onSave={saveContest}
-          onClose={() => setModal(null)}
-          isEdit={!!modal.item}
         />
       )}
       {participantModal && (
@@ -1611,11 +1904,7 @@ export default function ContestManage({ subTab = "all" }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
-            onClick={() => {
-              setSelectedEvent(null);
-              setSelectedContest(null);
-              setItems([]);
-            }}
+            onClick={leaveDetail}
             style={{
               display: "flex",
               alignItems: "center",
@@ -1638,7 +1927,7 @@ export default function ContestManage({ subTab = "all" }) {
             <div style={{ fontSize: 17, fontWeight: 800, color: ds.ink }}>
               {selectedEvent.name}
             </div>
-            <div style={{ fontSize: 12, color: "#94A3B8" }}>
+            <div style={{ fontSize: 12, color: ds.ink4 }}>
               콘테스트 {items.length}개 · 참가자 {allP}팀
             </div>
           </div>
@@ -1652,13 +1941,13 @@ export default function ContestManage({ subTab = "all" }) {
             padding: "10px 20px",
             borderRadius: 10,
             border: "none",
-            background: ds.brand,
+            background: RED.primary,
             color: "#fff",
             fontSize: 13,
             fontWeight: 700,
             cursor: "pointer",
             fontFamily: ds.ff,
-            boxShadow: "0 2px 10px rgba(67,97,238,.25)",
+            boxShadow: `0 2px 10px ${RED.primary}40`,
           }}
         >
           <Plus size={15} /> 콘테스트 추가
@@ -1679,31 +1968,31 @@ export default function ContestManage({ subTab = "all" }) {
             label: "전체 콘테스트",
             value: `${items.length}개`,
             icon: <Trophy size={18} color="#F59E0B" />,
-            bg: "#FFFBEB",
+            bg: ds.amberSoft,
           },
           {
             label: "투표 진행 중",
             value: `${liveCount}개`,
-            icon: <Heart size={18} color="#8B5CF6" />,
-            bg: "#F5F3FF",
+            icon: <Heart size={18} color={RED.primary} />,
+            bg: RED.soft,
           },
           {
             label: "총 참가팀",
             value: `${allP}팀`,
             icon: <Users size={18} color="#10B981" />,
-            bg: "#ECFDF5",
+            bg: ds.greenSoft,
           },
           {
             label: "총 투표수",
             value: `${totalVotes}표`,
             icon: <BarChart3 size={18} color="#D97706" />,
-            bg: "#FFFBEB",
+            bg: ds.amberSoft,
           },
         ].map((s) => (
           <div
             key={s.label}
             style={{
-              background: "#fff",
+              background: ds.card,
               border: "1px solid #ECEEF3",
               borderRadius: 14,
               padding: "18px 20px",
@@ -1738,7 +2027,7 @@ export default function ContestManage({ subTab = "all" }) {
         ))}
       </div>
 
-      {/* 메인 2열 */}
+      {/* 2열 레이아웃 */}
       <div
         style={{
           display: "grid",
@@ -1746,10 +2035,10 @@ export default function ContestManage({ subTab = "all" }) {
           gap: 16,
         }}
       >
-        {/* 좌: 콘테스트 목록 */}
+        {/* ── 좌: 콘테스트 목록 ── */}
         <div
           style={{
-            background: "#fff",
+            background: ds.card,
             border: "1px solid #ECEEF3",
             borderRadius: 14,
             padding: "20px 22px",
@@ -1780,7 +2069,7 @@ export default function ContestManage({ subTab = "all" }) {
                   width: 26,
                   height: 26,
                   borderRadius: 7,
-                  background: "#FFFBEB",
+                  background: ds.amberSoft,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -1790,29 +2079,47 @@ export default function ContestManage({ subTab = "all" }) {
               </div>
               콘테스트 목록
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "#868E9C",
-                  background: "#F3F4F7",
-                  padding: "4px 10px",
-                  borderRadius: 100,
-                }}
-              >
-                총 {items.length}개
-              </span>
-            </div>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#868E9C",
+                background: ds.lineSoft,
+                padding: "4px 10px",
+                borderRadius: 100,
+              }}
+            >
+              총 {items.length}개
+            </span>
           </div>
-          {/* 선택/삭제 툴바 */}
+
+          {/* 툴바 */}
           {items.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 10,
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Checkbox checked={isAllSelected && items.length > 0} onChange={toggleAll} />
-                <span style={{ fontSize: 12, color: "#94A3B8" }}>전체 선택</span>
+                <Checkbox
+                  checked={isAllSelected && items.length > 0}
+                  onChange={toggleAll}
+                />
+                <span style={{ fontSize: 12, color: ds.ink4 }}>전체 선택</span>
                 {hasSelected && (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: ds.brand, background: `${ds.brand}0C`, padding: "3px 8px", borderRadius: 5 }}>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: ds.brand,
+                      background: `${ds.brand}0C`,
+                      padding: "3px 8px",
+                      borderRadius: 5,
+                    }}
+                  >
                     {selected.size}건
                   </span>
                 )}
@@ -1821,148 +2128,172 @@ export default function ContestManage({ subTab = "all" }) {
                 {hasSelected && (
                   <button
                     onClick={() => setModal({ type: "bulkDelete" })}
-                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, border: "1px solid #FECACA", background: "#FEF2F2", fontSize: 11, fontWeight: 600, color: "#DC2626", cursor: "pointer", fontFamily: ds.ff }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "5px 10px",
+                      borderRadius: 6,
+                      border: "1px solid #FECACA",
+                      background: RED.soft,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: RED.primary,
+                      cursor: "pointer",
+                      fontFamily: ds.ff,
+                    }}
                   >
                     <Trash2 size={11} /> 선택 삭제
                   </button>
                 )}
                 <button
                   onClick={() => setModal({ type: "deleteAll" })}
-                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, border: "1px solid #E2E8F0", background: "#fff", fontSize: 11, fontWeight: 600, color: "#64748B", cursor: "pointer", fontFamily: ds.ff }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "5px 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${ds.line}`,
+                    background: ds.card,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: ds.ink3,
+                    cursor: "pointer",
+                    fontFamily: ds.ff,
+                  }}
                 >
                   <Trash2 size={11} /> 전체 삭제
                 </button>
               </div>
             </div>
           )}
+
           {loadingItems ? (
-            <div style={{ textAlign: "center", padding: 30, color: "#94A3B8" }}>
+            <div style={{ textAlign: "center", padding: 30, color: ds.ink4 }}>
               로딩 중...
             </div>
           ) : items.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 40 }}>
+            /* ★ 빈 상태: 완전 가운데 정렬 */
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "50px 0",
+                minHeight: 160,
+              }}
+            >
               <div
                 style={{
-                  width: 48,
-                  height: 48,
+                  width: 52,
+                  height: 52,
                   borderRadius: "50%",
-                  background: "#F3F4F6",
+                  background: ds.lineSoft,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  margin: "0 auto 10px",
+                  marginBottom: 12,
                 }}
               >
-                <Trophy size={20} color="#94A3B8" />
+                <Trophy size={22} color={ds.ink4} />
               </div>
-              <div style={{ fontSize: 13, color: "#94A3B8" }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: ds.ink4 }}>
                 등록된 콘테스트가 없습니다
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: ds.ink4,
+                  marginTop: 4,
+                  opacity: 0.7,
+                }}
+              >
+                우측 상단 버튼으로 추가해보세요
               </div>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {items.map((it, idx) => (
-                <div key={it.programId} style={{ position: "relative" }}>
-                  <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2 }}>
-                    <Checkbox checked={selected.has(it.programId || it.id)} onChange={() => toggleOne(it.programId || it.id)} />
+                <div
+                  key={it.programId}
+                  style={{ display: "flex", alignItems: "flex-start", gap: 8 }}
+                >
+                  <div style={{ paddingTop: 13 }}>
+                    <Checkbox
+                      checked={selected.has(it.programId || it.id)}
+                      onChange={() => toggleOne(it.programId || it.id)}
+                    />
                   </div>
-                  <ContestCard
-                    item={it}
-                    idx={idx}
-                    isSelected={selectedContest?.programId === it.programId}
-                    onClick={() => selectContest(it)}
-                    participantCount={getParticipants(it.programId).length}
-                  />
-                  {selectedContest?.programId === it.programId && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: 8,
-                        right: 38,
-                        display: "flex",
-                        gap: 3,
-                      }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModal({ item: it });
-                        }}
-                        style={{
-                          width: 26,
-                          height: 26,
-                          borderRadius: 6,
-                          background: "#F5F3FF",
-                          border: "none",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Pencil size={11} color="#8B5CF6" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget(it);
-                        }}
-                        style={{
-                          width: 26,
-                          height: 26,
-                          borderRadius: 6,
-                          background: "#FEF2F2",
-                          border: "none",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Trash2 size={11} color="#EF4444" />
-                      </button>
-                    </div>
-                  )}
+                  <div style={{ flex: 1 }}>
+                    <ContestCard
+                      item={it}
+                      idx={idx}
+                      isSelected={selectedContest?.programId === it.programId}
+                      onClick={() => selectContest(it)}
+                      participantCount={getParticipants(it.programId).length}
+                      onEdit={(item) => setModal({ item })}
+                      onDelete={(item) => setDeleteTarget(item)}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* 우: 참가자 그리드 */}
+        {/* ── 우: 참가자 그리드 ── */}
         {selectedContest && (
           <div
             style={{
-              background: "#fff",
+              background: ds.card,
               border: "1px solid #ECEEF3",
               borderRadius: 14,
               padding: "20px 24px",
             }}
           >
-            {/* 배너 */}
+            {/* 배너 — 이미지 있으면 배경 이미지, 없으면 레드 */}
             <div
               style={{
-                background:
-                  "linear-gradient(135deg, #6D28D9 0%, #A855F7 50%, #C084FC 100%)",
                 borderRadius: 14,
                 padding: "22px 24px 18px",
                 color: "#fff",
                 marginBottom: 18,
                 position: "relative",
                 overflow: "hidden",
+                background: selectedContest.imageUrl
+                  ? `url(${selectedContest.imageUrl}) center/cover no-repeat`
+                  : RED.primary,
+                minHeight: 110,
               }}
             >
-              <div
-                style={{
-                  position: "absolute",
-                  top: -50,
-                  right: -30,
-                  width: 160,
-                  height: 160,
-                  background: "rgba(255,255,255,0.06)",
-                  borderRadius: "50%",
-                }}
-              />
+              {/* 이미지 위에 어두운 오버레이 */}
+              {selectedContest.imageUrl && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background:
+                      "linear-gradient(135deg,rgba(0,0,0,0.55) 0%,rgba(0,0,0,0.25) 100%)",
+                    borderRadius: 14,
+                  }}
+                />
+              )}
+              {/* 이미지 없을 때 장식 원 */}
+              {!selectedContest.imageUrl && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: -50,
+                    right: -30,
+                    width: 160,
+                    height: 160,
+                    background: "rgba(255,255,255,0.06)",
+                    borderRadius: "50%",
+                  }}
+                />
+              )}
               <div
                 style={{
                   display: "flex",
@@ -1983,6 +2314,7 @@ export default function ContestManage({ subTab = "all" }) {
                     borderRadius: 100,
                     fontSize: 11,
                     fontWeight: 700,
+                    backdropFilter: "blur(4px)",
                   }}
                 >
                   {contestBadge(selectedContest.status).dot && (
@@ -1998,7 +2330,14 @@ export default function ContestManage({ subTab = "all" }) {
                   )}
                   {contestBadge(selectedContest.status).l}
                 </div>
-                <span style={{ fontSize: 12, opacity: 0.7 }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    opacity: 0.85,
+                    position: "relative",
+                    zIndex: 1,
+                  }}
+                >
                   {totalVotes}표 참여
                 </span>
               </div>
@@ -2011,10 +2350,10 @@ export default function ContestManage({ subTab = "all" }) {
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
+                  textShadow: "0 1px 6px rgba(0,0,0,0.3)",
                 }}
               >
-                <Trophy size={20} />
-                {selectedContest.name}
+                <Trophy size={20} /> {selectedContest.name}
               </div>
               <div
                 style={{
@@ -2031,7 +2370,7 @@ export default function ContestManage({ subTab = "all" }) {
                     alignItems: "center",
                     gap: 5,
                     fontSize: 13,
-                    opacity: 0.85,
+                    opacity: 0.9,
                   }}
                 >
                   <Users size={13} /> {participants.length}팀
@@ -2043,7 +2382,7 @@ export default function ContestManage({ subTab = "all" }) {
                       alignItems: "center",
                       gap: 5,
                       fontSize: 13,
-                      opacity: 0.85,
+                      opacity: 0.9,
                     }}
                   >
                     <CalendarDays size={13} />{" "}
@@ -2068,13 +2407,13 @@ export default function ContestManage({ subTab = "all" }) {
                     width: 26,
                     height: 26,
                     borderRadius: 7,
-                    background: "#F5F0FF",
+                    background: RED.soft,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  <Dog size={13} color="#7C3AED" />
+                  <Dog size={13} color={RED.dark} />
                 </div>
                 <span style={{ fontSize: 15, fontWeight: 700, color: ds.ink }}>
                   참가자 관리
@@ -2084,7 +2423,7 @@ export default function ContestManage({ subTab = "all" }) {
                     fontSize: 11,
                     fontWeight: 600,
                     color: "#868E9C",
-                    background: "#F3F4F7",
+                    background: ds.lineSoft,
                     padding: "3px 10px",
                     borderRadius: 100,
                   }}
@@ -2116,34 +2455,42 @@ export default function ContestManage({ subTab = "all" }) {
 
             {/* 카드 그리드 */}
             {participants.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "50px 20px" }}>
+              /* ★ 빈 상태 가운데 정렬 */
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "60px 20px",
+                  minHeight: 200,
+                }}
+              >
                 <div
                   style={{
-                    width: 60,
-                    height: 60,
+                    width: 64,
+                    height: 64,
                     borderRadius: "50%",
-                    background: "linear-gradient(135deg,#F5F0FF,#EDE9FE)",
+                    background: RED.soft,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    margin: "0 auto 14px",
+                    marginBottom: 14,
                   }}
                 >
-                  <Dog size={26} color="#8B5CF6" />
+                  <Dog size={28} color={RED.primary} />
                 </div>
                 <div
                   style={{
                     fontSize: 15,
                     fontWeight: 700,
-                    color: "#6B7280",
+                    color: ds.ink3,
                     marginBottom: 6,
                   }}
                 >
                   아직 참가자가 없습니다
                 </div>
-                <div
-                  style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 16 }}
-                >
+                <div style={{ fontSize: 13, color: ds.ink4, marginBottom: 18 }}>
                   참가자를 등록해 콘테스트를 시작하세요
                 </div>
                 <button
@@ -2152,7 +2499,7 @@ export default function ContestManage({ subTab = "all" }) {
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 6,
-                    padding: "10px 22px",
+                    padding: "10px 24px",
                     borderRadius: 10,
                     border: "none",
                     background: ds.brand,
@@ -2184,46 +2531,35 @@ export default function ContestManage({ subTab = "all" }) {
                     onDelete={(item) => setDeleteParticipant(item)}
                   />
                 ))}
-                {/* 추가 카드 */}
+                {/* 참가자 추가 카드 — CSS 호버 (빨간 테두리 + 아이콘 빨간 배경) */}
                 <div
+                  className="add-p-card"
                   onClick={() => setParticipantModal({ item: null })}
-                  style={{
-                    border: "2px dashed #DDD6FE",
-                    borderRadius: 16,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    minHeight: 260,
-                    background: "#FAFAFE",
-                    transition: "all .18s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "#8B5CF6";
-                    e.currentTarget.style.background = "#F5F0FF";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#DDD6FE";
-                    e.currentTarget.style.background = "#FAFAFE";
-                  }}
                 >
                   <div
+                    className="add-p-icon"
                     style={{
-                      width: 48,
-                      height: 48,
+                      width: 44,
+                      height: 44,
                       borderRadius: 12,
-                      background: "#EDE9FE",
+                      background: "#273047",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       marginBottom: 10,
+                      transition: "background .18s",
                     }}
                   >
-                    <Plus size={20} color="#8B5CF6" />
+                    <Plus size={20} color="#6B7A99" />
                   </div>
                   <div
-                    style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}
+                    className="add-p-label"
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#6B7A99",
+                      transition: "color .18s",
+                    }}
                   >
                     참가자 추가
                   </div>
@@ -2231,78 +2567,35 @@ export default function ContestManage({ subTab = "all" }) {
               </div>
             )}
 
-            {/* 투표 안내 */}
+            {/* 투표 안내 — 한 줄, 눈에 띄는 배경 */}
             {participants.length > 0 && (
               <div
                 style={{
-                  marginTop: 18,
-                  background: "linear-gradient(135deg, #FAF8FF, #F5F0FF)",
-                  border: "1.5px solid #EDE9FE",
-                  borderRadius: 12,
-                  padding: "16px 20px",
+                  marginTop: 14,
+                  padding: "11px 16px",
+                  borderRadius: 10,
+                  background: "#1E3A5F",
+                  border: "1px solid #2E5FA3",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: "#4C1D95",
-                    marginBottom: 10,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 7,
-                  }}
+                <Info size={13} color="#7EB3FF" style={{ flexShrink: 0 }} />
+                <span
+                  style={{ fontSize: 12, color: "#A8CCFF", fontWeight: 500 }}
                 >
-                  <Info size={15} color="#7C3AED" /> 투표 안내
-                </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 6,
-                  }}
-                >
-                  {[
-                    {
-                      icon: <Heart size={12} color="#7C3AED" />,
-                      text: "콘테스트별 1회 투표",
-                    },
-                    {
-                      icon: <AlertCircle size={12} color="#7C3AED" />,
-                      text: "투표 후 변경 불가",
-                    },
-                    {
-                      icon: <Star size={12} color="#7C3AED" />,
-                      text: "결과 실시간 반영",
-                    },
-                    {
-                      icon: <Medal size={12} color="#7C3AED" />,
-                      text: "홈페이지에서 투표",
-                    },
-                  ].map((it, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 12,
-                        color: "#5B21B6",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {it.icon} {it.text}
-                    </div>
-                  ))}
-                </div>
+                  1회 투표 · 변경 불가 · 실시간 반영 · 홈페이지에서 투표
+                </span>
               </div>
             )}
           </div>
         )}
+
         {!selectedContest && items.length > 0 && (
           <div
             style={{
-              background: "#fff",
+              background: ds.card,
               border: "1px solid #ECEEF3",
               borderRadius: 14,
               display: "flex",
@@ -2317,19 +2610,19 @@ export default function ContestManage({ subTab = "all" }) {
                   width: 56,
                   height: 56,
                   borderRadius: "50%",
-                  background: "#F5F0FF",
+                  background: RED.soft,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   margin: "0 auto 12px",
                 }}
               >
-                <ChevronLeft size={22} color="#8B5CF6" />
+                <ChevronLeft size={22} color={RED.primary} />
               </div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#6B7280" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: ds.ink3 }}>
                 콘테스트를 선택하세요
               </div>
-              <div style={{ fontSize: 13, color: "#9CA3AF", marginTop: 4 }}>
+              <div style={{ fontSize: 13, color: ds.ink4, marginTop: 4 }}>
                 좌측에서 선택하면 참가자를 관리할 수 있습니다
               </div>
             </div>

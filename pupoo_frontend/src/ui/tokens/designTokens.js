@@ -1,42 +1,42 @@
 /* ═══════════════════════════════════════════════
-   디자인 토큰 — 전역 import
+   디자인 토큰 — 다크 그레이 + 다홍 주조색
    ═══════════════════════════════════════════════ */
 const ds = {
-  bg: "#F5F5F9",
-  card: "#FFFFFF",
-  sidebar: "#111119",
-  sideHover: "rgba(255,255,255,0.05)",
-  sideActive: "rgba(255,255,255,0.09)",
+  bg: "#2A2B3A",
+  card: "#32334A",
+  sidebar: "#1E1F2E",
+  sideHover: "rgba(255,255,255,0.07)",
+  sideActive: "rgba(255,255,255,0.12)",
 
-  brand: "#4361EE",
-  brandSoft: "#EBF0FF",
-  brandDark: "#3451D1",
+  brand: "#E8505B",
+  brandSoft: "rgba(232,80,91,0.14)",
+  brandDark: "#D43F4A",
   green: "#22C55E",
-  greenSoft: "#ECFDF5",
+  greenSoft: "rgba(34,197,94,0.14)",
   red: "#EF4444",
-  redSoft: "#FEF2F2",
+  redSoft: "rgba(239,68,68,0.14)",
   amber: "#F59E0B",
-  amberSoft: "#FFFBEB",
+  amberSoft: "rgba(245,158,11,0.14)",
   violet: "#8B5CF6",
-  violetSoft: "#F3EFFE",
+  violetSoft: "rgba(139,92,246,0.14)",
   sky: "#0EA5E9",
-  skySoft: "#F0F9FF",
+  skySoft: "rgba(14,165,233,0.14)",
 
-  ink: "#0F1017",
-  ink2: "#3A3A4A",
-  ink3: "#6B6B80",
-  ink4: "#9D9DB0",
+  ink: "#EDEEF2",
+  ink2: "#C0C1CC",
+  ink3: "#9496A6",
+  ink4: "#6B6D80",
   inkW: "#FFFFFF",
-  inkWD: "rgba(255,255,255,0.65)",
-  inkWG: "rgba(255,255,255,0.38)",
+  inkWD: "rgba(255,255,255,0.70)",
+  inkWG: "rgba(255,255,255,0.40)",
 
-  line: "#EBEBF0",
-  lineSoft: "#F4F4F8",
-  lineD: "rgba(255,255,255,0.07)",
+  line: "rgba(255,255,255,0.10)",
+  lineSoft: "rgba(255,255,255,0.05)",
+  lineD: "rgba(255,255,255,0.08)",
 
-  sh: "0 1px 3px rgba(0,0,0,0.03)",
-  sh2: "0 4px 20px rgba(0,0,0,0.06)",
-  sh3: "0 16px 48px rgba(0,0,0,0.1)",
+  sh: "0 1px 3px rgba(0,0,0,0.15)",
+  sh2: "0 4px 20px rgba(0,0,0,0.25)",
+  sh3: "0 16px 48px rgba(0,0,0,0.35)",
 
   r: 14,
   rs: 8,
@@ -56,17 +56,17 @@ export const cardStyle = {
 
 /* 상태 맵 */
 export const statusMap = {
-  active: { l: "진행중", c: "#059669", bg: ds.greenSoft },
-  pending: { l: "대기", c: "#D97706", bg: ds.amberSoft },
+  active: { l: "진행중", c: "#22C55E", bg: ds.greenSoft },
+  pending: { l: "대기", c: "#F59E0B", bg: ds.amberSoft },
   ended: { l: "종료", c: ds.ink4, bg: ds.lineSoft },
   archived: { l: "보관", c: ds.ink4, bg: ds.lineSoft },
-  approved: { l: "승인", c: "#059669", bg: ds.greenSoft },
+  approved: { l: "승인", c: "#22C55E", bg: ds.greenSoft },
   cancelled: { l: "취소", c: ds.red, bg: ds.redSoft },
-  paid: { l: "결제완료", c: "#059669", bg: ds.greenSoft },
-  unpaid: { l: "미결제", c: "#D97706", bg: ds.amberSoft },
+  paid: { l: "결제완료", c: "#22C55E", bg: ds.greenSoft },
+  unpaid: { l: "미결제", c: "#F59E0B", bg: ds.amberSoft },
   refunded: { l: "환불", c: ds.red, bg: ds.redSoft },
-  sent: { l: "발송완료", c: "#059669", bg: ds.greenSoft },
-  draft: { l: "임시저장", c: "#D97706", bg: ds.amberSoft },
+  sent: { l: "발송완료", c: "#22C55E", bg: ds.greenSoft },
+  draft: { l: "임시저장", c: "#F59E0B", bg: ds.amberSoft },
 };
 
 /* 혼잡도 계산 */

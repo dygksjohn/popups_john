@@ -46,7 +46,7 @@ const modalStyles = `
 
   /* Modal body */
   .evm-modal {
-    width: 100%; max-width: 780px;
+    width: 100%; max-width: 1040px;
     background: #fff; border-radius: 18px;
     box-shadow: 0 24px 80px rgba(0,0,0,0.18);
     transform: translateY(24px) scale(0.97);
@@ -55,11 +55,79 @@ const modalStyles = `
     margin: auto 0;
     max-height: calc(100vh - 64px);
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
   }
   .evm-overlay.open .evm-modal {
     transform: translateY(0) scale(1);
   }
+
+  /* Left poster panel */
+  .evm-poster-panel {
+    width: 400px;
+    flex-shrink: 0;
+    background: #f3f4f6;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .evm-poster-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .evm-poster-fallback {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #1a4fd6 0%, #6366f1 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 80px;
+  }
+  .evm-poster-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
+    padding: 24px 20px 20px;
+  }
+  .evm-poster-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(239,68,68,0.9); color: #fff;
+    padding: 3px 10px; border-radius: 100px;
+    font-size: 11px; font-weight: 700;
+    margin-bottom: 6px; backdrop-filter: blur(4px);
+  }
+  .evm-poster-badge .ev-live-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #fff;
+    animation: ev-pulse 1.4s ease-in-out infinite;
+  }
+  .evm-poster-category {
+    font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85);
+    margin-bottom: 2px;
+  }
+
+  /* Right content panel */
+  .evm-right-panel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 64px);
+  }
+  .evm-right-header {
+    padding: 20px 28px 0;
+    flex-shrink: 0;
+  }
+  .evm-right-title {
+    font-size: 22px; font-weight: 800; color: #111827;
+    line-height: 1.3; margin: 0 0 4px;
+  }
+  .evm-right-sub {
+    font-size: 12px; color: #9ca3af; font-weight: 500;
+    margin-bottom: 16px;
+  }
+  .evm-topbar-right {
+    position: absolute; top: 14px; right: 14px;
+    display: flex; gap: 8px; z-index: 2;
+  }
+
   .evm-body-scroll {
     flex: 1;
     min-height: 0;
@@ -67,53 +135,17 @@ const modalStyles = `
     overscroll-behavior: contain;
   }
 
-  /* Hero */
-  .evm-hero { position: relative; height: 260px; overflow: hidden; }
-  .evm-hero img { width: 100%; height: 100%; object-fit: cover; }
-  .evm-hero-overlay {
-    position: absolute; inset: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.65) 100%);
-  }
-  .evm-hero-content {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    padding: 24px 28px;
-  }
-  .evm-hero-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    background: rgba(239,68,68,0.9); color: #fff;
-    padding: 3px 10px; border-radius: 100px;
-    font-size: 11px; font-weight: 700;
-    margin-bottom: 8px; backdrop-filter: blur(4px);
-  }
-  .evm-hero-badge .ev-live-dot {
-    width: 6px; height: 6px; border-radius: 50%; background: #fff;
-    animation: ev-pulse 1.4s ease-in-out infinite;
-  }
-  .evm-hero-category {
-    font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85);
-    margin-bottom: 4px;
-  }
-  .evm-hero-title {
-    font-size: 24px; font-weight: 800; color: #fff;
-    line-height: 1.3; text-shadow: 0 2px 12px rgba(0,0,0,0.3);
-  }
-
-  /* Top bar controls */
-  .evm-topbar {
-    position: absolute; top: 14px; right: 14px;
-    display: flex; gap: 8px; z-index: 2;
-  }
   .evm-icon-btn {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: rgba(255,255,255,0.15); backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: #fff; display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    color: #6b7280; display: flex; align-items: center; justify-content: center;
     cursor: pointer; transition: all 0.15s;
   }
-  .evm-icon-btn:hover { background: rgba(255,255,255,0.3); }
+  .evm-icon-btn:hover { background: #e5e7eb; color: #111827; }
 
   /* Content */
-  .evm-content { padding: 24px 28px 32px; }
+  .evm-content { padding: 20px 28px 32px; }
 
   /* Quick info bar */
   .evm-quick-info {
@@ -480,13 +512,14 @@ const modalStyles = `
   }
 
   /* Responsive */
-  @media (max-width: 700px) {
-    .evm-modal { max-height: calc(100vh - 24px); }
+  @media (max-width: 860px) {
+    .evm-modal { flex-direction: column; max-width: 780px; max-height: calc(100vh - 24px); }
+    .evm-poster-panel { width: 100%; height: 260px; }
+    .evm-right-panel { max-height: none; }
     .evm-quick-info { grid-template-columns: 1fr; }
     .evm-speakers { grid-template-columns: 1fr; }
     .evm-contact-grid { grid-template-columns: 1fr; }
-    .evm-hero { height: 210px; }
-    .evm-hero-title { font-size: 20px; }
+    .evm-right-title { font-size: 20px; }
     .evm-content { padding: 20px 18px 28px; }
     .evm-cta-bar { padding: 14px 18px; }
     .evm-guide-grid { grid-template-columns: 1fr; }
@@ -610,6 +643,23 @@ function normalizeScheduleItem(item, idx, fallbackDateKey) {
     status,
     period,
   };
+}
+
+
+/* ── 샘플 강아지 이미지 (외부 무료 이미지) ── */
+const DOG_SAMPLES = [
+  "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=900&fit=crop",
+  "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&h=900&fit=crop",
+  "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=600&h=900&fit=crop",
+  "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=600&h=900&fit=crop",
+  "https://images.unsplash.com/photo-1552053831-71594a27632d?w=600&h=900&fit=crop",
+  "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=600&h=900&fit=crop",
+  "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&h=900&fit=crop",
+  "https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=600&h=900&fit=crop",
+];
+function getDogImage(eventId) {
+  const idx = typeof eventId === "number" ? eventId : 0;
+  return DOG_SAMPLES[Math.abs(idx) % DOG_SAMPLES.length];
 }
 
 
@@ -937,55 +987,62 @@ export default function EventDetailModal({ event, onClose }) {
         onClick={handleOverlayClick}
       >
         <div className="evm-modal">
-          {/* Hero */}
-          <div className="evm-hero">
-            {!imgError ? (
-              <img
-                src={event.image}
-                alt={event.title}
-                onError={() => setImgError(true)}
-              />
-            ) : (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  background:
-                    "linear-gradient(135deg, #1a4fd6 0%, #6366f1 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "64px",
-                }}
-              >
-                {event.fallback}
-              </div>
-            )}
-            <div className="evm-hero-overlay" />
-            <div className="evm-hero-content">
-              <div className="evm-hero-badge">
-                <div className="ev-live-dot" />
-                LIVE
-              </div>
-              <div className="evm-hero-category">{event.category}</div>
-              <div className="evm-hero-title">{detail?.eventName}</div>
+          {/* Left — poster */}
+          <div className="evm-poster-panel">
+            <img
+              className="evm-poster-img"
+              src={event.image || detail?.imageUrl || getDogImage(modalEventId)}
+              alt={event.title}
+              onError={(e) => { e.target.onerror = null; e.target.src = getDogImage(modalEventId ?? 0); }}
+            />
+            <div className="evm-poster-overlay">
+              {statusLabel === "ONGOING" ? (
+                <div className="evm-poster-badge">
+                  <div className="ev-live-dot" />
+                  LIVE
+                </div>
+              ) : statusLabel === "UPCOMING" ? (
+                <div className="evm-poster-badge" style={{ background: "rgba(26,79,214,0.9)" }}>
+                  UPCOMING
+                </div>
+              ) : statusLabel === "ENDED" || statusLabel === "CLOSED" ? (
+                <div className="evm-poster-badge" style={{ background: "rgba(107,114,128,0.9)" }}>
+                  종료
+                </div>
+              ) : (
+                <div className="evm-poster-badge">
+                  <div className="ev-live-dot" />
+                  LIVE
+                </div>
+              )}
+              <div className="evm-poster-category">{event.category}</div>
             </div>
-            <div className="evm-topbar">
+          </div>
+
+          {/* Right — content */}
+          <div className="evm-right-panel" style={{ position: "relative" }}>
+            <div className="evm-topbar-right">
               <button className="evm-icon-btn" title="공유">
-                <Share2 size={16} />
+                <Share2 size={15} />
               </button>
               <button className="evm-icon-btn" title="북마크">
-                <Bookmark size={16} />
+                <Bookmark size={15} />
               </button>
               <button
                 className="evm-icon-btn"
                 onClick={handleClose}
                 title="닫기"
               >
-                <X size={18} />
+                <X size={17} />
               </button>
             </div>
-          </div>
+
+            <div className="evm-right-header">
+              <h2 className="evm-right-title">{detail?.eventName || event.title}</h2>
+              <div className="evm-right-sub">
+                {dateLabel} · {timeLabel} · {loc}
+              </div>
+            </div>
 
           <div className="evm-body-scroll">
           {/* Body */}
@@ -1414,8 +1471,14 @@ export default function EventDetailModal({ event, onClose }) {
               ) : null}
             </div>
           </div>
+          {/* /evm-cta-bar */}
+
+          </div>
+          {/* /evm-right-panel */}
         </div>
+        {/* /evm-modal */}
       </div>
+      {/* /evm-overlay */}
     </>
   );
 }

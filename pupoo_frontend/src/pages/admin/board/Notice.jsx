@@ -88,7 +88,7 @@ function Overlay({ children, onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 16,
           width: 520,
           maxHeight: "85vh",
@@ -119,7 +119,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
               width: 38,
               height: 38,
               borderRadius: 10,
-              background: "#FEF2F2",
+              background: ds.redSoft,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -136,7 +136,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
         <p
           style={{
             fontSize: 13.5,
-            color: "#64748B",
+            color: ds.ink3,
             lineHeight: 1.6,
             whiteSpace: "pre-line",
             margin: "0 0 24px",
@@ -151,13 +151,13 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
             style={{
               padding: "9px 20px",
               borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.card,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#64748B",
+              color: ds.ink3,
             }}
           >
             취소
@@ -192,7 +192,7 @@ function Field({ label, children, required }) {
         style={{
           fontSize: 12,
           fontWeight: 700,
-          color: "#64748B",
+          color: ds.ink3,
           marginBottom: 7,
           display: "block",
         }}
@@ -207,21 +207,21 @@ const inputStyle = {
   width: "100%",
   padding: "10px 14px",
   borderRadius: 9,
-  border: "1.5px solid #E2E8F0",
+  border: `1.5px solid ${ds.line}`,
   fontSize: 13.5,
   fontFamily: ds.ff,
   color: ds.ink,
   outline: "none",
+  background: ds.bg,
   boxSizing: "border-box",
   transition: "border-color .15s, box-shadow .15s",
-  background: "#fff",
 };
 const inputFocus = (e) => {
   e.target.style.borderColor = ds.brand;
   e.target.style.boxShadow = `0 0 0 3px ${ds.brand}15`;
 };
 const inputBlur = (e) => {
-  e.target.style.borderColor = "#E2E8F0";
+  e.target.style.borderColor = ds.line;
   e.target.style.boxShadow = "none";
 };
 function Checkbox({ checked, onChange, size = 18 }) {
@@ -235,8 +235,8 @@ function Checkbox({ checked, onChange, size = 18 }) {
         width: size,
         height: size,
         borderRadius: 5,
-        border: checked ? "none" : "1.8px solid #CBD5E1",
-        background: checked ? ds.brand : "#fff",
+        border: checked ? "none" : `1.8px solid ${ds.line}`,
+        background: checked ? ds.brand : ds.bg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -253,7 +253,7 @@ function Spinner({ size = 20 }) {
   return (
     <Loader2
       size={size}
-      color="#94A3B8"
+      color={ds.ink4}
       style={{ animation: "spin 1s linear infinite" }}
     />
   );
@@ -284,19 +284,19 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
               height: 28,
               borderRadius: 7,
               border: "none",
-              background: "#F1F5F9",
+              background: ds.lineSoft,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <X size={14} color="#94A3B8" />
+            <X size={14} color={ds.ink4} />
           </button>
         </div>
         <div
           style={{
-            background: "#F8FAFC",
+            background: ds.bg,
             borderRadius: 12,
             padding: 20,
             marginBottom: 20,
@@ -345,10 +345,10 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
                 display: "flex",
                 justifyContent: "space-between",
                 padding: "9px 0",
-                borderBottom: "1px solid #E2E8F0",
+                borderBottom: `1px solid ${ds.line}`,
               }}
             >
-              <span style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>
+              <span style={{ fontSize: 13, color: ds.ink3, fontWeight: 500 }}>
                 {r.l}
               </span>
               <span style={{ fontSize: 13, color: ds.ink, fontWeight: 600 }}>
@@ -358,13 +358,13 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
           ))}
           {item.content && (
             <div style={{ marginTop: 14 }}>
-              <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>
+              <span style={{ fontSize: 12, color: ds.ink4, fontWeight: 600 }}>
                 내용
               </span>
               <p
                 style={{
                   fontSize: 13,
-                  color: "#475569",
+                  color: ds.ink3,
                   lineHeight: 1.65,
                   marginTop: 6,
                   whiteSpace: "pre-wrap",
@@ -384,13 +384,13 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
             style={{
               padding: "9px 16px",
               borderRadius: 8,
-              border: "1px solid #FECACA",
-              background: "#FEF2F2",
+              border: `1px solid ${ds.red}33`,
+              background: ds.redSoft,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#DC2626",
+              color: ds.red,
               display: "flex",
               alignItems: "center",
               gap: 6,
@@ -469,7 +469,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, saving }) {
           bottom: 0,
           zIndex: 5000,
           width: 440,
-          background: "#fff",
+          background: ds.card,
           boxShadow: "-4px 0 30px rgba(0,0,0,0.08)",
           display: "flex",
           flexDirection: "column",
@@ -479,7 +479,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, saving }) {
         <div
           style={{
             padding: "20px 24px",
-            borderBottom: "1px solid #F1F5F9",
+            borderBottom: `1px solid ${ds.line}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -497,7 +497,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, saving }) {
             >
               {isEdit ? "공지사항 수정" : "새 공지사항"}
             </h3>
-            <p style={{ fontSize: 11.5, color: "#94A3B8", margin: "3px 0 0" }}>
+            <p style={{ fontSize: 11.5, color: ds.ink4, margin: "3px 0 0" }}>
               {isEdit
                 ? "공지사항을 수정합니다"
                 : "새로운 공지사항을 등록합니다"}
@@ -509,27 +509,27 @@ function SlidePanel({ item, onSave, onClose, isEdit, saving }) {
               width: 30,
               height: 30,
               borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.card,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <X size={14} color="#94A3B8" />
+            <X size={14} color={ds.ink4} />
           </button>
         </div>
         <div style={{ flex: 1, overflow: "auto", padding: "24px" }}>
           {err && (
             <div
               style={{
-                background: "#FEF2F2",
-                border: "1px solid #FECACA",
+                background: ds.redSoft,
+                border: `1px solid ${ds.red}33`,
                 borderRadius: 9,
                 padding: "10px 14px",
                 fontSize: 12.5,
-                color: "#DC2626",
+                color: ds.red,
                 marginBottom: 18,
                 fontWeight: 600,
                 display: "flex",
@@ -578,7 +578,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, saving }) {
               gap: 8,
               cursor: "pointer",
               fontSize: 13,
-              color: "#475569",
+              color: ds.ink3,
               fontWeight: 600,
             }}
           >
@@ -592,7 +592,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, saving }) {
         <div
           style={{
             padding: "14px 24px",
-            borderTop: "1px solid #F1F5F9",
+            borderTop: `1px solid ${ds.line}`,
             display: "flex",
             gap: 10,
             flexShrink: 0,
@@ -605,13 +605,13 @@ function SlidePanel({ item, onSave, onClose, isEdit, saving }) {
               flex: 1,
               padding: "11px 0",
               borderRadius: 9,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.card,
               fontSize: 13.5,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#64748B",
+              color: ds.ink3,
             }}
           >
             취소
@@ -805,9 +805,9 @@ export default function Notice() {
       <style>{styles}</style>
       <div
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 12,
-          border: "1px solid #F1F5F9",
+          border: `1px solid ${ds.line}`,
           overflow: "hidden",
         }}
       >
@@ -817,7 +817,7 @@ export default function Notice() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            borderBottom: "1px solid #F1F5F9",
+            borderBottom: `1px solid ${ds.line}`,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -828,7 +828,7 @@ export default function Notice() {
             <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
               공지사항
             </span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: ds.ink4 }}>
               총 {totalElements}개
             </span>
             {hasSelected && (
@@ -856,11 +856,11 @@ export default function Notice() {
                   gap: 4,
                   padding: "7px 12px",
                   borderRadius: 7,
-                  border: "1px solid #FECACA",
-                  background: "#FEF2F2",
+                  border: `1px solid ${ds.red}33`,
+                  background: ds.redSoft,
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "#DC2626",
+                  color: ds.red,
                   cursor: "pointer",
                   fontFamily: ds.ff,
                 }}
@@ -877,11 +877,11 @@ export default function Notice() {
                   gap: 4,
                   padding: "7px 12px",
                   borderRadius: 7,
-                  border: "1px solid #E2E8F0",
-                  background: "#fff",
+                  border: `1px solid ${ds.line}`,
+                  background: ds.card,
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "#64748B",
+                  color: ds.ink3,
                   cursor: "pointer",
                   fontFamily: ds.ff,
                 }}
@@ -894,15 +894,15 @@ export default function Notice() {
               style={{
                 padding: "7px 10px",
                 borderRadius: 7,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 gap: 4,
                 fontSize: 12,
                 fontWeight: 600,
-                color: "#64748B",
+                color: ds.ink3,
                 fontFamily: ds.ff,
               }}
             >
@@ -917,18 +917,19 @@ export default function Notice() {
                   width: 220,
                   padding: "7px 14px 7px 34px",
                   borderRadius: 8,
-                  border: "1px solid #E2E8F0",
+                  border: `1px solid ${ds.line}`,
                   fontSize: 13,
                   fontFamily: ds.ff,
                   color: ds.ink,
                   outline: "none",
+                  background: ds.bg,
                 }}
                 onFocus={(e) => (e.target.style.borderColor = ds.brand)}
-                onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+                onBlur={(e) => (e.target.style.borderColor = ds.line)}
               />
               <Search
                 size={14}
-                color="#94A3B8"
+                color={ds.ink4}
                 style={{
                   position: "absolute",
                   left: 11,
@@ -971,7 +972,7 @@ export default function Notice() {
             }}
           >
             <Spinner size={28} />
-            <span style={{ fontSize: 13, color: "#94A3B8" }}>
+            <span style={{ fontSize: 13, color: ds.ink4 }}>
               불러오는 중...
             </span>
           </div>
@@ -991,7 +992,7 @@ export default function Notice() {
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: "#64748B",
+                color: ds.ink3,
                 marginBottom: 8,
               }}
             >
@@ -1002,13 +1003,13 @@ export default function Notice() {
               style={{
                 padding: "8px 20px",
                 borderRadius: 8,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: "pointer",
                 fontFamily: ds.ff,
-                color: "#64748B",
+                color: ds.ink3,
               }}
             >
               다시 시도
@@ -1027,7 +1028,7 @@ export default function Notice() {
                 display: "flex",
                 alignItems: "center",
                 padding: "14px 20px",
-                borderBottom: "1px solid #F8FAFC",
+                borderBottom: `1px solid ${ds.lineSoft}`,
                 cursor: "pointer",
                 transition: "background .1s",
                 position: "relative",
@@ -1038,7 +1039,7 @@ export default function Notice() {
               onMouseEnter={(e) =>
                 (e.currentTarget.style.background = selected.has(r.noticeId)
                   ? `${ds.brand}0A`
-                  : "#F4F6F8")
+                  : ds.bg)
               }
               onMouseLeave={(e) =>
                 (e.currentTarget.style.background = selected.has(r.noticeId)
@@ -1069,7 +1070,7 @@ export default function Notice() {
                 style={{
                   flex: 1,
                   fontSize: 13.5,
-                  color: "#475569",
+                  color: ds.ink3,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -1080,7 +1081,7 @@ export default function Notice() {
               <span
                 style={{
                   fontSize: 11,
-                  color: "#94A3B8",
+                  color: ds.ink4,
                   marginRight: 14,
                   flexShrink: 0,
                 }}
@@ -1090,7 +1091,7 @@ export default function Notice() {
               <span
                 style={{
                   fontSize: 13,
-                  color: "#94A3B8",
+                  color: ds.ink4,
                   flexShrink: 0,
                   minWidth: 80,
                   textAlign: "right",
@@ -1154,7 +1155,7 @@ export default function Notice() {
                     opacity: 0.7,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#FEF2F2";
+                    e.currentTarget.style.background = ds.redSoft;
                     e.currentTarget.style.opacity = "1";
                   }}
                   onMouseLeave={(e) => {
@@ -1178,8 +1179,8 @@ export default function Notice() {
               gap: 8,
             }}
           >
-            <Search size={36} color="#CBD5E1" style={{ marginBottom: 12 }} />
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#64748B" }}>
+            <Search size={36} color={ds.ink4} style={{ marginBottom: 12 }} />
+            <div style={{ fontSize: 14, fontWeight: 600, color: ds.ink3 }}>
               공지사항이 없습니다
             </div>
           </div>
@@ -1193,7 +1194,7 @@ export default function Notice() {
               justifyContent: "center",
               alignItems: "center",
               gap: 6,
-              borderTop: "1px solid #F1F5F9",
+              borderTop: `1px solid ${ds.line}`,
             }}
           >
             <button
@@ -1203,8 +1204,8 @@ export default function Notice() {
                 width: 30,
                 height: 30,
                 borderRadius: 7,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 cursor: page <= 1 ? "default" : "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -1212,7 +1213,7 @@ export default function Notice() {
                 opacity: page <= 1 ? 0.4 : 1,
               }}
             >
-              <ChevronLeft size={14} color="#64748B" />
+              <ChevronLeft size={14} color={ds.ink3} />
             </button>
             {Array.from({ length: totalPages }, (_, i) => (
               <button
@@ -1222,9 +1223,9 @@ export default function Notice() {
                   width: 30,
                   height: 30,
                   borderRadius: 7,
-                  border: i + 1 === page ? "none" : "1px solid #E2E8F0",
-                  background: i + 1 === page ? ds.brand : "#fff",
-                  color: i + 1 === page ? "#fff" : "#64748B",
+                  border: i + 1 === page ? "none" : `1px solid ${ds.line}`,
+                  background: i + 1 === page ? ds.brand : ds.card,
+                  color: i + 1 === page ? "#fff" : ds.ink4,
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -1244,8 +1245,8 @@ export default function Notice() {
                 width: 30,
                 height: 30,
                 borderRadius: 7,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 cursor: page >= totalPages ? "default" : "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -1253,7 +1254,7 @@ export default function Notice() {
                 opacity: page >= totalPages ? 0.4 : 1,
               }}
             >
-              <ChevronRight size={14} color="#64748B" />
+              <ChevronRight size={14} color={ds.ink3} />
             </button>
           </div>
         )}

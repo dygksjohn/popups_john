@@ -1,6 +1,6 @@
 ﻿import PageHeader from "../components/PageHeader";
 import EventDetailModal from "./EventDetailModal";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { eventApi } from "../../../app/http/eventApi";
 import {
   MapPin,
@@ -19,7 +19,7 @@ export const SERVICE_CATEGORIES = [
 ];
 
 export const SUBTITLE_MAP = {
-  "/event/current": "",
+  "/event/current": "현재 진행 중인 행사 목록을 확인합니다",
   "/event/upcoming": "예정된 행사 일정을 확인합니다",
   "/event/closed": "종료된 행사 목록을 확인합니다",
   "/event/preregister": "행사 사전 등록을 진행합니다",
@@ -49,9 +49,8 @@ const styles = `
 
   .ev-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
 
-  .ev-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fff0f0; border: 1px solid #fecaca; border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444; margin-bottom: 20px; line-height: 1; }
-  .ev-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; animation: ev-pulse 1.4s ease-in-out infinite; display: block; flex-shrink: 0; }
-  .ev-live-text { display: inline-flex; align-items: center; line-height: 1; }
+  .ev-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca; border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444; margin-bottom: 20px; }
+  .ev-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; animation: ev-pulse 1.4s ease-in-out infinite; }
   @keyframes ev-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 
   .ev-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
@@ -61,8 +60,6 @@ const styles = `
   .ev-stat-value { font-size: 22px; font-weight: 800; color: #111827; }
 
   .ev-card { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 24px 28px; margin-bottom: 16px; }
-  .ev-list-shell { display: flex; flex-direction: column; min-height: 0; }
-  .ev-list-head { position: sticky; top: 0; z-index: 2; background: #fff; }
   .ev-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #f1f3f5; }
   .ev-card-title { font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin: 0; }
   .ev-card-title-icon { width: 24px; height: 24px; border-radius: 6px; background: #fffbeb; display: flex; align-items: center; justify-content: center; }
@@ -73,20 +70,8 @@ const styles = `
   .ev-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
   .ev-search { width: 100%; height: 40px; padding: 0 13px 0 36px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13.5px; color: #111827; outline: none; font-family: inherit; background: #fff; transition: border-color 0.15s; }
   .ev-search:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
-  .ev-date-wrap { width: 180px; flex-shrink: 0; }
-  .ev-date-input { width: 100%; height: 40px; padding: 0 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13.5px; color: #111827; outline: none; background: #fff; font-family: inherit; transition: border-color 0.15s; }
-  .ev-date-input:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
 
   .ev-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .ev-list-scroll {
-    max-height: calc(100vh - 320px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding-right: 6px;
-  }
-  .ev-list-scroll::-webkit-scrollbar { width: 8px; }
-  .ev-list-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
-  .ev-list-scroll::-webkit-scrollbar-track { background: transparent; }
   .ev-event-card { background: #fff; border: 1px solid #e9ecef; border-radius: 14px; overflow: hidden; transition: box-shadow 0.2s, transform 0.2s; cursor: pointer; }
   .ev-event-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.08); transform: translateY(-2px); }
 
@@ -113,8 +98,6 @@ const styles = `
   @media (max-width: 700px) {
     .ev-grid { grid-template-columns: 1fr; }
     .ev-card { padding: 20px 16px; }
-    .ev-list-scroll { max-height: calc(100vh - 280px); }
-    .ev-date-wrap { width: 150px; }
   }
 `;
 
@@ -142,14 +125,6 @@ function toSortTimestamp(value) {
   return Number.isNaN(ts) ? Number.POSITIVE_INFINITY : ts;
 }
 
-function toDateOnlyNumber(value) {
-  if (!value) return null;
-  const s = String(value);
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  return Number(`${m[1]}${m[2]}${m[3]}`);
-}
-
 function mapEvent(raw) {
   const eventId = raw?.eventId ?? raw?.id ?? null;
   const eventName = raw?.eventName ?? raw?.title ?? "행사";
@@ -165,9 +140,8 @@ function mapEvent(raw) {
     title: eventName,
     category,
     location,
+    image: raw?.imageUrl ?? raw?.posterUrl ?? raw?.thumbnail ?? null,
     date: formatDateRange(startAt, endAt),
-    startAt,
-    endAt,
     endSortKey: toSortTimestamp(endAt),
     participants,
     capacity,
@@ -196,108 +170,62 @@ function EventThumb({ ev }) {
 }
 
 export default function Current() {
-  const PAGE_SIZE = 10;
-
   const [query, setQuery] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
   const [currentPath, setCurrentPath] = useState("/event/current");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [events, setEvents] = useState([]);
-  const [totalCount, setTotalCount] = useState(null);
-  const [page, setPage] = useState(0);
-  const [hasNext, setHasNext] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchEvents = useCallback(async (targetPage) => {
-    if (targetPage === 0) setLoading(true);
-    else setLoadingMore(true);
+  useEffect(() => {
+    let mounted = true;
 
-    setError("");
+    const fetchEvents = async () => {
+      setLoading(true);
+      setError("");
 
-    try {
-      const res = await eventApi.getEvents({
-        status: "ONGOING",
-        page: targetPage,
-        size: PAGE_SIZE,
-      });
-
-      const pageData = res?.data?.data ?? {};
-      const content = Array.isArray(pageData?.content) ? pageData.content : [];
-      const mapped = content.map(mapEvent);
-      if (typeof pageData?.totalElements === "number") {
-        setTotalCount(pageData.totalElements);
+      try {
+        const res = await eventApi.getEvents({
+          status: "ONGOING",
+          page: 0,
+          size: 10,
+        });
+        const content = res.data.data.content;
+        const list = Array.isArray(content) ? content : [];
+        if (mounted) {
+          setEvents(
+            list
+              .map(mapEvent)
+              .sort((a, b) => a.endSortKey - b.endSortKey),
+          );
+        }
+      } catch (e) {
+        const msg =
+          e?.response?.data?.message || e?.message || "Failed to load events.";
+        if (mounted) setError(msg);
+      } finally {
+        if (mounted) setLoading(false);
       }
+    };
 
-      setEvents((prev) => {
-        const merged = targetPage === 0 ? mapped : [...prev, ...mapped];
-        const dedup = Array.from(new Map(merged.map((e) => [e.id, e])).values());
-        return dedup.sort((a, b) => a.endSortKey - b.endSortKey);
-      });
-
-      const pageNumber =
-        typeof pageData?.number === "number" ? pageData.number : targetPage;
-      const hasNextByMeta =
-        typeof pageData?.last === "boolean"
-          ? !pageData.last
-          : typeof pageData?.totalPages === "number"
-            ? pageNumber + 1 < pageData.totalPages
-            : content.length === PAGE_SIZE;
-
-      setPage(pageNumber);
-      setHasNext(hasNextByMeta);
-    } catch (e) {
-      const msg =
-        e?.response?.data?.message || e?.message || "Failed to load events.";
-      setError(msg);
-    } finally {
-      if (targetPage === 0) setLoading(false);
-      else setLoadingMore(false);
-    }
+    fetchEvents();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  useEffect(() => {
-    fetchEvents(0);
-  }, [fetchEvents]);
-
-  const filtered = events.filter((e) => {
-    const q = query.trim();
-    const textMatched =
-      !q ||
-      e.title.includes(q) ||
-      e.category.includes(q) ||
-      e.location.includes(q);
-
-    if (!textMatched) return false;
-    if (!selectedDate) return true;
-
-    const selectedNum = toDateOnlyNumber(selectedDate);
-    if (!selectedNum) return true;
-
-    const startNum = toDateOnlyNumber(e.startAt);
-    const endNum = toDateOnlyNumber(e.endAt);
-
-    if (startNum && endNum) return selectedNum >= startNum && selectedNum <= endNum;
-    if (startNum) return selectedNum >= startNum;
-    if (endNum) return selectedNum <= endNum;
-    return false;
-  });
-
-  const handleListScroll = (e) => {
-    if (loading || loadingMore || !hasNext) return;
-    const el = e.currentTarget;
-    const remain = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (remain <= 120) {
-      fetchEvents(page + 1);
-    }
-  };
+  const filtered = events.filter(
+    (e) =>
+      e.title.includes(query) ||
+      e.category.includes(query) ||
+      e.location.includes(query),
+  );
 
   return (
     <div className="ev-root">
       <style>{styles}</style>
       <PageHeader
-        title=""
+        title="현재 진행 행사"
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
@@ -312,125 +240,90 @@ export default function Current() {
         ) : (
           <div className="ev-live-badge">
             <div className="ev-live-dot" />
-            <span className="ev-live-text">
-              LIVE · {(typeof totalCount === "number" ? totalCount : events.length)}개 행사 진행 중
-            </span>
+            LIVE · {events.length}개 행사 진행 중
           </div>
         )}
 
         <div className="ev-card">
-          <div className="ev-list-shell">
-            <div className="ev-list-head">
-              <div className="ev-card-header">
-                <div className="ev-card-title">
-                  <div className="ev-card-title-icon">
-                    <Calendar size={14} color="#f59e0b" />
-                  </div>
-                  진행 중인 행사
-                </div>
-                <span className="ev-card-tag">
-                  {typeof totalCount === "number" ? totalCount : filtered.length}개 행사
-                </span>
+          <div className="ev-card-header">
+            <div className="ev-card-title">
+              <div className="ev-card-title-icon">
+                <Calendar size={14} color="#f59e0b" />
               </div>
-
-              <div className="ev-toolbar">
-                <div className="ev-search-wrap">
-                  <Search size={15} className="ev-search-icon" />
-                  <input
-                    className="ev-search"
-                    placeholder="행사명, 카테고리, 장소 검색"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                </div>
-                <div className="ev-date-wrap">
-                  <input
-                    type="date"
-                    className="ev-date-input"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    aria-label="행사 날짜 검색"
-                  />
-                </div>
-              </div>
+              진행 중인 행사
             </div>
+            <span className="ev-card-tag">{filtered.length}개 행사</span>
+          </div>
 
-            <div className="ev-list-scroll" onScroll={handleListScroll}>
-              <div className="ev-grid">
-                {filtered.map((ev) => {
-                  const safeCapacity =
-                    ev.capacity && ev.capacity > 0 ? ev.capacity : 1;
-                  const safeParticipants = ev.participants ?? 0;
-                  const pct = Math.round((safeParticipants / safeCapacity) * 100);
-                  return (
-                    <div
-                      key={ev.id}
-                      className="ev-event-card"
-                      onClick={() => setSelectedEvent(ev)}
-                    >
-                      <EventThumb ev={ev} />
-                      <div className="ev-event-card-body">
-                        <div className="ev-event-category">{ev.category}</div>
-                        <div className="ev-event-title">{ev.title}</div>
-                        <div className="ev-event-meta">
-                          <div className="ev-event-meta-row">
-                            <MapPin size={12} />
-                            {ev.location}
-                          </div>
-                          <div className="ev-event-meta-row">
-                            <Calendar size={12} />
-                            {ev.date}
-                          </div>
-                        </div>
-                        <div className="ev-event-footer">
-                          <div className="ev-progress-wrap">
-                            <div className="ev-progress-label">
-                              <span>참가자 {ev.participants.toLocaleString()}명</span>
-                              <span>{pct}%</span>
-                            </div>
-                            <div className="ev-progress-track">
-                              <div
-                                className="ev-progress-fill"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          </div>
-                          <button
-                            className="ev-card-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedEvent(ev);
-                            }}
-                          >
-                            상세 <ChevronRight size={12} />
-                          </button>
-                        </div>
+          <div className="ev-toolbar">
+            <div className="ev-search-wrap">
+              <Search size={15} className="ev-search-icon" />
+              <input
+                className="ev-search"
+                placeholder="행사명, 카테고리, 장소 검색"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="ev-grid">
+            {filtered.map((ev) => {
+              const safeCapacity = ev.capacity && ev.capacity > 0 ? ev.capacity : 1;
+              const safeParticipants = ev.participants ?? 0;
+              const pct = Math.round((safeParticipants / safeCapacity) * 100);
+              return (
+                <div
+                  key={ev.id}
+                  className="ev-event-card"
+                  onClick={() => setSelectedEvent(ev)}
+                >
+                  <EventThumb ev={ev} />
+                  <div className="ev-event-card-body">
+                    <div className="ev-event-category">{ev.category}</div>
+                    <div className="ev-event-title">{ev.title}</div>
+                    <div className="ev-event-meta">
+                      <div className="ev-event-meta-row">
+                        <MapPin size={12} />
+                        {ev.location}
+                      </div>
+                      <div className="ev-event-meta-row">
+                        <Calendar size={12} />
+                        {ev.date}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-
-              {!loading && filtered.length === 0 && (
-                <div className="ev-live-badge" style={{ marginTop: 12 }}>
-                  검색 결과가 없습니다.
+                    <div className="ev-event-footer">
+                      <div className="ev-progress-wrap">
+                        <div className="ev-progress-label">
+                          <span>참가자 {ev.participants.toLocaleString()}명</span>
+                          <span>{pct}%</span>
+                        </div>
+                        <div className="ev-progress-track">
+                          <div
+                            className="ev-progress-fill"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                      <button
+                        className="ev-card-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedEvent(ev);
+                        }}
+                      >
+                        상세 <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )}
-              {loadingMore && (
-                <div className="ev-live-badge" style={{ marginTop: 12 }}>
-                  행사 목록 불러오는 중...
-                </div>
-              )}
-              {!loading && !loadingMore && !hasNext && events.length > 0 && (
-                <div className="ev-live-badge" style={{ marginTop: 12 }}>
-                  모든 진행 중 행사를 불러왔습니다.
-                </div>
-              )}
-            </div>
+              );
+            })}
           </div>
         </div>
       </main>
 
+      {/* Detail Modal */}
       {selectedEvent && (
         <EventDetailModal
           event={selectedEvent}

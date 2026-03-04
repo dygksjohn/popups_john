@@ -20,6 +20,7 @@ import {
 import ds, { statusMap } from "../shared/designTokens";
 import { Pill } from "../shared/Components";
 import DATA from "../shared/data";
+import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 
@@ -27,6 +28,7 @@ import { getToken } from "../../../api/noticeApi";
    전역 스타일
    ═══════════════════════════════════════════ */
 const styles = `
+.card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;filter:none!important;opacity:1!important;-webkit-tap-highlight-color:transparent;}
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -49,8 +51,8 @@ function Checkbox({ checked, onChange, size = 18 }) {
         width: size,
         height: size,
         borderRadius: 5,
-        border: checked ? "none" : "1.8px solid #CBD5E1",
-        background: checked ? ds.brand : "#fff",
+        border: checked ? "none" : `1.8px solid ${ds.line}`,
+        background: checked ? ds.brand : ds.bg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -116,7 +118,7 @@ function Overlay({ children, onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 16,
           width: 500,
           maxHeight: "85vh",
@@ -148,7 +150,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
         <p
           style={{
             fontSize: 13.5,
-            color: "#64748B",
+            color: ds.ink3,
             lineHeight: 1.6,
             whiteSpace: "pre-line",
             margin: "0 0 24px",
@@ -162,13 +164,13 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
             style={{
               padding: "9px 20px",
               borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.card,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#64748B",
+              color: ds.ink3,
             }}
           >
             취소
@@ -202,7 +204,7 @@ function Field({ label, children, required }) {
         style={{
           fontSize: 12,
           fontWeight: 700,
-          color: "#64748B",
+          color: ds.ink3,
           marginBottom: 7,
           display: "block",
           letterSpacing: 0.2,
@@ -219,21 +221,21 @@ const inputStyle = {
   width: "100%",
   padding: "10px 14px",
   borderRadius: 9,
-  border: "1.5px solid #E2E8F0",
+  border: `1.5px solid ${ds.line}`,
   fontSize: 13.5,
   fontFamily: ds.ff,
   color: ds.ink,
   outline: "none",
   boxSizing: "border-box",
   transition: "border-color .15s, box-shadow .15s",
-  background: "#fff",
+  background: ds.bg,
 };
 const inputFocus = (e) => {
   e.target.style.borderColor = ds.brand;
   e.target.style.boxShadow = `0 0 0 3px ${ds.brand}15`;
 };
 const inputBlur = (e) => {
-  e.target.style.borderColor = "#E2E8F0";
+  e.target.style.borderColor = ds.line;
   e.target.style.boxShadow = "none";
 };
 
@@ -241,10 +243,10 @@ function StatCard({ icon: Icon, label, value, color }) {
   return (
     <div
       style={{
-        background: "#fff",
+        background: ds.card,
         borderRadius: 12,
         padding: "14px 16px",
-        border: "1px solid #F1F5F9",
+        border: `1px solid ${ds.line}`,
         display: "flex",
         alignItems: "center",
         gap: 12,
@@ -268,7 +270,7 @@ function StatCard({ icon: Icon, label, value, color }) {
         <div
           style={{
             fontSize: 10.5,
-            color: "#94A3B8",
+            color: ds.ink4,
             fontWeight: 600,
             marginBottom: 1,
           }}
@@ -416,7 +418,7 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
             width: 580,
             maxWidth: "95vw",
             maxHeight: "90vh",
-            background: "#fff",
+            background: ds.card,
             borderRadius: 20,
             boxShadow:
               "0 32px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.1)",
@@ -434,7 +436,7 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
           <div
             style={{
               padding: "22px 28px",
-              borderBottom: "1px solid #F1F5F9",
+              borderBottom: `1px solid ${ds.line}`,
               flexShrink: 0,
             }}
           >
@@ -457,7 +459,7 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
                   {isEdit ? "프로그램 수정" : "새 프로그램 등록"}
                 </h3>
                 <p
-                  style={{ fontSize: 12, color: "#94A3B8", margin: "4px 0 0" }}
+                  style={{ fontSize: 12, color: ds.ink4, margin: "4px 0 0" }}
                 >
                   <span style={{ color: ds.brand, fontWeight: 700 }}>
                     {eventName}
@@ -471,15 +473,15 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
                   width: 32,
                   height: 32,
                   borderRadius: 8,
-                  border: "1px solid #E2E8F0",
-                  background: "#fff",
+                  border: `1px solid ${ds.line}`,
+                  background: ds.card,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <X size={15} color="#94A3B8" />
+                <X size={15} color={ds.ink4} />
               </button>
             </div>
           </div>
@@ -489,12 +491,12 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
             {err && (
               <div
                 style={{
-                  background: "#FEF2F2",
-                  border: "1px solid #FECACA",
+                  background: ds.redSoft,
+                  border: `1px solid ${ds.red}33`,
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 12.5,
-                  color: "#DC2626",
+                  color: ds.red,
                   marginBottom: 18,
                   fontWeight: 600,
                   display: "flex",
@@ -518,22 +520,22 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
                   }}
                   onDragLeave={() => setDragOver(false)}
                   style={{
-                    border: `2px dashed ${dragOver ? ds.brand : "#E2E8F0"}`,
+                    border: `2px dashed ${dragOver ? ds.brand : ds.line}`,
                     borderRadius: 14,
                     padding: "28px 20px",
                     textAlign: "center",
                     cursor: "pointer",
-                    background: dragOver ? `${ds.brand}08` : "#FAFBFC",
+                    background: dragOver ? `${ds.brand}08` : ds.bg,
                     transition: "all .2s ease",
                   }}
                   onMouseEnter={(e) => {
                     if (!dragOver) {
-                      e.currentTarget.style.borderColor = "#CBD5E1";
+                      e.currentTarget.style.borderColor = ds.line;
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!dragOver) {
-                      e.currentTarget.style.borderColor = "#E2E8F0";
+                      e.currentTarget.style.borderColor = ds.line;
                     }
                   }}
                 >
@@ -555,13 +557,13 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
                     style={{
                       fontSize: 13,
                       fontWeight: 600,
-                      color: "#64748B",
+                      color: ds.ink3,
                       marginBottom: 3,
                     }}
                   >
                     클릭하거나 이미지를 드래그하세요
                   </div>
-                  <div style={{ fontSize: 11, color: "#94A3B8" }}>
+                  <div style={{ fontSize: 11, color: ds.ink4 }}>
                     JPG, PNG, WEBP · 최대 10MB
                   </div>
                 </div>
@@ -682,7 +684,7 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
                   </select>
                   <ChevronDown
                     size={14}
-                    color="#94A3B8"
+                    color={ds.ink4}
                     style={{
                       position: "absolute",
                       right: 12,
@@ -730,17 +732,17 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
                 const map = {
                   pending: {
                     l: "대기",
-                    c: "#D97706",
-                    bg: "#FFFBEB",
+                    c: ds.amber,
+                    bg: ds.amberSoft,
                     icon: "⏳",
                   },
                   active: {
                     l: "운영 중",
-                    c: "#059669",
-                    bg: "#ECFDF5",
+                    c: ds.green,
+                    bg: ds.greenSoft,
                     icon: "●",
                   },
-                  ended: { l: "종료", c: "#94A3B8", bg: "#F1F5F9", icon: "■" },
+                  ended: { l: "종료", c: ds.ink4, bg: ds.lineSoft, icon: "■" },
                 };
                 const s = map[auto];
                 return (
@@ -782,7 +784,7 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
           <div
             style={{
               padding: "16px 28px",
-              borderTop: "1px solid #F1F5F9",
+              borderTop: `1px solid ${ds.line}`,
               display: "flex",
               gap: 10,
               flexShrink: 0,
@@ -794,13 +796,13 @@ function ProgramFormModal({ item, onSave, onClose, isEdit, eventName }) {
                 flex: 1,
                 padding: "12px 0",
                 borderRadius: 10,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: "pointer",
                 fontFamily: ds.ff,
-                color: "#64748B",
+                color: ds.ink3,
               }}
             >
               취소
@@ -857,14 +859,14 @@ function ProgramDetailModal({ item, onClose, onEdit, onDelete }) {
               height: 28,
               borderRadius: 7,
               border: "none",
-              background: "#F1F5F9",
+              background: ds.lineSoft,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <X size={14} color="#94A3B8" />
+            <X size={14} color={ds.ink4} />
           </button>
         </div>
         {item.imageUrl && (
@@ -873,7 +875,7 @@ function ProgramDetailModal({ item, onClose, onEdit, onDelete }) {
               marginBottom: 18,
               borderRadius: 12,
               overflow: "hidden",
-              background: "#F1F5F9",
+              background: ds.lineSoft,
             }}
           >
             <img
@@ -890,7 +892,7 @@ function ProgramDetailModal({ item, onClose, onEdit, onDelete }) {
         )}
         <div
           style={{
-            background: "#F8FAFC",
+            background: ds.bg,
             borderRadius: 12,
             padding: 20,
             marginBottom: 20,
@@ -908,7 +910,7 @@ function ProgramDetailModal({ item, onClose, onEdit, onDelete }) {
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#94A3B8",
+                color: ds.ink4,
                 fontFamily: "monospace",
               }}
             >
@@ -938,10 +940,10 @@ function ProgramDetailModal({ item, onClose, onEdit, onDelete }) {
                 display: "flex",
                 justifyContent: "space-between",
                 padding: "9px 0",
-                borderBottom: "1px solid #E2E8F0",
+                borderBottom: `1px solid ${ds.line}`,
               }}
             >
-              <span style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>
+              <span style={{ fontSize: 13, color: ds.ink3, fontWeight: 500 }}>
                 {r.l}
               </span>
               <span style={{ fontSize: 13, color: ds.ink, fontWeight: 600 }}>
@@ -951,13 +953,13 @@ function ProgramDetailModal({ item, onClose, onEdit, onDelete }) {
           ))}
           {item.description && (
             <div style={{ marginTop: 14 }}>
-              <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>
+              <span style={{ fontSize: 12, color: ds.ink4, fontWeight: 600 }}>
                 설명
               </span>
               <p
                 style={{
                   fontSize: 13,
-                  color: "#475569",
+                  color: ds.ink3,
                   lineHeight: 1.6,
                   marginTop: 6,
                 }}
@@ -976,13 +978,13 @@ function ProgramDetailModal({ item, onClose, onEdit, onDelete }) {
             style={{
               padding: "9px 16px",
               borderRadius: 8,
-              border: "1px solid #FECACA",
-              background: "#FEF2F2",
+              border: `1px solid ${ds.red}33`,
+              background: ds.redSoft,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#DC2626",
+              color: ds.red,
               display: "flex",
               alignItems: "center",
               gap: 6,
@@ -1034,18 +1036,20 @@ export default function ProgramManage({ subTab = "all" }) {
   const [removing, setRemoving] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const imageMapRef = useRef({});
+  // eventFilter는 Dashboard subTab으로 대체
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
 
   /* ── 행사 목록 로드 ── */
   const loadEvents = async () => {
     try {
+      await loadImageCache();
       const res = await axiosInstance.get("/api/admin/dashboard/events", {
         headers: authHeaders(),
       });
       const list = res.data?.data || res.data || [];
       setEvents(
-        list.map((e) => ({
+        injectEventImages(list).map((e) => ({
           ...e,
           status: calcStatus(
             e.startAt || e.date?.split("~")[0]?.trim(),
@@ -1272,28 +1276,9 @@ export default function ProgramManage({ subTab = "all" }) {
       {/* ═══════ VIEW 1: 행사 선택 ═══════ */}
       {!selectedEvent && (
         <>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: `${ds.brand}12`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Clipboard size={22} color={ds.brand} strokeWidth={2} />
-              </div>
-              <div>
-                <h3
-                  style={{
-                    fontSize: 17,
-                    fontWeight: 800,
-                    color: ds.ink,
-                    margin: "0 0 6px",
-                  }}
-                >
-                  프로그램 관리
-                </h3>
-                <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>
-                  프로그램을 등록할 행사를 선택하세요
-                </p>
-              </div>
-            </div>
-          </div>
+          <p style={{ fontSize: 13, color: ds.ink4, margin: "0 0 16px" }}>
+            관리할 행사를 선택하세요
+          </p>
 
           {loadingEvents ? (
             <div style={{ textAlign: "center", padding: "80px 0" }}>
@@ -1308,7 +1293,7 @@ export default function ProgramManage({ subTab = "all" }) {
                   margin: "0 auto 14px",
                 }}
               />
-              <div style={{ fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>
+              <div style={{ fontSize: 13, color: ds.ink4, fontWeight: 600 }}>
                 행사 목록 로딩 중...
               </div>
             </div>
@@ -1321,22 +1306,35 @@ export default function ProgramManage({ subTab = "all" }) {
                 padding: "80px 0",
               }}
             >
-              <CalendarDays size={42} color="#CBD5E1" strokeWidth={1.5} />
+              <CalendarDays size={42} color={ds.ink4} strokeWidth={1.5} />
               <div
                 style={{
                   fontSize: 15,
                   fontWeight: 700,
-                  color: "#94A3B8",
+                  color: ds.ink4,
                   marginTop: 14,
                 }}
               >
                 등록된 행사가 없습니다
               </div>
-              <div style={{ fontSize: 13, color: "#CBD5E1", marginTop: 4 }}>
+              <div style={{ fontSize: 13, color: ds.ink4, marginTop: 4 }}>
                 먼저 행사 관리에서 행사를 등록해주세요
               </div>
             </div>
-          ) : (
+          ) : (() => {
+            const filteredEvents = events.filter(
+              subTab === "all" ? () => true :
+              subTab === "active" ? (e) => e.status === "active" :
+              subTab === "ended" ? (e) => e.status === "ended" :
+              (e) => e.status === "pending"
+            );
+            return (<>
+            {filteredEvents.length === 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 0" }}>
+                <CalendarDays size={36} color={ds.ink4} strokeWidth={1.5} />
+                <div style={{ fontSize: 14, fontWeight: 600, color: ds.ink4, marginTop: 10 }}>해당 상태의 행사가 없습니다</div>
+              </div>
+            ) : (
             <div
               style={{
                 display: "grid",
@@ -1344,122 +1342,81 @@ export default function ProgramManage({ subTab = "all" }) {
                 gap: 14,
               }}
             >
-              {events.map((ev) => {
+              {filteredEvents.map((ev) => {
                 const st = statusMap[ev.status] || statusMap.pending;
-                const programCount = ev._programCount || "—";
+                const hasImg = !!ev.imageUrl;
                 return (
                   <div
                     key={ev.eventId || ev.id}
                     onClick={() => selectEvent(ev)}
                     style={{
-                      background: "#fff",
-                      borderRadius: 14,
-                      border: "1px solid #F1F5F9",
-                      padding: "20px",
-                      cursor: "pointer",
-                      transition: "all .2s ease",
-                      position: "relative",
+                      borderRadius: 18,
                       overflow: "hidden",
+                      cursor: "pointer",
+                      position: "relative",
+                      height: 320,
+                      display: "flex",
+                      flexDirection: "column",
+                      background: hasImg ? "#000" : ds.brand,
+                      boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+                      transition: "transform 0.22s ease, box-shadow 0.22s ease",
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = ds.brand;
-                      e.currentTarget.style.boxShadow = `0 4px 20px ${ds.brand}12`;
-                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.transform = "translateY(-4px)";
+                      e.currentTarget.style.boxShadow = "0 12px 36px rgba(0,0,0,0.16)";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "#F1F5F9";
-                      e.currentTarget.style.boxShadow = "none";
                       e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 4px 24px rgba(0,0,0,0.08)";
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <Pill color={st.c} bg={st.bg}>
-                        {st.l}
-                      </Pill>
-                      <ArrowRight size={16} color="#CBD5E1" />
+                    {hasImg ? (
+                      <div style={{ position: "absolute", inset: 0 }}>
+                        <img src={ev.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.6) 100%)" }} />
+                      </div>
+                    ) : (
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.12 }}>
+                        <Clipboard size={90} color="#fff" strokeWidth={1} />
+                      </div>
+                    )}
+                    <div style={{ position: "relative", zIndex: 1, padding: "22px 20px 0", flex: 1 }}>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: -0.3, textShadow: "0 1px 8px rgba(0,0,0,0.3)", marginBottom: 6, fontFamily: ds.ff }}>
+                        {ev.name || ev.eventName}
+                      </div>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: st.bg, borderRadius: 20, padding: "3px 10px" }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: st.c }} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: st.c }}>{st.l}</span>
+                      </div>
                     </div>
-                    <h4
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 800,
-                        color: ds.ink,
-                        margin: "0 0 8px",
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      {ev.name || ev.eventName}
-                    </h4>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 5,
-                      }}
-                    >
-                      {ev.date && (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            fontSize: 12,
-                            color: "#94A3B8",
-                          }}
-                        >
-                          <CalendarDays size={12} /> {ev.date}
+                    <div style={{ position: "relative", zIndex: 1, padding: "0 20px 18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                        {hasImg && (
+                          <div style={{ width: 30, height: 30, borderRadius: 8, overflow: "hidden", border: "2px solid rgba(255,255,255,0.4)", flexShrink: 0 }}>
+                            <img src={ev.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {ev.date && <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", gap: 4 }}><CalendarDays size={11} /> {ev.date}</div>}
+                          {ev.location && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", gap: 4, marginTop: 1 }}><MapPin size={10} /> {ev.location}</div>}
                         </div>
-                      )}
-                      {ev.location && (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            fontSize: 12,
-                            color: "#94A3B8",
-                          }}
-                        >
-                          <MapPin size={12} /> {ev.location}
-                        </div>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        marginTop: 14,
-                        paddingTop: 12,
-                        borderTop: "1px solid #F1F5F9",
-                        display: "flex",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          fontSize: 12,
-                          fontWeight: 700,
-                          color: "#fff",
-                          background: ds.brand,
-                          padding: "6px 16px",
-                          borderRadius: 8,
-                        }}
+                      </div>
+                      <button
+                        style={{ width: "100%", padding: "9px 0", borderRadius: 10, border: "none", background: ds.brand, color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: ds.ff, transition: "all .15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, outline: "none", WebkitTapHighlightColor: "transparent" }}
+                        className="card-manage-btn" onMouseEnter={(e) => { e.currentTarget.style.background = ds.brandDark; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = ds.brand; }}
+                        onClick={(e) => { e.stopPropagation(); selectEvent(ev); }}
                       >
                         <Clipboard size={13} /> 프로그램 관리하기
-                      </span>
+                      </button>
                     </div>
                   </div>
                 );
               })}
             </div>
-          )}
+            )}
+            </>);
+          })()}
         </>
       )}
 
@@ -1519,7 +1476,7 @@ export default function ProgramManage({ subTab = "all" }) {
               <p
                 style={{
                   fontSize: 12.5,
-                  color: "#94A3B8",
+                  color: ds.ink4,
                   margin: "4px 0 0",
                   display: "flex",
                   alignItems: "center",
@@ -1575,9 +1532,9 @@ export default function ProgramManage({ subTab = "all" }) {
           {/* 테이블 */}
           <div
             style={{
-              background: "#fff",
+              background: ds.card,
               borderRadius: 12,
-              border: "1px solid #F1F5F9",
+              border: `1px solid ${ds.line}`,
               overflow: "hidden",
             }}
           >
@@ -1587,7 +1544,7 @@ export default function ProgramManage({ subTab = "all" }) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                borderBottom: "1px solid #F1F5F9",
+                borderBottom: `1px solid ${ds.line}`,
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1598,8 +1555,8 @@ export default function ProgramManage({ subTab = "all" }) {
                   style={{
                     fontSize: 11.5,
                     fontWeight: 600,
-                    color: "#94A3B8",
-                    background: "#F1F5F9",
+                    color: ds.ink4,
+                    background: ds.lineSoft,
                     padding: "2px 8px",
                     borderRadius: 5,
                   }}
@@ -1631,11 +1588,11 @@ export default function ProgramManage({ subTab = "all" }) {
                       gap: 4,
                       padding: "6px 12px",
                       borderRadius: 7,
-                      border: "1px solid #FECACA",
-                      background: "#FEF2F2",
+                      border: `1px solid ${ds.red}33`,
+                      background: ds.redSoft,
                       fontSize: 12,
                       fontWeight: 600,
-                      color: "#DC2626",
+                      color: ds.red,
                       cursor: "pointer",
                       fontFamily: ds.ff,
                     }}
@@ -1652,11 +1609,11 @@ export default function ProgramManage({ subTab = "all" }) {
                       gap: 4,
                       padding: "6px 12px",
                       borderRadius: 7,
-                      border: "1px solid #E2E8F0",
-                      background: "#fff",
+                      border: `1px solid ${ds.line}`,
+                      background: ds.card,
                       fontSize: 12,
                       fontWeight: 600,
-                      color: "#64748B",
+                      color: ds.ink3,
                       cursor: "pointer",
                       fontFamily: ds.ff,
                     }}
@@ -1688,7 +1645,7 @@ export default function ProgramManage({ subTab = "all" }) {
 
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #F1F5F9" }}>
+                <tr style={{ borderBottom: `1px solid ${ds.line}` }}>
                   <th style={{ width: 44, padding: "10px 14px" }}>
                     <Checkbox checked={isAllSelected} onChange={toggleAll} />
                   </th>
@@ -1705,7 +1662,7 @@ export default function ProgramManage({ subTab = "all" }) {
                         padding: "10px 14px",
                         fontSize: 11.5,
                         fontWeight: 700,
-                        color: "#94A3B8",
+                        color: ds.ink4,
                         textAlign: c.align || "left",
                         letterSpacing: 0.3,
                         ...(c.w ? { width: c.w } : {}),
@@ -1744,7 +1701,7 @@ export default function ProgramManage({ subTab = "all" }) {
                         <span
                           style={{
                             fontSize: 13,
-                            color: "#94A3B8",
+                            color: ds.ink4,
                             fontWeight: 600,
                           }}
                         >
@@ -1768,14 +1725,14 @@ export default function ProgramManage({ subTab = "all" }) {
                       >
                         <Clipboard
                           size={36}
-                          color="#CBD5E1"
+                          color={ds.ink4}
                           strokeWidth={1.5}
                         />
                         <div
                           style={{
                             fontSize: 14,
                             fontWeight: 700,
-                            color: "#94A3B8",
+                            color: ds.ink4,
                             marginTop: 12,
                           }}
                         >
@@ -1784,7 +1741,7 @@ export default function ProgramManage({ subTab = "all" }) {
                         <div
                           style={{
                             fontSize: 12.5,
-                            color: "#CBD5E1",
+                            color: ds.ink4,
                             marginTop: 4,
                           }}
                         >
@@ -1804,7 +1761,7 @@ export default function ProgramManage({ subTab = "all" }) {
                         className={isRemoving ? "row-removing" : ""}
                         onClick={() => setModal({ type: "detail", item: r })}
                         style={{
-                          borderBottom: "1px solid #F8FAFC",
+                          borderBottom: `1px solid ${ds.lineSoft}`,
                           cursor: "pointer",
                           transition: "background .1s",
                           background: isChecked
@@ -1814,7 +1771,7 @@ export default function ProgramManage({ subTab = "all" }) {
                         onMouseEnter={(e) =>
                           (e.currentTarget.style.background = isChecked
                             ? `${ds.brand}0A`
-                            : "#F4F6F8")
+                            : ds.bg)
                         }
                         onMouseLeave={(e) =>
                           (e.currentTarget.style.background = isChecked
@@ -1846,7 +1803,7 @@ export default function ProgramManage({ subTab = "all" }) {
                                   borderRadius: 8,
                                   objectFit: "cover",
                                   flexShrink: 0,
-                                  border: "1px solid #F1F5F9",
+                                  border: `1px solid ${ds.line}`,
                                 }}
                               />
                             )}
@@ -1863,7 +1820,7 @@ export default function ProgramManage({ subTab = "all" }) {
                               <div
                                 style={{
                                   fontSize: 11,
-                                  color: "#94A3B8",
+                                  color: ds.ink4,
                                   fontFamily: "monospace",
                                   marginTop: 1,
                                 }}
@@ -1910,11 +1867,11 @@ export default function ProgramManage({ subTab = "all" }) {
                               style={{
                                 padding: "4px 9px",
                                 borderRadius: 6,
-                                border: "1px solid #E2E8F0",
-                                background: "#fff",
+                                border: `1px solid ${ds.line}`,
+                                background: ds.card,
                                 fontSize: 11,
                                 fontWeight: 600,
-                                color: "#64748B",
+                                color: ds.ink3,
                                 cursor: "pointer",
                                 fontFamily: ds.ff,
                               }}
@@ -1929,11 +1886,11 @@ export default function ProgramManage({ subTab = "all" }) {
                               style={{
                                 padding: "4px 9px",
                                 borderRadius: 6,
-                                border: "1px solid #E2E8F0",
-                                background: "#fff",
+                                border: `1px solid ${ds.line}`,
+                                background: ds.card,
                                 fontSize: 11,
                                 fontWeight: 600,
-                                color: "#64748B",
+                                color: ds.ink3,
                                 cursor: "pointer",
                                 fontFamily: ds.ff,
                               }}
@@ -1952,7 +1909,7 @@ export default function ProgramManage({ subTab = "all" }) {
                                 background: "#FEF2F208",
                                 fontSize: 11,
                                 fontWeight: 600,
-                                color: "#DC2626",
+                                color: ds.red,
                                 cursor: "pointer",
                                 fontFamily: ds.ff,
                               }}

@@ -1,20 +1,9 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { LogIn, LogOut, UserPlus, UserCircle, Bell } from "lucide-react";
 import { notificationApi } from "../../../app/http/notificationApi";
-
-/* ?????????????????????????????????????????????
-   ICONS
-????????????????????????????????????????????? */
-
-/**
- * IconButtonWithTooltip
- * - to媛 ?덉쑝硫?<Link> ?뚮뜑留?
- * - onClick???덉쑝硫?<button> ?뚮뜑留?
- * - tooltip? createPortal濡?body???뚮뜑留?
- */
 
 const IconButtonWithTooltip = ({ children, tooltip, to, onClick }) => {
   const [hovered, setHovered] = useState(false);
@@ -36,12 +25,10 @@ const IconButtonWithTooltip = ({ children, tooltip, to, onClick }) => {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-
     background: "none",
     border: "none",
     cursor: "pointer",
     padding: "4px",
-
     textDecoration: "none",
   };
 
@@ -67,10 +54,9 @@ const IconButtonWithTooltip = ({ children, tooltip, to, onClick }) => {
       style={{ position: "relative", display: "inline-block" }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setHovered(false)}
-      title={tooltip} // ?묎렐???대갚
+      title={tooltip}
     >
       {trigger}
-
       {hovered &&
         createPortal(
           <div
@@ -116,7 +102,6 @@ const ChevronIcon = ({ isOpen }) => (
     height="12"
     viewBox="0 0 12 12"
     fill="none"
-    xmlns="http://www.w3.org/2000/svg"
     style={{
       marginLeft: "4px",
       transition: "transform 0.2s ease",
@@ -141,7 +126,6 @@ const ArrowRight = ({ color = "#1c69d4" }) => (
     height="16"
     viewBox="0 0 16 16"
     fill="none"
-    xmlns="http://www.w3.org/2000/svg"
     style={{
       display: "inline-block",
       verticalAlign: "middle",
@@ -158,11 +142,9 @@ const ArrowRight = ({ color = "#1c69d4" }) => (
   </svg>
 );
 
-/* ?????????????????????????????????????????????
-   NAV DATA
-????????????????????????????????????????????? */
+/* ── NAV DATA ── */
 const megaMenuData = {
-  event: {
+  행사: {
     columns: [
       {
         title: "행사 안내",
@@ -170,28 +152,29 @@ const megaMenuData = {
           { label: "현재 진행 행사", href: "/event/current" },
           { label: "예정 행사", href: "/event/upcoming" },
           { label: "종료 행사", href: "/event/closed" },
+          { label: "행사 사전 등록", href: "/event/preregister" },
+          { label: "행사 일정 안내", href: "/event/eventSchedule" },
         ],
       },
       {
         title: "프로그램/참여",
         items: [
-          { label: "전체 프로그램", href: "/program/schedule" },
           { label: "체험존 안내", href: "/program/experience" },
-          { label: "세션/강연", href: "/program/session" },
-          { label: "콘테스트 및 투표", href: "/program/contest" },
+          { label: "세션 · 강연", href: "/program/session" },
+          { label: "프로그램 안내", href: "/program/schedule" },
+          { label: "콘테스트 · 투표", href: "/program/contest" },
           { label: "부스 안내", href: "/program/booth" },
         ],
       },
     ],
     promo: {
       image: "https://picsum.photos/600/400",
-      description:
-        "오직 온라인에서만 만날 수 있는 pupoo를 경험해보세요.",
-      ctaLabel: "pupoo 온라인 바로가기",
+      description: "오직 온라인에서만 만나볼 수 있는 pupoo를 경험해보세요.",
+      ctaLabel: "pupoo 샵 온라인 바로가기",
       ctaHref: "#shop-online",
     },
   },
-  community: {
+  커뮤니티: {
     columns: [
       {
         title: "소통공간",
@@ -200,7 +183,7 @@ const megaMenuData = {
           { label: "정보 게시판", href: "/community/info" },
           { label: "자유 게시판", href: "/community/freeboard" },
           { label: "행사 후기", href: "/community/review" },
-          { label: "질문 및 답변", href: "/community/qna" },
+          { label: "질문 · 답변", href: "/community/qna" },
           { label: "자주묻는질문", href: "/community/faq" },
         ],
       },
@@ -214,13 +197,12 @@ const megaMenuData = {
     ],
     promo: {
       image: "https://picsum.photos/600/400",
-      description:
-        "오직 온라인에서만 만날 수 있는 pupoo를 경험해보세요.",
-      ctaLabel: "pupoo 온라인 바로가기",
+      description: "현재 진행중인 인기 행사를 구경해보세요!",
+      ctaLabel: "pupoo 샵 온라인 바로가기",
       ctaHref: "#shop-online",
     },
   },
-  registration: {
+  참가신청: {
     columns: [
       {
         title: "참가신청",
@@ -234,20 +216,19 @@ const megaMenuData = {
       {
         title: "참여 안내",
         items: [
-          { label: "입장 운영 안내", href: "/guide/operation" },
-          { label: "장소/교통안내", href: "/guide/location" },
+          { label: "현장 운영 안내", href: "/guide/operation" },
+          { label: "장소/오시는길", href: "/guide/location" },
         ],
       },
     ],
     promo: {
       image: "https://picsum.photos/600/400",
-      description:
-        "오직 온라인에서만 만날 수 있는 pupoo를 경험해보세요.",
-      ctaLabel: "pupoo 온라인 바로가기",
+      description: "오직 온라인에서만 만나볼 수 있는 pupoo를 경험해보세요.",
+      ctaLabel: "pupoo 샵 온라인 바로가기",
       ctaHref: "#shop-online",
     },
   },
-  realtime: {
+  실시간현황: {
     columns: [
       {
         title: "실시간 현황",
@@ -261,24 +242,21 @@ const megaMenuData = {
     ],
     promo: {
       image: "https://picsum.photos/600/400",
-      description:
-        "오직 온라인에서만 만날 수 있는 pupoo를 경험해보세요.",
-      ctaLabel: "pupoo 온라인 바로가기",
+      description: "오직 온라인에서만 만나볼 수 있는 pupoo를 경험해보세요.",
+      ctaLabel: "pupoo 샵 온라인 바로가기",
       ctaHref: "#shop-online",
     },
   },
 };
 
 const navItems = [
-  { label: "행사", hasDropdown: true, menuKey: "event" },
-  { label: "커뮤니티", hasDropdown: true, menuKey: "community" },
-  { label: "참가신청", hasDropdown: true, menuKey: "registration" },
-  { label: "실시간현황", hasDropdown: true, menuKey: "realtime" },
+  { label: "행사", hasDropdown: true, menuKey: "행사" },
+  { label: "커뮤니티", hasDropdown: true, menuKey: "커뮤니티" },
+  { label: "참가신청", hasDropdown: true, menuKey: "참가신청" },
+  { label: "실시간현황", hasDropdown: true, menuKey: "실시간현황" },
 ];
 
-/* ?????????????????????????????????????????????
-   MEGA MENU ITEM
-????????????????????????????????????????????? */
+/* ── MEGA MENU ITEM ── */
 const MegaMenuItem = ({ item }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -304,13 +282,10 @@ const MegaMenuItem = ({ item }) => {
   );
 };
 
-/* ?????????????????????????????????????????????
-   MEGA MENU PANEL
-????????????????????????????????????????????? */
+/* ── MEGA MENU PANEL ── */
 const MegaMenu = ({ menuData }) => {
   if (!menuData) return null;
   const { columns, promo } = menuData;
-
   return (
     <div
       style={{
@@ -381,23 +356,8 @@ const MegaMenu = ({ menuData }) => {
                   objectFit: "cover",
                   display: "block",
                 }}
-                onError={(e) => {
-                  e.target.style.display = "none";
-                  e.target.parentElement.innerHTML = `
-                    <div style="width:100%;height:100%;background:linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 30%,#16213e 60%,#0f3460 100%);display:flex;align-items:center;justify-content:center;">
-                      <svg width="120" height="60" viewBox="0 0 120 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <ellipse cx="60" cy="50" rx="55" ry="6" fill="rgba(255,255,255,0.05)"/>
-                        <path d="M15 42 Q30 28 60 30 Q90 28 105 42 L100 44 Q85 35 60 36 Q35 35 20 44 Z" fill="rgba(255,255,255,0.15)"/>
-                        <path d="M25 36 Q35 24 60 26 Q85 24 95 36 L92 38 Q82 28 60 30 Q38 28 28 38 Z" fill="rgba(255,255,255,0.1)"/>
-                        <circle cx="35" cy="44" r="5" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-                        <circle cx="85" cy="44" r="5" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-                      </svg>
-                    </div>
-                  `;
-                }}
               />
             </div>
-
             <p
               style={{
                 margin: "16px 0 12px",
@@ -412,7 +372,6 @@ const MegaMenu = ({ menuData }) => {
             >
               {promo.description}
             </p>
-
             <a
               href={promo.ctaHref}
               style={{
@@ -437,9 +396,7 @@ const MegaMenu = ({ menuData }) => {
   );
 };
 
-/* ?????????????????????????????????????????????
-   INDIVIDUAL NAV BUTTON / LINK
-????????????????????????????????????????????? */
+/* ── NAV ITEM ── */
 const NavItem = ({
   label,
   hasDropdown,
@@ -454,9 +411,13 @@ const NavItem = ({
 
   const isLight = isHome && !isScrolled && !isMenuOpen;
 
+  // ✅ light 모드(홈 투명 헤더): 호버해도 색상 변화 없이 흰색 유지, 밑줄만 동작
   const baseColor = isLight ? "#ffffff" : "#262626";
-  const activeColor = "rgb(47, 85, 255)";
+  const activeColor = isLight ? "#ffffff" : "rgb(47, 85, 255)";
   const computedColor = isActive || hovered ? activeColor : baseColor;
+
+  // 밑줄 색상: light 모드는 흰색 반투명, 일반 모드는 파란색
+  const underlineColor = isLight ? "rgba(255,255,255,0.85)" : "#1c69d4";
 
   if (!hasDropdown) {
     return (
@@ -489,10 +450,10 @@ const NavItem = ({
             left: 0,
             right: 0,
             height: "2px",
-            backgroundColor: "#1c69d4",
+            backgroundColor: underlineColor,
             transform: hovered ? "scaleX(1)" : "scaleX(0)",
-            transition: "transform 0.2s ease",
-            transformOrigin: "center",
+            transition: "transform 0.25s cubic-bezier(0.16,1,0.3,1)",
+            transformOrigin: "left center",
           }}
         />
       </a>
@@ -532,23 +493,22 @@ const NavItem = ({
           bottom: 0,
           left: 0,
           right: 0,
-          height: "3px",
-          backgroundColor: "#1c69d4",
-          transform: isActive ? "scaleX(1)" : "scaleX(0)",
-          transition: "transform 0.2s ease",
-          transformOrigin: "center",
+          height: "2px",
+          backgroundColor: underlineColor,
+          // 메뉴 열린 상태(isActive)이거나 호버 시 밑줄 표시
+          transform: isActive || hovered ? "scaleX(1)" : "scaleX(0)",
+          transition: "transform 0.25s cubic-bezier(0.16,1,0.3,1)",
+          transformOrigin: "left center",
         }}
       />
     </button>
   );
 };
 
-/* ?????????????????????????????????????????????
-   MAIN HEADER
-????????????????????????????????????????????? */
+/* ── MAIN HEADER ── */
 export default function PupooHeader() {
   const navigate = useNavigate();
-  const { isAuthed, logout } = useAuth(); // ??logoutLocal ?쒓굅
+  const { isAuthed, logout } = useAuth();
   const [activeMenu, setActiveMenu] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -575,17 +535,15 @@ export default function PupooHeader() {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (headerRef.current && !headerRef.current.contains(e.target)) {
+      if (headerRef.current && !headerRef.current.contains(e.target))
         setActiveMenu(null);
-      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleNavClick = (menuKey) => {
+  const handleNavClick = (menuKey) =>
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey));
-  };
 
   const isWhiteMode = !isHome || scrolled || activeMenu !== null;
   const iconColor = isWhiteMode ? "#262626" : "#ffffff";
@@ -595,9 +553,7 @@ export default function PupooHeader() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
         body { font-family: 'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif; }
-        .pupoo-header-root {
-          font-family: 'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif;
-        }
+        .pupoo-header-root { font-family: 'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif; }
       `}</style>
 
       <div
@@ -636,7 +592,7 @@ export default function PupooHeader() {
               justifyContent: "space-between",
             }}
           >
-            {/* Left: Logo + Nav */}
+            {/* Logo + Nav */}
             <div
               style={{ display: "flex", alignItems: "stretch", gap: "32px" }}
             >
@@ -665,7 +621,6 @@ export default function PupooHeader() {
                   }}
                 />
               </Link>
-
               <nav
                 style={{ display: "flex", alignItems: "stretch", gap: "28px" }}
               >
@@ -687,17 +642,16 @@ export default function PupooHeader() {
               </nav>
             </div>
 
+            {/* Icons */}
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
               {!isAuthed ? (
                 <>
                   <IconButtonWithTooltip to="/auth/login" tooltip="알림">
                     <Bell size={23} color={iconColor} strokeWidth={1.5} />
                   </IconButtonWithTooltip>
-
                   <IconButtonWithTooltip to="/auth/login" tooltip="로그인">
                     <LogIn size={23} color={iconColor} strokeWidth={1.5} />
                   </IconButtonWithTooltip>
-
                   <IconButtonWithTooltip
                     to="/auth/join/joinselect"
                     tooltip="회원가입"
@@ -711,7 +665,9 @@ export default function PupooHeader() {
                     to="/mypage"
                     tooltip={unreadCount > 0 ? `알림 ${unreadCount}건` : "알림"}
                   >
-                    <span style={{ position: "relative", display: "inline-flex" }}>
+                    <span
+                      style={{ position: "relative", display: "inline-flex" }}
+                    >
                       <Bell size={23} color={iconColor} strokeWidth={1.5} />
                       {unreadCount > 0 && (
                         <span
@@ -738,18 +694,15 @@ export default function PupooHeader() {
                       )}
                     </span>
                   </IconButtonWithTooltip>
-
                   <IconButtonWithTooltip
                     tooltip="로그아웃"
                     onClick={() => {
                       logout();
-
                       navigate("/", { replace: true });
                     }}
                   >
                     <LogOut size={23} color={iconColor} strokeWidth={1.5} />
                   </IconButtonWithTooltip>
-
                   <IconButtonWithTooltip to="/mypage" tooltip="마이페이지">
                     <UserCircle size={23} color={iconColor} strokeWidth={1.5} />
                   </IconButtonWithTooltip>

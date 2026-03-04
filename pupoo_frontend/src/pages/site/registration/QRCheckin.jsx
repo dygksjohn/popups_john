@@ -1,4 +1,4 @@
-﻿﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import {
@@ -50,13 +50,13 @@ const SERVICE_CATEGORIES = [
 
 const SUBTITLE_MAP = {
   "/registration/apply": "행사에 참가 신청하세요",
-  "/registration/applyhistory": "참가 신청 내역을 확인하세요",
-  "/registration/paymenthistory": "결제 완료 내역을 확인하세요",
+  "/registration/applyhistory": "나의 행사 참가 신청 이력을 확인하세요",
+  "/registration/paymenthistory": "결제 완료된 내역을 확인하세요",
   "/registration/qrcheckin": "내 QR 코드를 확인하세요",
 };
 
 const STATUS_META = {
-  ISSUED: { label: "발급(비활성)", color: "#B45309", bg: "#FEF3C7", canEnter: false },
+  ISSUED: { label: "발급됨(비활성)", color: "#B45309", bg: "#FEF3C7", canEnter: false },
   ACTIVE: { label: "활성", color: "#15803D", bg: "#DCFCE7", canEnter: true },
   EXPIRED: { label: "만료", color: "#6B7280", bg: "#F3F4F6", canEnter: false },
 };
@@ -186,100 +186,6 @@ function formatRegistrationStatus(status) {
   return REGISTRATION_STATUS_LABEL[key] || String(status || "-");
 }
 
-function triggerBlobDownload(blob, fileName) {
-  const objectUrl = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = objectUrl;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(objectUrl);
-}
-
-function loadImageElement(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
-function canvasToPngBlob(canvas) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error("PNG 변환에 실패했습니다."));
-          return;
-        }
-        resolve(blob);
-      },
-      "image/png",
-      1,
-    );
-  });
-}
-
-async function imageBlobToPngBlob(blob) {
-  if (String(blob?.type || "").includes("png")) {
-    return blob;
-  }
-
-  const sourceUrl = URL.createObjectURL(blob);
-  try {
-    const img = await loadImageElement(sourceUrl);
-    const width = img.naturalWidth || img.width || 512;
-    const height = img.naturalHeight || img.height || 512;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 컨텍스트를 생성하지 못했습니다.");
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(img, 0, 0, width, height);
-    return await canvasToPngBlob(canvas);
-  } finally {
-    URL.revokeObjectURL(sourceUrl);
-  }
-}
-
-async function buildFallbackQrPngBlob() {
-  const moduleCount = QR_MATRIX.length;
-  const moduleSize = 14;
-  const padding = 20;
-  const canvasSize = moduleCount * moduleSize + padding * 2;
-
-  const canvas = document.createElement("canvas");
-  canvas.width = canvasSize;
-  canvas.height = canvasSize;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas 컨텍스트를 생성하지 못했습니다.");
-  ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(0, 0, canvasSize, canvasSize);
-  ctx.fillStyle = "#111827";
-
-  for (let y = 0; y < moduleCount; y += 1) {
-    for (let x = 0; x < moduleCount; x += 1) {
-      if (QR_MATRIX[y][x] === 1) {
-        ctx.fillRect(
-          padding + x * moduleSize,
-          padding + y * moduleSize,
-          moduleSize,
-          moduleSize,
-        );
-      }
-    }
-  }
-
-  return canvasToPngBlob(canvas);
-}
-
 export default function QRCheckin() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -288,7 +194,6 @@ export default function QRCheckin() {
 
   const currentPath = "/registration/qrcheckin";
   const [registrations, setRegistrations] = useState([]);
-  const [eventNameMap, setEventNameMap] = useState(new Map());
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [eventDetail, setEventDetail] = useState(null);
   const [qrInfo, setQrInfo] = useState(null);
@@ -296,7 +201,6 @@ export default function QRCheckin() {
   const [loadingQr, setLoadingQr] = useState(false);
   const [error, setError] = useState("");
   const [smsSent, setSmsSent] = useState(false);
-  const [sendingSms, setSendingSms] = useState(false);
   const [useImage, setUseImage] = useState(true);
 
   const registrationMap = useMemo(() => {
@@ -335,28 +239,8 @@ export default function QRCheckin() {
           return status === "APPROVED" || status === "승인완료";
         });
 
-        const eventIds = [
-          ...new Set(
-            approvedOnly
-              .map((item) => Number(item?.eventId))
-              .filter((id) => Number.isFinite(id)),
-          ),
-        ];
-
-        const eventNameEntries = await Promise.all(
-          eventIds.map(async (eventId) => {
-            try {
-              const detail = await eventApi.getEventDetail(eventId);
-              return [eventId, detail?.data?.data?.eventName || ""];
-            } catch {
-              return [eventId, ""];
-            }
-          }),
-        );
-
         if (!mounted) return;
         setRegistrations(approvedOnly);
-        setEventNameMap(new Map(eventNameEntries));
 
         const fallback = approvedOnly[0] || null;
         const selected = Number.isFinite(queryEventId) && approvedOnly.some((r) => r.eventId === queryEventId)
@@ -368,7 +252,6 @@ export default function QRCheckin() {
         if (!mounted) return;
         const message = e?.response?.data?.error?.message || "신청 이벤트 목록을 불러오지 못했습니다.";
         setError(message);
-        setEventNameMap(new Map());
       } finally {
         if (mounted) setLoading(false);
       }
@@ -421,72 +304,36 @@ export default function QRCheckin() {
 
   const selectedRegistration = selectedEventId ? registrationMap.get(selectedEventId) : null;
 
-  const handleSendSMS = async () => {
-    if (!selectedEventId) return;
+  const handleSendSMS = () => {
+    if (!qrInfo || !eventDetail) return;
 
-    setSendingSms(true);
-    setError("");
-    try {
-      await axiosInstance.post("/api/qr/me/sms", null, { params: { eventId: selectedEventId } });
-      setSmsSent(true);
-      setTimeout(() => setSmsSent(false), 3000);
-    } catch (e) {
-      const message = e?.response?.data?.error?.message || "문자 발송에 실패했습니다.";
-      setError(message);
-    } finally {
-      setSendingSms(false);
-    }
+    const msg = encodeURIComponent(
+      `[${eventDetail.eventName || "이벤트"}]\n` +
+        `QR 번호: QR-${qrInfo.qrId}\n` +
+        `행사일: ${formatDateRange(eventDetail.startAt, eventDetail.endAt)}\n` +
+        `장소: ${eventDetail.location || "-"}\n` +
+        `상태: ${statusMeta.label}`,
+    );
+
+    window.location.href = `sms:${/iPhone|iPad|iPod/i.test(navigator.userAgent) ? "&" : "?"}body=${msg}`;
+    setSmsSent(true);
+    setTimeout(() => setSmsSent(false), 3000);
   };
 
-  const handleDownload = async () => {
-    if (!qrInfo) return;
-
-    const safeEventName = String(eventDetail?.eventName || "event")
-      .replace(/[\\/:*?"<>|]/g, "_")
-      .replace(/\s+/g, "_")
-      .slice(0, 40);
-    const baseName = `${safeEventName}_qr_${qrInfo?.qrId ?? "image"}`;
-    const fileName = `${baseName}.png`;
-
-    if (qrInfo?.originalUrl) {
-      try {
-        const res = await axiosInstance.get(qrInfo.originalUrl, {
-          responseType: "blob",
-        });
-        const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data], { type: "application/octet-stream" });
-        const pngBlob = await imageBlobToPngBlob(blob);
-        triggerBlobDownload(pngBlob, fileName);
-        return;
-      } catch {
-        // continue fallback
-      }
-
-      try {
-        const token = tokenStore.getAccess();
-        const response = await fetch(qrInfo.originalUrl, {
-          credentials: "include",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (!response.ok) throw new Error("download failed");
-        const blob = await response.blob();
-        const pngBlob = await imageBlobToPngBlob(blob);
-        triggerBlobDownload(pngBlob, fileName);
-        return;
-      } catch {
-        // continue fallback
-      }
-    }
-
-    // If remote download is blocked (CORS/auth), save a generated PNG QR.
-    const fallbackPngBlob = await buildFallbackQrPngBlob();
-    triggerBlobDownload(fallbackPngBlob, fileName);
+  const handleDownload = () => {
+    if (!qrInfo?.originalUrl) return;
+    const a = document.createElement("a");
+    a.href = qrInfo.originalUrl;
+    a.target = "_blank";
+    a.rel = "noreferrer";
+    a.click();
   };
 
   const notices = [
     "QR 코드는 행사 시작 1시간 전부터 활성화됩니다.",
     "이벤트별로 1인 1QR 정책이 적용됩니다.",
     "행사 종료 시 QR은 자동 만료됩니다.",
-    "문제 발생 시 운영데스크에 문의해 주세요.",
+    "문제 발생 시 운영팀에 문의해 주세요.",
   ];
 
   return (
@@ -567,13 +414,13 @@ export default function QRCheckin() {
             </div>
 
             <div className="qr-btn-row">
-              <button className="qr-btn qr-btn-outline" onClick={handleSendSMS} disabled={!qrInfo || sendingSms}>
+              <button className="qr-btn qr-btn-outline" onClick={handleSendSMS} disabled={!qrInfo}>
                 <MessageSquare size={13} />
-                {sendingSms ? "발송 중..." : smsSent ? "발송됨" : "문자 받기"}
+                {smsSent ? "발송됨" : "문자 받기"}
               </button>
-              <button className="qr-btn qr-btn-primary" onClick={handleDownload} disabled={!qrInfo}>
+              <button className="qr-btn qr-btn-primary" onClick={handleDownload} disabled={!qrInfo?.originalUrl}>
                 <Download size={13} />
-                이미지 저장
+                이미지 열기
               </button>
             </div>
           </div>
@@ -599,7 +446,7 @@ export default function QRCheckin() {
                 ) : (
                   registrations.map((item) => (
                     <option key={item.applyId ?? item.eventId} value={item.eventId}>
-                      {item.eventName || eventNameMap.get(item.eventId) || `이벤트 #${item.eventId}`} ({formatRegistrationStatus(item.status)})
+                      이벤트 #{item.eventId} ({formatRegistrationStatus(item.status)})
                     </option>
                   ))
                 )}
