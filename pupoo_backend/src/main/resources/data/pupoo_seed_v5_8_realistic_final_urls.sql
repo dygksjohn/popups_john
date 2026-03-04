@@ -15833,10 +15833,41 @@ WHERE event_id BETWEEN 31 AND 42
   AND status <> 'CANCELLED';
 
 -- 3) Organizer contacts (deterministic sample data for v5.8)
--- Ensure columns exist even when schema has not been re-applied yet.
-ALTER TABLE event
-  ADD COLUMN IF NOT EXISTS organizer_phone VARCHAR(30) NULL,
-  ADD COLUMN IF NOT EXISTS organizer_email VARCHAR(255) NULL;
+-- Ensure columns exist even on versions that do not support
+-- "ADD COLUMN IF NOT EXISTS".
+SET @sql_add_organizer_phone = (
+  SELECT IF(
+    EXISTS (
+      SELECT 1
+      FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'event'
+        AND COLUMN_NAME = 'organizer_phone'
+    ),
+    'SELECT 1',
+    'ALTER TABLE event ADD COLUMN organizer_phone VARCHAR(30) NULL'
+  )
+);
+PREPARE stmt_add_organizer_phone FROM @sql_add_organizer_phone;
+EXECUTE stmt_add_organizer_phone;
+DEALLOCATE PREPARE stmt_add_organizer_phone;
+
+SET @sql_add_organizer_email = (
+  SELECT IF(
+    EXISTS (
+      SELECT 1
+      FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'event'
+        AND COLUMN_NAME = 'organizer_email'
+    ),
+    'SELECT 1',
+    'ALTER TABLE event ADD COLUMN organizer_email VARCHAR(255) NULL'
+  )
+);
+PREPARE stmt_add_organizer_email FROM @sql_add_organizer_email;
+EXECUTE stmt_add_organizer_email;
+DEALLOCATE PREPARE stmt_add_organizer_email;
 
 UPDATE event
 SET
