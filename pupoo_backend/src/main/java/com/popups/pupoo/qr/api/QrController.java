@@ -3,6 +3,7 @@ package com.popups.pupoo.qr.api;
 
 import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.qr.application.QrService;
 import com.popups.pupoo.qr.dto.QrHistoryResponse;
 import com.popups.pupoo.qr.dto.QrIssueResponse;
@@ -31,6 +32,13 @@ public class QrController {
     public ApiResponse<QrIssueResponse> getMyQr(@RequestParam(name = "eventId") Long eventId) {
         Long userId = securityUtil.currentUserId();
         return ApiResponse.success(qrService.getMyQrOrIssue(userId, eventId));
+    }
+
+    @PostMapping("/qr/me/sms")
+    public ApiResponse<MessageResponse> sendMyQrSms(@RequestParam(name = "eventId") Long eventId) {
+        Long userId = securityUtil.currentUserId();
+        qrService.sendMyQrSms(userId, eventId);
+        return ApiResponse.success(new MessageResponse("SMS_SENT"));
     }
 
     /**

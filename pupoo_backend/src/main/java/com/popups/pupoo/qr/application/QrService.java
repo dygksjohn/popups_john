@@ -3,62 +3,91 @@ package com.popups.pupoo.qr.application;
 
 import com.popups.pupoo.booth.domain.model.Booth;
 import com.popups.pupoo.booth.persistence.BoothRepository;
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.event.domain.model.Event;
 import com.popups.pupoo.event.persistence.EventRepository;
+import com.popups.pupoo.notification.port.NotificationSender;
 import com.popups.pupoo.qr.domain.enums.QrMimeType;
 import com.popups.pupoo.qr.domain.model.QrCheckin;
 import com.popups.pupoo.qr.domain.model.QrCode;
 import com.popups.pupoo.qr.dto.QrHistoryResponse;
 import com.popups.pupoo.qr.dto.QrIssueResponse;
+import com.popups.pupoo.qr.infrastructure.QrImageGenerator;
 import com.popups.pupoo.qr.persistence.QrCheckinRepository;
-import com.popups.pupoo.qr.persistence.projection.BoothVisitSummaryRow;
 import com.popups.pupoo.qr.persistence.QrCodeRepository;
+import com.popups.pupoo.qr.persistence.projection.BoothVisitSummaryRow;
+import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator;
+import com.popups.pupoo.storage.port.ObjectStoragePort;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.persistence.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 @Transactional(readOnly = true)
 public class QrService {
+    private static final String LOCAL_BUCKET_UNUSED = "local";
+    private static final String LOCAL_PUBLIC_PREFIX = "/static/qr/";
+    private static final int QR_IMAGE_SIZE = 320;
+    private static final DateTimeFormatter QR_SMS_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm");
 
     private final QrCodeRepository qrCodeRepository;
     private final QrCheckinRepository qrCheckinRepository;
+    private final NotificationSender notificationSender;
+    private final ObjectStoragePort objectStoragePort;
+    private final StorageKeyGenerator storageKeyGenerator;
+    private final QrImageGenerator qrImageGenerator;
 
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
     private final BoothRepository boothRepository;
+    private final String qrPublicBaseUrl;
 
     public QrService(QrCodeRepository qrCodeRepository,
                      QrCheckinRepository qrCheckinRepository,
+                     NotificationSender notificationSender,
+                     ObjectStoragePort objectStoragePort,
+                     StorageKeyGenerator storageKeyGenerator,
+                     QrImageGenerator qrImageGenerator,
                      UserRepository userRepository,
                      EventRepository eventRepository,
-                     BoothRepository boothRepository) {
+                     BoothRepository boothRepository,
+                     @Value("${qr.public-base-url:http://localhost:8080}") String qrPublicBaseUrl) {
         this.qrCodeRepository = qrCodeRepository;
         this.qrCheckinRepository = qrCheckinRepository;
+        this.notificationSender = notificationSender;
+        this.objectStoragePort = objectStoragePort;
+        this.storageKeyGenerator = storageKeyGenerator;
+        this.qrImageGenerator = qrImageGenerator;
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
         this.boothRepository = boothRepository;
+        this.qrPublicBaseUrl = stripTrailingSlash(qrPublicBaseUrl);
     }
 
-    // =========================
-    // 1) 내 QR 조회/발급
-    // =========================
     @Transactional
     public QrIssueResponse getMyQrOrIssue(Long userId, Long eventId) {
         LocalDateTime now = LocalDateTime.now();
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+                .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new IllegalArgumentException("행사 없음"));
+                .orElseThrow(() -> new IllegalArgumentException("EVENT_NOT_FOUND"));
 
         return qrCodeRepository.findValidLatest(userId, eventId, now)
+                .map(this::ensureLocalQrImage)
                 .map(QrIssueResponse::from)
                 .orElseGet(() -> {
                     LocalDateTime expiredAt = event.getEndAt().plusDays(1);
@@ -66,31 +95,116 @@ public class QrService {
                     QrCode issued = QrCode.builder()
                             .user(user)
                             .event(event)
-                            .originalUrl(buildQrUrl(userId, eventId))
-                            // enum 상수는 대문자, DB 저장은 Converter가 소문자로 변환한다.
+                            .originalUrl("PENDING")
                             .mimeType(QrMimeType.PNG)
                             .issuedAt(now)
                             .expiredAt(expiredAt)
                             .build();
 
                     QrCode saved = qrCodeRepository.save(issued);
+                    ensureLocalQrImage(saved);
                     return QrIssueResponse.from(saved);
                 });
     }
 
-    private String buildQrUrl(Long userId, Long eventId) {
-        return "https://pupoo.io/qr/" + userId + "/" + eventId;
+    private QrCode ensureLocalQrImage(QrCode qr) {
+        if (qr == null) return null;
+
+        if (isLocalQrPath(qr.getOriginalUrl())) {
+            if (qr.getMimeType() == null) {
+                qr.updateMimeType(QrMimeType.PNG);
+            }
+            return qr;
+        }
+
+        String payload = String.valueOf(qr.getQrId());
+        byte[] png = qrImageGenerator.generatePng(payload, QR_IMAGE_SIZE);
+
+        String key = storageKeyGenerator.generateKey(
+                StorageKeyGenerator.UploadTargetType.QR,
+                qr.getQrId(),
+                "qr.png"
+        );
+
+        objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, png, "image/png");
+
+        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
+        if (publicPath == null || publicPath.isBlank()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to build qr public path");
+        }
+
+        qr.updateOriginalUrl(toAbsolutePublicUrl(publicPath));
+        qr.updateMimeType(QrMimeType.PNG);
+        return qr;
     }
 
-    // =========================
-    // 2) 내 부스 방문 목록 (이벤트별 그룹)
-    // =========================
+    private boolean isLocalQrPath(String originalUrl) {
+        if (originalUrl == null || originalUrl.isBlank()) return false;
+        if (originalUrl.startsWith(LOCAL_PUBLIC_PREFIX)) return true;
+        return originalUrl.startsWith(qrPublicBaseUrl + LOCAL_PUBLIC_PREFIX);
+    }
+
+    private String toAbsolutePublicUrl(String publicPath) {
+        if (publicPath == null || publicPath.isBlank()) return publicPath;
+        if (publicPath.startsWith("http://") || publicPath.startsWith("https://")) {
+            return publicPath;
+        }
+
+        String path = publicPath.startsWith("/") ? publicPath : "/" + publicPath;
+        return qrPublicBaseUrl + path;
+    }
+
+    private String stripTrailingSlash(String value) {
+        if (value == null || value.isBlank()) return "http://localhost:8080";
+        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    }
+
+    @Transactional
+    public void sendMyQrSms(Long userId, Long eventId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("EVENT_NOT_FOUND"));
+
+        String phone = normalizePhone(user.getPhone());
+        if (phone.isBlank()) {
+            throw new IllegalArgumentException("PHONE_NOT_FOUND");
+        }
+
+        QrIssueResponse qr = getMyQrOrIssue(userId, eventId);
+        String smsText = buildQrSmsText(event, qr);
+        notificationSender.sendSms(List.of(phone), smsText);
+    }
+
+    private String buildQrSmsText(Event event, QrIssueResponse qr) {
+        String eventName = event.getEventName() == null ? "Event" : event.getEventName();
+        String location = (event.getLocation() == null || event.getLocation().isBlank()) ? "-" : event.getLocation();
+        String qrLabel = qr.getQrId() == null ? "-" : "QR-" + qr.getQrId();
+        String start = formatDateTime(event.getStartAt());
+        String end = formatDateTime(event.getEndAt());
+
+        return "[Pupoo] QR Check-in\n"
+                + "Event: " + eventName + "\n"
+                + "QR: " + qrLabel + "\n"
+                + "Schedule: " + start + " ~ " + end + "\n"
+                + "Location: " + location;
+    }
+
+    private String formatDateTime(LocalDateTime value) {
+        if (value == null) return "-";
+        return value.format(QR_SMS_TIME_FORMAT);
+    }
+
+    private String normalizePhone(String value) {
+        if (value == null) return "";
+        return value.replaceAll("[^0-9]", "");
+    }
+
     public List<QrHistoryResponse.EventBoothVisits> getMyBoothVisitsGroupedByEvent(Long userId) {
         List<BoothVisitSummaryRow> rows = qrCheckinRepository.findMyBoothVisitSummaryRows(userId, null);
         return toEventGroups(rows);
     }
 
-    // 2-1) 내 부스 방문 목록 (특정 이벤트 1개) - eventName 포함
     public QrHistoryResponse.EventBoothVisits getMyBoothVisitsEvent(Long userId, Long eventId) {
         List<BoothVisitSummaryRow> rows = qrCheckinRepository.findMyBoothVisitSummaryRows(userId, eventId);
         List<QrHistoryResponse.EventBoothVisits> grouped = toEventGroups(rows);
@@ -110,35 +224,35 @@ public class QrService {
 
         Map<Long, QrHistoryResponse.EventBoothVisits> grouped = new LinkedHashMap<>();
 
-        for (BoothVisitSummaryRow r : rows) {
-            Long eventId = r.getEventId();
+        for (BoothVisitSummaryRow row : rows) {
+            Long eventId = row.getEventId();
 
             QrHistoryResponse.EventBoothVisits group = grouped.computeIfAbsent(eventId, id ->
                     QrHistoryResponse.EventBoothVisits.builder()
                             .eventId(id)
-                            .eventName(r.getEventName())
+                            .eventName(row.getEventName())
                             .booths(new ArrayList<>())
                             .build()
             );
 
-            group.getBooths().add(mapToSummary(r));
+            group.getBooths().add(mapToSummary(row));
         }
 
         return new ArrayList<>(grouped.values());
     }
 
-    private QrHistoryResponse.BoothVisitSummary mapToSummary(BoothVisitSummaryRow r) {
+    private QrHistoryResponse.BoothVisitSummary mapToSummary(BoothVisitSummaryRow row) {
         return QrHistoryResponse.BoothVisitSummary.builder()
-                .boothId(r.getBoothId())
-                .placeName(r.getPlaceName())
-                .zone(r.getZone())
-                .type(r.getType())
-                .status(r.getStatus())
-                .company(r.getCompany())
-                .description(r.getDescription())
-                .visitCount(r.getVisitCount() == null ? 0 : r.getVisitCount())
-                .lastVisitedAt(toLocalDateTime(r.getLastVisitedAt()))
-                .lastCheckType(r.getLastCheckType())
+                .boothId(row.getBoothId())
+                .placeName(row.getPlaceName())
+                .zone(row.getZone())
+                .type(row.getType())
+                .status(row.getStatus())
+                .company(row.getCompany())
+                .description(row.getDescription())
+                .visitCount(row.getVisitCount() == null ? 0 : row.getVisitCount())
+                .lastVisitedAt(toLocalDateTime(row.getLastVisitedAt()))
+                .lastCheckType(row.getLastCheckType())
                 .build();
     }
 
@@ -146,26 +260,21 @@ public class QrService {
         return (ts == null) ? null : ts.toLocalDateTime();
     }
 
-    // =========================
-    // 3) 내 부스 방문 로그
-    // =========================
     public List<QrHistoryResponse.VisitLog> getMyBoothVisitLogs(Long userId, Long eventId, Long boothId) {
-
         Booth booth = boothRepository.findById(boothId)
-                .orElseThrow(() -> new IllegalArgumentException("부스 없음"));
+                .orElseThrow(() -> new IllegalArgumentException("BOOTH_NOT_FOUND"));
 
-        // Booth는 eventId(Long) 구조이므로 이걸로 검증
         if (!Objects.equals(booth.getEventId(), eventId)) {
-            throw new IllegalArgumentException("부스가 해당 행사 소속이 아님");
+            throw new IllegalArgumentException("BOOTH_EVENT_MISMATCH");
         }
 
         List<QrCheckin> logs = qrCheckinRepository.findMyLogsByBooth(userId, eventId, boothId);
 
         return logs.stream()
-                .map(l -> QrHistoryResponse.VisitLog.builder()
-                        .logId(l.getLogId())
-                        .checkType(l.getCheckType().name())
-                        .checkedAt(l.getCheckedAt())
+                .map(log -> QrHistoryResponse.VisitLog.builder()
+                        .logId(log.getLogId())
+                        .checkType(log.getCheckType().name())
+                        .checkedAt(log.getCheckedAt())
                         .build())
                 .toList();
     }
