@@ -70,6 +70,14 @@ public class QrCode {
     @Column(name = "expired_at", nullable = false)
     private LocalDateTime expiredAt;
 
+    public void updateOriginalUrl(String originalUrl) {
+        this.originalUrl = originalUrl;
+    }
+
+    public void updateMimeType(QrMimeType mimeType) {
+        this.mimeType = mimeType;
+    }
+
     @PrePersist
     void prePersist() {
         if (issuedAt == null) {

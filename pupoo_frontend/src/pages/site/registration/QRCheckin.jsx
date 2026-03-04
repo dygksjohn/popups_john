@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import {
@@ -186,6 +186,100 @@ function formatRegistrationStatus(status) {
   return REGISTRATION_STATUS_LABEL[key] || String(status || "-");
 }
 
+function triggerBlobDownload(blob, fileName) {
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(objectUrl);
+}
+
+function loadImageElement(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function canvasToPngBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("PNG 변환에 실패했습니다."));
+          return;
+        }
+        resolve(blob);
+      },
+      "image/png",
+      1,
+    );
+  });
+}
+
+async function imageBlobToPngBlob(blob) {
+  if (String(blob?.type || "").includes("png")) {
+    return blob;
+  }
+
+  const sourceUrl = URL.createObjectURL(blob);
+  try {
+    const img = await loadImageElement(sourceUrl);
+    const width = img.naturalWidth || img.width || 512;
+    const height = img.naturalHeight || img.height || 512;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 컨텍스트를 생성하지 못했습니다.");
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    return await canvasToPngBlob(canvas);
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
+async function buildFallbackQrPngBlob() {
+  const moduleCount = QR_MATRIX.length;
+  const moduleSize = 14;
+  const padding = 20;
+  const canvasSize = moduleCount * moduleSize + padding * 2;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas 컨텍스트를 생성하지 못했습니다.");
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, canvasSize, canvasSize);
+  ctx.fillStyle = "#111827";
+
+  for (let y = 0; y < moduleCount; y += 1) {
+    for (let x = 0; x < moduleCount; x += 1) {
+      if (QR_MATRIX[y][x] === 1) {
+        ctx.fillRect(
+          padding + x * moduleSize,
+          padding + y * moduleSize,
+          moduleSize,
+          moduleSize,
+        );
+      }
+    }
+  }
+
+  return canvasToPngBlob(canvas);
+}
+
 export default function QRCheckin() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -202,6 +296,7 @@ export default function QRCheckin() {
   const [loadingQr, setLoadingQr] = useState(false);
   const [error, setError] = useState("");
   const [smsSent, setSmsSent] = useState(false);
+  const [sendingSms, setSendingSms] = useState(false);
   const [useImage, setUseImage] = useState(true);
 
   const registrationMap = useMemo(() => {
@@ -326,29 +421,65 @@ export default function QRCheckin() {
 
   const selectedRegistration = selectedEventId ? registrationMap.get(selectedEventId) : null;
 
-  const handleSendSMS = () => {
-    if (!qrInfo || !eventDetail) return;
+  const handleSendSMS = async () => {
+    if (!selectedEventId) return;
 
-    const msg = encodeURIComponent(
-      `[${eventDetail.eventName || "이벤트"}]\n` +
-        `QR 번호: QR-${qrInfo.qrId}\n` +
-        `행사일: ${formatDateRange(eventDetail.startAt, eventDetail.endAt)}\n` +
-        `장소: ${eventDetail.location || "-"}\n` +
-        `상태: ${statusMeta.label}`,
-    );
-
-    window.location.href = `sms:${/iPhone|iPad|iPod/i.test(navigator.userAgent) ? "&" : "?"}body=${msg}`;
-    setSmsSent(true);
-    setTimeout(() => setSmsSent(false), 3000);
+    setSendingSms(true);
+    setError("");
+    try {
+      await axiosInstance.post("/api/qr/me/sms", null, { params: { eventId: selectedEventId } });
+      setSmsSent(true);
+      setTimeout(() => setSmsSent(false), 3000);
+    } catch (e) {
+      const message = e?.response?.data?.error?.message || "문자 발송에 실패했습니다.";
+      setError(message);
+    } finally {
+      setSendingSms(false);
+    }
   };
 
-  const handleDownload = () => {
-    if (!qrInfo?.originalUrl) return;
-    const a = document.createElement("a");
-    a.href = qrInfo.originalUrl;
-    a.target = "_blank";
-    a.rel = "noreferrer";
-    a.click();
+  const handleDownload = async () => {
+    if (!qrInfo) return;
+
+    const safeEventName = String(eventDetail?.eventName || "event")
+      .replace(/[\\/:*?"<>|]/g, "_")
+      .replace(/\s+/g, "_")
+      .slice(0, 40);
+    const baseName = `${safeEventName}_qr_${qrInfo?.qrId ?? "image"}`;
+    const fileName = `${baseName}.png`;
+
+    if (qrInfo?.originalUrl) {
+      try {
+        const res = await axiosInstance.get(qrInfo.originalUrl, {
+          responseType: "blob",
+        });
+        const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data], { type: "application/octet-stream" });
+        const pngBlob = await imageBlobToPngBlob(blob);
+        triggerBlobDownload(pngBlob, fileName);
+        return;
+      } catch {
+        // continue fallback
+      }
+
+      try {
+        const token = tokenStore.getAccess();
+        const response = await fetch(qrInfo.originalUrl, {
+          credentials: "include",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!response.ok) throw new Error("download failed");
+        const blob = await response.blob();
+        const pngBlob = await imageBlobToPngBlob(blob);
+        triggerBlobDownload(pngBlob, fileName);
+        return;
+      } catch {
+        // continue fallback
+      }
+    }
+
+    // If remote download is blocked (CORS/auth), save a generated PNG QR.
+    const fallbackPngBlob = await buildFallbackQrPngBlob();
+    triggerBlobDownload(fallbackPngBlob, fileName);
   };
 
   const notices = [
@@ -436,11 +567,11 @@ export default function QRCheckin() {
             </div>
 
             <div className="qr-btn-row">
-              <button className="qr-btn qr-btn-outline" onClick={handleSendSMS} disabled={!qrInfo}>
+              <button className="qr-btn qr-btn-outline" onClick={handleSendSMS} disabled={!qrInfo || sendingSms}>
                 <MessageSquare size={13} />
-                {smsSent ? "발송됨" : "문자 받기"}
+                {sendingSms ? "발송 중..." : smsSent ? "발송됨" : "문자 받기"}
               </button>
-              <button className="qr-btn qr-btn-primary" onClick={handleDownload} disabled={!qrInfo?.originalUrl}>
+              <button className="qr-btn qr-btn-primary" onClick={handleDownload} disabled={!qrInfo}>
                 <Download size={13} />
                 이미지 저장
               </button>
