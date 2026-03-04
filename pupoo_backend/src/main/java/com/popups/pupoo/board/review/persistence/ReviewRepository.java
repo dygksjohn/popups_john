@@ -6,6 +6,7 @@ import com.popups.pupoo.board.review.domain.model.Review;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -21,6 +22,26 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     // 공개 조회: 삭제되지 않고 PUBLIC 상태인 후기 목록 조회
     Page<Review> findByDeletedFalseAndReviewStatus(ReviewStatus reviewStatus, Pageable pageable);
+
+    @Query("""
+        select r from Review r
+        where r.deleted = false and r.reviewStatus = :status and r.rating = :rating
+        order by r.createdAt desc, r.reviewId desc
+        """)
+    Page<Review> findByDeletedFalseAndReviewStatusAndRating(@Param("status") ReviewStatus reviewStatus,
+                                                           @Param("rating") byte rating,
+                                                           Pageable pageable);
+
+    @Query("""
+        select r from Review r
+        where r.deleted = false and r.reviewStatus = :status and r.rating = :rating
+          and (:keyword is null or :keyword = '' or r.content like concat('%', :keyword, '%'))
+        order by r.createdAt desc, r.reviewId desc
+        """)
+    Page<Review> searchPublicByContentAndRating(@Param("status") ReviewStatus reviewStatus,
+                                                 @Param("keyword") String keyword,
+                                                 @Param("rating") byte rating,
+                                                 Pageable pageable);
 
     @Query("""
         select r
@@ -74,4 +95,13 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
                              @Param("to") LocalDateTime to,
                              @Param("reviewIds") List<Long> reviewIds,
                              Pageable pageable);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update Review r
+        set r.viewCount = r.viewCount + 1
+        where r.reviewId = :reviewId
+          and r.deleted = false
+        """)
+    int increaseViewCount(@Param("reviewId") Long reviewId);
 }

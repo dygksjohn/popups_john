@@ -11,6 +11,8 @@ import com.popups.pupoo.board.review.persistence.ReviewRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.search.SearchType;
+import com.popups.pupoo.event.persistence.EventRepository;
+import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,8 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final EventRepository eventRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public ReviewResponse create(Long userId, ReviewCreateRequest request) {
@@ -36,10 +40,13 @@ public class ReviewService {
         // 금칙어 검증 (리뷰 작성 포함)
         bannedWordService.validate(reviewBoardId, request.getContent());
 
+        String reviewTitle = deriveTitleFromContent(request.getContent());
+
         Review review = Review.builder()
                 .eventId(request.getEventId())
                 .userId(userId)
                 .rating((byte) request.getRating().shortValue())
+                .reviewTitle(reviewTitle)
                 .content(request.getContent())
                 .viewCount(0)
                 .createdAt(LocalDateTime.now())
@@ -50,18 +57,39 @@ public class ReviewService {
         return toResponse(reviewRepository.save(review));
     }
 
+    @Transactional
     public ReviewResponse get(Long reviewId) {
+        reviewRepository.increaseViewCount(reviewId);
+
         // 공개 조회 정책: PUBLIC + deleted=false만 반환한다.
         Review review = reviewRepository.findByReviewIdAndDeletedFalseAndReviewStatus(reviewId, ReviewStatus.PUBLIC)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "후기가 존재하지 않습니다."));
         return toResponse(review);
     }
 
-    public Page<ReviewResponse> list(SearchType searchType, String keyword, int page, int size) {
-        // 공개 조회 정책: PUBLIC + deleted=false만 반환한다.
+    public Page<ReviewResponse> list(SearchType searchType, String keyword, int page, int size, Integer rating) {
         validatePageRequest(page, size);
-
         PageRequest pageable = PageRequest.of(page, size);
+
+        if (rating != null && rating >= 1 && rating <= 5) {
+            byte ratingByte = rating.byteValue();
+            if (searchType == SearchType.WRITER) {
+                Long writerId = parseLongOrNull(keyword);
+                if (writerId == null) {
+                    return reviewRepository.findByDeletedFalseAndReviewStatusAndRating(ReviewStatus.PUBLIC, ratingByte, pageable)
+                            .map(this::toResponse);
+                }
+                return reviewRepository.searchPublicByWriter(ReviewStatus.PUBLIC, writerId, pageable)
+                        .map(this::toResponse);
+            }
+            if (keyword == null || keyword.isBlank()) {
+                return reviewRepository.findByDeletedFalseAndReviewStatusAndRating(ReviewStatus.PUBLIC, ratingByte, pageable)
+                        .map(this::toResponse);
+            }
+            return reviewRepository.searchPublicByContentAndRating(ReviewStatus.PUBLIC, keyword, ratingByte, pageable)
+                    .map(this::toResponse);
+        }
+
         return switch (searchType) {
             case WRITER -> {
                 Long writerId = parseLongOrNull(keyword);
@@ -73,7 +101,11 @@ public class ReviewService {
     }
 
     public Page<ReviewResponse> list(int page, int size) {
-        return list(SearchType.TITLE_CONTENT, null, page, size);
+        return list(SearchType.TITLE_CONTENT, null, page, size, null);
+    }
+
+    public Page<ReviewResponse> list(SearchType searchType, String keyword, int page, int size) {
+        return list(searchType, keyword, page, size, null);
     }
 
     private static Long parseLongOrNull(String keyword) {
@@ -105,6 +137,7 @@ public class ReviewService {
                 .eventId(review.getEventId())
                 .userId(review.getUserId())
                 .rating((byte) request.getRating().shortValue())
+                .reviewTitle(review.getReviewTitle() != null ? review.getReviewTitle() : deriveTitleFromContent(request.getContent()))
                 .content(request.getContent())
                 .viewCount(review.getViewCount())
                 .createdAt(review.getCreatedAt())
@@ -145,6 +178,13 @@ public class ReviewService {
      * - page는 0 이상
      * - size는 1~100 범위
      */
+    /** content 첫 줄을 제목으로 사용(최대 255자) */
+    private static String deriveTitleFromContent(String content) {
+        if (content == null || content.isBlank()) return "행사 후기";
+        String firstLine = content.lines().map(String::trim).filter(s -> !s.isEmpty()).findFirst().orElse("행사 후기");
+        return firstLine.length() > 255 ? firstLine.substring(0, 255) : firstLine;
+    }
+
     private void validatePageRequest(int page, int size) {
         if (page < 0) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "page는 0 이상이어야 합니다.");
@@ -155,16 +195,8 @@ public class ReviewService {
     }
 
     private ReviewResponse toResponse(Review r) {
-        return ReviewResponse.builder()
-                .reviewId(r.getReviewId())
-                .eventId(r.getEventId())
-                .userId(r.getUserId())
-                .rating(r.getRating())
-                .content(r.getContent())
-                .viewCount(r.getViewCount())
-                .status(r.getReviewStatus())
-                .createdAt(r.getCreatedAt())
-                .updatedAt(r.getUpdatedAt())
-                .build();
+        String eventName = eventRepository.findById(r.getEventId()).map(e -> e.getEventName()).orElse(null);
+        String writerEmail = userRepository.findById(r.getUserId()).map(u -> u.getEmail()).orElse(null);
+        return ReviewResponse.from(r, eventName, writerEmail);
     }
 }

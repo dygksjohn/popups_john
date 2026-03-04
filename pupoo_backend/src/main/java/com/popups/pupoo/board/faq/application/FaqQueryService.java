@@ -72,7 +72,8 @@ public class FaqQueryService {
 
         return page.map(p -> new FaqListResponse(
                 p.getPostId(),
-                p.getPostTitle()
+                p.getPostTitle(),
+                p.getViewCount()
         ));
     }
 
@@ -86,17 +87,16 @@ public class FaqQueryService {
         }
 
         postRepository.increaseViewCount(postId);
+        int viewCountAfter = postRepository.getViewCountByPostId(postId);
 
-        // 현재 구조상 FAQ는 일반 게시글 기반이므로
-        // answerContent / answeredAt 은 일단 null 처리
         return new FaqDetailResponse(
                 post.getPostId(),
                 post.getPostTitle(),
                 post.getContent(),
-                null,                       // answerContent
-                null,                       // answeredAt
+                post.getAnswerContent(),
+                post.getAnsweredAt(),
                 post.getUserId(),
-                post.getViewCount() + 1,
+                viewCountAfter,
                 post.getCreatedAt(),
                 post.getUpdatedAt()
         );

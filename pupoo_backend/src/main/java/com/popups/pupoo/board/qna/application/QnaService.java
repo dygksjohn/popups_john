@@ -9,9 +9,11 @@ import com.popups.pupoo.board.boardinfo.domain.model.Board;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
 import com.popups.pupoo.board.post.domain.enums.PostStatus;
 import com.popups.pupoo.board.post.domain.model.Post;
+import com.popups.pupoo.board.post.persistence.PostRepository;
 import com.popups.pupoo.board.qna.domain.enums.QnaStatus;
 import com.popups.pupoo.board.qna.dto.*;
 import com.popups.pupoo.board.qna.persistence.QnaRepository;
+import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -27,9 +29,15 @@ public class QnaService {
     private final QnaRepository qnaRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final UserRepository userRepository;
+    private final PostRepository postRepository;
 
     @Transactional
     public QnaResponse create(Long userId, QnaCreateRequest request) {
+        if (!userRepository.existsById(userId)) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND, "사용자를 찾을 수 없습니다. 다시 로그인해 주세요.");
+        }
+
         Board qnaBoard = boardRepository.findByBoardType(BoardType.QNA)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QNA 게시판(board_type=QNA)이 존재하지 않습니다."));
 
@@ -53,15 +61,34 @@ public class QnaService {
         return toResponse(qnaRepository.save(post));
     }
 
+    @Transactional
     public QnaResponse get(Long qnaId) {
         Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
-        return toResponse(post);
+
+        postRepository.increaseViewCount(post.getPostId());
+        int viewCountAfter = postRepository.getViewCountByPostId(post.getPostId());
+
+        return toResponse(post, viewCountAfter);
     }
 
     public Page<QnaResponse> list(int page, int size) {
+        return list(page, size, null);
+    }
+
+    public Page<QnaResponse> list(int page, int size, String statusFilter) {
         validatePageRequest(page, size);
-        Page<Post> result = qnaRepository.findAllQnaPublished(PostStatus.PUBLISHED, PageRequest.of(page, size));
+        Boolean answeredOnly = null; // ALL
+        if (statusFilter != null && !statusFilter.isBlank()) {
+            if ("ANSWERED".equalsIgnoreCase(statusFilter)) {
+                answeredOnly = true;
+            } else if ("WAITING".equalsIgnoreCase(statusFilter)) {
+                answeredOnly = false;
+            }
+        }
+        Page<Post> result = answeredOnly != null
+                ? qnaRepository.findAllQnaPublishedWithAnsweredFilter(PostStatus.PUBLISHED, answeredOnly, PageRequest.of(page, size))
+                : qnaRepository.findAllQnaPublished(PostStatus.PUBLISHED, PageRequest.of(page, size));
         return result.map(this::toResponse);
     }
 
@@ -112,30 +139,38 @@ public class QnaService {
 
     
 
-/**
- * 운영 환경에서 과도한 페이징 요청으로 DB 부하가 커지는 것을 방지하기 위해,
- * page/size 범위를 서비스 레이어에서 한번 더 제한한다.
- */
-private void validatePageRequest(int page, int size) {
-    if (page < 0) {
-        throw new BusinessException(ErrorCode.INVALID_REQUEST, "page는 0 이상이어야 합니다.");
+    /**
+     * 운영 환경에서 과도한 페이징 요청으로 DB 부하가 커지는 것을 방지하기 위해,
+     * page/size 범위를 서비스 레이어에서 한번 더 제한한다.
+     */
+    private void validatePageRequest(int page, int size) {
+        if (page < 0) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "page는 0 이상이어야 합니다.");
+        }
+        if (size < 1 || size > 100) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "size는 1~100 범위여야 합니다.");
+        }
     }
-    if (size < 1 || size > 100) {
-        throw new BusinessException(ErrorCode.INVALID_REQUEST, "size는 1~100 범위여야 합니다.");
-    }
-}
 
-private QnaResponse toResponse(Post post) {
+    private QnaResponse toResponse(Post post) {
+        return toResponse(post, post.getViewCount());
+    }
+
+    private QnaResponse toResponse(Post post, int viewCount) {
+        String writerEmail = post.getUserId() != null
+                ? userRepository.findById(post.getUserId()).map(u -> u.getEmail()).orElse(null)
+                : null;
         return QnaResponse.builder()
                 .qnaId(post.getPostId())
                 .boardId(post.getBoard().getBoardId())
                 .userId(post.getUserId())
+                .writerEmail(writerEmail)
                 .title(post.getPostTitle())
                 .content(post.getContent())
                 .status(post.getAnsweredAt() == null ? QnaStatus.WAITING : QnaStatus.ANSWERED)
                 .answerContent(post.getAnswerContent())
                 .answeredAt(post.getAnsweredAt())
-                .viewCount(post.getViewCount())
+                .viewCount(viewCount)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .build();

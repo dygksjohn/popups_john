@@ -50,4 +50,7 @@ public class Notice {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "view_count", nullable = false)
+    private int viewCount;
 }

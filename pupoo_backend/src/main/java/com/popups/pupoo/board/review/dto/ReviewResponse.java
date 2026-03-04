@@ -14,9 +14,12 @@ public class ReviewResponse {
 
     private Long reviewId;
     private Long eventId;
+    private String eventName;
     private Long userId;
+    private String writerEmail;
 
     private int rating;
+    private String reviewTitle;
     private String content;
 
     private int viewCount;
@@ -31,6 +34,24 @@ public class ReviewResponse {
                 .eventId(review.getEventId())
                 .userId(review.getUserId())
                 .rating(review.getRating())
+                .reviewTitle(review.getReviewTitle())
+                .content(review.getContent())
+                .viewCount(review.getViewCount())
+                .status(review.getReviewStatus())
+                .createdAt(review.getCreatedAt())
+                .updatedAt(review.getUpdatedAt())
+                .build();
+    }
+
+    public static ReviewResponse from(Review review, String eventName, String writerEmail) {
+        return ReviewResponse.builder()
+                .reviewId(review.getReviewId())
+                .eventId(review.getEventId())
+                .eventName(eventName)
+                .userId(review.getUserId())
+                .writerEmail(writerEmail)
+                .rating(review.getRating())
+                .reviewTitle(review.getReviewTitle())
                 .content(review.getContent())
                 .viewCount(review.getViewCount())
                 .status(review.getReviewStatus())

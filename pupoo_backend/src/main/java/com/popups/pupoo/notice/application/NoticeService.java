@@ -8,9 +8,11 @@ import com.popups.pupoo.notice.domain.enums.NoticeStatus;
 import com.popups.pupoo.notice.domain.model.Notice;
 import com.popups.pupoo.notice.dto.NoticeResponse;
 import com.popups.pupoo.notice.persistence.NoticeRepository;
+import com.popups.pupoo.event.persistence.EventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,8 +22,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class NoticeService {
 
     private final NoticeRepository noticeRepository;
+    private final EventRepository eventRepository;
 
+    @Transactional
     public NoticeResponse get(Long noticeId) {
+        noticeRepository.increaseViewCount(noticeId);
+
         // 공개 조회 정책: PUBLISHED만 조회 가능
         Notice notice = noticeRepository.findById(noticeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "공지사항이 존재하지 않습니다."));
@@ -37,17 +43,34 @@ public class NoticeService {
      * - 검색 분기 로직은 SearchType.TITLE_CONTENT + 빈 키워드로 통일한다. (null 사용 안 함)
      */
     public Page<NoticeResponse> list(int page, int size) {
-        return list(SearchType.TITLE_CONTENT, "", page, size);
+        return list(SearchType.TITLE_CONTENT, "", page, size, null, null);
     }
 
-    public Page<NoticeResponse> list(SearchType searchType, String keyword, int page, int size) {
+    /** 공지 목록 정렬: 고정(pinned) 내림차순, 작성일(createdAt) 내림차순 (전체 항목 기준) */
+    private static final Sort NOTICE_LIST_SORT = Sort.by(
+            Sort.Order.desc("pinned"),
+            Sort.Order.desc("createdAt")
+    );
+
+    public Page<NoticeResponse> list(SearchType searchType, String keyword, int page, int size, String scope, Boolean pinned) {
         validatePageRequest(page, size);
-        PageRequest pageable = PageRequest.of(page, size);
+        PageRequest pageable = PageRequest.of(page, size, NOTICE_LIST_SORT);
 
         SearchType type = (searchType == null) ? SearchType.TITLE_CONTENT : searchType;
         String kw = (keyword == null) ? "" : keyword.trim();
+        boolean hasFilter = (scope != null && !scope.isBlank()) || pinned != null;
 
-        // 키워드가 비어있으면 "검색"이 아니라 전체 목록으로 처리 (일관된 정책)
+        if (hasFilter) {
+            if (kw.isBlank()) {
+                return noticeRepository.findByStatusWithScopeAndPinned(NoticeStatus.PUBLISHED, scope, pinned, pageable)
+                        .map(this::toResponse);
+            }
+            if (type == SearchType.TITLE_CONTENT) {
+                return noticeRepository.searchByTitleOrContentWithScopeAndPinned(NoticeStatus.PUBLISHED, kw, scope, pinned, pageable)
+                        .map(this::toResponse);
+            }
+        }
+
         if (kw.isBlank()) {
             return noticeRepository.findByStatus(NoticeStatus.PUBLISHED, pageable)
                     .map(this::toResponse);
@@ -91,16 +114,21 @@ public class NoticeService {
     }
 
     protected NoticeResponse toResponse(Notice n) {
+        String eventName = n.getEventId() != null
+                ? eventRepository.findById(n.getEventId()).map(e -> e.getEventName()).orElse(null)
+                : null;
         return NoticeResponse.builder()
                 .noticeId(n.getNoticeId())
                 .scope(n.getScope())
                 .eventId(n.getEventId())
+                .eventName(eventName)
                 .title(n.getNoticeTitle())
                 .content(n.getContent())
                 .pinned(n.isPinned())
                 .status(n.getStatus())
                 .createdAt(n.getCreatedAt())
                 .updatedAt(n.getUpdatedAt())
+                .viewCount(n.getViewCount())
                 .build();
     }
 }

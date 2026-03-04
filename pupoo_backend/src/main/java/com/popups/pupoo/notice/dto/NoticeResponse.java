@@ -14,6 +14,7 @@ public class NoticeResponse {
     private Long noticeId;
     private String scope;
     private Long eventId;
+    private String eventName;
 
     private String title;
     private String content;
@@ -21,7 +22,7 @@ public class NoticeResponse {
     private boolean pinned;
     private NoticeStatus status;
 
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private int viewCount;
 }

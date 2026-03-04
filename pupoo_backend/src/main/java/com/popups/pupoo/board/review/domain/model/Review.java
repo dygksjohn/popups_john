@@ -30,6 +30,9 @@ public class Review {
     @Column(name = "rating", nullable = false, columnDefinition = "TINYINT")
     private byte rating;
 
+    @Column(name = "review_title", nullable = false, length = 255)
+    private String reviewTitle;
+
     // ✅ DB: TEXT → TEXT로 고정 (validate 안정)
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;

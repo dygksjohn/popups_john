@@ -44,8 +44,9 @@ public class ReviewController {
     public ApiResponse<Page<ReviewResponse>> list(@RequestParam(defaultValue = "0") int page,
                                                   @RequestParam(defaultValue = "10") int size,
                                                   @RequestParam(required = false) String searchType,
-                                                  @RequestParam(required = false) String keyword) {
-        return ApiResponse.success(reviewService.list(SearchType.from(searchType), keyword, page, size));
+                                                  @RequestParam(required = false) String keyword,
+                                                  @RequestParam(required = false) Integer rating) {
+        return ApiResponse.success(reviewService.list(SearchType.from(searchType), keyword, page, size, rating));
     }
 
     @PatchMapping("/{reviewId}")

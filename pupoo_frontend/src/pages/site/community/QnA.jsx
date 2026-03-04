@@ -15,13 +15,21 @@ import {
 import { qnaApi, unwrap } from "../../../api/qnaApi";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 
-const FILTER_OPTIONS = ["전체", "답변완료", "미답변"];
+const FILTER_OPTIONS = ["전체", "미답변", "답변완료"];
 
 /* ── 날짜 포맷 ── */
 function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** 작성자 표시: 영문 기준 5글자, 이메일 앞 2글자 + 나머지 * */
+function maskWriterEmail(email) {
+  if (!email || typeof email !== "string") return "-----";
+  const s = String(email).trim();
+  const first2 = s.slice(0, 2);
+  return (first2 + "***").slice(0, 5);
 }
 
 /* ── 토스트 ── */
@@ -382,43 +390,71 @@ export default function ServicePage() {
   const [writeModal, setWriteModal] = useState(null); // null | { } | { item }
   const [deleteModal, setDeleteModal] = useState(null);
   const [toast, setToast] = useState(null);
+  const [detailLoadingId, setDetailLoadingId] = useState(null);
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
 
-  const toggleReply = (id) => {
-    setOpenReplies((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleReply = async (id) => {
+    if (openReplies[id]) {
+      setOpenReplies((prev) => ({ ...prev, [id]: false }));
+      return;
+    }
+    setDetailLoadingId(id);
+    try {
+      const res = await qnaApi.get(id);
+      const d = unwrap(res);
+      if (d != null) {
+        setItems((prev) =>
+          prev.map((it) =>
+            String(it.qnaId) === String(id)
+              ? { ...it, ...d, viewCount: d.viewCount ?? it.viewCount ?? 0 }
+              : it,
+          ),
+        );
+      }
+      setOpenReplies((prev) => ({ ...prev, [id]: true }));
+    } catch (err) {
+      console.error("[QnA] get error:", err);
+      setOpenReplies((prev) => ({ ...prev, [id]: true }));
+    } finally {
+      setDetailLoadingId(null);
+    }
   };
 
-  /* ── 목록 조회 ── */
-  const fetchList = useCallback(async (p = 1) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await qnaApi.list(p, PAGE_SIZE);
-      const d = unwrap(res);
-      setItems(d.content || []);
-      setTotalPages(d.totalPages || 0);
-      setTotalElements(d.totalElements ?? d.content?.length ?? 0);
-      setPage(p);
-    } catch (err) {
-      console.error("[QnA] fetch error:", err);
-      setError("질문 목록을 불러오는데 실패했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  /* ── 목록 조회 (서버에서 statusFilter 적용) ── */
+  const statusFilterParam =
+    filter === "전체" ? undefined : filter === "미답변" ? "WAITING" : "ANSWERED";
+
+  const fetchList = useCallback(
+    async (p = 1) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await qnaApi.list(p, PAGE_SIZE, statusFilterParam);
+        const d = unwrap(res);
+        setItems(d.content || []);
+        setTotalPages(d.totalPages || 0);
+        setTotalElements(d.totalElements ?? d.content?.length ?? 0);
+        setPage(p);
+      } catch (err) {
+        console.error("[QnA] fetch error:", err);
+        setError("질문 목록을 불러오는데 실패했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [statusFilterParam],
+  );
 
   useEffect(() => {
     fetchList(1);
   }, [fetchList]);
 
-  /* ── 필터링 ── */
+  /* ── 검색만 클라이언트 (목록은 서버 필터) ── */
   const filtered = items.filter((q) => {
-    const status = q.status === "CLOSED" ? "답변완료" : "미답변";
-    const matchFilter = filter === "전체" || filter === status;
     const matchSearch =
       !search || q.title?.includes(search) || q.content?.includes(search);
-    return matchFilter && matchSearch;
+    return matchSearch;
   });
 
   /* ── 등록 ── */
@@ -472,6 +508,7 @@ export default function ServicePage() {
 
   return (
     <>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes expandIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <PageHeader
         title="질문 답변"
         subtitle="서비스 이용과 관련된 문의사항을 등록하고 답변을 확인할 수 있습니다."
@@ -634,7 +671,6 @@ export default function ServicePage() {
               style={{ animation: "spin 1s linear infinite" }}
             />
             <span style={{ fontSize: 13, color: "#999" }}>불러오는 중...</span>
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </div>
         )}
 
@@ -682,8 +718,8 @@ export default function ServicePage() {
         {!loading && !error && (
           <div>
             {filtered.map((q) => {
-              const isClosed = q.status === "CLOSED";
-              const statusLabel = isClosed ? "답변완료" : "미답변";
+              const isAnswered = q.status === "ANSWERED";
+              const statusLabel = isAnswered ? "답변완료" : "미답변";
 
               return (
                 <div
@@ -713,24 +749,13 @@ export default function ServicePage() {
                     >
                       {getBoardBadge("QNA").text}
                     </span>
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: "15px",
-                        color: "#222",
-                        fontWeight: "400",
-                      }}
-                    >
-                      {q.title}
-                    </span>
-
-                    {/* 상태 뱃지 */}
+                    {/* 진행상태 */}
                     <span
                       style={{
                         fontSize: "11px",
                         fontWeight: "600",
-                        color: isClosed ? "#4a7cf7" : "#999",
-                        border: `1px solid ${isClosed ? "#4a7cf7" : "#ccc"}`,
+                        color: isAnswered ? "#4a7cf7" : "#999",
+                        border: `1px solid ${isAnswered ? "#4a7cf7" : "#ccc"}`,
                         borderRadius: "20px",
                         padding: "2px 9px",
                         marginRight: "12px",
@@ -738,6 +763,7 @@ export default function ServicePage() {
                         display: "flex",
                         alignItems: "center",
                         gap: "3px",
+                        flexShrink: 0,
                       }}
                     >
                       {statusLabel}
@@ -753,16 +779,65 @@ export default function ServicePage() {
                         <ChevronDown size={11} strokeWidth={2.5} />
                       </span>
                     </span>
-
+                    <span
+                      style={{
+                        flex: 1,
+                        fontSize: "15px",
+                        color: "#222",
+                        fontWeight: "400",
+                        minWidth: 0,
+                      }}
+                    >
+                      {q.title}
+                    </span>
                     <span
                       style={{
                         fontSize: "13px",
                         color: "#999",
                         whiteSpace: "nowrap",
+                        marginLeft: "12px",
+                        flexShrink: 0,
                       }}
                     >
-                      {fmtDate(q.createdAt)}
+                      {maskWriterEmail(q.writerEmail ?? q.email)}
                     </span>
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        color: "#999",
+                        whiteSpace: "nowrap",
+                        marginLeft: "12px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      작성일 {fmtDate(q.createdAt)}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        color: "#999",
+                        whiteSpace: "nowrap",
+                        marginLeft: "12px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      조회수 {q.viewCount ?? 0}
+                    </span>
+                    {detailLoadingId === q.qnaId && (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          display: "inline-flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Loader2
+                          size={14}
+                          color="#999"
+                          style={{ animation: "spin 1s linear infinite" }}
+                        />
+                      </span>
+                    )}
                   </div>
 
                   {/* 상세 내용 (토글) */}
@@ -770,22 +845,100 @@ export default function ServicePage() {
                     <div
                       style={{
                         padding: "16px 20px",
-                        background: "#f7f9ff",
-                        borderTop: "1px dashed #dde6ff",
+                        background: "#fff",
+                        borderRadius: 10,
+                        border: "1px solid #e2e8f0",
+                        margin: "4px 4px 16px",
+                        animation: "expandIn .15s ease",
                       }}
                     >
-                      {/* 질문 내용 */}
-                      <p
+                      {/* 질문 내용 + 수정/삭제 오른쪽 배치 */}
+                      <div
                         style={{
-                          fontSize: 14,
-                          color: "#444",
-                          lineHeight: 1.6,
-                          margin: "0 0 16px",
-                          whiteSpace: "pre-wrap",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 16,
+                          marginBottom: q.answerContent ? 16 : 0,
                         }}
                       >
-                        {q.content}
-                      </p>
+                        <p
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            fontSize: 14,
+                            color: "#444",
+                            lineHeight: 1.6,
+                            margin: 0,
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {q.content}
+                        </p>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setWriteModal({ item: q });
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              padding: "6px 14px",
+                              borderRadius: 6,
+                              border: "1px solid #ddd",
+                              background: "#fff",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              color: "#555",
+                              fontFamily: "'Noto Sans KR', sans-serif",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background = "#f5f5f5")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = "#fff")
+                            }
+                          >
+                            <Pencil size={12} /> 수정
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteModal(q);
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              padding: "6px 14px",
+                              borderRadius: 6,
+                              border: "1px solid #fecaca",
+                              background: "#fef2f2",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              color: "#dc2626",
+                              fontFamily: "'Noto Sans KR', sans-serif",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background = "#fee2e2")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = "#fef2f2")
+                            }
+                          >
+                            <Trash2 size={12} /> 삭제
+                          </button>
+                        </div>
+                      </div>
 
                       {/* 운영자 답변 */}
                       {q.answerContent && (
@@ -795,7 +948,6 @@ export default function ServicePage() {
                             background: "#eef3ff",
                             borderRadius: 8,
                             borderLeft: "3px solid #4a7cf7",
-                            marginBottom: 16,
                           }}
                         >
                           <div
@@ -806,10 +958,11 @@ export default function ServicePage() {
                               marginBottom: 6,
                               display: "flex",
                               alignItems: "center",
+                              justifyContent: "space-between",
                               gap: 4,
                             }}
                           >
-                            re: 관리자 답변
+                            <span>re: 관리자 답변</span>
                             {q.answeredAt && (
                               <span
                                 style={{
@@ -817,9 +970,10 @@ export default function ServicePage() {
                                   color: "#999",
                                   fontWeight: 400,
                                   marginLeft: 8,
+                                  textAlign: "right",
                                 }}
                               >
-                                {fmtDate(q.answeredAt)}
+                                작성일 {fmtDate(q.answeredAt)}
                               </span>
                             )}
                           </div>
@@ -836,74 +990,6 @@ export default function ServicePage() {
                           </p>
                         </div>
                       )}
-
-                      {/* 수정/삭제 버튼 */}
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "flex-end",
-                          gap: 8,
-                          paddingTop: 8,
-                          borderTop: "1px solid #eef2ff",
-                        }}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setWriteModal({ item: q });
-                          }}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            padding: "6px 14px",
-                            borderRadius: 6,
-                            border: "1px solid #ddd",
-                            background: "#fff",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            color: "#555",
-                            fontFamily: "'Noto Sans KR', sans-serif",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#f5f5f5")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "#fff")
-                          }
-                        >
-                          <Pencil size={12} /> 수정
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteModal(q);
-                          }}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            padding: "6px 14px",
-                            borderRadius: 6,
-                            border: "1px solid #fecaca",
-                            background: "#fef2f2",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            color: "#dc2626",
-                            fontFamily: "'Noto Sans KR', sans-serif",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#fee2e2")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "#fef2f2")
-                          }
-                        >
-                          <Trash2 size={12} /> 삭제
-                        </button>
-                      </div>
                     </div>
                   )}
                 </div>

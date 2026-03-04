@@ -35,10 +35,12 @@ export const noticeApi = {
    * @param {string} [searchType] - TITLE | CONTENT | TITLE_CONTENT | WRITER
    * @param {string} [keyword] - 검색어
    */
-  list: (uiPage = 1, size = 10, searchType, keyword) => {
+  list: (uiPage = 1, size = 10, searchType, keyword, scope, pinned) => {
     const params = { page: uiPage - 1, size };
     if (searchType != null && searchType !== "") params.searchType = searchType;
     if (keyword != null && keyword !== "") params.keyword = keyword;
+    if (scope != null && scope !== "") params.scope = scope;
+    if (pinned === true) params.pinned = true;
     return axiosInstance.get("/api/notices", { params });
   },
   get: (noticeId) => axiosInstance.get(`/api/notices/${noticeId}`),

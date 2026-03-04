@@ -14,6 +14,7 @@ public class QnaResponse {
     private Long qnaId;
     private Long boardId;
     private Long userId;
+    private String writerEmail;
 
     private String title;
     private String content;

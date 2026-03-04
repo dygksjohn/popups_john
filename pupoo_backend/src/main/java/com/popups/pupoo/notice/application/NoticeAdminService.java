@@ -11,6 +11,7 @@ import com.popups.pupoo.notice.dto.NoticeCreateRequest;
 import com.popups.pupoo.notice.dto.NoticeResponse;
 import com.popups.pupoo.notice.dto.NoticeUpdateRequest;
 import com.popups.pupoo.notice.persistence.NoticeRepository;
+import com.popups.pupoo.event.persistence.EventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 public class NoticeAdminService {
 
     private final NoticeRepository noticeRepository;
+    private final EventRepository eventRepository;
     private final AdminLogService adminLogService;
 
     /**
@@ -41,6 +43,7 @@ public class NoticeAdminService {
                 .createdByAdminId(adminUserId)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
+                .viewCount(0)
                 .build();
 
         Notice saved = noticeRepository.save(notice);
@@ -89,17 +92,21 @@ public class NoticeAdminService {
     }
 
     private NoticeResponse toResponse(Notice n) {
-        // PUBLIC 조회 정책에 따라 createdByAdminId는 응답에 포함하지 않는다.
+        String eventName = n.getEventId() != null
+                ? eventRepository.findById(n.getEventId()).map(e -> e.getEventName()).orElse(null)
+                : null;
         return NoticeResponse.builder()
                 .noticeId(n.getNoticeId())
                 .scope(n.getScope())
                 .eventId(n.getEventId())
+                .eventName(eventName)
                 .title(n.getNoticeTitle())
                 .content(n.getContent())
                 .pinned(n.isPinned())
                 .status(n.getStatus())
                 .createdAt(n.getCreatedAt())
                 .updatedAt(n.getUpdatedAt())
+                .viewCount(n.getViewCount())
                 .build();
     }
 }

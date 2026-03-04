@@ -1,7 +1,7 @@
 // src/pages/site/community/Notice.jsx
 import { useState, useEffect, useCallback } from "react";
 import PageHeader from "../components/PageHeader";
-import { ChevronLeft, ChevronRight, Search, Loader2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Search, Loader2, X } from "lucide-react";
 import { noticeApi, unwrap } from "../../../api/noticeApi";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 
@@ -29,7 +29,6 @@ function DetailModal({ item, onClose }) {
       />
       <style>{`
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
       `}</style>
       <div
         onClick={(e) => e.stopPropagation()}
@@ -46,7 +45,7 @@ function DetailModal({ item, onClose }) {
           maxHeight: "80vh",
           overflow: "auto",
           boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
-          animation: "slideUp .25s ease",
+          animation: "fadeIn .15s ease",
         }}
       >
         {/* 헤더 */}
@@ -128,11 +127,12 @@ function DetailModal({ item, onClose }) {
           <span style={{ fontSize: 13, color: "#94A3B8" }}>
             작성일 {fmtDate(item.createdAt)}
           </span>
-          {item.updatedAt && item.updatedAt !== item.createdAt && (
-            <span style={{ fontSize: 13, color: "#94A3B8" }}>
-              수정일 {fmtDate(item.updatedAt)}
-            </span>
-          )}
+          <span style={{ fontSize: 13, color: "#94A3B8" }}>
+            조회수 {item.viewCount ?? 0}
+          </span>
+          <span style={{ fontSize: 13, color: "#94A3B8" }}>
+            행사 {item.eventName ?? item.event_name ?? (item.eventId ? `#${item.eventId}` : "-")}
+          </span>
         </div>
 
         {/* 구분선 */}
@@ -204,9 +204,17 @@ function DetailModal({ item, onClose }) {
   );
 }
 
+const NOTICE_FILTER_OPTIONS = [
+  { value: "ALL", label: "모든공지" },
+  { value: "SCOPE_ALL", label: "전체공지" },
+  { value: "SCOPE_EVENT", label: "이벤트공지" },
+  { value: "PINNED", label: "고정만" },
+];
+
 export default function Notice() {
   const [currentPath, setCurrentPath] = useState("/community/notice");
   const [search, setSearch] = useState("");
+  const [noticeFilter, setNoticeFilter] = useState("ALL");
   const [selected, setSelected] = useState(null); // 상세보기용
 
   const [notices, setNotices] = useState([]);
@@ -221,8 +229,11 @@ export default function Notice() {
   const fetchNotices = useCallback(async (p = 1) => {
     setLoading(true);
     setError(null);
+    const scope = noticeFilter === "SCOPE_ALL" ? "ALL" : noticeFilter === "SCOPE_EVENT" ? "EVENT" : undefined;
+    const pinned = noticeFilter === "PINNED" ? true : undefined;
+    const keyword = search?.trim() || undefined;
     try {
-      const res = await noticeApi.list(p, PAGE_SIZE);
+      const res = await noticeApi.list(p, PAGE_SIZE, undefined, keyword, scope, pinned);
       const d = unwrap(res);
       setNotices(d.content || []);
       setTotalPages(d.totalPages || 0);
@@ -234,16 +245,33 @@ export default function Notice() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [noticeFilter, search]);
 
   useEffect(() => {
     fetchNotices(1);
   }, [fetchNotices]);
 
-  const filtered = notices.filter((n) => {
-    if (!search) return true;
-    return n.title?.includes(search) || n.content?.includes(search);
-  });
+  const filtered = notices;
+
+  const openDetail = async (notice) => {
+    try {
+      const res = await noticeApi.get(notice.noticeId);
+      const fresh = res?.data?.data ?? res?.data ?? null;
+      if (fresh) {
+        setSelected(fresh);
+        setNotices((prev) =>
+          prev.map((n) =>
+            n.noticeId === notice.noticeId ? { ...n, viewCount: fresh.viewCount ?? n.viewCount } : n,
+          ),
+        );
+      } else {
+        setSelected(notice);
+      }
+    } catch (err) {
+      console.error("[Notice] get error:", err);
+      setSelected(notice);
+    }
+  };
 
   return (
     <>
@@ -276,6 +304,44 @@ export default function Notice() {
             총 {totalElements}개
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ position: "relative" }}>
+              <select
+                value={noticeFilter}
+                onChange={(e) => setNoticeFilter(e.target.value)}
+                style={{
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  border: "1px solid #ccc",
+                  borderRadius: "6px",
+                  padding: "8px 32px 8px 12px",
+                  fontSize: "14px",
+                  color: "#333",
+                  background: "#fff",
+                  cursor: "pointer",
+                  outline: "none",
+                  minWidth: "100px",
+                }}
+              >
+                {NOTICE_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <span
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <ChevronDown size={14} color="#666" />
+              </span>
+            </div>
             <div
               style={{
                 display: "flex",
@@ -379,7 +445,7 @@ export default function Notice() {
             {filtered.map((notice) => (
               <div
                 key={notice.noticeId}
-                onClick={() => setSelected(notice)}
+                onClick={() => openDetail(notice)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -413,6 +479,18 @@ export default function Notice() {
                     📌
                   </span>
                 )}
+                {notice.scope === "ALL" && (
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: "#64748B",
+                      marginRight: 8,
+                      flexShrink: 0,
+                    }}
+                  >
+                    전체
+                  </span>
+                )}
                 <span
                   style={{
                     flex: 1,
@@ -427,11 +505,23 @@ export default function Notice() {
                   style={{
                     fontSize: "13px",
                     color: "#999",
-                    marginLeft: "16px",
+                    marginLeft: "12px",
                     whiteSpace: "nowrap",
+                    flexShrink: 0,
                   }}
                 >
-                  {fmtDate(notice.createdAt)}
+                  작성일 {fmtDate(notice.createdAt)}
+                </span>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    color: "#999",
+                    marginLeft: "12px",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                >
+                  조회수 {notice.viewCount ?? 0}
                 </span>
               </div>
             ))}

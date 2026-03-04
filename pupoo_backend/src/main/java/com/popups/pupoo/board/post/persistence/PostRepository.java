@@ -84,6 +84,9 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         """)
     int increaseViewCount(@Param("postId") Long postId);
 
+    @Query(value = "SELECT view_count FROM posts WHERE post_id = :postId AND is_deleted = 0", nativeQuery = true)
+    int getViewCountByPostId(@Param("postId") Long postId);
+
     /**
      * 관리자 모더레이션 큐 조회용: 삭제/숨김 포함 검색.
      */
