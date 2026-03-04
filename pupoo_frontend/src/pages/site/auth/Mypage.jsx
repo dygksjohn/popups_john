@@ -478,6 +478,7 @@ export default function MyPage() {
   const [error, setError] = useState("");
 
   const [profile, setProfile] = useState(null);
+  const [pets, setPets] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [eventMap, setEventMap] = useState({});
   const [participations, setParticipations] = useState([]);
@@ -518,12 +519,14 @@ export default function MyPage() {
 
       const [
         meRes,
+        petsRes,
         regRes,
         visitRes,
         inboxRes,
         unreadRes,
       ] = await Promise.allSettled([
         mypageApi.getMe(),
+        mypageApi.getMyPets(),
         mypageApi.getMyEventRegistrations({ page: 0, size: 200 }),
         mypageApi.getMyBoothVisitsGroupedByEvent(),
         notificationApi.getInbox(0, 20),
@@ -533,6 +536,7 @@ export default function MyPage() {
       if (!mounted) return;
 
       const me = meRes.status === "fulfilled" ? meRes.value : null;
+      const petRows = petsRes.status === "fulfilled" ? safeArray(petsRes.value) : [];
       const regPage = regRes.status === "fulfilled" ? regRes.value : null;
       const visitGroups = visitRes.status === "fulfilled" ? visitRes.value : [];
       const inboxData = inboxRes.status === "fulfilled" ? inboxRes.value : null;
@@ -554,6 +558,7 @@ export default function MyPage() {
         const bb = new Date(b?.appliedAt || 0).getTime();
         return bb - aa;
       });
+      setPets(petRows);
       setRegistrations(regRows);
 
       const mappedParticipations = safeArray(visitGroups)
@@ -661,7 +666,7 @@ export default function MyPage() {
       const detail = eventMap[String(item?.eventId)] || {};
       return {
         ...item,
-        eventName: detail?.eventName || `행사 #${item?.eventId}`,
+        eventName: item?.eventName || detail?.eventName || "행사 정보 없음",
         location: detail?.location || "장소 정보 없음",
         startAt: detail?.startAt,
       };
@@ -673,7 +678,7 @@ export default function MyPage() {
       const detail = eventMap[String(item?.eventId)] || {};
       return {
         ...item,
-        eventName: item?.eventName || detail?.eventName || `행사 #${item?.eventId}`,
+        eventName: item?.eventName || detail?.eventName || "행사 정보 없음",
         location: detail?.location || "장소 정보 없음",
       };
     });
@@ -726,7 +731,7 @@ export default function MyPage() {
         onClick={clickable ? () => moveToEventPage(item?.eventId) : undefined}
       >
         <div className="mp-item-top">
-          <div className="mp-item-title">{detail?.eventName || `행사 #${item?.eventId}`}</div>
+          <div className="mp-item-title">{item?.eventName || detail?.eventName || "행사 정보 없음"}</div>
           <span className={`mp-badge ${statusClass(status)}`}>{label}</span>
         </div>
         <div className="mp-item-meta">
@@ -844,6 +849,49 @@ export default function MyPage() {
                 </div>
               </div>
             </section>
+
+            <section className="mp-card mp-section" style={{ marginTop: 14 }}>
+              <div className="mp-section-head">
+                <h3 className="mp-section-title">반려동물 관리</h3>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="mp-count">총 {pets.length}마리</span>
+                  <button
+                    type="button"
+                    className="mp-btn primary"
+                    style={{ padding: "7px 12px", fontSize: 12, borderRadius: 8 }}
+                    onClick={() => navigate("/mypage/pets/new")}
+                  >
+                    반려동물 등록
+                  </button>
+                </div>
+              </div>
+              <div className="mp-list">
+                {pets.length === 0 ? (
+                  <div className="mp-empty">등록된 반려동물이 없습니다.</div>
+                ) : (
+                  pets.map((pet) => (
+                    <div className="mp-item" key={`pet-${pet?.petId}`}>
+                      <div className="mp-item-top">
+                        <div className="mp-item-title">{pet?.petName || "이름 없음"}</div>
+                        <button
+                          type="button"
+                          className="mp-btn ghost"
+                          style={{ padding: "6px 10px", fontSize: 12, borderRadius: 8 }}
+                          onClick={() => navigate(`/mypage/pets/${pet?.petId}/edit`)}
+                        >
+                          수정
+                        </button>
+                      </div>
+                      <div className="mp-item-meta">
+                        <span>품종 {pet?.petBreed || "-"}</span>
+                        <span>나이 {pet?.petAge ?? "-"}</span>
+                        <span>체형 {pet?.petWeight || "-"}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
           </>
         ) : null}
 
@@ -940,7 +988,7 @@ export default function MyPage() {
                     const detail = eventMap[String(item?.eventId)] || {};
                     return (
                       <option key={`qr-${item?.applyId}-${item?.eventId}`} value={String(item?.eventId)}>
-                        {detail?.eventName || `행사 #${item?.eventId}`}
+                        {item?.eventName || detail?.eventName || "행사 정보 없음"}
                       </option>
                     );
                   })

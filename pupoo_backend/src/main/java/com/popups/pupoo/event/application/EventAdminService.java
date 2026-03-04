@@ -67,6 +67,7 @@ public class EventAdminService {
                 request.getStartAt(),
                 request.getEndAt(),
                 request.getLocation(),
+                request.getOrganizer(),
                 request.getStatus(),
                 request.getRoundNo(),
                 request.getBaseFee()
@@ -103,6 +104,7 @@ public class EventAdminService {
                 request.getStartAt(),
                 request.getEndAt(),
                 request.getLocation(),
+                request.getOrganizer(),
                 request.getStatus(),
                 request.getRoundNo(),
                 request.getBaseFee() != null ? request.getBaseFee() : event.getBaseFee()

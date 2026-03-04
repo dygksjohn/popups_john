@@ -47,8 +47,8 @@ function fmtDate(dt) {
 
 /* ── 리뷰 상태 맵 (백엔드 ReviewStatus: PUBLIC, REPORTED, BLINDED, DELETED) ── */
 const reviewStatusMap = {
-  PUBLIC: { l: "공개", c: "#059669", bg: ds.greenSoft },
-  REPORTED: { l: "신고접수", c: "#D97706", bg: ds.amberSoft },
+  PUBLIC: { l: "공개", c: ds.green, bg: ds.greenSoft },
+  REPORTED: { l: "신고접수", c: ds.amber, bg: ds.amberSoft },
   BLINDED: { l: "블라인드", c: ds.red, bg: ds.redSoft },
   DELETED: { l: "삭제", c: ds.ink4, bg: ds.lineSoft },
 };
@@ -109,7 +109,7 @@ function Overlay({ children, onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 16,
           width: 520,
           maxHeight: "85vh",
@@ -149,7 +149,7 @@ function ConfirmModal({
               width: 38,
               height: 38,
               borderRadius: 10,
-              background: "#FEF2F2",
+              background: ds.redSoft,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -166,7 +166,7 @@ function ConfirmModal({
         <p
           style={{
             fontSize: 13.5,
-            color: "#64748B",
+            color: ds.ink3,
             lineHeight: 1.6,
             whiteSpace: "pre-line",
             margin: "0 0 24px",
@@ -181,13 +181,13 @@ function ConfirmModal({
             style={{
               padding: "9px 20px",
               borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.card,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#64748B",
+              color: ds.ink3,
             }}
           >
             취소
@@ -242,8 +242,8 @@ function Checkbox({ checked, onChange, size = 18 }) {
         width: size,
         height: size,
         borderRadius: 5,
-        border: checked ? "none" : "1.8px solid #CBD5E1",
-        background: checked ? ds.brand : "#fff",
+        border: checked ? "none" : `1.8px solid ${ds.line}`,
+        background: checked ? ds.brand : ds.bg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -310,8 +310,8 @@ function DetailModal({ item, onClose, onBlind, onRestore, onDelete }) {
               width: 32,
               height: 32,
               borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.card,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -387,7 +387,7 @@ function DetailModal({ item, onClose, onBlind, onRestore, onDelete }) {
             <div
               style={{
                 padding: "14px 16px",
-                background: "#FAFBFC",
+                background: ds.bg,
                 borderRadius: 10,
                 border: "1px solid #F0F0F5",
                 fontSize: 13.5,
@@ -439,8 +439,8 @@ function DetailModal({ item, onClose, onBlind, onRestore, onDelete }) {
               style={{
                 padding: "9px 18px",
                 borderRadius: 8,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 fontSize: 12.5,
                 fontWeight: 600,
                 cursor: "pointer",
@@ -459,8 +459,8 @@ function DetailModal({ item, onClose, onBlind, onRestore, onDelete }) {
               style={{
                 padding: "9px 18px",
                 borderRadius: 8,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 fontSize: 12.5,
                 fontWeight: 600,
                 cursor: "pointer",
@@ -1088,7 +1088,7 @@ export default function Reviews() {
               padding: "10px 14px",
               borderRadius: 8,
               background: ds.amberSoft,
-              color: "#92400E",
+              color: ds.amber,
               fontSize: 12.5,
               fontWeight: 600,
               display: "flex",

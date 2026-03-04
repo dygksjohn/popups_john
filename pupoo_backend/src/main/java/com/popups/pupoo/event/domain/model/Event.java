@@ -47,6 +47,9 @@ public class Event {
     @Column(name = "location", length = 255)
     private String location;
 
+    @Column(name = "organizer", length = 255)
+    private String organizer;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20, columnDefinition = "ENUM('PLANNED','ONGOING','ENDED','CANCELLED')")
     private EventStatus status;
@@ -67,6 +70,7 @@ public class Event {
             LocalDateTime startAt,
             LocalDateTime endAt,
             String location,
+            String organizer,
             EventStatus status,
             Integer roundNo,
             BigDecimal baseFee
@@ -77,6 +81,7 @@ public class Event {
         e.startAt = startAt;
         e.endAt = endAt;
         e.location = location;
+        e.organizer = organizer;
         e.status = status;
         e.roundNo = roundNo;
         e.baseFee = baseFee != null ? baseFee : BigDecimal.ZERO;
@@ -89,6 +94,7 @@ public class Event {
             LocalDateTime startAt,
             LocalDateTime endAt,
             String location,
+            String organizer,
             EventStatus status,
             Integer roundNo,
             BigDecimal baseFee
@@ -98,6 +104,7 @@ public class Event {
         this.startAt = startAt;
         this.endAt = endAt;
         this.location = location;
+        this.organizer = organizer;
         this.status = status;
         this.roundNo = roundNo;
         if (baseFee != null) {
@@ -119,6 +126,7 @@ public class Event {
     public LocalDateTime getStartAt() { return startAt; }
     public LocalDateTime getEndAt() { return endAt; }
     public String getLocation() { return location; }
+    public String getOrganizer() { return organizer; }
     public EventStatus getStatus() { return status; }
     public Integer getRoundNo() { return roundNo; }
     public BigDecimal getBaseFee() { return baseFee; }

@@ -18,6 +18,7 @@ public class AdminEventCreateRequest {
     private LocalDateTime startAt;
     private LocalDateTime endAt;
     private String location;
+    private String organizer;
     private EventStatus status;
     private Integer roundNo;
     private BigDecimal baseFee;
@@ -29,6 +30,7 @@ public class AdminEventCreateRequest {
     public LocalDateTime getStartAt() { return startAt; }
     public LocalDateTime getEndAt() { return endAt; }
     public String getLocation() { return location; }
+    public String getOrganizer() { return organizer; }
     public EventStatus getStatus() { return status; }
     public Integer getRoundNo() { return roundNo; }
     public BigDecimal getBaseFee() { return baseFee; }

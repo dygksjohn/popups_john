@@ -48,8 +48,8 @@ function Checkbox({ checked, onChange, size = 18 }) {
         width: size,
         height: size,
         borderRadius: 5,
-        border: checked ? "none" : "1.8px solid #CBD5E1",
-        background: checked ? ds.brand : "#fff",
+        border: checked ? "none" : `1.8px solid ${ds.line}`,
+        background: checked ? ds.brand : ds.bg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -114,7 +114,7 @@ function Overlay({ children, onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 16,
           width: 500,
           maxHeight: "85vh",
@@ -146,7 +146,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
         <p
           style={{
             fontSize: 13.5,
-            color: "#64748B",
+            color: ds.ink3,
             lineHeight: 1.6,
             whiteSpace: "pre-line",
             margin: "0 0 24px",
@@ -160,13 +160,13 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
             style={{
               padding: "9px 20px",
               borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.card,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#64748B",
+              color: ds.ink3,
             }}
           >
             취소
@@ -200,7 +200,7 @@ function Field({ label, children, required }) {
         style={{
           fontSize: 12,
           fontWeight: 700,
-          color: "#64748B",
+          color: ds.ink3,
           marginBottom: 7,
           display: "block",
           letterSpacing: 0.2,
@@ -217,21 +217,21 @@ const inputStyle = {
   width: "100%",
   padding: "10px 14px",
   borderRadius: 9,
-  border: "1.5px solid #E2E8F0",
+  border: `1.5px solid ${ds.line}`,
   fontSize: 13.5,
   fontFamily: ds.ff,
   color: ds.ink,
   outline: "none",
   boxSizing: "border-box",
   transition: "border-color .15s, box-shadow .15s",
-  background: "#fff",
+  background: ds.bg,
 };
 const inputFocus = (e) => {
   e.target.style.borderColor = ds.brand;
   e.target.style.boxShadow = `0 0 0 3px ${ds.brand}15`;
 };
 const inputBlur = (e) => {
-  e.target.style.borderColor = "#E2E8F0";
+  e.target.style.borderColor = ds.line;
   e.target.style.boxShadow = "none";
 };
 
@@ -239,10 +239,10 @@ function StatCard({ icon: Icon, label, value, color }) {
   return (
     <div
       style={{
-        background: "#fff",
+        background: ds.card,
         borderRadius: 12,
         padding: "14px 16px",
-        border: "1px solid #F1F5F9",
+        border: `1px solid ${ds.line}`,
         display: "flex",
         alignItems: "center",
         gap: 12,
@@ -266,7 +266,7 @@ function StatCard({ icon: Icon, label, value, color }) {
         <div
           style={{
             fontSize: 10.5,
-            color: "#94A3B8",
+            color: ds.ink4,
             fontWeight: 600,
             marginBottom: 1,
           }}
@@ -408,7 +408,7 @@ function FormModal({
             width: 580,
             maxWidth: "95vw",
             maxHeight: "90vh",
-            background: "#fff",
+            background: ds.card,
             borderRadius: 20,
             boxShadow:
               "0 32px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.1)",
@@ -426,7 +426,7 @@ function FormModal({
           <div
             style={{
               padding: "22px 28px",
-              borderBottom: "1px solid #F1F5F9",
+              borderBottom: `1px solid ${ds.line}`,
               flexShrink: 0,
             }}
           >
@@ -451,7 +451,7 @@ function FormModal({
                     : `새 ${categoryLabel} 등록`}
                 </h3>
                 <p
-                  style={{ fontSize: 12, color: "#94A3B8", margin: "4px 0 0" }}
+                  style={{ fontSize: 12, color: ds.ink4, margin: "4px 0 0" }}
                 >
                   <span style={{ color: ds.brand, fontWeight: 700 }}>
                     {eventName}
@@ -465,15 +465,15 @@ function FormModal({
                   width: 32,
                   height: 32,
                   borderRadius: 8,
-                  border: "1px solid #E2E8F0",
-                  background: "#fff",
+                  border: `1px solid ${ds.line}`,
+                  background: ds.card,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <X size={15} color="#94A3B8" />
+                <X size={15} color={ds.ink4} />
               </button>
             </div>
           </div>
@@ -483,12 +483,12 @@ function FormModal({
             {err && (
               <div
                 style={{
-                  background: "#FEF2F2",
-                  border: "1px solid #FECACA",
+                  background: ds.redSoft,
+                  border: `1px solid ${ds.red}33`,
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 12.5,
-                  color: "#DC2626",
+                  color: ds.red,
                   marginBottom: 18,
                   fontWeight: 600,
                   display: "flex",
@@ -512,12 +512,12 @@ function FormModal({
                   }}
                   onDragLeave={() => setDragOver(false)}
                   style={{
-                    border: `2px dashed ${dragOver ? ds.brand : "#E2E8F0"}`,
+                    border: `2px dashed ${dragOver ? ds.brand : ds.line}`,
                     borderRadius: 14,
                     padding: "28px 20px",
                     textAlign: "center",
                     cursor: "pointer",
-                    background: dragOver ? `${ds.brand}08` : "#FAFBFC",
+                    background: dragOver ? `${ds.brand}08` : ds.bg,
                     transition: "all .2s ease",
                   }}
                 >
@@ -536,11 +536,11 @@ function FormModal({
                     <ImagePlus size={20} color={ds.brand} />
                   </div>
                   <div
-                    style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}
+                    style={{ fontSize: 13, fontWeight: 600, color: ds.ink3 }}
                   >
                     클릭하거나 이미지를 드래그하세요
                   </div>
-                  <div style={{ fontSize: 11, color: "#94A3B8" }}>
+                  <div style={{ fontSize: 11, color: ds.ink4 }}>
                     JPG, PNG, WEBP · 최대 10MB
                   </div>
                 </div>
@@ -645,8 +645,8 @@ function FormModal({
                 <input
                   style={{
                     ...inputStyle,
-                    background: "#F8FAFC",
-                    color: "#94A3B8",
+                    background: ds.bg,
+                    color: ds.ink4,
                   }}
                   value={categoryLabel}
                   readOnly
@@ -689,17 +689,17 @@ function FormModal({
                 const map = {
                   pending: {
                     l: "대기",
-                    c: "#D97706",
-                    bg: "#FFFBEB",
+                    c: ds.amber,
+                    bg: ds.amberSoft,
                     icon: "⏳",
                   },
                   active: {
                     l: "운영 중",
-                    c: "#059669",
-                    bg: "#ECFDF5",
+                    c: ds.green,
+                    bg: ds.greenSoft,
                     icon: "🟢",
                   },
-                  ended: { l: "종료", c: "#94A3B8", bg: "#F1F5F9", icon: "⏹" },
+                  ended: { l: "종료", c: ds.ink4, bg: ds.lineSoft, icon: "⏹" },
                 };
                 const s = map[auto];
                 return (
@@ -741,7 +741,7 @@ function FormModal({
           <div
             style={{
               padding: "16px 28px",
-              borderTop: "1px solid #F1F5F9",
+              borderTop: `1px solid ${ds.line}`,
               display: "flex",
               gap: 10,
               flexShrink: 0,
@@ -753,13 +753,13 @@ function FormModal({
                 flex: 1,
                 padding: "12px 0",
                 borderRadius: 10,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: "pointer",
                 fontFamily: ds.ff,
-                color: "#64748B",
+                color: ds.ink3,
               }}
             >
               취소
@@ -816,14 +816,14 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
               height: 28,
               borderRadius: 7,
               border: "none",
-              background: "#F1F5F9",
+              background: ds.lineSoft,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <X size={14} color="#94A3B8" />
+            <X size={14} color={ds.ink4} />
           </button>
         </div>
         {item.imageUrl && (
@@ -832,7 +832,7 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
               marginBottom: 18,
               borderRadius: 12,
               overflow: "hidden",
-              background: "#F1F5F9",
+              background: ds.lineSoft,
             }}
           >
             <img
@@ -849,7 +849,7 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
         )}
         <div
           style={{
-            background: "#F8FAFC",
+            background: ds.bg,
             borderRadius: 12,
             padding: 20,
             marginBottom: 20,
@@ -867,7 +867,7 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#94A3B8",
+                color: ds.ink4,
                 fontFamily: "monospace",
               }}
             >
@@ -897,10 +897,10 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
                 display: "flex",
                 justifyContent: "space-between",
                 padding: "9px 0",
-                borderBottom: "1px solid #E2E8F0",
+                borderBottom: `1px solid ${ds.line}`,
               }}
             >
-              <span style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>
+              <span style={{ fontSize: 13, color: ds.ink3, fontWeight: 500 }}>
                 {r.l}
               </span>
               <span style={{ fontSize: 13, color: ds.ink, fontWeight: 600 }}>
@@ -910,13 +910,13 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
           ))}
           {item.description && (
             <div style={{ marginTop: 14 }}>
-              <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>
+              <span style={{ fontSize: 12, color: ds.ink4, fontWeight: 600 }}>
                 설명
               </span>
               <p
                 style={{
                   fontSize: 13,
-                  color: "#475569",
+                  color: ds.ink3,
                   lineHeight: 1.6,
                   marginTop: 6,
                 }}
@@ -935,13 +935,13 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
             style={{
               padding: "9px 16px",
               borderRadius: 8,
-              border: "1px solid #FECACA",
-              background: "#FEF2F2",
+              border: `1px solid ${ds.red}33`,
+              background: ds.redSoft,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#DC2626",
+              color: ds.red,
               display: "flex",
               alignItems: "center",
               gap: 6,
@@ -1240,7 +1240,7 @@ export default function ProgramCategoryPage({
             >
               {title}
             </h3>
-            <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>
+            <p style={{ fontSize: 13, color: ds.ink4, margin: 0 }}>
               {categoryLabel}을(를) 등록할 행사를 선택하세요
             </p>
           </div>
@@ -1267,7 +1267,7 @@ export default function ProgramCategoryPage({
               <div
                 style={{
                   fontSize: 13,
-                  color: "#94A3B8",
+                  color: ds.ink4,
                   fontWeight: 600,
                   marginTop: 14,
                 }}
@@ -1284,18 +1284,18 @@ export default function ProgramCategoryPage({
                 padding: "80px 0",
               }}
             >
-              <CalendarDays size={42} color="#CBD5E1" strokeWidth={1.5} />
+              <CalendarDays size={42} color={ds.ink4} strokeWidth={1.5} />
               <div
                 style={{
                   fontSize: 15,
                   fontWeight: 700,
-                  color: "#94A3B8",
+                  color: ds.ink4,
                   marginTop: 14,
                 }}
               >
                 등록된 행사가 없습니다
               </div>
-              <div style={{ fontSize: 13, color: "#CBD5E1", marginTop: 4 }}>
+              <div style={{ fontSize: 13, color: ds.ink4, marginTop: 4 }}>
                 먼저 행사 관리에서 행사를 등록해주세요
               </div>
             </div>
@@ -1314,9 +1314,9 @@ export default function ProgramCategoryPage({
                     key={ev.eventId || ev.id}
                     onClick={() => selectEvent(ev)}
                     style={{
-                      background: "#fff",
+                      background: ds.card,
                       borderRadius: 14,
-                      border: "1px solid #F1F5F9",
+                      border: `1px solid ${ds.line}`,
                       padding: "20px",
                       cursor: "pointer",
                       transition: "all .2s ease",
@@ -1327,7 +1327,7 @@ export default function ProgramCategoryPage({
                       e.currentTarget.style.transform = "translateY(-2px)";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "#F1F5F9";
+                      e.currentTarget.style.borderColor = ds.lineSoft;
                       e.currentTarget.style.boxShadow = "none";
                       e.currentTarget.style.transform = "translateY(0)";
                     }}
@@ -1343,7 +1343,7 @@ export default function ProgramCategoryPage({
                       <Pill color={st.c} bg={st.bg}>
                         {st.l}
                       </Pill>
-                      <ArrowRight size={16} color="#CBD5E1" />
+                      <ArrowRight size={16} color={ds.ink4} />
                     </div>
                     <h4
                       style={{
@@ -1363,7 +1363,7 @@ export default function ProgramCategoryPage({
                           alignItems: "center",
                           gap: 6,
                           fontSize: 12,
-                          color: "#94A3B8",
+                          color: ds.ink4,
                           marginBottom: 4,
                         }}
                       >
@@ -1377,7 +1377,7 @@ export default function ProgramCategoryPage({
                           alignItems: "center",
                           gap: 6,
                           fontSize: 12,
-                          color: "#94A3B8",
+                          color: ds.ink4,
                         }}
                       >
                         <MapPin size={12} /> {ev.location}
@@ -1387,7 +1387,7 @@ export default function ProgramCategoryPage({
                       style={{
                         marginTop: 14,
                         paddingTop: 12,
-                        borderTop: "1px solid #F1F5F9",
+                        borderTop: `1px solid ${ds.line}`,
                         display: "flex",
                         alignItems: "center",
                         gap: 6,
@@ -1418,11 +1418,11 @@ export default function ProgramCategoryPage({
                 gap: 6,
                 padding: "6px 12px",
                 borderRadius: 8,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 fontSize: 12.5,
                 fontWeight: 600,
-                color: "#64748B",
+                color: ds.ink3,
                 cursor: "pointer",
                 fontFamily: ds.ff,
                 marginBottom: 12,
@@ -1433,8 +1433,8 @@ export default function ProgramCategoryPage({
                 e.currentTarget.style.color = ds.brand;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "#E2E8F0";
-                e.currentTarget.style.color = "#64748B";
+                e.currentTarget.style.borderColor = ds.line;
+                e.currentTarget.style.color = ds.ink4;
               }}
             >
               <ChevronLeft size={14} /> 행사 목록으로
@@ -1461,7 +1461,7 @@ export default function ProgramCategoryPage({
               <p
                 style={{
                   fontSize: 12.5,
-                  color: "#94A3B8",
+                  color: ds.ink4,
                   margin: "4px 0 0",
                   display: "flex",
                   alignItems: "center",
@@ -1517,9 +1517,9 @@ export default function ProgramCategoryPage({
           {/* 테이블 */}
           <div
             style={{
-              background: "#fff",
+              background: ds.card,
               borderRadius: 12,
-              border: "1px solid #F1F5F9",
+              border: `1px solid ${ds.line}`,
               overflow: "hidden",
             }}
           >
@@ -1529,7 +1529,7 @@ export default function ProgramCategoryPage({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                borderBottom: "1px solid #F1F5F9",
+                borderBottom: `1px solid ${ds.line}`,
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1540,8 +1540,8 @@ export default function ProgramCategoryPage({
                   style={{
                     fontSize: 11.5,
                     fontWeight: 600,
-                    color: "#94A3B8",
-                    background: "#F1F5F9",
+                    color: ds.ink4,
+                    background: ds.lineSoft,
                     padding: "2px 8px",
                     borderRadius: 5,
                   }}
@@ -1573,11 +1573,11 @@ export default function ProgramCategoryPage({
                       gap: 4,
                       padding: "6px 12px",
                       borderRadius: 7,
-                      border: "1px solid #FECACA",
-                      background: "#FEF2F2",
+                      border: `1px solid ${ds.red}33`,
+                      background: ds.redSoft,
                       fontSize: 12,
                       fontWeight: 600,
-                      color: "#DC2626",
+                      color: ds.red,
                       cursor: "pointer",
                       fontFamily: ds.ff,
                     }}
@@ -1594,11 +1594,11 @@ export default function ProgramCategoryPage({
                       gap: 4,
                       padding: "6px 12px",
                       borderRadius: 7,
-                      border: "1px solid #E2E8F0",
-                      background: "#fff",
+                      border: `1px solid ${ds.line}`,
+                      background: ds.card,
                       fontSize: 12,
                       fontWeight: 600,
-                      color: "#64748B",
+                      color: ds.ink3,
                       cursor: "pointer",
                       fontFamily: ds.ff,
                     }}
@@ -1630,7 +1630,7 @@ export default function ProgramCategoryPage({
 
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #F1F5F9" }}>
+                <tr style={{ borderBottom: `1px solid ${ds.line}` }}>
                   <th style={{ width: 44, padding: "10px 14px" }}>
                     <Checkbox checked={isAllSelected} onChange={toggleAll} />
                   </th>
@@ -1646,7 +1646,7 @@ export default function ProgramCategoryPage({
                         padding: "10px 14px",
                         fontSize: 11.5,
                         fontWeight: 700,
-                        color: "#94A3B8",
+                        color: ds.ink4,
                         textAlign: c.align || "left",
                         ...(c.w ? { width: c.w } : {}),
                       }}
@@ -1684,7 +1684,7 @@ export default function ProgramCategoryPage({
                         <span
                           style={{
                             fontSize: 13,
-                            color: "#94A3B8",
+                            color: ds.ink4,
                             fontWeight: 600,
                           }}
                         >
@@ -1708,14 +1708,14 @@ export default function ProgramCategoryPage({
                       >
                         <Clipboard
                           size={36}
-                          color="#CBD5E1"
+                          color={ds.ink4}
                           strokeWidth={1.5}
                         />
                         <div
                           style={{
                             fontSize: 14,
                             fontWeight: 700,
-                            color: "#94A3B8",
+                            color: ds.ink4,
                             marginTop: 12,
                           }}
                         >
@@ -1724,7 +1724,7 @@ export default function ProgramCategoryPage({
                         <div
                           style={{
                             fontSize: 12.5,
-                            color: "#CBD5E1",
+                            color: ds.ink4,
                             marginTop: 4,
                           }}
                         >
@@ -1744,7 +1744,7 @@ export default function ProgramCategoryPage({
                         className={isRemoving ? "row-removing" : ""}
                         onClick={() => setModal({ type: "detail", item: r })}
                         style={{
-                          borderBottom: "1px solid #F8FAFC",
+                          borderBottom: `1px solid ${ds.lineSoft}`,
                           cursor: "pointer",
                           transition: "background .1s",
                           background: isChecked
@@ -1754,7 +1754,7 @@ export default function ProgramCategoryPage({
                         onMouseEnter={(e) =>
                           (e.currentTarget.style.background = isChecked
                             ? `${ds.brand}0A`
-                            : "#F4F6F8")
+                            : ds.bg)
                         }
                         onMouseLeave={(e) =>
                           (e.currentTarget.style.background = isChecked
@@ -1786,7 +1786,7 @@ export default function ProgramCategoryPage({
                                   borderRadius: 8,
                                   objectFit: "cover",
                                   flexShrink: 0,
-                                  border: "1px solid #F1F5F9",
+                                  border: `1px solid ${ds.line}`,
                                 }}
                               />
                             )}
@@ -1803,7 +1803,7 @@ export default function ProgramCategoryPage({
                               <div
                                 style={{
                                   fontSize: 11,
-                                  color: "#94A3B8",
+                                  color: ds.ink4,
                                   fontFamily: "monospace",
                                   marginTop: 1,
                                 }}
@@ -1845,11 +1845,11 @@ export default function ProgramCategoryPage({
                               style={{
                                 padding: "4px 9px",
                                 borderRadius: 6,
-                                border: "1px solid #E2E8F0",
-                                background: "#fff",
+                                border: `1px solid ${ds.line}`,
+                                background: ds.card,
                                 fontSize: 11,
                                 fontWeight: 600,
-                                color: "#64748B",
+                                color: ds.ink3,
                                 cursor: "pointer",
                                 fontFamily: ds.ff,
                               }}
@@ -1864,11 +1864,11 @@ export default function ProgramCategoryPage({
                               style={{
                                 padding: "4px 9px",
                                 borderRadius: 6,
-                                border: "1px solid #E2E8F0",
-                                background: "#fff",
+                                border: `1px solid ${ds.line}`,
+                                background: ds.card,
                                 fontSize: 11,
                                 fontWeight: 600,
-                                color: "#64748B",
+                                color: ds.ink3,
                                 cursor: "pointer",
                                 fontFamily: ds.ff,
                               }}
@@ -1887,7 +1887,7 @@ export default function ProgramCategoryPage({
                                 background: "#FEF2F208",
                                 fontSize: 11,
                                 fontWeight: 600,
-                                color: "#DC2626",
+                                color: ds.red,
                                 cursor: "pointer",
                                 fontFamily: ds.ff,
                               }}

@@ -1,12 +1,17 @@
-﻿﻿import PageHeader from "../components/PageHeader";
-import { useCallback, useEffect, useState } from "react";
+﻿import PageHeader from "../components/PageHeader";
+import { useEffect, useState } from "react";
 import { eventApi } from "../../../app/http/eventApi";
 import {
   Archive,
+  MapPin,
   Users,
+  Calendar,
+  ChevronRight,
   Search,
   Star,
+  Download,
   BarChart2,
+  Filter,
 } from "lucide-react";
 
 export const SERVICE_CATEGORIES = [
@@ -20,7 +25,7 @@ export const SERVICE_CATEGORIES = [
 export const SUBTITLE_MAP = {
   "/event/current": "현재 진행 중인 행사 목록을 확인합니다",
   "/event/upcoming": "예정된 행사 일정을 확인합니다",
-  "/event/closed": "",
+  "/event/closed": "종료된 행사 목록을 확인합니다",
   "/event/preregister": "행사 사전 등록을 진행합니다",
   "/event/eventschedule": "행사 일정을 안내합니다",
 };
@@ -54,7 +59,7 @@ const styles = `
 
   .cl-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
 
-  .cl-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+  .cl-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
   .cl-stat-card {
     background: #fff; border: 1px solid #e9ecef; border-radius: 13px;
     padding: 20px 22px; display: flex; align-items: center; gap: 14px;
@@ -62,14 +67,6 @@ const styles = `
   .cl-stat-icon { width: 44px; height: 44px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .cl-stat-label { font-size: 12px; color: #6b7280; font-weight: 500; }
   .cl-stat-value { font-size: 22px; font-weight: 800; color: #111827; }
-
-  .cl-card { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 24px 28px; }
-  .cl-list-shell { display: flex; flex-direction: column; min-height: 0; }
-  .cl-list-head { position: sticky; top: 0; z-index: 2; background: #fff; }
-  .cl-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #f1f3f5; }
-  .cl-card-title { font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; }
-  .cl-card-title-icon { width: 24px; height: 24px; border-radius: 6px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; }
-  .cl-count { font-size: 12px; color: #9ca3af; }
 
   .cl-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
   .cl-search-wrap { position: relative; flex: 1; min-width: 200px; }
@@ -81,34 +78,49 @@ const styles = `
     transition: border-color 0.15s;
   }
   .cl-search:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
-
-  .cl-date-range { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-  .cl-date-wrap { width: 170px; flex-shrink: 0; }
-  .cl-date-input {
-    width: 100%; height: 40px; padding: 0 12px;
-    border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13.5px;
-    color: #111827; outline: none; background: #fff; font-family: inherit;
-    transition: border-color 0.15s;
+  .cl-year-btn {
+    height: 40px; padding: 0 14px; border: 1px solid #e2e8f0; border-radius: 8px;
+    background: #fff; font-size: 13px; font-weight: 500; color: #374151;
+    cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap;
   }
-  .cl-date-input:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
-  .cl-date-sep { color: #9ca3af; font-size: 13px; }
+  .cl-year-btn:hover { border-color: #1a4fd6; color: #1a4fd6; }
+  .cl-year-btn.active { border-color: #1a4fd6; background: #f5f8ff; color: #1a4fd6; font-weight: 600; }
 
-  .cl-list-scroll {
-    max-height: calc(100vh - 360px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding-right: 6px;
-  }
-  .cl-list-scroll::-webkit-scrollbar { width: 8px; }
-  .cl-list-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
-  .cl-list-scroll::-webkit-scrollbar-track { background: transparent; }
+  /* Table card */
+  .cl-card { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 24px 28px; }
+  .cl-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #f1f3f5; }
+  .cl-card-title { font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; }
+  .cl-card-title-icon { width: 24px; height: 24px; border-radius: 6px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; }
+  .cl-count { font-size: 12px; color: #9ca3af; }
 
   .cl-table-wrap { overflow-x: auto; }
   .cl-table { width: 100%; border-collapse: collapse; }
   .cl-table thead tr { background: #f9fafb; }
-  .cl-table th { padding: 11px 16px; font-size: 12px; font-weight: 600; color: #6b7280; text-align: center; border-bottom: 1px solid #e9ecef; white-space: nowrap; }
+  .cl-table th { padding: 11px 16px; font-size: 12px; font-weight: 600; color: #6b7280; text-align: left; border-bottom: 1px solid #e9ecef; white-space: nowrap; }
   .cl-table td { padding: 14px 16px; font-size: 13px; color: #374151; border-bottom: 1px solid #f1f3f5; }
   .cl-table tbody tr:hover { background: #fafbff; }
+  .cl-table tbody tr:last-child td { border-bottom: none; }
+  .cl-name-wrap { display: flex; align-items: center; gap: 10px; min-width: 220px; }
+  .cl-thumb {
+    width: 56px;
+    height: 42px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1px solid #dbe3ff;
+    background: #eef2ff;
+    position: relative;
+  }
+  .cl-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cl-thumb-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    background: linear-gradient(135deg, #1a4fd6 0%, #6366f1 100%);
+  }
 
   .cl-category-chip {
     display: inline-block; padding: 2px 8px; border-radius: 4px;
@@ -125,22 +137,22 @@ const styles = `
     background: #fff; font-size: 11.5px; font-weight: 500; color: #374151;
     cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
     font-family: inherit; transition: all 0.15s; margin-right: 4px;
-    white-space: nowrap;
-    writing-mode: horizontal-tb;
   }
   .cl-action-btn:hover { border-color: #1a4fd6; color: #1a4fd6; }
-  .cl-result-col { min-width: 88px; white-space: nowrap; }
 
-  @media (max-width: 699px) {
+  @media (max-width: 900px) {
     .cl-stat-grid { grid-template-columns: repeat(2, 1fr); }
   }
-
-  @media (max-width: 700px) {
-    .cl-card { padding: 20px 16px; }
-    .cl-list-scroll { max-height: calc(100vh - 320px); }
-    .cl-date-wrap { width: 140px; }
-  }
 `;
+
+const CATEGORY_COLORS = {
+  컨퍼런스: { bg: "#eff4ff", color: "#1a4fd6" },
+  워크샵: { bg: "#f5f3ff", color: "#7c3aed" },
+  세미나: { bg: "#ecfdf5", color: "#059669" },
+  포럼: { bg: "#fff7ed", color: "#d97706" },
+  전시: { bg: "#fef2f2", color: "#dc2626" },
+  데모데이: { bg: "#f0fdf4", color: "#16a34a" },
+};
 
 function formatDate(value) {
   if (!value) return "일정 미정";
@@ -163,12 +175,11 @@ function formatTime(startAt, endAt) {
   return "시간 미정";
 }
 
-function toDateOnlyNumber(value) {
-  if (!value) return null;
-  const s = String(value);
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  return Number(`${m[1]}${m[2]}${m[3]}`);
+function extractYear(startAt) {
+  if (!startAt) return "";
+  const s = String(startAt);
+  const m = s.match(/^(\d{4})-/);
+  return m ? m[1] : "";
 }
 
 function mapEvent(raw) {
@@ -179,21 +190,19 @@ function mapEvent(raw) {
   const startAt = raw?.startAt ?? raw?.startDateTime ?? raw?.startDate ?? null;
   const endAt = raw?.endAt ?? raw?.endDateTime ?? raw?.endDate ?? null;
 
-  const dateTs = Date.parse(String(endAt || startAt || ""));
-
   return {
     id: eventId,
     category,
     title,
-    date: formatDate(endAt || startAt),
+    date: formatDate(startAt),
     location,
     time: startAt || endAt ? formatTime(startAt, endAt) : "시간 미정",
-    startAt,
-    endAt,
-    dateSortKey: Number.isNaN(dateTs) ? Number.NEGATIVE_INFINITY : dateTs,
-    participants: raw?.participants ?? raw?.appliedCount ?? raw?.registered ?? 0,
-    capacity: raw?.capacity ?? raw?.maxParticipants ?? 1,
-    rating: raw?.rating ?? raw?.satisfactionAvg ?? 0,
+    participants: Number(raw?.participants ?? raw?.appliedCount ?? 0),
+    capacity: Number(raw?.capacity ?? raw?.maxParticipants ?? 1),
+    rating: Number(raw?.rating ?? raw?.avgRating ?? 0),
+    year: extractYear(startAt),
+    image: raw?.imageUrl ?? raw?.posterUrl ?? raw?.thumbnail ?? null,
+    fallback: "🐶",
   };
 }
 
@@ -209,119 +218,77 @@ function StarRating({ val }) {
         />
       ))}
       <span style={{ fontSize: 11.5, color: "#6b7280", marginLeft: 4 }}>
-        {Number(val || 0).toFixed(1)}
+        {val}
       </span>
     </div>
   );
 }
 
 export default function Closed() {
-  const PAGE_SIZE = 10;
-
   const [query, setQuery] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [year, setYear] = useState("all");
   const [currentPath, setCurrentPath] = useState("/event/closed");
   const [events, setEvents] = useState([]);
-  const [totalCount, setTotalCount] = useState(null);
-  const [page, setPage] = useState(0);
-  const [hasNext, setHasNext] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchEvents = useCallback(async (targetPage) => {
-    if (targetPage === 0) setLoading(true);
-    else setLoadingMore(true);
+  useEffect(() => {
+    let mounted = true;
 
-    setError("");
+    const fetchEvents = async () => {
+      setLoading(true);
+      setError("");
 
-    try {
-      const res = await eventApi.getEvents({
-        status: "ENDED",
-        page: targetPage,
-        size: PAGE_SIZE,
-      });
-
-      const pageData = res?.data?.data ?? {};
-      const content = Array.isArray(pageData?.content) ? pageData.content : [];
-      const mapped = content.map(mapEvent);
-      if (typeof pageData?.totalElements === "number") {
-        setTotalCount(pageData.totalElements);
+      try {
+        const res = await eventApi.getEvents({
+          status: "ENDED",
+          page: 0,
+          size: 100,
+        });
+        const content = res?.data?.data?.content;
+        const list = Array.isArray(content) ? content : [];
+        if (mounted) setEvents(list.map(mapEvent));
+      } catch (e) {
+        const msg =
+          e?.response?.data?.message || e?.message || "Failed to load events.";
+        if (mounted) setError(msg);
+      } finally {
+        if (mounted) setLoading(false);
       }
+    };
 
-      setEvents((prev) => {
-        const merged = targetPage === 0 ? mapped : [...prev, ...mapped];
-        const dedup = Array.from(new Map(merged.map((e) => [e.id, e])).values());
-        return dedup.sort((a, b) => b.dateSortKey - a.dateSortKey);
-      });
-
-      const pageNumber =
-        typeof pageData?.number === "number" ? pageData.number : targetPage;
-      const hasNextByMeta =
-        typeof pageData?.last === "boolean"
-          ? !pageData.last
-          : typeof pageData?.totalPages === "number"
-            ? pageNumber + 1 < pageData.totalPages
-            : content.length === PAGE_SIZE;
-
-      setPage(pageNumber);
-      setHasNext(hasNextByMeta);
-    } catch (e) {
-      const msg =
-        e?.response?.data?.message || e?.message || "Failed to load events.";
-      setError(msg);
-    } finally {
-      if (targetPage === 0) setLoading(false);
-      else setLoadingMore(false);
-    }
+    fetchEvents();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  useEffect(() => {
-    fetchEvents(0);
-  }, [fetchEvents]);
-
+  const years = ["all", "2025", "2024"];
   const filtered = events.filter((e) => {
-    const q = query.trim();
-    const matchQ = !q || e.title.includes(q) || e.location.includes(q);
-    if (!matchQ) return false;
-
-    const endNum = toDateOnlyNumber(e.endAt || e.startAt);
-    if (!endNum) return false;
-
-    const fromNum = toDateOnlyNumber(dateFrom);
-    const toNum = toDateOnlyNumber(dateTo);
-    if (!fromNum && !toNum) return true;
-
-    const minNum = fromNum && toNum ? Math.min(fromNum, toNum) : (fromNum ?? null);
-    const maxNum = fromNum && toNum ? Math.max(fromNum, toNum) : (toNum ?? null);
-    if (minNum && endNum < minNum) return false;
-    if (maxNum && endNum > maxNum) return false;
-    return true;
+    const matchQ = e.title.includes(query) || e.category.includes(query);
+    const matchY = year === "all" || String(e.year) === year;
+    return matchQ && matchY;
   });
 
-  const totalParticipants = events.reduce((a, e) => a + Number(e.participants || 0), 0);
+  const totalParticipants = events.reduce((a, e) => a + e.participants, 0);
   const avgRating =
     events.length === 0
       ? "0.0"
-      : (
-          events.reduce((a, e) => a + Number(e.rating || 0), 0) / events.length
-        ).toFixed(1);
-
-  const handleListScroll = (e) => {
-    if (loading || loadingMore || !hasNext) return;
-    const el = e.currentTarget;
-    const remain = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (remain <= 120) {
-      fetchEvents(page + 1);
-    }
-  };
+      : (events.reduce((a, e) => a + e.rating, 0) / events.length).toFixed(1);
+  const avgRate =
+    events.length === 0
+      ? 0
+      : Math.round(
+          (events.reduce((a, e) => a + e.participants / Math.max(1, e.capacity), 0) /
+            events.length) *
+            100,
+        );
 
   return (
     <div className="cl-root">
       <style>{styles}</style>
       <PageHeader
-        title=""
+        title="종료 행사"
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
@@ -339,7 +306,7 @@ export default function Closed() {
           {[
             {
               label: "종료 행사 수",
-              value: `${typeof totalCount === "number" ? totalCount : events.length}개`,
+              value: `${events.length}개`,
               icon: <Archive size={20} color="#6b7280" />,
               bg: "#f3f4f6",
             },
@@ -348,6 +315,12 @@ export default function Closed() {
               value: totalParticipants.toLocaleString() + "명",
               icon: <Users size={20} color="#1a4fd6" />,
               bg: "#eff4ff",
+            },
+            {
+              label: "평균 참석률",
+              value: `${avgRate}%`,
+              icon: <BarChart2 size={20} color="#10b981" />,
+              bg: "#ecfdf5",
             },
             {
               label: "평균 만족도",
@@ -368,121 +341,144 @@ export default function Closed() {
           ))}
         </div>
 
+        <div className="cl-toolbar">
+          <div className="cl-search-wrap">
+            <Search size={15} className="cl-search-icon" />
+            <input
+              className="cl-search"
+              placeholder="행사명, 카테고리 검색"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          {years.map((y) => (
+            <button
+              key={y}
+              className={`cl-year-btn${year === y ? " active" : ""}`}
+              onClick={() => setYear(y)}
+            >
+              {y === "all" ? "전체 연도" : `${y}년`}
+            </button>
+          ))}
+        </div>
+
         <div className="cl-card">
-          <div className="cl-list-shell">
-            <div className="cl-list-head">
-              <div className="cl-card-header">
-                <div className="cl-card-title">
-                  <div className="cl-card-title-icon">
-                    <Archive size={14} color="#6b7280" />
-                  </div>
-                  종료된 행사 목록
-                </div>
-                <span className="cl-count">
-                  총 {typeof totalCount === "number" ? totalCount : filtered.length}건
-                </span>
+          <div className="cl-card-header">
+            <div className="cl-card-title">
+              <div className="cl-card-title-icon">
+                <Archive size={14} color="#6b7280" />
               </div>
-
-              <div className="cl-toolbar">
-                <div className="cl-search-wrap">
-                  <Search size={15} className="cl-search-icon" />
-                  <input
-                    className="cl-search"
-                    placeholder="행사명, 장소 검색"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                </div>
-                <div className="cl-date-range">
-                  <div className="cl-date-wrap">
-                    <input
-                      type="date"
-                      className="cl-date-input"
-                      value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                      aria-label="종료일 시작일"
-                    />
-                  </div>
-                  <span className="cl-date-sep">~</span>
-                  <div className="cl-date-wrap">
-                    <input
-                      type="date"
-                      className="cl-date-input"
-                      value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
-                      aria-label="종료일 종료일"
-                    />
-                  </div>
-                </div>
-              </div>
+              종료된 행사 목록
             </div>
-
-            <div className="cl-list-scroll" onScroll={handleListScroll}>
-              <div className="cl-table-wrap">
-                <table className="cl-table">
-                  <thead>
-                    <tr>
-                      <th>완료된 행사명</th>
-                      <th>종료일자</th>
-                      <th>장소</th>
-                      <th>참가자</th>
-                      <th>만족도</th>
-                      <th className="cl-result-col">결과</th>
+            <span className="cl-count">총 {filtered.length}건</span>
+          </div>
+          <div className="cl-table-wrap">
+            <table className="cl-table">
+              <thead>
+                <tr>
+                  <th>행사명</th>
+                  <th>카테고리</th>
+                  <th>일자</th>
+                  <th>장소</th>
+                  <th>참가자</th>
+                  <th>참석률</th>
+                  <th>만족도</th>
+                  <th>상태</th>
+                  <th>액션</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((ev) => {
+                  const cc = CATEGORY_COLORS[ev.category] || {
+                    bg: "#f3f4f6",
+                    color: "#374151",
+                  };
+                  const rate = Math.round(
+                    (ev.participants / Math.max(1, ev.capacity)) * 100,
+                  );
+                  return (
+                    <tr key={ev.id}>
+                      <td
+                        style={{
+                          fontWeight: 600,
+                          color: "#111827",
+                          maxWidth: 220,
+                        }}
+                      >
+                        <div className="cl-name-wrap">
+                          <div className="cl-thumb">
+                            {ev.image ? (
+                              <img
+                                src={ev.image}
+                                alt={ev.title}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                  const fallback = e.currentTarget.nextElementSibling;
+                                  if (fallback) fallback.style.display = "flex";
+                                }}
+                              />
+                            ) : null}
+                            <div className="cl-thumb-fallback" style={{ display: ev.image ? "none" : "flex" }}>
+                              {ev.fallback}
+                            </div>
+                          </div>
+                          <span>{ev.title}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          className="cl-category-chip"
+                          style={{ background: cc.bg, color: cc.color }}
+                        >
+                          {ev.category}
+                        </span>
+                      </td>
+                      <td style={{ color: "#6b7280", fontSize: 12 }}>
+                        {ev.date}
+                      </td>
+                      <td style={{ color: "#6b7280", fontSize: 12 }}>
+                        {ev.location}
+                      </td>
+                      <td>{ev.participants.toLocaleString()}명</td>
+                      <td>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color:
+                              rate >= 90
+                                ? "#059669"
+                                : rate >= 70
+                                  ? "#d97706"
+                                  : "#6b7280",
+                          }}
+                        >
+                          {rate}%
+                        </span>
+                      </td>
+                      <td>
+                        <StarRating val={ev.rating} />
+                      </td>
+                      <td>
+                        <span className="cl-closed-badge">
+                          <Archive size={10} />
+                          종료
+                        </span>
+                      </td>
+                      <td>
+                        <button className="cl-action-btn">
+                          <BarChart2 size={11} />
+                          결과
+                        </button>
+                        <button className="cl-action-btn">
+                          <Download size={11} />
+                          자료
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((ev) => {
-                      const part = Number(ev.participants || 0);
-                      return (
-                        <tr key={ev.id}>
-                          <td
-                            style={{
-                              fontWeight: 600,
-                              color: "#111827",
-                              maxWidth: 220,
-                            }}
-                          >
-                            {ev.title}
-                          </td>
-                          <td style={{ color: "#6b7280", fontSize: 12 }}>
-                            {ev.date}
-                          </td>
-                          <td style={{ color: "#6b7280", fontSize: 12 }}>
-                            {ev.location}
-                          </td>
-                          <td>{part.toLocaleString()}명</td>
-                          <td>
-                            <StarRating val={ev.rating} />
-                          </td>
-                          <td className="cl-result-col">
-                            <button className="cl-action-btn">
-                              <BarChart2 size={11} />
-                              결과
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {!loading && filtered.length === 0 && (
-                <div className="cl-stat-card" style={{ marginTop: 12 }}>
-                  검색 결과가 없습니다.
-                </div>
-              )}
-              {loadingMore && (
-                <div className="cl-stat-card" style={{ marginTop: 12 }}>
-                  행사 목록 불러오는 중...
-                </div>
-              )}
-              {!loading && !loadingMore && !hasNext && events.length > 0 && (
-                <div className="cl-stat-card" style={{ marginTop: 12 }}>
-                  모든 종료 행사를 불러왔습니다.
-                </div>
-              )}
-            </div>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </main>

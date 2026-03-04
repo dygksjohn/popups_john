@@ -5,7 +5,6 @@ import EventSelectPage from "../components/EventSelectPage";
 import {
   SERVICE_CATEGORIES,
   SUBTITLE_MAP,
-  SAMPLE_EVENTS,
 } from "../constants/programConstants";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
@@ -128,6 +127,31 @@ const TYPE_LABEL = {
   ceremony: "행사",
 };
 const STATUS_LABEL = { live: "진행 중", upcoming: "예정", done: "완료" };
+
+function formatDateRange(startAt, endAt) {
+  const toDatePart = (value) => {
+    if (!value) return "";
+    return String(value).slice(0, 10).replace(/-/g, ".");
+  };
+  const start = toDatePart(startAt);
+  const end = toDatePart(endAt);
+  if (start && end) return `${start} ~ ${end}`;
+  return start || end || "일정 미정";
+}
+
+function toEventStatus(rawStatus, startAt, endAt) {
+  const status = String(rawStatus || "").toUpperCase();
+  if (status.includes("END")) return "ended";
+  if (status.includes("ONGOING") || status.includes("LIVE")) return "live";
+  if (status.includes("UPCOMING") || status.includes("PLANNED")) return "upcoming";
+
+  const now = Date.now();
+  const startTs = Date.parse(String(startAt || ""));
+  const endTs = Date.parse(String(endAt || ""));
+  if (Number.isFinite(endTs) && now > endTs) return "ended";
+  if (Number.isFinite(startTs) && now >= startTs) return "live";
+  return "upcoming";
+}
 
 function toDateKey(value) {
   if (!value) return null;
@@ -353,6 +377,9 @@ export default function ProgramAll() {
   const { eventId } = useParams();
   const currentPath = "/program/all";
   const safeEventId = Number(eventId);
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState("");
   const [eventDetail, setEventDetail] = useState(null);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -367,6 +394,45 @@ export default function ProgramAll() {
         path: `${basePath}/${safeEventId}`,
       };
     });
+  }, [safeEventId]);
+
+  useEffect(() => {
+    if (Number.isFinite(safeEventId)) return;
+    let mounted = true;
+    const fetchEvents = async () => {
+      setEventsLoading(true);
+      setEventsError("");
+      try {
+        const res = await eventApi.getEvents({ page: 0, size: 200, sort: "startAt,desc" });
+        if (!mounted) return;
+        const list = Array.isArray(res?.data?.data?.content) ? res.data.data.content : [];
+        setEvents(
+          list.map((evt) => ({
+            id: evt?.eventId,
+            name: evt?.eventName ?? "행사",
+            description: evt?.description ?? "",
+            date: formatDateRange(evt?.startAt, evt?.endAt),
+            location: evt?.location ?? "장소 미정",
+            organizer: evt?.organizer ?? "주최 정보 없음",
+            status: toEventStatus(evt?.status, evt?.startAt, evt?.endAt),
+            participants: Number(evt?.participantCount ?? evt?.participants ?? 0) || 0,
+            imageUrl: evt?.imageUrl ?? null,
+            thumbnail: evt?.imageUrl ?? null,
+            color: "#1a4fd6",
+          })),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setEvents([]);
+        setEventsError(e?.response?.data?.message || e?.message || "행사 목록을 불러오지 못했습니다.");
+      } finally {
+        if (mounted) setEventsLoading(false);
+      }
+    };
+    fetchEvents();
+    return () => {
+      mounted = false;
+    };
   }, [safeEventId]);
 
   useEffect(() => {
@@ -402,7 +468,7 @@ export default function ProgramAll() {
     return () => { mounted = false; };
   }, [safeEventId]);
 
-  if (!eventId) {
+  if (!Number.isFinite(safeEventId)) {
     return (
       <div className="sc-root">
         <style>{styles}</style>
@@ -413,7 +479,17 @@ export default function ProgramAll() {
           currentPath={currentPath}
           onNavigate={(path) => navigate(path)}
         />
-        <EventSelectPage events={SAMPLE_EVENTS} basePath="/program/all" />
+        <EventSelectPage events={events} basePath="/program/all" />
+        {eventsLoading ? (
+          <main className="sc-container">
+            <div className="sc-card-tag">행사 목록을 불러오는 중입니다.</div>
+          </main>
+        ) : null}
+        {!eventsLoading && eventsError ? (
+          <main className="sc-container">
+            <div className="sc-card-tag">{eventsError}</div>
+          </main>
+        ) : null}
       </div>
     );
   }

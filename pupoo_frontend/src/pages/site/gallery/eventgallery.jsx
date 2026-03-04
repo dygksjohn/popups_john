@@ -615,7 +615,6 @@ const styles = `
 ───────────────────────────────────────────── */
 const SERVICE_CATEGORIES = [
   { label: "참가자 갤러리", path: "/gallery/eventgallery" },
-  { label: "현장 스케치", path: "/gallery/eventsketch" },
 ];
 
 /* ─────────────────────────────────────────────

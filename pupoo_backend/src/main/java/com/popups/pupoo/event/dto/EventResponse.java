@@ -18,6 +18,7 @@ public class EventResponse {
     private LocalDateTime startAt;
     private LocalDateTime endAt;
     private String location;
+    private String organizer;
     private EventStatus status;
     private Integer roundNo;
     private BigDecimal baseFee;
@@ -30,6 +31,7 @@ public class EventResponse {
         r.startAt = e.getStartAt();
         r.endAt = e.getEndAt();
         r.location = e.getLocation();
+        r.organizer = e.getOrganizer();
         r.status = e.getStatus();
         r.roundNo = e.getRoundNo();
         r.baseFee = e.getBaseFee();
@@ -43,6 +45,7 @@ public class EventResponse {
     public LocalDateTime getStartAt() { return startAt; }
     public LocalDateTime getEndAt() { return endAt; }
     public String getLocation() { return location; }
+    public String getOrganizer() { return organizer; }
     public EventStatus getStatus() { return status; }
     public Integer getRoundNo() { return roundNo; }
     public BigDecimal getBaseFee() { return baseFee; }

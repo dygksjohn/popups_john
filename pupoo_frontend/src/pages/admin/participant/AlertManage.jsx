@@ -30,6 +30,7 @@ const styles = `
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.board-row:hover .board-actions{opacity:1!important}
 `;
 
 function Toast({ msg, type = "success", onDone }) {
@@ -83,7 +84,7 @@ function Overlay({ children, onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 16,
           width: 520,
           maxHeight: "85vh",
@@ -121,7 +122,7 @@ function ConfirmModal({
               width: 38,
               height: 38,
               borderRadius: 10,
-              background: danger ? "#FEF2F2" : "#EFF6FF",
+              background: danger ? ds.redSoft : ds.skySoft,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -142,7 +143,7 @@ function ConfirmModal({
         <p
           style={{
             fontSize: 13.5,
-            color: "#64748B",
+            color: ds.ink3,
             lineHeight: 1.6,
             whiteSpace: "pre-line",
             margin: "0 0 24px",
@@ -156,13 +157,13 @@ function ConfirmModal({
             style={{
               padding: "9px 20px",
               borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.card,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#64748B",
+              color: ds.ink3,
             }}
           >
             취소
@@ -196,7 +197,7 @@ function Field({ label, children, required }) {
         style={{
           fontSize: 12,
           fontWeight: 700,
-          color: "#64748B",
+          color: ds.ink3,
           marginBottom: 7,
           display: "block",
         }}
@@ -211,21 +212,22 @@ const inputStyle = {
   width: "100%",
   padding: "10px 14px",
   borderRadius: 9,
-  border: "1.5px solid #E2E8F0",
+  border: `1.5px solid ${ds.line}`,
   fontSize: 13.5,
   fontFamily: ds.ff,
   color: ds.ink,
   outline: "none",
+                  background: ds.bg,
   boxSizing: "border-box",
   transition: "border-color .15s, box-shadow .15s",
-  background: "#fff",
+  background: ds.bg,
 };
 const inputFocus = (e) => {
   e.target.style.borderColor = ds.brand;
   e.target.style.boxShadow = `0 0 0 3px ${ds.brand}15`;
 };
 const inputBlur = (e) => {
-  e.target.style.borderColor = "#E2E8F0";
+  e.target.style.borderColor = ds.line;
   e.target.style.boxShadow = "none";
 };
 
@@ -240,8 +242,8 @@ function Checkbox({ checked, onChange, size = 18 }) {
         width: size,
         height: size,
         borderRadius: 5,
-        border: checked ? "none" : "1.8px solid #CBD5E1",
-        background: checked ? ds.brand : "#fff",
+        border: checked ? "none" : `1.8px solid ${ds.line}`,
+        background: checked ? ds.brand : ds.bg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -258,9 +260,9 @@ function StatCard({ icon: I, label, value, sub }) {
   return (
     <div
       style={{
-        background: "#fff",
+        background: ds.card,
         borderRadius: 10,
-        border: "1px solid #F1F5F9",
+        border: `1px solid ${ds.line}`,
         padding: 16,
         display: "flex",
         alignItems: "center",
@@ -272,19 +274,19 @@ function StatCard({ icon: I, label, value, sub }) {
           width: 36,
           height: 36,
           borderRadius: 9,
-          background: "#F8FAFC",
+          background: ds.bg,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <I size={16} color="#64748B" />
+        <I size={16} color={ds.ink3} />
       </div>
       <div>
         <div
           style={{
             fontSize: 11,
-            color: "#94A3B8",
+            color: ds.ink4,
             fontWeight: 600,
             marginBottom: 2,
           }}
@@ -295,7 +297,7 @@ function StatCard({ icon: I, label, value, sub }) {
           {value}
         </div>
         {sub && (
-          <div style={{ fontSize: 10.5, color: "#94A3B8", marginTop: 1 }}>
+          <div style={{ fontSize: 10.5, color: ds.ink4, marginTop: 1 }}>
             {sub}
           </div>
         )}
@@ -305,8 +307,8 @@ function StatCard({ icon: I, label, value, sub }) {
 }
 function StatusDot({ status, label }) {
   const map = {
-    sent: { bg: "#ECFDF5", color: "#059669", dot: "#10B981" },
-    draft: { bg: "#FFF7ED", color: "#D97706", dot: "#F59E0B" },
+    sent: { bg: ds.greenSoft, color: "#059669", dot: "#10B981" },
+    draft: { bg: ds.amberSoft, color: "#D97706", dot: "#F59E0B" },
   };
   const s = map[status] || map.draft;
   return (
@@ -400,7 +402,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
           bottom: 0,
           zIndex: 5000,
           width: 440,
-          background: "#fff",
+          background: ds.card,
           boxShadow: "-4px 0 30px rgba(0,0,0,0.08)",
           display: "flex",
           flexDirection: "column",
@@ -410,7 +412,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
         <div
           style={{
             padding: "20px 24px",
-            borderBottom: "1px solid #F1F5F9",
+            borderBottom: `1px solid ${ds.line}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -428,7 +430,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
             >
               {isEdit ? "알림 수정" : "새 알림 작성"}
             </h3>
-            <p style={{ fontSize: 11.5, color: "#94A3B8", margin: "3px 0 0" }}>
+            <p style={{ fontSize: 11.5, color: ds.ink4, margin: "3px 0 0" }}>
               {isEdit ? "알림을 수정합니다" : "새 알림을 작성합니다"}
             </p>
           </div>
@@ -438,27 +440,27 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
               width: 30,
               height: 30,
               borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.card,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <X size={14} color="#94A3B8" />
+            <X size={14} color={ds.ink4} />
           </button>
         </div>
         <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
           {err && (
             <div
               style={{
-                background: "#FEF2F2",
-                border: "1px solid #FECACA",
+                background: ds.redSoft,
+                border: `1px solid ${ds.red}33`,
                 borderRadius: 9,
                 padding: "10px 14px",
                 fontSize: 12.5,
-                color: "#DC2626",
+                color: ds.red,
                 marginBottom: 18,
                 fontWeight: 600,
                 display: "flex",
@@ -490,7 +492,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
               </select>
               <ChevronDown
                 size={14}
-                color="#94A3B8"
+                color={ds.ink4}
                 style={{
                   position: "absolute",
                   right: 12,
@@ -536,7 +538,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
               </select>
               <ChevronDown
                 size={14}
-                color="#94A3B8"
+                color={ds.ink4}
                 style={{
                   position: "absolute",
                   right: 12,
@@ -562,7 +564,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
         <div
           style={{
             padding: "14px 24px",
-            borderTop: "1px solid #F1F5F9",
+            borderTop: `1px solid ${ds.line}`,
             display: "flex",
             gap: 10,
             flexShrink: 0,
@@ -574,13 +576,13 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
               flex: 1,
               padding: "11px 0",
               borderRadius: 9,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.card,
               fontSize: 13.5,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#64748B",
+              color: ds.ink3,
             }}
           >
             취소
@@ -753,9 +755,9 @@ export default function AlertManage() {
 
       <div
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 12,
-          border: "1px solid #F1F5F9",
+          border: `1px solid ${ds.line}`,
           overflow: "hidden",
         }}
       >
@@ -765,32 +767,36 @@ export default function AlertManage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            borderBottom: "1px solid #F1F5F9",
+            borderBottom: `1px solid ${ds.line}`,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Checkbox checked={selected.length === rows.length && rows.length > 0} onChange={toggleAll} />
             <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
               알림 발송 내역
             </span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
-              {rows.length}건
+            <span style={{ fontSize: 12, fontWeight: 600, color: ds.ink4 }}>
+              총 {rows.length}건
             </span>
             {selected.length > 0 && (
               <button
-                onClick={() => {}}
+                onClick={() => setModal({ type: "batchDelete" })}
                 style={{
-                  padding: "4px 10px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "5px 10px",
                   borderRadius: 6,
-                  border: "1px solid #FECACA",
-                  background: "#FEF2F2",
-                  fontSize: 11,
+                  border: `1px solid ${ds.red}33`,
+                  background: ds.redSoft,
+                  fontSize: 11.5,
                   fontWeight: 600,
-                  color: "#DC2626",
+                  color: ds.red,
                   cursor: "pointer",
                   fontFamily: ds.ff,
                 }}
               >
-                {selected.length}건 삭제
+                <Trash2 size={11} /> {selected.length}건 삭제
               </button>
             )}
           </div>
@@ -804,18 +810,19 @@ export default function AlertManage() {
                   width: 160,
                   padding: "6px 12px 6px 30px",
                   borderRadius: 7,
-                  border: "1px solid #E2E8F0",
+                  border: `1px solid ${ds.line}`,
                   fontSize: 12.5,
                   fontFamily: ds.ff,
                   color: ds.ink,
                   outline: "none",
+                  background: ds.bg,
                 }}
                 onFocus={(e) => (e.target.style.borderColor = ds.brand)}
-                onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+                onBlur={(e) => (e.target.style.borderColor = ds.line)}
               />
               <Search
                 size={13}
-                color="#94A3B8"
+                color={ds.ink4}
                 style={{
                   position: "absolute",
                   left: 10,
@@ -846,205 +853,71 @@ export default function AlertManage() {
           </div>
         </div>
 
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid #F1F5F9" }}>
-              <th style={{ width: 44, padding: "10px 0", textAlign: "center" }}>
-                <Checkbox
-                  checked={rows.length > 0 && selected.length === rows.length}
-                  onChange={toggleAll}
-                />
-              </th>
-              {[
-                "제목",
-                "내용",
-                "행사",
-                "대상",
-                "대상자수",
-                "발송일",
-                "상태",
-                "액션",
-              ].map((h) => (
-                <th
-                  key={h}
-                  style={{
-                    padding: "10px 12px",
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    color: "#94A3B8",
-                    textAlign: h === "대상자수" ? "right" : "left",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr
-                key={r.id}
-                style={{
-                  borderBottom: "1px solid #F8FAFC",
-                  transition: "background .1s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#F4F6F8")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
-              >
-                <td
-                  style={{ width: 44, textAlign: "center", padding: "10px 0" }}
-                >
-                  <Checkbox
-                    checked={selected.includes(r.id)}
-                    onChange={() => toggle(r.id)}
-                  />
-                </td>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: ds.ink,
-                  }}
-                >
-                  {r.title}
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  <span
-                    style={{
-                      maxWidth: 180,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      display: "block",
-                      fontSize: 12,
-                      color: "#94A3B8",
-                    }}
-                  >
-                    {r.content}
-                  </span>
-                </td>
-                <td style={{ padding: "10px 12px", fontSize: 12, color: "#64748B" }}>
-                  {r.eventName || "—"}
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      padding: "2px 8px",
-                      borderRadius: 4,
-                      background: "#EFF6FF",
-                      color: ds.brand,
-                    }}
-                  >
-                    {r.target}
-                  </span>
-                </td>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: ds.ink,
-                    textAlign: "right",
-                  }}
-                >
-                  {r.targetCount}명
-                </td>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    fontSize: 12.5,
-                    color: "#475569",
-                  }}
-                >
-                  {r.sentDate || "—"}
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  <StatusDot
-                    status={r.status}
-                    label={STATUS_LABEL[r.status] || r.status}
-                  />
-                </td>
-                <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                  <div style={{ display: "flex", gap: 3 }}>
-                    {r.status === "draft" && (
-                      <button
-                        onClick={() => setModal({ type: "send", item: r })}
-                        style={{
-                          padding: "4px 10px",
-                          borderRadius: 5,
-                          border: "1px solid #05966920",
-                          background: "#ECFDF510",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: "#059669",
-                          cursor: "pointer",
-                          fontFamily: ds.ff,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <Send size={10} /> 발송
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setPanel({ type: "edit", item: r })}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: 5,
-                        border: `1px solid ${ds.brand}20`,
-                        background: `${ds.brand}06`,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: ds.brand,
-                        cursor: "pointer",
-                        fontFamily: ds.ff,
-                      }}
-                    >
-                      수정
-                    </button>
-                    <button
-                      onClick={() => setModal({ type: "delete", item: r })}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: 5,
-                        border: "1px solid transparent",
-                        background: "transparent",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "#EF4444",
-                        cursor: "pointer",
-                        fontFamily: ds.ff,
-                        opacity: 0.5,
-                        transition: "opacity .12s",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.opacity = "1")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.opacity = "0.5")
-                      }
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* 행 목록 */}
+        <div>
+          {rows.map((r) => (
+            <div
+              key={r.id}
+              className="board-row"
+              onClick={() => setPanel({ type: "edit", item: r })}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "14px 20px",
+                borderBottom: `1px solid ${ds.lineSoft}`,
+                cursor: "pointer",
+                transition: "background .1s",
+                position: "relative",
+                background: selected.includes(r.id) ? `${ds.brand}06` : "transparent",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = selected.includes(r.id) ? `${ds.brand}0A` : ds.bg)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = selected.includes(r.id) ? `${ds.brand}06` : "transparent")}
+            >
+              <div style={{ marginRight: 12, flexShrink: 0 }}>
+                <Checkbox checked={selected.includes(r.id)} onChange={() => toggle(r.id)} />
+              </div>
+              <div style={{ width: 56, flexShrink: 0, marginRight: 10 }}>
+                <StatusDot status={r.status} label={r.status === "sent" ? "발송" : "임시"} />
+              </div>
+              <span style={{ flex: 1, fontSize: 13.5, color: ds.ink, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                {r.title}
+              </span>
+              <span style={{ width: 36, flexShrink: 0, fontSize: 11, color: ds.ink4, textAlign: "right" }}>
+                {r.eventName || "전체"}
+              </span>
+              <span style={{ width: 64, flexShrink: 0, textAlign: "right", display: "inline-flex", justifyContent: "flex-end" }}>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, background: ds.brandSoft, color: ds.brand, minWidth: 36, textAlign: "center", display: "inline-block" }}>{r.targetCount}명</span>
+              </span>
+              <span style={{ width: 80, flexShrink: 0, fontSize: 12, color: ds.ink4, textAlign: "right" }}>
+                {r.sentDate || "—"}
+              </span>
+              <div className="board-actions" style={{ opacity: 0, transition: "opacity .12s", display: "flex", gap: 3, marginLeft: 10, flexShrink: 0 }}>
+                {r.status === "draft" && (
+                  <button onClick={(e) => { e.stopPropagation(); setModal({ type: "send", item: r }); }}
+                    style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${ds.green}25`, background: ds.greenSoft, fontSize: 11, fontWeight: 600, color: ds.green, cursor: "pointer", fontFamily: ds.ff, lineHeight: 1.2, display: "flex", alignItems: "center", gap: 4 }}>
+                    <Send size={10} /> 발송
+                  </button>
+                )}
+                <button onClick={(e) => { e.stopPropagation(); setPanel({ type: "edit", item: r }); }}
+                  style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${ds.brand}25`, background: `${ds.brand}08`, fontSize: 11, fontWeight: 600, color: ds.brand, cursor: "pointer", fontFamily: ds.ff, lineHeight: 1.2 }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = `${ds.brand}18`)}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = `${ds.brand}08`)}>
+                  수정
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); setModal({ type: "delete", item: r }); }}
+                  style={{ padding: "3px 8px", borderRadius: 5, border: "none", background: "transparent", fontSize: 11, fontWeight: 600, color: ds.red, cursor: "pointer", fontFamily: ds.ff, lineHeight: 1.2 }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = ds.redSoft)}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  삭제
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
         {rows.length === 0 && (
           <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <Bell size={36} color="#CBD5E1" style={{ marginBottom: 12 }} />
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#64748B" }}>
+            <Bell size={36} color={ds.ink4} style={{ marginBottom: 12 }} />
+            <div style={{ fontSize: 14, fontWeight: 600, color: ds.ink3 }}>
               알림 내역이 없습니다
             </div>
           </div>

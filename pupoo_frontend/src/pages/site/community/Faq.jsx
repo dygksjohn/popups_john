@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import PageHeader from "../components/PageHeader";
-import { Search, Loader2, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Loader2, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 
@@ -8,6 +8,181 @@ function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function DetailModal({ item, loading, onClose }) {
+  if (!item) return null;
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 5000,
+          background: "rgba(0,0,0,0.4)",
+          backdropFilter: "blur(4px)",
+        }}
+      />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 5001,
+          background: "#fff",
+          borderRadius: 16,
+          width: "90%",
+          maxWidth: 760,
+          maxHeight: "85vh",
+          overflow: "auto",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+        }}
+      >
+        <div
+          style={{
+            padding: "24px 28px 0",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+          }}
+        >
+          <div style={{ flex: 1, paddingRight: 16 }}>
+            <span
+              style={{ ...getBoardBadge("FAQ").style, marginBottom: 10 }}
+            >
+              {getBoardBadge("FAQ").text}
+            </span>
+            <h2
+              style={{
+                fontSize: 20,
+                fontWeight: 800,
+                color: "#1E293B",
+                margin: 0,
+                lineHeight: 1.4,
+              }}
+            >
+              {item.title || "제목 없음"}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              border: "1px solid #E2E8F0",
+              background: "#fff",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <X size={16} color="#94A3B8" />
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: "10px 28px 0",
+            display: "flex",
+            gap: 16,
+            flexWrap: "wrap",
+            fontSize: 13,
+            color: "#94A3B8",
+          }}
+        >
+          <span>작성일 {fmtDate(item.createdAt)}</span>
+          <span>조회수 {item.viewCount ?? 0}</span>
+          {item.answeredAt && <span>답변일 {fmtDate(item.answeredAt)}</span>}
+        </div>
+
+        <div style={{ margin: "16px 28px", borderBottom: "1px solid #E2E8F0" }} />
+
+        {loading ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "60px 0",
+            }}
+          >
+            <Loader2
+              size={24}
+              color="#94A3B8"
+              style={{ animation: "spin 1s linear infinite" }}
+            />
+            <div style={{ marginTop: 10, fontSize: 13, color: "#94A3B8" }}>
+              상세 내용을 불러오는 중입니다.
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: "0 28px 28px" }}>
+            <section style={{ marginBottom: 20 }}>
+              <h3
+                style={{
+                  fontSize: 15,
+                  fontWeight: 800,
+                  color: "#0F172A",
+                  margin: "0 0 8px",
+                }}
+              >
+                질문
+              </h3>
+              <div
+                style={{
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 10,
+                  padding: "14px 16px",
+                  fontSize: 14,
+                  color: "#334155",
+                  lineHeight: 1.7,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {item.content || "질문 내용이 없습니다."}
+              </div>
+            </section>
+
+            <section>
+              <h3
+                style={{
+                  fontSize: 15,
+                  fontWeight: 800,
+                  color: "#0F172A",
+                  margin: "0 0 8px",
+                }}
+              >
+                답변
+              </h3>
+              <div
+                style={{
+                  background: "#EFF6FF",
+                  border: "1px solid #BFDBFE",
+                  borderRadius: 10,
+                  padding: "14px 16px",
+                  fontSize: 14,
+                  color: "#1E3A8A",
+                  lineHeight: 1.7,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {item.answerContent || "등록된 답변이 없습니다."}
+              </div>
+            </section>
+          </div>
+        )}
+      </div>
+    </>
+  );
 }
 
 export default function CommunityFaq() {
@@ -22,9 +197,8 @@ export default function CommunityFaq() {
   const [totalElements, setTotalElements] = useState(0);
   const PAGE_SIZE = 10;
 
-  const [openReplies, setOpenReplies] = useState({});
-  const [detailCache, setDetailCache] = useState({});
-  const [detailLoadingId, setDetailLoadingId] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const fetchFaqs = useCallback(async (p = 1) => {
     setLoading(true);
@@ -51,44 +225,31 @@ export default function CommunityFaq() {
     fetchFaqs(1);
   }, [fetchFaqs]);
 
-  const toggleReply = async (postId) => {
-    if (openReplies[postId]) {
-      setOpenReplies((prev) => ({ ...prev, [postId]: false }));
-      return;
-    }
-    setDetailLoadingId(postId);
+  const openDetail = async (postId) => {
+    setSelected({ postId, title: "", content: "", answerContent: "" });
+    setDetailLoading(true);
     try {
       const res = await axiosInstance.get(`/api/faqs/${postId}`);
       const d = res.data?.data || res.data || {};
-      setDetailCache((prev) => ({
-        ...prev,
-        [postId]: {
-          content: d.content,
-          answerContent: d.answerContent,
-          answeredAt: d.answeredAt,
-          viewCount: d.viewCount,
-          createdAt: d.createdAt,
-        },
-      }));
-      setItems((prev) =>
-        prev.map((it) =>
-          it.postId === postId ? { ...it, viewCount: d.viewCount } : it,
-        ),
-      );
-      setOpenReplies((prev) => ({ ...prev, [postId]: true }));
+      setSelected({
+        postId: d.postId,
+        title: d.title,
+        content: d.content,
+        answerContent: d.answerContent,
+        answeredAt: d.answeredAt,
+        viewCount: d.viewCount,
+        createdAt: d.createdAt,
+      });
     } catch (e) {
       console.error("[Community FAQ] detail fetch failed:", e);
-      setDetailCache((prev) => ({
-        ...prev,
-        [postId]: {
-          content: "FAQ 상세 내용을 불러오지 못했습니다.",
-          answerContent: "",
-          answeredAt: null,
-        },
-      }));
-      setOpenReplies((prev) => ({ ...prev, [postId]: true }));
+      setSelected({
+        postId,
+        title: "상세 조회 실패",
+        content: "FAQ 상세 내용을 불러오지 못했습니다.",
+        answerContent: "",
+      });
     } finally {
-      setDetailLoadingId(null);
+      setDetailLoading(false);
     }
   };
 
@@ -106,7 +267,7 @@ export default function CommunityFaq() {
         currentPath={currentPath}
         onNavigate={setCurrentPath}
       />
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes expandIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <main
         style={{
           maxWidth: "1400px",
@@ -216,175 +377,39 @@ export default function CommunityFaq() {
           <>
             <div>
               {filtered.map((faq) => (
-                <div key={faq.postId} style={{ borderBottom: "1px solid #e8e8e8" }}>
-                  {/* FAQ 행 */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "18px 4px",
-                      cursor: "pointer",
-                      transition: "background 0.15s",
-                      gap: "0",
-                    }}
-                    onClick={() => toggleReply(faq.postId)}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = "#f9f9f9")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "transparent")
-                    }
+                <div
+                  key={faq.postId}
+                  onClick={() => openDetail(faq.postId)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "18px 6px",
+                    borderBottom: "1px solid #e8e8e8",
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "#f9f9f9")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                  }
+                >
+                  <span
+                    style={{ ...getBoardBadge("FAQ").style, marginRight: 12 }}
                   >
-                    <span
-                      style={{ ...getBoardBadge("FAQ").style, marginRight: 12 }}
-                    >
-                      {getBoardBadge("FAQ").text}
-                    </span>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        transition: "transform 0.2s ease",
-                        transform: openReplies[faq.postId]
-                          ? "rotate(180deg)"
-                          : "rotate(0deg)",
-                        marginRight: 12,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <ChevronDown size={18} strokeWidth={2.5} color="#666" />
-                    </span>
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: "15px",
-                        color: "#222",
-                        fontWeight: "400",
-                        minWidth: 0,
-                      }}
-                    >
-                      {faq.title}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        color: "#999",
-                        whiteSpace: "nowrap",
-                        marginLeft: "12px",
-                        flexShrink: 0,
-                      }}
-                    >
-                      조회수 {faq.viewCount ?? 0}
-                    </span>
-                  </div>
-
-                  {/* 펼쳐진 상세 내용 (QnA와 동일 스타일) */}
-                  {openReplies[faq.postId] && (
-                    <div
-                      style={{
-                        padding: "16px 20px",
-                        background: "#fff",
-                        borderRadius: 10,
-                        border: "1px solid #e2e8f0",
-                        margin: "4px 4px 16px",
-                        animation: "expandIn .15s ease",
-                      }}
-                    >
-                      {detailLoadingId === faq.postId ? (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: "24px 0",
-                            gap: 10,
-                          }}
-                        >
-                          <Loader2
-                            size={20}
-                            color="#94A3B8"
-                            style={{ animation: "spin 1s linear infinite" }}
-                          />
-                          <span style={{ fontSize: 13, color: "#64748B" }}>
-                            내용을 불러오는 중...
-                          </span>
-                        </div>
-                      ) : (
-                        <>
-                          <p
-                            style={{
-                              fontSize: 14,
-                              color: "#444",
-                              lineHeight: 1.6,
-                              margin: "0 0 16px",
-                              whiteSpace: "pre-wrap",
-                            }}
-                          >
-                            {detailCache[faq.postId]?.content ?? "—"}
-                          </p>
-
-                          {detailCache[faq.postId]?.answerContent && (
-                            <div
-                              style={{
-                                padding: "14px 16px",
-                                background: "#eef3ff",
-                                borderRadius: 8,
-                                borderLeft: "3px solid #4a7cf7",
-                                marginBottom: 0,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  color: "#4a7cf7",
-                                  marginBottom: 6,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 4,
-                                }}
-                              >
-                                re: 답변
-                                {detailCache[faq.postId]?.answeredAt && (
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      color: "#999",
-                                      fontWeight: 400,
-                                      marginLeft: 8,
-                                    }}
-                                  >
-                                    {fmtDate(detailCache[faq.postId].answeredAt)}
-                                  </span>
-                                )}
-                              </div>
-                              <p
-                                style={{
-                                  fontSize: 14,
-                                  color: "#444",
-                                  lineHeight: 1.6,
-                                  margin: 0,
-                                  whiteSpace: "pre-wrap",
-                                }}
-                              >
-                                {detailCache[faq.postId].answerContent}
-                              </p>
-                            </div>
-                          )}
-                          {detailCache[faq.postId] && !detailCache[faq.postId].answerContent && (
-                            <div
-                              style={{
-                                fontSize: 13,
-                                color: "#94A3B8",
-                                fontStyle: "italic",
-                              }}
-                            >
-                              등록된 답변이 없습니다.
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
+                    {getBoardBadge("FAQ").text}
+                  </span>
+                  <span
+                    style={{
+                      flex: 1,
+                      fontSize: "15px",
+                      color: "#222",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {faq.title}
+                  </span>
                 </div>
               ))}
 
@@ -462,6 +487,12 @@ export default function CommunityFaq() {
           </>
         )}
       </main>
+
+      <DetailModal
+        item={selected}
+        loading={detailLoading}
+        onClose={() => setSelected(null)}
+      />
     </>
   );
 }

@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { CalendarDays, CalendarCheck, Clock, MapPin, Tag, ChevronRight, Search } from "lucide-react";
+import { CalendarDays, CalendarCheck, Clock, MapPin, Tag, ChevronRight } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { SERVICE_CATEGORIES, SUBTITLE_MAP } from "../constants/programConstants";
 import { eventApi } from "../../../app/http/eventApi";
@@ -17,25 +17,12 @@ const styles = `
   .pg-stat-lb { font-size:12px; color:#6b7280; }
   .pg-stat-v { font-size:22px; font-weight:800; color:#111827; }
 
-  .pg-filter { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .pg-filter { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
   .pg-filter button {
     border:1px solid #e5e7eb; background:#fff; color:#6b7280;
     padding:7px 14px; border-radius:999px; font-size:12px; font-weight:700; cursor:pointer;
   }
   .pg-filter button.active { background:#1a4fd6; border-color:#1a4fd6; color:#fff; }
-  .pg-search-wrap { position:relative; margin-left:auto; min-width:220px; flex:1 1 260px; max-width:340px; }
-  .pg-search-ico { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#9ca3af; }
-  .pg-search {
-    width:100%; height:36px; padding:0 12px 0 34px;
-    border:1px solid #e5e7eb; border-radius:999px; font-size:12.5px; color:#111827;
-    outline:none; background:#fff;
-  }
-  .pg-search:focus { border-color:#1a4fd6; box-shadow:0 0 0 3px rgba(26,79,214,0.08); }
-  .pg-date {
-    height:36px; padding:0 12px; border:1px solid #e5e7eb; border-radius:999px;
-    font-size:12.5px; color:#111827; outline:none; background:#fff;
-  }
-  .pg-date:focus { border-color:#1a4fd6; box-shadow:0 0 0 3px rgba(26,79,214,0.08); }
 
   .pg-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
   .pg-card {
@@ -125,13 +112,6 @@ function fmtTime(v) {
   return m ? `${m[1]}:${m[2]}` : "";
 }
 
-function toDateOnlyNumber(v) {
-  if (!v) return null;
-  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  return Number(`${m[1]}${m[2]}${m[3]}`);
-}
-
 function toStatus(item) {
   const raw = String(item?.status ?? "").toUpperCase();
   if (raw.includes("LIVE") || raw.includes("ONGOING") || raw.includes("PROGRESS")) return "live";
@@ -159,11 +139,9 @@ function normalizeProgram(item, idx, eventMap, boothMap) {
     schedule: `${fmtDate(startAt)} ${fmtTime(startAt)}~${fmtTime(endAt)}`,
     location: item?.location ?? item?.place ?? item?.zone ?? item?.boothName ?? boothMap.get(boothId) ?? "장소 미정",
     category: CATEGORY_LABEL[categoryRaw] ?? "미분류",
-    host: eventMap.get(eventId)?.eventName ?? "주최 정보 없음",
+    host: eventMap.get(eventId)?.organizer ?? "주최 정보 없음",
     thumbnail: item?.imageUrl ?? item?.image_url ?? null,
     status: toStatus(item),
-    startAt,
-    endAt,
     detailPath: `/program/detail?programId=${item?.programId ?? item?.id}`,
   };
 }
@@ -177,8 +155,6 @@ export default function Schedule() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
-  const [keyword, setKeyword] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
 
   const categories = useMemo(() => {
     if (!Number.isFinite(safeEventId)) return SERVICE_CATEGORIES;
@@ -250,25 +226,9 @@ export default function Schedule() {
   }, [safeEventId]);
 
   const filtered = useMemo(() => {
-    const q = keyword.trim().toLowerCase();
-    const selectedNum = toDateOnlyNumber(selectedDate);
-    return programs.filter((p) => {
-      const matchStatus = filter === "all" || p.status === filter;
-      if (!matchStatus) return false;
-
-      const matchText = !q || [p.title, p.category, p.location, p.host, p.description]
-        .some((v) => String(v || "").toLowerCase().includes(q));
-      if (!matchText) return false;
-
-      if (!selectedNum) return true;
-      const startNum = toDateOnlyNumber(p.startAt);
-      const endNum = toDateOnlyNumber(p.endAt);
-      if (startNum && endNum) return selectedNum >= startNum && selectedNum <= endNum;
-      if (startNum) return selectedNum >= startNum;
-      if (endNum) return selectedNum <= endNum;
-      return false;
-    });
-  }, [programs, filter, keyword, selectedDate]);
+    if (filter === "all") return programs;
+    return programs.filter((p) => p.status === filter);
+  }, [programs, filter]);
 
   const liveCount = programs.filter((p) => p.status === "live").length;
   const upcomingCount = programs.filter((p) => p.status === "upcoming").length;
@@ -298,22 +258,6 @@ export default function Schedule() {
           <button className={filter === "live" ? "active" : ""} onClick={() => setFilter("live")}>진행 중</button>
           <button className={filter === "upcoming" ? "active" : ""} onClick={() => setFilter("upcoming")}>예정</button>
           <button className={filter === "done" ? "active" : ""} onClick={() => setFilter("done")}>완료</button>
-          <div className="pg-search-wrap">
-            <Search size={14} className="pg-search-ico" />
-            <input
-              className="pg-search"
-              placeholder="프로그램 검색"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-            />
-          </div>
-          <input
-            type="date"
-            className="pg-date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            aria-label="프로그램 날짜 검색"
-          />
         </div>
 
         {loading ? <div className="pg-card-empty">로딩 중...</div> : null}
@@ -357,3 +301,5 @@ export default function Schedule() {
     </div>
   );
 }
+
+

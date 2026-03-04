@@ -468,7 +468,7 @@ export default function MypageProfileEdit() {
               disabled={loading || saving}
               style={{ ...mypageOutlineButtonStyle, ...wideButtonStyle, cursor: loading || saving ? "not-allowed" : "pointer" }}
             >
-              痍⑥냼
+              취소
             </button>
           </div>
         </form>

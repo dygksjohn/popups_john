@@ -164,8 +164,8 @@ function Checkbox({ checked, onChange, size = 18 }) {
         width: size,
         height: size,
         borderRadius: 5,
-        border: checked ? "none" : "1.8px solid #CBD5E1",
-        background: checked ? ds.brand : "#fff",
+        border: checked ? "none" : `1.8px solid ${ds.line}`,
+        background: checked ? ds.brand : ds.bg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -232,7 +232,7 @@ function Overlay({ children, onClose, wide }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 16,
           width: wide ? 860 : 540,
           maxWidth: "95vw",
@@ -265,7 +265,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
               width: 38,
               height: 38,
               borderRadius: 10,
-              background: "#FEF2F2",
+              background: ds.redSoft,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -282,7 +282,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
         <p
           style={{
             fontSize: 13.5,
-            color: "#64748B",
+            color: ds.ink3,
             lineHeight: 1.6,
             whiteSpace: "pre-line",
             margin: "0 0 24px",
@@ -297,13 +297,13 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
             style={{
               padding: "9px 20px",
               borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.card,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#64748B",
+              color: ds.ink3,
             }}
           >
             취소
@@ -339,7 +339,7 @@ function Field({ label, children, required }) {
         style={{
           fontSize: 12,
           fontWeight: 700,
-          color: "#64748B",
+          color: ds.ink3,
           marginBottom: 7,
           display: "block",
         }}
@@ -355,21 +355,22 @@ const inputStyle = {
   width: "100%",
   padding: "10px 14px",
   borderRadius: 9,
-  border: "1.5px solid #E2E8F0",
+  border: `1.5px solid ${ds.line}`,
   fontSize: 13.5,
   fontFamily: ds.ff,
   color: ds.ink,
   outline: "none",
+                  background: ds.bg,
   boxSizing: "border-box",
   transition: "border-color .15s, box-shadow .15s",
-  background: "#fff",
+  background: ds.bg,
 };
 const inputFocus = (e) => {
   e.target.style.borderColor = ds.brand;
   e.target.style.boxShadow = `0 0 0 3px ${ds.brand}15`;
 };
 const inputBlur = (e) => {
-  e.target.style.borderColor = "#E2E8F0";
+  e.target.style.borderColor = ds.line;
   e.target.style.boxShadow = "none";
 };
 
@@ -378,7 +379,7 @@ function NoImagePlaceholder({ height = 240 }) {
     <div
       style={{
         height,
-        background: "#F1F5F9",
+        background: ds.lineSoft,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -386,8 +387,8 @@ function NoImagePlaceholder({ height = 240 }) {
         gap: 6,
       }}
     >
-      <ImageOff size={32} color="#CBD5E1" />
-      <span style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600 }}>
+      <ImageOff size={32} color={ds.ink4} />
+      <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 600 }}>
         이미지 없음
       </span>
     </div>
@@ -420,7 +421,7 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
           style={{
             flex: "0 0 55%",
             position: "relative",
-            background: "#F1F5F9",
+            background: ds.lineSoft,
             borderRadius: "16px 0 0 16px",
             overflow: "hidden",
           }}
@@ -449,8 +450,8 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
                 gap: 8,
               }}
             >
-              <ImageOff size={40} color="#CBD5E1" />
-              <span style={{ fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>
+              <ImageOff size={40} color={ds.ink4} />
+              <span style={{ fontSize: 13, color: ds.ink4, fontWeight: 600 }}>
                 이미지 없음
               </span>
             </div>
@@ -588,15 +589,15 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
                 width: 28,
                 height: 28,
                 borderRadius: 7,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <X size={13} color="#94A3B8" />
+              <X size={13} color={ds.ink4} />
             </button>
           </div>
 
@@ -615,7 +616,7 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
                   width: 36,
                   height: 36,
                   borderRadius: "50%",
-                  background: sketch ? `${ds.brand}12` : "#F3E8FF",
+                  background: sketch ? `${ds.brand}12` : ds.violetSoft,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -631,13 +632,13 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
                   {sketch ? "운영팀" : item.title}
                 </div>
                 {item.eventId && eventMap[item.eventId] && (
-                  <div style={{ fontSize: 11.5, color: "#94A3B8" }}>
-                    🐾 {eventMap[item.eventId]}
+                  <div style={{ fontSize: 11.5, color: ds.ink4 }}>
+                    {eventMap[item.eventId]}
                   </div>
                 )}
               </div>
             </div>
-            <span style={{ fontSize: 12, color: "#CBD5E1" }}>
+            <span style={{ fontSize: 12, color: ds.ink4 }}>
               {fmtDate(item.createdAt)}
             </span>
           </div>
@@ -660,7 +661,7 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
           <p
             style={{
               fontSize: 13.5,
-              color: "#334155",
+              color: ds.ink,
               lineHeight: 1.7,
               margin: "0 0 12px",
               flex: 1,
@@ -686,12 +687,12 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
                     display: "inline-flex",
                     alignItems: "center",
                     padding: "4px 12px",
-                    background: "#F1F5F9",
+                    background: ds.lineSoft,
                     borderRadius: 20,
                     fontSize: 12.5,
                     fontWeight: 600,
-                    color: "#475569",
-                    border: "1px solid #E2E8F0",
+                    color: ds.ink3,
+                    border: `1px solid ${ds.line}`,
                   }}
                 >
                   #{t}
@@ -708,7 +709,7 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
                   ? "#10B981"
                   : item.status === "BLINDED"
                     ? "#F59E0B"
-                    : "#94A3B8"
+                    : ds.ink4
               }
               bg={
                 item.status === "PUBLIC"
@@ -734,7 +735,7 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
               display: "flex",
               gap: 16,
               padding: "12px 0",
-              borderTop: "1px solid #F1F5F9",
+              borderTop: `1px solid ${ds.line}`,
             }}
           >
             <span
@@ -743,7 +744,7 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
                 alignItems: "center",
                 gap: 5,
                 fontSize: 13,
-                color: "#64748B",
+                color: ds.ink3,
               }}
             >
               <Heart size={14} color="#EF4444" /> {item.likeCount ?? 0}
@@ -754,10 +755,10 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
                 alignItems: "center",
                 gap: 5,
                 fontSize: 13,
-                color: "#64748B",
+                color: ds.ink3,
               }}
             >
-              <Eye size={14} color="#94A3B8" /> {item.viewCount ?? 0}
+              <Eye size={14} color={ds.ink4} /> {item.viewCount ?? 0}
             </span>
           </div>
 
@@ -768,7 +769,7 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
               justifyContent: "flex-end",
               gap: 8,
               paddingTop: 12,
-              borderTop: "1px solid #F1F5F9",
+              borderTop: `1px solid ${ds.line}`,
             }}
           >
             <button
@@ -779,13 +780,13 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
               style={{
                 padding: "9px 16px",
                 borderRadius: 8,
-                border: "1px solid #FECACA",
-                background: "#FEF2F2",
+                border: `1px solid ${ds.red}33`,
+                background: ds.redSoft,
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: "pointer",
                 fontFamily: ds.ff,
-                color: "#DC2626",
+                color: ds.red,
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
@@ -974,7 +975,7 @@ function FormModal({
             width: 560,
             maxWidth: "95vw",
             maxHeight: "90vh",
-            background: "#fff",
+            background: ds.card,
             borderRadius: 20,
             boxShadow:
               "0 32px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.1)",
@@ -992,7 +993,7 @@ function FormModal({
           <div
             style={{
               padding: "22px 28px",
-              borderBottom: "1px solid #F1F5F9",
+              borderBottom: `1px solid ${ds.line}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -1011,7 +1012,7 @@ function FormModal({
               >
                 {isEdit ? `${label} 수정` : `${label} 등록`}
               </h3>
-              <p style={{ fontSize: 12, color: "#94A3B8", margin: "4px 0 0" }}>
+              <p style={{ fontSize: 12, color: ds.ink4, margin: "4px 0 0" }}>
                 {isEdit ? "정보를 수정합니다" : `새 ${label}를 등록합니다`}
               </p>
             </div>
@@ -1021,8 +1022,8 @@ function FormModal({
                 width: 32,
                 height: 32,
                 borderRadius: 8,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -1030,11 +1031,11 @@ function FormModal({
                 transition: "background .15s",
               }}
               onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "#F8FAFC")
+                (e.currentTarget.style.background = ds.bg)
               }
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = ds.card)}
             >
-              <X size={15} color="#94A3B8" />
+              <X size={15} color={ds.ink4} />
             </button>
           </div>
 
@@ -1043,12 +1044,12 @@ function FormModal({
             {err && (
               <div
                 style={{
-                  background: "#FEF2F2",
-                  border: "1px solid #FECACA",
+                  background: ds.redSoft,
+                  border: `1px solid ${ds.red}33`,
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 12.5,
-                  color: "#DC2626",
+                  color: ds.red,
                   marginBottom: 18,
                   fontWeight: 600,
                   display: "flex",
@@ -1073,25 +1074,25 @@ function FormModal({
                     }}
                     onDragLeave={() => setDragOver(false)}
                     style={{
-                      border: `2px dashed ${dragOver ? ds.brand : "#E2E8F0"}`,
+                      border: `2px dashed ${dragOver ? ds.brand : ds.line}`,
                       borderRadius: 14,
                       padding: "32px 20px",
                       textAlign: "center",
                       cursor: uploading ? "wait" : "pointer",
-                      background: dragOver ? `${ds.brand}08` : "#FAFBFC",
+                      background: dragOver ? `${ds.brand}08` : ds.bg,
                       transition: "all .2s ease",
                       opacity: uploading ? 0.6 : 1,
                     }}
                     onMouseEnter={(e) => {
                       if (!dragOver && !uploading) {
-                        e.currentTarget.style.borderColor = "#CBD5E1";
-                        e.currentTarget.style.background = "#F8FAFC";
+                        e.currentTarget.style.borderColor = ds.line;
+                        e.currentTarget.style.background = ds.bg;
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!dragOver) {
-                        e.currentTarget.style.borderColor = "#E2E8F0";
-                        e.currentTarget.style.background = "#FAFBFC";
+                        e.currentTarget.style.borderColor = ds.line;
+                        e.currentTarget.style.background = ds.bg;
                       }
                     }}
                   >
@@ -1117,7 +1118,7 @@ function FormModal({
                       style={{
                         fontSize: 13.5,
                         fontWeight: 600,
-                        color: "#475569",
+                        color: ds.ink3,
                         marginBottom: 4,
                       }}
                     >
@@ -1125,7 +1126,7 @@ function FormModal({
                         ? "업로드 중..."
                         : "클릭하거나 이미지를 드래그하세요"}
                     </div>
-                    <div style={{ fontSize: 11.5, color: "#94A3B8" }}>
+                    <div style={{ fontSize: 11.5, color: ds.ink4 }}>
                       JPG, PNG, GIF, WEBP · 최대 10MB · 최대 10장
                     </div>
                   </div>
@@ -1259,7 +1260,7 @@ function FormModal({
                           border:
                             i === 0
                               ? `2px solid ${ds.brand}`
-                              : "1px solid #E2E8F0",
+                              : `1px solid ${ds.line}`,
                         }}
                       >
                         <img
@@ -1361,7 +1362,7 @@ function FormModal({
                     </select>
                     <ChevronDown
                       size={14}
-                      color="#94A3B8"
+                      color={ds.ink4}
                       style={{
                         position: "absolute",
                         right: 12,
@@ -1400,7 +1401,7 @@ function FormModal({
                 <div style={{ position: "relative", flex: 1 }}>
                   <Hash
                     size={14}
-                    color="#94A3B8"
+                    color={ds.ink4}
                     style={{
                       position: "absolute",
                       left: 12,
@@ -1454,12 +1455,12 @@ function FormModal({
                         alignItems: "center",
                         gap: 4,
                         padding: "5px 10px",
-                        background: "#F1F5F9",
+                        background: ds.lineSoft,
                         borderRadius: 20,
                         fontSize: 12.5,
                         fontWeight: 600,
-                        color: "#475569",
-                        border: "1px solid #E2E8F0",
+                        color: ds.ink3,
+                        border: `1px solid ${ds.line}`,
                       }}
                     >
                       #{t}
@@ -1470,7 +1471,7 @@ function FormModal({
                           height: 16,
                           borderRadius: "50%",
                           border: "none",
-                          background: "#CBD5E1",
+                          background: ds.ink4,
                           color: "#fff",
                           cursor: "pointer",
                           display: "flex",
@@ -1487,7 +1488,7 @@ function FormModal({
                   ))}
                 </div>
               )}
-              <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 6 }}>
+              <div style={{ fontSize: 11, color: ds.ink4, marginTop: 6 }}>
                 최대 5개, Enter 또는 추가 버튼으로 등록
               </div>
             </Field>
@@ -1497,7 +1498,7 @@ function FormModal({
           <div
             style={{
               padding: "16px 28px",
-              borderTop: "1px solid #F1F5F9",
+              borderTop: `1px solid ${ds.line}`,
               display: "flex",
               gap: 10,
               flexShrink: 0,
@@ -1510,19 +1511,19 @@ function FormModal({
                 flex: 1,
                 padding: "12px 0",
                 borderRadius: 10,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: "pointer",
                 fontFamily: ds.ff,
-                color: "#64748B",
+                color: ds.ink3,
                 transition: "background .15s",
               }}
               onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "#F8FAFC")
+                (e.currentTarget.style.background = ds.bg)
               }
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = ds.card)}
             >
               취소
             </button>
@@ -1578,9 +1579,9 @@ function UserGalleryCard({ item, onClick, eventMap }) {
       className="gal-card2"
       onClick={onClick}
       style={{
-        background: "#fff",
+        background: ds.card,
         borderRadius: 14,
-        border: "1px solid #F1F5F9",
+        border: `1px solid ${ds.line}`,
         overflow: "hidden",
         cursor: "pointer",
       }}
@@ -1590,7 +1591,7 @@ function UserGalleryCard({ item, onClick, eventMap }) {
           position: "relative",
           paddingBottom: "100%",
           overflow: "hidden",
-          background: "#F1F5F9",
+          background: ds.lineSoft,
         }}
       >
         {thumbUrl && !imgErr ? (
@@ -1618,8 +1619,8 @@ function UserGalleryCard({ item, onClick, eventMap }) {
               gap: 4,
             }}
           >
-            <ImageOff size={28} color="#CBD5E1" />
-            <span style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600 }}>
+            <ImageOff size={28} color={ds.ink4} />
+            <span style={{ fontSize: 10, color: ds.ink4, fontWeight: 600 }}>
               이미지 없음
             </span>
           </div>
@@ -1665,7 +1666,7 @@ function UserGalleryCard({ item, onClick, eventMap }) {
                 width: 28,
                 height: 28,
                 borderRadius: "50%",
-                background: "#F3E8FF",
+                background: ds.violetSoft,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1695,13 +1696,13 @@ function UserGalleryCard({ item, onClick, eventMap }) {
                 <div
                   style={{
                     fontSize: 10.5,
-                    color: "#94A3B8",
+                    color: ds.ink4,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                   }}
                 >
-                  🐾 {eventMap[item.eventId]}
+                  {eventMap[item.eventId]}
                 </div>
               )}
             </div>
@@ -1709,7 +1710,7 @@ function UserGalleryCard({ item, onClick, eventMap }) {
           <span
             style={{
               fontSize: 10.5,
-              color: "#CBD5E1",
+              color: ds.ink4,
               flexShrink: 0,
               marginLeft: 6,
             }}
@@ -1720,7 +1721,7 @@ function UserGalleryCard({ item, onClick, eventMap }) {
         <p
           style={{
             fontSize: 12.5,
-            color: "#334155",
+            color: ds.ink,
             lineHeight: 1.5,
             margin: "0 0 8px",
             display: "-webkit-box",
@@ -1750,18 +1751,18 @@ function UserGalleryCard({ item, onClick, eventMap }) {
                   style={{
                     fontSize: 11,
                     fontWeight: 600,
-                    color: "#64748B",
-                    background: "#F1F5F9",
+                    color: ds.ink3,
+                    background: ds.lineSoft,
                     padding: "2px 8px",
                     borderRadius: 12,
-                    border: "1px solid #E2E8F0",
+                    border: `1px solid ${ds.line}`,
                   }}
                 >
                   #{t}
                 </span>
               ))}
             {getTags(item).length > 3 && (
-              <span style={{ fontSize: 11, color: "#94A3B8" }}>
+              <span style={{ fontSize: 11, color: ds.ink4 }}>
                 +{getTags(item).length - 3}
               </span>
             )}
@@ -1773,7 +1774,7 @@ function UserGalleryCard({ item, onClick, eventMap }) {
             alignItems: "center",
             gap: 14,
             paddingTop: 8,
-            borderTop: "1px solid #F8FAFC",
+            borderTop: `1px solid ${ds.lineSoft}`,
           }}
         >
           <span
@@ -1782,7 +1783,7 @@ function UserGalleryCard({ item, onClick, eventMap }) {
               alignItems: "center",
               gap: 4,
               fontSize: 12,
-              color: "#94A3B8",
+              color: ds.ink4,
             }}
           >
             <Heart size={13} /> {item.likeCount ?? 0}
@@ -1793,7 +1794,7 @@ function UserGalleryCard({ item, onClick, eventMap }) {
               alignItems: "center",
               gap: 4,
               fontSize: 12,
-              color: "#94A3B8",
+              color: ds.ink4,
             }}
           >
             <Eye size={13} /> {item.viewCount ?? 0}
@@ -1816,9 +1817,9 @@ function SketchCard({ item, onClick, eventMap }) {
       className="gal-card2"
       onClick={onClick}
       style={{
-        background: "#fff",
+        background: ds.card,
         borderRadius: 14,
-        border: "1px solid #F1F5F9",
+        border: `1px solid ${ds.line}`,
         overflow: "hidden",
         cursor: "pointer",
       }}
@@ -1828,7 +1829,7 @@ function SketchCard({ item, onClick, eventMap }) {
           position: "relative",
           paddingBottom: "75%",
           overflow: "hidden",
-          background: "#F1F5F9",
+          background: ds.lineSoft,
         }}
       >
         {thumbUrl && !imgErr ? (
@@ -1856,8 +1857,8 @@ function SketchCard({ item, onClick, eventMap }) {
               gap: 4,
             }}
           >
-            <ImageOff size={28} color="#CBD5E1" />
-            <span style={{ fontSize: 10, color: "#94A3B8", fontWeight: 600 }}>
+            <ImageOff size={28} color={ds.ink4} />
+            <span style={{ fontSize: 10, color: ds.ink4, fontWeight: 600 }}>
               이미지 없음
             </span>
           </div>
@@ -1901,7 +1902,7 @@ function SketchCard({ item, onClick, eventMap }) {
         <p
           style={{
             fontSize: 12.5,
-            color: "#64748B",
+            color: ds.ink3,
             lineHeight: 1.5,
             margin: "0 0 10px",
             display: "-webkit-box",
@@ -1920,13 +1921,13 @@ function SketchCard({ item, onClick, eventMap }) {
             alignItems: "center",
             justifyContent: "space-between",
             paddingTop: 8,
-            borderTop: "1px solid #F8FAFC",
+            borderTop: `1px solid ${ds.lineSoft}`,
           }}
         >
-          <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>
+          <span style={{ fontSize: 12, color: ds.ink4, fontWeight: 600 }}>
             운영팀
           </span>
-          <span style={{ fontSize: 11, color: "#CBD5E1" }}>
+          <span style={{ fontSize: 11, color: ds.ink4 }}>
             {fmtDate(item.createdAt)}
           </span>
         </div>
@@ -1939,7 +1940,7 @@ function SketchCard({ item, onClick, eventMap }) {
    메인 컴포넌트
    ═══════════════════════════════════════════ */
 export default function Gallery() {
-  const [tab, setTab] = useState("sketch");
+  const tab = "user"; // 현장스케치 탭 제거, 참가자 갤러리만
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1994,13 +1995,8 @@ export default function Gallery() {
     fetchList(1);
   }, [fetchList]);
 
-  /* 탭별 필터링 (meta 태그 기반) */
+  /* 필터링 */
   const filtered = items
-    .filter((g) => {
-      const s = isSketch(g);
-      if (tab === "sketch") return s;
-      return !s;
-    })
     .filter(
       (g) =>
         !search ||
@@ -2015,9 +2011,7 @@ export default function Gallery() {
       await api.create(form);
       setPanel(null);
       showToast(
-        tab === "sketch"
-          ? "현장 스케치가 등록되었습니다."
-          : "갤러리가 등록되었습니다.",
+        "갤러리가 등록되었습니다.",
       );
       fetchList(1);
     } catch (err) {
@@ -2125,45 +2119,14 @@ export default function Gallery() {
       <style>{styles}</style>
       <div
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 12,
-          border: "1px solid #F1F5F9",
+          border: `1px solid ${ds.line}`,
           overflow: "hidden",
         }}
       >
-        {/* 탭 + 헤더 */}
-        <div style={{ borderBottom: "1px solid #F1F5F9" }}>
-          <div
-            style={{
-              display: "flex",
-              gap: 0,
-              padding: "0 20px",
-              borderBottom: "1px solid #F1F5F9",
-            }}
-          >
-            <button
-              className={`gal-tab ${tab === "user" ? "active" : ""}`}
-              onClick={() => {
-                setTab("user");
-                setSelected(new Set());
-              }}
-              style={{ fontFamily: ds.ff }}
-            >
-              <Users size={14} />
-              참가자 갤러리
-            </button>
-            <button
-              className={`gal-tab ${tab === "sketch" ? "active" : ""}`}
-              onClick={() => {
-                setTab("sketch");
-                setSelected(new Set());
-              }}
-              style={{ fontFamily: ds.ff }}
-            >
-              <Film size={14} />
-              현장 스케치
-            </button>
-          </div>
+        {/* 헤더 */}
+        <div style={{ borderBottom: `1px solid ${ds.line}` }}>
           <div
             style={{
               padding: "12px 20px",
@@ -2185,11 +2148,11 @@ export default function Gallery() {
                   margin: 0,
                 }}
               >
-                {tab === "sketch" ? "현장 스케치" : "참가자 갤러리"}
+                {"갤러리"}
               </h3>
               {!loading && (
                 <span
-                  style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}
+                  style={{ fontSize: 12, color: ds.ink4, fontWeight: 600 }}
                 >
                   총 {filtered.length}개
                 </span>
@@ -2219,11 +2182,11 @@ export default function Gallery() {
                     gap: 4,
                     padding: "6px 12px",
                     borderRadius: 7,
-                    border: "1px solid #FECACA",
-                    background: "#FEF2F2",
+                    border: `1px solid ${ds.red}33`,
+                    background: ds.redSoft,
                     fontSize: 12,
                     fontWeight: 600,
-                    color: "#DC2626",
+                    color: ds.red,
                     cursor: "pointer",
                     fontFamily: ds.ff,
                   }}
@@ -2240,11 +2203,11 @@ export default function Gallery() {
                     gap: 4,
                     padding: "6px 12px",
                     borderRadius: 7,
-                    border: "1px solid #E2E8F0",
-                    background: "#fff",
+                    border: `1px solid ${ds.line}`,
+                    background: ds.card,
                     fontSize: 12,
                     fontWeight: 600,
-                    color: "#64748B",
+                    color: ds.ink3,
                     cursor: "pointer",
                     fontFamily: ds.ff,
                   }}
@@ -2261,18 +2224,19 @@ export default function Gallery() {
                     width: 150,
                     padding: "6px 12px 6px 30px",
                     borderRadius: 7,
-                    border: "1px solid #E2E8F0",
+                    border: `1px solid ${ds.line}`,
                     fontSize: 12.5,
                     fontFamily: ds.ff,
                     color: ds.ink,
                     outline: "none",
+                  background: ds.bg,
                   }}
                   onFocus={(e) => (e.target.style.borderColor = ds.brand)}
-                  onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+                  onBlur={(e) => (e.target.style.borderColor = ds.line)}
                 />
                 <Search
                   size={13}
-                  color="#94A3B8"
+                  color={ds.ink4}
                   style={{
                     position: "absolute",
                     left: 10,
@@ -2288,15 +2252,15 @@ export default function Gallery() {
                   width: 32,
                   height: 32,
                   borderRadius: 7,
-                  border: "1px solid #E2E8F0",
-                  background: "#fff",
+                  border: `1px solid ${ds.line}`,
+                  background: ds.card,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <RefreshCw size={14} color="#64748B" />
+                <RefreshCw size={14} color={ds.ink3} />
               </button>
               <button
                 onClick={() => setPanel({ type: "create" })}
@@ -2333,7 +2297,7 @@ export default function Gallery() {
             }}
           >
             <Spinner size={28} />
-            <span style={{ fontSize: 13, color: "#94A3B8" }}>
+            <span style={{ fontSize: 13, color: ds.ink4 }}>
               불러오는 중...
             </span>
           </div>
@@ -2353,7 +2317,7 @@ export default function Gallery() {
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: "#64748B",
+                color: ds.ink3,
                 marginBottom: 8,
               }}
             >
@@ -2364,13 +2328,13 @@ export default function Gallery() {
               style={{
                 padding: "8px 20px",
                 borderRadius: 8,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: "pointer",
                 fontFamily: ds.ff,
-                color: "#64748B",
+                color: ds.ink3,
               }}
             >
               다시 시도
@@ -2432,25 +2396,21 @@ export default function Gallery() {
           >
             <Camera
               size={36}
-              color="#CBD5E1"
+              color={ds.ink4}
               style={{ marginBottom: 12, display: "block" }}
             />
             <div
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: "#64748B",
+                color: ds.ink3,
                 marginBottom: 4,
               }}
             >
-              {tab === "sketch"
-                ? "등록된 현장 스케치가 없습니다"
-                : "참가자 갤러리가 없습니다"}
+              {"등록된 갤러리가 없습니다"}
             </div>
-            <div style={{ fontSize: 12.5, color: "#94A3B8" }}>
-              {tab === "sketch"
-                ? "새 현장 스케치를 등록해보세요"
-                : "참가자들의 갤러리가 여기에 표시됩니다"}
+            <div style={{ fontSize: 12.5, color: ds.ink4 }}>
+              {"참가자들의 갤러리가 여기에 표시됩니다"}
             </div>
           </div>
         )}
@@ -2463,7 +2423,7 @@ export default function Gallery() {
               justifyContent: "center",
               alignItems: "center",
               gap: 4,
-              borderTop: "1px solid #F1F5F9",
+              borderTop: `1px solid ${ds.line}`,
             }}
           >
             <button
@@ -2473,8 +2433,8 @@ export default function Gallery() {
                 width: 32,
                 height: 32,
                 borderRadius: 7,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 cursor: page <= 1 ? "default" : "pointer",
                 opacity: page <= 1 ? 0.4 : 1,
                 display: "flex",
@@ -2482,7 +2442,7 @@ export default function Gallery() {
                 justifyContent: "center",
               }}
             >
-              <ChevronLeft size={14} color="#64748B" />
+              <ChevronLeft size={14} color={ds.ink3} />
             </button>
             {Array.from({ length: totalPages }, (_, i) => (
               <button
@@ -2492,9 +2452,9 @@ export default function Gallery() {
                   width: 32,
                   height: 32,
                   borderRadius: 7,
-                  border: page === i + 1 ? "none" : "1px solid #E2E8F0",
-                  background: page === i + 1 ? ds.brand : "#fff",
-                  color: page === i + 1 ? "#fff" : "#64748B",
+                  border: page === i + 1 ? "none" : `1px solid ${ds.line}`,
+                  background: page === i + 1 ? ds.brand : ds.card,
+                  color: page === i + 1 ? "#fff" : ds.ink4,
                   fontSize: 12.5,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -2511,8 +2471,8 @@ export default function Gallery() {
                 width: 32,
                 height: 32,
                 borderRadius: 7,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.card,
                 cursor: page >= totalPages ? "default" : "pointer",
                 opacity: page >= totalPages ? 0.4 : 1,
                 display: "flex",
@@ -2520,7 +2480,7 @@ export default function Gallery() {
                 justifyContent: "center",
               }}
             >
-              <ChevronRight size={14} color="#64748B" />
+              <ChevronRight size={14} color={ds.ink3} />
             </button>
           </div>
         )}
@@ -2533,7 +2493,7 @@ export default function Gallery() {
           onClose={() => setPanel(null)}
           saving={saving}
           events={events}
-          galleryType={tab === "sketch" ? "현장" : "참가자"}
+          galleryType={"참가자"}
         />
       )}
       {panel?.type === "edit" && (

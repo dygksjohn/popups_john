@@ -2,6 +2,51 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { noticeApi, unwrap } from "../../../api/noticeApi";
 import { reviewApi } from "../../../app/http/reviewApi";
+import { eventApi } from "../../../app/http/eventApi";
+
+/* ── 이미지 폴백 ── */
+const DOG_IMGS = [
+  "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=800&fit=crop",
+  "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&h=800&fit=crop",
+  "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=600&h=800&fit=crop",
+  "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=600&h=800&fit=crop",
+  "https://images.unsplash.com/photo-1552053831-71594a27632d?w=600&h=800&fit=crop",
+  "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=600&h=800&fit=crop",
+  "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&h=800&fit=crop",
+  "https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=600&h=800&fit=crop",
+];
+const dogImg = (id) => DOG_IMGS[Math.abs(Number(id) || 0) % DOG_IMGS.length];
+
+/* ── 공통 날짜 포맷 ── */
+function fmtEventDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  const week = ["일","월","화","수","목","금","토"];
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}(${week[d.getDay()]})`;
+}
+function fmtTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+function mapApiEvent(raw) {
+  const id = raw?.eventId ?? raw?.id;
+  return {
+    id,
+    title: raw?.eventName ?? raw?.title ?? "행사",
+    description: raw?.description ?? "",
+    location: raw?.location ?? raw?.place ?? "장소 미정",
+    category: raw?.category ?? raw?.eventCategory ?? "행사",
+    startAt: raw?.startAt ?? raw?.startDateTime ?? null,
+    endAt: raw?.endAt ?? raw?.endDateTime ?? null,
+    image: raw?.imageUrl ?? raw?.posterUrl ?? raw?.thumbnail ?? dogImg(id),
+    participants: raw?.participants ?? raw?.appliedCount ?? 0,
+    capacity: raw?.capacity ?? raw?.maxParticipants ?? 0,
+    status: raw?.status ?? "",
+  };
+}
 // ================= 스크롤 reveal 훅 =================
 function useScrollReveal(options = {}) {
   const { threshold = 0.15, rootMargin = "0px 0px -60px 0px" } = options;
@@ -42,104 +87,93 @@ function RevealSection({ children, className = "", delay = 0 }) {
   );
 }
 
-// ================= EVENT SECTION =================
+// ================= EVENT SECTION (DB 연동) =================
 function EventSection() {
+  const navigate = useNavigate();
   const [hoveredCard, setHoveredCard] = useState(null);
-  const events = {
-    left: {
-      date: "2026.02.28(수)",
-      dateColor: "bg-gradient-to-r from-blue-50 to-blue-100/50",
-      dateTextColor: "text-blue-700",
-      items: [
-        {
-          title: "댕댕이 플레이 그라운드",
-          time: "08:00 ~ 17:10",
-          location: "올림픽 공원",
-        },
-        {
-          title: "반려건 라이프 페어",
-          time: "09:00 ~ 11:30",
-          location: "올림픽 공원",
-        },
-        {
-          title: "댕댕이 웰니스 데이",
-          time: "10:00 ~ 16:00",
-          location: "올림픽 공원",
-        },
-      ],
-    },
-    right: {
-      date: "2026.02.28(수)",
-      dateColor: "bg-gradient-to-r from-emerald-50 to-teal-100/50",
-      dateTextColor: "text-teal-700",
-      items: [
-        {
-          title: "댕댕이 웰니스 데이",
-          time: "08:00 ~ 17:10",
-          location: "올림픽 공원",
-        },
-        {
-          title: "펫 비헤이비어 포럼",
-          time: "09:00 ~ 11:30",
-          location: "올림픽 공원",
-        },
-        {
-          title: "반려견 교감 클래스",
-          time: "10:00 ~ 16:00",
-          location: "올림픽 공원",
-        },
-      ],
-    },
-  };
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    eventApi.getEvents({ status: "ONGOING", page: 0, size: 10 })
+      .then((res) => {
+        const list = res.data?.data?.content || res.data?.data || [];
+        setEvents(list.map(mapApiEvent));
+      })
+      .catch(() => setEvents([]));
+  }, []);
+
+  // 날짜별 그룹핑
+  const grouped = {};
+  events.forEach((ev) => {
+    const key = fmtEventDate(ev.startAt) || "일정 미정";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(ev);
+  });
+  const dateKeys = Object.keys(grouped).slice(0, 2);
+  const colors = [
+    { bg: "bg-gradient-to-r from-blue-50 to-blue-100/50", text: "text-blue-700" },
+    { bg: "bg-gradient-to-r from-emerald-50 to-teal-100/50", text: "text-teal-700" },
+  ];
+
   return (
     <section className="w-full bg-gradient-to-b from-gray-50 to-white py-16 px-6">
       <div className="max-w-[1400px] mx-auto px-6">
         <RevealSection>
           <div className="text-center mb-10">
             <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">
-              2026 애견 행사 진행 안내
+              진행 중인 행사 안내
             </p>
             <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">
               현재 진행 중인 반려견 행사
             </h2>
-            <button className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300">
+            <button
+              onClick={() => navigate("/event/current")}
+              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300"
+            >
               자세히 보기
             </button>
           </div>
         </RevealSection>
         <RevealSection delay={0.15}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 relative">
-            <div className="hidden lg:block absolute left-1/2 top-6 bottom-0 -translate-x-1/2">
-              <div
-                className="w-px h-full"
-                style={{
-                  backgroundImage:
-                    "radial-gradient(circle, #d1d5db 1px, transparent 1px)",
-                  backgroundSize: "1px 5px",
-                }}
-              />
-            </div>
-            {["left", "right"].map((side) => (
-              <div key={side} className="space-y-4">
-                <div
-                  className={`${events[side].dateColor} ${events[side].dateTextColor} text-center py-3 rounded-xl font-semibold text-sm`}
-                >
-                  {events[side].date}
+          {events.length === 0 ? (
+            <div className="text-center text-gray-400 py-12">등록된 진행 중 행사가 없습니다.</div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 relative">
+              <div className="hidden lg:block absolute left-1/2 top-6 bottom-0 -translate-x-1/2">
+                <div className="w-px h-full" style={{ backgroundImage: "radial-gradient(circle, #d1d5db 1px, transparent 1px)", backgroundSize: "1px 5px" }} />
+              </div>
+              {dateKeys.length > 0 ? dateKeys.map((key, si) => (
+                <div key={key} className="space-y-4">
+                  <div className={`${colors[si % 2].bg} ${colors[si % 2].text} text-center py-3 rounded-xl font-semibold text-sm`}>
+                    {key}
+                  </div>
+                  <div className="space-y-4">
+                    {grouped[key].slice(0, 3).map((ev, idx) => (
+                      <EventCard
+                        key={ev.id}
+                        event={{ title: ev.title, time: ev.startAt && ev.endAt ? `${fmtTime(ev.startAt)} ~ ${fmtTime(ev.endAt)}` : "시간 미정", location: ev.location }}
+                        isHovered={hoveredCard === `${si}-${idx}`}
+                        onHover={() => setHoveredCard(`${si}-${idx}`)}
+                        onLeave={() => setHoveredCard(null)}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-4">
-                  {events[side].items.map((event, idx) => (
+              )) : (
+                <div className="col-span-2 space-y-4">
+                  {events.slice(0, 6).map((ev, idx) => (
                     <EventCard
-                      key={`${side}-${idx}`}
-                      event={event}
-                      isHovered={hoveredCard === `${side}-${idx}`}
-                      onHover={() => setHoveredCard(`${side}-${idx}`)}
+                      key={ev.id}
+                      event={{ title: ev.title, time: ev.startAt && ev.endAt ? `${fmtTime(ev.startAt)} ~ ${fmtTime(ev.endAt)}` : "시간 미정", location: ev.location }}
+                      isHovered={hoveredCard === `all-${idx}`}
+                      onHover={() => setHoveredCard(`all-${idx}`)}
                       onLeave={() => setHoveredCard(null)}
                     />
                   ))}
                 </div>
-              </div>
-            ))}
-          </div>
+              )}
+            </div>
+          )}
         </RevealSection>
       </div>
     </section>
@@ -224,75 +258,32 @@ function useInfiniteSlider(itemCount, slideSize) {
   };
 }
 
-// ================= SPEAKER LINEUP =================
-const speakers = [
-  {
-    id: 1,
-    tag: "기조연설",
-    role: "수의학 박사 · 반려동물 행동 전문가",
-    image:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop",
-    name: "김도현 박사",
-  },
-  {
-    id: 2,
-    tag: "기조연설",
-    role: "서울대학교 동물학과 교수",
-    image:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=500&fit=crop",
-    name: "이준서 교수",
-  },
-  {
-    id: 3,
-    tag: "슈스등장",
-    role: "웰시코기 · 인스타 스타견",
-    image:
-      "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=500&fit=crop",
-    name: "콩이",
-  },
-  {
-    id: 4,
-    tag: "슈스등장",
-    role: "골든리트리버 · 세라피 도그",
-    image:
-      "https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=500&fit=crop",
-    name: "보리",
-  },
-  {
-    id: 5,
-    tag: "패널토론",
-    role: "펫 라이프스타일 에디터",
-    image:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop",
-    name: "박서연 에디터",
-  },
-  {
-    id: 6,
-    tag: "패널토론",
-    role: "동물복지 정책 연구원",
-    image:
-      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=500&fit=crop",
-    name: "최유진 연구원",
-  },
-];
-
+// ================= SPEAKER LINEUP (DB 연동) =================
 function SpeakerLineup() {
+  const navigate = useNavigate();
+  const [events, setEvents] = useState([]);
+  useEffect(() => {
+    eventApi.getEvents({ page: 0, size: 10 })
+      .then((res) => {
+        const list = res.data?.data?.content || res.data?.data || [];
+        setEvents(list.map(mapApiEvent));
+      })
+      .catch(() => setEvents([]));
+  }, []);
+
+  const items = events.length > 0 ? events : [];
   const GAP = 20;
   const VISIBLE = 4;
   const PEEK = 0.35;
   const CARD_W = Math.floor((1400 - GAP * VISIBLE) / (VISIBLE + PEEK));
   const SLIDE = CARD_W + GAP;
-  const slider = useInfiniteSlider(speakers.length, SLIDE);
-  const extended = Array.from({ length: slider.CLONES }, () => speakers).flat();
+  const slider = useInfiniteSlider(Math.max(items.length, 1), SLIDE);
+  const extended = items.length > 0 ? Array.from({ length: slider.CLONES }, () => items).flat() : [];
   const [hovered, setHovered] = useState(null);
   const dragRef = useRef({ startX: 0, currentX: 0, dragging: false });
   const trackRef = useRef(null);
   const onPointerDown = (e) => {
-    dragRef.current = {
-      startX: e.clientX,
-      currentX: e.clientX,
-      dragging: true,
-    };
+    dragRef.current = { startX: e.clientX, currentX: e.clientX, dragging: true };
     slider.setTransition(false);
   };
   const onPointerMove = (e) => {
@@ -312,10 +303,10 @@ function SpeakerLineup() {
     if (delta < -50) slider.next();
     else if (delta > 50) slider.prev();
   };
-  const tagColor = {
-    기조연설: { bg: "bg-blue-600", text: "text-white" },
-    슈스등장: { bg: "bg-amber-500", text: "text-white" },
-    패널토론: { bg: "bg-violet-600", text: "text-white" },
+  const statusColor = {
+    ONGOING: { bg: "bg-red-500", text: "text-white", label: "진행중" },
+    UPCOMING: { bg: "bg-blue-600", text: "text-white", label: "예정" },
+    ENDED: { bg: "bg-gray-500", text: "text-white", label: "종료" },
   };
 
   return (
@@ -324,190 +315,138 @@ function SpeakerLineup() {
         <RevealSection>
           <div className="text-center mb-10">
             <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">
-              2026 애견 행사 진행 안내
+              PuPoo Events
             </p>
             <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">
-              현재 진행 중인 반려견 행사
+              등록된 반려견 행사
             </h2>
-            <button className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300">
-              자세히 보기
+            <button
+              onClick={() => navigate("/event/current")}
+              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300"
+            >
+              전체 행사 보기
             </button>
           </div>
         </RevealSection>
         <RevealSection delay={0.12}>
-          <div
-            className="overflow-hidden cursor-grab active:cursor-grabbing"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerLeave={onPointerUp}
-            style={{ userSelect: "none" }}
-          >
-            <div
-              ref={trackRef}
-              className="flex"
-              style={{
-                gap: GAP,
-                transform: `translate3d(-${slider.offset}px, 0, 0)`,
-                transition: slider.transition
-                  ? "transform 600ms cubic-bezier(0.16,1,0.3,1)"
-                  : "none",
-                willChange: "transform",
-              }}
-            >
-              {extended.map((speaker, i) => {
-                const isH = hovered === i;
-                const colors = tagColor[speaker.tag] || {
-                  bg: "bg-gray-600",
-                  text: "text-white",
-                };
-                return (
-                  <div
-                    key={i}
-                    style={{ width: CARD_W }}
-                    className="shrink-0"
-                    onMouseEnter={() => setHovered(i)}
-                    onMouseLeave={() => setHovered(null)}
-                  >
-                    <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-[3/4]">
-                      <img
-                        src={speaker.image}
-                        alt={speaker.name}
-                        className={`w-full h-full object-cover transition-all duration-700 ease-out ${isH ? "scale-105 grayscale-0" : "scale-100 grayscale"}`}
-                        draggable={false}
-                      />
+          {items.length === 0 ? (
+            <div className="text-center text-gray-400 py-12">등록된 행사가 없습니다.</div>
+          ) : (
+            <>
+              <div
+                className="overflow-hidden cursor-grab active:cursor-grabbing"
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerLeave={onPointerUp}
+                style={{ userSelect: "none" }}
+              >
+                <div
+                  ref={trackRef}
+                  className="flex"
+                  style={{
+                    gap: GAP,
+                    transform: `translate3d(-${slider.offset}px, 0, 0)`,
+                    transition: slider.transition ? "transform 600ms cubic-bezier(0.16,1,0.3,1)" : "none",
+                    willChange: "transform",
+                  }}
+                >
+                  {extended.map((ev, i) => {
+                    const isH = hovered === i;
+                    const sc = statusColor[ev.status] || statusColor.ONGOING;
+                    return (
                       <div
-                        className="absolute inset-x-0 bottom-0 h-2/5"
-                        style={{
-                          background:
-                            "linear-gradient(to top, rgba(0,0,0,0.55), transparent)",
-                        }}
-                      />
-                      <div className="absolute bottom-0 left-0 right-0 p-5">
-                        <p className="text-white font-bold text-lg">
-                          {speaker.name}
-                        </p>
-                        <p className="text-white/60 text-sm mt-0.5">
-                          {speaker.role}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <span
-                        className={`inline-block text-[11px] font-bold ${colors.bg} ${colors.text} px-2.5 py-1 rounded-md`}
+                        key={i}
+                        style={{ width: CARD_W }}
+                        className="shrink-0"
+                        onMouseEnter={() => setHovered(i)}
+                        onMouseLeave={() => setHovered(null)}
                       >
-                        {speaker.tag}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="flex items-center justify-between mt-8">
-            <div className="flex items-center gap-5">
-              <span className="text-sm font-bold tabular-nums text-gray-900">
-                {String(slider.realIndex + 1).padStart(2, "0")}
-                <span className="text-gray-300 mx-1.5">/</span>
-                {String(speakers.length).padStart(2, "0")}
-              </span>
-              <div className="flex gap-1.5">
-                {speakers.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => slider.goTo(i)}
-                    className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`}
-                  />
-                ))}
+                        <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-[3/4]">
+                          <img
+                            src={ev.image}
+                            alt={ev.title}
+                            className={`w-full h-full object-cover transition-all duration-700 ease-out ${isH ? "scale-105 grayscale-0" : "scale-100 grayscale"}`}
+                            draggable={false}
+                            onError={(e) => { e.target.onerror = null; e.target.src = dogImg(ev.id); }}
+                          />
+                          <div className="absolute inset-x-0 bottom-0 h-2/5" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55), transparent)" }} />
+                          <div className="absolute bottom-0 left-0 right-0 p-5">
+                            <p className="text-white font-bold text-lg leading-snug">{ev.title}</p>
+                            <p className="text-white/60 text-sm mt-0.5">{ev.location}</p>
+                            {ev.startAt && <p className="text-white/50 text-xs mt-1">{fmtEventDate(ev.startAt)}</p>}
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <span className={`inline-block text-[11px] font-bold ${sc.bg} ${sc.text} px-2.5 py-1 rounded-md`}>
+                            {sc.label}
+                          </span>
+                          <span className="inline-block text-[11px] font-medium bg-gray-200 text-gray-600 px-2.5 py-1 rounded-md ml-1.5">
+                            {ev.category}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={slider.prev}
-                className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all duration-200 hover:border-gray-400 active:scale-95"
-              >
-                <svg
-                  className="w-4 h-4 text-gray-700"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={slider.next}
-                className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all duration-200 hover:border-gray-400 active:scale-95"
-              >
-                <svg
-                  className="w-4 h-4 text-gray-700"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
+              <div className="flex items-center justify-between mt-8">
+                <div className="flex items-center gap-5">
+                  <span className="text-sm font-bold tabular-nums text-gray-900">
+                    {String(slider.realIndex + 1).padStart(2, "0")}
+                    <span className="text-gray-300 mx-1.5">/</span>
+                    {String(items.length).padStart(2, "0")}
+                  </span>
+                  <div className="flex gap-1.5">
+                    {items.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => slider.goTo(i)}
+                        className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={slider.prev} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all duration-200 hover:border-gray-400 active:scale-95">
+                    <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                  <button onClick={slider.next} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all duration-200 hover:border-gray-400 active:scale-95">
+                    <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </RevealSection>
       </div>
     </div>
   );
 }
 
-// ================= RECOMMEND CAROUSEL =================
+// ================= RECOMMEND CAROUSEL (DB 연동) =================
 function RecommendCarousel() {
-  const items = [
-    {
-      title: "제목제목제목제목",
-      desc: "여기다가 덧불일 내용을 쓰세요 좋게 말할때",
-      tag: "서울시 강남구",
-      img: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80",
-    },
-    {
-      title: "제목제목제목제목",
-      desc: "여기다가 덧불일 내용을 쓰세요 좋게 말할때",
-      tag: "서울시 강남구",
-      img: "https://images.unsplash.com/photo-1533106418989-88406c7cc8ca?auto=format&fit=crop&w=1200&q=80",
-    },
-    {
-      title: "제목제목제목제목",
-      desc: "여기다가 덧불일 내용을 쓰세요 좋게 말할때",
-      tag: "서울시 강남구",
-      img: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=80",
-    },
-    {
-      title: "제목제목제목제목",
-      desc: "여기다가 덧불일 내용을 쓰세요 좋게 말할때",
-      tag: "서울시 강남구",
-      img: "https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=1200&q=80",
-    },
-  ];
+  const [events, setEvents] = useState([]);
+  useEffect(() => {
+    eventApi.getEvents({ page: 0, size: 8 })
+      .then((res) => {
+        const list = res.data?.data?.content || res.data?.data || [];
+        setEvents(list.map(mapApiEvent));
+      })
+      .catch(() => setEvents([]));
+  }, []);
+
+  const items = events.length > 0 ? events : [];
   const GAP = 24;
   const PEEK = 0.4;
   const CARD_W = Math.floor((1400 - GAP * 3) / (3 + PEEK));
   const SLIDE = CARD_W + GAP;
-  const slider = useInfiniteSlider(items.length, SLIDE);
-  const extended = Array.from({ length: slider.CLONES }, () => items).flat();
+  const slider = useInfiniteSlider(Math.max(items.length, 1), SLIDE);
+  const extended = items.length > 0 ? Array.from({ length: slider.CLONES }, () => items).flat() : [];
   const dragRef = useRef({ startX: 0, currentX: 0, dragging: false });
   const trackRef = useRef(null);
   const onPointerDown = (e) => {
-    dragRef.current = {
-      startX: e.clientX,
-      currentX: e.clientX,
-      dragging: true,
-    };
+    dragRef.current = { startX: e.clientX, currentX: e.clientX, dragging: true };
     slider.setTransition(false);
   };
   const onPointerMove = (e) => {
@@ -527,6 +466,10 @@ function RecommendCarousel() {
     else if (delta > 50) slider.prev();
   };
 
+  if (items.length === 0) {
+    return <div className="text-center text-gray-400 py-12">추천 행사를 불러오는 중...</div>;
+  }
+
   return (
     <div className="relative w-full">
       <RevealSection>
@@ -544,32 +487,29 @@ function RecommendCarousel() {
             style={{
               gap: GAP,
               transform: `translate3d(-${slider.offset}px, 0, 0)`,
-              transition: slider.transition
-                ? "transform 600ms cubic-bezier(0.16,1,0.3,1)"
-                : "none",
+              transition: slider.transition ? "transform 600ms cubic-bezier(0.16,1,0.3,1)" : "none",
               willChange: "transform",
             }}
           >
-            {extended.map((item, i) => (
+            {extended.map((ev, i) => (
               <div key={i} style={{ width: CARD_W }} className="shrink-0 group">
                 <div className="relative overflow-hidden rounded-2xl">
                   <img
-                    src={item.img}
-                    alt=""
+                    src={ev.image}
+                    alt={ev.title}
                     draggable={false}
                     className="h-[260px] w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    onError={(e) => { e.target.onerror = null; e.target.src = dogImg(ev.id); }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
                 <div className="mt-4">
-                  <div className="text-[17px] font-bold text-gray-900">
-                    {item.title}
-                  </div>
+                  <div className="text-[17px] font-bold text-gray-900">{ev.title}</div>
                   <div className="text-sm text-gray-500 mt-1.5">
-                    {item.desc}
+                    {ev.description ? (ev.description.length > 40 ? ev.description.slice(0, 40) + "..." : ev.description) : (ev.startAt ? fmtEventDate(ev.startAt) : "상세 정보 보기")}
                   </div>
                   <span className="inline-block mt-3 text-xs font-medium bg-gray-200 text-gray-600 px-3 py-1 rounded-md">
-                    {item.tag}
+                    {ev.location}
                   </span>
                 </div>
               </div>
@@ -594,41 +534,11 @@ function RecommendCarousel() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={slider.prev}
-              className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all hover:border-gray-400 active:scale-95"
-            >
-              <svg
-                className="w-4 h-4 text-gray-700"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
+            <button onClick={slider.prev} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all hover:border-gray-400 active:scale-95">
+              <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <button
-              onClick={slider.next}
-              className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all hover:border-gray-400 active:scale-95"
-            >
-              <svg
-                className="w-4 h-4 text-gray-700"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
+            <button onClick={slider.next} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all hover:border-gray-400 active:scale-95">
+              <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             </button>
           </div>
         </div>

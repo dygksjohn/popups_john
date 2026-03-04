@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+﻿import { useState, useEffect, useCallback } from "react";
 import PageHeader from "../components/PageHeader";
-import { Search, Loader2, ChevronLeft, ChevronRight, ChevronDown, Star, Plus } from "lucide-react";
+import { Search, Loader2, ChevronLeft, ChevronRight, X, Star } from "lucide-react";
 import { reviewApi } from "../../../app/http/reviewApi";
-import { replyApi } from "../../../app/http/replyApi";
+import { eventApi } from "../../../app/http/eventApi";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 
 const PAGE_SIZE = 10;
@@ -14,10 +13,7 @@ function fmtDate(dt) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** DB review_title 우선, 없으면 content 첫 줄로 제목 추출 */
-function getDisplayTitle(item) {
-  const t = item?.reviewTitle ?? item?.review_title ?? "";
-  if (t && String(t).trim()) return String(t).trim();
+function getReviewTitle(item) {
   const firstLine = String(item?.content || "")
     .split("\n")
     .map((line) => line.trim())
@@ -38,27 +34,118 @@ function renderStars(rating = 0) {
   ));
 }
 
-/** 작성자 표시: 영문 기준 5글자, 이메일 앞 2글자 + 나머지 * */
-function maskWriterEmail(email) {
-  if (!email || typeof email !== "string") return "-----";
-  const s = String(email).trim();
-  const first2 = s.slice(0, 2);
-  return (first2 + "***").slice(0, 5);
+function DetailModal({ item, onClose, eventNameMap }) {
+  if (!item) return null;
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 5000,
+          background: "rgba(0,0,0,0.4)",
+          backdropFilter: "blur(4px)",
+        }}
+      />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 5001,
+          background: "#fff",
+          borderRadius: 16,
+          width: "90%",
+          maxWidth: 760,
+          maxHeight: "85vh",
+          overflow: "auto",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+        }}
+      >
+        <div
+          style={{
+            padding: "24px 28px 0",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+          }}
+        >
+          <div style={{ flex: 1, paddingRight: 16 }}>
+            <span style={getBoardBadge("REVIEW").style}>{getBoardBadge("REVIEW").text}</span>
+            <h2
+              style={{
+                fontSize: 20,
+                fontWeight: 800,
+                color: "#1E293B",
+                margin: "10px 0 0",
+                lineHeight: 1.4,
+              }}
+            >
+              {getReviewTitle(item)}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              border: "1px solid #E2E8F0",
+              background: "#fff",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <X size={16} color="#94A3B8" />
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: "10px 28px 0",
+            display: "flex",
+            gap: 16,
+            flexWrap: "wrap",
+            fontSize: 13,
+            color: "#94A3B8",
+          }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+            {renderStars(item.rating || 0)}
+          </span>
+          <span>작성일 {fmtDate(item.createdAt)}</span>
+          <span>행사명 {eventNameMap?.[item.eventId] || "행사 정보 없음"}</span>
+        </div>
+
+        <div style={{ margin: "16px 28px", borderBottom: "1px solid #E2E8F0" }} />
+
+        <div style={{ padding: "0 28px 28px" }}>
+          <p
+            style={{
+              fontSize: 15,
+              color: "#334155",
+              lineHeight: 1.75,
+              whiteSpace: "pre-wrap",
+              margin: 0,
+            }}
+          >
+            {item.content || "내용이 없습니다."}
+          </p>
+        </div>
+      </div>
+    </>
+  );
 }
 
-const RATING_FILTER_OPTIONS = [
-  { value: "", label: "전체" },
-  { value: "5", label: "★★★★★" },
-  { value: "4", label: "★★★★" },
-  { value: "3", label: "★★★" },
-  { value: "2", label: "★★" },
-  { value: "1", label: "★" },
-];
-
 export default function Review() {
-  const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [ratingFilter, setRatingFilter] = useState("");
   const [currentPath, setCurrentPath] = useState("/community/review");
 
   const [items, setItems] = useState([]);
@@ -67,133 +154,52 @@ export default function Review() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const [openReplies, setOpenReplies] = useState({});
-  const [commentCache, setCommentCache] = useState({});
-  const [commentLoadingId, setCommentLoadingId] = useState(null);
-
-  const [showWriteModal, setShowWriteModal] = useState(false);
-  const [writeForm, setWriteForm] = useState({
-    eventId: "",
-    rating: 5,
-    content: "",
-  });
-  const [writeError, setWriteError] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const toggleReply = async (reviewId) => {
-    const nextOpen = !openReplies[reviewId];
-    setOpenReplies((prev) => ({ ...prev, [reviewId]: nextOpen }));
-
-    if (nextOpen) {
-      // 조회수 증가 + 최신 내용 동기화
-      try {
-        const fresh = await reviewApi.get(reviewId);
-        setItems((prev) =>
-          prev.map((it) =>
-            it.reviewId === reviewId ? { ...it, viewCount: fresh.viewCount } : it,
-          ),
-        );
-      } catch (e) {
-        console.error("[Review] fetch detail failed:", e);
-      }
-    }
-
-    if (nextOpen && !commentCache[reviewId]) {
-      setCommentLoadingId(reviewId);
-      try {
-        const res = await replyApi.list("REVIEW", reviewId, 0, 50);
-        const list = res?.content ?? [];
-        setCommentCache((prev) => ({ ...prev, [reviewId]: list }));
-      } catch (e) {
-        console.error("[Review] comments fetch failed:", e);
-        setCommentCache((prev) => ({ ...prev, [reviewId]: [] }));
-      } finally {
-        setCommentLoadingId(null);
-      }
-    }
-  };
+  const [selected, setSelected] = useState(null);
+  const [eventNameMap, setEventNameMap] = useState({});
 
   const fetchList = useCallback(async (p = 1) => {
     setLoading(true);
     setError(null);
-    const ratingNum = ratingFilter === "" ? undefined : parseInt(ratingFilter, 10);
-    const opts = { page: p - 1, size: PAGE_SIZE };
-    if (ratingNum >= 1 && ratingNum <= 5) opts.rating = ratingNum;
-    if (search?.trim()) opts.keyword = search.trim();
     try {
-      const d = await reviewApi.list(opts);
+      const d = await reviewApi.list({ page: p - 1, size: PAGE_SIZE });
       const content = Array.isArray(d?.content) ? d.content : [];
       setItems(content);
       setTotalPages(d?.totalPages || 0);
       setTotalElements(d?.totalElements ?? content.length);
       setPage(p);
+
+      const eventIds = [...new Set(content.map((row) => row?.eventId).filter(Boolean))];
+      if (eventIds.length > 0) {
+        const entries = await Promise.all(
+          eventIds.map(async (eventId) => {
+            try {
+              const res = await eventApi.getEventDetail(eventId);
+              const eventName = res?.data?.data?.eventName;
+              return [eventId, eventName || "행사 정보 없음"];
+            } catch {
+              return [eventId, "행사 정보 없음"];
+            }
+          }),
+        );
+        setEventNameMap((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+      }
     } catch (e) {
       console.error("[Review] list fetch failed:", e);
       setError("행사후기 목록을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
-  }, [ratingFilter, search]);
+  }, []);
 
   useEffect(() => {
     fetchList(1);
   }, [fetchList]);
 
-  const openWriteModal = () => {
-    setWriteForm({
-      eventId: "",
-      rating: 5,
-      content: "",
-    });
-    setWriteError("");
-    setShowWriteModal(true);
-  };
-
-  const handleSubmitReview = async () => {
-    if (!writeForm.eventId || String(writeForm.eventId).trim() === "") {
-      setWriteError("행사 번호(eventId)를 입력해주세요.");
-      return;
-    }
-    if (!writeForm.rating || writeForm.rating < 1 || writeForm.rating > 5) {
-      setWriteError("평점을 선택해주세요.");
-      return;
-    }
-    if (!writeForm.content || writeForm.content.trim() === "") {
-      setWriteError("후기 내용을 입력해주세요.");
-      return;
-    }
-
-    setSaving(true);
-    setWriteError("");
-    try {
-      await reviewApi.create({
-        eventId: Number(writeForm.eventId),
-        rating: writeForm.rating,
-        content: writeForm.content,
-      });
-      alert("후기가 등록되었습니다.");
-      setShowWriteModal(false);
-      fetchList(1);
-    } catch (e) {
-      console.error("[Review] create failed:", e);
-      const status = e?.response?.status;
-      if (status === 401 || status === 403) {
-        if (window.confirm("로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?")) {
-          navigate("/auth/login");
-        }
-      } else {
-        setWriteError(
-          e?.response?.data?.error?.message ||
-            e?.response?.data?.message ||
-            "후기 등록에 실패했습니다.",
-        );
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const filtered = items;
+  const filtered = items.filter((item) => {
+    if (!search.trim()) return true;
+    const q = search.trim();
+    return getReviewTitle(item).includes(q) || (item.content || "").includes(q);
+  });
 
   const badge = getBoardBadge("REVIEW");
 
@@ -207,7 +213,7 @@ export default function Review() {
         onNavigate={setCurrentPath}
       />
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes expandIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <main
         style={{
           maxWidth: "1400px",
@@ -234,108 +240,39 @@ export default function Review() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              border: "1px solid #ccc",
+              borderRadius: "6px",
+              overflow: "hidden",
+              background: "#fff",
             }}
           >
-            <div style={{ position: "relative" }}>
-              <select
-                value={ratingFilter}
-                onChange={(e) => setRatingFilter(e.target.value)}
-                style={{
-                  appearance: "none",
-                  WebkitAppearance: "none",
-                  border: "1px solid #ccc",
-                  borderRadius: "6px",
-                  padding: "8px 32px 8px 12px",
-                  fontSize: "14px",
-                  color: "#333",
-                  background: "#fff",
-                  cursor: "pointer",
-                  outline: "none",
-                  minWidth: "90px",
-                }}
-              >
-                {RATING_FILTER_OPTIONS.map((opt) => (
-                  <option key={opt.value || "all"} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <span
-                style={{
-                  position: "absolute",
-                  right: "10px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  pointerEvents: "none",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <ChevronDown size={14} color="#666" />
-              </span>
-            </div>
-            <div
+            <input
+              type="text"
+              placeholder="후기 내용 검색"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               style={{
-                display: "flex",
-                alignItems: "center",
-                border: "1px solid #ccc",
-                borderRadius: "6px",
-                overflow: "hidden",
-                background: "#fff",
-              }}
-            >
-              <input
-                type="text"
-                placeholder="후기 내용 검색"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  border: "none",
-                  outline: "none",
-                  padding: "8px 12px",
-                  fontSize: "14px",
-                  color: "#333",
-                  width: "240px",
-                  background: "transparent",
-                }}
-              />
-              <button
-                style={{
-                  border: "none",
-                  background: "#fff",
-                  padding: "8px 12px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Search size={16} strokeWidth={2} color="#555" />
-              </button>
-            </div>
-
-            <button
-              onClick={openWriteModal}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "8px 14px",
-                borderRadius: 6,
                 border: "none",
-                background: "#1B50D9",
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "'Noto Sans KR', sans-serif",
-                boxShadow: "0 2px 6px rgba(27,80,217,0.25)",
+                outline: "none",
+                padding: "8px 12px",
+                fontSize: "14px",
+                color: "#333",
+                width: "240px",
+                background: "transparent",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#1640B8")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#1B50D9")}
+            />
+            <button
+              style={{
+                border: "none",
+                background: "#fff",
+                padding: "8px 12px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              <Plus size={14} strokeWidth={2.3} /> 후기 등록
+              <Search size={16} strokeWidth={2} color="#555" />
             </button>
           </div>
         </div>
@@ -379,162 +316,30 @@ export default function Review() {
           <>
             <div>
               {filtered.map((item) => (
-                <div key={item.reviewId} style={{ borderBottom: "1px solid #e8e8e8" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "18px 4px",
-                      cursor: "pointer",
-                      transition: "background 0.15s",
-                      gap: "0",
-                    }}
-                    onClick={() => toggleReply(item.reviewId)}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f9f9f9")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <span style={{ ...badge.style, marginRight: 12 }}>{badge.text}</span>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        transition: "transform 0.2s ease",
-                        transform: openReplies[item.reviewId] ? "rotate(180deg)" : "rotate(0deg)",
-                        marginRight: 12,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <ChevronDown size={18} strokeWidth={2.5} color="#666" />
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        color: "#64748B",
-                        marginRight: 12,
-                        flexShrink: 0,
-                        maxWidth: 140,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {item.eventName ?? item.event_name ?? (item.eventId ? `행사 #${item.eventId}` : "-")}
-                    </span>
-                    <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 400, minWidth: 0 }}>
-                      {getDisplayTitle(item)}
-                    </span>
-                    <div
-                      style={{
-                        marginLeft: "auto",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", textAlign: "right" }}>
-                        {maskWriterEmail(item.writerEmail ?? item.email)}
-                      </span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 2, textAlign: "right" }}>
-                        {renderStars(item.rating || 0)}
-                      </span>
-                      <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", textAlign: "right" }}>
-                        작성일 {fmtDate(item.createdAt)}
-                      </span>
-                      <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", textAlign: "right" }}>
-                        조회수 {item.viewCount ?? 0}
-                      </span>
-                    </div>
-                  </div>
-
-                  {openReplies[item.reviewId] && (
-                    <div
-                      style={{
-                        padding: "16px 20px",
-                        background: "#fff",
-                        borderRadius: 10,
-                        border: "1px solid #e2e8f0",
-                        margin: "4px 4px 16px",
-                        animation: "expandIn .15s ease",
-                      }}
-                    >
-                      <p
-                        style={{
-                          fontSize: 14,
-                          color: "#334155",
-                          lineHeight: 1.7,
-                          whiteSpace: "pre-wrap",
-                          margin: "0 0 16px",
-                        }}
-                      >
-                        {item.content || "내용이 없습니다."}
-                      </p>
-                      {commentLoadingId === item.reviewId ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", fontSize: 13, color: "#64748B" }}>
-                          <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
-                          댓글 불러오는 중...
-                        </div>
-                      ) : (commentCache[item.reviewId]?.length > 0 ? (
-                        <div style={{ marginTop: 12, paddingTop: 8, borderTop: "1px solid #e2e8f0" }}>
-                          {commentCache[item.reviewId].map((c) => (
-                            <div
-                              key={c.replyId}
-                              style={{
-                                marginBottom: 8,
-                                fontSize: 13,
-                                color: "#334155",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "flex-start",
-                                  justifyContent: "space-between",
-                                  gap: 8,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "flex-start",
-                                    gap: 6,
-                                    flex: 1,
-                                    minWidth: 0,
-                                    paddingLeft: "4ch",
-                                  }}
-                                >
-                                  <span
-                                    style={{
-                                      whiteSpace: "pre-wrap",
-                                      wordBreak: "break-word",
-                                    }}
-                                  >
-                                    {c.content}
-                                  </span>
-                                </div>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 10,
-                                    fontSize: 12,
-                                    color: "#94A3B8",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  <span style={{ textAlign: "right" }}>
-                                    {maskWriterEmail(c.writerEmail ?? c.writer_email)}
-                                  </span>
-                                  <span style={{ textAlign: "right" }}>
-                                    작성일 {fmtDate(c.createdAt ?? c.created_at)}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null)}
-                    </div>
-                  )}
+                <div
+                  key={item.reviewId}
+                  onClick={() => setSelected(item)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "18px 6px",
+                    borderBottom: "1px solid #e8e8e8",
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f9f9f9")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span style={{ ...badge.style, marginRight: 12 }}>{badge.text}</span>
+                  <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500 }}>
+                    {getReviewTitle(item)}
+                  </span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 2, marginRight: 12 }}>
+                    {renderStars(item.rating || 0)}
+                  </span>
+                  <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap" }}>
+                    {fmtDate(item.createdAt)}
+                  </span>
                 </div>
               ))}
 
@@ -606,236 +411,9 @@ export default function Review() {
         )}
       </main>
 
-      {showWriteModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 5000,
-            background: "rgba(0,0,0,0.32)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onClick={() => {
-            if (!saving) setShowWriteModal(false);
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "480px",
-              maxWidth: "90vw",
-              background: "#fff",
-              borderRadius: "16px",
-              boxShadow: "0 24px 60px rgba(0,0,0,0.14)",
-              padding: "24px 24px 20px",
-              fontFamily: "'Noto Sans KR', sans-serif",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 18,
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "#111827",
-                }}
-              >
-                행사 후기 등록
-              </h3>
-              <button
-                type="button"
-                onClick={() => !saving && setShowWriteModal(false)}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 999,
-                  border: "1px solid #E5E7EB",
-                  background: "#fff",
-                  cursor: "pointer",
-                  fontSize: 16,
-                  lineHeight: "26px",
-                  textAlign: "center",
-                  color: "#9CA3AF",
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            {writeError && (
-              <div
-                style={{
-                  marginBottom: 14,
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  background: "#FEF2F2",
-                  color: "#B91C1C",
-                  fontSize: 13,
-                  border: "1px solid #FECACA",
-                }}
-              >
-                {writeError}
-              </div>
-            )}
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "#374151",
-                    marginBottom: 4,
-                  }}
-                >
-                  행사 번호 (eventId)
-                </label>
-                <input
-                  type="number"
-                  value={writeForm.eventId}
-                  onChange={(e) =>
-                    setWriteForm((prev) => ({ ...prev, eventId: e.target.value }))
-                  }
-                  placeholder="예: 3"
-                  style={{
-                    width: "100%",
-                    borderRadius: 8,
-                    border: "1px solid #E5E7EB",
-                    padding: "8px 10px",
-                    fontSize: 14,
-                  }}
-                />
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "#374151",
-                    marginBottom: 4,
-                  }}
-                >
-                  평점
-                </label>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  {Array.from({ length: 5 }, (_, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() =>
-                        setWriteForm((prev) => ({ ...prev, rating: idx + 1 }))
-                      }
-                      style={{
-                        border: "none",
-                        background: "transparent",
-                        padding: 0,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Star
-                        size={20}
-                        fill={idx < writeForm.rating ? "#F59E0B" : "none"}
-                        color={idx < writeForm.rating ? "#F59E0B" : "#D1D5DB"}
-                        strokeWidth={1.6}
-                      />
-                    </button>
-                  ))}
-                  <span style={{ fontSize: 13, color: "#6B7280", marginLeft: 4 }}>
-                    {writeForm.rating} / 5
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "#374151",
-                    marginBottom: 4,
-                  }}
-                >
-                  후기 내용
-                </label>
-                <textarea
-                  rows={6}
-                  value={writeForm.content}
-                  onChange={(e) =>
-                    setWriteForm((prev) => ({ ...prev, content: e.target.value }))
-                  }
-                  placeholder="행사에 참여해보신 소감을 자유롭게 남겨주세요."
-                  style={{
-                    width: "100%",
-                    borderRadius: 8,
-                    border: "1px solid #E5E7EB",
-                    padding: "8px 10px",
-                    fontSize: 14,
-                    resize: "vertical",
-                  }}
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 18,
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 8,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => !saving && setShowWriteModal(false)}
-                disabled={saving}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 8,
-                  border: "1px solid #E5E7EB",
-                  background: "#fff",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#4B5563",
-                  cursor: "pointer",
-                }}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmitReview}
-                disabled={saving}
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: "#1B50D9",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#fff",
-                  cursor: saving ? "default" : "pointer",
-                  opacity: saving ? 0.7 : 1,
-                }}
-              >
-                {saving ? "등록 중..." : "등록하기"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DetailModal item={selected} onClose={() => setSelected(null)} eventNameMap={eventNameMap} />
     </>
   );
 }
+
+

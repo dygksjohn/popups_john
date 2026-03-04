@@ -200,7 +200,7 @@ export default function ContestDetailPage() {
     <div className="cd-root">
       <style>{styles}</style>
       <PageHeader
-        title="콘테스트 및 투표"
+        title="콘테스트 안내"
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}

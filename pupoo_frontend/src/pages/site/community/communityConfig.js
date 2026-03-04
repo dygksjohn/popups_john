@@ -1,7 +1,7 @@
 ﻿export const COMMUNITY_CATEGORIES = [
   { label: "공지사항", path: "/community/notice" },
-  { label: "정보게시판", path: "/community/info" },
   { label: "자유게시판", path: "/community/freeboard" },
+  { label: "정보게시판", path: "/community/info" },
   { label: "행사후기", path: "/community/review" },
   { label: "질문/답변", path: "/community/qna" },
   { label: "자주묻는질문", path: "/community/faq" },
@@ -27,28 +27,28 @@ export const BOARD_BADGES = {
   },
   FREEBOARD: {
     text: "자유",
-    color: "#1D4ED8",
+    color: "#2563EB",
     background: "#DBEAFE",
   },
   REVIEW: {
     text: "후기",
-    color: "#047857",
-    background: "#D1FAE5",
+    color: "#16A34A",
+    background: "#DCFCE7",
   },
   QNA: {
     text: "QNA",
-    color: "#C2410C",
-    background: "#FFEDD5",
+    color: "#D97706",
+    background: "#FEF3C7",
   },
   FAQ: {
     text: "FAQ",
-    color: "#6D28D9",
-    background: "#EDE9FE",
+    color: "#9333EA",
+    background: "#F3E8FF",
   },
   INFO: {
     text: "정보",
-    color: "#0F766E",
-    background: "#CCFBF1",
+    color: "#0369A1",
+    background: "#E0F2FE",
   },
 };
 

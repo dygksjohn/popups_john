@@ -1,19 +1,19 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { LogIn, LogOut, UserPlus, UserCircle, Bell } from "lucide-react";
 import { notificationApi } from "../../../app/http/notificationApi";
 
-/* ?????????????????????????????????????????????
+/* ─────────────────────────────────────────────
    ICONS
-????????????????????????????????????????????? */
+───────────────────────────────────────────── */
 
 /**
  * IconButtonWithTooltip
- * - to媛 ?덉쑝硫?<Link> ?뚮뜑留?
- * - onClick???덉쑝硫?<button> ?뚮뜑留?
- * - tooltip? createPortal濡?body???뚮뜑留?
+ * - to가 있으면 <Link> 렌더링
+ * - onClick이 있으면 <button> 렌더링
+ * - tooltip은 createPortal로 body에 렌더링
  */
 
 const IconButtonWithTooltip = ({ children, tooltip, to, onClick }) => {
@@ -67,7 +67,7 @@ const IconButtonWithTooltip = ({ children, tooltip, to, onClick }) => {
       style={{ position: "relative", display: "inline-block" }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setHovered(false)}
-      title={tooltip} // ?묎렐???대갚
+      title={tooltip} // 접근성/폴백
     >
       {trigger}
 
@@ -158,11 +158,11 @@ const ArrowRight = ({ color = "#1c69d4" }) => (
   </svg>
 );
 
-/* ?????????????????????????????????????????????
+/* ─────────────────────────────────────────────
    NAV DATA
-????????????????????????????????????????????? */
+───────────────────────────────────────────── */
 const megaMenuData = {
-  event: {
+  행사: {
     columns: [
       {
         title: "행사 안내",
@@ -170,37 +170,38 @@ const megaMenuData = {
           { label: "현재 진행 행사", href: "/event/current" },
           { label: "예정 행사", href: "/event/upcoming" },
           { label: "종료 행사", href: "/event/closed" },
+          { label: "행사 사전 등록", href: "/event/preregister" },
+          { label: "행사 일정 안내", href: "/event/eventSchedule" },
         ],
       },
       {
         title: "프로그램/참여",
         items: [
-          { label: "전체 프로그램", href: "/program/schedule" },
           { label: "체험존 안내", href: "/program/experience" },
-          { label: "세션/강연", href: "/program/session" },
-          { label: "콘테스트 및 투표", href: "/program/contest" },
+          { label: "세션 · 강연", href: "/program/session" },
+          { label: "프로그램 안내", href: "/program/schedule" },
+          { label: "콘테스트 · 투표", href: "/program/contest" },
           { label: "부스 안내", href: "/program/booth" },
         ],
       },
     ],
     promo: {
       image: "https://picsum.photos/600/400",
-      description:
-        "오직 온라인에서만 만날 수 있는 pupoo를 경험해보세요.",
-      ctaLabel: "pupoo 온라인 바로가기",
+      description: "오직 온라인에서만 만나볼 수 있는 pupoo를 경험해보세요.",
+      ctaLabel: "pupoo 샵 온라인 바로가기",
       ctaHref: "#shop-online",
     },
   },
-  community: {
+  커뮤니티: {
     columns: [
       {
         title: "소통공간",
         items: [
           { label: "공지사항", href: "/community/notice" },
-          { label: "정보 게시판", href: "/community/info" },
           { label: "자유 게시판", href: "/community/freeboard" },
+          { label: "정보 게시판", href: "/community/info" },
           { label: "행사 후기", href: "/community/review" },
-          { label: "질문 및 답변", href: "/community/qna" },
+          { label: "질문 · 답변", href: "/community/qna" },
           { label: "자주묻는질문", href: "/community/faq" },
         ],
       },
@@ -208,19 +209,17 @@ const megaMenuData = {
         title: "미디어",
         items: [
           { label: "참가자 갤러리", href: "/gallery/eventgallery" },
-          { label: "현장 스케치", href: "/gallery/eventsketch" },
         ],
       },
     ],
     promo: {
       image: "https://picsum.photos/600/400",
-      description:
-        "오직 온라인에서만 만날 수 있는 pupoo를 경험해보세요.",
-      ctaLabel: "pupoo 온라인 바로가기",
+      description: "오직 온라인에서만 만나볼 수 있는 pupoo를 경험해보세요.",
+      ctaLabel: "pupoo 샵 온라인 바로가기",
       ctaHref: "#shop-online",
     },
   },
-  registration: {
+  참가신청: {
     columns: [
       {
         title: "참가신청",
@@ -234,20 +233,19 @@ const megaMenuData = {
       {
         title: "참여 안내",
         items: [
-          { label: "입장 운영 안내", href: "/guide/operation" },
-          { label: "장소/교통안내", href: "/guide/location" },
+          { label: "현장 운영 안내", href: "/guide/operation" },
+          { label: "장소/오시는길", href: "/guide/location" },
         ],
       },
     ],
     promo: {
       image: "https://picsum.photos/600/400",
-      description:
-        "오직 온라인에서만 만날 수 있는 pupoo를 경험해보세요.",
-      ctaLabel: "pupoo 온라인 바로가기",
+      description: "오직 온라인에서만 만나볼 수 있는 pupoo를 경험해보세요.",
+      ctaLabel: "pupoo 샵 온라인 바로가기",
       ctaHref: "#shop-online",
     },
   },
-  realtime: {
+  실시간현황: {
     columns: [
       {
         title: "실시간 현황",
@@ -261,24 +259,23 @@ const megaMenuData = {
     ],
     promo: {
       image: "https://picsum.photos/600/400",
-      description:
-        "오직 온라인에서만 만날 수 있는 pupoo를 경험해보세요.",
-      ctaLabel: "pupoo 온라인 바로가기",
+      description: "오직 온라인에서만 만나볼 수 있는 pupoo를 경험해보세요.",
+      ctaLabel: "pupoo 샵 온라인 바로가기",
       ctaHref: "#shop-online",
     },
   },
 };
 
 const navItems = [
-  { label: "행사", hasDropdown: true, menuKey: "event" },
-  { label: "커뮤니티", hasDropdown: true, menuKey: "community" },
-  { label: "참가신청", hasDropdown: true, menuKey: "registration" },
-  { label: "실시간현황", hasDropdown: true, menuKey: "realtime" },
+  { label: "행사", hasDropdown: true, menuKey: "행사" },
+  { label: "커뮤니티", hasDropdown: true, menuKey: "커뮤니티" },
+  { label: "참가신청", hasDropdown: true, menuKey: "참가신청" },
+  { label: "실시간현황", hasDropdown: true, menuKey: "실시간현황" },
 ];
 
-/* ?????????????????????????????????????????????
+/* ─────────────────────────────────────────────
    MEGA MENU ITEM
-????????????????????????????????????????????? */
+───────────────────────────────────────────── */
 const MegaMenuItem = ({ item }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -304,9 +301,9 @@ const MegaMenuItem = ({ item }) => {
   );
 };
 
-/* ?????????????????????????????????????????????
+/* ─────────────────────────────────────────────
    MEGA MENU PANEL
-????????????????????????????????????????????? */
+───────────────────────────────────────────── */
 const MegaMenu = ({ menuData }) => {
   if (!menuData) return null;
   const { columns, promo } = menuData;
@@ -437,9 +434,9 @@ const MegaMenu = ({ menuData }) => {
   );
 };
 
-/* ?????????????????????????????????????????????
+/* ─────────────────────────────────────────────
    INDIVIDUAL NAV BUTTON / LINK
-????????????????????????????????????????????? */
+───────────────────────────────────────────── */
 const NavItem = ({
   label,
   hasDropdown,
@@ -543,12 +540,12 @@ const NavItem = ({
   );
 };
 
-/* ?????????????????????????????????????????????
+/* ─────────────────────────────────────────────
    MAIN HEADER
-????????????????????????????????????????????? */
+───────────────────────────────────────────── */
 export default function PupooHeader() {
   const navigate = useNavigate();
-  const { isAuthed, logout } = useAuth(); // ??logoutLocal ?쒓굅
+  const { isAuthed, logout } = useAuth(); // ✅ logoutLocal 제거
   const [activeMenu, setActiveMenu] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);

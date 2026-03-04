@@ -20,11 +20,10 @@ export function unwrap(res) {
 // ✅ headers를 수동으로 넣지 않음 → interceptors.js가
 //    tokenStore의 사용자 토큰을 자동으로 Authorization에 붙여줌
 export const qnaApi = {
-  list: (uiPage = 1, size = 10, statusFilter) => {
-    const params = { page: uiPage - 1, size };
-    if (statusFilter != null && statusFilter !== "") params.statusFilter = statusFilter;
-    return axiosInstance.get("/api/qnas", { params });
-  },
+  list: (uiPage = 1, size = 10) =>
+    axiosInstance.get("/api/qnas", {
+      params: { page: uiPage - 1, size },
+    }),
 
   get: (qnaId) => axiosInstance.get(`/api/qnas/${qnaId}`),
 

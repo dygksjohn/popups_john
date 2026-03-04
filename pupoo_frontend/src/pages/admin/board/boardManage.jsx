@@ -121,14 +121,14 @@ function fmtDate(dt) {
 
 /* ── API → 컴포넌트 데이터 매핑 ── */
 function mapQnaFromApi(item) {
-  const isAnswered = item.status === "ANSWERED";
+  const isClosed = item.status === "CLOSED";
   return {
     id: item.qnaId ?? item.inquiryId ?? item.id,
     qnaId: item.qnaId ?? item.inquiryId ?? item.id,
     title: item.title ?? item.inquiryTitle ?? "",
     author: item.nickname ?? item.author ?? item.userName ?? "익명",
     content: item.content ?? "",
-    status: isAnswered ? "답변완료" : "대기중",
+    status: isClosed ? "답변완료" : "대기중",
     answer: item.answer ?? item.answerContent ?? "",
     answerDate: item.answeredAt
       ? fmtDate(item.answeredAt)
@@ -209,7 +209,7 @@ function Overlay({ children, onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.bg,
           borderRadius: 16,
           width: 520,
           maxHeight: "85vh",
@@ -240,7 +240,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
               width: 38,
               height: 38,
               borderRadius: 10,
-              background: "#FEF2F2",
+              background: ds.redSoft,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -257,7 +257,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
         <p
           style={{
             fontSize: 13.5,
-            color: "#64748B",
+            color: ds.ink3,
             lineHeight: 1.6,
             whiteSpace: "pre-line",
             margin: "0 0 24px",
@@ -272,13 +272,13 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
             style={{
               padding: "9px 20px",
               borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.bg,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#64748B",
+              color: ds.ink3,
             }}
           >
             취소
@@ -315,7 +315,7 @@ function Field({ label, children, required }) {
         style={{
           fontSize: 12,
           fontWeight: 700,
-          color: "#64748B",
+          color: ds.ink3,
           marginBottom: 7,
           display: "block",
         }}
@@ -330,21 +330,21 @@ const inputStyle = {
   width: "100%",
   padding: "10px 14px",
   borderRadius: 9,
-  border: "1.5px solid #E2E8F0",
+  border: `1.5px solid ${ds.line}`,
   fontSize: 13.5,
   fontFamily: ds.ff,
   color: ds.ink,
   outline: "none",
   boxSizing: "border-box",
   transition: "border-color .15s, box-shadow .15s",
-  background: "#fff",
+  background: ds.bg,
 };
 const inputFocus = (e) => {
   e.target.style.borderColor = ds.brand;
   e.target.style.boxShadow = `0 0 0 3px ${ds.brand}15`;
 };
 const inputBlur = (e) => {
-  e.target.style.borderColor = "#E2E8F0";
+  e.target.style.borderColor = ds.line;
   e.target.style.boxShadow = "none";
 };
 
@@ -357,7 +357,7 @@ function StarRating({ value, onChange, readonly }) {
           key={i}
           size={16}
           fill={i <= value ? "#F59E0B" : "none"}
-          color={i <= value ? "#F59E0B" : "#CBD5E1"}
+          color={i <= value ? "#F59E0B" : ds.ink4}
           style={{ cursor: readonly ? "default" : "pointer" }}
           onClick={() => !readonly && onChange?.(i)}
         />
@@ -369,8 +369,8 @@ function StarRating({ value, onChange, readonly }) {
 /* ── 상태 필 ── */
 function StatusPill({ status }) {
   const map = {
-    답변완료: { bg: "#ECFDF5", color: "#059669", dot: "#10B981" },
-    대기중: { bg: "#FFF7ED", color: "#D97706", dot: "#F59E0B" },
+    답변완료: { bg: ds.greenSoft, color: "#059669", dot: "#10B981" },
+    대기중: { bg: ds.amberSoft, color: "#D97706", dot: "#F59E0B" },
   };
   const s = map[status] || map["대기중"];
   return (
@@ -442,19 +442,19 @@ function DetailModal({
               height: 28,
               borderRadius: 7,
               border: "none",
-              background: "#F1F5F9",
+              background: ds.lineSoft,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <X size={14} color="#94A3B8" />
+            <X size={14} color={ds.ink4} />
           </button>
         </div>
         <div
           style={{
-            background: "#F8FAFC",
+            background: ds.bg,
             borderRadius: 12,
             padding: 20,
             marginBottom: 16,
@@ -506,11 +506,11 @@ function DetailModal({
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "9px 0",
-                  borderBottom: "1px solid #E2E8F0",
+                  borderBottom: `1px solid ${ds.line}`,
                 }}
               >
                 <span
-                  style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}
+                  style={{ fontSize: 13, color: ds.ink3, fontWeight: 500 }}
                 >
                   {r.l}
                 </span>
@@ -527,13 +527,13 @@ function DetailModal({
             ))}
           {item.content && (
             <div style={{ marginTop: 14 }}>
-              <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>
+              <span style={{ fontSize: 12, color: ds.ink4, fontWeight: 600 }}>
                 내용
               </span>
               <p
                 style={{
                   fontSize: 13,
-                  color: "#475569",
+                  color: ds.ink3,
                   lineHeight: 1.65,
                   marginTop: 6,
                 }}
@@ -550,7 +550,7 @@ function DetailModal({
             <div
               style={{
                 padding: "14px 16px",
-                background: "#EFF6FF",
+                background: ds.skySoft,
                 borderRadius: 10,
                 borderLeft: `3px solid ${ds.brand}`,
               }}
@@ -584,7 +584,7 @@ function DetailModal({
                   </span>
                   {item.answerDate && (
                     <span
-                      style={{ fontSize: 11, color: "#94A3B8", marginLeft: 4 }}
+                      style={{ fontSize: 11, color: ds.ink4, marginLeft: 4 }}
                     >
                       {item.answerDate}
                     </span>
@@ -613,7 +613,7 @@ function DetailModal({
               <p
                 style={{
                   fontSize: 13,
-                  color: "#475569",
+                  color: ds.ink3,
                   lineHeight: 1.65,
                   margin: 0,
                 }}
@@ -626,7 +626,7 @@ function DetailModal({
           {(isReplying || (!hasReply && isQna)) && (
             <div
               style={{
-                border: `1.5px solid ${isReplying ? ds.brand : "#E2E8F0"}`,
+                border: `1.5px solid ${isReplying ? ds.brand : ds.line}`,
                 borderRadius: 10,
                 overflow: "hidden",
                 transition: "border-color .15s",
@@ -635,8 +635,8 @@ function DetailModal({
               <div
                 style={{
                   padding: "10px 14px 8px",
-                  background: "#F8FAFC",
-                  borderBottom: "1px solid #F1F5F9",
+                  background: ds.bg,
+                  borderBottom: `1px solid ${ds.line}`,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
@@ -656,7 +656,7 @@ function DetailModal({
                   <MessageCircle size={10} color="#fff" />
                 </div>
                 <span
-                  style={{ fontSize: 12, fontWeight: 700, color: "#64748B" }}
+                  style={{ fontSize: 12, fontWeight: 700, color: ds.ink3 }}
                 >
                   {hasReply ? "답변 수정" : "운영자 답변 작성"}
                 </span>
@@ -674,17 +674,18 @@ function DetailModal({
                   fontFamily: ds.ff,
                   color: ds.ink,
                   outline: "none",
+                  background: ds.bg,
                   resize: "vertical",
                   boxSizing: "border-box",
                   lineHeight: 1.6,
-                  background: "#fff",
+                  background: ds.bg,
                 }}
               />
               <div
                 style={{
                   padding: "8px 12px",
-                  background: "#F8FAFC",
-                  borderTop: "1px solid #F1F5F9",
+                  background: ds.bg,
+                  borderTop: `1px solid ${ds.line}`,
                   display: "flex",
                   justifyContent: "flex-end",
                   gap: 6,
@@ -699,13 +700,13 @@ function DetailModal({
                     style={{
                       padding: "6px 14px",
                       borderRadius: 6,
-                      border: "1px solid #E2E8F0",
-                      background: "#fff",
+                      border: `1px solid ${ds.line}`,
+                      background: ds.bg,
                       fontSize: 12,
                       fontWeight: 600,
                       cursor: "pointer",
                       fontFamily: ds.ff,
-                      color: "#64748B",
+                      color: ds.ink3,
                     }}
                   >
                     취소
@@ -719,7 +720,7 @@ function DetailModal({
                     borderRadius: 6,
                     border: "none",
                     background:
-                      replyText.trim() && !replyLoading ? ds.brand : "#CBD5E1",
+                      replyText.trim() && !replyLoading ? ds.brand : ds.ink4,
                     color: "#fff",
                     fontSize: 12,
                     fontWeight: 700,
@@ -749,13 +750,13 @@ function DetailModal({
             style={{
               padding: "9px 16px",
               borderRadius: 8,
-              border: "1px solid #FECACA",
-              background: "#FEF2F2",
+              border: `1px solid ${ds.red}33`,
+              background: ds.redSoft,
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#DC2626",
+              color: ds.red,
               display: "flex",
               alignItems: "center",
               gap: 6,
@@ -882,7 +883,7 @@ function SlidePanel({
           bottom: 0,
           zIndex: 5000,
           width: 440,
-          background: "#fff",
+          background: ds.bg,
           boxShadow: "-4px 0 30px rgba(0,0,0,0.08)",
           display: "flex",
           flexDirection: "column",
@@ -892,7 +893,7 @@ function SlidePanel({
         <div
           style={{
             padding: "20px 24px",
-            borderBottom: "1px solid #F1F5F9",
+            borderBottom: `1px solid ${ds.line}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -910,7 +911,7 @@ function SlidePanel({
             >
               {config.formTitle(isEdit)}
             </h3>
-            <p style={{ fontSize: 11.5, color: "#94A3B8", margin: "3px 0 0" }}>
+            <p style={{ fontSize: 11.5, color: ds.ink4, margin: "3px 0 0" }}>
               {config.formSub(isEdit)}
             </p>
           </div>
@@ -920,27 +921,27 @@ function SlidePanel({
               width: 30,
               height: 30,
               borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.bg,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <X size={14} color="#94A3B8" />
+            <X size={14} color={ds.ink4} />
           </button>
         </div>
         <div style={{ flex: 1, overflow: "auto", padding: "24px" }}>
           {err && (
             <div
               style={{
-                background: "#FEF2F2",
-                border: "1px solid #FECACA",
+                background: ds.redSoft,
+                border: `1px solid ${ds.red}33`,
                 borderRadius: 9,
                 padding: "10px 14px",
                 fontSize: 12.5,
-                color: "#DC2626",
+                color: ds.red,
                 marginBottom: 18,
                 fontWeight: 600,
                 display: "flex",
@@ -993,8 +994,8 @@ function SlidePanel({
                     width: 18,
                     height: 18,
                     borderRadius: 5,
-                    border: form.pinned ? "none" : "1.8px solid #CBD5E1",
-                    background: form.pinned ? ds.brand : "#fff",
+                    border: form.pinned ? "none" : `1.8px solid ${ds.line}`,
+                    background: form.pinned ? ds.brand : ds.card,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1005,7 +1006,7 @@ function SlidePanel({
                     <Check size={12} color="#fff" strokeWidth={3} />
                   )}
                 </div>
-                <span style={{ fontSize: 13, color: "#475569" }}>
+                <span style={{ fontSize: 13, color: ds.ink3 }}>
                   상단 고정
                 </span>
               </div>
@@ -1086,7 +1087,7 @@ function SlidePanel({
         <div
           style={{
             padding: "14px 24px",
-            borderTop: "1px solid #F1F5F9",
+            borderTop: `1px solid ${ds.line}`,
             display: "flex",
             gap: 10,
             flexShrink: 0,
@@ -1099,13 +1100,13 @@ function SlidePanel({
               flex: 1,
               padding: "11px 0",
               borderRadius: 9,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
+              border: `1px solid ${ds.line}`,
+              background: ds.bg,
               fontSize: 13.5,
               fontWeight: 600,
               cursor: "pointer",
               fontFamily: ds.ff,
-              color: "#64748B",
+              color: ds.ink3,
             }}
           >
             취소
@@ -1149,8 +1150,8 @@ function Checkbox({ checked, onChange, size = 18 }) {
         width: size,
         height: size,
         borderRadius: 5,
-        border: checked ? "none" : "1.8px solid #CBD5E1",
-        background: checked ? ds.brand : "#fff",
+        border: checked ? "none" : `1.8px solid ${ds.line}`,
+        background: checked ? ds.brand : ds.bg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -1185,7 +1186,7 @@ function BoardRow({
         display: "flex",
         alignItems: "center",
         padding: "13px 20px",
-        borderBottom: "1px solid #F8FAFC",
+        borderBottom: `1px solid ${ds.lineSoft}`,
         cursor: "pointer",
         transition: "background .1s",
         position: "relative",
@@ -1194,7 +1195,7 @@ function BoardRow({
       onMouseEnter={(e) =>
         (e.currentTarget.style.background = checked
           ? `${ds.brand}0A`
-          : "#F4F6F8")
+          : ds.bg)
       }
       onMouseLeave={(e) =>
         (e.currentTarget.style.background = checked
@@ -1235,7 +1236,7 @@ function BoardRow({
         style={{
           flex: 1,
           fontSize: 13.5,
-          color: "#475569",
+          color: ds.ink3,
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
@@ -1269,8 +1270,8 @@ function BoardRow({
         <span
           style={{
             fontSize: 11,
-            color: "#94A3B8",
-            background: "#F1F5F9",
+            color: ds.ink4,
+            background: ds.lineSoft,
             padding: "2px 8px",
             borderRadius: 4,
             marginRight: 10,
@@ -1308,7 +1309,7 @@ function BoardRow({
           alignItems: "center",
           gap: 4,
           fontSize: 12,
-          color: "#94A3B8",
+          color: ds.ink4,
           marginRight: 16,
           flexShrink: 0,
           minWidth: 50,
@@ -1321,7 +1322,7 @@ function BoardRow({
       <span
         style={{
           fontSize: 13,
-          color: "#94A3B8",
+          color: ds.ink4,
           flexShrink: 0,
           minWidth: 80,
           textAlign: "right",
@@ -1388,7 +1389,7 @@ function BoardRow({
             transition: "all .12s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#FEF2F2";
+            e.currentTarget.style.background = ds.redSoft;
             e.currentTarget.style.opacity = "1";
           }}
           onMouseLeave={(e) => {
@@ -1420,10 +1421,10 @@ function LoadingIndicator() {
     >
       <Loader2
         size={28}
-        color="#94A3B8"
+        color={ds.ink4}
         style={{ animation: "spin 1s linear infinite" }}
       />
-      <span style={{ fontSize: 13, color: "#94A3B8" }}>불러오는 중...</span>
+      <span style={{ fontSize: 13, color: ds.ink4 }}>불러오는 중...</span>
     </div>
   );
 }
@@ -2076,9 +2077,9 @@ export default function BoardManage({ subTab = "free" }) {
 
       <div
         style={{
-          background: "#fff",
+          background: ds.bg,
           borderRadius: 12,
-          border: "1px solid #F1F5F9",
+          border: `1px solid ${ds.line}`,
           overflow: "hidden",
         }}
       >
@@ -2089,7 +2090,7 @@ export default function BoardManage({ subTab = "free" }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            borderBottom: "1px solid #F1F5F9",
+            borderBottom: `1px solid ${ds.line}`,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -2100,7 +2101,7 @@ export default function BoardManage({ subTab = "free" }) {
             <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
               {config.title}
             </span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: ds.ink4 }}>
               총 {totalCount}개
             </span>
             {hasSelected && (
@@ -2128,11 +2129,11 @@ export default function BoardManage({ subTab = "free" }) {
                   gap: 4,
                   padding: "7px 12px",
                   borderRadius: 7,
-                  border: "1px solid #FECACA",
-                  background: "#FEF2F2",
+                  border: `1px solid ${ds.red}33`,
+                  background: ds.redSoft,
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "#DC2626",
+                  color: ds.red,
                   cursor: "pointer",
                   fontFamily: ds.ff,
                 }}
@@ -2149,11 +2150,11 @@ export default function BoardManage({ subTab = "free" }) {
                   gap: 4,
                   padding: "7px 12px",
                   borderRadius: 7,
-                  border: "1px solid #E2E8F0",
-                  background: "#fff",
+                  border: `1px solid ${ds.line}`,
+                  background: ds.bg,
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "#64748B",
+                  color: ds.ink3,
                   cursor: "pointer",
                   fontFamily: ds.ff,
                 }}
@@ -2170,19 +2171,20 @@ export default function BoardManage({ subTab = "free" }) {
                   width: 220,
                   padding: "7px 14px 7px 34px",
                   borderRadius: 8,
-                  border: "1px solid #E2E8F0",
+                  border: `1px solid ${ds.line}`,
                   fontSize: 13,
                   fontFamily: ds.ff,
                   color: ds.ink,
                   outline: "none",
+                  background: ds.bg,
                   transition: "border-color .15s",
                 }}
                 onFocus={(e) => (e.target.style.borderColor = ds.brand)}
-                onBlur={(e) => (e.target.style.borderColor = "#E2E8F0")}
+                onBlur={(e) => (e.target.style.borderColor = ds.line)}
               />
               <Search
                 size={14}
-                color="#94A3B8"
+                color={ds.ink4}
                 style={{
                   position: "absolute",
                   left: 11,
@@ -2239,7 +2241,7 @@ export default function BoardManage({ subTab = "free" }) {
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: "#64748B",
+                color: ds.ink3,
                 marginBottom: 8,
               }}
             >
@@ -2250,12 +2252,12 @@ export default function BoardManage({ subTab = "free" }) {
               style={{
                 padding: "8px 20px",
                 borderRadius: 8,
-                border: "1px solid #E2E8F0",
-                background: "#fff",
+                border: `1px solid ${ds.line}`,
+                background: ds.bg,
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: "pointer",
-                color: "#64748B",
+                color: ds.ink3,
               }}
             >
               다시 시도
@@ -2286,7 +2288,7 @@ export default function BoardManage({ subTab = "free" }) {
             <div
               style={{
                 fontSize: 13,
-                color: "#94A3B8",
+                color: ds.ink4,
                 fontWeight: 600,
                 marginTop: 12,
               }}
@@ -2327,13 +2329,13 @@ export default function BoardManage({ subTab = "free" }) {
               {boardType === "qna" ? (
                 <HelpCircle
                   size={36}
-                  color="#CBD5E1"
+                  color={ds.ink4}
                   style={{ marginBottom: 12 }}
                 />
               ) : (
                 <Search
                   size={36}
-                  color="#CBD5E1"
+                  color={ds.ink4}
                   style={{ marginBottom: 12 }}
                 />
               )}
@@ -2341,13 +2343,13 @@ export default function BoardManage({ subTab = "free" }) {
                 style={{
                   fontSize: 14,
                   fontWeight: 600,
-                  color: "#64748B",
+                  color: ds.ink3,
                   marginBottom: 4,
                 }}
               >
                 {config.emptyMsg}
               </div>
-              <div style={{ fontSize: 12.5, color: "#94A3B8" }}>
+              <div style={{ fontSize: 12.5, color: ds.ink4 }}>
                 {config.emptySub}
               </div>
             </div>
@@ -2372,7 +2374,7 @@ export default function BoardManage({ subTab = "free" }) {
               background: "none",
               border: "none",
               fontSize: 16,
-              color: qnaPage <= 1 ? "#ddd" : "#888",
+              color: qnaPage <= 1 ? ds.ink4 : ds.ink3,
               cursor: qnaPage <= 1 ? "default" : "pointer",
               padding: "4px 8px",
             }}
@@ -2386,7 +2388,7 @@ export default function BoardManage({ subTab = "free" }) {
               style={{
                 fontSize: 14,
                 fontWeight: i + 1 === qnaPage ? 700 : 500,
-                color: i + 1 === qnaPage ? ds.brand : "#333",
+                color: i + 1 === qnaPage ? ds.brand : ds.ink3,
                 background: "none",
                 border: "none",
                 cursor: "pointer",
@@ -2405,7 +2407,7 @@ export default function BoardManage({ subTab = "free" }) {
               background: "none",
               border: "none",
               fontSize: 16,
-              color: qnaPage >= qnaTotalPages ? "#ddd" : "#888",
+              color: qnaPage >= qnaTotalPages ? ds.ink4 : ds.ink3,
               cursor: qnaPage >= qnaTotalPages ? "default" : "pointer",
               padding: "4px 8px",
             }}

@@ -419,7 +419,7 @@ function VoteContent({ onNavigate, eventId }) {
           <div>
             <div className="vt-cta-text">투표에 참여하고 싶으신가요?</div>
             <div className="vt-cta-sub">
-              콘테스트 및 투표 페이지에서 바로 투표하세요
+              콘테스트 안내 페이지에서 바로 투표하세요
             </div>
           </div>
         </div>

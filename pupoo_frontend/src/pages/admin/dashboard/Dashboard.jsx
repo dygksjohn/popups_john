@@ -5,6 +5,7 @@ import {
   Archive,
   Megaphone,
   Bell,
+  LogOut,
   Settings,
   PawPrint,
   LayoutGrid,
@@ -36,7 +37,7 @@ import ds, { cardStyle } from "../shared/designTokens";
 import { KpiCard, ChartTip } from "../shared/Components";
 import DATA from "../shared/data";
 import { axiosInstance } from "../../../app/http/axiosInstance";
-import { getToken } from "../../../api/noticeApi";
+import { getToken, clearToken } from "../../../api/noticeApi";
 
 /* 페이지 import */
 import EventManage from "../event/eventManage";
@@ -79,17 +80,17 @@ const globalStyles = `
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(30, 30, 40, 0.15);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(30, 30, 40, 0.32);
+  background: rgba(255, 255, 255, 0.2);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-/* 사이드바 전용 (밝은 톤 thumb) */
+/* 사이드바 전용 */
 aside ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.07);
 }
@@ -100,7 +101,7 @@ aside ::-webkit-scrollbar-thumb:hover {
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(30, 30, 40, 0.15) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 aside * {
   scrollbar-color: rgba(255, 255, 255, 0.07) transparent;
@@ -164,9 +165,24 @@ const DEFAULT_PAGE_TABS = {
     { id: "pending", label: "대기", count: 0 },
   ],
   pastEvents: [{ id: "all", label: "전체 행사" }],
-  zoneManage: [{ id: "all", label: "체험존 목록" }],
-  contestManage: [{ id: "all", label: "콘테스트 목록" }],
-  sessionManage: [{ id: "all", label: "세션 목록" }],
+  zoneManage: [
+    { id: "all", label: "전체", count: 0 },
+    { id: "active", label: "운영 중", count: 0 },
+    { id: "ended", label: "종료", count: 0 },
+    { id: "pending", label: "대기", count: 0 },
+  ],
+  contestManage: [
+    { id: "all", label: "전체", count: 0 },
+    { id: "active", label: "운영 중", count: 0 },
+    { id: "ended", label: "종료", count: 0 },
+    { id: "pending", label: "대기", count: 0 },
+  ],
+  sessionManage: [
+    { id: "all", label: "전체", count: 0 },
+    { id: "active", label: "운영 중", count: 0 },
+    { id: "ended", label: "종료", count: 0 },
+    { id: "pending", label: "대기", count: 0 },
+  ],
   boardManage: [
     { id: "free", label: "자유게시판" },
     { id: "info", label: "정보게시판" },
@@ -181,7 +197,12 @@ const DEFAULT_PAGE_TABS = {
     { id: "checkin", label: "체크인 관리" },
     { id: "session", label: "체험 세션" },
   ],
-  paymentManage: [{ id: "all", label: "결제 내역" }],
+  paymentManage: [
+    { id: "all", label: "전체", count: 0 },
+    { id: "active", label: "운영 중", count: 0 },
+    { id: "ended", label: "종료", count: 0 },
+    { id: "pending", label: "대기", count: 0 },
+  ],
   alertManage: [{ id: "all", label: "알림 내역" }],
 };
 
@@ -225,20 +246,20 @@ function TodayGreeting() {
           display: "flex",
           alignItems: "center",
           gap: 6,
-          background: "#F8FAFC",
+          background: ds.bg,
           borderRadius: 8,
           padding: "5px 12px",
         }}
       >
-        <CalendarDays size={13} color="#94A3B8" />
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+        <CalendarDays size={13} color={ds.ink4} />
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: ds.ink3 }}>
           {formatted}
         </span>
-        <span style={{ fontSize: 11, color: "#94A3B8", fontWeight: 500 }}>
+        <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 500 }}>
           {timeStr}
         </span>
       </div>
-      <span style={{ fontSize: 12.5, color: "#94A3B8", fontWeight: 500 }}>
+      <span style={{ fontSize: 12.5, color: ds.ink4, fontWeight: 500 }}>
         {greeting} 👋
       </span>
     </div>
@@ -715,7 +736,7 @@ function PageHome() {
                     width: 30,
                     height: 30,
                     borderRadius: 8,
-                    background: `linear-gradient(135deg, ${colors[i]}22, ${colors[i]}44)`,
+                    background: `${colors[i]}22`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -749,7 +770,7 @@ function PageHome() {
 export default function Dashboard() {
   const [nav, setNav] = useState("dashboard");
   const [subTab, setSubTab] = useState(null);
-  const [bellAnim, setBellAnim] = useState(false);
+  // bellAnim removed — logout button now
   const [pageTabs, setPageTabs] = useState(DEFAULT_PAGE_TABS);
   const [eventMenuBadge, setEventMenuBadge] = useState(0);
 
@@ -770,19 +791,47 @@ export default function Dashboard() {
       const events = Array.isArray(eventList) ? eventList : [];
       const programs = Array.isArray(programList) ? programList : [];
 
+      /* 날짜 기반 상태 계산 — 각 관리 페이지의 calcStatus와 동일 로직 */
+      const calcSt = (startAt, endAt) => {
+        if (!startAt && !endAt) return "pending";
+        const now = new Date();
+        const s = startAt
+          ? new Date(String(startAt).includes("T") ? startAt : startAt + "T00:00:00+09:00")
+          : null;
+        const e = endAt
+          ? new Date(String(endAt).includes("T") ? endAt : endAt + "T23:59:59+09:00")
+          : null;
+        if (e && now > e) return "ended";
+        if (s && now < s) return "pending";
+        return "active";
+      };
+
+      const evComputed = events.map((e) => calcSt(
+        e.startAt ?? e.startDateTime ?? e.startDate ?? e.date?.split("~")[0]?.trim(),
+        e.endAt ?? e.endDateTime ?? e.endDate ?? e.date?.split("~")[1]?.trim(),
+      ));
+      const prComputed = programs.map((p) => calcSt(p.startAt, p.endAt));
+
       const eventCounts = {
         all: events.length,
-        active: events.filter((e) => e?.status === "active").length,
-        ended: events.filter((e) => e?.status === "ended").length,
-        new: events.filter((e) => e?.status === "pending").length,
+        active: evComputed.filter((s) => s === "active").length,
+        ended: evComputed.filter((s) => s === "ended").length,
+        pending: evComputed.filter((s) => s === "pending").length,
       };
 
       const programCounts = {
         all: programs.length,
-        active: programs.filter((p) => p?.status === "active").length,
-        ended: programs.filter((p) => p?.status === "ended").length,
-        pending: programs.filter((p) => p?.status === "pending").length,
+        active: prComputed.filter((s) => s === "active").length,
+        ended: prComputed.filter((s) => s === "ended").length,
+        pending: prComputed.filter((s) => s === "pending").length,
       };
+
+      const evTabRow = (label = "전체") => [
+        { id: "all", label, count: eventCounts.all },
+        { id: "active", label: "운영 중", count: eventCounts.active },
+        { id: "ended", label: "종료", count: eventCounts.ended },
+        { id: "pending", label: "대기", count: eventCounts.pending },
+      ];
 
       setPageTabs((prev) => ({
         ...prev,
@@ -790,7 +839,7 @@ export default function Dashboard() {
           { id: "all", label: "전체 이벤트", count: eventCounts.all },
           { id: "active", label: "진행 중", count: eventCounts.active },
           { id: "ended", label: "종료", count: eventCounts.ended },
-          { id: "new", label: "신규", count: eventCounts.new },
+          { id: "new", label: "신규", count: eventCounts.pending },
         ],
         programManage: [
           { id: "all", label: "전체", count: programCounts.all },
@@ -798,6 +847,10 @@ export default function Dashboard() {
           { id: "ended", label: "종료", count: programCounts.ended },
           { id: "pending", label: "대기", count: programCounts.pending },
         ],
+        zoneManage: evTabRow("전체"),
+        contestManage: evTabRow("전체"),
+        sessionManage: evTabRow("전체"),
+        paymentManage: evTabRow("전체"),
       }));
       setEventMenuBadge(eventCounts.all);
     } catch (err) {
@@ -806,9 +859,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (nav === "dashboard" || nav === "eventManage" || nav === "programManage") {
-      loadTabCounts();
-    }
+    loadTabCounts();
   }, [nav, loadTabCounts]);
 
   const tabs = pageTabs[nav] || [];
@@ -829,11 +880,11 @@ export default function Dashboard() {
       case "pastEvents":
         return <PastEvents />;
       case "zoneManage":
-        return <ZoneManage />;
+        return <ZoneManage subTab={activeTab} />;
       case "contestManage":
-        return <ContestManage />;
+        return <ContestManage subTab={activeTab} />;
       case "sessionManage":
-        return <SessionManage />;
+        return <SessionManage subTab={activeTab} />;
       case "boardManage":
         return <BoardManage subTab={activeTab} />;
       case "notice":
@@ -843,7 +894,7 @@ export default function Dashboard() {
       case "participantList":
         return <ParticipantList subTab={activeTab} />;
       case "paymentManage":
-        return <PaymentManage />;
+        return <PaymentManage subTab={activeTab} />;
       case "alertManage":
         return <AlertManage />;
       default:
@@ -887,11 +938,11 @@ export default function Dashboard() {
                 width: 34,
                 height: 34,
                 borderRadius: 9,
-                background: "linear-gradient(135deg, #4361EE, #3d34c1)",
+                background: ds.brand,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 2px 10px rgba(67,97,238,0.3)",
+                boxShadow: `0 2px 10px ${ds.brand}44`,
               }}
             >
               <PawPrint size={18} color="#fff" strokeWidth={2.5} />
@@ -1023,7 +1074,7 @@ export default function Dashboard() {
                 width: 30,
                 height: 30,
                 borderRadius: 8,
-                background: "linear-gradient(135deg, #818CF8, #7C3AED)",
+                background: ds.brand,
                 color: "#fff",
                 display: "flex",
                 alignItems: "center",
@@ -1084,42 +1135,34 @@ export default function Dashboard() {
               {/* ── 오늘 날짜 + 인사말 ── */}
               <TodayGreeting />
 
-              {/* 벨 아이콘 */}
-              <div
-                style={{ position: "relative" }}
-                onMouseEnter={() => setBellAnim(true)}
-                onAnimationEnd={() => setBellAnim(false)}
+              {/* 로그아웃 */}
+              <button
+                onClick={() => {
+                  clearToken();
+                  window.location.href = "/admin/login";
+                }}
+                style={{
+                  height: 32,
+                  padding: "0 12px",
+                  borderRadius: ds.rs,
+                  border: `1px solid ${ds.line}`,
+                  background: ds.bg,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: ds.ink3,
+                  fontFamily: ds.ff,
+                  transition: "all .15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = ds.redSoft; e.currentTarget.style.color = ds.red; e.currentTarget.style.borderColor = `${ds.red}33`; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = ds.bg; e.currentTarget.style.color = ds.ink3; e.currentTarget.style.borderColor = ds.line; }}
               >
-                <button
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: ds.rs,
-                    border: `1px solid ${ds.line}`,
-                    background: ds.card,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transformOrigin: "top center",
-                    animation: bellAnim ? "bellRing 0.8s ease-in-out" : "none",
-                  }}
-                >
-                  <Bell size={15} color={ds.ink3} />
-                </button>
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 5,
-                    right: 5,
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: ds.red,
-                    border: "2px solid #fff",
-                  }}
-                />
-              </div>
+                <LogOut size={13} />
+                로그아웃
+              </button>
             </div>
           </header>
 

@@ -10,6 +10,7 @@ import {
   Clock,
   Check,
   CalendarDays,
+  MapPin,
   ImagePlus,
   BarChart3,
   Heart,
@@ -23,14 +24,16 @@ import {
   AlertCircle,
   Info,
 } from "lucide-react";
-import ds from "../shared/designTokens";
+import ds, { statusMap } from "../shared/designTokens";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
+import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 
 /* ═══════════════════════════════════════════
    Styles
 ═══════════════════════════════════════════ */
 const styles = `
+.card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;filter:none!important;opacity:1!important;-webkit-tap-highlight-color:transparent;}
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -48,19 +51,19 @@ const inputStyle = {
   width: "100%",
   padding: "10px 14px",
   borderRadius: 9,
-  border: "1.5px solid #E2E8F0",
+  border: `1.5px solid ${ds.line}`,
   fontSize: 13.5,
   fontFamily: ds.ff,
   color: ds.ink,
   outline: "none",
   boxSizing: "border-box",
-  background: "#fff",
+  background: ds.bg,
 };
 const inputFocus = (e) => {
   e.target.style.borderColor = "#8B5CF6";
 };
 const inputBlur = (e) => {
-  e.target.style.borderColor = "#E2E8F0";
+  e.target.style.borderColor = ds.line;
 };
 const calcStatus = (s, e) => {
   if (!s && !e) return "pending";
@@ -116,8 +119,8 @@ function Checkbox({ checked, onChange, size = 18 }) {
         width: size,
         height: size,
         borderRadius: 5,
-        border: checked ? "none" : "1.8px solid #CBD5E1",
-        background: checked ? ds.brand : "#fff",
+        border: checked ? "none" : `1.8px solid ${ds.line}`,
+        background: checked ? ds.brand : ds.bg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -158,7 +161,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 16,
           padding: 28,
           width: 380,
@@ -180,7 +183,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
         <div
           style={{
             fontSize: 13.5,
-            color: "#64748B",
+            color: ds.ink3,
             lineHeight: 1.6,
             marginBottom: 22,
           }}
@@ -194,9 +197,9 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
               flex: 1,
               padding: "11px 0",
               borderRadius: 10,
-              border: "1.5px solid #E2E8F0",
-              background: "#F8FAFC",
-              color: "#64748B",
+              border: `1.5px solid ${ds.line}`,
+              background: ds.bg,
+              color: ds.ink3,
               fontSize: 13.5,
               fontWeight: 700,
               cursor: "pointer",
@@ -234,7 +237,7 @@ function Field({ label, children, required }) {
         style={{
           fontSize: 12.5,
           fontWeight: 700,
-          color: "#475569",
+          color: ds.ink3,
           marginBottom: 6,
         }}
       >
@@ -248,20 +251,20 @@ function Field({ label, children, required }) {
 const contestBadge = (status) => {
   const m = {
     pending: { l: "투표 예정", c: "#6B7280", bg: "#F3F4F6", dot: false },
-    active: { l: "투표 진행 중", c: "#8B5CF6", bg: "#F3E8FF", dot: true },
-    ended: { l: "투표 종료", c: "#94A3B8", bg: "#F1F5F9", dot: false },
+    active: { l: "투표 진행 중", c: "#8B5CF6", bg: ds.violetSoft, dot: true },
+    ended: { l: "투표 종료", c: ds.ink4, bg: ds.lineSoft, dot: false },
   };
   return m[status] || m.pending;
 };
 const ICON_POOL = [
-  { icon: Trophy, bg: "#FFFBEB", color: "#D97706" },
+  { icon: Trophy, bg: ds.amberSoft, color: "#D97706" },
   { icon: Camera, bg: "#EEF2FF", color: "#6366F1" },
   { icon: Dog, bg: "#FDF2F8", color: "#EC4899" },
-  { icon: Star, bg: "#F5F3FF", color: "#8B5CF6" },
-  { icon: Award, bg: "#FEF3C7", color: "#D97706" },
-  { icon: Crown, bg: "#ECFDF5", color: "#059669" },
-  { icon: Medal, bg: "#FFF7ED", color: "#EA580C" },
-  { icon: Trophy, bg: "#FFFBEB", color: "#D97706" },
+  { icon: Star, bg: ds.violetSoft, color: "#8B5CF6" },
+  { icon: Award, bg: ds.amberSoft, color: "#D97706" },
+  { icon: Crown, bg: ds.greenSoft, color: "#059669" },
+  { icon: Medal, bg: ds.amberSoft, color: "#EA580C" },
+  { icon: Trophy, bg: ds.amberSoft, color: "#D97706" },
 ];
 
 /* ═══ Mock 참가자 (DB 연동 전) ═══ */
@@ -319,7 +322,7 @@ const CARD_COLORS = [
   "#C4B5FD",
   "#7C3AED",
   "#6D28D9",
-  "#DDD6FE",
+  ds.line,
 ];
 
 /* ═══ 콘테스트 생성/수정 모달 ═══ */
@@ -362,8 +365,8 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
           const s = calcStatus(form.startAt, form.endAt);
           const map = {
             pending: { l: "투표 예정", c: "#6B7280", bg: "#F3F4F6" },
-            active: { l: "투표 진행 중", c: "#8B5CF6", bg: "#F3E8FF" },
-            ended: { l: "투표 종료", c: "#94A3B8", bg: "#F1F5F9" },
+            active: { l: "투표 진행 중", c: "#8B5CF6", bg: ds.violetSoft },
+            ended: { l: "투표 종료", c: ds.ink4, bg: ds.lineSoft },
           };
           return map[s];
         })()
@@ -376,7 +379,7 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 18,
           width: 440,
           maxWidth: "100%",
@@ -391,7 +394,7 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
       >
         <div
           style={{
-            background: "linear-gradient(135deg, #7C3AED, #A78BFA)",
+            background: ds.violet,
             padding: "22px 26px 18px",
             color: "#fff",
             position: "relative",
@@ -462,7 +465,7 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
               border: "2px dashed #E2E8F0",
               background: imagePreview
                 ? `url(${imagePreview}) center/cover`
-                : "#F8FAFC",
+                : ds.bg,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -475,11 +478,11 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
           >
             {!imagePreview && (
               <>
-                <ImagePlus size={24} color="#94A3B8" />
+                <ImagePlus size={24} color={ds.ink4} />
                 <div
                   style={{
                     fontSize: 12,
-                    color: "#94A3B8",
+                    color: ds.ink4,
                     marginTop: 6,
                     fontWeight: 600,
                   }}
@@ -577,9 +580,9 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
               flex: 1,
               padding: "11px 0",
               borderRadius: 10,
-              border: "1.5px solid #E2E8F0",
-              background: "#F8FAFC",
-              color: "#64748B",
+              border: `1.5px solid ${ds.line}`,
+              background: ds.bg,
+              color: ds.ink3,
               fontSize: 13.5,
               fontWeight: 700,
               cursor: "pointer",
@@ -595,7 +598,7 @@ function ContestFormModal({ item, onSave, onClose, isEdit }) {
               padding: "11px 0",
               borderRadius: 10,
               border: "none",
-              background: "linear-gradient(135deg,#7C3AED,#A78BFA)",
+              background: ds.violet,
               color: "#fff",
               fontSize: 13.5,
               fontWeight: 700,
@@ -650,7 +653,7 @@ function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
+          background: ds.card,
           borderRadius: 18,
           width: 400,
           maxWidth: "100%",
@@ -665,7 +668,7 @@ function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
       >
         <div
           style={{
-            background: "linear-gradient(135deg, #7C3AED, #A78BFA)",
+            background: ds.violet,
             padding: "22px 26px 18px",
             color: "#fff",
             position: "relative",
@@ -717,7 +720,7 @@ function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
               border: "2px dashed #DDD6FE",
               background: imagePreview
                 ? `url(${imagePreview}) center/cover`
-                : "linear-gradient(135deg, #FAF5FF, #EDE9FE)",
+                : ds.violetSoft,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -822,9 +825,9 @@ function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
               flex: 1,
               padding: "11px 0",
               borderRadius: 10,
-              border: "1.5px solid #E2E8F0",
-              background: "#F8FAFC",
-              color: "#64748B",
+              border: `1.5px solid ${ds.line}`,
+              background: ds.bg,
+              color: ds.ink3,
               fontSize: 13.5,
               fontWeight: 700,
               cursor: "pointer",
@@ -840,7 +843,7 @@ function ParticipantFormModal({ item, onSave, onClose, isEdit }) {
               padding: "11px 0",
               borderRadius: 10,
               border: "none",
-              background: "linear-gradient(135deg,#7C3AED,#A78BFA)",
+              background: ds.violet,
               color: "#fff",
               fontSize: 13.5,
               fontWeight: 700,
@@ -870,7 +873,7 @@ function ContestCard({ item, idx, isSelected, onClick, participantCount }) {
         padding: "14px 16px",
         border: isSelected ? "1.5px solid #8B5CF6" : "1.5px solid #ECEEF3",
         borderRadius: 12,
-        background: isSelected ? "#F5F0FF" : "#fff",
+        background: isSelected ? ds.violetSoft : ds.card,
         boxShadow: isSelected ? "0 0 0 3px rgba(139,92,246,0.08)" : "none",
         cursor: "pointer",
         transition: "all .18s",
@@ -963,7 +966,7 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
   return (
     <div
       style={{
-        background: "#fff",
+        background: ds.card,
         border: "1.5px solid #ECEEF3",
         borderRadius: 16,
         overflow: "hidden",
@@ -980,8 +983,8 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
           position: "relative",
           overflow: "hidden",
           background: p.imageUrl
-            ? "#F1F3F6"
-            : `linear-gradient(135deg, ${cardColor}20, ${cardColor}08)`,
+            ? ds.lineSoft
+            : `${cardColor}15`,
         }}
       >
         {p.imageUrl ? (
@@ -1032,7 +1035,7 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
             color: "#fff",
             background:
               rank <= 3
-                ? `linear-gradient(135deg, ${rankColor}, ${rankColor}cc)`
+                ? rankColor
                 : "rgba(0,0,0,0.4)",
             zIndex: 2,
           }}
@@ -1144,7 +1147,7 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
           <div
             style={{
               height: 6,
-              background: "#F1F3F6",
+              background: ds.lineSoft,
               borderRadius: 100,
               overflow: "hidden",
               marginBottom: 10,
@@ -1168,7 +1171,7 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
               fontWeight: 600,
               padding: "2px 8px",
               borderRadius: 100,
-              background: p.status === "APPROVED" ? "#ECFDF5" : "#FEF3C7",
+              background: p.status === "APPROVED" ? ds.greenSoft : ds.amberSoft,
               color: p.status === "APPROVED" ? "#059669" : "#D97706",
             }}
           >
@@ -1200,6 +1203,7 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
 export default function ContestManage({ subTab = "all" }) {
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  // eventFilter는 Dashboard subTab으로 대체
   const [items, setItems] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -1257,12 +1261,13 @@ export default function ContestManage({ subTab = "all" }) {
   /* ── API ── */
   const loadEvents = async () => {
     try {
+      await loadImageCache();
       const res = await axiosInstance.get("/api/admin/dashboard/events", {
         headers: authHeaders(),
       });
       const list = res.data?.data || res.data || [];
       setEvents(
-        list.map((e) => ({
+        injectEventImages(list).map((e) => ({
           ...e,
           status: calcStatus(
             e.startAt || e.date?.split("~")[0]?.trim()?.replace(/\./g, "-"),
@@ -1430,38 +1435,11 @@ export default function ContestManage({ subTab = "all" }) {
             onDone={() => setToast(null)}
           />
         )}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 24,
-          }}
-        >
-          <div
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 10,
-              background: ds.brand,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Trophy size={18} color="#fff" />
-          </div>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: ds.ink }}>
-              콘테스트 관리
-            </div>
-            <div style={{ fontSize: 13, color: "#94A3B8" }}>
-              행사를 선택해 콘테스트를 관리하세요
-            </div>
-          </div>
-        </div>
+        <p style={{ fontSize: 13, color: ds.ink4, margin: "0 0 16px" }}>
+          관리할 행사를 선택하세요
+        </p>
         {loadingEvents ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#94A3B8" }}>
+          <div style={{ textAlign: "center", padding: 60, color: ds.ink4 }}>
             로딩 중...
           </div>
         ) : events.length === 0 ? (
@@ -1471,20 +1449,33 @@ export default function ContestManage({ subTab = "all" }) {
                 width: 56,
                 height: 56,
                 borderRadius: "50%",
-                background: "#F3F4F6",
+                background: ds.lineSoft,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 margin: "0 auto 12px",
               }}
             >
-              <Trophy size={22} color="#94A3B8" />
+              <Trophy size={22} color={ds.ink4} />
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#6B7280" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: ds.ink3 }}>
               등록된 행사가 없습니다
             </div>
           </div>
-        ) : (
+        ) : (() => {
+            const filteredEvents = events.filter(
+              subTab === "all" ? () => true :
+              subTab === "active" ? (e) => e.status === "active" :
+              subTab === "ended" ? (e) => e.status === "ended" :
+              (e) => e.status === "pending"
+            );
+            return (<>
+            {filteredEvents.length === 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 0" }}>
+                <CalendarDays size={36} color={ds.ink4} strokeWidth={1.5} />
+                <div style={{ fontSize: 14, fontWeight: 600, color: ds.ink4, marginTop: 10 }}>해당 상태의 행사가 없습니다</div>
+              </div>
+            ) : (
           <div
             style={{
               display: "grid",
@@ -1492,7 +1483,10 @@ export default function ContestManage({ subTab = "all" }) {
               gap: 14,
             }}
           >
-            {events.map((ev) => (
+            {filteredEvents.map((ev) => {
+              const st = statusMap[ev.status] || statusMap.pending;
+              const hasImg = !!ev.imageUrl;
+              return (
               <div
                 key={ev.eventId || ev.id}
                 onClick={() => {
@@ -1500,58 +1494,73 @@ export default function ContestManage({ subTab = "all" }) {
                   loadItems(ev.eventId || ev.id);
                 }}
                 style={{
-                  background: "#fff",
-                  border: "1.5px solid #ECEEF3",
-                  borderRadius: 14,
-                  padding: "20px 22px",
+                  borderRadius: 18,
+                  overflow: "hidden",
                   cursor: "pointer",
-                  transition: "all .18s",
+                  position: "relative",
+                  height: 320,
+                  display: "flex",
+                  flexDirection: "column",
+                  background: hasImg ? "#000" : ds.brand,
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+                  transition: "transform 0.22s ease, box-shadow 0.22s ease",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = ds.brand;
-                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.transform = "translateY(-4px)";
+                  e.currentTarget.style.boxShadow = "0 12px 36px rgba(0,0,0,0.16)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "#ECEEF3";
-                  e.currentTarget.style.transform = "";
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 4px 24px rgba(0,0,0,0.08)";
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 800,
-                    color: ds.ink,
-                    marginBottom: 6,
-                  }}
-                >
-                  {ev.name}
+                {hasImg ? (
+                  <div style={{ position: "absolute", inset: 0 }}>
+                    <img src={ev.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.6) 100%)" }} />
+                  </div>
+                ) : (
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.12 }}>
+                    <Trophy size={90} color="#fff" strokeWidth={1} />
+                  </div>
+                )}
+                <div style={{ position: "relative", zIndex: 1, padding: "22px 20px 0", flex: 1 }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: -0.3, textShadow: "0 1px 8px rgba(0,0,0,0.3)", marginBottom: 6, fontFamily: ds.ff }}>
+                    {ev.name || ev.eventName}
+                  </div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: st.bg, borderRadius: 20, padding: "3px 10px" }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: st.c }} />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: st.c }}>{st.l}</span>
+                  </div>
                 </div>
-                <div
-                  style={{
-                    fontSize: 12.5,
-                    color: "#94A3B8",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
-                  <span
-                    style={{ display: "flex", alignItems: "center", gap: 4 }}
+                <div style={{ position: "relative", zIndex: 1, padding: "0 20px 18px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    {hasImg && (
+                      <div style={{ width: 30, height: 30, borderRadius: 8, overflow: "hidden", border: "2px solid rgba(255,255,255,0.4)", flexShrink: 0 }}>
+                        <img src={ev.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      </div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {ev.date && <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", gap: 4 }}><CalendarDays size={11} /> {ev.date || "날짜 미정"}</div>}
+                      {ev.location && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", gap: 4, marginTop: 1 }}><MapPin size={10} /> {ev.location}</div>}
+                    </div>
+                  </div>
+                  <button
+                    style={{ width: "100%", padding: "9px 0", borderRadius: 10, border: "none", background: ds.brand, color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: ds.ff, transition: "all .15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, outline: "none", WebkitTapHighlightColor: "transparent" }}
+                    className="card-manage-btn" onMouseEnter={(e) => { e.currentTarget.style.background = ds.brandDark; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = ds.brand; }}
+                    onClick={(e) => { e.stopPropagation(); setSelectedEvent(ev); loadItems(ev.eventId || ev.id); }}
                   >
-                    <CalendarDays size={12} /> {ev.date || "날짜 미정"}
-                  </span>
-                  {ev.location && (
-                    <span
-                      style={{ display: "flex", alignItems: "center", gap: 4 }}
-                    >
-                      {ev.location}
-                    </span>
-                  )}
+                    <Trophy size={13} /> 콘테스트 관리하기
+                  </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
-        )}
+            )}
+            </>);
+          })()}
       </div>
     );
   }
@@ -1638,7 +1647,7 @@ export default function ContestManage({ subTab = "all" }) {
             <div style={{ fontSize: 17, fontWeight: 800, color: ds.ink }}>
               {selectedEvent.name}
             </div>
-            <div style={{ fontSize: 12, color: "#94A3B8" }}>
+            <div style={{ fontSize: 12, color: ds.ink4 }}>
               콘테스트 {items.length}개 · 참가자 {allP}팀
             </div>
           </div>
@@ -1679,31 +1688,31 @@ export default function ContestManage({ subTab = "all" }) {
             label: "전체 콘테스트",
             value: `${items.length}개`,
             icon: <Trophy size={18} color="#F59E0B" />,
-            bg: "#FFFBEB",
+            bg: ds.amberSoft,
           },
           {
             label: "투표 진행 중",
             value: `${liveCount}개`,
             icon: <Heart size={18} color="#8B5CF6" />,
-            bg: "#F5F3FF",
+            bg: ds.violetSoft,
           },
           {
             label: "총 참가팀",
             value: `${allP}팀`,
             icon: <Users size={18} color="#10B981" />,
-            bg: "#ECFDF5",
+            bg: ds.greenSoft,
           },
           {
             label: "총 투표수",
             value: `${totalVotes}표`,
             icon: <BarChart3 size={18} color="#D97706" />,
-            bg: "#FFFBEB",
+            bg: ds.amberSoft,
           },
         ].map((s) => (
           <div
             key={s.label}
             style={{
-              background: "#fff",
+              background: ds.card,
               border: "1px solid #ECEEF3",
               borderRadius: 14,
               padding: "18px 20px",
@@ -1749,7 +1758,7 @@ export default function ContestManage({ subTab = "all" }) {
         {/* 좌: 콘테스트 목록 */}
         <div
           style={{
-            background: "#fff",
+            background: ds.card,
             border: "1px solid #ECEEF3",
             borderRadius: 14,
             padding: "20px 22px",
@@ -1780,7 +1789,7 @@ export default function ContestManage({ subTab = "all" }) {
                   width: 26,
                   height: 26,
                   borderRadius: 7,
-                  background: "#FFFBEB",
+                  background: ds.amberSoft,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -1796,7 +1805,7 @@ export default function ContestManage({ subTab = "all" }) {
                   fontSize: 11,
                   fontWeight: 600,
                   color: "#868E9C",
-                  background: "#F3F4F7",
+                  background: ds.lineSoft,
                   padding: "4px 10px",
                   borderRadius: 100,
                 }}
@@ -1810,7 +1819,7 @@ export default function ContestManage({ subTab = "all" }) {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Checkbox checked={isAllSelected && items.length > 0} onChange={toggleAll} />
-                <span style={{ fontSize: 12, color: "#94A3B8" }}>전체 선택</span>
+                <span style={{ fontSize: 12, color: ds.ink4 }}>전체 선택</span>
                 {hasSelected && (
                   <span style={{ fontSize: 12, fontWeight: 700, color: ds.brand, background: `${ds.brand}0C`, padding: "3px 8px", borderRadius: 5 }}>
                     {selected.size}건
@@ -1821,14 +1830,14 @@ export default function ContestManage({ subTab = "all" }) {
                 {hasSelected && (
                   <button
                     onClick={() => setModal({ type: "bulkDelete" })}
-                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, border: "1px solid #FECACA", background: "#FEF2F2", fontSize: 11, fontWeight: 600, color: "#DC2626", cursor: "pointer", fontFamily: ds.ff }}
+                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, border: `1px solid ${ds.red}33`, background: ds.redSoft, fontSize: 11, fontWeight: 600, color: ds.red, cursor: "pointer", fontFamily: ds.ff }}
                   >
                     <Trash2 size={11} /> 선택 삭제
                   </button>
                 )}
                 <button
                   onClick={() => setModal({ type: "deleteAll" })}
-                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, border: "1px solid #E2E8F0", background: "#fff", fontSize: 11, fontWeight: 600, color: "#64748B", cursor: "pointer", fontFamily: ds.ff }}
+                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, border: `1px solid ${ds.line}`, background: ds.card, fontSize: 11, fontWeight: 600, color: ds.ink3, cursor: "pointer", fontFamily: ds.ff }}
                 >
                   <Trash2 size={11} /> 전체 삭제
                 </button>
@@ -1836,7 +1845,7 @@ export default function ContestManage({ subTab = "all" }) {
             </div>
           )}
           {loadingItems ? (
-            <div style={{ textAlign: "center", padding: 30, color: "#94A3B8" }}>
+            <div style={{ textAlign: "center", padding: 30, color: ds.ink4 }}>
               로딩 중...
             </div>
           ) : items.length === 0 ? (
@@ -1846,16 +1855,16 @@ export default function ContestManage({ subTab = "all" }) {
                   width: 48,
                   height: 48,
                   borderRadius: "50%",
-                  background: "#F3F4F6",
+                  background: ds.lineSoft,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   margin: "0 auto 10px",
                 }}
               >
-                <Trophy size={20} color="#94A3B8" />
+                <Trophy size={20} color={ds.ink4} />
               </div>
-              <div style={{ fontSize: 13, color: "#94A3B8" }}>
+              <div style={{ fontSize: 13, color: ds.ink4 }}>
                 등록된 콘테스트가 없습니다
               </div>
             </div>
@@ -1892,7 +1901,7 @@ export default function ContestManage({ subTab = "all" }) {
                           width: 26,
                           height: 26,
                           borderRadius: 6,
-                          background: "#F5F3FF",
+                          background: ds.violetSoft,
                           border: "none",
                           cursor: "pointer",
                           display: "flex",
@@ -1911,7 +1920,7 @@ export default function ContestManage({ subTab = "all" }) {
                           width: 26,
                           height: 26,
                           borderRadius: 6,
-                          background: "#FEF2F2",
+                          background: ds.redSoft,
                           border: "none",
                           cursor: "pointer",
                           display: "flex",
@@ -1933,7 +1942,7 @@ export default function ContestManage({ subTab = "all" }) {
         {selectedContest && (
           <div
             style={{
-              background: "#fff",
+              background: ds.card,
               border: "1px solid #ECEEF3",
               borderRadius: 14,
               padding: "20px 24px",
@@ -1943,7 +1952,7 @@ export default function ContestManage({ subTab = "all" }) {
             <div
               style={{
                 background:
-                  "linear-gradient(135deg, #6D28D9 0%, #A855F7 50%, #C084FC 100%)",
+                  ds.violet,
                 borderRadius: 14,
                 padding: "22px 24px 18px",
                 color: "#fff",
@@ -2068,7 +2077,7 @@ export default function ContestManage({ subTab = "all" }) {
                     width: 26,
                     height: 26,
                     borderRadius: 7,
-                    background: "#F5F0FF",
+                    background: ds.violetSoft,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -2084,7 +2093,7 @@ export default function ContestManage({ subTab = "all" }) {
                     fontSize: 11,
                     fontWeight: 600,
                     color: "#868E9C",
-                    background: "#F3F4F7",
+                    background: ds.lineSoft,
                     padding: "3px 10px",
                     borderRadius: 100,
                   }}
@@ -2122,7 +2131,7 @@ export default function ContestManage({ subTab = "all" }) {
                     width: 60,
                     height: 60,
                     borderRadius: "50%",
-                    background: "linear-gradient(135deg,#F5F0FF,#EDE9FE)",
+                    background: ds.violetSoft,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -2135,14 +2144,14 @@ export default function ContestManage({ subTab = "all" }) {
                   style={{
                     fontSize: 15,
                     fontWeight: 700,
-                    color: "#6B7280",
+                    color: ds.ink3,
                     marginBottom: 6,
                   }}
                 >
                   아직 참가자가 없습니다
                 </div>
                 <div
-                  style={{ fontSize: 13, color: "#9CA3AF", marginBottom: 16 }}
+                  style={{ fontSize: 13, color: ds.ink4, marginBottom: 16 }}
                 >
                   참가자를 등록해 콘테스트를 시작하세요
                 </div>
@@ -2196,16 +2205,16 @@ export default function ContestManage({ subTab = "all" }) {
                     justifyContent: "center",
                     cursor: "pointer",
                     minHeight: 260,
-                    background: "#FAFAFE",
+                    background: ds.bg,
                     transition: "all .18s",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = "#8B5CF6";
-                    e.currentTarget.style.background = "#F5F0FF";
+                    e.currentTarget.style.background = ds.violetSoft;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#DDD6FE";
-                    e.currentTarget.style.background = "#FAFAFE";
+                    e.currentTarget.style.borderColor = ds.line;
+                    e.currentTarget.style.background = ds.bg;
                   }}
                 >
                   <div
@@ -2213,7 +2222,7 @@ export default function ContestManage({ subTab = "all" }) {
                       width: 48,
                       height: 48,
                       borderRadius: 12,
-                      background: "#EDE9FE",
+                      background: ds.violetSoft,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -2236,7 +2245,7 @@ export default function ContestManage({ subTab = "all" }) {
               <div
                 style={{
                   marginTop: 18,
-                  background: "linear-gradient(135deg, #FAF8FF, #F5F0FF)",
+                  background: ds.violetSoft,
                   border: "1.5px solid #EDE9FE",
                   borderRadius: 12,
                   padding: "16px 20px",
@@ -2302,7 +2311,7 @@ export default function ContestManage({ subTab = "all" }) {
         {!selectedContest && items.length > 0 && (
           <div
             style={{
-              background: "#fff",
+              background: ds.card,
               border: "1px solid #ECEEF3",
               borderRadius: 14,
               display: "flex",
@@ -2317,7 +2326,7 @@ export default function ContestManage({ subTab = "all" }) {
                   width: 56,
                   height: 56,
                   borderRadius: "50%",
-                  background: "#F5F0FF",
+                  background: ds.violetSoft,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -2326,10 +2335,10 @@ export default function ContestManage({ subTab = "all" }) {
               >
                 <ChevronLeft size={22} color="#8B5CF6" />
               </div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#6B7280" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: ds.ink3 }}>
                 콘테스트를 선택하세요
               </div>
-              <div style={{ fontSize: 13, color: "#9CA3AF", marginTop: 4 }}>
+              <div style={{ fontSize: 13, color: ds.ink4, marginTop: 4 }}>
                 좌측에서 선택하면 참가자를 관리할 수 있습니다
               </div>
             </div>
