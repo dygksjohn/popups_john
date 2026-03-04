@@ -62,8 +62,9 @@ const styles = `
 
   .up-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
 
-  .up-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 100px; font-size: 11px; font-weight: 700; color: #2563eb; margin-bottom: 20px; }
-  .up-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #2563eb; animation: up-pulse 1.4s ease-in-out infinite; }
+  .up-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 100px; font-size: 11px; font-weight: 700; color: #2563eb; margin-bottom: 20px; line-height: 1; }
+  .up-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #2563eb; animation: up-pulse 1.4s ease-in-out infinite; display: block; flex-shrink: 0; }
+  .up-live-text { display: inline-flex; align-items: center; line-height: 1; }
   @keyframes up-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 
   .up-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
@@ -75,10 +76,24 @@ const styles = `
   .up-stat-label { font-size: 12px; color: #6b7280; font-weight: 500; }
   .up-stat-value { font-size: 22px; font-weight: 800; color: #111827; }
 
-  .up-panel { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 20px 24px; }
+  .up-panel { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 24px 28px; }
   .up-list-head { position: sticky; top: 0; z-index: 2; background: #fff; }
+  .up-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #f1f3f5;
+  }
+  .up-card-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: #111827; }
+  .up-card-title-icon {
+    width: 20px; height: 20px; border-radius: 6px;
+    background: #eff4ff; color: #1a4fd6;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .up-card-tag {
+    font-size: 11px; font-weight: 600; color: #6b7280;
+    background: #f3f4f6; padding: 3px 10px; border-radius: 100px;
+  }
 
-  .up-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+  .up-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
   .up-search-wrap { position: relative; flex: 1; min-width: 200px; }
   .up-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
   .up-search {
@@ -165,7 +180,7 @@ const styles = `
 
   @media (max-width: 700px) {
     .up-stat-grid { grid-template-columns: repeat(3, 1fr); }
-    .up-panel { padding: 16px; }
+    .up-panel { padding: 20px 16px; }
     .up-event-card { flex-wrap: wrap; }
     .up-event-right { flex-direction: column; align-items: flex-end; width: 100%; }
     .up-list-scroll { max-height: calc(100vh - 280px); }
@@ -450,12 +465,25 @@ export default function Upcoming() {
         ) : (
           <div className="up-live-badge">
             <div className="up-live-dot" />
-            UPCOMMING · {(typeof totalCount === "number" ? totalCount : events.length)}개 행사 예정
+            <span className="up-live-text">
+              UPCOMING · {(typeof totalCount === "number" ? totalCount : events.length)}개 행사 예정
+            </span>
           </div>
         )}
 
         <div className="up-panel">
           <div className="up-list-head">
+            <div className="up-card-header">
+              <div className="up-card-title">
+                <span className="up-card-title-icon">
+                  <Clock size={12} />
+                </span>
+                진행 예정 행사
+              </div>
+              <span className="up-card-tag">
+                {typeof totalCount === "number" ? totalCount : filtered.length}개 행사
+              </span>
+            </div>
             <div className="up-toolbar">
               <div className="up-search-wrap">
                 <Search size={15} className="up-search-icon" />

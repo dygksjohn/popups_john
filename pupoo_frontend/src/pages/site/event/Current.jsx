@@ -49,8 +49,9 @@ const styles = `
 
   .ev-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
 
-  .ev-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca; border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444; margin-bottom: 20px; }
-  .ev-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; animation: ev-pulse 1.4s ease-in-out infinite; }
+  .ev-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fff0f0; border: 1px solid #fecaca; border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444; margin-bottom: 20px; line-height: 1; }
+  .ev-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; animation: ev-pulse 1.4s ease-in-out infinite; display: block; flex-shrink: 0; }
+  .ev-live-text { display: inline-flex; align-items: center; line-height: 1; }
   @keyframes ev-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 
   .ev-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
@@ -311,7 +312,9 @@ export default function Current() {
         ) : (
           <div className="ev-live-badge">
             <div className="ev-live-dot" />
-            LIVE · {(typeof totalCount === "number" ? totalCount : events.length)}개 행사 진행 중
+            <span className="ev-live-text">
+              LIVE · {(typeof totalCount === "number" ? totalCount : events.length)}개 행사 진행 중
+            </span>
           </div>
         )}
 
@@ -325,7 +328,9 @@ export default function Current() {
                   </div>
                   진행 중인 행사
                 </div>
-                <span className="ev-card-tag">{filtered.length}개 행사</span>
+                <span className="ev-card-tag">
+                  {typeof totalCount === "number" ? totalCount : filtered.length}개 행사
+                </span>
               </div>
 
               <div className="ev-toolbar">
