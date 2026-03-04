@@ -1,6 +1,6 @@
 ﻿import PageHeader from "../components/PageHeader";
 import EventDetailModal from "./EventDetailModal";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { eventApi } from "../../../app/http/eventApi";
 import { axiosInstance } from "../../../app/http/axiosInstance";
@@ -25,7 +25,7 @@ export const SERVICE_CATEGORIES = [
 
 export const SUBTITLE_MAP = {
   "/event/current": "현재 진행 중인 행사 목록을 확인합니다",
-  "/event/upcoming": "예정된 행사 일정을 확인합니다",
+  "/event/upcoming": "",
   "/event/closed": "종료된 행사 목록을 확인합니다",
   "/event/preregister": "행사 사전 등록을 진행합니다",
   "/event/eventschedule": "행사 일정을 안내합니다",
@@ -75,6 +75,9 @@ const styles = `
   .up-stat-label { font-size: 12px; color: #6b7280; font-weight: 500; }
   .up-stat-value { font-size: 22px; font-weight: 800; color: #111827; }
 
+  .up-panel { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 20px 24px; }
+  .up-list-head { position: sticky; top: 0; z-index: 2; background: #fff; }
+
   .up-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
   .up-search-wrap { position: relative; flex: 1; min-width: 200px; }
   .up-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
@@ -85,6 +88,15 @@ const styles = `
     transition: border-color 0.15s;
   }
   .up-search:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
+  .up-date-wrap { width: 180px; flex-shrink: 0; }
+  .up-date-input {
+    width: 100%; height: 40px; padding: 0 12px;
+    border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13.5px;
+    color: #111827; outline: none; background: #fff; font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .up-date-input:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
+
   .up-filter-btn {
     height: 40px; padding: 0 14px; border: 1px solid #e2e8f0; border-radius: 8px;
     background: #fff; font-size: 13px; font-weight: 500; color: #374151;
@@ -94,7 +106,16 @@ const styles = `
   .up-filter-btn:hover { border-color: #1a4fd6; color: #1a4fd6; }
   .up-filter-btn.active { border-color: #1a4fd6; background: #f5f8ff; color: #1a4fd6; }
 
-  /* Timeline-style list */
+  .up-list-scroll {
+    max-height: calc(100vh - 320px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 6px;
+  }
+  .up-list-scroll::-webkit-scrollbar { width: 8px; }
+  .up-list-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
+  .up-list-scroll::-webkit-scrollbar-track { background: transparent; }
+
   .up-list { display: flex; flex-direction: column; gap: 12px; }
   .up-event-card {
     background: #fff; border: 1px solid #e9ecef; border-radius: 14px;
@@ -144,8 +165,11 @@ const styles = `
 
   @media (max-width: 700px) {
     .up-stat-grid { grid-template-columns: repeat(3, 1fr); }
+    .up-panel { padding: 16px; }
     .up-event-card { flex-wrap: wrap; }
     .up-event-right { flex-direction: column; align-items: flex-end; width: 100%; }
+    .up-list-scroll { max-height: calc(100vh - 280px); }
+    .up-date-wrap { width: 150px; }
   }
 `;
 
@@ -177,6 +201,14 @@ function formatTime(startAt, endAt) {
   if (a && b) return `${a} ~ ${b}`;
   if (a || b) return a || b;
   return "시간 미정";
+}
+
+function toDateOnlyNumber(value) {
+  if (!value) return null;
+  const s = String(value);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return Number(`${m[1]}${m[2]}${m[3]}`);
 }
 
 function buildDateParts(startAt) {
@@ -212,6 +244,7 @@ function mapEvent(raw) {
   const baseMatch = baseDateRaw
     ? String(baseDateRaw).match(/^(\d{4})-(\d{2})-(\d{2})/)
     : null;
+
   let dday = 0;
   if (baseMatch) {
     const eventDate = new Date(
@@ -236,68 +269,105 @@ function mapEvent(raw) {
     location,
     time: startAt || endAt ? formatTime(startAt, endAt) : "시간 미정",
     sortKey: Number.isNaN(sortTime) ? Number.POSITIVE_INFINITY : sortTime,
+    startAt,
+    endAt,
     capacity: raw?.capacity ?? raw?.maxParticipants ?? 0,
     registered: raw?.participants ?? raw?.appliedCount ?? raw?.registered ?? 0,
     baseFee: raw?.baseFee ?? raw?.participationFee ?? raw?.fee ?? 0,
     dday,
-    fallback: "??",
+    fallback: "📅",
   };
 }
 
 export default function Upcoming() {
+  const PAGE_SIZE = 10;
+
   const navigate = useNavigate();
   const location = useLocation();
   const [query, setQuery] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
   const [filter, setFilter] = useState("all");
   const [alarms, setAlarms] = useState({});
   const [currentPath, setCurrentPath] = useState("/event/upcoming");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [events, setEvents] = useState([]);
+  const [totalCount, setTotalCount] = useState(null);
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [submittingId, setSubmittingId] = useState(null);
 
-  useEffect(() => {
-    let mounted = true;
+  const fetchEvents = useCallback(async (targetPage) => {
+    if (targetPage === 0) setLoading(true);
+    else setLoadingMore(true);
 
-    const fetchEvents = async () => {
-      setLoading(true);
-      setError("");
+    setError("");
 
-      try {
-        const res = await eventApi.getEvents({
-          status: "PLANNED",
-          page: 0,
-          size: 10,
-        });
-        const content = res.data.data.content;
-        const list = Array.isArray(content) ? content : [];
-        if (mounted) {
-          setEvents(
-            list
-              .map(mapEvent)
-              .sort((a, b) => a.sortKey - b.sortKey),
-          );
-        }
-      } catch (e) {
-        const msg =
-          e?.response?.data?.message || e?.message || "Failed to load events.";
-        if (mounted) setError(msg);
-      } finally {
-        if (mounted) setLoading(false);
+    try {
+      const res = await eventApi.getEvents({
+        status: "PLANNED",
+        page: targetPage,
+        size: PAGE_SIZE,
+      });
+
+      const pageData = res?.data?.data ?? {};
+      const content = Array.isArray(pageData?.content) ? pageData.content : [];
+      const mapped = content.map(mapEvent);
+      if (typeof pageData?.totalElements === "number") {
+        setTotalCount(pageData.totalElements);
       }
-    };
 
-    fetchEvents();
-    return () => {
-      mounted = false;
-    };
+      setEvents((prev) => {
+        const merged = targetPage === 0 ? mapped : [...prev, ...mapped];
+        const dedup = Array.from(new Map(merged.map((e) => [e.id, e])).values());
+        return dedup.sort((a, b) => a.sortKey - b.sortKey);
+      });
+
+      const pageNumber =
+        typeof pageData?.number === "number" ? pageData.number : targetPage;
+      const hasNextByMeta =
+        typeof pageData?.last === "boolean"
+          ? !pageData.last
+          : typeof pageData?.totalPages === "number"
+            ? pageNumber + 1 < pageData.totalPages
+            : content.length === PAGE_SIZE;
+
+      setPage(pageNumber);
+      setHasNext(hasNextByMeta);
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message || e?.message || "Failed to load events.";
+      setError(msg);
+    } finally {
+      if (targetPage === 0) setLoading(false);
+      else setLoadingMore(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchEvents(0);
+  }, [fetchEvents]);
+
   const filtered = events.filter((e) => {
-    const matchQ = e.title.includes(query) || e.category.includes(query);
+    const q = query.trim();
+    const matchQ = !q || e.title.includes(q) || e.category.includes(q) || e.location.includes(q);
     const matchF = filter === "all" || e.category === filter;
-    return matchQ && matchF;
+
+    if (!matchQ || !matchF) return false;
+    if (!selectedDate) return true;
+
+    const selectedNum = toDateOnlyNumber(selectedDate);
+    if (!selectedNum) return true;
+
+    const startNum = toDateOnlyNumber(e.startAt);
+    const endNum = toDateOnlyNumber(e.endAt);
+
+    if (startNum && endNum) return selectedNum >= startNum && selectedNum <= endNum;
+    if (startNum) return selectedNum >= startNum;
+    if (endNum) return selectedNum <= endNum;
+    return false;
   });
 
   const categories = [
@@ -308,7 +378,15 @@ export default function Upcoming() {
     ),
   ];
 
-  
+  const handleListScroll = (e) => {
+    if (loading || loadingMore || !hasNext) return;
+    const el = e.currentTarget;
+    const remain = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (remain <= 120) {
+      fetchEvents(page + 1);
+    }
+  };
+
   const handlePreApply = async (ev, clickEvent) => {
     clickEvent.stopPropagation();
     if (!ev?.id || submittingId) return;
@@ -357,7 +435,7 @@ export default function Upcoming() {
     <div className="up-root">
       <style>{styles}</style>
       <PageHeader
-        title="예정 행사"
+        title=""
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
@@ -372,101 +450,132 @@ export default function Upcoming() {
         ) : (
           <div className="up-live-badge">
             <div className="up-live-dot" />
-            UPCOMMING · {events.length}개 행사 예정
+            UPCOMMING · {(typeof totalCount === "number" ? totalCount : events.length)}개 행사 예정
           </div>
         )}
 
-        <div className="up-toolbar">
-          <div className="up-search-wrap">
-            <Search size={15} className="up-search-icon" />
-            <input
-              className="up-search"
-              placeholder="행사명, 카테고리 검색"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          {categories.map((c) => (
-            <button
-              key={c}
-              className={`up-filter-btn${filter === c ? " active" : ""}`}
-              onClick={() => setFilter(c)}
-            >
-              <>
-                <Tag size={11} /> {c}
-              </>
-            </button>
-          ))}
-        </div>
-
-        <div className="up-list">
-          {filtered.map((ev) => {
-            const cc = CATEGORY_COLORS[ev.category] || {
-              bg: "#f3f4f6",
-              color: "#374151",
-            };
-            const isOn = alarms[ev.id];
-            return (
-              <div
-                key={ev.id}
-                className="up-event-card"
-                onClick={() => setSelectedEvent(ev)}
-              >
-                <div className="up-date-box">
-                  <div className="up-date-month">{ev.month}</div>
-                  <div className="up-date-day">{ev.day}</div>
-                  <div className="up-date-dow">{ev.dow}요일</div>
-                </div>
-                <div className="up-event-main">
-                  <div className="up-event-top">
-                    <span
-                      className="up-event-category"
-                      style={{ background: cc.bg, color: cc.color }}
-                    >
-                      {ev.category}
-                    </span>
-                    <span className="up-d-badge">D-{ev.dday}</span>
-                  </div>
-                  <div className="up-event-title">{ev.title}</div>
-                  <div className="up-event-meta">
-                    <div className="up-event-meta-item">
-                      <MapPin size={12} />
-                      {ev.location}
-                    </div>
-                    <div className="up-event-meta-item">
-                      <Clock size={12} />
-                      {ev.time}
-                    </div>
-                  </div>
-                </div>
-                <div className="up-event-right">
-                  <div className="up-participants">
-                    <strong>{Number(ev.registered || 0).toLocaleString()}명</strong>
-                    사전 등록 인원 / {Number(ev.capacity || 0).toLocaleString()}명
-                  </div>
-                  <div className="up-action-row">
-                    <button
-                      className={`up-alarm-btn ${isOn ? "on" : "off"}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAlarms((a) => ({ ...a, [ev.id]: !a[ev.id] }));
-                      }}
-                    >
-                      {isOn ? <BellRing size={12} /> : <Bell size={12} />}
-                      {isOn ? "알림 설정됨" : "알림 설정"}
-                    </button>
-                    <button
-                      className="up-pre-btn"
-                      onClick={(e) => handlePreApply(ev, e)}
-                      disabled={submittingId === ev.id}
-                    >
-                      {submittingId === ev.id ? "처리중" : "사전신청"}
-                    </button>
-                  </div>
-                </div>
+        <div className="up-panel">
+          <div className="up-list-head">
+            <div className="up-toolbar">
+              <div className="up-search-wrap">
+                <Search size={15} className="up-search-icon" />
+                <input
+                  className="up-search"
+                  placeholder="행사명, 카테고리, 장소 검색"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
               </div>
-            );
-          })}
+              <div className="up-date-wrap">
+                <input
+                  type="date"
+                  className="up-date-input"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  aria-label="행사 날짜 검색"
+                />
+              </div>
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  className={`up-filter-btn${filter === c ? " active" : ""}`}
+                  onClick={() => setFilter(c)}
+                >
+                  <>
+                    <Tag size={11} /> {c}
+                  </>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="up-list-scroll" onScroll={handleListScroll}>
+            <div className="up-list">
+              {filtered.map((ev) => {
+                const cc = CATEGORY_COLORS[ev.category] || {
+                  bg: "#f3f4f6",
+                  color: "#374151",
+                };
+                const isOn = alarms[ev.id];
+                return (
+                  <div
+                    key={ev.id}
+                    className="up-event-card"
+                    onClick={() => setSelectedEvent(ev)}
+                  >
+                    <div className="up-date-box">
+                      <div className="up-date-month">{ev.month}</div>
+                      <div className="up-date-day">{ev.day}</div>
+                      <div className="up-date-dow">{ev.dow}요일</div>
+                    </div>
+                    <div className="up-event-main">
+                      <div className="up-event-top">
+                        <span
+                          className="up-event-category"
+                          style={{ background: cc.bg, color: cc.color }}
+                        >
+                          {ev.category}
+                        </span>
+                        <span className="up-d-badge">D-{ev.dday}</span>
+                      </div>
+                      <div className="up-event-title">{ev.title}</div>
+                      <div className="up-event-meta">
+                        <div className="up-event-meta-item">
+                          <MapPin size={12} />
+                          {ev.location}
+                        </div>
+                        <div className="up-event-meta-item">
+                          <Clock size={12} />
+                          {ev.time}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="up-event-right">
+                      <div className="up-participants">
+                        <strong>{Number(ev.registered || 0).toLocaleString()}명</strong>
+                        사전 등록 인원 / {Number(ev.capacity || 0).toLocaleString()}명
+                      </div>
+                      <div className="up-action-row">
+                        <button
+                          className={`up-alarm-btn ${isOn ? "on" : "off"}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAlarms((a) => ({ ...a, [ev.id]: !a[ev.id] }));
+                          }}
+                        >
+                          {isOn ? <BellRing size={12} /> : <Bell size={12} />}
+                          {isOn ? "알림 설정됨" : "알림 설정"}
+                        </button>
+                        <button
+                          className="up-pre-btn"
+                          onClick={(e) => handlePreApply(ev, e)}
+                          disabled={submittingId === ev.id}
+                        >
+                          {submittingId === ev.id ? "처리중" : "사전신청"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {!loading && filtered.length === 0 && (
+              <div className="up-live-badge" style={{ marginTop: 12 }}>
+                검색 결과가 없습니다.
+              </div>
+            )}
+            {loadingMore && (
+              <div className="up-live-badge" style={{ marginTop: 12 }}>
+                행사 목록 불러오는 중...
+              </div>
+            )}
+            {!loading && !loadingMore && !hasNext && events.length > 0 && (
+              <div className="up-live-badge" style={{ marginTop: 12 }}>
+                모든 예정 행사를 불러왔습니다.
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
@@ -479,8 +588,4 @@ export default function Upcoming() {
     </div>
   );
 }
-
-
-
-
 
