@@ -125,6 +125,20 @@ function toSortTimestamp(value) {
   return Number.isNaN(ts) ? Number.POSITIVE_INFINITY : ts;
 }
 
+function toDateOrNull(value) {
+  if (!value) return null;
+  const d = new Date(String(value));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isOngoingByTime(raw) {
+  const now = new Date();
+  const start = toDateOrNull(raw?.startAt ?? raw?.startDateTime ?? raw?.startDate);
+  const end = toDateOrNull(raw?.endAt ?? raw?.endDateTime ?? raw?.endDate);
+  if (start && end) return start <= now && end >= now;
+  return false;
+}
+
 function mapEvent(raw) {
   const eventId = raw?.eventId ?? raw?.id ?? null;
   const eventName = raw?.eventName ?? raw?.title ?? "행사";
@@ -140,6 +154,9 @@ function mapEvent(raw) {
     title: eventName,
     category,
     location,
+    organizer: raw?.organizer ?? "정보 없음",
+    organizerPhone: raw?.organizerPhone ?? null,
+    organizerEmail: raw?.organizerEmail ?? null,
     image: raw?.imageUrl ?? raw?.posterUrl ?? raw?.thumbnail ?? null,
     date: formatDateRange(startAt, endAt),
     endSortKey: toSortTimestamp(endAt),
@@ -203,7 +220,18 @@ export default function Current() {
           size: 50,
         });
         const content = res?.data?.data?.content;
-        const list = Array.isArray(content) ? content : [];
+        let list = Array.isArray(content) ? content : [];
+
+        if (list.length === 0) {
+          const fallbackRes = await eventApi.getEvents({
+            page: 0,
+            size: 200,
+          });
+          const fallbackContent = fallbackRes?.data?.data?.content;
+          const all = Array.isArray(fallbackContent) ? fallbackContent : [];
+          list = all.filter(isOngoingByTime);
+        }
+
         if (mounted) {
           setEvents(
             list
@@ -281,6 +309,11 @@ export default function Current() {
           </div>
 
           <div className="ev-grid">
+            {filtered.length === 0 && !loading && !error ? (
+              <div style={{ fontSize: 13, color: "#6b7280" }}>
+                진행 중인 행사가 없습니다.
+              </div>
+            ) : null}
             {filtered.map((ev) => {
               const safeCapacity = ev.capacity && ev.capacity > 0 ? ev.capacity : 1;
               const safeParticipants = ev.participants ?? 0;

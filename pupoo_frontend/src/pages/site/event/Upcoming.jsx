@@ -191,6 +191,20 @@ function formatDate(value) {
   return `${m[1]}.${m[2]}.${m[3]}`;
 }
 
+function toDateOrNull(value) {
+  if (!value) return null;
+  const d = new Date(String(value));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isPlannedByTime(raw) {
+  const now = new Date();
+  const status = String(raw?.status || "").toUpperCase();
+  if (status === "CANCELLED") return false;
+  const start = toDateOrNull(raw?.startAt ?? raw?.startDateTime ?? raw?.startDate);
+  return start ? start > now : false;
+}
+
 function formatTime(startAt, endAt) {
   const pick = (v) => {
     if (!v) return "";
@@ -264,6 +278,9 @@ function mapEvent(raw) {
     capacity: Number(raw?.capacity ?? raw?.maxParticipants ?? 0),
     registered: Number(raw?.participants ?? raw?.appliedCount ?? raw?.registered ?? 0),
     baseFee: raw?.baseFee ?? raw?.participationFee ?? raw?.fee ?? 0,
+    organizer: raw?.organizer ?? "정보 없음",
+    organizerPhone: raw?.organizerPhone ?? null,
+    organizerEmail: raw?.organizerEmail ?? null,
     dday,
     image: raw?.imageUrl ?? raw?.posterUrl ?? raw?.thumbnail ?? null,
     fallback: "🎪",
@@ -297,7 +314,18 @@ export default function Upcoming() {
           size: 100,
         });
         const content = res?.data?.data?.content;
-        const list = Array.isArray(content) ? content : [];
+        let list = Array.isArray(content) ? content : [];
+
+        if (list.length === 0) {
+          const fallbackRes = await eventApi.getEvents({
+            page: 0,
+            size: 200,
+          });
+          const fallbackContent = fallbackRes?.data?.data?.content;
+          const all = Array.isArray(fallbackContent) ? fallbackContent : [];
+          list = all.filter(isPlannedByTime);
+        }
+
         if (mounted) {
           setEvents(
             list
@@ -427,6 +455,11 @@ export default function Upcoming() {
         </div>
 
         <div className="up-list">
+          {filtered.length === 0 && !loading && !error ? (
+            <div style={{ fontSize: 13, color: "#6b7280" }}>
+              예정된 행사가 없습니다.
+            </div>
+          ) : null}
           {filtered.map((ev) => {
             const cc = CATEGORY_COLORS[ev.category] || {
               bg: "#f3f4f6",

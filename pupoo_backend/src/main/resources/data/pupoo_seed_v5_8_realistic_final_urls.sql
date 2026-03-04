@@ -1,7 +1,11 @@
 -- =========================================================
--- PUPOO v5.7 REALISTIC SEED DATA
--- 3년간 운영된 애견 통합 플랫폼 시나리오
+-- PUPOO v5.8 REALISTIC SEED DATA
+-- 3년간 운영된 반려동물 통합 플랫폼 시나리오
 -- Generated: 2026-03-04
+--
+-- 실행 전 주의:
+-- - 반드시 pupoo_db_v5.8.sql 실행 후 본 시드를 실행하세요.
+-- - 본 시드는 기존 데이터를 비우는 TRUNCATE를 포함합니다.
 -- =========================================================
 
 SET NAMES utf8mb4;
@@ -15771,7 +15775,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- Same program title -> same deterministic image URL.
 UPDATE event_program
 SET image_url = CONCAT(
-  '/uploads/program/program_',
+  'C:\\pupoo_workspace\\uploads\\event_program\\program_',
   LPAD(
     MOD(
       CRC32(COALESCE(NULLIF(TRIM(program_title), ''), CONCAT('program-', program_id))),
@@ -15786,9 +15790,17 @@ SET image_url = CONCAT(
 -- --------------------------------------------------------------------------
 -- Event timeline rebalance for demo pages
 -- - Ensure /event/current has 4 ONGOING events
--- - Ensure /event/upcoming has 20 PLANNED events
+-- - Ensure /event/upcoming has 12 PLANNED events
 -- - Keep CANCELLED events untouched
 -- --------------------------------------------------------------------------
+
+-- 0) Reset non-cancelled events to ENDED with past dates (idempotent baseline)
+UPDATE event
+SET
+  start_at = TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL (180 - event_id) DAY), '10:00:00'),
+  end_at = TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL (179 - event_id) DAY), '18:00:00'),
+  status = 'ENDED'
+WHERE status <> 'CANCELLED';
 
 -- 1) 4 events in progress (event_id: 53~56)
 UPDATE event
@@ -15811,11 +15823,37 @@ SET
 WHERE event_id IN (53,54,55,56)
   AND status <> 'CANCELLED';
 
--- 2) 20 upcoming events (event_id: 31~50)
+-- 2) 12 upcoming events (event_id: 31~42)
 UPDATE event
 SET
   start_at = TIMESTAMP(DATE_ADD(CURDATE(), INTERVAL (event_id - 30) DAY), '10:00:00'),
   end_at = TIMESTAMP(DATE_ADD(CURDATE(), INTERVAL (event_id - 28) DAY), '18:00:00'),
   status = 'PLANNED'
-WHERE event_id BETWEEN 31 AND 50
+WHERE event_id BETWEEN 31 AND 42
   AND status <> 'CANCELLED';
+
+-- 3) Organizer contacts (deterministic sample data for v5.8)
+UPDATE event
+SET
+  organizer_phone = CONCAT(
+    CASE
+      WHEN location LIKE '서울%' THEN '02'
+      WHEN location LIKE '부산%' THEN '051'
+      WHEN location LIKE '대구%' THEN '053'
+      WHEN location LIKE '인천%' THEN '032'
+      WHEN location LIKE '광주%' THEN '062'
+      WHEN location LIKE '대전%' THEN '042'
+      WHEN location LIKE '울산%' THEN '052'
+      WHEN location LIKE '제주%' THEN '064'
+      ELSE '031'
+    END,
+    '-',
+    LPAD((event_id * 37) % 9000 + 1000, 4, '0'),
+    '-',
+    LPAD((event_id * 83) % 9000 + 1000, 4, '0')
+  ),
+  organizer_email = CONCAT('event', LPAD(event_id, 3, '0'), '@pupoo-event.kr')
+WHERE organizer_phone IS NULL
+   OR organizer_phone = ''
+   OR organizer_email IS NULL
+   OR organizer_email = '';

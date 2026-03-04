@@ -8,17 +8,20 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 사용자용 행사 응답 DTO (v2.5 기준)
+ * ?ъ슜?먯슜 ?됱궗 ?묐떟 DTO (v2.5 湲곗?)
  */
 public class EventResponse {
 
     private Long eventId;
     private String eventName;
     private String description;
+    private String imageUrl;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
     private String location;
     private String organizer;
+    private String organizerPhone;
+    private String organizerEmail;
     private EventStatus status;
     private Integer roundNo;
     private BigDecimal baseFee;
@@ -32,6 +35,8 @@ public class EventResponse {
         r.endAt = e.getEndAt();
         r.location = e.getLocation();
         r.organizer = e.getOrganizer();
+        r.organizerPhone = e.getOrganizerPhone();
+        r.organizerEmail = e.getOrganizerEmail();
         r.status = e.getStatus();
         r.roundNo = e.getRoundNo();
         r.baseFee = e.getBaseFee();
@@ -42,11 +47,16 @@ public class EventResponse {
     public Long getEventId() { return eventId; }
     public String getEventName() { return eventName; }
     public String getDescription() { return description; }
+    public String getImageUrl() { return imageUrl; }
     public LocalDateTime getStartAt() { return startAt; }
     public LocalDateTime getEndAt() { return endAt; }
     public String getLocation() { return location; }
     public String getOrganizer() { return organizer; }
+    public String getOrganizerPhone() { return organizerPhone; }
+    public String getOrganizerEmail() { return organizerEmail; }
     public EventStatus getStatus() { return status; }
     public Integer getRoundNo() { return roundNo; }
     public BigDecimal getBaseFee() { return baseFee; }
+
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 }

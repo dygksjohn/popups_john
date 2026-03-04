@@ -162,6 +162,19 @@ function formatDate(value) {
   return `${m[1]}.${m[2]}.${m[3]}`;
 }
 
+function toDateOrNull(value) {
+  if (!value) return null;
+  const d = new Date(String(value));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isEndedByTime(raw) {
+  const status = String(raw?.status || "").toUpperCase();
+  if (status === "CANCELLED") return false;
+  const end = toDateOrNull(raw?.endAt ?? raw?.endDateTime ?? raw?.endDate);
+  return end ? end < new Date() : false;
+}
+
 function formatTime(startAt, endAt) {
   const pick = (v) => {
     if (!v) return "";
@@ -201,6 +214,9 @@ function mapEvent(raw) {
     capacity: Number(raw?.capacity ?? raw?.maxParticipants ?? 1),
     rating: Number(raw?.rating ?? raw?.avgRating ?? 0),
     year: extractYear(startAt),
+    organizer: raw?.organizer ?? "정보 없음",
+    organizerPhone: raw?.organizerPhone ?? null,
+    organizerEmail: raw?.organizerEmail ?? null,
     image: raw?.imageUrl ?? raw?.posterUrl ?? raw?.thumbnail ?? null,
     fallback: "🐶",
   };
@@ -246,7 +262,18 @@ export default function Closed() {
           size: 100,
         });
         const content = res?.data?.data?.content;
-        const list = Array.isArray(content) ? content : [];
+        let list = Array.isArray(content) ? content : [];
+
+        if (list.length === 0) {
+          const fallbackRes = await eventApi.getEvents({
+            page: 0,
+            size: 200,
+          });
+          const fallbackContent = fallbackRes?.data?.data?.content;
+          const all = Array.isArray(fallbackContent) ? fallbackContent : [];
+          list = all.filter(isEndedByTime);
+        }
+
         if (mounted) setEvents(list.map(mapEvent));
       } catch (e) {
         const msg =

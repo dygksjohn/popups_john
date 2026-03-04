@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, Search, X } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import sortIcon from "../../../assets/sort-icon.svg";
@@ -118,7 +118,7 @@ function DetailModal({ item, onClose }) {
                     borderRadius: 4,
                   }}
                 >
-                  고정
+                  📌
                 </span>
               ) : null}
               <span style={{ fontSize: 12, color: scopeMeta.color, fontWeight: 800 }}>
@@ -541,7 +541,7 @@ export default function Notice() {
                         flexShrink: 0,
                       }}
                     >
-                      고정
+                      📌
                     </span>
                   ) : null}
 

@@ -50,6 +50,12 @@ public class Event {
     @Column(name = "organizer", length = 255)
     private String organizer;
 
+    @Column(name = "organizer_phone", length = 30)
+    private String organizerPhone;
+
+    @Column(name = "organizer_email", length = 255)
+    private String organizerEmail;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20, columnDefinition = "ENUM('PLANNED','ONGOING','ENDED','CANCELLED')")
     private EventStatus status;
@@ -127,6 +133,8 @@ public class Event {
     public LocalDateTime getEndAt() { return endAt; }
     public String getLocation() { return location; }
     public String getOrganizer() { return organizer; }
+    public String getOrganizerPhone() { return organizerPhone; }
+    public String getOrganizerEmail() { return organizerEmail; }
     public EventStatus getStatus() { return status; }
     public Integer getRoundNo() { return roundNo; }
     public BigDecimal getBaseFee() { return baseFee; }

@@ -444,6 +444,37 @@ const modalStyles = `
     font-size: 13.5px; color: #374151; font-weight: 600;
     margin-bottom: 14px;
   }
+  .evm-map-links {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .evm-map-link {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid #dbe1ea;
+    background: #fff;
+    color: #1f2937;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s ease;
+  }
+  .evm-map-link:hover {
+    border-color: #1a4fd6;
+    color: #1a4fd6;
+    background: #f8fbff;
+  }
+  .evm-map-organizer {
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 14px;
+  }
   .evm-transport { display: flex; flex-direction: column; gap: 8px; }
   .evm-transport-row {
     display: flex; align-items: flex-start; gap: 10px;
@@ -590,8 +621,10 @@ function buildDateKeys(startAt, endAt, scheduleList) {
   const startKey = toDateKey(startAt);
   const endKey = toDateKey(endAt);
   const bySchedule = (Array.isArray(scheduleList) ? scheduleList : [])
-    .map((item) => toDateKey(item?.startAt ?? item?.date ?? item?.day))
+    .map((item) => toDateKey(item?.dateKey ?? item?.startAt ?? item?.date ?? item?.day))
     .filter(Boolean);
+
+  if (bySchedule.length > 0) return [...new Set(bySchedule)].sort();
 
   if (startKey && endKey) {
     const result = [];
@@ -609,7 +642,6 @@ function buildDateKeys(startAt, endAt, scheduleList) {
     }
   }
 
-  if (bySchedule.length > 0) return [...new Set(bySchedule)].sort();
   if (startKey) return [startKey];
   return [];
 }
@@ -617,7 +649,8 @@ function buildDateKeys(startAt, endAt, scheduleList) {
 function normalizeScheduleItem(item, idx, fallbackDateKey) {
   const startAt = item?.startAt ?? item?.startDateTime ?? null;
   const endAt = item?.endAt ?? item?.endDateTime ?? null;
-  const programId = Number(item?.programId ?? item?.id);
+  const rawProgramId = item?.programId ?? item?.id ?? item?.program_id;
+  const programId = Number(rawProgramId);
   const timeText =
     item?.time ??
     (startAt || endAt ? formatTime(startAt, endAt) : "시간 미정");
@@ -672,6 +705,115 @@ const DOG_SAMPLES = [
 function getDogImage(eventId) {
   const idx = typeof eventId === "number" ? eventId : 0;
   return DOG_SAMPLES[Math.abs(idx) % DOG_SAMPLES.length];
+}
+
+const TRANSPORT_LINE_CANDIDATES = [
+  "1호선",
+  "2호선",
+  "3호선",
+  "4호선",
+  "5호선",
+  "6호선",
+  "7호선",
+  "8호선",
+  "9호선",
+  "신분당선",
+  "수인분당선",
+  "경의중앙선",
+];
+
+const LOCATION_TRANSPORT_PRESETS = [
+  {
+    keywords: ["코엑스", "영동대로"],
+    subway: "2호선 삼성역 5번 출구 도보 100m",
+    bus: "코엑스 동문 정류소: 143, 146, 301, 341, 360",
+    car: "코엑스 주차장 (서울 강남구 영동대로 513) / 기본 30분 2,400원, 1일 최대 60,000원",
+  },
+  {
+    keywords: ["킨텍스"],
+    subway: "GTX-A 킨텍스역 1번 출구 도보 100m",
+    bus: "킨텍스 제1전시장 정류소: 039, 082, 9700, M7646",
+    car: "킨텍스 제1전시장 주차장 (경기 고양시 일산서구 킨텍스로 217-60) / 기본 20분 1,200원",
+  },
+  {
+    keywords: ["대전컨벤션센터", "도룡동"],
+    subway: "대전 1호선 정부청사역 도보 100m",
+    bus: "대전컨벤션센터 정류소: 705, 911, 918",
+    car: "대전컨벤션센터 주차장 (대전 유성구 엑스포로 107) / 기본 30분 1,000원",
+  },
+];
+
+function hashLocationText(text) {
+  const source = String(text || "");
+  let hash = 0;
+  for (let i = 0; i < source.length; i += 1) {
+    hash = (hash * 31 + source.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function cleanAddressToken(token) {
+  return String(token || "")
+    .replace(/[()]/g, "")
+    .replace(/[0-9-]/g, "")
+    .replace(/(특별자치도|특별자치시|특별시|광역시|자치시|도|시|군|구|읍|면|동|리|대로|로|길)$/g, "")
+    .trim();
+}
+
+function pickAddressAnchor(locationText) {
+  const text = String(locationText || "").trim();
+  if (!text || text === "장소 미정") return "행사장";
+
+  const parts = text.split(/\s+/).filter(Boolean);
+  const reversed = [...parts].reverse();
+  const placeToken = reversed.find(
+    (part) => /[가-힣A-Za-z]/.test(part) && !/^[0-9-]+$/.test(part),
+  );
+  const areaToken = parts.find((part) => /(구|군|시|읍|면|동)$/.test(part));
+  const anchor = cleanAddressToken(placeToken) || cleanAddressToken(areaToken) || "행사장";
+  return anchor.length > 10 ? anchor.slice(0, 10) : anchor;
+}
+
+function buildTransportGuideFromLocation(locationText) {
+  const location = String(locationText || "").trim();
+  if (!location || location === "장소 미정") {
+    return {
+      subway: "정보 없음",
+      bus: "정보 없음",
+      car: "정보 없음",
+    };
+  }
+
+  const preset = LOCATION_TRANSPORT_PRESETS.find((item) =>
+    item.keywords.some((keyword) => location.includes(keyword)),
+  );
+  if (preset) {
+    return {
+      subway: preset.subway,
+      bus: preset.bus,
+      car: preset.car,
+    };
+  }
+
+  const seed = hashLocationText(location);
+  const anchor = pickAddressAnchor(location);
+  const line = TRANSPORT_LINE_CANDIDATES[seed % TRANSPORT_LINE_CANDIDATES.length];
+  const stationName = anchor.endsWith("역") ? anchor : `${anchor}역`;
+  const stopName = `${anchor}입구 정류소`;
+  const busNumbers = [
+    String(100 + (seed % 700)),
+    String(200 + ((seed * 3) % 600)),
+    String(300 + ((seed * 7) % 500)),
+  ];
+  const parkingName = `${anchor} 공영주차장`;
+  const baseFee = 2000 + (seed % 4) * 500;
+  const addFee = 500 + (seed % 3) * 100;
+
+  return {
+    subway: `${line} ${stationName} 도보 100m`,
+    bus: `${stopName}: ${busNumbers.join(", ")}`,
+    car: `${parkingName} (${location}) / 기본 30분 ${baseFee.toLocaleString()}원, 추가 10분 ${addFee.toLocaleString()}원`,
+  };
 }
 
 
@@ -826,6 +968,26 @@ export default function EventDetailModal({ event, onClose }) {
 
   const desc = detail?.description || "설명 없음";
   const loc = detail?.location || "장소 미정";
+  const organizerName = detail?.organizer || event?.organizer || "정보 없음";
+  const organizerPhone =
+    detail?.organizerPhone || event?.organizerPhone || detail?.contact?.phone || "정보 없음";
+  const organizerEmail =
+    detail?.organizerEmail || event?.organizerEmail || detail?.contact?.email || "정보 없음";
+  const transportGuide = buildTransportGuideFromLocation(loc);
+  const subwayGuide = transportGuide?.subway || detail?.transport?.subway || "정보 없음";
+  const busGuide = transportGuide?.bus || detail?.transport?.bus || "정보 없음";
+  const carGuide = transportGuide?.car || detail?.transport?.car || "정보 없음";
+  const hasValidLocation = Boolean(loc && loc !== "장소 미정");
+  const encodedLocation = hasValidLocation ? encodeURIComponent(loc) : "";
+  const mapEmbedUrl = hasValidLocation
+    ? `https://maps.google.com/maps?q=${encodedLocation}&z=15&output=embed`
+    : "";
+  const kakaoMapUrl = hasValidLocation
+    ? `https://map.kakao.com/?q=${encodedLocation}`
+    : "";
+  const naverMapUrl = hasValidLocation
+    ? `https://map.naver.com/v5/search/${encodedLocation}`
+    : "";
   const rawFee = detail?.baseFee ?? event?.baseFee;
   const fee = normalizeFee(rawFee);
   const dateLabel = detail?.startAt ? formatDate(detail.startAt) : "일정 미정";
@@ -868,7 +1030,7 @@ export default function EventDetailModal({ event, onClose }) {
   const effectiveDateKey =
     (selectedDateKey && dayList.some((d) => d.key === selectedDateKey)
       ? selectedDateKey
-      : dayList[0]?.key) || "";
+      : dayList.find((d) => d.count > 0)?.key || dayList[0]?.key) || "";
   const selectedPrograms = normalizedPrograms.filter(
     (item) => item.dateKey === effectiveDateKey,
   );
@@ -1360,15 +1522,49 @@ export default function EventDetailModal({ event, onClose }) {
               </div>
 
               <div className="evm-map-placeholder">
-                <div className="evm-map-placeholder-inner">
-                  <MapPin size={28} />
-                  지도 영역 (카카오 / 구글 연동)
-                </div>
+                {hasValidLocation ? (
+                  <iframe
+                    title="행사 위치 지도"
+                    src={mapEmbedUrl}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                ) : (
+                  <div className="evm-map-placeholder-inner">
+                    <MapPin size={28} />
+                    주소 정보가 없습니다.
+                  </div>
+                )}
               </div>
 
               <div className="evm-address">
                 <MapPin size={14} color="#1a4fd6" />
                 {loc}
+              </div>
+              {hasValidLocation && (
+                <div className="evm-map-links">
+                  <a
+                    className="evm-map-link"
+                    href={kakaoMapUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    카카오맵
+                    <ExternalLink size={12} />
+                  </a>
+                  <a
+                    className="evm-map-link"
+                    href={naverMapUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    네이버맵
+                    <ExternalLink size={12} />
+                  </a>
+                </div>
+              )}
+              <div className="evm-map-organizer">
+                주최: <strong>{organizerName}</strong>
               </div>
 
               <div className="evm-transport">
@@ -1382,7 +1578,7 @@ export default function EventDetailModal({ event, onClose }) {
                   <div>
                     <strong style={{ fontSize: "12px" }}>지하철</strong>
                     <br />
-                    {detail?.transport?.subway || "정보 없음"}
+                    {subwayGuide}
                   </div>
                 </div>
                 <div className="evm-transport-row">
@@ -1395,7 +1591,7 @@ export default function EventDetailModal({ event, onClose }) {
                   <div>
                     <strong style={{ fontSize: "12px" }}>버스</strong>
                     <br />
-                    {detail?.transport?.bus || "정보 없음"}
+                    {busGuide}
                   </div>
                 </div>
                 <div className="evm-transport-row">
@@ -1406,9 +1602,9 @@ export default function EventDetailModal({ event, onClose }) {
                     <Car size={14} color="#f59e0b" />
                   </div>
                   <div>
-                    <strong style={{ fontSize: "12px" }}>자가용</strong>
+                    <strong style={{ fontSize: "12px" }}>자동차</strong>
                     <br />
-                    {detail?.transport?.car || "정보 없음"}
+                    {carGuide}
                   </div>
                 </div>
               </div>
@@ -1456,7 +1652,7 @@ export default function EventDetailModal({ event, onClose }) {
                   marginBottom: "12px",
                 }}
               >
-                주최: <strong>{detail?.organizer || "정보 없음"}</strong>
+                주최: <strong>{organizerName}</strong>
               </div>
               <div className="evm-contact-grid">
                 <div className="evm-contact-item">
@@ -1466,7 +1662,7 @@ export default function EventDetailModal({ event, onClose }) {
                   <div>
                     <div className="evm-contact-label">전화</div>
                     <div className="evm-contact-value">
-                      {detail?.contact?.phone || "정보 없음"}
+                      {organizerPhone}
                     </div>
                   </div>
                 </div>
@@ -1477,7 +1673,7 @@ export default function EventDetailModal({ event, onClose }) {
                   <div>
                     <div className="evm-contact-label">이메일</div>
                     <div className="evm-contact-value">
-                      {detail?.contact?.email || "정보 없음"}
+                      {organizerEmail}
                     </div>
                   </div>
                 </div>

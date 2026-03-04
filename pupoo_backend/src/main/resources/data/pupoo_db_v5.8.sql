@@ -1,8 +1,12 @@
 -- =========================================================
--- 0) pupoo_v5.7
---    v5.6 → v5.7 변경사항:
---    - notices 테이블에 view_count 컬럼 추가
---    - reviews 테이블에 review_title 컬럼 추가
+-- 0) pupoo_v5.8
+--    실행 순서:
+--    1) pupoo_db_v5.8.sql (스키마 생성)
+--    2) pupoo_seed_v5_8_realistic_final_urls.sql (시드 적재)
+--
+--    참고:
+--    - 본 스키마는 GENERATED/CHECK 제약을 포함합니다.
+--    - MySQL 8.0+ 환경을 권장합니다.
 -- =========================================================
 
 
@@ -95,6 +99,8 @@ CREATE TABLE event (
   base_fee     DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '행사 기본 참가비(입장권/참가비)',
 
   organizer    VARCHAR(255)  NULL COMMENT '주최 정보',
+  organizer_phone VARCHAR(30) NULL COMMENT '주최자 연락처',
+  organizer_email VARCHAR(255) NULL COMMENT '주최자 이메일',
   PRIMARY KEY (event_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
