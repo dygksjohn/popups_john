@@ -10131,6 +10131,62 @@ INSERT INTO program_speakers (program_id,speaker_id,created_at) VALUES (259,8,'2
 INSERT INTO program_speakers (program_id,speaker_id,created_at) VALUES (260,15,'2026-02-01 09:00:00');
 INSERT INTO program_speakers (program_id,speaker_id,created_at) VALUES (260,14,'2026-02-01 09:00:00');
 
+-- Normalize to one speaker per program.
+DELETE ps
+FROM program_speakers ps
+JOIN (
+    SELECT program_id, MIN(speaker_id) AS keep_speaker_id
+    FROM program_speakers
+    GROUP BY program_id
+    HAVING COUNT(*) > 1
+) k
+  ON k.program_id = ps.program_id
+WHERE ps.speaker_id <> k.keep_speaker_id;
+
+-- Backfill programs with no speaker mapping.
+-- Rule:
+-- - One program has one speaker.
+-- - A speaker can join multiple SESSION programs only if times do not overlap.
+INSERT INTO program_speakers (program_id, speaker_id, created_at)
+SELECT missing.program_id, missing.speaker_id, missing.created_at
+FROM (
+    SELECT
+        ep.program_id,
+        COALESCE(ep.created_at, ep.start_at, NOW()) AS created_at,
+        CASE
+            WHEN ep.category = 'SESSION' THEN (
+                SELECT s.speaker_id
+                FROM speakers s
+                WHERE s.deleted_at IS NULL
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM program_speakers ps
+                      JOIN event_program assigned ON assigned.program_id = ps.program_id
+                      WHERE ps.speaker_id = s.speaker_id
+                        AND assigned.category = 'SESSION'
+                        AND assigned.start_at < ep.end_at
+                        AND assigned.end_at > ep.start_at
+                  )
+                ORDER BY s.speaker_id
+                LIMIT 1
+            )
+            ELSE (
+                SELECT s.speaker_id
+                FROM speakers s
+                WHERE s.deleted_at IS NULL
+                ORDER BY s.speaker_id
+                LIMIT 1
+            )
+        END AS speaker_id
+    FROM event_program ep
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM program_speakers existing_map
+        WHERE existing_map.program_id = ep.program_id
+    )
+) missing
+WHERE missing.speaker_id IS NOT NULL;
+
 -- ─── 14. booth_waits ───
 INSERT INTO booth_waits (wait_id,booth_id,wait_count,wait_min,updated_at) VALUES (1,1,8,1,'2023-11-08 12:00:00');
 INSERT INTO booth_waits (wait_id,booth_id,wait_count,wait_min,updated_at) VALUES (2,4,1,17,'2023-11-08 13:00:00');
