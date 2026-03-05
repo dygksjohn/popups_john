@@ -126,11 +126,11 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.DELETE, "/api/qnas/*").hasAnyRole("USER", "ADMIN")
             .requestMatchers(HttpMethod.POST, "/api/qnas/*/close").hasAnyRole("USER", "ADMIN")
 
-            // Gallery write APIs require login.
-            .requestMatchers(HttpMethod.POST, "/api/galleries/image/upload").hasRole("USER")
-            .requestMatchers(HttpMethod.POST, "/api/galleries").hasRole("USER")
-            .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasRole("USER")
-            .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasRole("USER")
+            // Gallery write APIs — 로그인 필요 (사이트 회원 USER 또는 관리자 ADMIN)
+            .requestMatchers(HttpMethod.POST, "/api/galleries/image/upload").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/galleries").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasAnyRole("USER", "ADMIN")
 
             .requestMatchers("/api/admin/**").hasRole("ADMIN")
 

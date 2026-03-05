@@ -1332,6 +1332,10 @@ export default function EventGallery() {
 
   const handleFileSelect = async (files) => {
     if (!files?.length) return;
+    if (!isAuthed) {
+      setCreateError("로그인 후 이미지를 업로드할 수 있습니다.");
+      return;
+    }
     const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (list.length === 0) {
       setCreateError("이미지 파일만 업로드할 수 있습니다.");
@@ -1347,7 +1351,12 @@ export default function EventGallery() {
           setCreateForm((f) => ({ ...f, imageUrls: [...(f.imageUrls ?? []), publicPath] }));
         }
       } catch (e) {
-        setCreateError(e?.response?.data?.message ?? e?.message ?? "업로드에 실패했습니다.");
+        const status = e?.response?.status;
+        const msg =
+          status === 403
+            ? "로그인이 필요합니다. 로그인 후 다시 시도해 주세요."
+            : e?.response?.data?.error?.message ?? e?.response?.data?.message ?? e?.message ?? "업로드에 실패했습니다.";
+        setCreateError(msg);
       } finally {
         setUploadingCount((c) => Math.max(0, c - 1));
       }
