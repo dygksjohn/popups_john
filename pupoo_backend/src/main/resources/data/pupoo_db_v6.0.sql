@@ -1,8 +1,8 @@
 -- =========================================================
--- 0) pupoo_v5.8
+-- 0) pupoo_v6.0
 --    실행 순서:
---    1) pupoo_db_v5.8.sql (스키마 생성)
---    2) pupoo_seed_v5_8_realistic_final_urls.sql (시드 적재)
+--    1) pupoo_db_v6.0.sql (스키마 생성)
+--    2) pupoo_seed_v6_0_realistic_final_urls.sql (시드 적재)
 --
 --    참고:
 --    - 본 스키마는 GENERATED/CHECK 제약을 포함합니다.
@@ -95,6 +95,7 @@ CREATE TABLE event (
   location     VARCHAR(255)  NULL COMMENT '주소 / 장소',
   status       ENUM('PLANNED','ONGOING','ENDED','CANCELLED') NOT NULL COMMENT '행사 상태',
   round_no     INT           NULL COMMENT '회차',
+  image_url    LONGTEXT      NULL COMMENT '이벤트 이미지(base64/URL)',
 
   base_fee     DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '행사 기본 참가비(입장권/참가비)',
 
@@ -175,9 +176,6 @@ CREATE TABLE event_program_apply (
   user_id          BIGINT NOT NULL COMMENT '사용자 ID',
 
   pet_id           BIGINT NULL COMMENT '참가 반려동물 ID',
-
-  -- ✅ 참가 이미지 추가
-  image_url        LONGTEXT NULL COMMENT '참가 이미지(base64/URL)',
 
   status           ENUM('APPLIED','WAITING','APPROVED','REJECTED','CANCELLED','CHECKED_IN')
                    NOT NULL COMMENT '상태',
@@ -306,6 +304,7 @@ CREATE TABLE speakers (
   created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '등록일시',
   speaker_email  VARCHAR(255)  NOT NULL COMMENT '연사 email',
   speaker_phone  VARCHAR(30)   NOT NULL COMMENT '연사 전화번호',
+  speaker_image_url VARCHAR(500) NULL COMMENT '연사 프로필 이미지 URL',
   deleted_at     DATETIME      NULL COMMENT '삭제일시(소프트삭제)',
   PRIMARY KEY (speaker_id),
   UNIQUE KEY uk_speakers_email (speaker_email),

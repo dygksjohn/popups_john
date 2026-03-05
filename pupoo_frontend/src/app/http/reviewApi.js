@@ -14,13 +14,14 @@ function unwrap(res) {
 export const reviewApi = {
   /**
    * GET /api/reviews — 후기 목록 (페이징, 검색)
-   * @param {object} opts - { page (0-based), size, searchType, keyword }
+   * @param {object} opts - { page (0-based), size, searchType, keyword, rating }
    */
   list(opts = {}) {
-    const { page = 0, size = 10, searchType, keyword } = opts;
+    const { page = 0, size = 10, searchType, keyword, rating } = opts;
     const params = { page, size };
     if (searchType != null && searchType !== "") params.searchType = searchType;
     if (keyword != null && keyword !== "") params.keyword = keyword;
+    if (rating != null && rating !== "") params.rating = rating;
     return axiosInstance.get("/api/reviews", { params }).then((res) => unwrap(res));
   },
 

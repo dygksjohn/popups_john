@@ -118,7 +118,6 @@ public class ProgramApplyService {
         }
 
         Long petId = req.getPetId();
-        String imageUrl = req.getImageUrl();
 
         if (program.getCategory() == ProgramCategory.CONTEST && petId == null) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "petId is required for contest apply");
@@ -131,7 +130,7 @@ public class ProgramApplyService {
 
         try {
             ProgramApply saved = programApplyRepository.save(
-                    ProgramApply.create(userId, program.getProgramId(), petId, imageUrl)
+                    ProgramApply.create(userId, program.getProgramId(), petId)
             );
             return ProgramApplyResponse.from(saved);
         } catch (DataIntegrityViolationException e) {

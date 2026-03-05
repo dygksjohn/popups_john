@@ -44,7 +44,8 @@ public class EventService {
 
     private EventResponse toEventResponse(Event event) {
         EventResponse response = EventResponse.from(event);
-        response.setImageUrl(resolveEventThumbnail(event.getEventId()));
+        String eventImage = toPublicUploadPath(event.getImageUrl());
+        response.setImageUrl(eventImage != null ? eventImage : resolveEventThumbnail(event.getEventId()));
         return response;
     }
 

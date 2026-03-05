@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import PageHeader from "../components/PageHeader";
 import {
   Search,
   Loader2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   X,
@@ -16,6 +17,19 @@ import { tokenStore } from "../../../app/http/tokenStore";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 
 const PAGE_SIZE = 10;
+const RATING_OPTIONS = [
+  { value: "ALL", label: "별점 전체" },
+  { value: "5", label: "5점" },
+  { value: "4", label: "4점" },
+  { value: "3", label: "3점" },
+  { value: "2", label: "2점" },
+  { value: "1", label: "1점" },
+];
+const SORT_OPTIONS = [
+  { value: "latest", label: "최신순" },
+  { value: "comments", label: "댓글순" },
+  { value: "views", label: "조회순" },
+];
 
 function fmtDate(dt) {
   if (!dt) return "-";
@@ -256,6 +270,8 @@ function DetailModal({
 export default function Review() {
   const [search, setSearch] = useState("");
   const [currentPath, setCurrentPath] = useState("/community/review");
+  const [ratingFilter, setRatingFilter] = useState("ALL");
+  const [sortOption, setSortOption] = useState("latest");
 
   const [items, setItems] = useState([]);
   const [commentCountMap, setCommentCountMap] = useState({});
@@ -279,7 +295,11 @@ export default function Review() {
     setLoading(true);
     setError(null);
     try {
-      const d = await reviewApi.list({ page: p - 1, size: PAGE_SIZE });
+      const d = await reviewApi.list({
+        page: p - 1,
+        size: PAGE_SIZE,
+        rating: ratingFilter === "ALL" ? undefined : Number(ratingFilter),
+      });
       const content = Array.isArray(d?.content) ? d.content : [];
       setItems(content);
       setTotalPages(d?.totalPages || 0);
@@ -307,7 +327,7 @@ export default function Review() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [ratingFilter]);
 
   useEffect(() => {
     fetchList(1);
@@ -427,11 +447,34 @@ export default function Review() {
     }
   };
 
-  const filtered = items.filter((item) => {
-    if (!search.trim()) return true;
+  const visibleItems = useMemo(() => {
     const q = search.trim();
-    return getReviewTitle(item).includes(q) || (item.content || "").includes(q);
-  });
+    const next = items.filter((item) => {
+      if (!q) return true;
+      return getReviewTitle(item).includes(q) || (item.content || "").includes(q);
+    });
+
+    if (sortOption === "comments") {
+      next.sort((a, b) => {
+        const commentDiff = (commentCountMap[b.reviewId] ?? 0) - (commentCountMap[a.reviewId] ?? 0);
+        if (commentDiff !== 0) return commentDiff;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      return next;
+    }
+
+    if (sortOption === "views") {
+      next.sort((a, b) => {
+        const viewDiff = (b.viewCount ?? 0) - (a.viewCount ?? 0);
+        if (viewDiff !== 0) return viewDiff;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      return next;
+    }
+
+    next.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return next;
+  }, [items, search, sortOption, commentCountMap]);
 
   const badge = getBoardBadge("REVIEW");
 
@@ -468,45 +511,125 @@ export default function Review() {
             총 {totalElements}개
           </span>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              border: "1px solid #ccc",
-              borderRadius: "6px",
-              overflow: "hidden",
-              background: "#fff",
-            }}
-          >
-            <input
-              type="text"
-              placeholder="후기 내용 검색"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ position: "relative" }}>
+              <select
+                value={ratingFilter}
+                onChange={(e) => setRatingFilter(e.target.value)}
+                style={{
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  padding: "7px 32px 7px 12px",
+                  fontSize: "14px",
+                  color: "#333",
+                  background: "#fff",
+                  cursor: "pointer",
+                  outline: "none",
+                  minWidth: "96px",
+                }}
+              >
+                {RATING_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <span
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <ChevronDown size={14} color="#666" />
+              </span>
+            </div>
+
+            <div style={{ position: "relative" }}>
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                style={{
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  padding: "7px 32px 7px 12px",
+                  fontSize: "14px",
+                  color: "#333",
+                  background: "#fff",
+                  cursor: "pointer",
+                  outline: "none",
+                  minWidth: "96px",
+                }}
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <span
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <ChevronDown size={14} color="#666" />
+              </span>
+            </div>
+
+            <div
               style={{
-                border: "none",
-                outline: "none",
-                padding: "8px 12px",
-                fontSize: "14px",
-                color: "#333",
-                width: "240px",
-                background: "transparent",
-              }}
-            />
-            <button
-              type="button"
-              style={{
-                border: "none",
-                background: "#fff",
-                padding: "8px 12px",
-                cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
+                border: "1px solid #ccc",
+                borderRadius: "6px",
+                overflow: "hidden",
+                background: "#fff",
               }}
             >
-              <Search size={16} strokeWidth={2} color="#555" />
-            </button>
+              <input
+                type="text"
+                placeholder="후기 내용 검색"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  padding: "8px 12px",
+                  fontSize: "14px",
+                  color: "#333",
+                  width: "240px",
+                  background: "transparent",
+                }}
+              />
+              <button
+                type="button"
+                style={{
+                  border: "none",
+                  background: "#fff",
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Search size={16} strokeWidth={2} color="#555" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -548,7 +671,7 @@ export default function Review() {
         {!loading && !error && (
           <>
             <div>
-              {filtered.map((item) => (
+              {visibleItems.map((item) => (
                 <div
                   key={item.reviewId}
                   onClick={() => openDetail(item)}
@@ -591,7 +714,7 @@ export default function Review() {
                 </div>
               ))}
 
-              {filtered.length === 0 && (
+              {visibleItems.length === 0 && (
                 <div style={{ textAlign: "center", padding: "60px 0", color: "#999", fontSize: "14px" }}>
                   검색 결과가 없습니다.
                 </div>
