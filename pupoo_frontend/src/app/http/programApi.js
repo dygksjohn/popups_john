@@ -78,6 +78,13 @@ export const programApi = {
     );
   },
 
+  // GET /api/speakers/{speakerId}
+  getSpeakerDetail: (speakerId) => {
+    if (speakerId == null)
+      throw new Error("getSpeakerDetail: speakerId is required");
+    return axiosInstance.get(`/api/speakers/${speakerId}`);
+  },
+
   // =========================
   // Program Apply
   // =========================

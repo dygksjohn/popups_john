@@ -61,6 +61,7 @@ import Contest from "./pages/site/program/Contest";
 import ContestDetailPage from "./pages/site/program/ContestDetailPage";
 import ProgramAll from "./pages/site/program/ProgramAll";
 import SessionDetail from "./pages/site/program/SessionDetail";
+import SpeakerDetail from "./pages/site/program/SpeakerDetail";
 import Schedule from "./pages/site/program/Schedule";
 import VoteResult from "./pages/site/program/VoteResult";
 
@@ -263,6 +264,7 @@ export default function App() {
           <Route path="/program/schedule/:eventId?" element={<Schedule />} />
           <Route path="/program/all/:eventId?" element={<ProgramAll />} />
           <Route path="/program/detail" element={<SessionDetail />} />
+          <Route path="/program/speaker/detail" element={<SpeakerDetail />} />
           <Route path="/program/contest/:eventId/detail/:programId" element={<ContestDetailPage />} />
           <Route path="/program/contest/:eventId?" element={<Contest />} />
           <Route path="/program/booth/:eventId?" element={<Booth />} />

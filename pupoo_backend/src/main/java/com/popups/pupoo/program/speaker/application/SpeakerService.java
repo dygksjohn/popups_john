@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -53,20 +52,21 @@ public class SpeakerService {
             throw new EntityNotFoundException("PROGRAM_NOT_FOUND");
         }
 
-        List<Long> speakerIds = programSpeakerMappingRepository.findByProgramId(programId)
+        Long speakerId = programSpeakerMappingRepository.findByProgramId(programId)
                 .stream()
                 .map(ProgramSpeakerMapping::getSpeakerId)
-                .toList();
+                .sorted()
+                .findFirst()
+                .orElse(null);
 
-        if (speakerIds.isEmpty()) {
+        if (speakerId == null) {
             return List.of();
         }
 
-        return speakerRepository.findAllById(speakerIds)
-                .stream()
-                .sorted(Comparator.comparing(Speaker::getSpeakerId))
-                .map(SpeakerResponse::from)
-                .toList();
+        Speaker speaker = speakerRepository.findById(speakerId)
+                .orElseThrow(() -> new EntityNotFoundException("SPEAKER_NOT_FOUND"));
+
+        return List.of(SpeakerResponse.from(speaker));
     }
 
     /** 프로그램 하위: 프로그램에 속한 연사 단건 */
