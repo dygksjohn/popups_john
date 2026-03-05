@@ -240,25 +240,6 @@ const styles = `
     flex-wrap: wrap;
     gap: 10px;
   }
-  .mp-subscribe-tags {
-    margin-top: 8px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .mp-chip {
-    font-size: 11px;
-    color: #334155;
-    border: 1px solid #dbe2ef;
-    border-radius: 999px;
-    padding: 4px 9px;
-    background: #f8fafc;
-  }
-  .mp-chip.active {
-    color: #0f766e;
-    border-color: #99f6e4;
-    background: #ecfeff;
-  }
   .mp-inline-actions {
     margin-top: 10px;
     display: flex;
@@ -283,6 +264,46 @@ const styles = `
   .mp-link-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+  .mp-quick-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .mp-quick-pill {
+    border: 1px solid #dbe2ef;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    line-height: 1;
+  }
+  .mp-quick-name {
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .mp-quick-btn {
+    border: 1px solid #c7d2fe;
+    background: #fff;
+    color: #1d4ed8;
+    border-radius: 999px;
+    padding: 3px 9px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mp-quick-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .mp-quick-btn.warn {
+    border-color: #fecaca;
+    color: #b91c1c;
+    background: #fff5f5;
   }
   .mp-badge {
     padding: 3px 9px;
@@ -460,11 +481,6 @@ const REG_STATUS_LABEL = {
   APPROVED: "승인 완료",
   CANCELLED: "취소",
   REJECTED: "거절",
-};
-
-const INTEREST_TYPE_LABEL = {
-  SYSTEM: "시스템",
-  USER: "사용자",
 };
 
 const INTEREST_NAME_LABEL = {
@@ -843,7 +859,7 @@ export default function MyPage() {
         await interestApi.unsubscribe(interestId);
         await refreshSubscriptions();
       } catch (e) {
-        setSubscriptionError(e?.response?.data?.message || e?.message || "구독 해지에 실패했습니다.");
+        setSubscriptionError(e?.response?.data?.message || e?.message || "삭제에 실패했습니다.");
       } finally {
         setSubscriptionSaving(interestId, false);
       }
@@ -1078,35 +1094,25 @@ export default function MyPage() {
                   {activeSubscriptions.length === 0 ? (
                     <div className="mp-empty">활성 구독이 없습니다.</div>
                   ) : (
-                    activeSubscriptions.map((row) => {
-                      const interestId = Number(row?.interestId);
-                      const saving = !!subscriptionSavingMap[interestId];
-                      return (
-                        <div className="mp-item" key={`sub-active-${row?.subscriptionId || interestId}`}>
-                          <div className="mp-item-top">
-                            <div className="mp-item-title">{interestLabel(row?.interestName)}</div>
-                            <span className="mp-badge approved">
-                              {INTEREST_TYPE_LABEL[String(row?.type || "").toUpperCase()] || "구독"}
-                            </span>
-                          </div>
-                          <div className="mp-subscribe-tags">
-                            <span className={`mp-chip ${row?.allowInapp ? "active" : ""}`}>앱 알림</span>
-                            <span className={`mp-chip ${row?.allowEmail ? "active" : ""}`}>이메일</span>
-                            <span className={`mp-chip ${row?.allowSms ? "active" : ""}`}>문자</span>
-                          </div>
-                          <div className="mp-inline-actions">
+                    <div className="mp-quick-wrap">
+                      {activeSubscriptions.map((row) => {
+                        const interestId = Number(row?.interestId);
+                        const saving = !!subscriptionSavingMap[interestId];
+                        return (
+                          <div className="mp-quick-pill" key={`sub-active-${row?.subscriptionId || interestId}`}>
+                            <span className="mp-quick-name">{interestLabel(row?.interestName)}</span>
                             <button
                               type="button"
-                              className="mp-link-btn warn"
+                              className="mp-quick-btn warn"
                               onClick={() => handleUnsubscribeInterest(interestId)}
                               disabled={saving}
                             >
-                              {saving ? "처리 중..." : "구독 해지"}
+                              {saving ? "처리 중..." : "삭제"}
                             </button>
                           </div>
-                        </div>
-                      );
-                    })
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               </div>
@@ -1116,7 +1122,7 @@ export default function MyPage() {
                   <h3 className="mp-section-title">빠른 구독 추가</h3>
                   <span className="mp-count">가능 {availableInterests.length}건</span>
                 </div>
-                <div className="mp-list">
+                <div className="mp-quick-wrap">
                   {availableInterests.length === 0 ? (
                     <div className="mp-empty">추가로 구독 가능한 항목이 없습니다.</div>
                   ) : (
@@ -1124,23 +1130,16 @@ export default function MyPage() {
                       const interestId = Number(row?.interestId);
                       const saving = !!subscriptionSavingMap[interestId];
                       return (
-                        <div className="mp-item" key={`sub-available-${interestId}`}>
-                          <div className="mp-item-top">
-                            <div className="mp-item-title">{interestLabel(row?.interestName)}</div>
-                            <span className="mp-badge applied">
-                              {INTEREST_TYPE_LABEL[String(row?.type || "").toUpperCase()] || "관심사"}
-                            </span>
-                          </div>
-                          <div className="mp-inline-actions">
-                            <button
-                              type="button"
-                              className="mp-link-btn"
-                              onClick={() => handleSubscribeInterest(interestId)}
-                              disabled={saving}
-                            >
-                              {saving ? "처리 중..." : "구독하기"}
-                            </button>
-                          </div>
+                        <div className="mp-quick-pill" key={`sub-available-${interestId}`}>
+                          <span className="mp-quick-name">{interestLabel(row?.interestName)}</span>
+                          <button
+                            type="button"
+                            className="mp-quick-btn"
+                            onClick={() => handleSubscribeInterest(interestId)}
+                            disabled={saving}
+                          >
+                            {saving ? "처리 중..." : "추가"}
+                          </button>
                         </div>
                       );
                     })

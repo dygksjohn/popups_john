@@ -44,6 +44,13 @@ public class InterestController {
         return ApiResponse.success(interestService.unsubscribe(request));
     }
 
+    @PatchMapping("/channels")
+    public ApiResponse<UserInterestSubscriptionResponse> updateChannels(
+            @Valid @RequestBody InterestChannelUpdateRequest request
+    ) {
+        return ApiResponse.success(interestService.updateChannels(request));
+    }
+
     @PostMapping("/mysubscriptions")
     public ApiResponse<List<UserInterestSubscriptionResponse>> mySubscriptions(
             @RequestParam(defaultValue = "false") boolean includeInactive

@@ -103,7 +103,6 @@ import EventGallery from "./pages/site/gallery/eventgallery";
 
 /* guide */
 import Operation from "./pages/site/guide/Operation";
-import LocationPage from "./pages/site/guide/location";
 import Timetable from "./pages/site/guide/Timetable";
 
 function ComingSoon() {
@@ -292,7 +291,6 @@ export default function App() {
           <Route path="/policy/termsofservice" element={<TermsOfService />} />
           <Route path="/policy/eftterms" element={<EFTTerms />} />
           <Route path="/gallery/eventgallery" element={<EventGallery />} />
-          <Route path="/guide/location" element={<LocationPage />} />
           <Route path="/guide/operation" element={<Operation />} />
           <Route path="/guide/timetable" element={<Timetable />} />
         </Route>
