@@ -87,6 +87,12 @@ public class UserInterestSubscription {
         this.allowSms = allowSms;
     }
 
+    public void updateChannels(boolean allowInapp, boolean allowEmail, boolean allowSms) {
+        this.allowInapp = allowInapp;
+        this.allowEmail = allowEmail;
+        this.allowSms = allowSms;
+    }
+
     public void pause() {
         this.status = SubscriptionStatus.PAUSED;
     }

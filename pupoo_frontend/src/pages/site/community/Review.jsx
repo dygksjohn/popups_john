@@ -3,13 +3,13 @@ import PageHeader from "../components/PageHeader";
 import {
   Search,
   Loader2,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   X,
   Star,
   MessageCircle,
 } from "lucide-react";
+import sortIcon from "../../../assets/sort-icon.svg";
 import { reviewApi } from "../../../app/http/reviewApi";
 import { eventApi } from "../../../app/http/eventApi";
 import { reviewReplyApi } from "../../../app/http/replyApi";
@@ -272,6 +272,7 @@ export default function Review() {
   const [currentPath, setCurrentPath] = useState("/community/review");
   const [ratingFilter, setRatingFilter] = useState("ALL");
   const [sortOption, setSortOption] = useState("latest");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
   const [items, setItems] = useState([]);
   const [commentCountMap, setCommentCountMap] = useState({});
@@ -477,6 +478,8 @@ export default function Review() {
   }, [items, search, sortOption, commentCountMap]);
 
   const badge = getBoardBadge("REVIEW");
+  const currentSortLabel =
+    SORT_OPTIONS.find((option) => option.value === sortOption)?.label || "최신순";
 
   return (
     <>
@@ -512,82 +515,91 @@ export default function Review() {
           </span>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ position: "relative" }}>
-              <select
-                value={ratingFilter}
-                onChange={(e) => setRatingFilter(e.target.value)}
-                style={{
-                  appearance: "none",
-                  WebkitAppearance: "none",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                  padding: "7px 32px 7px 12px",
-                  fontSize: "14px",
-                  color: "#333",
-                  background: "#fff",
-                  cursor: "pointer",
-                  outline: "none",
-                  minWidth: "96px",
-                }}
-              >
-                {RATING_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <span
-                style={{
-                  position: "absolute",
-                  right: "10px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  pointerEvents: "none",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <ChevronDown size={14} color="#666" />
-              </span>
-            </div>
+            <select
+              value={ratingFilter}
+              onChange={(e) => setRatingFilter(e.target.value)}
+              style={{
+                border: "1px solid #d1d5db",
+                borderRadius: 8,
+                background: "#fff",
+                height: 38,
+                padding: "0 10px",
+                fontSize: 13,
+                color: "#334155",
+                minWidth: 110,
+              }}
+            >
+              {RATING_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
 
             <div style={{ position: "relative" }}>
-              <select
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
+              <button
+                type="button"
+                onClick={() => setSortMenuOpen((prev) => !prev)}
                 style={{
-                  appearance: "none",
-                  WebkitAppearance: "none",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                  padding: "7px 32px 7px 12px",
-                  fontSize: "14px",
-                  color: "#333",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
                   background: "#fff",
-                  cursor: "pointer",
-                  outline: "none",
-                  minWidth: "96px",
-                }}
-              >
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <span
-                style={{
-                  position: "absolute",
-                  right: "10px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  pointerEvents: "none",
-                  display: "flex",
+                  height: 38,
+                  padding: "0 12px",
+                  display: "inline-flex",
                   alignItems: "center",
+                  gap: 7,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#334155",
+                  cursor: "pointer",
                 }}
               >
-                <ChevronDown size={14} color="#666" />
-              </span>
+                <img src={sortIcon} alt="정렬 아이콘" width={14} height={14} />
+                {currentSortLabel}
+              </button>
+              {sortMenuOpen ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 42,
+                    minWidth: 120,
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    background: "#fff",
+                    boxShadow: "0 8px 20px rgba(15,23,42,0.12)",
+                    zIndex: 20,
+                    overflow: "hidden",
+                  }}
+                >
+                  {SORT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setSortOption(opt.value);
+                        setSortMenuOpen(false);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "left",
+                        border: "none",
+                        borderBottom: "1px solid #f1f5f9",
+                        background: opt.value === sortOption ? "#eff6ff" : "#fff",
+                        color: opt.value === sortOption ? "#1D4ED8" : "#334155",
+                        padding: "9px 11px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div

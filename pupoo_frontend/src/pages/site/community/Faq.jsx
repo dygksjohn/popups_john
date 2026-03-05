@@ -335,7 +335,7 @@ export default function CommunityFaq() {
                                 margin: "0 0 8px",
                               }}
                             >
-                              질문
+                              제목
                             </h3>
                             <div
                               style={{
@@ -349,7 +349,7 @@ export default function CommunityFaq() {
                                 whiteSpace: "pre-wrap",
                               }}
                             >
-                              {detailMap[faq.postId]?.content || "질문 내용이 없습니다."}
+                              {detailMap[faq.postId]?.title || faq.title || "제목이 없습니다."}
                             </div>
                           </section>
 
@@ -366,17 +366,48 @@ export default function CommunityFaq() {
                             </h3>
                             <div
                               style={{
-                                background: "#EFF6FF",
-                                border: "1px solid #BFDBFE",
-                                borderRadius: 10,
                                 padding: "14px 16px",
-                                fontSize: 14,
-                                color: "#1E3A8A",
-                                lineHeight: 1.7,
-                                whiteSpace: "pre-wrap",
+                                background: "#eef3ff",
+                                borderRadius: 8,
+                                borderLeft: "3px solid #4a7cf7",
                               }}
                             >
-                              {detailMap[faq.postId]?.answerContent || "등록된 답변이 없습니다."}
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  color: "#4a7cf7",
+                                  marginBottom: 6,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                }}
+                              >
+                                re: 관리자 답변
+                                {(detailMap[faq.postId]?.answeredAt || faq.answeredAt) ? (
+                                  <span
+                                    style={{
+                                      fontSize: 11,
+                                      color: "#999",
+                                      fontWeight: 400,
+                                      marginLeft: 8,
+                                    }}
+                                  >
+                                    {fmtDate(detailMap[faq.postId]?.answeredAt || faq.answeredAt)}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p
+                                style={{
+                                  fontSize: 14,
+                                  color: "#444",
+                                  lineHeight: 1.7,
+                                  whiteSpace: "pre-wrap",
+                                  margin: 0,
+                                }}
+                              >
+                                {detailMap[faq.postId]?.answerContent || "등록된 답변이 없습니다."}
+                              </p>
                             </div>
                           </section>
                         </>

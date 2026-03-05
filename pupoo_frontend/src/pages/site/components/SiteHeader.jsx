@@ -234,7 +234,6 @@ const megaMenuData = {
         title: "참여 안내",
         items: [
           { label: "현장 운영 안내", href: "/guide/operation" },
-          { label: "장소/오시는길", href: "/guide/location" },
         ],
       },
     ],

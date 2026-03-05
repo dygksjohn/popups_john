@@ -40,4 +40,18 @@ export const interestApi = {
       .post("/api/interests/unsubscribe", { interestId })
       .then((res) => unwrap(res));
   },
+
+  updateChannels(payload) {
+    if (payload?.interestId == null) {
+      throw new Error("interestApi.updateChannels: interestId is required");
+    }
+    return axiosInstance
+      .patch("/api/interests/channels", {
+        interestId: payload.interestId,
+        allowInapp: payload.allowInapp ?? false,
+        allowEmail: payload.allowEmail ?? false,
+        allowSms: payload.allowSms ?? false,
+      })
+      .then((res) => unwrap(res));
+  },
 };
