@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -43,7 +44,7 @@ public class LocalFileStorageService implements ObjectStoragePort {
      * [운영(우분투) 전환 시]
      * - application-prod.yml에서 /var/app/uploads 로 변경
      */
-    private final String basePath;
+    private final Path baseDir;
 
     /**
      * 퍼블릭 접근 prefix
@@ -58,7 +59,7 @@ public class LocalFileStorageService implements ObjectStoragePort {
             @Value("${storage.public-prefix:/static}") String publicPrefix
     ) {
         this.localStorageClient = localStorageClient;
-        this.basePath = basePath;
+        this.baseDir = resolveBasePath(basePath);
         this.publicPrefix = normalizePrefix(publicPrefix);
     }
 
@@ -101,7 +102,11 @@ public class LocalFileStorageService implements ObjectStoragePort {
     private Path resolvePath(String key) {
         // 절대경로 입력을 막고, basePath 하위로만 저장되도록 강제한다.
         String safeKey = stripLeadingSlash(key);
-        return Paths.get(basePath, safeKey);
+        Path resolved = baseDir.resolve(safeKey).normalize();
+        if (!resolved.startsWith(baseDir)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "invalid key path");
+        }
+        return resolved;
     }
 
     private static String stripLeadingSlash(String key) {
@@ -114,5 +119,25 @@ public class LocalFileStorageService implements ObjectStoragePort {
         if (!p.startsWith("/")) p = "/" + p;
         if (p.endsWith("/")) p = p.substring(0, p.length() - 1);
         return p;
+    }
+
+    private static Path resolveBasePath(String configuredPath) {
+        Path raw = Paths.get(configuredPath);
+        if (raw.isAbsolute()) {
+            return raw.normalize();
+        }
+
+        Path userDir = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize();
+        Path fromUserDir = userDir.resolve(raw).normalize();
+        if (Files.exists(fromUserDir)) {
+            return fromUserDir;
+        }
+
+        Path fromBackendModule = userDir.resolve("pupoo_backend").resolve(raw).normalize();
+        if (Files.exists(fromBackendModule)) {
+            return fromBackendModule;
+        }
+
+        return fromUserDir;
     }
 }

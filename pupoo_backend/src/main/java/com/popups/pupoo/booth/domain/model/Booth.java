@@ -1,8 +1,8 @@
 package com.popups.pupoo.booth.domain.model;
 
 import com.popups.pupoo.booth.domain.enums.BoothStatus;
-import com.popups.pupoo.booth.domain.enums.BoothZone;
 import com.popups.pupoo.booth.domain.enums.BoothType;
+import com.popups.pupoo.booth.domain.enums.BoothZone;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -23,7 +23,8 @@ public class Booth {
     private String placeName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, length = 30, columnDefinition = "ENUM('BOOTH_COMPANY','BOOTH_EXPERIENCE','BOOTH_SALE','BOOTH_FOOD','BOOTH_INFO','BOOTH_SPONSOR','SESSION_ROOM','CONTEST_ZONE','STAGE','ETC')")
+    @Column(name = "type", nullable = false, length = 30,
+            columnDefinition = "ENUM('BOOTH_COMPANY','BOOTH_EXPERIENCE','BOOTH_SALE','BOOTH_FOOD','BOOTH_INFO','BOOTH_SPONSOR','SESSION_ROOM','CONTEST_ZONE','STAGE','ETC')")
     private BoothType type;
 
     @Column(name = "description", length = 1000)
@@ -31,6 +32,9 @@ public class Booth {
 
     @Column(name = "company", length = 100)
     private String company;
+
+    @Column(name = "image_url", columnDefinition = "LONGTEXT")
+    private String imageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "zone", nullable = false, length = 20, columnDefinition = "ENUM('ZONE_A','ZONE_B','ZONE_C','OTHER')")
@@ -45,31 +49,31 @@ public class Booth {
 
     protected Booth() {}
 
-    // ★ 추가: 관리자 생성용 팩토리 메서드
     public static Booth create(Long eventId, String placeName, BoothType type,
-                                String description, String company,
-                                BoothZone zone, BoothStatus status) {
+                               String description, String company, String imageUrl,
+                               BoothZone zone, BoothStatus status) {
         Booth b = new Booth();
         b.eventId = eventId;
         b.placeName = placeName;
         b.type = type;
         b.description = description;
         b.company = company;
+        b.imageUrl = imageUrl;
         b.zone = zone;
         b.status = (status != null) ? status : BoothStatus.OPEN;
         b.createdAt = LocalDateTime.now();
         return b;
     }
 
-    // ★ 추가: 관리자 수정 메서드
     public void update(String placeName, BoothType type, String description,
-                       String company, BoothZone zone, BoothStatus status) {
+                       String company, String imageUrl, BoothZone zone, BoothStatus status) {
         if (placeName != null) this.placeName = placeName;
-        if (type != null)      this.type = type;
+        if (type != null) this.type = type;
         if (description != null) this.description = description;
-        if (company != null)   this.company = company;
-        if (zone != null)      this.zone = zone;
-        if (status != null)    this.status = status;
+        if (company != null) this.company = company;
+        if (imageUrl != null) this.imageUrl = imageUrl;
+        if (zone != null) this.zone = zone;
+        if (status != null) this.status = status;
     }
 
     public Long getBoothId() { return boothId; }
@@ -78,6 +82,7 @@ public class Booth {
     public BoothType getType() { return type; }
     public String getDescription() { return description; }
     public String getCompany() { return company; }
+    public String getImageUrl() { return imageUrl; }
     public BoothZone getZone() { return zone; }
     public BoothStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }

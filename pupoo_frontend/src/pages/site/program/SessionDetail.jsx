@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const FALLBACK_IMGS = [
   "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=900&h=500&fit=crop",
@@ -115,11 +116,12 @@ const css = `
   .sd-item-value { font-size:14px; color:#111827; font-weight:700; margin-top:2px; }
   .sd-desc { white-space:pre-wrap; line-height:1.7; color:#374151; font-size:14px; }
   .sd-speaker {
-    display:flex; gap:12px; background:#f8f9fc; border:1px solid #edf0f4; border-radius:14px;
+    display:flex; gap:16px; align-items:flex-start; background:#f8f9fc; border:1px solid #edf0f4; border-radius:14px;
     padding:14px; cursor:pointer; transition:.15s border-color, .15s box-shadow;
   }
   .sd-speaker:hover { border-color:#d5ddef; box-shadow:0 2px 12px rgba(0,0,0,.04); }
-  .sd-speaker-av { width:50px; height:50px; border-radius:50%; color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; flex-shrink:0; }
+  .sd-speaker-av { width:128px; height:156px; border-radius:12px; color:#fff; display:flex; align-items:center; justify-content:center; font-size:46px; font-weight:800; flex-shrink:0; }
+  .sd-speaker-av-img { width:128px; height:156px; border-radius:12px; object-fit:cover; flex-shrink:0; border:1px solid #e5e7eb; background:#fff; }
   .sd-speaker-name { font-size:15px; font-weight:800; color:#111827; }
   .sd-speaker-bio { margin-top:4px; color:#6b7280; font-size:12.5px; line-height:1.45; }
   .sd-speaker-ct { margin-top:8px; display:flex; gap:12px; flex-wrap:wrap; color:#9ca3af; font-size:12px; }
@@ -140,6 +142,7 @@ const css = `
     .sd-hero-title { font-size:22px; }
     .sd-main { grid-template-columns:1fr; padding:0 16px 40px; }
     .sd-grid { grid-template-columns:1fr; }
+    .sd-speaker-av, .sd-speaker-av-img { width:96px; height:118px; }
   }
 `;
 
@@ -153,6 +156,7 @@ export default function SessionDetail() {
   const [program, setProgram] = useState(null);
   const [speaker, setSpeaker] = useState(null);
   const [eventInfo, setEventInfo] = useState(null);
+  const [speakerImageError, setSpeakerImageError] = useState(false);
 
   useEffect(() => {
     if (!programId) {
@@ -203,6 +207,10 @@ export default function SessionDetail() {
     };
   }, [programId]);
 
+  useEffect(() => {
+    setSpeakerImageError(false);
+  }, [speaker?.speakerId, speaker?.speakerImageUrl]);
+
   if (loading) {
     return (
       <div className="sd-root">
@@ -231,8 +239,9 @@ export default function SessionDetail() {
   const categoryRaw = String(program?.category ?? program?.programCategory ?? "").toUpperCase();
   const categoryLabel = CATEGORY_MAP[categoryRaw] || "프로그램";
   const st = statusInfo(program);
-  const heroImg = program?.imageUrl || fallbackImg(programId);
-  const eventImg = eventInfo?.imageUrl || fallbackImg(program?.eventId);
+  const heroImg = toPublicAssetUrl(program?.imageUrl) || fallbackImg(programId);
+  const eventImg = toPublicAssetUrl(eventInfo?.imageUrl) || fallbackImg(program?.eventId);
+  const speakerImg = !speakerImageError ? toPublicAssetUrl(speaker?.speakerImageUrl) : "";
 
   const goSpeakerDetail = () => {
     if (!speaker?.speakerId) return;
@@ -367,12 +376,21 @@ export default function SessionDetail() {
                   }
                 }}
               >
-                <div
-                  className="sd-speaker-av"
-                  style={{ background: avatarColor(speaker.speakerId) }}
-                >
-                  {(speaker.speakerName || "?").charAt(0)}
-                </div>
+                {speakerImg ? (
+                  <img
+                    className="sd-speaker-av-img"
+                    src={speakerImg}
+                    alt={speaker.speakerName || "speaker"}
+                    onError={() => setSpeakerImageError(true)}
+                  />
+                ) : (
+                  <div
+                    className="sd-speaker-av"
+                    style={{ background: avatarColor(speaker.speakerId) }}
+                  >
+                    {(speaker.speakerName || "?").charAt(0)}
+                  </div>
+                )}
                 <div style={{ minWidth: 0 }}>
                   <div className="sd-speaker-name">{speaker.speakerName}</div>
                   {!!speaker.speakerBio && <div className="sd-speaker-bio">{speaker.speakerBio}</div>}

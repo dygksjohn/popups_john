@@ -135,6 +135,7 @@ CREATE TABLE booths (
   type         ENUM('BOOTH_COMPANY','BOOTH_EXPERIENCE','BOOTH_SALE','BOOTH_FOOD','BOOTH_INFO','BOOTH_SPONSOR','SESSION_ROOM','CONTEST_ZONE','STAGE','ETC') NOT NULL COMMENT '장소 종류',
   description  VARCHAR(1000) NULL COMMENT '설명(옵션)',
   company      VARCHAR(100)  NULL COMMENT '업체명(부스 타입일 때만 사용 가능)',
+  image_url    LONGTEXT      NULL COMMENT '부스 이미지(base64/URL)',
   zone         ENUM('ZONE_A','ZONE_B','ZONE_C','OTHER') NOT NULL COMMENT '존(구역)',
   status       ENUM('OPEN','CLOSED','PAUSED') NOT NULL COMMENT '운영 상태',
   created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '등록일시',

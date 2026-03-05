@@ -60,6 +60,9 @@ TRUNCATE TABLE admin_logs;
 TRUNCATE TABLE refresh_token;
 TRUNCATE TABLE users;
 
+ALTER TABLE booths
+  ADD COLUMN IF NOT EXISTS image_url LONGTEXT NULL COMMENT '부스 이미지(base64/URL)';
+
 -- ─── 1. users ───
 INSERT INTO users (user_id,email,password,nickname,phone,status,role_name,show_age,show_gender,show_pet,email_verified,phone_verified,created_at,last_login_at,last_modified_at) VALUES (1,'admin@pupoo.com','$2a$10$N/VX1suQpCsj6gxNBSZmKucOC7jax0CYZ.187vtgSYvCNs2SYeBqK','푸푸관리자','010-9000-0001','ACTIVE','ADMIN',1,1,1,1,1,'2023-03-01 09:00:00','2026-03-01 08:30:00','2026-02-15 10:00:00');
 INSERT INTO users (user_id,email,password,nickname,phone,status,role_name,show_age,show_gender,show_pet,email_verified,phone_verified,created_at,last_login_at,last_modified_at) VALUES (2,'user@pupoo.com','$2a$10$N/VX1suQpCsj6gxNBSZmKucOC7jax0CYZ.187vtgSYvCNs2SYeBqK','일반유저','010-9000-0002','ACTIVE','USER',1,1,1,1,1,'2023-03-15 14:22:00','2026-02-28 19:45:00','2026-01-10 11:30:00');
@@ -15842,6 +15845,23 @@ SET image_url = CONCAT(
   ),
   '.jpg'
 );
+
+-- Normalize booth.image_url to deterministic uploads path.
+UPDATE booths
+SET image_url = CONCAT(
+  'src\\main\\resources\\uploads\\booth\\booth_',
+  LPAD(MOD(booth_id - 1, 120) + 1, 3, '0'),
+  '.jpg'
+);
+
+-- Experience category uses dedicated experience image pool.
+UPDATE event_program
+SET image_url = CONCAT(
+  'src\\main\\resources\\uploads\\experience\\experience_',
+  LPAD(MOD(program_id - 1, 160) + 1, 3, '0'),
+  '.jpg'
+)
+WHERE category = 'EXPERIENCE';
 
 -- --------------------------------------------------------------------------
 -- Event timeline rebalance for demo pages

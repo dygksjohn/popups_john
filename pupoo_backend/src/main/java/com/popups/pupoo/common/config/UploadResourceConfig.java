@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
@@ -22,8 +24,29 @@ public class UploadResourceConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String location = "file:" + Paths.get(basePath).toAbsolutePath() + "/";
+        Path resolvedBasePath = resolveBasePath(basePath);
+        String location = "file:" + resolvedBasePath + "/";
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations(location);
+    }
+
+    private static Path resolveBasePath(String configuredPath) {
+        Path raw = Paths.get(configuredPath);
+        if (raw.isAbsolute()) {
+            return raw.normalize();
+        }
+
+        Path userDir = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize();
+        Path fromUserDir = userDir.resolve(raw).normalize();
+        if (Files.exists(fromUserDir)) {
+            return fromUserDir;
+        }
+
+        Path fromBackendModule = userDir.resolve("pupoo_backend").resolve(raw).normalize();
+        if (Files.exists(fromBackendModule)) {
+            return fromBackendModule;
+        }
+
+        return fromUserDir;
     }
 }

@@ -14,6 +14,7 @@ public class BoothResponse {
     public BoothType type;
     public String description;
     public String company;
+    public String imageUrl;
     public BoothZone zone;
     public BoothStatus status;
     public LocalDateTime createdAt;
@@ -30,9 +31,25 @@ public class BoothResponse {
         r.type = b.getType();
         r.description = b.getDescription();
         r.company = b.getCompany();
+        r.imageUrl = normalizeImagePath(b.getImageUrl());
         r.zone = b.getZone();
         r.status = b.getStatus();
         r.createdAt = b.getCreatedAt();
         return r;
+    }
+
+    private static String normalizeImagePath(String rawPath) {
+        if (rawPath == null || rawPath.isBlank()) return null;
+
+        String normalized = rawPath.replace('\\', '/');
+        String lower = normalized.toLowerCase();
+
+        int idx = lower.indexOf("/uploads/");
+        if (idx >= 0) return normalized.substring(idx);
+
+        idx = lower.indexOf("uploads/");
+        if (idx >= 0) return "/" + normalized.substring(idx);
+
+        return rawPath;
     }
 }

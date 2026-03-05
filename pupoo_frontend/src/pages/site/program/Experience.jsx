@@ -9,6 +9,7 @@ import {
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { boothApi } from "../../../app/http/boothApi";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 import {
   Palette,
   Users,
@@ -71,6 +72,12 @@ const styles = `
     border: 1px solid #e9ecef; border-radius: 12px; padding: 20px;
     background: #fff; transition: all 0.15s; position: relative; overflow: hidden;
   }
+  .ex-program-thumb {
+    width: calc(100% + 40px); height: 168px; margin: -20px -20px 14px; overflow: hidden;
+    background: linear-gradient(135deg, #eff4ff 0%, #f8fafc 100%);
+    border-bottom: 1px solid #edf2f7;
+  }
+  .ex-program-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .ex-program-card:hover { border-color: #c7d2fe; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
   .ex-program-card.featured { border-color: #f59e0b; }
   .ex-program-card.featured::before {
@@ -557,6 +564,7 @@ function ExperienceDetail({ eventId }) {
             featured: idx < 2,
             bg: color.bg,
             color: color.color,
+            imageUrl: toPublicAssetUrl(item?.imageUrl),
             startAt: item?.startAt ?? null,
           };
         });
@@ -778,6 +786,33 @@ function ExperienceDetail({ eventId }) {
                   key={p.id}
                   className={`ex-program-card${p.featured && !isRegistered ? " featured" : ""}${isRegistered ? " registered" : ""}`}
                 >
+                  <div className="ex-program-thumb">
+                    {p.imageUrl ? (
+                      <img
+                        src={p.imageUrl}
+                        alt={p.name}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#94a3b8",
+                          fontSize: 13,
+                          fontWeight: 700,
+                        }}
+                      >
+                        프로그램 이미지
+                      </div>
+                    )}
+                  </div>
                   <div className="ex-program-top">
                     <div
                       className="ex-program-icon"
