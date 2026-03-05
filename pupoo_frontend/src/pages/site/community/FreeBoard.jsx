@@ -19,7 +19,6 @@ const PAGE_SIZE = 10;
 const SORT_OPTIONS = [
   { key: "recent", label: "최신순" },
   { key: "views", label: "조회순" },
-  { key: "likes", label: "추천순" },
   { key: "comments", label: "댓글순" },
 ];
 
@@ -34,11 +33,6 @@ function fmtDate(dt) {
 function toTimestamp(value) {
   const ts = Date.parse(String(value || ""));
   return Number.isFinite(ts) ? ts : 0;
-}
-
-function getLikeCount(item) {
-  const likes = Number(item?.likeCount ?? item?.likes ?? item?.upvoteCount ?? 0);
-  return Number.isFinite(likes) ? likes : 0;
 }
 
 function DetailModal({
@@ -343,9 +337,6 @@ export default function FreeBoard() {
     rows.sort((a, b) => {
       if (sortKey === "views") {
         const diff = (b?.viewCount ?? 0) - (a?.viewCount ?? 0);
-        if (diff !== 0) return diff;
-      } else if (sortKey === "likes") {
-        const diff = getLikeCount(b) - getLikeCount(a);
         if (diff !== 0) return diff;
       } else if (sortKey === "comments") {
         const diff =

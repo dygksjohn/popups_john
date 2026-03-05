@@ -47,6 +47,9 @@ public class Event {
     @Column(name = "location", length = 255)
     private String location;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(name = "organizer", length = 255)
     private String organizer;
 
@@ -76,6 +79,7 @@ public class Event {
             LocalDateTime startAt,
             LocalDateTime endAt,
             String location,
+            String imageUrl,
             String organizer,
             EventStatus status,
             Integer roundNo,
@@ -87,6 +91,7 @@ public class Event {
         e.startAt = startAt;
         e.endAt = endAt;
         e.location = location;
+        e.imageUrl = imageUrl;
         e.organizer = organizer;
         e.status = status;
         e.roundNo = roundNo;
@@ -100,6 +105,7 @@ public class Event {
             LocalDateTime startAt,
             LocalDateTime endAt,
             String location,
+            String imageUrl,
             String organizer,
             EventStatus status,
             Integer roundNo,
@@ -110,6 +116,7 @@ public class Event {
         this.startAt = startAt;
         this.endAt = endAt;
         this.location = location;
+        this.imageUrl = imageUrl;
         this.organizer = organizer;
         this.status = status;
         this.roundNo = roundNo;
@@ -132,6 +139,7 @@ public class Event {
     public LocalDateTime getStartAt() { return startAt; }
     public LocalDateTime getEndAt() { return endAt; }
     public String getLocation() { return location; }
+    public String getImageUrl() { return imageUrl; }
     public String getOrganizer() { return organizer; }
     public String getOrganizerPhone() { return organizerPhone; }
     public String getOrganizerEmail() { return organizerEmail; }

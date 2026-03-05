@@ -31,6 +31,7 @@ public class EventResponse {
         r.eventId = e.getEventId();
         r.eventName = e.getEventName();
         r.description = e.getDescription();
+        r.imageUrl = e.getImageUrl();
         r.startAt = e.getStartAt();
         r.endAt = e.getEndAt();
         r.location = e.getLocation();

@@ -18,6 +18,7 @@ public class AdminEventUpdateRequest {
     private LocalDateTime startAt;
     private LocalDateTime endAt;
     private String location;
+    private String imageUrl;
     private String organizer;
     private EventStatus status;
     private Integer roundNo;
@@ -30,6 +31,7 @@ public class AdminEventUpdateRequest {
     public LocalDateTime getStartAt() { return startAt; }
     public LocalDateTime getEndAt() { return endAt; }
     public String getLocation() { return location; }
+    public String getImageUrl() { return imageUrl; }
     public String getOrganizer() { return organizer; }
     public EventStatus getStatus() { return status; }
     public Integer getRoundNo() { return roundNo; }

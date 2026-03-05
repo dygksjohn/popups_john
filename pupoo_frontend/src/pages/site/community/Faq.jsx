@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import PageHeader from "../components/PageHeader";
-import { Search, Loader2, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Loader2, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 
@@ -8,181 +8,6 @@ function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function DetailModal({ item, loading, onClose }) {
-  if (!item) return null;
-
-  return (
-    <>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 5000,
-          background: "rgba(0,0,0,0.4)",
-          backdropFilter: "blur(4px)",
-        }}
-      />
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          zIndex: 5001,
-          background: "#fff",
-          borderRadius: 16,
-          width: "90%",
-          maxWidth: 760,
-          maxHeight: "85vh",
-          overflow: "auto",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
-        }}
-      >
-        <div
-          style={{
-            padding: "24px 28px 0",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
-        >
-          <div style={{ flex: 1, paddingRight: 16 }}>
-            <span
-              style={{ ...getBoardBadge("FAQ").style, marginBottom: 10 }}
-            >
-              {getBoardBadge("FAQ").text}
-            </span>
-            <h2
-              style={{
-                fontSize: 20,
-                fontWeight: 800,
-                color: "#1E293B",
-                margin: 0,
-                lineHeight: 1.4,
-              }}
-            >
-              {item.title || "제목 없음"}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <X size={16} color="#94A3B8" />
-          </button>
-        </div>
-
-        <div
-          style={{
-            padding: "10px 28px 0",
-            display: "flex",
-            gap: 16,
-            flexWrap: "wrap",
-            fontSize: 13,
-            color: "#94A3B8",
-          }}
-        >
-          <span>작성일 {fmtDate(item.createdAt)}</span>
-          <span>조회수 {item.viewCount ?? 0}</span>
-          {item.answeredAt && <span>답변일 {fmtDate(item.answeredAt)}</span>}
-        </div>
-
-        <div style={{ margin: "16px 28px", borderBottom: "1px solid #E2E8F0" }} />
-
-        {loading ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "60px 0",
-            }}
-          >
-            <Loader2
-              size={24}
-              color="#94A3B8"
-              style={{ animation: "spin 1s linear infinite" }}
-            />
-            <div style={{ marginTop: 10, fontSize: 13, color: "#94A3B8" }}>
-              상세 내용을 불러오는 중입니다.
-            </div>
-          </div>
-        ) : (
-          <div style={{ padding: "0 28px 28px" }}>
-            <section style={{ marginBottom: 20 }}>
-              <h3
-                style={{
-                  fontSize: 15,
-                  fontWeight: 800,
-                  color: "#0F172A",
-                  margin: "0 0 8px",
-                }}
-              >
-                질문
-              </h3>
-              <div
-                style={{
-                  background: "#F8FAFC",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: 10,
-                  padding: "14px 16px",
-                  fontSize: 14,
-                  color: "#334155",
-                  lineHeight: 1.7,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {item.content || "질문 내용이 없습니다."}
-              </div>
-            </section>
-
-            <section>
-              <h3
-                style={{
-                  fontSize: 15,
-                  fontWeight: 800,
-                  color: "#0F172A",
-                  margin: "0 0 8px",
-                }}
-              >
-                답변
-              </h3>
-              <div
-                style={{
-                  background: "#EFF6FF",
-                  border: "1px solid #BFDBFE",
-                  borderRadius: 10,
-                  padding: "14px 16px",
-                  fontSize: 14,
-                  color: "#1E3A8A",
-                  lineHeight: 1.7,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {item.answerContent || "등록된 답변이 없습니다."}
-              </div>
-            </section>
-          </div>
-        )}
-      </div>
-    </>
-  );
 }
 
 export default function CommunityFaq() {
@@ -197,8 +22,9 @@ export default function CommunityFaq() {
   const [totalElements, setTotalElements] = useState(0);
   const PAGE_SIZE = 10;
 
-  const [selected, setSelected] = useState(null);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [openRows, setOpenRows] = useState({});
+  const [detailMap, setDetailMap] = useState({});
+  const [detailLoadingMap, setDetailLoadingMap] = useState({});
 
   const fetchFaqs = useCallback(async (p = 1) => {
     setLoading(true);
@@ -225,32 +51,47 @@ export default function CommunityFaq() {
     fetchFaqs(1);
   }, [fetchFaqs]);
 
-  const openDetail = async (postId) => {
-    setSelected({ postId, title: "", content: "", answerContent: "" });
-    setDetailLoading(true);
+  const loadDetail = useCallback(async (postId) => {
+    setDetailLoadingMap((prev) => ({ ...prev, [postId]: true }));
     try {
       const res = await axiosInstance.get(`/api/faqs/${postId}`);
       const d = res.data?.data || res.data || {};
-      setSelected({
-        postId: d.postId,
-        title: d.title,
-        content: d.content,
-        answerContent: d.answerContent,
-        answeredAt: d.answeredAt,
-        viewCount: d.viewCount,
-        createdAt: d.createdAt,
-      });
+      setDetailMap((prev) => ({
+        ...prev,
+        [postId]: {
+          postId: d.postId,
+          title: d.title,
+          content: d.content,
+          answerContent: d.answerContent,
+          answeredAt: d.answeredAt,
+          viewCount: d.viewCount,
+          createdAt: d.createdAt,
+        },
+      }));
     } catch (e) {
       console.error("[Community FAQ] detail fetch failed:", e);
-      setSelected({
-        postId,
-        title: "상세 조회 실패",
-        content: "FAQ 상세 내용을 불러오지 못했습니다.",
-        answerContent: "",
-      });
+      setDetailMap((prev) => ({
+        ...prev,
+        [postId]: {
+          postId,
+          title: "상세 조회 실패",
+          content: "FAQ 상세 내용을 불러오지 못했습니다.",
+          answerContent: "",
+        },
+      }));
     } finally {
-      setDetailLoading(false);
+      setDetailLoadingMap((prev) => ({ ...prev, [postId]: false }));
     }
+  }, []);
+
+  const toggleDetail = (postId) => {
+    setOpenRows((prev) => {
+      const willOpen = !prev[postId];
+      if (willOpen && !detailMap[postId] && !detailLoadingMap[postId]) {
+        loadDetail(postId);
+      }
+      return { ...prev, [postId]: willOpen };
+    });
   };
 
   const filtered = items.filter((item) => {
@@ -379,37 +220,169 @@ export default function CommunityFaq() {
               {filtered.map((faq) => (
                 <div
                   key={faq.postId}
-                  onClick={() => openDetail(faq.postId)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "18px 6px",
-                    borderBottom: "1px solid #e8e8e8",
-                    cursor: "pointer",
-                    transition: "background 0.15s",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "#f9f9f9")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
                 >
-                  <span
-                    style={{ ...getBoardBadge("FAQ").style, marginRight: 12 }}
-                  >
-                    {getBoardBadge("FAQ").text}
-                  </span>
-                  <span
+                  <div
+                    onClick={() => toggleDetail(faq.postId)}
                     style={{
-                      flex: 1,
-                      fontSize: "15px",
-                      color: "#222",
-                      fontWeight: 500,
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "18px 6px",
+                      borderBottom: "1px solid #e8e8e8",
+                      cursor: "pointer",
+                      transition: "background 0.15s",
+                      gap: 8,
                     }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "#f9f9f9")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
                   >
-                    {faq.title}
-                  </span>
+                    <span
+                      style={{ ...getBoardBadge("FAQ").style, marginRight: 8 }}
+                    >
+                      {getBoardBadge("FAQ").text}
+                    </span>
+                    <span
+                      style={{
+                        flex: 1,
+                        fontSize: "15px",
+                        color: "#222",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {faq.title}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "#999",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {fmtDate(faq.createdAt)}
+                    </span>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        transition: "transform 0.2s ease",
+                        transform: openRows[faq.postId]
+                          ? "rotate(180deg)"
+                          : "rotate(0deg)",
+                        marginLeft: 6,
+                      }}
+                    >
+                      <ChevronDown size={14} color="#64748B" />
+                    </span>
+                  </div>
+
+                  {openRows[faq.postId] && (
+                    <div
+                      style={{
+                        padding: "16px 18px 18px",
+                        background: "#f7f9ff",
+                        borderBottom: "1px solid #e8e8e8",
+                        borderTop: "1px dashed #dde6ff",
+                      }}
+                    >
+                      {detailLoadingMap[faq.postId] ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            fontSize: 13,
+                            color: "#64748B",
+                          }}
+                        >
+                          <Loader2
+                            size={14}
+                            color="#64748B"
+                            style={{ animation: "spin 1s linear infinite" }}
+                          />
+                          상세 내용을 불러오는 중입니다.
+                        </div>
+                      ) : (
+                        <>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 14,
+                              flexWrap: "wrap",
+                              fontSize: 12,
+                              color: "#94A3B8",
+                              marginBottom: 10,
+                            }}
+                          >
+                            <span>
+                              작성일 {fmtDate(detailMap[faq.postId]?.createdAt || faq.createdAt)}
+                            </span>
+                            <span>조회수 {detailMap[faq.postId]?.viewCount ?? faq.viewCount ?? 0}</span>
+                            {(detailMap[faq.postId]?.answeredAt || faq.answeredAt) && (
+                              <span>
+                                답변일 {fmtDate(detailMap[faq.postId]?.answeredAt || faq.answeredAt)}
+                              </span>
+                            )}
+                          </div>
+
+                          <section style={{ marginBottom: 12 }}>
+                            <h3
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 800,
+                                color: "#0F172A",
+                                margin: "0 0 8px",
+                              }}
+                            >
+                              질문
+                            </h3>
+                            <div
+                              style={{
+                                background: "#F8FAFC",
+                                border: "1px solid #E2E8F0",
+                                borderRadius: 10,
+                                padding: "14px 16px",
+                                fontSize: 14,
+                                color: "#334155",
+                                lineHeight: 1.7,
+                                whiteSpace: "pre-wrap",
+                              }}
+                            >
+                              {detailMap[faq.postId]?.content || "질문 내용이 없습니다."}
+                            </div>
+                          </section>
+
+                          <section>
+                            <h3
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 800,
+                                color: "#0F172A",
+                                margin: "0 0 8px",
+                              }}
+                            >
+                              답변
+                            </h3>
+                            <div
+                              style={{
+                                background: "#EFF6FF",
+                                border: "1px solid #BFDBFE",
+                                borderRadius: 10,
+                                padding: "14px 16px",
+                                fontSize: 14,
+                                color: "#1E3A8A",
+                                lineHeight: 1.7,
+                                whiteSpace: "pre-wrap",
+                              }}
+                            >
+                              {detailMap[faq.postId]?.answerContent || "등록된 답변이 없습니다."}
+                            </div>
+                          </section>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -487,12 +460,6 @@ export default function CommunityFaq() {
           </>
         )}
       </main>
-
-      <DetailModal
-        item={selected}
-        loading={detailLoading}
-        onClose={() => setSelected(null)}
-      />
     </>
   );
 }
