@@ -21,6 +21,8 @@ import { galleryApi } from "../../../app/http/galleryApi";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../auth/AuthProvider";
 import { userApi } from "../../../app/http/userApi";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
+import sortIcon from "../../../assets/sort-icon.svg";
 
 /* ─────────────────────────────────────────────
    STYLES
@@ -1260,6 +1262,8 @@ export default function EventGallery() {
   const [galleriesError, setGalleriesError] = useState(null);
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState("recent");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [eventMenuOpen, setEventMenuOpen] = useState(false);
   const pageSize = 8;
 
   const [liked, setLiked] = useState({});
@@ -1270,12 +1274,7 @@ export default function EventGallery() {
   const { isAuthed } = useAuth();
 
   // 상대 경로 이미지 → API 서버 base URL 붙여서 표시 (미리보기·카드·상세 공통, 기본값 8080)
-  const getImageSrc = (url) => {
-    if (!url) return "";
-    if (url.startsWith("http")) return url;
-    const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/+$/, "");
-    return base + (url.startsWith("/") ? url : "/" + url);
-  };
+  const getImageSrc = (url) => toPublicAssetUrl(url);
 
   // 글쓰기 모달
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -1519,8 +1518,16 @@ export default function EventGallery() {
     setPage(0);
   }, [selectedEventId, sortKey]);
 
-  const handleEventChange = (e) => {
-    const v = e.target.value;
+  useEffect(() => {
+    setSortMenuOpen(false);
+  }, [sortKey]);
+
+  useEffect(() => {
+    setEventMenuOpen(false);
+  }, [selectedEventId]);
+
+  const handleEventSelect = (eventIdValue) => {
+    const v = eventIdValue == null ? "" : String(eventIdValue);
     if (v === "" || v === "all") {
       setSearchParams({});
       setPage(0);
@@ -1528,6 +1535,7 @@ export default function EventGallery() {
       setSearchParams({ eventId: v });
       setPage(0);
     }
+    setEventMenuOpen(false);
   };
 
   const toggleLike = async (galleryId) => {
@@ -1632,6 +1640,15 @@ export default function EventGallery() {
     views: g.viewCount ?? 0,
   }));
 
+  const currentSortLabel =
+    GALLERY_SORT_OPTIONS.find((option) => option.key === sortKey)?.label || GALLERY_SORT_OPTIONS[0].label;
+
+  const selectedEventLabel = useMemo(() => {
+    if (selectedEventId == null) return "전체 보기";
+    const found = events.find((ev) => Number(ev?.eventId) === Number(selectedEventId));
+    return found?.eventName ?? found?.eventTitle ?? found?.title ?? `행사 ${selectedEventId}`;
+  }, [events, selectedEventId]);
+
   return (
     <div className="eg-root">
       <style>{styles}</style>
@@ -1650,93 +1667,216 @@ export default function EventGallery() {
           style={{
             marginBottom: "24px",
             display: "flex",
-            gap: 12,
             alignItems: "center",
             justifyContent: "space-between",
+            paddingBottom: "14px",
+            borderBottom: "1px solid #e5e7eb",
+            gap: 10,
             flexWrap: "wrap",
           }}
         >
-          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <label htmlFor="eg-event-select" style={{ fontSize: 14, color: "#374151" }}>
-                행사 선택
-              </label>
-              <select
-                id="eg-event-select"
-                value={selectedEventId ?? ""}
-                onChange={handleEventChange}
+          <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>
+            {`\uCD1D ${sortedGalleries.length}\uAC1C`}
+          </span>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginLeft: "auto" }}>
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setEventMenuOpen((prev) => !prev);
+                  setSortMenuOpen(false);
+                }}
                 disabled={eventsLoading}
                 style={{
-                  padding: "8px 12px",
-                  fontSize: 14,
                   border: "1px solid #d1d5db",
                   borderRadius: 8,
-                  minWidth: 220,
+                  background: "#fff",
+                  minHeight: 38,
+                  height: 38,
+                  padding: "0 12px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#334155",
+                  cursor: eventsLoading ? "not-allowed" : "pointer",
+                  opacity: eventsLoading ? 0.65 : 1,
                 }}
               >
-                <option value="">전체 보기</option>
-                {events.map((ev) => (
-                  <option key={ev.eventId} value={ev.eventId}>
-                    {ev.eventName ?? ev.eventTitle ?? ev.title ?? `행사 ${ev.eventId}`}
-                  </option>
-                ))}
-              </select>
+                <ChevronDown size={14} />
+                {selectedEventLabel}
+              </button>
+              {eventMenuOpen ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 42,
+                    minWidth: 260,
+                    maxWidth: "min(80vw, 420px)",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    background: "#fff",
+                    boxShadow: "0 8px 20px rgba(15,23,42,0.12)",
+                    zIndex: 22,
+                    overflow: "hidden",
+                    maxHeight: 280,
+                    overflowY: "auto",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleEventSelect("")}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      border: "none",
+                      borderBottom: "1px solid #f1f5f9",
+                      background: selectedEventId == null ? "#eff6ff" : "#fff",
+                      color: selectedEventId == null ? "#1D4ED8" : "#334155",
+                      padding: "9px 11px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {"\uC804\uCCB4 \uBCF4\uAE30"}
+                  </button>
+                  {events.map((ev) => {
+                    const id = Number(ev?.eventId);
+                    const label = ev?.eventName ?? ev?.eventTitle ?? ev?.title ?? `\uD589\uC0AC ${id}`;
+                    const active = selectedEventId != null && Number(selectedEventId) === id;
+                    return (
+                      <button
+                        key={ev.eventId}
+                        type="button"
+                        onClick={() => handleEventSelect(ev.eventId)}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
+                          border: "none",
+                          borderBottom: "1px solid #f1f5f9",
+                          background: active ? "#eff6ff" : "#fff",
+                          color: active ? "#1D4ED8" : "#334155",
+                          padding: "9px 11px",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
 
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <label htmlFor="eg-sort-select" style={{ fontSize: 14, color: "#374151" }}>
-                정렬
-              </label>
-              <select
-                id="eg-sort-select"
-                value={sortKey}
-                onChange={(e) => setSortKey(e.target.value)}
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSortMenuOpen((prev) => !prev);
+                  setEventMenuOpen(false);
+                }}
                 style={{
-                  padding: "8px 12px",
-                  fontSize: 14,
                   border: "1px solid #d1d5db",
                   borderRadius: 8,
-                  minWidth: 140,
+                  background: "#fff",
+                  height: 38,
+                  padding: "0 12px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#334155",
+                  cursor: "pointer",
                 }}
               >
-                {GALLERY_SORT_OPTIONS.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                <img src={sortIcon} alt={"\uC815\uB82C \uC544\uC774\uCF58"} width={14} height={14} />
+                {currentSortLabel}
+              </button>
+              {sortMenuOpen ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 42,
+                    minWidth: 120,
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    background: "#fff",
+                    boxShadow: "0 8px 20px rgba(15,23,42,0.12)",
+                    zIndex: 21,
+                    overflow: "hidden",
+                  }}
+                >
+                  {GALLERY_SORT_OPTIONS.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => {
+                        setSortKey(option.key);
+                        setSortMenuOpen(false);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "left",
+                        border: "none",
+                        borderBottom: "1px solid #f1f5f9",
+                        background: option.key === sortKey ? "#eff6ff" : "#fff",
+                        color: option.key === sortKey ? "#1D4ED8" : "#334155",
+                        padding: "9px 11px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
+
+            {isAuthed && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCreateForm({
+                    eventId: selectedEventId ?? events[0]?.eventId ?? "",
+                    title: "",
+                    description: "",
+                    imageUrls: [],
+                  });
+                  setCreateError(null);
+                  setShowCreateModal(true);
+                }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "8px 16px",
+                  borderRadius: 6,
+                  border: "none",
+                  background: "#4a7cf7",
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                <Plus size={14} strokeWidth={2.5} /> {"\uAE00\uC4F0\uAE30"}
+              </button>
+            )}
           </div>
-
-          {isAuthed && (
-            <button
-              type="button"
-              onClick={() => {
-                setCreateForm({
-                  eventId: selectedEventId ?? events[0]?.eventId ?? "",
-                  title: "",
-                  description: "",
-                  imageUrls: [],
-                });
-                setCreateError(null);
-                setShowCreateModal(true);
-              }}
-              style={{
-                padding: "8px 16px",
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#fff",
-                background: "#1a4fd6",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-              }}
-            >
-              글쓰기
-            </button>
-          )}
         </section>
-
         <section style={{ marginBottom: "48px" }}>
           {galleriesLoading ? (
             <p style={{ color: "#6b7280", fontSize: 14 }}>갤러리를 불러오는 중...</p>

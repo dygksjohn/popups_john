@@ -38,6 +38,9 @@ public class Speaker {
     @Column(name = "speaker_phone", nullable = false, length = 30, unique = true)
     private String speakerPhone;
 
+    @Column(name = "speaker_image_url", length = 500)
+    private String speakerImageUrl;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Mail, Phone, UserRound } from "lucide-react";
 import { programApi } from "../../../app/http/programApi";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const AVATAR_COLORS = ["#1a4fd6", "#059669", "#d97706", "#dc2626", "#7c3aed"];
 
@@ -19,11 +20,12 @@ const css = `
   }
   .sp-title { font-size:22px; font-weight:800; color:#111827; }
   .sp-card { background:#fff; border:1px solid #e9ecef; border-radius:16px; padding:24px; }
-  .sp-top { display:flex; gap:16px; align-items:center; }
+  .sp-top { display:flex; gap:20px; align-items:flex-start; }
   .sp-avatar {
-    width:64px; height:64px; border-radius:50%; color:#fff; font-size:24px; font-weight:800;
+    width:180px; height:220px; border-radius:14px; color:#fff; font-size:56px; font-weight:800;
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
   }
+  .sp-avatar-img { width:180px; height:220px; border-radius:14px; object-fit:cover; flex-shrink:0; border:1px solid #e5e7eb; background:#fff; }
   .sp-name { font-size:20px; font-weight:800; color:#111827; }
   .sp-bio { margin-top:18px; color:#374151; line-height:1.7; white-space:pre-wrap; }
   .sp-contact { margin-top:18px; display:flex; flex-wrap:wrap; gap:12px; }
@@ -33,6 +35,12 @@ const css = `
   }
   .sp-load, .sp-err {
     min-height:50vh; display:flex; align-items:center; justify-content:center; color:#9ca3af;
+  }
+  @media (max-width: 640px) {
+    .sp-card { padding:18px; }
+    .sp-top { gap:12px; }
+    .sp-avatar, .sp-avatar-img { width:120px; height:148px; }
+    .sp-name { font-size:18px; }
   }
 `;
 
@@ -45,6 +53,7 @@ export default function SpeakerDetail() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [speaker, setSpeaker] = useState(null);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     if (!speakerId) {
@@ -86,6 +95,10 @@ export default function SpeakerDetail() {
     };
   }, [speakerId, programId]);
 
+  useEffect(() => {
+    setImageError(false);
+  }, [speaker?.speakerId, speaker?.speakerImageUrl]);
+
   if (loading) {
     return (
       <div className="sp-root">
@@ -112,6 +125,8 @@ export default function SpeakerDetail() {
     );
   }
 
+  const speakerImg = !imageError ? toPublicAssetUrl(speaker?.speakerImageUrl) : "";
+
   return (
     <div className="sp-root">
       <style>{css}</style>
@@ -125,12 +140,21 @@ export default function SpeakerDetail() {
 
         <div className="sp-card">
           <div className="sp-top">
-            <div
-              className="sp-avatar"
-              style={{ background: avatarColor(speaker.speakerId) }}
-            >
-              {(speaker.speakerName || "?").charAt(0)}
-            </div>
+            {speakerImg ? (
+              <img
+                className="sp-avatar-img"
+                src={speakerImg}
+                alt={speaker.speakerName || "speaker"}
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div
+                className="sp-avatar"
+                style={{ background: avatarColor(speaker.speakerId) }}
+              >
+                {(speaker.speakerName || "?").charAt(0)}
+              </div>
+            )}
             <div>
               <div className="sp-name">{speaker.speakerName || "이름 없음"}</div>
               <div style={{ marginTop: 4, color: "#9ca3af", fontSize: 13 }}>

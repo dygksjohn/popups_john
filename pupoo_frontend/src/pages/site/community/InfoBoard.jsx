@@ -7,11 +7,17 @@ import {
   ChevronRight,
   X,
   MessageCircle,
+  Plus,
+  AlertTriangle,
+  Paperclip,
 } from "lucide-react";
 import sortIcon from "../../../assets/sort-icon.svg";
 import { postApi } from "../../../app/http/postApi";
 import { postReplyApi } from "../../../app/http/replyApi";
 import { tokenStore } from "../../../app/http/tokenStore";
+import { boardApi } from "../../../app/http/boardApi";
+import { fileApi } from "../../../app/http/fileApi";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 
 const PAGE_SIZE = 10;
@@ -35,6 +41,271 @@ function toTimestamp(value) {
   return Number.isFinite(ts) ? ts : 0;
 }
 
+function Overlay({ children, onClose }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 5000,
+        background: "rgba(0,0,0,0.32)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff",
+          borderRadius: 16,
+          width: 520,
+          maxHeight: "85vh",
+          overflow: "auto",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function WriteModal({ onClose, onSave, saving, errorMessage }) {
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [file, setFile] = useState(null);
+  const [localError, setLocalError] = useState("");
+
+  const handleSubmit = () => {
+    if (!title.trim()) {
+      setLocalError("제목을 입력해 주세요.");
+      return;
+    }
+    if (!content.trim()) {
+      setLocalError("내용을 입력해 주세요.");
+      return;
+    }
+    setLocalError("");
+    onSave({
+      title: title.trim(),
+      content: content.trim(),
+      file,
+    });
+  };
+
+  return (
+    <Overlay onClose={onClose}>
+      <div style={{ padding: 28 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 24,
+          }}
+        >
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: "#222", margin: 0 }}>글쓰기</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              border: "1px solid #eee",
+              background: "#fff",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <X size={14} color="#999" />
+          </button>
+        </div>
+
+        {localError ? (
+          <div
+            style={{
+              background: "#FEF2F2",
+              border: "1px solid #FECACA",
+              borderRadius: 8,
+              padding: "10px 14px",
+              fontSize: 13,
+              color: "#DC2626",
+              marginBottom: 12,
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <AlertTriangle size={14} /> {localError}
+          </div>
+        ) : null}
+
+        {errorMessage ? (
+          <div
+            style={{
+              background: "#FEF2F2",
+              border: "1px solid #FECACA",
+              borderRadius: 8,
+              padding: "10px 14px",
+              fontSize: 13,
+              color: "#DC2626",
+              marginBottom: 12,
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <AlertTriangle size={14} /> {errorMessage}
+          </div>
+        ) : null}
+
+        <div style={{ marginBottom: 18 }}>
+          <label
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#555",
+              marginBottom: 6,
+              display: "block",
+            }}
+          >
+            제목 <span style={{ color: "#EF4444" }}>*</span>
+          </label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="제목을 입력하세요"
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              fontSize: 14,
+              color: "#222",
+              outline: "none",
+              boxSizing: "border-box",
+              fontFamily: "'Noto Sans KR', sans-serif",
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <label
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#555",
+              marginBottom: 6,
+              display: "block",
+            }}
+          >
+            내용 <span style={{ color: "#EF4444" }}>*</span>
+          </label>
+          <textarea
+            rows={5}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="내용을 입력하세요"
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              fontSize: 14,
+              color: "#222",
+              outline: "none",
+              boxSizing: "border-box",
+              resize: "vertical",
+              fontFamily: "'Noto Sans KR', sans-serif",
+              lineHeight: 1.6,
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <label
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#555",
+              marginBottom: 6,
+              display: "block",
+            }}
+          >
+            첨부파일 (선택)
+          </label>
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            style={{
+              width: "100%",
+              padding: "9px 10px",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              fontSize: 13,
+              color: "#334155",
+              background: "#fff",
+            }}
+          />
+          {file ? (
+            <div style={{ marginTop: 8, fontSize: 12, color: "#475569" }}>선택됨: {file.name}</div>
+          ) : null}
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            style={{
+              flex: 1,
+              padding: "11px 0",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              background: "#fff",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              color: "#666",
+              fontFamily: "'Noto Sans KR', sans-serif",
+            }}
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving}
+            style={{
+              flex: 1,
+              padding: "11px 0",
+              borderRadius: 8,
+              border: "none",
+              background: "#4a7cf7",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "'Noto Sans KR', sans-serif",
+              opacity: saving ? 0.6 : 1,
+            }}
+          >
+            {saving ? "등록 중..." : "등록하기"}
+          </button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+
 function DetailModal({
   item,
   loading,
@@ -46,6 +317,9 @@ function DetailModal({
   onReplyTextChange,
   onReplySubmit,
   replySubmitting,
+  attachment,
+  attachmentLoading,
+  attachmentError,
 }) {
   if (!item) return null;
 
@@ -156,6 +430,36 @@ function DetailModal({
           )}
         </div>
 
+        <div style={{ padding: "0 28px 14px" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>첨부파일</div>
+          {attachmentLoading ? (
+            <div style={{ fontSize: 12, color: "#94A3B8" }}>첨부파일 정보를 불러오는 중입니다.</div>
+          ) : attachment ? (
+            <a
+              href={toPublicAssetUrl(attachment.publicPath)}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 13,
+                color: "#1D4ED8",
+                textDecoration: "none",
+                fontWeight: 600,
+              }}
+            >
+              <Paperclip size={13} />
+              {attachment.originalName || "첨부파일 다운로드"}
+            </a>
+          ) : (
+            <div style={{ fontSize: 12, color: "#94A3B8" }}>첨부파일이 없습니다.</div>
+          )}
+          {attachmentError ? (
+            <div style={{ marginTop: 6, fontSize: 12, color: "#B91C1C" }}>{attachmentError}</div>
+          ) : null}
+        </div>
+
         <div style={{ margin: "0 28px", borderBottom: "1px solid #E2E8F0" }} />
 
         <div style={{ padding: "16px 28px 24px" }}>
@@ -256,6 +560,13 @@ export default function InfoBoard() {
   const [replyText, setReplyText] = useState("");
   const [replyError, setReplyError] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
+  const [attachment, setAttachment] = useState(null);
+  const [attachmentLoading, setAttachmentLoading] = useState(false);
+  const [attachmentError, setAttachmentError] = useState("");
+  const [infoBoardId, setInfoBoardId] = useState(null);
+  const [writeModalOpen, setWriteModalOpen] = useState(false);
+  const [writeSaving, setWriteSaving] = useState(false);
+  const [writeError, setWriteError] = useState("");
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -291,6 +602,26 @@ export default function InfoBoard() {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+
+  useEffect(() => {
+    let mounted = true;
+    boardApi
+      .getBoards(true)
+      .then((rows) => {
+        if (!mounted) return;
+        const matched = (Array.isArray(rows) ? rows : []).find(
+          (row) => String(row?.boardType || "").toUpperCase() === "INFO",
+        );
+        setInfoBoardId(Number(matched?.boardId) || null);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setInfoBoardId(null);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const loadCommentCounts = useCallback(async (rows) => {
     const targets = rows.filter((row) => commentCountMap[row.postId] == null);
@@ -396,31 +727,56 @@ export default function InfoBoard() {
     }
   }, []);
 
+  const loadAttachment = useCallback(async (postId) => {
+    setAttachmentLoading(true);
+    setAttachmentError("");
+    try {
+      const data = await fileApi.getByPostId(postId);
+      setAttachment(data || null);
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 404) {
+        setAttachment(null);
+        setAttachmentError("");
+      } else {
+        setAttachment(null);
+        setAttachmentError("첨부파일을 불러오지 못했습니다.");
+      }
+    } finally {
+      setAttachmentLoading(false);
+    }
+  }, []);
+
   const openDetail = useCallback(async (item) => {
     setSelected(item);
     setDetailLoading(true);
     setReplyText("");
     setReplyError("");
+    setAttachment(null);
+    setAttachmentError("");
     try {
       const detail = await postApi.get(item.postId);
       setSelected(detail);
       setAllItems((prev) =>
         prev.map((row) => (row.postId === detail.postId ? { ...row, ...detail } : row)),
       );
-      await loadReplies(detail.postId);
+      await Promise.all([loadReplies(detail.postId), loadAttachment(detail.postId)]);
     } catch (err) {
       console.error("[InfoBoard] detail fetch failed:", err);
       setReplyError("상세 정보를 불러오지 못했습니다.");
     } finally {
       setDetailLoading(false);
     }
-  }, [loadReplies]);
+  }, [loadReplies, loadAttachment]);
 
   const closeDetail = () => {
     setSelected(null);
     setReplies([]);
     setReplyText("");
     setReplyError("");
+    setAttachment(null);
+    setAttachmentError("");
+    setAttachmentLoading(false);
   };
 
   const submitReply = async () => {
@@ -446,6 +802,38 @@ export default function InfoBoard() {
       setReplyError("댓글 등록에 실패했습니다.");
     } finally {
       setReplySubmitting(false);
+    }
+  };
+
+  const submitPost = async ({ title, content, file }) => {
+    if (!tokenStore.getAccess()) {
+      setWriteError("글쓰기는 로그인 후 가능합니다.");
+      return;
+    }
+    if (!infoBoardId) {
+      setWriteError("게시판 정보를 찾을 수 없습니다. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+
+    setWriteSaving(true);
+    setWriteError("");
+    try {
+      const created = await postApi.create({
+        boardId: infoBoardId,
+        postTitle: title,
+        content,
+      });
+      const createdPostId = Number(created?.postId);
+      if (file && createdPostId) {
+        await fileApi.upload(file, "POST", createdPostId);
+      }
+      setWriteModalOpen(false);
+      await fetchAll();
+    } catch (err) {
+      console.error("[InfoBoard] create failed:", err);
+      setWriteError(err?.response?.data?.error?.message || "글 등록에 실패했습니다.");
+    } finally {
+      setWriteSaving(false);
     }
   };
 
@@ -592,6 +980,30 @@ export default function InfoBoard() {
                 <Search size={16} strokeWidth={2} color="#555" />
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setWriteError("");
+                setWriteModalOpen(true);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "none",
+                background: "#4a7cf7",
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "'Noto Sans KR', sans-serif",
+              }}
+            >
+              <Plus size={14} strokeWidth={2.5} /> 글쓰기
+            </button>
           </div>
         </div>
 
@@ -755,7 +1167,19 @@ export default function InfoBoard() {
         onReplyTextChange={setReplyText}
         onReplySubmit={submitReply}
         replySubmitting={replySubmitting}
+        attachment={attachment}
+        attachmentLoading={attachmentLoading}
+        attachmentError={attachmentError}
       />
+
+      {writeModalOpen ? (
+        <WriteModal
+          onClose={() => !writeSaving && setWriteModalOpen(false)}
+          onSave={submitPost}
+          saving={writeSaving}
+          errorMessage={writeError}
+        />
+      ) : null}
     </>
   );
 }

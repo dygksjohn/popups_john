@@ -14,6 +14,7 @@ public class SpeakerResponse {
     private String speakerBio;
     private String speakerEmail;
     private String speakerPhone;
+    private String speakerImageUrl;
 
     public static SpeakerResponse from(Speaker s) {
         return SpeakerResponse.builder()
@@ -22,6 +23,22 @@ public class SpeakerResponse {
                 .speakerBio(s.getSpeakerBio())
                 .speakerEmail(s.getSpeakerEmail())
                 .speakerPhone(s.getSpeakerPhone())
+                .speakerImageUrl(normalizeImagePath(s.getSpeakerImageUrl()))
                 .build();
+    }
+
+    private static String normalizeImagePath(String rawPath) {
+        if (rawPath == null || rawPath.isBlank()) return null;
+
+        String normalized = rawPath.replace('\\', '/');
+        String lower = normalized.toLowerCase();
+
+        int idx = lower.indexOf("/uploads/");
+        if (idx >= 0) return normalized.substring(idx);
+
+        idx = lower.indexOf("uploads/");
+        if (idx >= 0) return "/" + normalized.substring(idx);
+
+        return rawPath;
     }
 }
