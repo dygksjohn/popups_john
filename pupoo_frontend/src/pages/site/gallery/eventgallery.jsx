@@ -13,6 +13,7 @@ import {
   ChevronDown,
   AlertTriangle,
   Loader2,
+  Hash,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -1089,13 +1090,15 @@ const FullscreenViewer = ({
             <span className="eg-modal-date">{card.date}</span>
           </div>
           <p className="eg-modal-comment">{card.comment}</p>
-          <div className="eg-modal-tags">
-            {card.tags.map((t) => (
-              <span key={t} className="eg-modal-tag">
-                {t}
-              </span>
-            ))}
-          </div>
+          {((card.tags) || []).length > 0 && (
+            <div className="eg-modal-tags">
+              {(card.tags || []).map((t) => (
+                <span key={t} className="eg-modal-tag">
+                  #{t}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="eg-modal-meta">
             <HeartBtn
               liked={liked}
@@ -1180,13 +1183,15 @@ const GalleryCard = ({ card, liked, onToggleLike, onEnlarge, isMine, onEdit, onD
         <span className="eg-author-date">{card.date}</span>
       </div>
       <p className="eg-card-comment">{card.comment}</p>
-      <div className="eg-card-tags">
-        {card.tags.map((t) => (
-          <span key={t} className="eg-tag">
-            {t}
-          </span>
-        ))}
-      </div>
+      {((card.tags) || []).length > 0 && (
+        <div className="eg-card-tags">
+          {(card.tags || []).map((t) => (
+            <span key={t} className="eg-tag">
+              #{t}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="eg-card-meta">
         <HeartBtn
           liked={liked}
@@ -1250,7 +1255,8 @@ export default function EventGallery() {
   const [galleriesError, setGalleriesError] = useState(null);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const size = 4;
+  const size = 12;
+  const [sort, setSort] = useState("latest"); // latest | oldest | views
 
   const [liked, setLiked] = useState({});
   const [viewer, setViewer] = useState(null);
@@ -1267,9 +1273,36 @@ export default function EventGallery() {
     return base + (url.startsWith("/") ? url : "/" + url);
   };
 
+  // 갤러리 설명 meta 파싱/추가 — 관리자 페이지와 동일 형식
+  const META_RE = /<!--meta:(.*?)-->/;
+  const parseMeta = (desc) => {
+    if (!desc) return { text: "", type: null, tags: [] };
+    const raw = String(desc);
+    const m = raw.match(META_RE);
+    let text = raw.replace(META_RE, "").trim();
+    // 불완전한 meta(예: --> 누락)도 제거해 코드가 그대로 노출되지 않게 함
+    text = text.replace(/<!--meta:[\s\S]*$/g, "").trim();
+    let type = null, tags = [];
+    if (m) {
+      try {
+        const o = JSON.parse(m[1]);
+        type = o.galleryType ?? null;
+        tags = o.tags ?? [];
+      } catch {}
+    }
+    return { text, type, tags };
+  };
+  const appendMeta = (desc, galleryType, tags = []) => {
+    const meta = { galleryType };
+    if (tags.length > 0) meta.tags = tags;
+    return `${desc || ""}<!--meta:${JSON.stringify(meta)}-->`;
+  };
+
   // 글쓰기 모달
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({ eventId: "", title: "", description: "", imageUrls: [] });
+  const [createTags, setCreateTags] = useState([]);
+  const [createTagInput, setCreateTagInput] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState(null);
   const [uploadingCount, setUploadingCount] = useState(0);
@@ -1284,8 +1317,8 @@ export default function EventGallery() {
     setGalleriesLoading(true);
     setGalleriesError(null);
     const promise = selectedEventId == null
-      ? galleryApi.getList({ page, size })
-      : galleryApi.getListByEvent(selectedEventId, { page, size });
+      ? galleryApi.getList({ page, size, sort })
+      : galleryApi.getListByEvent(selectedEventId, { page, size, sort });
     promise
       .then((res) => {
         const data = res.data?.data ?? res.data;
@@ -1299,7 +1332,7 @@ export default function EventGallery() {
         setGalleriesError(e?.response?.data?.message ?? e?.message ?? "갤러리를 불러오지 못했습니다.");
       })
       .finally(() => setGalleriesLoading(false));
-  }, [selectedEventId, page, size]);
+  }, [selectedEventId, page, size, sort]);
 
   const handleCreateSubmit = async () => {
     const eventId = createForm.eventId === "" ? null : Number(createForm.eventId);
@@ -1314,14 +1347,21 @@ export default function EventGallery() {
     setCreateLoading(true);
     setCreateError(null);
     try {
+      const descriptionWithMeta = appendMeta(
+        createForm.description?.trim() ?? "",
+        "참가자",
+        createTags,
+      );
       await galleryApi.createByUser({
         eventId,
         title: createForm.title.trim(),
-        description: createForm.description?.trim() ?? "",
+        description: descriptionWithMeta,
         imageUrls: createForm.imageUrls ?? [],
       });
       setShowCreateModal(false);
       setCreateForm({ eventId: "", title: "", description: "", imageUrls: [] });
+      setCreateTags([]);
+      setCreateTagInput("");
       refetchGalleries();
     } catch (e) {
       setCreateError(e?.response?.data?.error?.message ?? e?.message ?? "등록에 실패했습니다.");
@@ -1394,6 +1434,23 @@ export default function EventGallery() {
     setDraggedImageIndex(null);
   };
 
+  const addCreateTag = () => {
+    const t = createTagInput.trim().replace(/^#/, "");
+    if (!t) return;
+    if (createTags.includes(t)) {
+      setCreateTagInput("");
+      return;
+    }
+    if (createTags.length >= 5) {
+      setCreateError("태그는 최대 5개까지 가능합니다.");
+      return;
+    }
+    setCreateError(null);
+    setCreateTags((p) => [...p, t]);
+    setCreateTagInput("");
+  };
+  const removeCreateTag = (idx) => setCreateTags((p) => p.filter((_, i) => i !== idx));
+
   const handleEditClick = (galleryId) => {
     const g = galleries.find((x) => x.galleryId === galleryId);
     if (!g) return;
@@ -1458,12 +1515,13 @@ export default function EventGallery() {
       .then((res) => {
         const g = res.data?.data ?? res.data;
         if (!g) return;
+        const meta = parseMeta(g.description ?? "");
         setViewerDetail({
           id: g.galleryId,
           title: g.title ?? "",
           images: (g.imageUrls ?? []).map((u) => getImageSrc(u)),
-          comment: g.description ?? "",
-          tags: [],
+          comment: meta.text,
+          tags: meta.tags ?? [],
           author: "운영팀",
           pet: "",
           date: g.createdAt
@@ -1498,15 +1556,15 @@ export default function EventGallery() {
     return () => { cancelled = true; };
   }, []);
 
-    // 갤러리 목록 로드 (전체 vs 행사별)
+    // 갤러리 목록 로드 (전체 vs 행사별, 정렬 반영)
     useEffect(() => {
       let cancelled = false;
       setGalleriesLoading(true);
       setGalleriesError(null);
       const promise = selectedEventId == null
-        ? galleryApi.getList({ page, size })
-        : galleryApi.getListByEvent(selectedEventId, { page, size });
-  
+        ? galleryApi.getList({ page, size, sort })
+        : galleryApi.getListByEvent(selectedEventId, { page, size, sort });
+
       promise
         .then((res) => {
           if (cancelled) return;
@@ -1527,7 +1585,7 @@ export default function EventGallery() {
           if (!cancelled) setGalleriesLoading(false);
         });
       return () => { cancelled = true; };
-    }, [selectedEventId, page]);
+    }, [selectedEventId, page, sort]);
 
   const handleEventChange = (e) => {
     const v = e.target.value;
@@ -1538,6 +1596,11 @@ export default function EventGallery() {
       setSearchParams({ eventId: v });
       setPage(0);
     }
+  };
+
+  const handleSortChange = (e) => {
+    setSort(e.target.value);
+    setPage(0);
   };
 
   const toggleLike = async (galleryId) => {
@@ -1588,23 +1651,26 @@ export default function EventGallery() {
   const handleEnlarge = (card, idx) => setViewer({ card, startIndex: idx });
 
   // API 응답 → 카드 형식 매핑 (기존 GALLERY_CARDS 구조에 맞춤, 상대 경로는 getImageSrc로 표시용 URL로 변환)
-  const cards = galleries.map((g) => ({
-    id: g.galleryId,
-    title: g.title ?? "",
-    userId: g.userId,
-    images: (g.imageUrls ?? []).map((u) => getImageSrc(u)),
-    comment: g.description ?? "",
-    tags: [],
-    author: "운영팀",
-    pet: "",
-    date: g.createdAt
-      ? new Date(g.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\. /g, ".").trim()
-      : "",
-    avatarColor: ["#e0e7ff", "#6366f1"],
-    initials: "갤",
-    likes: g.likeCount ?? 0,
-    views: g.viewCount ?? 0,
-  }));
+  const cards = galleries.map((g) => {
+    const meta = parseMeta(g.description ?? "");
+    return {
+      id: g.galleryId,
+      title: g.title ?? "",
+      userId: g.userId,
+      images: (g.imageUrls ?? []).map((u) => getImageSrc(u)),
+      comment: meta.text,
+      tags: meta.tags ?? [],
+      author: "운영팀",
+      pet: "",
+      date: g.createdAt
+        ? new Date(g.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\. /g, ".").trim()
+        : "",
+      avatarColor: ["#e0e7ff", "#6366f1"],
+      initials: "갤",
+      likes: g.likeCount ?? 0,
+      views: g.viewCount ?? 0,
+    };
+  });
 
   return (
     <div className="eg-root">
@@ -1643,6 +1709,23 @@ export default function EventGallery() {
                 {ev.eventTitle ?? ev.title ?? `행사 ${ev.eventId}`}
               </option>
             ))}
+          </select>
+          <select
+            aria-label="정렬"
+            value={sort}
+            onChange={handleSortChange}
+            style={{
+              padding: "8px 12px",
+              fontSize: 14,
+              border: "1px solid #d1d5db",
+              borderRadius: 8,
+              minWidth: 120,
+              marginLeft: 12,
+            }}
+          >
+            <option value="latest">최신순</option>
+            <option value="oldest">오래된순</option>
+            <option value="views">조회순</option>
           </select>
           {isAuthed && (
             <button
@@ -1691,8 +1774,8 @@ export default function EventGallery() {
                   setGalleriesError(null);
                   setGalleriesLoading(true);
                   const promise = selectedEventId == null
-                    ? galleryApi.getList({ page, size })
-                    : galleryApi.getListByEvent(selectedEventId, { page, size });
+                    ? galleryApi.getList({ page, size, sort })
+                    : galleryApi.getListByEvent(selectedEventId, { page, size, sort });
                   promise
                     .then((res) => {
                       const data = res.data?.data ?? res.data;
@@ -1778,7 +1861,13 @@ export default function EventGallery() {
       justifyContent: "center",
       zIndex: 9999,
     }}
-    onClick={() => !createLoading && setShowCreateModal(false)}
+    onClick={() => {
+      if (!createLoading) {
+        setShowCreateModal(false);
+        setCreateTags([]);
+        setCreateTagInput("");
+      }
+    }}
   >
     <div
       style={{
@@ -1826,6 +1915,104 @@ export default function EventGallery() {
           rows={3}
           style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", resize: "vertical" }}
         />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "block", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>태그</label>
+        <div style={{ display: "flex", gap: 6, marginBottom: createTags.length > 0 ? 8 : 0 }}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <Hash
+              size={14}
+              color="#9ca3af"
+              style={{
+                position: "absolute",
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
+            />
+            <input
+              type="text"
+              value={createTagInput}
+              onChange={(e) => setCreateTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addCreateTag();
+                }
+              }}
+              placeholder="태그 입력 후 Enter (예: 봄페스티벌)"
+              style={{
+                width: "100%",
+                padding: "8px 12px 8px 34px",
+                borderRadius: 8,
+                border: "1px solid #d1d5db",
+                fontSize: 13,
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={addCreateTag}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              border: "none",
+              background: "#1a4fd6",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            추가
+          </button>
+        </div>
+        {createTags.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {createTags.map((t, i) => (
+              <span
+                key={i}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "4px 10px",
+                  background: "#eff6ff",
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#1e40af",
+                  border: "1px solid #bfdbfe",
+                }}
+              >
+                #{t}
+                <button
+                  type="button"
+                  onClick={() => removeCreateTag(i)}
+                  aria-label="태그 삭제"
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    border: "none",
+                    background: "#93c5fd",
+                    color: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    fontSize: 12,
+                    lineHeight: 1,
+                  }}
+                >
+                  <X size={10} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={{ display: "block", fontSize: 12, color: "#6b7280", marginBottom: 4 }}>이미지</label>
@@ -1951,7 +2138,13 @@ export default function EventGallery() {
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button
           type="button"
-          onClick={() => !createLoading && setShowCreateModal(false)}
+          onClick={() => {
+            if (!createLoading) {
+              setShowCreateModal(false);
+              setCreateTags([]);
+              setCreateTagInput("");
+            }
+          }}
           style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" }}
         >
           취소

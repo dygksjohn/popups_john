@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,8 +62,17 @@ public class GalleryService {
                 .build();
     }
 
-    public Page<GalleryResponse> list(int page, int size) {
-        return galleryRepository.findByGalleryStatus(GalleryStatus.PUBLIC, PageRequest.of(page, size))
+    private static Sort sortFrom(String sort) {
+        if (sort == null) sort = "latest";
+        return switch (sort.toLowerCase()) {
+            case "oldest" -> Sort.by(Sort.Direction.ASC, "createdAt");
+            case "views" -> Sort.by(Sort.Direction.DESC, "viewCount");
+            default -> Sort.by(Sort.Direction.DESC, "createdAt"); // latest
+        };
+    }
+
+    public Page<GalleryResponse> list(int page, int size, String sort) {
+        return galleryRepository.findByGalleryStatus(GalleryStatus.PUBLIC, PageRequest.of(page, size, sortFrom(sort)))
                 .map(g -> {
                     List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
                             .stream().map(GalleryImage::getOriginalUrl).toList();
@@ -84,8 +94,8 @@ public class GalleryService {
                 });
     }
 
-    public Page<GalleryResponse> listByEventId(Long eventId, int page, int size) {
-        return galleryRepository.findByEventIdAndGalleryStatus(eventId, GalleryStatus.PUBLIC, PageRequest.of(page, size))
+    public Page<GalleryResponse> listByEventId(Long eventId, int page, int size, String sort) {
+        return galleryRepository.findByEventIdAndGalleryStatus(eventId, GalleryStatus.PUBLIC, PageRequest.of(page, size, sortFrom(sort)))
                 .map(g -> {
                     List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
                             .stream().map(GalleryImage::getOriginalUrl).toList();

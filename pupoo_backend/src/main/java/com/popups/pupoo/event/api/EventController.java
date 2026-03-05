@@ -59,14 +59,15 @@ public class EventController {
         return ApiResponse.success(eventService.getEvent(eventId));
     }
 
-    /** 행사별 갤러리 목록 조회(페이징) */
+    /** 행사별 갤러리 목록 조회(페이징, 정렬: latest | oldest | views) */
     @GetMapping("/{eventId}/galleries")
     public ApiResponse<PageResponse<GalleryResponse>> getEventGalleries(
             @PathVariable("eventId") Long eventId,
-            Pageable pageable
+            Pageable pageable,
+            @RequestParam(name = "sort", required = false, defaultValue = "latest") String sort
     ) {
         return ApiResponse.success(
-                PageResponse.from(galleryService.listByEventId(eventId, pageable.getPageNumber(), pageable.getPageSize()))
+                PageResponse.from(galleryService.listByEventId(eventId, pageable.getPageNumber(), pageable.getPageSize(), sort))
         );
     }
 }

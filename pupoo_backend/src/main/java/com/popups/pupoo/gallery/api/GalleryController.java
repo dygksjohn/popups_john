@@ -41,9 +41,10 @@ public class GalleryController {
 
     @GetMapping
     public ApiResponse<PageResponse<GalleryResponse>> list(
-            @RequestParam(name = "page",defaultValue = "0") int page,
-            @RequestParam(name = "size",defaultValue = "10") int size) {
-        return ApiResponse.success(PageResponse.from(galleryService.list(page, size)));
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "12") int size,
+            @RequestParam(name = "sort", required = false, defaultValue = "latest") String sort) {
+        return ApiResponse.success(PageResponse.from(galleryService.list(page, size, sort)));
     }
 
     @PostMapping

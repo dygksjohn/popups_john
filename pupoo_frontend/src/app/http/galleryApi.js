@@ -7,16 +7,16 @@ export const galleryApi = {
   // 공개 API (사이트/목록/상세/좋아요)
   // =========================
 
-  // GET /api/galleries — 목록 조회 (페이지네이션, PUBLIC만)
-  getList: ({ page = 0, size = 10 } = {}) =>
-    axiosInstance.get("/api/galleries", { params: { page, size } }),
+  // GET /api/galleries — 목록 조회 (페이지네이션, 정렬: latest | oldest | views)
+  getList: ({ page = 0, size = 12, sort = "latest" } = {}) =>
+    axiosInstance.get("/api/galleries", { params: { page, size, sort } }),
 
-  // GET /api/events/{eventId}/galleries — 행사별 갤러리 목록(페이징)
-  getListByEvent: (eventId, { page = 0, size = 10 } = {}) => {
+  // GET /api/events/{eventId}/galleries — 행사별 갤러리 목록(페이징, 정렬)
+  getListByEvent: (eventId, { page = 0, size = 12, sort = "latest" } = {}) => {
     if (eventId == null)
       throw new Error("galleryApi.getListByEvent: eventId is required");
     return axiosInstance.get(`/api/events/${eventId}/galleries`, {
-      params: { page, size },
+      params: { page, size, sort },
     });
   },
 
