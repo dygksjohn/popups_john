@@ -23,7 +23,7 @@ const styles = `
 
   .cd-root { box-sizing: border-box; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; background: #f8f9fc; min-height: 100vh; }
   .cd-root *, .cd-root *::before, .cd-root *::after { box-sizing: border-box; font-family: inherit; }
-  .cd-container { max-width: 1400px; margin: 0 auto; padding: 28px 24px 64px; }
+  .cd-container { width: min(1400px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 64px; }
 
   .cd-back {
     height: 36px; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff;
@@ -96,25 +96,27 @@ const toAbsUrl = (url) => {
   const base = (
     import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
   ).replace(/\/$/, "");
-  return base + (url.startsWith("/") ? url : "/" + url);
+  return base + (url.startsWith("/") ? url : `/${url}`);
 };
 
 function formatTimeRange(startAt, endAt) {
-  const pick = (v) => {
-    const m = String(v ?? "").match(/(\d{2}):(\d{2})/);
-    return m ? `${m[1]}:${m[2]}` : "";
+  const pick = (value) => {
+    const match = String(value ?? "").match(/(\d{2}):(\d{2})/);
+    return match ? `${match[1]}:${match[2]}` : "";
   };
-  const a = pick(startAt);
-  const b = pick(endAt);
-  return a && b ? `${a} ~ ${b}` : a || b || "?쒓컙 誘몄젙";
+
+  const start = pick(startAt);
+  const end = pick(endAt);
+  return start && end ? `${start} ~ ${end}` : start || end || "시간 미정";
 }
 
 function contestPhase(program) {
   const now = Date.now();
-  const s = new Date(program?.startAt ?? "").getTime();
-  const e = new Date(program?.endAt ?? "").getTime();
-  if (Number.isFinite(s) && now < s) return "upcoming";
-  if (Number.isFinite(e) && now > e) return "ended";
+  const startAt = new Date(program?.startAt ?? "").getTime();
+  const endAt = new Date(program?.endAt ?? "").getTime();
+
+  if (Number.isFinite(startAt) && now < startAt) return "upcoming";
+  if (Number.isFinite(endAt) && now > endAt) return "ended";
   return "live";
 }
 
@@ -135,6 +137,7 @@ export default function ContestDetailPage() {
     if (!programId) return;
     if (!silent) setLoading(true);
     setErrorMsg("");
+
     try {
       const [programRes, candRes, voteRes] = await Promise.all([
         programApi.getProgramDetail(programId),
@@ -147,25 +150,22 @@ export default function ContestDetailPage() {
       const voteData = voteRes?.data?.data ?? {};
       const voteRows = Array.isArray(voteData?.results) ? voteData.results : [];
       const voteMap = new Map(
-        voteRows.map((r) => [
-          Number(r?.programApplyId),
-          Number(r?.voteCount ?? 0),
-        ]),
+        voteRows.map((row) => [Number(row?.programApplyId), Number(row?.voteCount ?? 0)]),
       );
 
       const mapped = candidates
-        .map((c) => ({
-          id: Number(c?.programApplyId),
+        .map((candidate) => ({
+          id: Number(candidate?.programApplyId),
           name:
-            c?.petName ||
-            (c?.ticketNo
-              ? `李멸???${c.ticketNo}`
-              : `李멸???#${c?.programApplyId}`),
+            candidate?.petName ||
+            (candidate?.ticketNo
+              ? `참가견 ${candidate.ticketNo}`
+              : `참가견 #${candidate?.programApplyId}`),
           ownerNickname:
-            c?.ownerNickname ||
-            (c?.userId ? `?뚯썝 #${c.userId}` : "?뚯썝 ?뺣낫 ?놁쓬"),
-          imageUrl: c?.imageUrl || null,
-          votes: voteMap.get(Number(c?.programApplyId)) ?? 0,
+            candidate?.ownerNickname ||
+            (candidate?.userId ? `보호자 #${candidate.userId}` : "보호자 정보 없음"),
+          imageUrl: candidate?.imageUrl || null,
+          votes: voteMap.get(Number(candidate?.programApplyId)) ?? 0,
         }))
         .sort((a, b) => b.votes - a.votes);
 
@@ -173,16 +173,14 @@ export default function ContestDetailPage() {
       setRows(mapped);
       setTotalVotes(Number(voteData?.totalVotes ?? 0));
       setMyProgramApplyId(
-        voteData?.myProgramApplyId == null
-          ? null
-          : Number(voteData.myProgramApplyId),
+        voteData?.myProgramApplyId == null ? null : Number(voteData.myProgramApplyId),
       );
-    } catch (e) {
+    } catch (error) {
       setErrorMsg(
-        e?.response?.data?.message ||
-          e?.response?.data?.error?.message ||
-          e?.message ||
-          "肄섑뀒?ㅽ듃 ?곸꽭 ?곗씠?곕? 遺덈윭?ㅼ? 紐삵뻽?듬땲??",
+        error?.response?.data?.message ||
+          error?.response?.data?.error?.message ||
+          error?.message ||
+          "콘테스트 상세 정보를 불러오지 못했습니다.",
       );
     } finally {
       if (!silent) setLoading(false);
@@ -194,7 +192,7 @@ export default function ContestDetailPage() {
   }, [programId]);
 
   const maxVotes = useMemo(
-    () => rows.reduce((m, r) => (r.votes > m ? r.votes : m), 0),
+    () => rows.reduce((max, row) => (row.votes > max ? row.votes : max), 0),
     [rows],
   );
 
@@ -226,18 +224,18 @@ export default function ContestDetailPage() {
     try {
       await programApi.voteContest(Number(programId), Number(candidateId));
       await load({ silent: true });
-    } catch (e) {
-      if (e?.response?.status === 401) {
+    } catch (error) {
+      if (error?.response?.status === 401) {
         navigate("/auth/login", {
           state: { from: `/program/contest/${eventId}/detail/${programId}` },
         });
-      } else if (e?.response?.status === 409) {
+      } else if (error?.response?.status === 409) {
         await load({ silent: true });
       } else {
         window.alert(
-          e?.response?.data?.error?.message ||
-            e?.response?.data?.message ||
-            "?ы몴 泥섎━ 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.",
+          error?.response?.data?.error?.message ||
+            error?.response?.data?.message ||
+            "투표 처리 중 문제가 발생했습니다.",
         );
       }
     } finally {
@@ -254,12 +252,13 @@ export default function ContestDetailPage() {
     <div className="cd-root">
       <style>{styles}</style>
       <PageHeader
-        title="肄섑뀒?ㅽ듃 ?덈궡"
+        title="콘테스트 상세"
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
         onNavigate={(path) => navigate(eventId ? `${path}/${eventId}` : path)}
       />
+
       <main className="cd-container">
         <button
           className="cd-back"
@@ -267,48 +266,44 @@ export default function ContestDetailPage() {
           onClick={() => navigate(`/program/contest/${eventId}`)}
         >
           <ArrowLeft size={14} />
-          紐⑸줉?쇰줈
+          목록으로
         </button>
-          <div className="cd-top-actions">
-            <button
-              type="button"
-              className="cd-top-btn primary"
-              onClick={handleApply}
-              disabled={contestPhase(program) === "ended"}
-            >
-              <Heart size={14} />
-              {contestPhase(program) === "ended" ? "참가 마감" : "참가하기"}
-            </button>
-            <button
-              type="button"
-              className="cd-top-btn outline"
-              onClick={() => navigate(`/program/contest/${eventId}`)}
-            >
-              후보 목록 보기
-            </button>
-          </div>
+
+        <div className="cd-top-actions">
+          <button
+            type="button"
+            className="cd-top-btn primary"
+            onClick={handleApply}
+            disabled={contestPhase(program) === "ended"}
+          >
+            <Heart size={14} />
+            {contestPhase(program) === "ended" ? "참가 마감" : "참가하기"}
+          </button>
+          <button
+            type="button"
+            className="cd-top-btn outline"
+            onClick={() => navigate(`/program/contest/${eventId}`)}
+          >
+            콘테스트 목록 보기
+          </button>
+        </div>
 
         <section className="cd-title-card">
-          <h2 className="cd-title">
-            {program?.programTitle || `肄섑뀒?ㅽ듃 #${programId}`}
-          </h2>
+          <h2 className="cd-title">{program?.programTitle || `콘테스트 #${programId}`}</h2>
           <p className="cd-sub">
             <span>
-              <Clock3 size={13} />{" "}
-              {formatTimeRange(program?.startAt, program?.endAt)}
+              <Clock3 size={13} /> {formatTimeRange(program?.startAt, program?.endAt)}
             </span>
             <span>
-              <Users size={13} /> ?꾨낫 {rows.length}紐?
+              <Users size={13} /> 참가견 {rows.length}마리
             </span>
             <span>
-              <BarChart3 size={13} /> 珥?{totalVotes.toLocaleString()}??
+              <BarChart3 size={13} /> 총 {totalVotes.toLocaleString()}표
             </span>
           </p>
         </section>
 
-        {loading ? (
-          <div className="cd-empty">?곗씠?곕? 遺덈윭?ㅻ뒗 以?..</div>
-        ) : null}
+        {loading ? <div className="cd-empty">투표 결과를 불러오는 중입니다.</div> : null}
         {errorMsg ? <div className="cd-empty">{errorMsg}</div> : null}
 
         {!loading && !errorMsg ? (
@@ -316,55 +311,57 @@ export default function ContestDetailPage() {
             <article className="cd-card">
               <div className="cd-card-head">
                 <h3 className="cd-card-title">
-                  <Users size={16} /> 肄섑뀒?ㅽ듃 李몄뿬 ?꾨낫??
+                  <Users size={16} /> 참가견 목록
                 </h3>
-                <span className="cd-tag">{rows.length}명</span>
+                <span className="cd-tag">{rows.length}마리</span>
               </div>
+
               <div className="cd-candidate-grid">
                 {rows.length === 0 ? (
-                  <div className="cd-empty">?꾨낫?먭? ?놁뒿?덈떎.</div>
+                  <div className="cd-empty">참가견 정보가 없습니다.</div>
                 ) : null}
-                {rows.map((r) => (
-                  <div key={r.id} className="cd-candidate-card">
+
+                {rows.map((row) => (
+                  <div key={row.id} className="cd-candidate-card">
                     <div className="cd-candidate-thumb">
-                      {r.imageUrl ? (
+                      {row.imageUrl ? (
                         <img
-                          src={toAbsUrl(r.imageUrl)}
-                          alt={r.name}
-                          onError={(e) => {
-                            e.target.style.display = "none";
+                          src={toAbsUrl(row.imageUrl)}
+                          alt={row.name}
+                          onError={(event) => {
+                            event.target.style.display = "none";
                           }}
                         />
                       ) : (
                         <PawPrint size={30} color="#9ca3af" />
                       )}
                     </div>
+
                     <div className="cd-candidate-body">
-                      <div className="cd-candidate-name">{r.name}</div>
-                      <div className="cd-candidate-owner">
-                        二쇱씤 ?됰꽕?? {r.ownerNickname}
-                      </div>
+                      <div className="cd-candidate-name">{row.name}</div>
+                      <div className="cd-candidate-owner">보호자 {row.ownerNickname}</div>
                       <div className="cd-candidate-votes">
-                        ?뿳截?{r.votes.toLocaleString()}??
+                        득표수 {row.votes.toLocaleString()}표
                       </div>
+
                       <div className="cd-candidate-actions">
                         <button
                           type="button"
-                          className={`cd-vote-btn${myProgramApplyId === r.id ? " done" : ""}`}
-                          onClick={() => handleVote(r.id)}
+                          className={`cd-vote-btn${myProgramApplyId === row.id ? " done" : ""}`}
+                          onClick={() => handleVote(row.id)}
                           disabled={
-                            voteSubmittingId === r.id ||
+                            voteSubmittingId === row.id ||
                             myProgramApplyId != null ||
                             contestPhase(program) !== "live"
                           }
                         >
-                          {myProgramApplyId === r.id
-                            ? "?ы몴 ?꾨즺"
-                            : voteSubmittingId === r.id
-                              ? "?ы몴 以?.."
+                          {myProgramApplyId === row.id
+                            ? "내 투표"
+                            : voteSubmittingId === row.id
+                              ? "투표 중..."
                               : contestPhase(program) !== "live"
-                                ? "?ы몴 遺덇?"
-                                : "?ы몴?섍린"}
+                                ? "투표 마감"
+                                : "투표하기"}
                         </button>
                       </div>
                     </div>
@@ -376,38 +373,36 @@ export default function ContestDetailPage() {
             <article className="cd-card">
               <div className="cd-card-head">
                 <h3 className="cd-card-title">
-                  <Trophy size={16} /> ?ㅼ떆媛??ы몴 ?꾪솴 諛?寃곌낵
+                  <Trophy size={16} /> 실시간 투표 결과
                 </h3>
-                <span className="cd-tag">
-                  珥?{totalVotes.toLocaleString()}??
-                </span>
+                <span className="cd-tag">총 {totalVotes.toLocaleString()}표</span>
               </div>
+
               <div className="cd-list">
                 {rows.length === 0 ? (
-                  <div className="cd-empty">吏묎퀎 寃곌낵媛 ?놁뒿?덈떎.</div>
+                  <div className="cd-empty">집계된 결과가 없습니다.</div>
                 ) : null}
-                {rows.map((r, idx) => (
-                  <div key={`rank-${r.id}`} className="cd-item">
+
+                {rows.map((row, index) => (
+                  <div key={`rank-${row.id}`} className="cd-item">
                     <div className="cd-item-top">
                       <div className="cd-name">
-                        {idx + 1}??{r.name}
+                        {index + 1}위 {row.name}
                       </div>
                       <div className="cd-votes">
-                        {totalVotes > 0
-                          ? Math.round((r.votes / totalVotes) * 100)
-                          : 0}
-                        %
+                        {totalVotes > 0 ? Math.round((row.votes / totalVotes) * 100) : 0}%
                       </div>
                     </div>
+
                     <div className="cd-progress">
                       <div
                         className="cd-progress-fill"
                         style={{
-                          width: `${maxVotes > 0 ? (r.votes / maxVotes) * 100 : 0}%`,
+                          width: `${maxVotes > 0 ? (row.votes / maxVotes) * 100 : 0}%`,
                         }}
                       />
                     </div>
-                    <div className="cd-meta">{r.votes.toLocaleString()}표</div>
+                    <div className="cd-meta">{row.votes.toLocaleString()}표</div>
                   </div>
                 ))}
               </div>

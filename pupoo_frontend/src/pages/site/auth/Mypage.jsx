@@ -18,9 +18,9 @@ const styles = `
     font-family: inherit;
   }
   .mp-container {
-    max-width: 1200px;
+    width: min(1400px, calc(100% - 32px));
     margin: 0 auto;
-    padding: 108px 20px 64px;
+    padding: 108px 0 64px;
   }
   .mp-header {
     margin-bottom: 18px;

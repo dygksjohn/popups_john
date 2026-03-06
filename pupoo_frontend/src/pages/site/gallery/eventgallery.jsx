@@ -402,7 +402,13 @@ export default function EventGallery() {
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)", fontFamily: "'Noto Sans KR', sans-serif" }}>
       <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
-      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "36px 20px 64px" }}>
+      <main
+        style={{
+          width: "min(1400px, calc(100% - 32px))",
+          margin: "0 auto",
+          padding: "36px 0 64px",
+        }}
+      >
         <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 22, boxShadow: "0 18px 40px rgba(15,23,42,0.06)", overflow: "hidden" }}>
           <div style={{ padding: "26px 28px 18px", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <select value={selectedEventId} onChange={(event) => setSearchParams(event.target.value ? { eventId: event.target.value } : {})} style={{ minWidth: 240, height: 44, borderRadius: 12, border: "1px solid #cbd5e1", padding: "0 14px", fontSize: 14, color: "#0f172a", background: "#fff" }}><option value="">전체 행사</option>{events.map((event) => <option key={event.eventId} value={event.eventId}>{event.eventName}</option>)}</select>

@@ -8,9 +8,8 @@ const styles = {
     paddingTop: 100,
   },
   inner: {
-    maxWidth: 1400,
+    width: "min(1400px, calc(100% - 32px))",
     margin: "0 auto",
-    padding: "0 24px",
   },
   title: {
     fontSize: 22,

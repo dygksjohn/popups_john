@@ -438,7 +438,13 @@ export default function Closed() {
         onNavigate={(path) => navigate(path)}
       />
 
-      <main style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 0 72px" }}>
+      <main
+        style={{
+          width: "min(1400px, calc(100% - 32px))",
+          margin: "0 auto",
+          padding: "32px 0 72px",
+        }}
+      >
         {loading ? <div style={{ padding: "100px 24px", textAlign: "center", color: "#64748b" }}>종료 행사 결과를 불러오는 중입니다.</div> : null}
         {!loading && error ? <div style={{ padding: "100px 24px", textAlign: "center", color: "#dc2626" }}>{error}</div> : null}
         {!loading && !error ? (

@@ -34,7 +34,7 @@ const FILTERS = [
 
 const styles = `
   .es-root { background:#f8f9fc; min-height:100vh; }
-  .es-wrap { max-width:1400px; margin:0 auto; padding:32px 24px 64px; }
+  .es-wrap { width:min(1400px, calc(100% - 32px)); margin:0 auto; padding:32px 0 64px; }
   .es-filter { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
   .es-filter button {
     border:1px solid #dbe2ea; background:#fff; color:#6b7280; padding:8px 14px;
@@ -96,7 +96,7 @@ const styles = `
     .es-thumb { min-height:220px; }
   }
   @media (max-width:700px) {
-    .es-wrap { padding:20px 16px 48px; }
+    .es-wrap { width:min(1400px, calc(100% - 32px)); padding:20px 0 48px; }
   }
 `;
 
