@@ -47,11 +47,12 @@ public class Speaker {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    public void update(String speakerName, String speakerBio, String speakerEmail, String speakerPhone) {
+    public void update(String speakerName, String speakerBio, String speakerEmail, String speakerPhone, String speakerImageUrl) {
         this.speakerName = speakerName;
         this.speakerBio = speakerBio;
         this.speakerEmail = speakerEmail;
         this.speakerPhone = speakerPhone;
+        this.speakerImageUrl = speakerImageUrl;
     }
 
     public void softDelete(LocalDateTime now) {

@@ -14,7 +14,7 @@ function unwrap(res) {
 export const reviewApi = {
   /**
    * GET /api/reviews — 후기 목록 (페이징, 검색)
-   * @param {object} opts - { page (0-based), size, searchType, keyword, rating }
+   * @param {object} opts - { page (0-based), size, searchType, keyword }
    */
   list(opts = {}) {
     const { page = 0, size = 10, searchType, keyword, rating } = opts;

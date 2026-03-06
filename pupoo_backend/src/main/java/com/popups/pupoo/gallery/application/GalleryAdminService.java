@@ -13,6 +13,7 @@ import com.popups.pupoo.common.audit.application.AdminLogService;
 import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.gallery.domain.enums.GalleryStatus;
 import com.popups.pupoo.gallery.domain.model.Gallery;
 import com.popups.pupoo.gallery.domain.model.GalleryImage;
@@ -39,8 +40,12 @@ public class GalleryAdminService {
                 : galleryRepository.findByGalleryStatus(status, PageRequest.of(page, size));
 
         return source.map(g -> {
-            List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
-                    .stream().map(GalleryImage::getOriginalUrl).toList();
+            List<String> urls = PublicUrlNormalizer.normalizeAll(
+                    galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
+                            .stream()
+                            .map(GalleryImage::getOriginalUrl)
+                            .toList()
+            );
 
             return GalleryResponse.builder()
                     .galleryId(g.getGalleryId())
@@ -114,7 +119,7 @@ public GalleryResponse create(Long adminUserId, GalleryCreateRequest request) {G
                 .viewCount(saved.getViewCount())
                 .thumbnailImageId(saved.getThumbnailImageId())
                 .status(saved.getGalleryStatus())
-                .imageUrls(urls)
+                .imageUrls(PublicUrlNormalizer.normalizeAll(urls))
                 .createdAt(saved.getCreatedAt())
                 .updatedAt(saved.getUpdatedAt())
                 .build();
@@ -173,7 +178,7 @@ public GalleryResponse create(Long adminUserId, GalleryCreateRequest request) {G
                 .viewCount(saved.getViewCount())
                 .thumbnailImageId(saved.getThumbnailImageId())
                 .status(saved.getGalleryStatus())
-                .imageUrls(urls)
+                .imageUrls(PublicUrlNormalizer.normalizeAll(urls))
                 .createdAt(saved.getCreatedAt())
                 .updatedAt(saved.getUpdatedAt())
                 .build();
@@ -191,8 +196,12 @@ public GalleryResponse create(Long adminUserId, GalleryCreateRequest request) {G
 
         adminLogService.write("GALLERY_UPDATE", AdminTargetType.OTHER, galleryId);
 
-        List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
-                .stream().map(GalleryImage::getOriginalUrl).toList();
+        List<String> urls = PublicUrlNormalizer.normalizeAll(
+                galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
+                        .stream()
+                        .map(GalleryImage::getOriginalUrl)
+                        .toList()
+        );
 
         return GalleryResponse.builder()
                 .galleryId(updated.getGalleryId())
@@ -232,8 +241,12 @@ public GalleryResponse create(Long adminUserId, GalleryCreateRequest request) {G
             adminLogService.write("GALLERY_UPDATE", AdminTargetType.OTHER, galleryId);
         }
 
-        List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
-                .stream().map(GalleryImage::getOriginalUrl).toList();
+        List<String> urls = PublicUrlNormalizer.normalizeAll(
+                galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
+                        .stream()
+                        .map(GalleryImage::getOriginalUrl)
+                        .toList()
+        );
 
         return GalleryResponse.builder()
                 .galleryId(updated.getGalleryId())

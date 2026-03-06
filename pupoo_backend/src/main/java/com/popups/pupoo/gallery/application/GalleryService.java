@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.gallery.domain.enums.GalleryStatus;
 import com.popups.pupoo.gallery.domain.model.Gallery;
 import com.popups.pupoo.gallery.domain.model.GalleryImage;
@@ -40,8 +41,12 @@ public class GalleryService {
                 .updatedAt(LocalDateTime.now())
                 .build());
 
-        List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
-                .stream().map(GalleryImage::getOriginalUrl).toList();
+        List<String> urls = PublicUrlNormalizer.normalizeAll(
+                galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
+                        .stream()
+                        .map(GalleryImage::getOriginalUrl)
+                        .toList()
+        );
 
         long likeCount = galleryLikeRepository.countByGallery_GalleryId(galleryId);
 
@@ -64,8 +69,12 @@ public class GalleryService {
     public Page<GalleryResponse> list(int page, int size) {
         return galleryRepository.findByGalleryStatus(GalleryStatus.PUBLIC, PageRequest.of(page, size))
                 .map(g -> {
-                    List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
-                            .stream().map(GalleryImage::getOriginalUrl).toList();
+                    List<String> urls = PublicUrlNormalizer.normalizeAll(
+                            galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
+                                    .stream()
+                                    .map(GalleryImage::getOriginalUrl)
+                                    .toList()
+                    );
                     long likeCount = galleryLikeRepository.countByGallery_GalleryId(g.getGalleryId());
                     return GalleryResponse.builder()
                             .galleryId(g.getGalleryId())
@@ -87,8 +96,12 @@ public class GalleryService {
     public Page<GalleryResponse> listByEventId(Long eventId, int page, int size) {
         return galleryRepository.findByEventIdAndGalleryStatus(eventId, GalleryStatus.PUBLIC, PageRequest.of(page, size))
                 .map(g -> {
-                    List<String> urls = galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
-                            .stream().map(GalleryImage::getOriginalUrl).toList();
+                    List<String> urls = PublicUrlNormalizer.normalizeAll(
+                            galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
+                                    .stream()
+                                    .map(GalleryImage::getOriginalUrl)
+                                    .toList()
+                    );
                     long likeCount = galleryLikeRepository.countByGallery_GalleryId(g.getGalleryId());
                     return GalleryResponse.builder()
                             .galleryId(g.getGalleryId())

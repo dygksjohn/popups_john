@@ -124,35 +124,35 @@ public class InterestService {
     }
 
     /**
-     * 활성 구독의 채널 수신 설정 업데이트
+     * 내 구독 목록 조회
      */
     @Transactional
     public UserInterestSubscriptionResponse updateChannels(InterestChannelUpdateRequest request) {
+
         Long userId = securityUtil.currentUserId();
 
-        UserInterestSubscription subscription =
-                subscriptionRepository
-                        .findByUserIdAndInterest_InterestId(userId, request.getInterestId())
-                        .orElseThrow(() ->
-                                new BusinessException(ErrorCode.INVALID_REQUEST, "Subscription not found")
-                        );
+        UserInterestSubscription subscription = subscriptionRepository
+                .findByUserIdAndInterest_InterestId(userId, request.getInterestId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.INVALID_REQUEST, "Subscription not found")
+                );
 
         if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Subscription is not active");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "Only active subscriptions can update channels"
+            );
         }
 
         subscription.updateChannels(
-                Boolean.TRUE.equals(request.getAllowInapp()),
-                Boolean.TRUE.equals(request.getAllowEmail()),
-                Boolean.TRUE.equals(request.getAllowSms())
+                request.allowInappValue(),
+                request.allowEmailValue(),
+                request.allowSmsValue()
         );
 
         return UserInterestSubscriptionResponse.from(subscription);
     }
 
-    /**
-     * 내 구독 목록 조회
-     */
     @Transactional(readOnly = true)
     public List<UserInterestSubscriptionResponse> mySubscriptions(boolean includeInactive) {
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { noticeApi, unwrap } from "../../../api/noticeApi";
 import { reviewApi } from "../../../app/http/reviewApi";
 import { eventApi } from "../../../app/http/eventApi";
+import { programApi } from "../../../app/http/programApi";
 
 /* ── 이미지 폴백 ── */
 const DOG_IMGS = [
@@ -22,14 +23,14 @@ function fmtEventDate(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d)) return "";
-  const week = ["일","월","화","수","목","금","토"];
-  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}(${week[d.getDay()]})`;
+  const week = ["일", "월", "화", "수", "목", "금", "토"];
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}(${week[d.getDay()]})`;
 }
 function fmtTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d)) return "";
-  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 function mapApiEvent(raw) {
   const id = raw?.eventId ?? raw?.id;
@@ -47,6 +48,27 @@ function mapApiEvent(raw) {
     status: raw?.status ?? "",
   };
 }
+
+/* ── 세션 매핑 ── */
+function mapSession(raw, eventMap) {
+  const id = raw?.programId ?? raw?.id;
+  const eventId = raw?.eventId;
+  const ev = eventMap?.get(Number(eventId));
+  return {
+    id,
+    eventId,
+    title: raw?.programTitle ?? raw?.programName ?? raw?.title ?? "세션",
+    description: raw?.description ?? "",
+    location: raw?.location ?? raw?.place ?? raw?.boothName ?? ev?.location ?? "장소 미정",
+    category: raw?.category ?? raw?.programCategory ?? "",
+    startAt: raw?.startAt ?? raw?.startDateTime ?? null,
+    endAt: raw?.endAt ?? raw?.endDateTime ?? null,
+    image: raw?.imageUrl ?? ev?.imageUrl ?? dogImg(id),
+    eventName: ev?.eventName ?? "행사",
+    status: raw?.status ?? "",
+  };
+}
+
 // ================= 스크롤 reveal 훅 =================
 function useScrollReveal(options = {}) {
   const { threshold = 0.15, rootMargin = "0px 0px -60px 0px" } = options;
@@ -87,14 +109,15 @@ function RevealSection({ children, className = "", delay = 0 }) {
   );
 }
 
-// ================= EVENT SECTION (DB 연동) =================
+// ================= EVENT SECTION (DB 연동 — 좌3 우3 고정) =================
 function EventSection() {
   const navigate = useNavigate();
   const [hoveredCard, setHoveredCard] = useState(null);
   const [events, setEvents] = useState([]);
 
   useEffect(() => {
-    eventApi.getEvents({ status: "ONGOING", page: 0, size: 10 })
+    eventApi
+      .getEvents({ page: 0, size: 6 })
       .then((res) => {
         const list = res.data?.data?.content || res.data?.data || [];
         setEvents(list.map(mapApiEvent));
@@ -102,36 +125,26 @@ function EventSection() {
       .catch(() => setEvents([]));
   }, []);
 
-  // 날짜별 그룹핑
-  const grouped = {};
-  events.forEach((ev) => {
-    const key = fmtEventDate(ev.startAt) || "일정 미정";
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(ev);
-  });
-  const dateKeys = Object.keys(grouped).slice(0, 2);
-  const colors = [
-    { bg: "bg-gradient-to-r from-blue-50 to-blue-100/50", text: "text-blue-700" },
-    { bg: "bg-gradient-to-r from-emerald-50 to-teal-100/50", text: "text-teal-700" },
+  // 좌 3개 / 우 3개 분배
+  const leftItems = events.slice(0, 3);
+  const rightItems = events.length > 3 ? events.slice(3, 6) : events.slice(0, Math.min(3, events.length));
+  const sides = [
+    { items: leftItems, color: { bg: "bg-gradient-to-r from-blue-50 to-blue-100/50", text: "text-blue-700" } },
+    { items: rightItems, color: { bg: "bg-gradient-to-r from-emerald-50 to-teal-100/50", text: "text-teal-700" } },
   ];
+  const groupDate = (items) => {
+    const first = items.find((e) => e.startAt);
+    return first ? fmtEventDate(first.startAt) : "일정 미정";
+  };
 
   return (
     <section className="w-full bg-gradient-to-b from-gray-50 to-white py-16 px-6">
       <div className="max-w-[1400px] mx-auto px-6">
         <RevealSection>
           <div className="text-center mb-10">
-            <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">
-              진행 중인 행사 안내
-            </p>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">
-              현재 진행 중인 반려견 행사
-            </h2>
-            <button
-              onClick={() => navigate("/event/current")}
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300"
-            >
-              자세히 보기
-            </button>
+            <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">진행 중인 행사 안내</p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">현재 진행 중인 프로그램</h2>
+            <button onClick={() => navigate("/event/current")} className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300">자세히 보기</button>
           </div>
         </RevealSection>
         <RevealSection delay={0.15}>
@@ -142,15 +155,13 @@ function EventSection() {
               <div className="hidden lg:block absolute left-1/2 top-6 bottom-0 -translate-x-1/2">
                 <div className="w-px h-full" style={{ backgroundImage: "radial-gradient(circle, #d1d5db 1px, transparent 1px)", backgroundSize: "1px 5px" }} />
               </div>
-              {dateKeys.length > 0 ? dateKeys.map((key, si) => (
-                <div key={key} className="space-y-4">
-                  <div className={`${colors[si % 2].bg} ${colors[si % 2].text} text-center py-3 rounded-xl font-semibold text-sm`}>
-                    {key}
-                  </div>
+              {sides.map((side, si) => (
+                <div key={si} className="space-y-4">
+                  <div className={`${side.color.bg} ${side.color.text} text-center py-3 rounded-xl font-semibold text-sm`}>{groupDate(side.items)}</div>
                   <div className="space-y-4">
-                    {grouped[key].slice(0, 3).map((ev, idx) => (
+                    {side.items.map((ev, idx) => (
                       <EventCard
-                        key={ev.id}
+                        key={ev.id || idx}
                         event={{ title: ev.title, time: ev.startAt && ev.endAt ? `${fmtTime(ev.startAt)} ~ ${fmtTime(ev.endAt)}` : "시간 미정", location: ev.location }}
                         isHovered={hoveredCard === `${si}-${idx}`}
                         onHover={() => setHoveredCard(`${si}-${idx}`)}
@@ -159,19 +170,7 @@ function EventSection() {
                     ))}
                   </div>
                 </div>
-              )) : (
-                <div className="col-span-2 space-y-4">
-                  {events.slice(0, 6).map((ev, idx) => (
-                    <EventCard
-                      key={ev.id}
-                      event={{ title: ev.title, time: ev.startAt && ev.endAt ? `${fmtTime(ev.startAt)} ~ ${fmtTime(ev.endAt)}` : "시간 미정", location: ev.location }}
-                      isHovered={hoveredCard === `all-${idx}`}
-                      onHover={() => setHoveredCard(`all-${idx}`)}
-                      onLeave={() => setHoveredCard(null)}
-                    />
-                  ))}
-                </div>
-              )}
+              ))}
             </div>
           )}
         </RevealSection>
@@ -179,32 +178,17 @@ function EventSection() {
     </section>
   );
 }
+
 function EventCard({ event, isHovered, onHover, onLeave }) {
   return (
-    <div
-      className="cursor-pointer"
-      onMouseEnter={onHover}
-      onMouseLeave={onLeave}
-    >
-      <div
-        className={`rounded-xl p-5 border border-gray-200 transition-all duration-300 ${isHovered ? "bg-gray-100 border-gray-300" : "bg-white"}`}
-      >
+    <div className="cursor-pointer" onMouseEnter={onHover} onMouseLeave={onLeave}>
+      <div className={`rounded-xl p-5 border border-gray-200 transition-all duration-300 ${isHovered ? "bg-gray-100 border-gray-300" : "bg-white"}`}>
         <div className="text-center">
-          <h3 className="text-base font-semibold text-gray-900 mb-1">
-            {event.title}
-          </h3>
-          <p className="text-[13px] text-gray-600 leading-tight">
-            {event.time}
-          </p>
-          <p className="text-[13px] text-gray-600 leading-tight">
-            {event.location}
-          </p>
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-out ${isHovered ? "max-h-16 mt-3" : "max-h-0 mt-0"}`}
-          >
-            <button className="bg-blue-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full">
-              자세히 보기
-            </button>
+          <h3 className="text-base font-semibold text-gray-900 mb-1">{event.title}</h3>
+          <p className="text-[13px] text-gray-600 leading-tight">{event.time}</p>
+          <p className="text-[13px] text-gray-600 leading-tight">{event.location}</p>
+          <div className={`overflow-hidden transition-all duration-300 ease-out ${isHovered ? "max-h-16 mt-3" : "max-h-0 mt-0"}`}>
+            <button className="bg-blue-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full">자세히 보기</button>
           </div>
         </div>
       </div>
@@ -227,51 +211,50 @@ function useInfiniteSlider(itemCount, slideSize) {
     resetTimer.current = setTimeout(() => {
       const mod = (((index - CENTER) % itemCount) + itemCount) % itemCount;
       const target = CENTER + mod;
-      if (target !== index) {
-        setTransition(false);
-        setIndex(target);
-      }
+      if (target !== index) { setTransition(false); setIndex(target); }
     }, 650);
     return () => clearTimeout(resetTimer.current);
   }, [index, itemCount]);
   useEffect(() => {
     if (!transition) {
-      const t = requestAnimationFrame(() => {
-        requestAnimationFrame(() => setTransition(true));
-      });
+      const t = requestAnimationFrame(() => { requestAnimationFrame(() => setTransition(true)); });
       return () => cancelAnimationFrame(t);
     }
   }, [transition]);
   const realIndex = ((index % itemCount) + itemCount) % itemCount;
   const offset = index * slideSize;
-  return {
-    index,
-    realIndex,
-    offset,
-    transition,
-    next,
-    prev,
-    goTo,
-    setIndex,
-    setTransition,
-    CLONES,
-  };
+  return { index, realIndex, offset, transition, next, prev, goTo, setIndex, setTransition, CLONES };
 }
 
-// ================= SPEAKER LINEUP (DB 연동) =================
-function SpeakerLineup() {
+// ================= SESSION LINEUP (세션 DB 연동) =================
+function SessionLineup() {
   const navigate = useNavigate();
-  const [events, setEvents] = useState([]);
+  const [sessions, setSessions] = useState([]);
+
   useEffect(() => {
-    eventApi.getEvents({ page: 0, size: 10 })
-      .then((res) => {
-        const list = res.data?.data?.content || res.data?.data || [];
-        setEvents(list.map(mapApiEvent));
-      })
-      .catch(() => setEvents([]));
+    (async () => {
+      try {
+        // 1) 전체 이벤트 목록 가져오기
+        const evRes = await eventApi.getEvents({ page: 0, size: 50 });
+        const events = evRes.data?.data?.content || evRes.data?.data || [];
+        const eventMap = new Map(events.map((e) => [Number(e.eventId ?? e.id), e]));
+
+        // 2) 각 이벤트별 프로그램(세션) 가져오기
+        const allSessions = [];
+        for (const ev of events.slice(0, 10)) {
+          try {
+            const list = await programApi.getAllProgramsByEvent({ eventId: ev.eventId ?? ev.id, pageSize: 50 });
+            list.forEach((p) => allSessions.push(mapSession(p, eventMap)));
+          } catch { /* skip */ }
+        }
+        setSessions(allSessions.length > 0 ? allSessions : []);
+      } catch {
+        setSessions([]);
+      }
+    })();
   }, []);
 
-  const items = events.length > 0 ? events : [];
+  const items = sessions.slice(0, 10);
   const GAP = 20;
   const VISIBLE = 4;
   const PEEK = 0.35;
@@ -282,18 +265,12 @@ function SpeakerLineup() {
   const [hovered, setHovered] = useState(null);
   const dragRef = useRef({ startX: 0, currentX: 0, dragging: false });
   const trackRef = useRef(null);
-  const onPointerDown = (e) => {
-    dragRef.current = { startX: e.clientX, currentX: e.clientX, dragging: true };
-    slider.setTransition(false);
-  };
+  const onPointerDown = (e) => { dragRef.current = { startX: e.clientX, currentX: e.clientX, dragging: true }; slider.setTransition(false); };
   const onPointerMove = (e) => {
     if (!dragRef.current.dragging) return;
     dragRef.current.currentX = e.clientX;
     const track = trackRef.current;
-    if (track) {
-      const delta = dragRef.current.currentX - dragRef.current.startX;
-      track.style.transform = `translate3d(${-slider.offset + delta}px, 0, 0)`;
-    }
+    if (track) { track.style.transform = `translate3d(${-slider.offset + (dragRef.current.currentX - dragRef.current.startX)}px, 0, 0)`; }
   };
   const onPointerUp = () => {
     if (!dragRef.current.dragging) return;
@@ -303,10 +280,13 @@ function SpeakerLineup() {
     if (delta < -50) slider.next();
     else if (delta > 50) slider.prev();
   };
-  const statusColor = {
-    ONGOING: { bg: "bg-red-500", text: "text-white", label: "진행중" },
-    UPCOMING: { bg: "bg-blue-600", text: "text-white", label: "예정" },
-    ENDED: { bg: "bg-gray-500", text: "text-white", label: "종료" },
+
+  const catLabel = (c) => {
+    const raw = String(c).toUpperCase();
+    if (raw.includes("SESSION")) return "세션";
+    if (raw.includes("EXPERIENCE")) return "체험";
+    if (raw.includes("CONTEST")) return "콘테스트";
+    return "프로그램";
   };
 
   return (
@@ -314,76 +294,43 @@ function SpeakerLineup() {
       <div className="max-w-[1400px] mx-auto px-6">
         <RevealSection>
           <div className="text-center mb-10">
-            <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">
-              PuPoo Events
-            </p>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">
-              등록된 반려견 행사
-            </h2>
-            <button
-              onClick={() => navigate("/event/current")}
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300"
-            >
-              전체 행사 보기
-            </button>
+            <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">PuPoo Session</p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">현재 진행 중인 세션 · 강연</h2>
+            <button onClick={() => navigate("/program/current")} className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300">전체 세션 보기</button>
           </div>
         </RevealSection>
         <RevealSection delay={0.12}>
           {items.length === 0 ? (
-            <div className="text-center text-gray-400 py-12">등록된 행사가 없습니다.</div>
+            <div className="text-center text-gray-400 py-12">등록된 세션이 없습니다.</div>
           ) : (
             <>
-              <div
-                className="overflow-hidden cursor-grab active:cursor-grabbing"
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerLeave={onPointerUp}
-                style={{ userSelect: "none" }}
-              >
-                <div
-                  ref={trackRef}
-                  className="flex"
-                  style={{
-                    gap: GAP,
-                    transform: `translate3d(-${slider.offset}px, 0, 0)`,
-                    transition: slider.transition ? "transform 600ms cubic-bezier(0.16,1,0.3,1)" : "none",
-                    willChange: "transform",
-                  }}
-                >
-                  {extended.map((ev, i) => {
+              <div className="overflow-hidden cursor-grab active:cursor-grabbing" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} style={{ userSelect: "none" }}>
+                <div ref={trackRef} className="flex" style={{ gap: GAP, transform: `translate3d(-${slider.offset}px, 0, 0)`, transition: slider.transition ? "transform 600ms cubic-bezier(0.16,1,0.3,1)" : "none", willChange: "transform" }}>
+                  {extended.map((s, i) => {
                     const isH = hovered === i;
-                    const sc = statusColor[ev.status] || statusColor.ONGOING;
                     return (
-                      <div
-                        key={i}
-                        style={{ width: CARD_W }}
-                        className="shrink-0"
-                        onMouseEnter={() => setHovered(i)}
-                        onMouseLeave={() => setHovered(null)}
-                      >
+                      <div key={i} style={{ width: CARD_W }} className="shrink-0" onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}>
                         <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-[3/4]">
                           <img
-                            src={ev.image}
-                            alt={ev.title}
+                            src={s.image}
+                            alt={s.title}
                             className={`w-full h-full object-cover transition-all duration-700 ease-out ${isH ? "scale-105 grayscale-0" : "scale-100 grayscale"}`}
                             draggable={false}
-                            onError={(e) => { e.target.onerror = null; e.target.src = dogImg(ev.id); }}
+                            onError={(e) => { e.target.onerror = null; e.target.src = dogImg(s.id); }}
                           />
                           <div className="absolute inset-x-0 bottom-0 h-2/5" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55), transparent)" }} />
                           <div className="absolute bottom-0 left-0 right-0 p-5">
-                            <p className="text-white font-bold text-lg leading-snug">{ev.title}</p>
-                            <p className="text-white/60 text-sm mt-0.5">{ev.location}</p>
-                            {ev.startAt && <p className="text-white/50 text-xs mt-1">{fmtEventDate(ev.startAt)}</p>}
+                            <p className="text-white font-bold text-lg leading-snug">{s.title}</p>
+                            <p className="text-white/60 text-sm mt-0.5">{s.eventName}</p>
+                            <p className="text-white/50 text-xs mt-1">
+                              {s.startAt ? `${fmtEventDate(s.startAt)} ${fmtTime(s.startAt)}` : "일정 미정"}
+                              {s.location ? ` · ${s.location}` : ""}
+                            </p>
                           </div>
                         </div>
                         <div className="mt-3">
-                          <span className={`inline-block text-[11px] font-bold ${sc.bg} ${sc.text} px-2.5 py-1 rounded-md`}>
-                            {sc.label}
-                          </span>
-                          <span className="inline-block text-[11px] font-medium bg-gray-200 text-gray-600 px-2.5 py-1 rounded-md ml-1.5">
-                            {ev.category}
-                          </span>
+                          <span className="inline-block text-[11px] font-bold bg-blue-600 text-white px-2.5 py-1 rounded-md">{catLabel(s.category)}</span>
+                          <span className="inline-block text-[11px] font-medium bg-gray-200 text-gray-600 px-2.5 py-1 rounded-md ml-1.5">{s.eventName}</span>
                         </div>
                       </div>
                     );
@@ -399,11 +346,7 @@ function SpeakerLineup() {
                   </span>
                   <div className="flex gap-1.5">
                     {items.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => slider.goTo(i)}
-                        className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`}
-                      />
+                      <button key={i} onClick={() => slider.goTo(i)} className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`} />
                     ))}
                   </div>
                 </div>
@@ -445,17 +388,12 @@ function RecommendCarousel() {
   const extended = items.length > 0 ? Array.from({ length: slider.CLONES }, () => items).flat() : [];
   const dragRef = useRef({ startX: 0, currentX: 0, dragging: false });
   const trackRef = useRef(null);
-  const onPointerDown = (e) => {
-    dragRef.current = { startX: e.clientX, currentX: e.clientX, dragging: true };
-    slider.setTransition(false);
-  };
+  const onPointerDown = (e) => { dragRef.current = { startX: e.clientX, currentX: e.clientX, dragging: true }; slider.setTransition(false); };
   const onPointerMove = (e) => {
     if (!dragRef.current.dragging) return;
     dragRef.current.currentX = e.clientX;
     const track = trackRef.current;
-    if (track) {
-      track.style.transform = `translate3d(${-slider.offset + (dragRef.current.currentX - dragRef.current.startX)}px, 0, 0)`;
-    }
+    if (track) { track.style.transform = `translate3d(${-slider.offset + (dragRef.current.currentX - dragRef.current.startX)}px, 0, 0)`; }
   };
   const onPointerUp = () => {
     if (!dragRef.current.dragging) return;
@@ -466,51 +404,25 @@ function RecommendCarousel() {
     else if (delta > 50) slider.prev();
   };
 
-  if (items.length === 0) {
-    return <div className="text-center text-gray-400 py-12">추천 행사를 불러오는 중...</div>;
-  }
+  if (items.length === 0) return <div className="text-center text-gray-400 py-12">추천 행사를 불러오는 중...</div>;
 
   return (
     <div className="relative w-full">
       <RevealSection>
-        <div
-          className="overflow-hidden cursor-grab active:cursor-grabbing"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
-          style={{ userSelect: "none" }}
-        >
-          <div
-            ref={trackRef}
-            className="flex"
-            style={{
-              gap: GAP,
-              transform: `translate3d(-${slider.offset}px, 0, 0)`,
-              transition: slider.transition ? "transform 600ms cubic-bezier(0.16,1,0.3,1)" : "none",
-              willChange: "transform",
-            }}
-          >
+        <div className="overflow-hidden cursor-grab active:cursor-grabbing" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} style={{ userSelect: "none" }}>
+          <div ref={trackRef} className="flex" style={{ gap: GAP, transform: `translate3d(-${slider.offset}px, 0, 0)`, transition: slider.transition ? "transform 600ms cubic-bezier(0.16,1,0.3,1)" : "none", willChange: "transform" }}>
             {extended.map((ev, i) => (
               <div key={i} style={{ width: CARD_W }} className="shrink-0 group">
                 <div className="relative overflow-hidden rounded-2xl">
-                  <img
-                    src={ev.image}
-                    alt={ev.title}
-                    draggable={false}
-                    className="h-[260px] w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    onError={(e) => { e.target.onerror = null; e.target.src = dogImg(ev.id); }}
-                  />
+                  <img src={ev.image} alt={ev.title} draggable={false} className="h-[260px] w-full object-cover transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.target.onerror = null; e.target.src = dogImg(ev.id); }} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
                 <div className="mt-4">
                   <div className="text-[17px] font-bold text-gray-900">{ev.title}</div>
                   <div className="text-sm text-gray-500 mt-1.5">
-                    {ev.description ? (ev.description.length > 40 ? ev.description.slice(0, 40) + "..." : ev.description) : (ev.startAt ? fmtEventDate(ev.startAt) : "상세 정보 보기")}
+                    {ev.description ? (ev.description.length > 40 ? ev.description.slice(0, 40) + "..." : ev.description) : ev.startAt ? fmtEventDate(ev.startAt) : "상세 정보 보기"}
                   </div>
-                  <span className="inline-block mt-3 text-xs font-medium bg-gray-200 text-gray-600 px-3 py-1 rounded-md">
-                    {ev.location}
-                  </span>
+                  <span className="inline-block mt-3 text-xs font-medium bg-gray-200 text-gray-600 px-3 py-1 rounded-md">{ev.location}</span>
                 </div>
               </div>
             ))}
@@ -525,11 +437,7 @@ function RecommendCarousel() {
             </span>
             <div className="flex gap-1.5">
               {items.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => slider.goTo(i)}
-                  className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`}
-                />
+                <button key={i} onClick={() => slider.goTo(i)} className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`} />
               ))}
             </div>
           </div>
@@ -557,61 +465,29 @@ function fmtDate(dt) {
 function getReviewHeadline(item) {
   const explicitTitle = String(item?.title || "").trim();
   if (explicitTitle) return explicitTitle;
-
-  const firstLine = String(item?.content || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .find(Boolean);
-
+  const firstLine = String(item?.content || "").split("\n").map((line) => line.trim()).find(Boolean);
   if (!firstLine) return "행사 후기";
   return firstLine.length > 58 ? `${firstLine.slice(0, 58)}...` : firstLine;
 }
+
 function NoticeSection() {
   const navigate = useNavigate();
   const [notices, setNotices] = useState([]);
   const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
-    noticeApi
-      .list(1, 3)
-      .then((res) => {
-        const d = unwrap(res);
-        setNotices(d?.content?.slice(0, 3) || []);
-      })
-      .catch(() => setNotices([]));
+    noticeApi.list(1, 3).then((res) => { const d = unwrap(res); setNotices(d?.content?.slice(0, 3) || []); }).catch(() => setNotices([]));
   }, []);
   useEffect(() => {
-    reviewApi
-      .list({ page: 0, size: 3 })
-      .then((d) => {
-        const content = Array.isArray(d?.content)
-          ? d.content
-          : Array.isArray(d)
-            ? d
-            : [];
-        setReviews(content.slice(0, 3));
-      })
-      .catch(() => setReviews([]));
+    reviewApi.list({ page: 0, size: 3 }).then((d) => {
+      const content = Array.isArray(d?.content) ? d.content : Array.isArray(d) ? d : [];
+      setReviews(content.slice(0, 3));
+    }).catch(() => setReviews([]));
   }, []);
 
-  // 공지/후기 모두 DB 연동 데이터로 노출
   const sections = [
-    {
-      title: "공지사항",
-      items: notices.map((n) => ({
-        title: n.title,
-        date: fmtDate(n.createdAt),
-      })),
-      morePath: "/community/notice",
-    },
-    {
-      title: "후기 게시판",
-      items: reviews.map((r) => ({
-        title: getReviewHeadline(r),
-        date: fmtDate(r.createdAt),
-      })),
-      morePath: "/community/review",
-    },
+    { title: "공지사항", items: notices.map((n) => ({ title: n.title, date: fmtDate(n.createdAt) })), morePath: "/community/notice" },
+    { title: "후기 게시판", items: reviews.map((r) => ({ title: getReviewHeadline(r), date: fmtDate(r.createdAt) })), morePath: "/community/review" },
   ];
 
   return (
@@ -622,36 +498,18 @@ function NoticeSection() {
             <div>
               <div className="flex justify-between items-center mb-10">
                 <h3 className="text-3xl font-extrabold">{section.title}</h3>
-                <button
-                  type="button"
-                  className="text-sm text-white/70 hover:text-white transition"
-                  onClick={() => section.morePath && navigate(section.morePath)}
-                >
-                  more +
-                </button>
+                <button type="button" className="text-sm text-white/70 hover:text-white transition" onClick={() => section.morePath && navigate(section.morePath)}>more +</button>
               </div>
               <div className="space-y-10">
                 {section.items.length > 0
                   ? section.items.map((item, i) => (
-                      <div
-                        key={i}
-                        className="group cursor-pointer"
-                        onClick={() =>
-                          section.morePath && navigate(section.morePath)
-                        }
-                      >
+                      <div key={i} className="group cursor-pointer" onClick={() => section.morePath && navigate(section.morePath)}>
                         <div className="flex justify-between">
                           <div>
-                            <div className="text-lg font-semibold group-hover:text-gray-300 transition">
-                              {item.title}
-                            </div>
-                            <div className="mt-3 text-sm text-white/60">
-                              {item.date}
-                            </div>
+                            <div className="text-lg font-semibold group-hover:text-gray-300 transition">{item.title}</div>
+                            <div className="mt-3 text-sm text-white/60">{item.date}</div>
                           </div>
-                          <div className="text-3xl text-white/60 group-hover:text-white transition">
-                            +
-                          </div>
+                          <div className="text-3xl text-white/60 group-hover:text-white transition">+</div>
                         </div>
                         <div className="mt-6 border-b border-white/20" />
                       </div>
@@ -660,9 +518,7 @@ function NoticeSection() {
                       <div key={i} className="group cursor-pointer">
                         <div className="flex justify-between">
                           <div>
-                            <div className="text-lg font-semibold text-white/30">
-                              불러오는 중...
-                            </div>
+                            <div className="text-lg font-semibold text-white/30">불러오는 중...</div>
                             <div className="mt-3 text-sm text-white/20">-</div>
                           </div>
                         </div>
@@ -694,24 +550,14 @@ export default function Home() {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    const updateProgress = () => {
-      if (video.duration)
-        setProgress((video.currentTime / video.duration) * 100);
-    };
+    const updateProgress = () => { if (video.duration) setProgress((video.currentTime / video.duration) * 100); };
     const handleEnded = () => {
-      setFade(false);
-      setProgress(0);
-      setTimeout(() => {
-        setCurrentVideoIndex((p) => (p === heroVideos.length - 1 ? 0 : p + 1));
-        setFade(true);
-      }, 600);
+      setFade(false); setProgress(0);
+      setTimeout(() => { setCurrentVideoIndex((p) => (p === heroVideos.length - 1 ? 0 : p + 1)); setFade(true); }, 600);
     };
     video.addEventListener("timeupdate", updateProgress);
     video.addEventListener("ended", handleEnded);
-    return () => {
-      video.removeEventListener("timeupdate", updateProgress);
-      video.removeEventListener("ended", handleEnded);
-    };
+    return () => { video.removeEventListener("timeupdate", updateProgress); video.removeEventListener("ended", handleEnded); };
   }, [currentVideoIndex]);
 
   const togglePlay = () => {
@@ -724,62 +570,37 @@ export default function Home() {
   return (
     <div>
       <section className="relative h-screen w-full overflow-hidden">
-        <video
-          ref={videoRef}
-          key={currentVideoIndex}
-          src={heroVideos[currentVideoIndex]}
-          autoPlay
-          muted
-          playsInline
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${fade ? "opacity-100" : "opacity-0"}`}
-        />
+        <video ref={videoRef} key={currentVideoIndex} src={heroVideos[currentVideoIndex]} autoPlay muted playsInline className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${fade ? "opacity-100" : "opacity-0"}`} />
         <div className="absolute inset-0 bg-black/40" />
         <div className="relative h-full flex items-center justify-center">
           <div className="max-w-[1400px] w-full px-6 text-white">
-            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
-              지금, 가장 즐거운
-              <br />
-              반려견 페스티벌
-            </h1>
-            <p className="mt-6 text-lg md:text-xl text-white/90">
-              참여 가능한 행사를 바로 확인하세요
-            </p>
+            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">지금, 가장 즐거운<br />반려견 페스티벌</h1>
+            <p className="mt-6 text-lg md:text-xl text-white/90">참여 가능한 행사를 바로 확인하세요</p>
           </div>
         </div>
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[300px]">
           <div className="relative h-[2px] bg-white/30">
-            <div
-              className="absolute left-0 top-0 h-full bg-white transition-[width] duration-200 ease-linear"
-              style={{ width: `${progress}%` }}
-            />
+            <div className="absolute left-0 top-0 h-full bg-white transition-[width] duration-200 ease-linear" style={{ width: `${progress}%` }} />
           </div>
           <div className="flex justify-between items-center mt-3 text-white text-sm">
-            <span>
-              {String(currentVideoIndex + 1).padStart(2, "0")} /{" "}
-              {String(heroVideos.length).padStart(2, "0")}
-            </span>
-            <button type="button" onClick={togglePlay}>
-              {isPlaying ? "❚❚" : "▶"}
-            </button>
+            <span>{String(currentVideoIndex + 1).padStart(2, "0")} / {String(heroVideos.length).padStart(2, "0")}</span>
+            <button type="button" onClick={togglePlay}>{isPlaying ? "❚❚" : "▶"}</button>
           </div>
         </div>
       </section>
 
-      <SpeakerLineup />
+      <SessionLineup />
       <EventSection />
 
       <section className="bg-[#f4f5f7] py-24 overflow-hidden">
         <div className="max-w-[1400px] mx-auto px-6">
           <RevealSection>
             <h2 className="text-2xl md:text-3xl font-extrabold mb-8">
-              <span className="text-blue-600">당신이</span> 좋아할 만한 추천
-              행사
+              <span className="text-blue-600">당신이</span> 좋아할 만한 추천 행사
             </h2>
           </RevealSection>
           <RevealSection delay={0.08}>
-            <div className="bg-[#e9eaee] rounded-xl px-6 py-4 text-sm text-gray-700 mb-12">
-              '나의 성향에 따른 맞춤형 행사'가 추천되고 있습니다.
-            </div>
+            <div className="bg-[#e9eaee] rounded-xl px-6 py-4 text-sm text-gray-700 mb-12">'나의 성향에 따른 맞춤형 행사'가 추천되고 있습니다.</div>
           </RevealSection>
           <RecommendCarousel />
         </div>

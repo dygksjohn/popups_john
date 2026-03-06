@@ -2,6 +2,7 @@
 import EventDetailModal from "./EventDetailModal";
 import { useEffect, useState } from "react";
 import { eventApi } from "../../../app/http/eventApi";
+import { loadImageCache, injectEventImages } from "../../admin/shared/eventImageStore";
 import {
   MapPin,
   Calendar,
@@ -231,6 +232,10 @@ export default function Current() {
           const all = Array.isArray(fallbackContent) ? fallbackContent : [];
           list = all.filter(isOngoingByTime);
         }
+
+        /* 이미지 캐시(IndexedDB) 로드 후 주입 */
+        await loadImageCache();
+        list = injectEventImages(list);
 
         if (mounted) {
           setEvents(

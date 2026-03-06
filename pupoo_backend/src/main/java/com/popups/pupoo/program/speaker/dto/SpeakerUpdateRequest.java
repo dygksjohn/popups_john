@@ -16,4 +16,5 @@ public class SpeakerUpdateRequest {
     public String speakerBio;
     public String speakerEmail;
     public String speakerPhone;
+    public String speakerImageUrl;
 }

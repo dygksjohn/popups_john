@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.program.domain.enums.ProgramCategory;
@@ -38,6 +39,7 @@ public class SpeakerAdminService {
                 .speakerBio(req.speakerBio)
                 .speakerEmail(req.speakerEmail)
                 .speakerPhone(req.speakerPhone)
+                .speakerImageUrl(PublicUrlNormalizer.normalize(req.speakerImageUrl))
                 .build();
 
         Speaker saved = speakerRepository.save(speaker);
@@ -56,7 +58,13 @@ public class SpeakerAdminService {
         Speaker speaker = speakerRepository.findById(speakerId)
                 .orElseThrow(() -> new EntityNotFoundException("SPEAKER_NOT_FOUND"));
 
-        speaker.update(req.speakerName, req.speakerBio, req.speakerEmail, req.speakerPhone);
+        speaker.update(
+                req.speakerName,
+                req.speakerBio,
+                req.speakerEmail,
+                req.speakerPhone,
+                PublicUrlNormalizer.normalize(req.speakerImageUrl)
+        );
 
         if (req.programId != null) {
             Program targetProgram = programRepository.findById(req.programId)

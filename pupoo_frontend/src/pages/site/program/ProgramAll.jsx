@@ -9,6 +9,10 @@ import {
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import {
+  loadImageCache as loadEventImageCache,
+  injectEventImages,
+} from "../../admin/shared/eventImageStore";
+import {
   CalendarDays,
   Clock,
   MapPin,
@@ -143,7 +147,8 @@ function toEventStatus(rawStatus, startAt, endAt) {
   const status = String(rawStatus || "").toUpperCase();
   if (status.includes("END")) return "ended";
   if (status.includes("ONGOING") || status.includes("LIVE")) return "live";
-  if (status.includes("UPCOMING") || status.includes("PLANNED")) return "upcoming";
+  if (status.includes("UPCOMING") || status.includes("PLANNED"))
+    return "upcoming";
 
   const now = Date.now();
   const startTs = Date.parse(String(startAt || ""));
@@ -199,7 +204,8 @@ function getPeriod(timeText) {
 
 function getType(raw) {
   const v = String(raw ?? "").toUpperCase();
-  if (v.includes("SESSION") || v.includes("SEMINAR") || v.includes("LECTURE")) return "session";
+  if (v.includes("SESSION") || v.includes("SEMINAR") || v.includes("LECTURE"))
+    return "session";
   if (v.includes("CONTEST") || v.includes("VOTE")) return "contest";
   if (v.includes("EXPERIENCE") || v.includes("EXHIBIT")) return "experience";
   return "ceremony";
@@ -207,8 +213,10 @@ function getType(raw) {
 
 function getStatus(raw) {
   const v = String(raw ?? "").toUpperCase();
-  if (v.includes("LIVE") || v.includes("ONGOING") || v.includes("PROGRESS")) return "live";
-  if (v.includes("DONE") || v.includes("END") || v.includes("FINISH")) return "done";
+  if (v.includes("LIVE") || v.includes("ONGOING") || v.includes("PROGRESS"))
+    return "live";
+  if (v.includes("DONE") || v.includes("END") || v.includes("FINISH"))
+    return "done";
   return "upcoming";
 }
 
@@ -219,10 +227,18 @@ function normalizeProgram(item, idx) {
   return {
     id: item?.id ?? item?.programId ?? `p-${idx}`,
     dateKey: toDateKey(startAt ?? item?.date ?? item?.day),
-    name: item?.programName ?? item?.title ?? item?.name ?? `프로그램 ${idx + 1}`,
+    name:
+      item?.programName ?? item?.title ?? item?.name ?? `프로그램 ${idx + 1}`,
     time,
-    zone: item?.location ?? item?.place ?? item?.zone ?? item?.boothName ?? "장소 미정",
-    people: Number(item?.participantCount ?? item?.participants ?? item?.capacity ?? 0),
+    zone:
+      item?.location ??
+      item?.place ??
+      item?.zone ??
+      item?.boothName ??
+      "장소 미정",
+    people: Number(
+      item?.participantCount ?? item?.participants ?? item?.capacity ?? 0,
+    ),
     type: getType(item?.category ?? item?.programCategory),
     status: getStatus(item?.status),
     period: getPeriod(time),
@@ -271,7 +287,9 @@ function ScheduleContent({ eventDetail, programs, loading, error }) {
   }, [days.length]);
 
   const selected = days[selectedDay];
-  const selectedPrograms = selected ? programs.filter((p) => p.dateKey === selected.key) : [];
+  const selectedPrograms = selected
+    ? programs.filter((p) => p.dateKey === selected.key)
+    : [];
   const scheduleByPeriod = {
     morning: selectedPrograms.filter((p) => p.period === "morning"),
     afternoon: selectedPrograms.filter((p) => p.period === "afternoon"),
@@ -283,13 +301,35 @@ function ScheduleContent({ eventDetail, programs, loading, error }) {
     <>
       <div className="sc-stat-grid">
         {[
-          { label: "행사 기간", value: `${days.length}일`, icon: <CalendarDays size={20} color="#1a4fd6" />, bg: "#eff4ff" },
-          { label: "선택 일자 프로그램", value: `${selectedPrograms.length}개`, icon: <CalendarCheck size={20} color="#10b981" />, bg: "#ecfdf5" },
-          { label: "전체 프로그램", value: `${programs.length}개`, icon: <Users size={20} color="#f59e0b" />, bg: "#fffbeb" },
-          { label: "진행 중", value: `${liveCount}개`, icon: <AlertCircle size={20} color="#ef4444" />, bg: "#fff0f0" },
+          {
+            label: "행사 기간",
+            value: `${days.length}일`,
+            icon: <CalendarDays size={20} color="#1a4fd6" />,
+            bg: "#eff4ff",
+          },
+          {
+            label: "선택 일자 프로그램",
+            value: `${selectedPrograms.length}개`,
+            icon: <CalendarCheck size={20} color="#10b981" />,
+            bg: "#ecfdf5",
+          },
+          {
+            label: "전체 프로그램",
+            value: `${programs.length}개`,
+            icon: <Users size={20} color="#f59e0b" />,
+            bg: "#fffbeb",
+          },
+          {
+            label: "진행 중",
+            value: `${liveCount}개`,
+            icon: <AlertCircle size={20} color="#ef4444" />,
+            bg: "#fff0f0",
+          },
         ].map((s) => (
           <div key={s.label} className="sc-stat-card">
-            <div className="sc-stat-icon" style={{ background: s.bg }}>{s.icon}</div>
+            <div className="sc-stat-icon" style={{ background: s.bg }}>
+              {s.icon}
+            </div>
             <div>
               <div className="sc-stat-label">{s.label}</div>
               <div className="sc-stat-value">{s.value}</div>
@@ -302,15 +342,23 @@ function ScheduleContent({ eventDetail, programs, loading, error }) {
         <div className="sc-card">
           <div className="sc-card-header">
             <div className="sc-card-title">
-              <div className="sc-card-title-icon"><CalendarDays size={14} color="#f59e0b" /></div>
+              <div className="sc-card-title-icon">
+                <CalendarDays size={14} color="#f59e0b" />
+              </div>
               일자 선택
             </div>
             <span className="sc-card-tag">{days.length}일</span>
           </div>
           <div className="sc-day-list">
             {days.map((d, i) => (
-              <div key={d.key} className={`sc-day-item${selectedDay === i ? " active" : ""}`} onClick={() => setSelectedDay(i)}>
-                <div className={`sc-day-icon${selectedDay === i ? " active" : ""}`}>
+              <div
+                key={d.key}
+                className={`sc-day-item${selectedDay === i ? " active" : ""}`}
+                onClick={() => setSelectedDay(i)}
+              >
+                <div
+                  className={`sc-day-icon${selectedDay === i ? " active" : ""}`}
+                >
                   <span className="sc-day-d">{d.date}</span>
                   <span className="sc-day-w">{d.weekday}</span>
                 </div>
@@ -327,10 +375,14 @@ function ScheduleContent({ eventDetail, programs, loading, error }) {
         <div className="sc-card">
           <div className="sc-card-header">
             <div className="sc-card-title">
-              <div className="sc-card-title-icon"><Clock size={14} color="#f59e0b" /></div>
+              <div className="sc-card-title-icon">
+                <Clock size={14} color="#f59e0b" />
+              </div>
               {selected ? `${selected.title} 일정` : "일정"}
             </div>
-            <span className="sc-card-tag">{selectedPrograms.length}개 프로그램</span>
+            <span className="sc-card-tag">
+              {selectedPrograms.length}개 프로그램
+            </span>
           </div>
           {loading ? (
             <div className="sc-card-tag">로딩 중...</div>
@@ -343,22 +395,41 @@ function ScheduleContent({ eventDetail, programs, loading, error }) {
                   <div className="sc-time-label">{TIME_LABELS[period]}</div>
                   <div className="sc-event-list">
                     {events.map((e) => (
-                      <div key={e.id} className={`sc-event-item${e.status === "live" ? " active" : ""}${e.status === "done" ? " done" : ""}`}>
+                      <div
+                        key={e.id}
+                        className={`sc-event-item${e.status === "live" ? " active" : ""}${e.status === "done" ? " done" : ""}`}
+                      >
                         <div className="sc-event-dot">
-                          {e.status === "done" ? <CheckCircle2 size={16} color="#10b981" /> : e.status === "live" ? <AlertCircle size={16} color="#10b981" /> : <Circle size={16} color="#d1d5db" />}
+                          {e.status === "done" ? (
+                            <CheckCircle2 size={16} color="#10b981" />
+                          ) : e.status === "live" ? (
+                            <AlertCircle size={16} color="#10b981" />
+                          ) : (
+                            <Circle size={16} color="#d1d5db" />
+                          )}
                         </div>
                         <div className="sc-event-info">
                           <div className="sc-event-name">{e.name}</div>
                           <div className="sc-event-meta">
-                            <span className="sc-event-meta-item"><Clock size={11} /> {e.time}</span>
-                            <span className="sc-event-meta-item"><MapPin size={11} /> {e.zone}</span>
-                            <span className="sc-event-meta-item"><Users size={11} /> {e.people}명</span>
+                            <span className="sc-event-meta-item">
+                              <Clock size={11} /> {e.time}
+                            </span>
+                            <span className="sc-event-meta-item">
+                              <MapPin size={11} /> {e.zone}
+                            </span>
+                            <span className="sc-event-meta-item">
+                              <Users size={11} /> {e.people}명
+                            </span>
                           </div>
                           <div className="sc-event-tags">
-                            <span className={`sc-event-tag ${e.type}`}>{TYPE_LABEL[e.type]}</span>
+                            <span className={`sc-event-tag ${e.type}`}>
+                              {TYPE_LABEL[e.type]}
+                            </span>
                           </div>
                         </div>
-                        <span className={`sc-event-badge ${e.status}`}>{STATUS_LABEL[e.status]}</span>
+                        <span className={`sc-event-badge ${e.status}`}>
+                          {STATUS_LABEL[e.status]}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -403,9 +474,23 @@ export default function ProgramAll() {
       setEventsLoading(true);
       setEventsError("");
       try {
-        const res = await eventApi.getEvents({ page: 0, size: 200, sort: "startAt,desc" });
+        const res = await eventApi.getEvents({
+          page: 0,
+          size: 200,
+          sort: "startAt,desc",
+        });
         if (!mounted) return;
-        const list = Array.isArray(res?.data?.data?.content) ? res.data.data.content : [];
+        const list = Array.isArray(res?.data?.data?.content)
+          ? res.data.data.content
+          : [];
+        await loadEventImageCache();
+        const injected = injectEventImages(
+          list.map((evt) => ({ ...evt, id: evt?.eventId })),
+        );
+        const imgById = {};
+        injected.forEach((ev) => {
+          if (ev.imageUrl) imgById[String(ev.id || ev.eventId)] = ev.imageUrl;
+        });
         setEvents(
           list.map((evt) => ({
             id: evt?.eventId,
@@ -415,16 +500,21 @@ export default function ProgramAll() {
             location: evt?.location ?? "장소 미정",
             organizer: evt?.organizer ?? "주최 정보 없음",
             status: toEventStatus(evt?.status, evt?.startAt, evt?.endAt),
-            participants: Number(evt?.participantCount ?? evt?.participants ?? 0) || 0,
-            imageUrl: evt?.imageUrl ?? null,
-            thumbnail: evt?.imageUrl ?? null,
+            participants:
+              Number(evt?.participantCount ?? evt?.participants ?? 0) || 0,
+            imageUrl: imgById[String(evt?.eventId)] || evt?.imageUrl || null,
+            thumbnail: imgById[String(evt?.eventId)] || evt?.imageUrl || null,
             color: "#1a4fd6",
           })),
         );
       } catch (e) {
         if (!mounted) return;
         setEvents([]);
-        setEventsError(e?.response?.data?.message || e?.message || "행사 목록을 불러오지 못했습니다.");
+        setEventsError(
+          e?.response?.data?.message ||
+            e?.message ||
+            "행사 목록을 불러오지 못했습니다.",
+        );
       } finally {
         if (mounted) setEventsLoading(false);
       }
@@ -458,14 +548,20 @@ export default function ProgramAll() {
         setPrograms(filtered.map(normalizeProgram));
       } catch (e) {
         if (!mounted) return;
-        setError(e?.response?.data?.message || e?.message || "프로그램 데이터를 불러오지 못했습니다.");
+        setError(
+          e?.response?.data?.message ||
+            e?.message ||
+            "프로그램 데이터를 불러오지 못했습니다.",
+        );
         setPrograms([]);
       } finally {
         if (mounted) setLoading(false);
       }
     };
     fetchData();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [safeEventId]);
 
   if (!Number.isFinite(safeEventId)) {
@@ -473,7 +569,7 @@ export default function ProgramAll() {
       <div className="sc-root">
         <style>{styles}</style>
         <PageHeader
-          title="프로그램 일정"
+          title="전체 프로그램"
           subtitle="행사를 선택해 프로그램 일정을 확인하세요"
           categories={categories}
           currentPath={currentPath}
@@ -498,16 +594,20 @@ export default function ProgramAll() {
     <div className="sc-root">
       <style>{styles}</style>
       <PageHeader
-        title="프로그램 일정"
-        subtitle={SUBTITLE_MAP["/program/schedule"]}
+        title="전체 프로그램"
+        subtitle={SUBTITLE_MAP["/program/all"]}
         categories={categories}
         currentPath={currentPath}
         onNavigate={(path) => navigate(path)}
       />
       <main className="sc-container">
-        <ScheduleContent eventDetail={eventDetail} programs={programs} loading={loading} error={error} />
+        <ScheduleContent
+          eventDetail={eventDetail}
+          programs={programs}
+          loading={loading}
+          error={error}
+        />
       </main>
     </div>
   );
 }
-

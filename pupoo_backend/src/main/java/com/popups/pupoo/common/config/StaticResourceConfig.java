@@ -8,8 +8,11 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * 개발(local/dev)에서만 사용: /static/** 를 로컬 파일시스템(basePath)으로 매핑한다.
@@ -31,10 +34,9 @@ public class StaticResourceConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        Path resolvedBasePath = resolveBasePath(basePath);
-        String location = "file:" + resolvedBasePath + "/";
+        List<String> locations = resolveLocations();
         registry.addResourceHandler("/static/**")
-                .addResourceLocations(location);
+                .addResourceLocations(locations.toArray(String[]::new));
 
         /*
          * [운영 전환 시]
@@ -44,23 +46,20 @@ public class StaticResourceConfig implements WebMvcConfigurer {
          */
     }
 
-    private static Path resolveBasePath(String configuredPath) {
-        Path raw = Paths.get(configuredPath);
-        if (raw.isAbsolute()) {
-            return raw.normalize();
-        }
+    private List<String> resolveLocations() {
+        Set<String> locations = new LinkedHashSet<>();
+        addIfExists(locations, Paths.get(basePath));
+        addIfExists(locations, Paths.get("src", "main", "resources", "uploads"));
+        addIfExists(locations, Paths.get("pupoo_backend", "src", "main", "resources", "uploads"));
+        locations.add("classpath:/uploads/");
+        return new ArrayList<>(locations);
+    }
 
-        Path userDir = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize();
-        Path fromUserDir = userDir.resolve(raw).normalize();
-        if (Files.exists(fromUserDir)) {
-            return fromUserDir;
+    private static void addIfExists(Set<String> locations, java.nio.file.Path path) {
+        java.nio.file.Path absolute = path.toAbsolutePath().normalize();
+        if (!Files.exists(absolute)) {
+            return;
         }
-
-        Path fromBackendModule = userDir.resolve("pupoo_backend").resolve(raw).normalize();
-        if (Files.exists(fromBackendModule)) {
-            return fromBackendModule;
-        }
-
-        return fromUserDir;
+        locations.add("file:" + absolute + "/");
     }
 }

@@ -41,6 +41,8 @@ import { getToken } from "../../../api/noticeApi";
 
 /* ── 스타일 ── */
 const styles = `
+.ev-card-ended { opacity:0.42 !important; filter:grayscale(0.65) !important; pointer-events:none !important; }
+.ev-card-ended img { filter:blur(1px) !important; }
 .card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;filter:none!important;opacity:1!important;-webkit-tap-highlight-color:transparent;}
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
@@ -55,15 +57,6 @@ function authHeaders() {
 }
 
 /* ── 상태 계산 ── */
-const calcStatus = (s, e) => {
-  if (!s && !e) return "pending";
-  const now = new Date();
-  const st = s ? new Date(s.includes("T") ? s : s + "T00:00:00") : null;
-  const ed = e ? new Date(e.includes("T") ? e : e + "T23:59:59") : null;
-  if (ed && now > ed) return "ended";
-  if (st && now >= st) return "active";
-  return "pending";
-};
 
 /* ── 결제 상태 매핑 ── */
 const PAY_STATUS = {
@@ -292,6 +285,21 @@ export default function PaymentManage({ subTab = "all" }) {
   }, []);
 
   /* ── 행사 목록 로드 ── */
+  const calcStatus = (s, e) => {
+    if (!s && !e) return "pending";
+    const norm = (v) => (v ? v.replace(/\./g, "-").trim() : v);
+    const n = new Date();
+    const start = s
+      ? new Date(norm(s).includes("T") ? norm(s) : norm(s) + "T00:00:00+09:00")
+      : null;
+    const end = e
+      ? new Date(norm(e).includes("T") ? norm(e) : norm(e) + "T23:59:59+09:00")
+      : null;
+    if (end && !isNaN(end) && n > end) return "ended";
+    if (start && !isNaN(start) && n < start) return "pending";
+    return "active";
+  };
+
   const loadEvents = async () => {
     setLoading(true);
     try {
@@ -512,71 +520,273 @@ export default function PaymentManage({ subTab = "all" }) {
                 등록된 행사가 없습니다
               </div>
             </div>
-          ) : (() => {
-            const filteredEvents = events.filter(
-              subTab === "all" ? () => true :
-              subTab === "active" ? (e) => e.status === "active" :
-              subTab === "ended" ? (e) => e.status === "ended" :
-              (e) => e.status === "pending"
-            );
-            return (<>
-            {filteredEvents.length === 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 0" }}>
-                <CalendarDays size={36} color={ds.ink4} strokeWidth={1.5} />
-                <div style={{ fontSize: 14, fontWeight: 600, color: ds.ink4, marginTop: 10 }}>해당 상태의 행사가 없습니다</div>
-              </div>
-            ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
-              {filteredEvents.map((ev) => {
-                const st = statusMap[ev.status] || statusMap.pending;
-                const hasImg = !!ev.imageUrl;
-                return (
-                  <div key={ev.eventId || ev.id} onClick={() => selectEvent(ev)}
-                    style={{ borderRadius: 18, overflow: "hidden", cursor: "pointer", position: "relative", height: 320, display: "flex", flexDirection: "column", background: hasImg ? "#000" : ds.brand, boxShadow: "0 4px 24px rgba(0,0,0,0.08)", transition: "transform 0.22s ease, box-shadow 0.22s ease" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 36px rgba(0,0,0,0.16)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 24px rgba(0,0,0,0.08)"; }}
-                  >
-                    {hasImg ? (
-                      <div style={{ position: "absolute", inset: 0 }}>
-                        <img src={ev.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.6) 100%)" }} />
-                      </div>
-                    ) : (
-                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.12 }}>
-                        <CreditCard size={90} color="#fff" strokeWidth={1} />
-                      </div>
-                    )}
-                    <div style={{ position: "relative", zIndex: 1, padding: "22px 20px 0", flex: 1 }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: -0.3, textShadow: "0 1px 8px rgba(0,0,0,0.3)", marginBottom: 6, fontFamily: ds.ff }}>
-                        {ev.title || ev.name || "행사"}
-                      </div>
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(0,0,0,0.35)", borderRadius: 20, padding: "3px 10px" }}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: st.c }} />
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{st.l}</span>
-                      </div>
-                    </div>
-                    <div style={{ position: "relative", zIndex: 1, padding: "0 20px 18px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {ev.date && <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", gap: 4 }}><CalendarDays size={11} /> {ev.date}</div>}
-                          {ev.location && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", gap: 4, marginTop: 1 }}><MapPin size={10} /> {ev.location}</div>}
-                        </div>
-                      </div>
-                      <button style={{ width: "100%", padding: "9px 0", borderRadius: 10, border: "none", background: ds.brand, color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: ds.ff, transition: "all .15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, outline: "none", WebkitTapHighlightColor: "transparent" }}
-                        className="card-manage-btn" onMouseEnter={(e) => { e.currentTarget.style.background = ds.brandDark; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = ds.brand; }}
-                        onClick={(e) => { e.stopPropagation(); selectEvent(ev); }}
+          ) : (
+            (() => {
+              const filteredEvents = events.filter(
+                subTab === "all"
+                  ? () => true
+                  : subTab === "active"
+                    ? (e) => e.status === "active"
+                    : subTab === "ended"
+                      ? (e) => e.status === "ended"
+                      : (e) => e.status === "pending",
+              );
+              return (
+                <>
+                  {filteredEvents.length === 0 ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        padding: "60px 0",
+                      }}
+                    >
+                      <CalendarDays
+                        size={36}
+                        color={ds.ink4}
+                        strokeWidth={1.5}
+                      />
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: ds.ink4,
+                          marginTop: 10,
+                        }}
                       >
-                        <CreditCard size={13} /> 결제 내역 보기
-                      </button>
+                        해당 상태의 행사가 없습니다
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-            )}
-            </>);
-          })()}
+                  ) : (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fill, minmax(280px, 1fr))",
+                        gap: 14,
+                      }}
+                    >
+                      {filteredEvents.map((ev) => {
+                        const st = statusMap[ev.status] || statusMap.pending;
+                        const hasImg = !!ev.imageUrl;
+                        const isEnded = ev.status === "ended";
+                        return (
+                          <div
+                            key={ev.eventId || ev.id}
+                            onClick={() => !isEnded && selectEvent(ev)}
+                            className={isEnded ? "ev-card-ended" : ""}
+                            style={{
+                              borderRadius: 18,
+                              overflow: "hidden",
+                              cursor: isEnded ? "default" : "pointer",
+                              position: "relative",
+                              height: 320,
+                              display: "flex",
+                              flexDirection: "column",
+                              background: hasImg ? "#000" : ds.brand,
+                              boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+                              transition:
+                                "transform 0.22s ease, box-shadow 0.22s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isEnded) {
+                                e.currentTarget.style.transform =
+                                  "translateY(-4px)";
+                                e.currentTarget.style.boxShadow =
+                                  "0 12px 36px rgba(0,0,0,0.16)";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isEnded) {
+                                e.currentTarget.style.transform =
+                                  "translateY(0)";
+                                e.currentTarget.style.boxShadow =
+                                  "0 4px 24px rgba(0,0,0,0.08)";
+                              }
+                            }}
+                          >
+                            {hasImg ? (
+                              <div style={{ position: "absolute", inset: 0 }}>
+                                <img
+                                  src={ev.imageUrl}
+                                  alt=""
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    inset: 0,
+                                    background:
+                                      "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.6) 100%)",
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  opacity: 0.12,
+                                }}
+                              >
+                                <CreditCard
+                                  size={90}
+                                  color="#fff"
+                                  strokeWidth={1}
+                                />
+                              </div>
+                            )}
+                            <div
+                              style={{
+                                position: "relative",
+                                zIndex: 1,
+                                padding: "22px 20px 0",
+                                flex: 1,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: 18,
+                                  fontWeight: 800,
+                                  color: "#fff",
+                                  letterSpacing: -0.3,
+                                  textShadow: "0 1px 8px rgba(0,0,0,0.3)",
+                                  marginBottom: 6,
+                                  fontFamily: ds.ff,
+                                }}
+                              >
+                                {ev.title || ev.name || "행사"}
+                              </div>
+                              <div
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 5,
+                                  background: "rgba(0,0,0,0.35)",
+                                  borderRadius: 20,
+                                  padding: "3px 10px",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: "50%",
+                                    background: st.c,
+                                  }}
+                                />
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: "#fff",
+                                  }}
+                                >
+                                  {st.l}
+                                </span>
+                              </div>
+                            </div>
+                            <div
+                              style={{
+                                position: "relative",
+                                zIndex: 1,
+                                padding: "0 20px 18px",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  marginBottom: 12,
+                                }}
+                              >
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  {ev.date && (
+                                    <div
+                                      style={{
+                                        fontSize: 11.5,
+                                        fontWeight: 600,
+                                        color: "rgba(255,255,255,0.9)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                      }}
+                                    >
+                                      <CalendarDays size={11} /> {ev.date}
+                                    </div>
+                                  )}
+                                  {ev.location && (
+                                    <div
+                                      style={{
+                                        fontSize: 10.5,
+                                        color: "rgba(255,255,255,0.65)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                        marginTop: 1,
+                                      }}
+                                    >
+                                      <MapPin size={10} /> {ev.location}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                style={{
+                                  width: "100%",
+                                  padding: "9px 0",
+                                  borderRadius: 10,
+                                  border: "none",
+                                  background: ds.brand,
+                                  color: "#fff",
+                                  fontSize: 12.5,
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  fontFamily: ds.ff,
+                                  transition: "all .15s",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: 6,
+                                  outline: "none",
+                                  WebkitTapHighlightColor: "transparent",
+                                }}
+                                className="card-manage-btn"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background =
+                                    ds.brandDark;
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = ds.brand;
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!isEnded) selectEvent(ev);
+                                }}
+                                disabled={isEnded}
+                              >
+                                <CreditCard size={13} />{" "}
+                                {isEnded ? "기간 만료" : "결제 내역 보기"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()
+          )}
         </div>
       )}
 
@@ -898,8 +1108,7 @@ export default function PaymentManage({ subTab = "all" }) {
                       cursor: "pointer",
                     }}
                     onMouseEnter={(e) => {
-                      if (!isChecked)
-                        e.currentTarget.style.background = ds.bg;
+                      if (!isChecked) e.currentTarget.style.background = ds.bg;
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = isChecked
@@ -1120,9 +1329,7 @@ export default function PaymentManage({ subTab = "all" }) {
                     fontSize: 13,
                   }}
                 >
-                  <span style={{ color: ds.ink4, fontWeight: 600 }}>
-                    {r.l}
-                  </span>
+                  <span style={{ color: ds.ink4, fontWeight: 600 }}>{r.l}</span>
                   <span
                     style={{
                       color: ds.ink,

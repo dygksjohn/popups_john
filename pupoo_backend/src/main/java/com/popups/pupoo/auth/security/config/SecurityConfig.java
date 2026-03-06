@@ -85,6 +85,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/faqs/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events/*").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/events/closed/analytics").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events/*/galleries").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events/*/programs").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/events/*/booths").permitAll()
@@ -127,10 +128,10 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/qnas/*/close").hasAnyRole("USER", "ADMIN")
 
             // Gallery write APIs require login.
-            .requestMatchers(HttpMethod.POST, "/api/galleries/image/upload").hasRole("USER")
-            .requestMatchers(HttpMethod.POST, "/api/galleries").hasRole("USER")
-            .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasRole("USER")
-            .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasRole("USER")
+            .requestMatchers(HttpMethod.POST, "/api/galleries/image/upload").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/galleries").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasAnyRole("USER", "ADMIN")
 
             .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
@@ -142,7 +143,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**").hasRole("USER")
             .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations").hasRole("USER")
 
-            .anyRequest().hasRole("USER")
+            .anyRequest().hasAnyRole("USER", "ADMIN")
         );
 
         http.addFilterBefore(

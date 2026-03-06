@@ -1,6 +1,7 @@
 // file: src/main/java/com/popups/pupoo/program/dto/ProgramResponse.java
 package com.popups.pupoo.program.dto;
 
+import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.program.domain.enums.ProgramCategory;
 import com.popups.pupoo.program.domain.model.Program;
 import lombok.Builder;
@@ -45,7 +46,7 @@ public class ProgramResponse {
                 .category(p.getCategory())
                 .programTitle(p.getProgramTitle())
                 .description(p.getDescription())
-                .imageUrl(normalizeImagePath(p.getImageUrl()))
+                .imageUrl(PublicUrlNormalizer.normalize(p.getImageUrl()))
                 .boothId(p.getBoothId())
                 .startAt(p.getStartAt())
                 .endAt(p.getEndAt())
@@ -54,20 +55,5 @@ public class ProgramResponse {
                 .ended(p.isEnded())
                 .experienceWait(null)
                 .build();
-    }
-
-    private static String normalizeImagePath(String rawPath) {
-        if (rawPath == null || rawPath.isBlank()) return null;
-
-        String normalized = rawPath.replace('\\', '/');
-        String lower = normalized.toLowerCase();
-
-        int idx = lower.indexOf("/uploads/");
-        if (idx >= 0) return normalized.substring(idx);
-
-        idx = lower.indexOf("uploads/");
-        if (idx >= 0) return "/" + normalized.substring(idx);
-
-        return rawPath;
     }
 }

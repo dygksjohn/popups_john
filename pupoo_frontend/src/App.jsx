@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "./pages/site/auth/AuthProvider";
 import SiteLayout from "./layouts/SiteLayout";
 import ScrollToTop from "./ScrollToTop";
@@ -56,13 +56,12 @@ import EventSchedule from "./pages/site/event/EventSchedule";
 /* Program */
 import Experience from "./pages/site/program/Experience";
 import Session from "./pages/site/program/Session";
-import Booth from "./pages/site/program/Booth";
 import Contest from "./pages/site/program/Contest";
 import ContestDetailPage from "./pages/site/program/ContestDetailPage";
 import ProgramAll from "./pages/site/program/ProgramAll";
+import ProgramStatus from "./pages/site/program/ProgramStatus";
 import SessionDetail from "./pages/site/program/SessionDetail";
 import SpeakerDetail from "./pages/site/program/SpeakerDetail";
-import Schedule from "./pages/site/program/Schedule";
 import VoteResult from "./pages/site/program/VoteResult";
 
 /* Registration */
@@ -103,7 +102,7 @@ import EventGallery from "./pages/site/gallery/eventgallery";
 
 /* guide */
 import Operation from "./pages/site/guide/Operation";
-import Timetable from "./pages/site/guide/Timetable";
+import LocationPage from "./pages/site/guide/location";
 
 function ComingSoon() {
   return (
@@ -194,6 +193,11 @@ function RequireAdmin({ children }) {
   return children;
 }
 
+function LegacyProgramRedirect({ target }) {
+  const { eventId } = useParams();
+  return <Navigate to={eventId ? `${target}/${eventId}` : target} replace />;
+}
+
 export default function App() {
   return (
     <>
@@ -201,51 +205,249 @@ export default function App() {
       <Routes>
         {/* admin */}
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="/admin/dashboard" element={<RequireAdmin><Dashboard /></RequireAdmin>} />
-        <Route path="/admin/board" element={<RequireAdmin><BoardManage /></RequireAdmin>} />
-        <Route path="/admin/board/notice" element={<RequireAdmin><NoticeManage /></RequireAdmin>} />
-        <Route path="/admin/event" element={<RequireAdmin><EventManage /></RequireAdmin>} />
-        <Route path="/admin/program" element={<RequireAdmin><ProgramManage /></RequireAdmin>} />
-        <Route path="/admin/realtime" element={<RequireAdmin><RealtimeData /></RequireAdmin>} />
-        <Route path="/admin/past" element={<RequireAdmin><PastEvents /></RequireAdmin>} />
-        <Route path="/admin/zone" element={<RequireAdmin><ZoneManage /></RequireAdmin>} />
-        <Route path="/admin/contest" element={<RequireAdmin><ContestManage /></RequireAdmin>} />
-        <Route path="/admin/session" element={<RequireAdmin><SessionManage /></RequireAdmin>} />
-        <Route path="/admin/board/reviews" element={<RequireAdmin><Reviews /></RequireAdmin>} />
-        <Route path="/admin/gallery" element={<RequireAdmin><GalleryManage /></RequireAdmin>} />
-        <Route path="/admin/participant" element={<RequireAdmin><ParticipantList /></RequireAdmin>} />
-        <Route path="/admin/participant/detail" element={<RequireAdmin><ComingSoon /></RequireAdmin>} />
-        <Route path="/admin/participant/detail/:id" element={<RequireAdmin><ComingSoon /></RequireAdmin>} />
-        <Route path="/admin/participant/checkin" element={<RequireAdmin><ComingSoon /></RequireAdmin>} />
-        <Route path="/admin/participant/session" element={<RequireAdmin><ComingSoon /></RequireAdmin>} />
-        <Route path="/admin/participant/payment" element={<RequireAdmin><PaymentManage /></RequireAdmin>} />
-        <Route path="/admin/participant/alert" element={<RequireAdmin><AlertManage /></RequireAdmin>} />
-        <Route path="/admin/participant/stats" element={<RequireAdmin><ComingSoon /></RequireAdmin>} />
+        <Route
+          path="/admin"
+          element={<Navigate to="/admin/dashboard" replace />}
+        />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <RequireAdmin>
+              <Dashboard />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/board"
+          element={
+            <RequireAdmin>
+              <BoardManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/board/notice"
+          element={
+            <RequireAdmin>
+              <NoticeManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/event"
+          element={
+            <RequireAdmin>
+              <EventManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/program"
+          element={
+            <RequireAdmin>
+              <ProgramManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/realtime"
+          element={
+            <RequireAdmin>
+              <RealtimeData />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/past"
+          element={
+            <RequireAdmin>
+              <PastEvents />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/zone"
+          element={
+            <RequireAdmin>
+              <ZoneManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/contest"
+          element={
+            <RequireAdmin>
+              <ContestManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/session"
+          element={
+            <RequireAdmin>
+              <SessionManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/board/reviews"
+          element={
+            <RequireAdmin>
+              <Reviews />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/gallery"
+          element={
+            <RequireAdmin>
+              <GalleryManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/participant"
+          element={
+            <RequireAdmin>
+              <ParticipantList />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/participant/detail"
+          element={
+            <RequireAdmin>
+              <ComingSoon />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/participant/detail/:id"
+          element={
+            <RequireAdmin>
+              <ComingSoon />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/participant/checkin"
+          element={
+            <RequireAdmin>
+              <ComingSoon />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/participant/session"
+          element={
+            <RequireAdmin>
+              <ComingSoon />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/participant/payment"
+          element={
+            <RequireAdmin>
+              <PaymentManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/participant/alert"
+          element={
+            <RequireAdmin>
+              <AlertManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/participant/stats"
+          element={
+            <RequireAdmin>
+              <ComingSoon />
+            </RequireAdmin>
+          }
+        />
 
         {/* site */}
         <Route element={<SiteLayout />}>
           <Route path="/" element={<Home />} />
-          <Route path="/auth/login" element={<PublicOnly><Login /></PublicOnly>} />
-          <Route path="/auth/find-password" element={<PublicOnly><FindPassword /></PublicOnly>} />
+          <Route
+            path="/auth/login"
+            element={
+              <PublicOnly>
+                <Login />
+              </PublicOnly>
+            }
+          />
+          <Route
+            path="/auth/find-password"
+            element={
+              <PublicOnly>
+                <FindPassword />
+              </PublicOnly>
+            }
+          />
           <Route path="/auth/mypage" element={<Mypage />} />
           <Route path="/auth/mypage/qr" element={<MypageQr />} />
           <Route path="/auth/mypage/profile" element={<MypageProfileEdit />} />
           <Route path="/auth/mypage/pjrofile" element={<MypageProfileEdit />} />
           <Route path="/auth/mypage/pets/new" element={<MypagePetEditor />} />
-          <Route path="/auth/mypage/pets/:petId/edit" element={<MypagePetEditor />} />
+          <Route
+            path="/auth/mypage/pets/:petId/edit"
+            element={<MypagePetEditor />}
+          />
           <Route path="/mypage" element={<Mypage />} />
           <Route path="/mypage/qr" element={<MypageQr />} />
           <Route path="/mypage/profile" element={<MypageProfileEdit />} />
           <Route path="/mypage/pjrofile" element={<MypageProfileEdit />} />
           <Route path="/mypage/pets/new" element={<MypagePetEditor />} />
-          <Route path="/mypage/pets/:petId/edit" element={<MypagePetEditor />} />
-          <Route path="/auth/join/joinselect" element={<PublicOnly><JoinSelect /></PublicOnly>} />
-          <Route path="/auth/join/joinnormal" element={<PublicOnly><JoinNormal /></PublicOnly>} />
-          <Route path="/auth/join/joinsocial" element={<PublicOnly><JoinSocial /></PublicOnly>} />
+          <Route
+            path="/mypage/pets/:petId/edit"
+            element={<MypagePetEditor />}
+          />
+          <Route
+            path="/auth/join/joinselect"
+            element={
+              <PublicOnly>
+                <JoinSelect />
+              </PublicOnly>
+            }
+          />
+          <Route
+            path="/auth/join/joinnormal"
+            element={
+              <PublicOnly>
+                <JoinNormal />
+              </PublicOnly>
+            }
+          />
+          <Route
+            path="/auth/join/joinsocial"
+            element={
+              <PublicOnly>
+                <JoinSocial />
+              </PublicOnly>
+            }
+          />
           <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
-          <Route path="/auth/join/kakao" element={<PublicOnly><KakaoJoin /></PublicOnly>} />
-          <Route path="/auth/join/kakao/otp" element={<PublicOnly><KakaoOtp /></PublicOnly>} />
+          <Route
+            path="/auth/join/kakao"
+            element={
+              <PublicOnly>
+                <KakaoJoin />
+              </PublicOnly>
+            }
+          />
+          <Route
+            path="/auth/join/kakao/otp"
+            element={
+              <PublicOnly>
+                <KakaoOtp />
+              </PublicOnly>
+            }
+          />
           <Route path="/join" element={<JoinSelect />} />
           <Route path="/find-password" element={<FindPassword />} />
           <Route path="/join/select" element={<JoinSelect />} />
@@ -258,23 +460,62 @@ export default function App() {
           <Route path="/event/eventschedule" element={<EventSchedule />} />
           <Route path="/payment/checkout" element={<Checkout />} />
           <Route path="/payment/approve" element={<PaymentApprove />} />
-          <Route path="/program/experience/:eventId?" element={<Experience />} />
+          <Route
+            path="/program/experience/:eventId?"
+            element={<Experience />}
+          />
+          <Route
+            path="/program/current/:eventId?"
+            element={<ProgramStatus statusKey="current" />}
+          />
+          <Route
+            path="/program/upcoming/:eventId?"
+            element={<ProgramStatus statusKey="upcoming" />}
+          />
+          <Route
+            path="/program/closed/:eventId?"
+            element={<ProgramStatus statusKey="closed" />}
+          />
           <Route path="/program/session/:eventId?" element={<Session />} />
-          <Route path="/program/schedule/:eventId?" element={<Schedule />} />
+          <Route
+            path="/program/schedule/:eventId?"
+            element={<LegacyProgramRedirect target="/program/all" />}
+          />
           <Route path="/program/all/:eventId?" element={<ProgramAll />} />
           <Route path="/program/detail" element={<SessionDetail />} />
           <Route path="/program/speaker/detail" element={<SpeakerDetail />} />
-          <Route path="/program/contest/:eventId/detail/:programId" element={<ContestDetailPage />} />
+          <Route
+            path="/program/contest/:eventId/detail/:programId"
+            element={<ContestDetailPage />}
+          />
           <Route path="/program/contest/:eventId?" element={<Contest />} />
-          <Route path="/program/booth/:eventId?" element={<Booth />} />
+          <Route
+            path="/program/booth/:eventId?"
+            element={<LegacyProgramRedirect target="/program/experience" />}
+          />
           <Route path="/registration/apply" element={<Apply />} />
           <Route path="/registration/applyhistory" element={<ApplyHistory />} />
-          <Route path="/registration/paymenthistory" element={<PaymentHistory />} />
+          <Route
+            path="/registration/paymenthistory"
+            element={<PaymentHistory />}
+          />
           <Route path="/registration/qrcheckin" element={<QRCheckin />} />
-          <Route path="/realtime/dashboard/:eventId?" element={<RealtimeDashboard />} />
-          <Route path="/realtime/checkinstatus/:eventId?" element={<CheckinStatus />} />
-          <Route path="/realtime/votestatus/:eventId?" element={<VoteStatus />} />
-          <Route path="/realtime/waitingstatus/:eventId?" element={<WaitingStatus />} />
+          <Route
+            path="/realtime/dashboard/:eventId?"
+            element={<RealtimeDashboard />}
+          />
+          <Route
+            path="/realtime/checkinstatus/:eventId?"
+            element={<CheckinStatus />}
+          />
+          <Route
+            path="/realtime/votestatus/:eventId?"
+            element={<VoteStatus />}
+          />
+          <Route
+            path="/realtime/waitingstatus/:eventId?"
+            element={<WaitingStatus />}
+          />
           <Route path="/community/freeboard" element={<FreeBoard />} />
           <Route path="/community/info" element={<InfoBoard />} />
           <Route path="/community/review" element={<Review />} />
@@ -291,8 +532,12 @@ export default function App() {
           <Route path="/policy/termsofservice" element={<TermsOfService />} />
           <Route path="/policy/eftterms" element={<EFTTerms />} />
           <Route path="/gallery/eventgallery" element={<EventGallery />} />
+          <Route path="/guide/location" element={<LocationPage />} />
           <Route path="/guide/operation" element={<Operation />} />
-          <Route path="/guide/timetable" element={<Timetable />} />
+          <Route
+            path="/guide/timetable"
+            element={<Navigate to="/event/eventschedule" replace />}
+          />
         </Route>
       </Routes>
     </>

@@ -22,7 +22,12 @@ import {
 import ds, { cardStyle, statusMap } from "../shared/designTokens";
 import { Pill, DataTable, Td } from "../shared/Components";
 import DATA from "../shared/data";
-import { setEventImage, getEventImageMap, removeEventImage, loadImageCache } from "../shared/eventImageStore";
+import {
+  setEventImage,
+  getEventImageMap,
+  removeEventImage,
+  loadImageCache,
+} from "../shared/eventImageStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 
@@ -37,7 +42,8 @@ const DOG_SAMPLES = [
   "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=200&h=200&fit=crop",
   "https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=200&h=200&fit=crop",
 ];
-const getDogImage = (id) => DOG_SAMPLES[Math.abs(Number(id) || 0) % DOG_SAMPLES.length];
+const getDogImage = (id) =>
+  DOG_SAMPLES[Math.abs(Number(id) || 0) % DOG_SAMPLES.length];
 
 /* ═══════════════════════════════════════════
    전역 스타일
@@ -87,18 +93,47 @@ function Checkbox({ checked, onChange, size = 18 }) {
 function MiniProgress({ value, max }) {
   const pct = max > 0 ? Math.min(Math.round((value / max) * 100), 100) : 0;
   const color = pct >= 90 ? "#EF4444" : pct >= 70 ? "#F59E0B" : "#10B981";
-  const r = 16, stroke = 3.5, circ = 2 * Math.PI * r;
+  const r = 16,
+    stroke = 3.5,
+    circ = 2 * Math.PI * r;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <svg width={40} height={40} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={20} cy={20} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
-        <circle cx={20} cy={20} r={r} fill="none" stroke={color} strokeWidth={stroke}
-          strokeDasharray={circ} strokeDashoffset={circ - (circ * pct) / 100}
-          strokeLinecap="round" style={{ transition: "stroke-dashoffset .5s ease" }} />
+        <circle
+          cx={20}
+          cy={20}
+          r={r}
+          fill="none"
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={20}
+          cy={20}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeDasharray={circ}
+          strokeDashoffset={circ - (circ * pct) / 100}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset .5s ease" }}
+        />
       </svg>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 800, color: ds.ink, lineHeight: 1 }}>{pct}%</div>
-        <div style={{ fontSize: 10, color: ds.ink4, marginTop: 2 }}>{value}/{max}</div>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 800,
+            color: ds.ink,
+            lineHeight: 1,
+          }}
+        >
+          {pct}%
+        </div>
+        <div style={{ fontSize: 10, color: ds.ink4, marginTop: 2 }}>
+          {value}/{max}
+        </div>
       </div>
     </div>
   );
@@ -409,7 +444,9 @@ function DatePick({ label, year, month, day, onChange }) {
 
 function DateRangeInput({ startDate, endDate, onStartChange, onEndChange }) {
   const now = new Date();
-  const defY = now.getFullYear(), defM = now.getMonth()+1, defD = now.getDate();
+  const defY = now.getFullYear(),
+    defM = now.getMonth() + 1,
+    defD = now.getDate();
   const parse = (str, fb) => {
     if (!str) return fb;
     const p = str.replace(/[-.\/]/g, ".").split(".");
@@ -577,7 +614,10 @@ function DateFilterInline({ startDate, endDate, onStartChange, onEndChange }) {
       {/* 초기화 버튼 */}
       {hasFilter && (
         <div
-          onClick={() => { onStartChange(""); onEndChange(""); }}
+          onClick={() => {
+            onStartChange("");
+            onEndChange("");
+          }}
           style={{
             width: 28,
             height: "100%",
@@ -590,7 +630,9 @@ function DateFilterInline({ startDate, endDate, onStartChange, onEndChange }) {
             transition: "background .1s",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = ds.bg)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.background = "transparent")
+          }
           title="날짜 필터 초기화"
         >
           <X size={12} color={ds.ink4} strokeWidth={2} />
@@ -606,7 +648,7 @@ function DateFilterInline({ startDate, endDate, onStartChange, onEndChange }) {
 function EventFormModal({ item, onSave, onClose, isEdit }) {
   const todayStr = (() => {
     const d = new Date();
-    return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
   })();
   const parseExisting = (dateStr) => {
     if (!dateStr) return { start: todayStr, end: todayStr };
@@ -795,9 +837,7 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
                 justifyContent: "center",
                 transition: "background .15s",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = ds.bg)
-              }
+              onMouseEnter={(e) => (e.currentTarget.style.background = ds.bg)}
               onMouseLeave={(e) => (e.currentTarget.style.background = ds.card)}
             >
               <X size={15} color={ds.ink4} />
@@ -1117,9 +1157,7 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
                 color: ds.ink3,
                 transition: "background .15s",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = ds.bg)
-              }
+              onMouseEnter={(e) => (e.currentTarget.style.background = ds.bg)}
               onMouseLeave={(e) => (e.currentTarget.style.background = ds.card)}
             >
               취소
@@ -1441,9 +1479,7 @@ function ActionMenu({ onEdit, onDelete, onDetail }) {
                 fontFamily: ds.ff,
                 transition: "background .1s",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = ds.bg)
-              }
+              onMouseEnter={(e) => (e.currentTarget.style.background = ds.bg)}
               onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
             >
               <a.icon size={13} /> {a.label}
@@ -1470,15 +1506,53 @@ function StatCard({ icon: Icon, label, value, color }) {
         overflow: "hidden",
       }}
     >
-      <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${color}08` }} />
+      <div
+        style={{
+          position: "absolute",
+          top: -8,
+          right: -8,
+          width: 60,
+          height: 60,
+          borderRadius: "50%",
+          background: `${color}08`,
+        }}
+      />
       <div style={{ position: "relative", zIndex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: `${color}12`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 9,
+              background: `${color}12`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <Icon size={15} color={color} strokeWidth={2.2} />
           </div>
-          <span style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4 }}>{label}</span>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4 }}>
+            {label}
+          </span>
         </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink, letterSpacing: -0.5 }}>{value}</div>
+        <div
+          style={{
+            fontSize: 22,
+            fontWeight: 800,
+            color: ds.ink,
+            letterSpacing: -0.5,
+          }}
+        >
+          {value}
+        </div>
       </div>
     </div>
   );
@@ -1569,7 +1643,10 @@ export default function EventManage({ subTab = "all" }) {
       const mapped = list.map((e) => {
         const eid = e.eventId || e.id;
         const imgUrl =
-          imageMapRef.current[eid] || sharedMap[String(eid)] || e.imageUrl || null;
+          imageMapRef.current[eid] ||
+          sharedMap[String(eid)] ||
+          e.imageUrl ||
+          null;
         /* 공유 저장소에 동기화 */
         if (imgUrl && !sharedMap[String(eid)]) {
           setEventImage(eid, imgUrl);
@@ -1579,9 +1656,15 @@ export default function EventManage({ subTab = "all" }) {
           if (!iso) return "";
           const d = new Date(iso);
           if (isNaN(d)) return iso;
-          return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+          return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
         };
-        const dateStr = e.date || (e.startAt ? (e.endAt ? `${fmtD(e.startAt)} ~ ${fmtD(e.endAt)}` : fmtD(e.startAt)) : "");
+        const dateStr =
+          e.date ||
+          (e.startAt
+            ? e.endAt
+              ? `${fmtD(e.startAt)} ~ ${fmtD(e.endAt)}`
+              : fmtD(e.startAt)
+            : "");
         return {
           ...e,
           name: e.name || e.eventName || "행사",
@@ -1592,16 +1675,16 @@ export default function EventManage({ subTab = "all" }) {
           imageUrl: imgUrl || getDogImage(eid),
         };
       });
+      /* 최신 등록 행사가 맨 위 - eventId 내림차순 정렬 */
+      mapped.sort((a, b) => {
+        const idA = Number(a.eventId || a.id) || 0;
+        const idB = Number(b.eventId || b.id) || 0;
+        return idB - idA;
+      });
       setItems(mapped);
     } catch (err) {
       console.error("[EventManage] 행사 목록 로드 실패:", err);
-      setItems(
-        DATA.events.map((e) => ({
-          ...e,
-          capacity: e.capacity || 500,
-          _visible: true,
-        })),
-      );
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -2159,24 +2242,60 @@ export default function EventManage({ subTab = "all" }) {
                           }}
                         >
                           {[
-                            { icon: Eye, tip: "상세", color: ds.ink3, bg: ds.lineSoft, fn: () => setModal({ type: "detail", item: r }) },
-                            { icon: Pencil, tip: "수정", color: ds.brand, bg: `${ds.brand}0A`, fn: () => setPanel({ type: "edit", item: r }) },
-                            { icon: Trash2, tip: "삭제", color: "#EF4444", bg: ds.redSoft, fn: () => setModal({ type: "delete", item: r }) },
+                            {
+                              icon: Eye,
+                              tip: "상세",
+                              color: ds.ink3,
+                              bg: ds.lineSoft,
+                              fn: () => setModal({ type: "detail", item: r }),
+                            },
+                            {
+                              icon: Pencil,
+                              tip: "수정",
+                              color: ds.brand,
+                              bg: `${ds.brand}0A`,
+                              fn: () => setPanel({ type: "edit", item: r }),
+                            },
+                            {
+                              icon: Trash2,
+                              tip: "삭제",
+                              color: "#EF4444",
+                              bg: ds.redSoft,
+                              fn: () => setModal({ type: "delete", item: r }),
+                            },
                           ].map((a) => (
                             <button
                               key={a.tip}
                               title={a.tip}
-                              onClick={(e) => { e.stopPropagation(); a.fn(); }}
-                              style={{
-                                width: 30, height: 30, borderRadius: 8,
-                                border: "none", background: "transparent",
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                cursor: "pointer", transition: "all .12s",
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                a.fn();
                               }}
-                              onMouseEnter={(e) => { e.currentTarget.style.background = a.bg; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                              style={{
+                                width: 30,
+                                height: 30,
+                                borderRadius: 8,
+                                border: "none",
+                                background: "transparent",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                transition: "all .12s",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = a.bg;
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background =
+                                  "transparent";
+                              }}
                             >
-                              <a.icon size={14} color={a.color} strokeWidth={2} />
+                              <a.icon
+                                size={14}
+                                color={a.color}
+                                strokeWidth={2}
+                              />
                             </button>
                           ))}
                         </div>

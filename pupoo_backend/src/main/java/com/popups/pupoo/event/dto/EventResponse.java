@@ -1,6 +1,7 @@
 // file: src/main/java/com/popups/pupoo/event/dto/EventResponse.java
 package com.popups.pupoo.event.dto;
 
+import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.model.Event;
 
@@ -31,7 +32,7 @@ public class EventResponse {
         r.eventId = e.getEventId();
         r.eventName = e.getEventName();
         r.description = e.getDescription();
-        r.imageUrl = e.getImageUrl();
+        r.imageUrl = PublicUrlNormalizer.normalize(e.getImageUrl());
         r.startAt = e.getStartAt();
         r.endAt = e.getEndAt();
         r.location = e.getLocation();
