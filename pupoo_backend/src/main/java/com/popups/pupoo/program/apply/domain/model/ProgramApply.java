@@ -31,6 +31,12 @@ public class ProgramApply {
     @Column(name = "pet_id")
     private Long petId;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    @Column(name = "admin_pet_name")
+    private String adminPetName;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private ApplyStatus status;
@@ -56,11 +62,12 @@ public class ProgramApply {
     @Column(name = "active_flag", insertable = false, updatable = false)
     private Byte activeFlag;
 
-    public static ProgramApply create(Long userId, Long programId, Long petId) {
+    public static ProgramApply create(Long userId, Long programId, Long petId, String imageUrl) {
         return ProgramApply.builder()
                 .userId(userId)
                 .programId(programId)
                 .petId(petId)
+                .imageUrl(imageUrl)
                 .status(ApplyStatus.APPLIED)
                 .ticketNo(null)
                 .etaMin(null)
@@ -77,6 +84,33 @@ public class ProgramApply {
         }
         this.status = ApplyStatus.CANCELLED;
         this.cancelledAt = LocalDateTime.now();
+    }
+
+    // ✅ 추가: 관리자 승인
+    public void approve() {
+        if (this.status == ApplyStatus.APPROVED) {
+            return;
+        }
+        if (this.status == ApplyStatus.CANCELLED) {
+            throw new BusinessException(ErrorCode.PROGRAM_APPLY_INVALID_STATUS);
+        }
+        this.status = ApplyStatus.APPROVED;
+    }
+
+    // ✅ 추가: 관리자 반려
+    public void reject() {
+        if (this.status == ApplyStatus.CANCELLED) {
+            throw new BusinessException(ErrorCode.PROGRAM_APPLY_INVALID_STATUS);
+        }
+        this.status = ApplyStatus.REJECTED;
+    }
+
+    // ✅ 추가: 승인 취소 → 다시 APPLIED로 (재검토)
+    public void resetToApplied() {
+        if (this.status == ApplyStatus.CANCELLED) {
+            throw new BusinessException(ErrorCode.PROGRAM_APPLY_INVALID_STATUS);
+        }
+        this.status = ApplyStatus.APPLIED;
     }
 
     public boolean isActive() {
@@ -107,3 +141,4 @@ public class ProgramApply {
         markCheckedIn(LocalDateTime.now());
     }
 }
+// Note: resetToApplied() 메서드도 ProgramApply에 추가 필요

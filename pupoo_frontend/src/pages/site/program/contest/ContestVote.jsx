@@ -91,7 +91,10 @@ export default function ContestVote() {
 
     setCandidateLoading(true);
     try {
-      const res = await programApi.getCandidates(programId, { page: 0, size: 200 });
+      const res = await programApi.getCandidates(programId, {
+        page: 0,
+        size: 200,
+      });
       const list = extractList(res);
 
       // 백엔드가 이미 APPROVED만 내리지만, 방어로 한번 더 필터
@@ -203,7 +206,8 @@ export default function ContestVote() {
 
       let msg = "투표 실패";
       if (error?.code === "CV4091") msg = "이미 투표를 했습니다.";
-      else if (error?.code === "CV4002") msg = "본인에게는 투표할 수 없습니다.";
+      else if (error?.code === "CV4002")
+        msg = "내 반려동물에게는 투표할 수 없어요 🐾";
       else if (error?.code === "CV4003") msg = "투표 기간이 아닙니다.";
       else if (error?.message) msg = error.message;
 
@@ -248,20 +252,25 @@ export default function ContestVote() {
     );
   }
 
-  const showEmpty = !loading && !candidateLoading && mergedCandidates.length === 0;
+  const showEmpty =
+    !loading && !candidateLoading && mergedCandidates.length === 0;
 
   return (
     <div style={{ padding: 16 }}>
       <button onClick={() => navigate(-1)}>뒤로</button>
       <h2 style={{ marginTop: 12 }}>{pageTitle}</h2>
-      <div style={{ opacity: 0.6, marginBottom: 12 }}>programId: {programId}</div>
+      <div style={{ opacity: 0.6, marginBottom: 12 }}>
+        programId: {programId}
+      </div>
 
-      {(loading || candidateLoading) ? (
+      {loading || candidateLoading ? (
         <div>불러오는 중...</div>
       ) : showEmpty ? (
         <div>
           <div style={{ marginBottom: 8 }}>현재 투표 후보가 없습니다.</div>
-          <div style={{ opacity: 0.6, fontSize: 13 }}>(APPROVED 후보가 있어야 표시됩니다)</div>
+          <div style={{ opacity: 0.6, fontSize: 13 }}>
+            (APPROVED 후보가 있어야 표시됩니다)
+          </div>
         </div>
       ) : (
         <>
@@ -294,10 +303,14 @@ export default function ContestVote() {
                       padding: "10px 12px",
                       cursor: "pointer",
                       background:
-                        String(myVotedApplyId) === String(key) ? "#f5fff5" : "#fff",
+                        String(myVotedApplyId) === String(key)
+                          ? "#f5fff5"
+                          : "#fff",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 10 }}
+                    >
                       <input
                         type="radio"
                         name="candidate"
@@ -305,7 +318,9 @@ export default function ContestVote() {
                         onChange={() => setSelectedApplyId(key)}
                       />
                       <div>
-                        <div style={{ fontWeight: 700 }}>{getCandidateTitle(c)}</div>
+                        <div style={{ fontWeight: 700 }}>
+                          {getCandidateTitle(c)}
+                        </div>
                         <div style={{ opacity: 0.7, fontSize: 13 }}>
                           후보ID: {String(key)} / userId: {c.userId}
                         </div>
@@ -321,7 +336,14 @@ export default function ContestVote() {
               })}
           </div>
 
-          <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              marginTop: 16,
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
             <button
               onClick={onVote}
               disabled={voting}

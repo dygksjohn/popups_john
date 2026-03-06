@@ -20,6 +20,11 @@ public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long
     Page<ProgramApply> findByProgramIdAndStatus(Long programId, ApplyStatus status, Pageable pageable);
 
     /**
+     *  관리자용 — 모든 상태의 신청자 목록 (상태 무관)
+     */
+    Page<ProgramApply> findByProgramIdOrderByProgramApplyIdDesc(Long programId, Pageable pageable);
+
+    /**
      *  활성 신청 중복 차단용
      * 활성 = APPLIED / WAITING / APPROVED (DB active_flag 정의와 동일)
      */

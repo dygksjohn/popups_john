@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { axiosInstance } from "../../../app/http/axiosInstance";
+import { getEventImage } from "../../admin/shared/eventImageStore";
 import { tokenStore } from "../../../app/http/tokenStore";
 import {
   X,
@@ -1202,7 +1203,7 @@ export default function EventDetailModal({ event, onClose }) {
           <div className="evm-poster-panel">
             <img
               className="evm-poster-img"
-              src={event.image || detail?.imageUrl || getDogImage(modalEventId)}
+            src={event.image || getEventImage(modalEventId) || detail?.imageUrl || getDogImage(modalEventId)}
               alt={event.title}
               onError={(e) => { e.target.onerror = null; e.target.src = getDogImage(modalEventId ?? 0); }}
             />

@@ -1,1127 +1,387 @@
 ﻿import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
-import EventSelectPage from "../components/EventSelectPage";
 import {
   SERVICE_CATEGORIES,
   SUBTITLE_MAP,
 } from "../constants/programConstants";
 import { eventApi } from "../../../app/http/eventApi";
-import { programApi } from "../../../app/http/programApi";
 import { boothApi } from "../../../app/http/boothApi";
-import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 import {
-  Palette,
-  Users,
-  Clock,
-  Star,
-  Heart,
-  CheckCircle2,
-  ChevronRight,
-  Ticket,
-  Sparkles,
-  Timer,
+  loadImageCache as loadEventImageCache,
+  getEventImageMap,
+} from "../../admin/shared/eventImageStore";
+import {
+  loadBoothImageCache,
+  getBoothImageMap,
+} from "../../admin/shared/boothImageStore";
+import {
+  Store,
   MapPin,
   CalendarDays,
+  FlaskConical,
+  Users,
+  Search,
 } from "lucide-react";
+
+const TYPE_LABEL = {
+  BOOTH_EXPERIENCE: "체험",
+  BOOTH_COMPANY: "기업",
+  BOOTH_FOOD: "푸드",
+  BOOTH_SALE: "판매",
+  BOOTH_INFO: "안내",
+  BOOTH_SPONSOR: "스폰서",
+  ETC: "기타",
+};
+const ZONE_LABEL = {
+  ZONE_A: "A구역",
+  ZONE_B: "B구역",
+  ZONE_C: "C구역",
+  OTHER: "기타",
+};
+const STATUS_LABEL = { OPEN: "운영 중", CLOSED: "종료", PAUSED: "일시중단" };
+const STATUS_COLOR = {
+  OPEN: { bg: "#ecfdf5", color: "#059669" },
+  CLOSED: { bg: "#f3f4f6", color: "#9ca3af" },
+  PAUSED: { bg: "#fff7ed", color: "#d97706" },
+};
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
-
-  .ex-root {
-    box-sizing: border-box;
-    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    background: #f8f9fc;
-    min-height: 100vh;
+  .ex-root { background:#f8f9fc; min-height:100vh; font-family:'Pretendard Variable','Pretendard',-apple-system,sans-serif; }
+  .ex-root *,.ex-root *::before,.ex-root *::after { box-sizing:border-box; font-family:inherit; }
+  .ex-wrap { max-width:1400px; margin:0 auto; padding:32px 24px 64px; }
+  .ex-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+  .ex-search-wrap {
+    display:flex; align-items:center; gap:8px;
+    background:#fff; border:1px solid #e5e7eb; border-radius:10px;
+    padding:8px 14px; flex:1; min-width:180px; max-width:320px;
   }
-  .ex-root *, .ex-root *::before, .ex-root *::after { box-sizing: border-box; font-family: inherit; }
-  .ex-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
-
-  .ex-live-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca;
-    border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444;
-    margin-bottom: 20px;
-  }
-  .ex-live-dot {
-    width: 7px; height: 7px; border-radius: 50%; background: #ef4444;
-    animation: ex-pulse 1.4s ease-in-out infinite;
-  }
-  @keyframes ex-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(0.8); }
-  }
-
-  .ex-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
-  .ex-stat-card {
-    background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 20px 22px;
-    display: flex; align-items: center; gap: 14px;
-  }
-  .ex-stat-icon { width: 44px; height: 44px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .ex-stat-label { font-size: 12px; color: #6b7280; font-weight: 500; }
-  .ex-stat-value { font-size: 22px; font-weight: 800; color: #111827; }
-
-  .ex-card { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 24px 28px; margin-bottom: 16px; }
-  .ex-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #f1f3f5; }
-  .ex-card-title { font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin: 0; }
-  .ex-card-title-icon { width: 24px; height: 24px; border-radius: 6px; background: #fffbeb; display: flex; align-items: center; justify-content: center; }
-  .ex-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
-
-  .ex-program-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .ex-program-card {
-    border: 1px solid #e9ecef; border-radius: 12px; padding: 20px;
-    background: #fff; transition: all 0.15s; position: relative; overflow: hidden;
-  }
-  .ex-program-thumb {
-    width: calc(100% + 40px); height: 168px; margin: -20px -20px 14px; overflow: hidden;
-    background: linear-gradient(135deg, #eff4ff 0%, #f8fafc 100%);
-    border-bottom: 1px solid #edf2f7;
-  }
-  .ex-program-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .ex-program-card:hover { border-color: #c7d2fe; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-  .ex-program-card.featured { border-color: #f59e0b; }
-  .ex-program-card.featured::before {
-    content: '인기'; position: absolute; top: 12px; right: 12px;
-    background: #fef3c7; color: #d97706; font-size: 10px; font-weight: 700;
-    padding: 2px 8px; border-radius: 100px;
-  }
-  .ex-program-card.registered { border-color: #1a4fd6; background: #fafbff; }
-  .ex-program-card.registered::after {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-    background: linear-gradient(90deg, #1a4fd6, #6366f1);
-  }
-  .ex-program-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-  .ex-program-icon {
-    width: 40px; height: 40px; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .ex-program-name { font-size: 15px; font-weight: 700; color: #111827; }
-  .ex-program-category { font-size: 11px; color: #9ca3af; margin-top: 2px; }
-  .ex-program-desc { font-size: 12.5px; color: #6b7280; line-height: 1.5; margin-bottom: 14px; }
-  .ex-program-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #9ca3af; }
-  .ex-program-meta-item { display: flex; align-items: center; gap: 4px; }
-  .ex-program-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f3f5; }
-  .ex-program-capacity { font-size: 12px; color: #6b7280; }
-  .ex-program-capacity strong { color: #111827; font-weight: 700; }
-  .ex-cap-bar { width: 80px; height: 5px; background: #f1f3f5; border-radius: 3px; overflow: hidden; margin-top: 4px; }
-  .ex-cap-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
-  .ex-program-badge {
-    padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: 600;
-  }
-  .ex-program-badge.open { background: #ecfdf5; color: #059669; }
-  .ex-program-badge.full { background: #fff0f0; color: #ef4444; }
-  .ex-program-badge.soon { background: #eff4ff; color: #1a4fd6; }
-
-  /* Action buttons */
-  .ex-action-area { margin-top: 14px; display: flex; gap: 8px; }
-  .ex-btn {
-    flex: 1; padding: 10px 0; border-radius: 8px; font-size: 13px; font-weight: 700;
-    border: none; cursor: pointer; transition: all 0.15s; display: flex;
-    align-items: center; justify-content: center; gap: 6px;
-  }
-  .ex-btn:active { transform: scale(0.97); }
-  .ex-btn-register {
-    background: #1a4fd6; color: #fff;
-  }
-  .ex-btn-register:hover { background: #1640b0; }
-  .ex-btn-register:disabled {
-    background: #d1d5db; color: #9ca3af; cursor: not-allowed;
-  }
-  .ex-btn-register:disabled:active { transform: none; }
-  .ex-btn-cancel {
-    background: #fff; color: #ef4444; border: 1px solid #fecaca;
-  }
-  .ex-btn-cancel:hover { background: #fff5f5; }
-  .ex-btn-registered {
-    background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;
-    cursor: default; flex: 1;
-  }
-  .ex-btn-cancel-small {
-    background: #fff; color: #ef4444; border: 1px solid #fecaca;
-    width: auto; flex: none; padding: 10px 16px;
-  }
-  .ex-btn-cancel-small:hover { background: #fff5f5; }
-
-  /* Modal */
-  .ex-modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1000; animation: ex-fade-in 0.15s ease;
-    backdrop-filter: blur(4px);
-  }
-  @keyframes ex-fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  .ex-modal {
-    background: #fff; border-radius: 16px; padding: 32px; width: 400px;
-    max-width: calc(100vw - 32px); box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-    animation: ex-modal-slide 0.2s ease;
-  }
-  @keyframes ex-modal-slide {
-    from { opacity: 0; transform: translateY(12px) scale(0.97); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-  }
-  .ex-modal-icon {
-    width: 52px; height: 52px; border-radius: 14px;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 16px;
-  }
-  .ex-modal-title { font-size: 18px; font-weight: 800; color: #111827; text-align: center; margin-bottom: 6px; }
-  .ex-modal-sub { font-size: 13px; color: #6b7280; text-align: center; line-height: 1.5; margin-bottom: 24px; }
-  .ex-modal-info {
-    background: #f8f9fc; border-radius: 10px; padding: 16px; margin-bottom: 24px;
-    display: flex; flex-direction: column; gap: 10px;
-  }
-  .ex-modal-info-row {
-    display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151;
-  }
-  .ex-modal-info-row svg { color: #9ca3af; flex-shrink: 0; }
-  .ex-modal-info-label { color: #9ca3af; width: 52px; flex-shrink: 0; font-size: 12px; }
-  .ex-modal-btns { display: flex; gap: 10px; }
-  .ex-modal-btn {
-    flex: 1; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 700;
-    border: none; cursor: pointer; transition: all 0.15s;
-  }
-  .ex-modal-btn:active { transform: scale(0.97); }
-  .ex-modal-btn-secondary { background: #f3f4f6; color: #374151; }
-  .ex-modal-btn-secondary:hover { background: #e5e7eb; }
-  .ex-modal-btn-primary { background: #1a4fd6; color: #fff; }
-  .ex-modal-btn-primary:hover { background: #1640b0; }
-  .ex-modal-btn-danger { background: #ef4444; color: #fff; }
-  .ex-modal-btn-danger:hover { background: #dc2626; }
-
-  /* Toast */
-  .ex-toast {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    background: #111827; color: #fff; padding: 14px 24px; border-radius: 12px;
-    font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.2); z-index: 1100;
-    animation: ex-toast-in 0.3s ease;
-  }
-  @keyframes ex-toast-in {
-    from { opacity: 0; transform: translateX(-50%) translateY(16px); }
-    to { opacity: 1; transform: translateX(-50%) translateY(0); }
-  }
-  .ex-toast.out { animation: ex-toast-out 0.3s ease forwards; }
-  @keyframes ex-toast-out {
-    from { opacity: 1; transform: translateX(-50%) translateY(0); }
-    to { opacity: 0; transform: translateX(-50%) translateY(16px); }
-  }
-
-  /* My registrations card */
-  .ex-my-card { background: linear-gradient(135deg, #1a4fd6 0%, #4f46e5 100%); border: none; color: #fff; margin-bottom: 16px; }
-  .ex-my-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-  .ex-my-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-  .ex-my-count { font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 100px; }
-  .ex-my-list { display: flex; flex-direction: column; gap: 8px; }
-  .ex-my-item {
-    background: rgba(255,255,255,0.12); border-radius: 10px; padding: 14px 16px;
-    display: flex; align-items: center; justify-content: space-between;
-    backdrop-filter: blur(8px);
-  }
-  .ex-my-item-left { display: flex; align-items: center; gap: 12px; }
-  .ex-my-item-icon {
-    width: 34px; height: 34px; border-radius: 8px; background: rgba(255,255,255,0.15);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .ex-my-item-name { font-size: 14px; font-weight: 700; }
-  .ex-my-item-meta { font-size: 11px; opacity: 0.7; margin-top: 2px; }
-  .ex-my-cancel-btn {
-    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
-    color: #fff; padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 700;
-    cursor: pointer; transition: all 0.15s;
-  }
-  .ex-my-cancel-btn:hover { background: rgba(239,68,68,0.3); border-color: rgba(239,68,68,0.5); }
-  .ex-my-empty { text-align: center; padding: 20px; opacity: 0.7; font-size: 13px; }
-
-  /* Timeline */
-  .ex-timeline { display: flex; flex-direction: column; gap: 0; }
-  .ex-timeline-item { display: flex; gap: 14px; padding: 14px 0; }
-  .ex-timeline-line { display: flex; flex-direction: column; align-items: center; width: 20px; }
-  .ex-timeline-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .ex-timeline-dot.active { background: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.15); }
-  .ex-timeline-dot.done { background: #10b981; }
-  .ex-timeline-dot.upcoming { background: #d1d5db; }
-  .ex-timeline-connector { width: 2px; flex: 1; background: #e9ecef; margin-top: 4px; }
-  .ex-timeline-content { flex: 1; padding-bottom: 8px; }
-  .ex-timeline-time { font-size: 11px; font-weight: 700; color: #1a4fd6; margin-bottom: 2px; }
-  .ex-timeline-time.done { color: #10b981; }
-  .ex-timeline-time.upcoming { color: #9ca3af; }
-  .ex-timeline-name { font-size: 14px; font-weight: 700; color: #111827; }
-  .ex-timeline-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
-
-  @media (max-width: 900px) {
-    .ex-program-grid { grid-template-columns: 1fr; }
-  }
-  @media (max-width: 640px) {
-    .ex-container { padding: 20px 16px 48px; }
-    .ex-stat-grid { grid-template-columns: 1fr 1fr; }
-    .ex-modal { padding: 24px; }
-  }
+  .ex-search-wrap input { border:none; outline:none; font-size:13px; color:#374151; background:transparent; width:100%; font-family:inherit; }
+  .ex-filter-btn { padding:8px 16px; border:1px solid #e2e5ea; border-radius:100px; background:#fff; font-size:12px; font-weight:600; color:#6b7280; cursor:pointer; transition:all 0.15s; font-family:inherit; }
+  .ex-filter-btn.active { background:#1a4fd6; border-color:#1a4fd6; color:#fff; }
+  .ex-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+  .ex-stat { background:#fff; border:1px solid #e9ecef; border-radius:12px; padding:16px 18px; display:flex; align-items:center; gap:12px; }
+  .ex-stat-ico { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .ex-stat-lb { font-size:11px; color:#6b7280; }
+  .ex-stat-v { font-size:20px; font-weight:800; color:#111827; }
+  .ex-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+  .ex-card { background:#fff; border:1.5px solid #e9ecef; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; transition:border-color 0.2s,transform 0.2s,box-shadow 0.2s; }
+  .ex-card.open-card:hover { border-color:#b4c6f0; transform:translateY(-3px); box-shadow:0 8px 28px rgba(26,79,214,0.08); cursor:pointer; }
+  .ex-card.closed-card { opacity:0.5; filter:grayscale(70%); pointer-events:none; }
+  .ex-thumb { width:100%; aspect-ratio:16/10; position:relative; overflow:hidden; background:linear-gradient(135deg,#f0f4ff 0%,#f8fafc 100%); }
+  .ex-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .ex-thumb-ph { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+  .ex-thumb-ph-text { font-size:12px; font-weight:600; color:#b0bcce; }
+  .ex-status-badge { position:absolute; top:12px; left:12px; z-index:2; padding:4px 10px; border-radius:100px; font-size:11px; font-weight:700; backdrop-filter:blur(6px); }
+  .ex-event-badge { position:absolute; top:12px; right:12px; z-index:2; padding:4px 10px; border-radius:100px; background:rgba(0,0,0,0.45); backdrop-filter:blur(6px); font-size:10px; font-weight:600; color:#fff; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ex-body { padding:16px 18px 18px; display:flex; flex-direction:column; gap:10px; flex:1; }
+  .ex-card-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .ex-type-tag { font-size:10px; font-weight:700; background:#eff4ff; color:#1a4fd6; padding:3px 9px; border-radius:100px; }
+  .ex-name { font-size:16px; font-weight:800; color:#111827; line-height:1.35; }
+  .ex-desc { font-size:12.5px; color:#6b7280; line-height:1.45; }
+  .ex-meta { display:flex; flex-direction:column; gap:6px; font-size:12px; color:#6b7280; }
+  .ex-meta-row { display:flex; align-items:center; gap:6px; }
+  .ex-divider { height:1px; background:#f1f3f5; }
+  .ex-company { font-size:11.5px; color:#9ca3af; font-weight:500; }
+  .ex-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 24px; }
+  @media (max-width:1100px) { .ex-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width:700px) { .ex-wrap { padding:20px 16px 48px; } .ex-stats { grid-template-columns:repeat(2,1fr); } .ex-grid { grid-template-columns:1fr; } }
 `;
 
-const CARD_COLORS = [
-  { bg: "#eff4ff", color: "#1a4fd6" },
-  { bg: "#fef3c7", color: "#d97706" },
-  { bg: "#fce7f3", color: "#ec4899" },
-  { bg: "#f5f3ff", color: "#8b5cf6" },
-  { bg: "#ecfdf5", color: "#10b981" },
-  { bg: "#fff7ed", color: "#f59e0b" },
-];
-
-const CATEGORY_LABEL = {
-  EXPERIENCE: "체험",
-  SESSION: "세션",
-  CONTEST: "콘테스트",
-};
-
-function parseDate(value) {
-  if (!value) return null;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function formatTimeRange(startAt, endAt) {
-  const pick = (v) => {
-    const m = String(v ?? "").match(/(\d{2}):(\d{2})/);
-    return m ? `${m[1]}:${m[2]}` : "";
-  };
-  const a = pick(startAt);
-  const b = pick(endAt);
-  if (a && b) return `${a}~${b}`;
-  return a || b || "시간 미정";
-}
-
-function formatDateRange(startAt, endAt) {
-  const pick = (v) => {
-    const m = String(v ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-    return m ? `${m[1]}.${m[2]}.${m[3]}` : "";
-  };
-  const a = pick(startAt);
-  const b = pick(endAt);
-  if (a && b) return `${a} ~ ${b}`;
-  return a || b || "일정 미정";
-}
-
-function toEventStatus(rawStatus, startAt, endAt) {
-  const raw = String(rawStatus ?? "").toUpperCase();
-  if (raw.includes("ONGOING") || raw.includes("LIVE")) return "live";
-  if (raw.includes("END")) return "ended";
-  const now = Date.now();
-  const s = parseDate(startAt)?.getTime();
-  const e = parseDate(endAt)?.getTime();
-  if (s && now < s) return "upcoming";
-  if (e && now > e) return "ended";
-  return "upcoming";
-}
-
-const STATUS_LABEL = { open: "참여 가능", full: "마감", soon: "예정" };
-
-const ClockIcon = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="12" r="10" />
-    <polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-const MapPinIcon = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-    <circle cx="12" cy="10" r="3" />
-  </svg>
-);
-const UsersIcon = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </svg>
-);
-const PaletteIcon = ({ size = 14, color = "currentColor" }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="13.5" cy="6.5" r="0.5" fill={color} />
-    <circle cx="17.5" cy="10.5" r="0.5" fill={color} />
-    <circle cx="8.5" cy="7.5" r="0.5" fill={color} />
-    <circle cx="6.5" cy="12.5" r="0.5" fill={color} />
-    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
-  </svg>
-);
-const TicketIcon = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
-    <path d="M13 5v2" />
-    <path d="M13 17v2" />
-    <path d="M13 11v2" />
-  </svg>
-);
-const StarIcon = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-  </svg>
-);
-const SparklesIcon = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-    <path d="M5 3v4" />
-    <path d="M19 17v4" />
-    <path d="M3 5h4" />
-    <path d="M17 19h4" />
-  </svg>
-);
-const CalendarIcon = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-    <line x1="16" x2="16" y1="2" y2="6" />
-    <line x1="8" x2="8" y1="2" y2="6" />
-    <line x1="3" x2="21" y1="10" y2="10" />
-  </svg>
-);
-const CheckIcon = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <polyline points="22 4 12 14.01 9 11.01" />
-  </svg>
-);
-const XIcon = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M18 6 6 18" />
-    <path d="m6 6 12 12" />
-  </svg>
-);
-const UserPlusIcon = ({ size = 14 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <line x1="19" x2="19" y1="8" y2="14" />
-    <line x1="22" x2="16" y1="11" y2="11" />
-  </svg>
-);
-
-function ExperienceDetail({ eventId }) {
-  const [programs, setPrograms] = useState([]);
-  const [registered, setRegistered] = useState(new Set());
-  const [modal, setModal] = useState(null); // { type: 'register' | 'cancel', program }
-  const [toast, setToast] = useState(null);
-  const [toastOut, setToastOut] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+export default function Experience() {
   const navigate = useNavigate();
   const currentPath = "/program/experience";
+  const [booths, setBooths] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState("ALL");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!eventId) return;
     let mounted = true;
-    const load = async () => {
+    (async () => {
       setLoading(true);
-      setErrorMsg("");
+      setError("");
       try {
-        const [list, boothRes] = await Promise.all([
-          programApi.getAllProgramsByEvent({
-            eventId: Number(eventId),
-            category: "EXPERIENCE",
-            sort: "startAt,asc",
-          }),
-          boothApi.getEventBooths({
-            eventId: Number(eventId),
-            page: 0,
-            size: 200,
-            sort: "boothId,asc",
-          }),
-        ]);
-        if (!mounted) return;
-
-        const booths = Array.isArray(boothRes?.data?.data?.content)
-          ? boothRes.data.data.content
+        const evRes = await eventApi.getEvents({
+          page: 0,
+          size: 200,
+          sort: "startAt,desc",
+        });
+        const events = Array.isArray(evRes?.data?.data?.content)
+          ? evRes.data.data.content
           : [];
-        const boothMap = new Map(
-          booths
-            .map((b) => [Number(b?.boothId), b?.placeName])
-            .filter(([id, name]) => Number.isFinite(id) && !!name),
+
+        await loadEventImageCache();
+        await loadBoothImageCache();
+        const imgMap = getEventImageMap();
+        const boothImgMap = getBoothImageMap();
+
+        const results = await Promise.allSettled(
+          events.map((evt) =>
+            boothApi
+              .getEventBooths({ eventId: evt.eventId, page: 0, size: 200 })
+              .then((r) => ({
+                eventId: evt.eventId,
+                eventName: evt.eventName ?? "행사",
+                eventImg: imgMap[String(evt.eventId)] ?? evt.imageUrl ?? null,
+                list: Array.isArray(r?.data?.data?.content)
+                  ? r.data.data.content
+                  : Array.isArray(r?.data?.data)
+                    ? r.data.data
+                    : [],
+              })),
+          ),
         );
 
-        const mapped = (Array.isArray(list) ? list : []).map((item, idx) => {
-          const color = CARD_COLORS[idx % CARD_COLORS.length];
-          const max = Number(item?.capacity ?? 20);
-          const current = Number(item?.experienceWait?.waitCount ?? 0);
-          const categoryKey = String(item?.category ?? "").toUpperCase();
-          let status = "soon";
-          if (item?.ongoing) status = "open";
-          else if (item?.ended) status = "full";
-
-          return {
-            id: Number(item?.programId ?? idx + 1),
-            name: item?.programTitle ?? "프로그램",
-            category: CATEGORY_LABEL[categoryKey] ?? "체험",
-            desc: item?.description ?? "",
-            time: formatTimeRange(item?.startAt, item?.endAt),
-            zone:
-              item?.boothName ??
-              boothMap.get(Number(item?.boothId)) ??
-              "장소 미정",
-            current: Number.isFinite(current) ? current : 0,
-            max: Number.isFinite(max) && max > 0 ? max : 20,
-            status,
-            featured: idx < 2,
-            bg: color.bg,
-            color: color.color,
-            imageUrl: toPublicAssetUrl(item?.imageUrl),
-            startAt: item?.startAt ?? null,
-          };
+        if (!mounted) return;
+        const all = [];
+        results.forEach((res) => {
+          if (res.status !== "fulfilled") return;
+          const { eventId, eventName, eventImg, list } = res.value;
+          list.forEach((b) => {
+            all.push({
+              boothId: b.boothId,
+              placeName: b.placeName ?? "부스명 없음",
+              description: b.description ?? "",
+              type: b.type ?? "ETC",
+              zone: b.zone ?? "OTHER",
+              status: b.status ?? "OPEN",
+              company: b.company ?? "",
+              eventId,
+              eventName,
+              thumbnail:
+                boothImgMap[String(b.boothId)] ??
+                b.imageUrl ??
+                eventImg ??
+                null,
+            });
+          });
         });
-
-        setPrograms(mapped);
+        setBooths(all);
       } catch (e) {
         if (!mounted) return;
-        setPrograms([]);
-        setErrorMsg(
+        setError(
           e?.response?.data?.message ||
             e?.message ||
-            "체험 프로그램 데이터를 불러오지 못했습니다.",
+            "데이터를 불러오지 못했습니다.",
         );
       } finally {
         if (mounted) setLoading(false);
       }
-    };
-
-    load();
+    })();
     return () => {
       mounted = false;
     };
-  }, [eventId]);
+  }, []);
 
-  const showToast = (msg, icon) => {
-    setToastOut(false);
-    setToast({ msg, icon });
-    setTimeout(() => setToastOut(true), 2200);
-    setTimeout(() => setToast(null), 2500);
-  };
+  const filtered = booths.filter((b) => {
+    if (filter !== "ALL" && b.status !== filter) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      return (
+        b.placeName.toLowerCase().includes(q) ||
+        b.description.toLowerCase().includes(q) ||
+        b.eventName.toLowerCase().includes(q) ||
+        (b.company || "").toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
-  const handleRegister = (program) => {
-    setModal({ type: "register", program });
-  };
-
-  const handleCancel = (program) => {
-    setModal({ type: "cancel", program });
-  };
-
-  const confirmRegister = () => {
-    const p = modal.program;
-    setRegistered((prev) => new Set([...prev, p.id]));
-    setPrograms((prev) =>
-      prev.map((prog) => {
-        if (prog.id !== p.id) return prog;
-        const newCurrent = prog.current + 1;
-        return {
-          ...prog,
-          current: newCurrent,
-          status: newCurrent >= prog.max ? "full" : prog.status,
-        };
-      }),
-    );
-    setModal(null);
-    showToast(`'${p.name}' 참가 신청이 완료되었습니다!`, "check");
-  };
-
-  const confirmCancel = () => {
-    const p = modal.program;
-    setRegistered((prev) => {
-      const next = new Set(prev);
-      next.delete(p.id);
-      return next;
-    });
-    setPrograms((prev) =>
-      prev.map((prog) => {
-        if (prog.id !== p.id) return prog;
-        const newCurrent = prog.current - 1;
-        return {
-          ...prog,
-          current: newCurrent,
-          status: newCurrent < prog.max ? "open" : prog.status,
-        };
-      }),
-    );
-    setModal(null);
-    showToast(`'${p.name}' 참가가 취소되었습니다.`, "x");
-  };
-
-  const registeredPrograms = programs.filter((p) => registered.has(p.id));
-  const openCount = programs.filter((p) => p.status === "open").length;
-  const totalParticipants = programs.reduce((sum, p) => sum + p.current, 0);
-  const timeline = [...programs]
-    .sort((a, b) => {
-      const at = parseDate(a.startAt)?.getTime() ?? 0;
-      const bt = parseDate(b.startAt)?.getTime() ?? 0;
-      return at - bt;
-    })
-    .map((p) => ({
-      time: p.time.split("~")[0] || "시간 미정",
-      name: p.name,
-      zone: p.zone,
-      status: p.status === "open" ? "active" : p.status === "full" ? "done" : "upcoming",
-    }));
+  const FILTERS = [
+    { key: "ALL", label: "전체" },
+    { key: "OPEN", label: "운영 중" },
+    { key: "PAUSED", label: "일시중단" },
+    { key: "CLOSED", label: "종료" },
+  ];
 
   return (
     <div className="ex-root">
       <style>{styles}</style>
       <PageHeader
         title="체험존 안내"
-        subtitle={SUBTITLE_MAP[currentPath]}
+        subtitle={SUBTITLE_MAP[currentPath] ?? "등록된 체험존을 확인하세요"}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
         onNavigate={(path) => navigate(path)}
       />
-      <main className="ex-container">
-        <div className="ex-live-badge">
-          <div className="ex-live-dot" />
-          LIVE
-        </div>
-
-        {/* Stats */}
-        <div className="ex-stat-grid">
+      <main className="ex-wrap">
+        <div className="ex-stats">
           {[
             {
-              label: "전체 프로그램",
-              value: `${programs.length}개`,
-              icon: <PaletteIcon size={20} color="#8b5cf6" />,
-              bg: "#f5f3ff",
-            },
-            {
-              label: "참여 가능",
-              value: `${openCount}개`,
-              icon: <TicketIcon size={20} />,
-              bg: "#ecfdf5",
-              iconColor: "#10b981",
-            },
-            {
-              label: "오늘 참여자",
-              value: `${totalParticipants}명`,
-              icon: <UsersIcon size={20} />,
+              label: "전체 체험존",
+              value: booths.length,
+              ico: <Store size={18} color="#1a4fd6" />,
               bg: "#eff4ff",
-              iconColor: "#1a4fd6",
             },
             {
-              label: "평균 만족도",
-              value: "-",
-              icon: <StarIcon size={20} />,
-              bg: "#fffbeb",
-              iconColor: "#f59e0b",
+              label: "운영 중",
+              value: booths.filter((b) => b.status === "OPEN").length,
+              ico: <FlaskConical size={18} color="#059669" />,
+              bg: "#ecfdf5",
+            },
+            {
+              label: "일시중단",
+              value: booths.filter((b) => b.status === "PAUSED").length,
+              ico: <Users size={18} color="#d97706" />,
+              bg: "#fff7ed",
+            },
+            {
+              label: "종료",
+              value: booths.filter((b) => b.status === "CLOSED").length,
+              ico: <CalendarDays size={18} color="#9ca3af" />,
+              bg: "#f3f4f6",
             },
           ].map((s) => (
-            <div key={s.label} className="ex-stat-card">
-              <div
-                className="ex-stat-icon"
-                style={{ background: s.bg, color: s.iconColor }}
-              >
-                {s.icon}
+            <div key={s.label} className="ex-stat">
+              <div className="ex-stat-ico" style={{ background: s.bg }}>
+                {s.ico}
               </div>
               <div>
-                <div className="ex-stat-label">{s.label}</div>
-                <div className="ex-stat-value">{s.value}</div>
+                <div className="ex-stat-lb">{s.label}</div>
+                <div className="ex-stat-v">{s.value}개</div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* My Registrations */}
-        {registeredPrograms.length > 0 && (
-          <div className="ex-card ex-my-card">
-            <div className="ex-my-header">
-              <div className="ex-my-title">
-                <CheckIcon size={16} /> 나의 참가 신청
-              </div>
-              <span className="ex-my-count">{registeredPrograms.length}건</span>
+        <div className="ex-toolbar">
+          <div className="ex-search-wrap">
+            <Search size={14} color="#9ca3af" />
+            <input
+              placeholder="부스명, 행사명, 업체명 검색"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              className={`ex-filter-btn${filter === f.key ? " active" : ""}`}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {loading && (
+          <div className="ex-empty">
+            <div style={{ fontSize: 14, color: "#9ca3af" }}>불러오는 중...</div>
+          </div>
+        )}
+        {!loading && error && (
+          <div className="ex-empty">
+            <div style={{ fontSize: 14, color: "#ef4444" }}>{error}</div>
+          </div>
+        )}
+        {!loading && !error && filtered.length === 0 && (
+          <div className="ex-empty">
+            <Store
+              size={48}
+              strokeWidth={1.2}
+              style={{ color: "#d1d5db", marginBottom: 16 }}
+            />
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: "#374151",
+                marginBottom: 6,
+              }}
+            >
+              체험존이 없습니다
             </div>
-            <div className="ex-my-list">
-              {registeredPrograms.map((p) => (
-                <div key={p.id} className="ex-my-item">
-                  <div className="ex-my-item-left">
-                    <div className="ex-my-item-icon">
-                      <PaletteIcon size={16} color="#fff" />
-                    </div>
-                    <div>
-                      <div className="ex-my-item-name">{p.name}</div>
-                      <div className="ex-my-item-meta">
-                        {p.time} · {p.zone}
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    className="ex-my-cancel-btn"
-                    onClick={() => handleCancel(p)}
-                  >
-                    취소
-                  </button>
-                </div>
-              ))}
+            <div style={{ fontSize: 13, color: "#9ca3af" }}>
+              {search
+                ? "검색 조건에 맞는 체험존이 없어요."
+                : "등록된 체험존이 없어요."}
             </div>
           </div>
         )}
-
-        {/* Program Grid */}
-        <div className="ex-card">
-          <div className="ex-card-header">
-            <div className="ex-card-title">
-              <div className="ex-card-title-icon">
-                <SparklesIcon size={14} />
-              </div>
-              체험 프로그램
-            </div>
-            <span className="ex-card-tag">총 {programs.length}개</span>
-          </div>
-          {loading ? <div className="ex-card-tag">로딩 중...</div> : null}
-          {!loading && errorMsg ? <div className="ex-card-tag">{errorMsg}</div> : null}
-          {!loading && !errorMsg && programs.length === 0 ? (
-            <div className="ex-card-tag">표시할 체험 프로그램이 없습니다.</div>
-          ) : null}
-          {!loading && !errorMsg && programs.length > 0 ? (
-            <div className="ex-program-grid">
-              {programs.map((p) => {
-              const isRegistered = registered.has(p.id);
-              const canRegister = p.status === "open" && !isRegistered;
-              const isFull = p.status === "full" && !isRegistered;
-              const isSoon = p.status === "soon";
-
+        {!loading && !error && filtered.length > 0 && (
+          <div className="ex-grid">
+            {filtered.map((b) => {
+              const isClosed = b.status === "CLOSED";
+              const sc = STATUS_COLOR[b.status] ?? STATUS_COLOR.OPEN;
               return (
                 <div
-                  key={p.id}
-                  className={`ex-program-card${p.featured && !isRegistered ? " featured" : ""}${isRegistered ? " registered" : ""}`}
+                  key={b.boothId}
+                  className={`ex-card ${isClosed ? "closed-card" : "open-card"}`}
                 >
-                  <div className="ex-program-thumb">
-                    {p.imageUrl ? (
+                  <div className="ex-thumb">
+                    {b.thumbnail ? (
                       <img
-                        src={p.imageUrl}
-                        alt={p.name}
+                        src={b.thumbnail}
+                        alt={b.placeName}
+                        loading="lazy"
                         onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.style.display = "none";
+                          e.target.style.display = "none";
+                          e.target.nextSibling.style.display = "flex";
                         }}
                       />
-                    ) : (
-                      <div
+                    ) : null}
+                    <div
+                      className="ex-thumb-ph"
+                      style={{ display: b.thumbnail ? "none" : "flex" }}
+                    >
+                      <Store size={28} strokeWidth={1.2} color="#c5cdd8" />
+                      <span className="ex-thumb-ph-text">이미지 없음</span>
+                    </div>
+                    <div
+                      className="ex-status-badge"
+                      style={{ background: sc.bg, color: sc.color }}
+                    >
+                      {STATUS_LABEL[b.status]}
+                    </div>
+                    <div className="ex-event-badge" title={b.eventName}>
+                      {b.eventName}
+                    </div>
+                  </div>
+                  <div className="ex-body">
+                    <div className="ex-card-head">
+                      <span className="ex-type-tag">
+                        {TYPE_LABEL[b.type] ?? b.type}
+                      </span>
+                      <span
                         style={{
-                          width: "100%",
-                          height: "100%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#94a3b8",
-                          fontSize: 13,
-                          fontWeight: 700,
+                          fontSize: 11,
+                          color: "#9ca3af",
+                          fontWeight: 600,
                         }}
                       >
-                        프로그램 이미지
+                        {ZONE_LABEL[b.zone] ?? b.zone}
+                      </span>
+                    </div>
+                    <div className="ex-name">{b.placeName}</div>
+                    {b.description ? (
+                      <div className="ex-desc">{b.description}</div>
+                    ) : null}
+                    <div className="ex-meta">
+                      <div className="ex-meta-row">
+                        <MapPin size={12} />
+                        {ZONE_LABEL[b.zone] ?? b.zone}
                       </div>
-                    )}
-                  </div>
-                  <div className="ex-program-top">
-                    <div
-                      className="ex-program-icon"
-                      style={{ background: p.bg }}
-                    >
-                      <PaletteIcon size={18} color={p.color} />
-                    </div>
-                    <div>
-                      <div className="ex-program-name">{p.name}</div>
-                      <div className="ex-program-category">{p.category}</div>
-                    </div>
-                  </div>
-                  <div className="ex-program-desc">{p.desc}</div>
-                  <div className="ex-program-meta">
-                    <span className="ex-program-meta-item">
-                      <ClockIcon size={11} /> {p.time}
-                    </span>
-                    <span className="ex-program-meta-item">
-                      <MapPinIcon size={11} /> {p.zone}
-                    </span>
-                  </div>
-                  <div className="ex-program-footer">
-                    <div className="ex-program-capacity">
-                      <strong>{p.current}</strong> / {p.max}명
-                      <div className="ex-cap-bar">
-                        <div
-                          className="ex-cap-fill"
-                          style={{
-                            width: `${Math.min(100, (p.current / p.max) * 100)}%`,
-                            background:
-                              p.current >= p.max ? "#ef4444" : "#1a4fd6",
-                          }}
-                        />
+                      <div className="ex-meta-row">
+                        <CalendarDays size={12} />
+                        {b.eventName}
                       </div>
                     </div>
-                    <span className={`ex-program-badge ${p.status}`}>
-                      {isRegistered ? "신청 완료" : STATUS_LABEL[p.status]}
-                    </span>
-                  </div>
-                  {/* Action Buttons */}
-                  <div className="ex-action-area">
-                    {isRegistered ? (
+                    {b.company ? (
                       <>
-                        <div className="ex-btn ex-btn-registered">
-                          <CheckIcon size={14} /> 참가 신청 완료
-                        </div>
-                        <button
-                          className="ex-btn ex-btn-cancel-small"
-                          onClick={() => handleCancel(p)}
-                        >
-                          <XIcon size={13} /> 취소
-                        </button>
+                        <div className="ex-divider" />
+                        <div className="ex-company">업체: {b.company}</div>
                       </>
-                    ) : canRegister ? (
-                      <button
-                        className="ex-btn ex-btn-register"
-                        onClick={() => handleRegister(p)}
-                      >
-                        <UserPlusIcon size={14} /> 참가 신청
-                      </button>
-                    ) : isFull ? (
-                      <button className="ex-btn ex-btn-register" disabled>
-                        마감되었습니다
-                      </button>
-                    ) : isSoon ? (
-                      <button className="ex-btn ex-btn-register" disabled>
-                        오픈 예정
-                      </button>
                     ) : null}
                   </div>
                 </div>
               );
-              })}
-            </div>
-          ) : null}
-        </div>
-
-        {/* Timeline */}
-        <div className="ex-card">
-          <div className="ex-card-header">
-            <div className="ex-card-title">
-              <div className="ex-card-title-icon">
-                <CalendarIcon size={14} />
-              </div>
-              오늘 체험 타임라인
-            </div>
-            <span className="ex-card-tag">{timeline.length}개 프로그램</span>
+            })}
           </div>
-          <div className="ex-timeline">
-            {timeline.length === 0 ? (
-              <div className="ex-card-tag">타임라인 데이터가 없습니다.</div>
-            ) : timeline.map((t, i) => (
-              <div key={t.time + t.name} className="ex-timeline-item">
-                <div className="ex-timeline-line">
-                  <div className={`ex-timeline-dot ${t.status}`} />
-                  {i < timeline.length - 1 && (
-                    <div className="ex-timeline-connector" />
-                  )}
-                </div>
-                <div className="ex-timeline-content">
-                  <div className={`ex-timeline-time ${t.status}`}>{t.time}</div>
-                  <div className="ex-timeline-name">{t.name}</div>
-                  <div className="ex-timeline-sub">{t.zone}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
       </main>
-
-      {/* Register Modal */}
-      {modal && modal.type === "register" && (
-        <div className="ex-modal-overlay" onClick={() => setModal(null)}>
-          <div className="ex-modal" onClick={(e) => e.stopPropagation()}>
-            <div
-              className="ex-modal-icon"
-              style={{ background: modal.program.bg }}
-            >
-              <UserPlusIcon size={24} />
-            </div>
-            <div className="ex-modal-title">참가 신청</div>
-            <div className="ex-modal-sub">
-              아래 프로그램에 참가 신청하시겠습니까?
-            </div>
-            <div className="ex-modal-info">
-              <div className="ex-modal-info-row">
-                <PaletteIcon size={14} color="#9ca3af" />
-                <span className="ex-modal-info-label">프로그램</span>
-                <strong>{modal.program.name}</strong>
-              </div>
-              <div className="ex-modal-info-row">
-                <ClockIcon size={14} />
-                <span className="ex-modal-info-label">시간</span>
-                {modal.program.time}
-              </div>
-              <div className="ex-modal-info-row">
-                <MapPinIcon size={14} />
-                <span className="ex-modal-info-label">장소</span>
-                {modal.program.zone}
-              </div>
-              <div className="ex-modal-info-row">
-                <UsersIcon size={14} />
-                <span className="ex-modal-info-label">잔여</span>
-                {modal.program.max - modal.program.current}명 남음
-              </div>
-            </div>
-            <div className="ex-modal-btns">
-              <button
-                className="ex-modal-btn ex-modal-btn-secondary"
-                onClick={() => setModal(null)}
-              >
-                돌아가기
-              </button>
-              <button
-                className="ex-modal-btn ex-modal-btn-primary"
-                onClick={confirmRegister}
-              >
-                신청하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cancel Modal */}
-      {modal && modal.type === "cancel" && (
-        <div className="ex-modal-overlay" onClick={() => setModal(null)}>
-          <div className="ex-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="ex-modal-icon" style={{ background: "#fff0f0" }}>
-              <XIcon size={24} />
-            </div>
-            <div className="ex-modal-title">참가 취소</div>
-            <div className="ex-modal-sub">
-              정말 참가를 취소하시겠습니까?
-              <br />
-              취소 후 다시 신청할 수 있습니다.
-            </div>
-            <div className="ex-modal-info">
-              <div className="ex-modal-info-row">
-                <PaletteIcon size={14} color="#9ca3af" />
-                <span className="ex-modal-info-label">프로그램</span>
-                <strong>{modal.program.name}</strong>
-              </div>
-              <div className="ex-modal-info-row">
-                <ClockIcon size={14} />
-                <span className="ex-modal-info-label">시간</span>
-                {modal.program.time}
-              </div>
-              <div className="ex-modal-info-row">
-                <MapPinIcon size={14} />
-                <span className="ex-modal-info-label">장소</span>
-                {modal.program.zone}
-              </div>
-            </div>
-            <div className="ex-modal-btns">
-              <button
-                className="ex-modal-btn ex-modal-btn-secondary"
-                onClick={() => setModal(null)}
-              >
-                돌아가기
-              </button>
-              <button
-                className="ex-modal-btn ex-modal-btn-danger"
-                onClick={confirmCancel}
-              >
-                참가 취소
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Toast */}
-      {toast && (
-        <div className={`ex-toast${toastOut ? " out" : ""}`}>
-          {toast.icon === "check" ? (
-            <CheckIcon size={16} />
-          ) : (
-            <XIcon size={16} />
-          )}
-          {toast.msg}
-        </div>
-      )}
     </div>
   );
 }
-
-/* ─────────────────────────────────────────
-   Export ? eventId 여부에 따라 행사 선택 / 상세 분기
-───────────────────────────────────────── */
-export default function Experience() {
-  const navigate = useNavigate();
-  const { eventId } = useParams();
-  const currentPath = "/program/experience";
-  const [events, setEvents] = useState([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
-
-  useEffect(() => {
-    if (eventId) return;
-    let mounted = true;
-    const load = async () => {
-      setEventsLoading(true);
-      try {
-        const res = await eventApi.getEvents({
-          page: 0,
-          size: 200,
-          sort: "startAt,desc",
-        });
-        if (!mounted) return;
-        const list = Array.isArray(res?.data?.data?.content)
-          ? res.data.data.content
-          : [];
-        setEvents(
-          list.map((evt) => ({
-            id: evt?.eventId,
-            name: evt?.eventName ?? "행사",
-            description: evt?.description ?? "",
-            date: formatDateRange(evt?.startAt, evt?.endAt),
-            location: evt?.location ?? "장소 미정",
-            organizer: evt?.organizer ?? "주최 정보 없음",
-            status: toEventStatus(evt?.status, evt?.startAt, evt?.endAt),
-            participants: 0,
-            thumbnail: null,
-            color: "#1a4fd6",
-          })),
-        );
-      } catch (_e) {
-        if (!mounted) return;
-        setEvents([]);
-      } finally {
-        if (mounted) setEventsLoading(false);
-      }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [eventId]);
-
-  if (!eventId) {
-    return (
-      <div className="ex-root">
-        <style>{styles}</style>
-        <PageHeader
-          title="체험존 안내"
-          subtitle="행사를 선택해 체험 프로그램을 확인하세요"
-          categories={SERVICE_CATEGORIES}
-          currentPath={currentPath}
-          onNavigate={(path) => navigate(path)}
-        />
-        <EventSelectPage
-          events={events}
-          basePath="/program/experience"
-          sectionIcon={<Palette size={22} color="#ec4899" />}
-          sectionColor="#ec4899"
-          sectionTitle="체험 프로그램"
-          sectionDesc="행사를 선택하면 체험 부스 목록과 참가 신청을 할 수 있어요"
-        />
-        {eventsLoading ? (
-          <main className="ex-container">
-            <div className="ex-card-tag">행사 목록 불러오는 중...</div>
-          </main>
-        ) : null}
-      </div>
-    );
-  }
-
-  return <ExperienceDetail eventId={eventId} />;
-}
-
-
-

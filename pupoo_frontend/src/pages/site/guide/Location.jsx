@@ -18,7 +18,7 @@ import {
 
 const GUIDE_CATEGORIES = [
   { label: "현장 운영 안내", path: "/guide/operation" },
-  { label: "장소/오시는길", path: "/guide/location" },
+  { label: "행사 일정 안내", path: "/event/eventschedule" },
 ];
 
 const VENUE_NAME = "올림픽 공원 88잔디마당";
@@ -31,6 +31,8 @@ const VENUE_COORDS = { lat: 37.5188, lng: 127.1253 };
 const GUIDE_SUBTITLE_MAP = {
   "/guide/operation":
     "원활하고 즐거운 행사 참여를 위해 아래 안내 사항을 미리 확인해 주세요",
+  "/guide/timetable":
+    "프로그램은 현장 상황에 따라 일부 변경될 수 있습니다.",
   "/guide/location":
     "행사장 위치와 교통편 안내입니다. 대중교통 이용을 적극 권장드립니다.",
 };

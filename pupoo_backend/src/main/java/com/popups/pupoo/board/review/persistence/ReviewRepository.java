@@ -104,4 +104,16 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
           and r.deleted = false
         """)
     int increaseViewCount(@Param("reviewId") Long reviewId);
+
+    long countByEventIdAndDeletedFalseAndReviewStatus(Long eventId, ReviewStatus reviewStatus);
+
+    @Query("""
+        select avg(r.rating)
+        from Review r
+        where r.eventId = :eventId
+          and r.deleted = false
+          and r.reviewStatus = :reviewStatus
+        """)
+    Double findAverageRatingByEventIdAndReviewStatus(@Param("eventId") Long eventId,
+                                                     @Param("reviewStatus") ReviewStatus reviewStatus);
 }

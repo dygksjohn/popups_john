@@ -1,5 +1,6 @@
 package com.popups.pupoo.common.dashboard.dto;
 
+import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.program.domain.enums.ProgramCategory;
 import com.popups.pupoo.program.domain.model.Program;
 import lombok.Builder;
@@ -41,7 +42,7 @@ public class DashboardProgramResponse {
                 .status(frontStatus)
                 .enrolled(enrolledCount)
                 .description(p.getDescription() != null ? p.getDescription() : "")
-                .imageUrl(p.getImageUrl())
+                .imageUrl(PublicUrlNormalizer.normalize(p.getImageUrl()))
                 .build();
     }
 

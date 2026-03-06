@@ -23,7 +23,10 @@ import { getToken } from "../../../api/noticeApi";
 import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 
 const styles = `
-.card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;filter:none!important;opacity:1!important;-webkit-tap-highlight-color:transparent;}
+.card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent;}
+.ev-card-ended { opacity:0.42 !important; filter:grayscale(0.6) !important; pointer-events:none !important; }
+.ev-card-ended img { filter:blur(2px) !important; }
+.ev-card-ended .card-manage-btn { background:rgba(255,255,255,0.12) !important; color:rgba(255,255,255,0.35) !important; cursor:not-allowed !important; }
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -386,7 +389,10 @@ function SessionFormModal({ item, onSave, onClose, isEdit, eventName }) {
           }}
         >
           <div
-            style={{ padding: "22px 28px", borderBottom: `1px solid ${ds.line}` }}
+            style={{
+              padding: "22px 28px",
+              borderBottom: `1px solid ${ds.line}`,
+            }}
           >
             <div
               style={{
@@ -406,9 +412,7 @@ function SessionFormModal({ item, onSave, onClose, isEdit, eventName }) {
                 >
                   {isEdit ? "세션 수정" : "새 세션/강연 등록"}
                 </h3>
-                <p
-                  style={{ fontSize: 12, color: ds.ink4, margin: "4px 0 0" }}
-                >
+                <p style={{ fontSize: 12, color: ds.ink4, margin: "4px 0 0" }}>
                   <span style={{ color: ds.brand, fontWeight: 700 }}>
                     {eventName}
                   </span>{" "}
@@ -719,17 +723,24 @@ export default function SessionManage({ subTab = "all" }) {
       await loadImageCache();
       const res = await axiosInstance.get("/api/admin/dashboard/events", {
         headers: authHeaders(),
+        params: { sort: "eventId,desc", size: 500 },
       });
       const list = res.data?.data || res.data || [];
-      setEvents(
-        injectEventImages(list).map((e) => ({
-          ...e,
-          status: calcStatus(
-            e.startAt || e.date?.split("~")[0]?.trim(),
-            e.endAt || e.date?.split("~")[1]?.trim(),
-          ),
-        })),
+      const mapped = injectEventImages(list).map((e) => ({
+        ...e,
+        status: calcStatus(
+          e.startAt || e.date?.split("~")[0]?.trim()?.replace(/\./g, "-"),
+          e.endAt || e.date?.split("~")[1]?.trim()?.replace(/\./g, "-"),
+        ),
+      }));
+      const parseId = (v) => {
+        const n = Number(v);
+        return !isNaN(n) ? n : Number(String(v ?? "").replace(/\D/g, "")) || 0;
+      };
+      mapped.sort(
+        (a, b) => parseId(b.eventId ?? b.id) - parseId(a.eventId ?? a.id),
       );
+      setEvents(mapped);
     } catch {
       setEvents([]);
     } finally {
@@ -743,14 +754,19 @@ export default function SessionManage({ subTab = "all" }) {
         `/api/admin/dashboard/events/${eventId}/programs?category=SESSION`,
         { headers: authHeaders() },
       );
-      setItems(
-        (res.data?.data || res.data || []).map((p) => ({
-          ...p,
-          status: calcStatus(p.startAt, p.endAt),
-          imageUrl:
-            imageMapRef.current[p.programId || p.id] || p.imageUrl || null,
-        })),
+      const raw = (res.data?.data || res.data || []).map((p) => ({
+        ...p,
+        status: calcStatus(p.startAt, p.endAt),
+        imageUrl:
+          imageMapRef.current[p.programId || p.id] || p.imageUrl || null,
+      }));
+      /* 최신 등록순 */
+      raw.sort(
+        (a, b) =>
+          (Number(b.programId || b.id) || 0) -
+          (Number(a.programId || a.id) || 0),
       );
+      setItems(raw);
     } catch {
       setItems([]);
     } finally {
@@ -865,15 +881,20 @@ export default function SessionManage({ subTab = "all" }) {
     } catch {
       showToast("일괄 삭제 실패", "error");
     }
-  }
+  };
 
   const handleDeleteAll = async () => {
-    const eventId = selectedEvent.eventId || selectedEvent.id?.replace("EV-", "");
+    const eventId =
+      selectedEvent.eventId || selectedEvent.id?.replace("EV-", "");
     setModal(null);
     try {
-      const sessionIds = rows.map((r) => r.sessionId || Number(String(r.id).replace("SS-", "")));
+      const sessionIds = rows.map(
+        (r) => r.sessionId || Number(String(r.id).replace("SS-", "")),
+      );
       for (const sid of sessionIds) {
-        await axiosInstance.delete(`/api/admin/dashboard/sessions/${sid}`, { headers: authHeaders() });
+        await axiosInstance.delete(`/api/admin/dashboard/sessions/${sid}`, {
+          headers: authHeaders(),
+        });
       }
       await loadSessions(eventId);
       setSelected(new Set());
@@ -881,7 +902,7 @@ export default function SessionManage({ subTab = "all" }) {
     } catch (err) {
       showToast("전체 삭제 실패", "error");
     }
-  };;
+  };
 
   const filterFn =
     {
@@ -968,102 +989,291 @@ export default function SessionManage({ subTab = "all" }) {
                 먼저 행사 관리에서 행사를 등록해주세요
               </div>
             </div>
-          ) : (() => {
-            const filteredEvents = events.filter(
-              subTab === "all" ? () => true :
-              subTab === "active" ? (e) => e.status === "active" :
-              subTab === "ended" ? (e) => e.status === "ended" :
-              (e) => e.status === "pending"
-            );
-            return (<>
-            {filteredEvents.length === 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 0" }}>
-                <CalendarDays size={36} color={ds.ink4} strokeWidth={1.5} />
-                <div style={{ fontSize: 14, fontWeight: 600, color: ds.ink4, marginTop: 10 }}>해당 상태의 행사가 없습니다</div>
-              </div>
-            ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                gap: 14,
-              }}
-            >
-              {filteredEvents.map((ev) => {
-                const st = statusMap[ev.status] || statusMap.pending;
-                const hasImg = !!ev.imageUrl;
-                return (
-                  <div
-                    key={ev.eventId || ev.id}
-                    onClick={() => selectEvent(ev)}
-                    style={{
-                      borderRadius: 18,
-                      overflow: "hidden",
-                      cursor: "pointer",
-                      position: "relative",
-                      height: 320,
-                      display: "flex",
-                      flexDirection: "column",
-                      background: hasImg ? "#000" : ds.brand,
-                      boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
-                      transition: "transform 0.22s ease, box-shadow 0.22s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-4px)";
-                      e.currentTarget.style.boxShadow = "0 12px 36px rgba(0,0,0,0.16)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 4px 24px rgba(0,0,0,0.08)";
-                    }}
-                  >
-                    {hasImg ? (
-                      <div style={{ position: "absolute", inset: 0 }}>
-                        <img src={ev.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.6) 100%)" }} />
-                      </div>
-                    ) : (
-                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.12 }}>
-                        <Mic size={90} color="#fff" strokeWidth={1} />
-                      </div>
-                    )}
-                    <div style={{ position: "relative", zIndex: 1, padding: "22px 20px 0", flex: 1 }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: -0.3, textShadow: "0 1px 8px rgba(0,0,0,0.3)", marginBottom: 6, fontFamily: ds.ff }}>
-                        {ev.name || ev.eventName}
-                      </div>
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: st.bg, borderRadius: 20, padding: "3px 10px" }}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: st.c }} />
-                        <span style={{ fontSize: 11, fontWeight: 700, color: st.c }}>{st.l}</span>
-                      </div>
-                    </div>
-                    <div style={{ position: "relative", zIndex: 1, padding: "0 20px 18px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                        {hasImg && (
-                          <div style={{ width: 30, height: 30, borderRadius: 8, overflow: "hidden", border: "2px solid rgba(255,255,255,0.4)", flexShrink: 0 }}>
-                            <img src={ev.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          </div>
-                        )}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {ev.date && <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", gap: 4 }}><CalendarDays size={11} /> {ev.date}</div>}
-                          {ev.location && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", gap: 4, marginTop: 1 }}><MapPin size={10} /> {ev.location}</div>}
-                        </div>
-                      </div>
-                      <button
-                        style={{ width: "100%", padding: "9px 0", borderRadius: 10, border: "none", background: ds.brand, color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: ds.ff, transition: "all .15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, outline: "none", WebkitTapHighlightColor: "transparent" }}
-                        className="card-manage-btn" onMouseEnter={(e) => { e.currentTarget.style.background = ds.brandDark; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = ds.brand; }}
-                        onClick={(e) => { e.stopPropagation(); selectEvent(ev); }}
+          ) : (
+            (() => {
+              const filteredEvents = events.filter(
+                subTab === "all"
+                  ? () => true
+                  : subTab === "active"
+                    ? (e) => e.status === "active"
+                    : subTab === "ended"
+                      ? (e) => e.status === "ended"
+                      : (e) => e.status === "pending",
+              );
+              return (
+                <>
+                  {filteredEvents.length === 0 ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        padding: "60px 0",
+                      }}
+                    >
+                      <CalendarDays
+                        size={36}
+                        color={ds.ink4}
+                        strokeWidth={1.5}
+                      />
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: ds.ink4,
+                          marginTop: 10,
+                        }}
                       >
-                        <Mic size={13} /> 세션/강연 관리하기
-                      </button>
+                        해당 상태의 행사가 없습니다
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-            )}
-            </>);
-          })()}
+                  ) : (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fill, minmax(280px, 1fr))",
+                        gap: 14,
+                      }}
+                    >
+                      {filteredEvents.map((ev) => {
+                        const st = statusMap[ev.status] || statusMap.pending;
+                        const hasImg = !!ev.imageUrl;
+                        const isEnded = ev.status === "ended";
+                        return (
+                          <div
+                            key={ev.eventId || ev.id}
+                            onClick={() => !isEnded && selectEvent(ev)}
+                            className={isEnded ? "ev-card-ended" : ""}
+                            style={{
+                              borderRadius: 18,
+                              overflow: "hidden",
+                              cursor: isEnded ? "default" : "pointer",
+                              position: "relative",
+                              height: 320,
+                              display: "flex",
+                              flexDirection: "column",
+                              background: hasImg ? "#000" : ds.brand,
+                              boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+                              transition:
+                                "transform 0.22s ease, box-shadow 0.22s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (isEnded) return;
+                              e.currentTarget.style.transform =
+                                "translateY(-4px)";
+                              e.currentTarget.style.boxShadow =
+                                "0 12px 36px rgba(0,0,0,0.16)";
+                            }}
+                            onMouseLeave={(e) => {
+                              if (isEnded) return;
+                              e.currentTarget.style.transform = "translateY(0)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 24px rgba(0,0,0,0.08)";
+                            }}
+                          >
+                            {hasImg ? (
+                              <div style={{ position: "absolute", inset: 0 }}>
+                                <img
+                                  src={ev.imageUrl}
+                                  alt=""
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    inset: 0,
+                                    background: isEnded
+                                      ? "rgba(0,0,0,0.55)"
+                                      : "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.6) 100%)",
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  opacity: 0.12,
+                                }}
+                              >
+                                <Mic size={90} color="#fff" strokeWidth={1} />
+                              </div>
+                            )}
+                            <div
+                              style={{
+                                position: "relative",
+                                zIndex: 1,
+                                padding: "22px 20px 0",
+                                flex: 1,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: 18,
+                                  fontWeight: 800,
+                                  color: "#fff",
+                                  letterSpacing: -0.3,
+                                  textShadow: "0 1px 8px rgba(0,0,0,0.3)",
+                                  marginBottom: 6,
+                                  fontFamily: ds.ff,
+                                }}
+                              >
+                                {ev.name || ev.eventName}
+                              </div>
+                              <div
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 5,
+                                  background: st.bg,
+                                  borderRadius: 20,
+                                  padding: "3px 10px",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: "50%",
+                                    background: st.c,
+                                  }}
+                                />
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: st.c,
+                                  }}
+                                >
+                                  {st.l}
+                                </span>
+                              </div>
+                            </div>
+                            <div
+                              style={{
+                                position: "relative",
+                                zIndex: 1,
+                                padding: "0 20px 18px",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  marginBottom: 12,
+                                }}
+                              >
+                                {hasImg && (
+                                  <div
+                                    style={{
+                                      width: 30,
+                                      height: 30,
+                                      borderRadius: 8,
+                                      overflow: "hidden",
+                                      border: "2px solid rgba(255,255,255,0.4)",
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    <img
+                                      src={ev.imageUrl}
+                                      alt=""
+                                      style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "cover",
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  {ev.date && (
+                                    <div
+                                      style={{
+                                        fontSize: 11.5,
+                                        fontWeight: 600,
+                                        color: "rgba(255,255,255,0.9)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                      }}
+                                    >
+                                      <CalendarDays size={11} /> {ev.date}
+                                    </div>
+                                  )}
+                                  {ev.location && (
+                                    <div
+                                      style={{
+                                        fontSize: 10.5,
+                                        color: "rgba(255,255,255,0.65)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                        marginTop: 1,
+                                      }}
+                                    >
+                                      <MapPin size={10} /> {ev.location}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                disabled={isEnded}
+                                style={{
+                                  width: "100%",
+                                  padding: "9px 0",
+                                  borderRadius: 10,
+                                  border: "none",
+                                  background: ds.brand,
+                                  color: "#fff",
+                                  fontSize: 12.5,
+                                  fontWeight: 700,
+                                  cursor: isEnded ? "not-allowed" : "pointer",
+                                  fontFamily: ds.ff,
+                                  transition: "all .15s",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: 6,
+                                  outline: "none",
+                                  WebkitTapHighlightColor: "transparent",
+                                }}
+                                className="card-manage-btn"
+                                onMouseEnter={(e) => {
+                                  if (!isEnded)
+                                    e.currentTarget.style.background =
+                                      ds.brandDark;
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isEnded)
+                                    e.currentTarget.style.background = ds.brand;
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!isEnded) selectEvent(ev);
+                                }}
+                              >
+                                <Mic size={13} />{" "}
+                                {isEnded ? "기간 만료" : "세션/강연 관리하기"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()
+          )}
         </>
       )}
 
@@ -1360,6 +1570,7 @@ export default function SessionManage({ subTab = "all" }) {
                   rows.map((r) => {
                     const st = statusMap[r.status] || statusMap.pending;
                     const isChecked = selected.has(r.id);
+                    const isEnded = r.status === "ended";
                     return (
                       <tr
                         key={r.id}
@@ -1368,6 +1579,8 @@ export default function SessionManage({ subTab = "all" }) {
                         style={{
                           borderBottom: `1px solid ${ds.lineSoft}`,
                           cursor: "pointer",
+                          opacity: isEnded ? 0.42 : 1,
+                          filter: isEnded ? "grayscale(0.65)" : "none",
                           background: isChecked
                             ? `${ds.brand}06`
                             : "transparent",
@@ -1408,6 +1621,9 @@ export default function SessionManage({ subTab = "all" }) {
                                   objectFit: "cover",
                                   flexShrink: 0,
                                   border: `1px solid ${ds.line}`,
+                                  filter: isEnded
+                                    ? "blur(1.5px) grayscale(0.6)"
+                                    : "none",
                                 }}
                               />
                             )}

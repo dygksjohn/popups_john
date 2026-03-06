@@ -14,15 +14,13 @@ import {
   AlertTriangle,
   Loader2,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { eventApi } from "../../../app/http/eventApi";
 import { galleryApi } from "../../../app/http/galleryApi";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../auth/AuthProvider";
 import { userApi } from "../../../app/http/userApi";
-import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
-import sortIcon from "../../../assets/sort-icon.svg";
 
 /* ─────────────────────────────────────────────
    STYLES
@@ -48,18 +46,19 @@ const styles = `
 
   /* ── MASONRY ── */
   .eg-masonry {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 18px;
+    columns: 4;
+    column-gap: 18px;
   }
-  @media (max-width: 1100px) { .eg-masonry { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 1100px) { .eg-masonry { columns: 3; } }
   @media (max-width: 720px) {
-    .eg-masonry { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .eg-masonry { columns: 2; }
     .eg-container { padding: 32px 16px 48px; }
   }
 
   /* ── CARD ── */
   .eg-card {
+    break-inside: avoid;
+    margin-bottom: 18px;
     display: flex;
     flex-direction: column;
     background: #fff;
@@ -617,18 +616,6 @@ const styles = `
 const SERVICE_CATEGORIES = [
   { label: "참가자 갤러리", path: "/gallery/eventgallery" },
 ];
-
-const GALLERY_SORT_OPTIONS = [
-  { key: "recent", label: "최신순" },
-  { key: "views", label: "조회순" },
-  { key: "likes", label: "좋아요순" },
-  { key: "comments", label: "댓글순" },
-];
-
-function toTimestamp(value) {
-  const ts = Date.parse(String(value || ""));
-  return Number.isFinite(ts) ? ts : 0;
-}
 
 /* ─────────────────────────────────────────────
    WRITE MODAL (등록하기)
@@ -1261,10 +1248,8 @@ export default function EventGallery() {
   const [galleriesLoading, setGalleriesLoading] = useState(true);
   const [galleriesError, setGalleriesError] = useState(null);
   const [page, setPage] = useState(0);
-  const [sortKey, setSortKey] = useState("recent");
-  const [sortMenuOpen, setSortMenuOpen] = useState(false);
-  const [eventMenuOpen, setEventMenuOpen] = useState(false);
-  const pageSize = 8;
+  const [totalPages, setTotalPages] = useState(0);
+  const size = 4;
 
   const [liked, setLiked] = useState({});
   const [viewer, setViewer] = useState(null);
@@ -1274,7 +1259,12 @@ export default function EventGallery() {
   const { isAuthed } = useAuth();
 
   // 상대 경로 이미지 → API 서버 base URL 붙여서 표시 (미리보기·카드·상세 공통, 기본값 8080)
-  const getImageSrc = (url) => toPublicAssetUrl(url);
+  const getImageSrc = (url) => {
+    if (!url) return "";
+    if (url.startsWith("http")) return url;
+    const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/+$/, "");
+    return base + (url.startsWith("/") ? url : "/" + url);
+  };
 
   // 글쓰기 모달
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -1289,36 +1279,26 @@ export default function EventGallery() {
   const [editForm, setEditForm] = useState({ title: "", description: "" });
   const [editLoading, setEditLoading] = useState(false);
 
-  const refetchGalleries = useCallback(async () => {
+  const refetchGalleries = useCallback(() => {
     setGalleriesLoading(true);
     setGalleriesError(null);
-    try {
-      const rows = [];
-      let pageIndex = 0;
-      let totalPagesFromApi = 1;
-
-      while (pageIndex < totalPagesFromApi && pageIndex < 100) {
-        const res = selectedEventId == null
-          ? await galleryApi.getList({ page: pageIndex, size: 100 })
-          : await galleryApi.getListByEvent(selectedEventId, { page: pageIndex, size: 100 });
+    const promise = selectedEventId == null
+      ? galleryApi.getList({ page, size })
+      : galleryApi.getListByEvent(selectedEventId, { page, size });
+    promise
+      .then((res) => {
         const data = res.data?.data ?? res.data;
         const list = data?.content ?? (Array.isArray(data) ? data : []);
-        if (Array.isArray(list)) {
-          rows.push(...list);
-        }
-        const nextTotal = Number(data?.totalPages);
-        totalPagesFromApi = Number.isFinite(nextTotal) && nextTotal > 0 ? nextTotal : pageIndex + 1;
-        pageIndex += 1;
-      }
-
-      setGalleries(rows);
-    } catch (e) {
-      setGalleries([]);
-      setGalleriesError(e?.response?.data?.message ?? e?.message ?? "갤러리를 불러오지 못했습니다.");
-    } finally {
-      setGalleriesLoading(false);
-    }
-  }, [selectedEventId]);
+        setGalleries(Array.isArray(list) ? list : []);
+        const total = data?.totalPages ?? 0;
+        setTotalPages(typeof total === "number" ? total : 0);
+      })
+      .catch((e) => {
+        setGalleries([]);
+        setGalleriesError(e?.response?.data?.message ?? e?.message ?? "갤러리를 불러오지 못했습니다.");
+      })
+      .finally(() => setGalleriesLoading(false));
+  }, [selectedEventId, page, size]);
 
   const handleCreateSubmit = async () => {
     const eventId = createForm.eventId === "" ? null : Number(createForm.eventId);
@@ -1508,26 +1488,39 @@ export default function EventGallery() {
     return () => { cancelled = true; };
   }, []);
 
-  // 갤러리 목록 로드 (전체 vs 행사별)
-  useEffect(() => {
-    refetchGalleries().catch(() => {});
-  }, [refetchGalleries]);
+    // 갤러리 목록 로드 (전체 vs 행사별)
+    useEffect(() => {
+      let cancelled = false;
+      setGalleriesLoading(true);
+      setGalleriesError(null);
+      const promise = selectedEventId == null
+        ? galleryApi.getList({ page, size })
+        : galleryApi.getListByEvent(selectedEventId, { page, size });
+  
+      promise
+        .then((res) => {
+          if (cancelled) return;
+          const data = res.data?.data ?? res.data;
+          const list = data?.content ?? (Array.isArray(data) ? data : []);
+          setGalleries(Array.isArray(list) ? list : []);
+          const total = data?.totalPages ?? 0;
+          setTotalPages(typeof total === "number" ? total : 0);
+        })
+        .catch((e) => {
+          if (!cancelled) {
+            setGalleries([]);
+            const msg = e?.response?.data?.message ?? e?.message ?? "갤러리를 불러오지 못했습니다.";
+            setGalleriesError(msg);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setGalleriesLoading(false);
+        });
+      return () => { cancelled = true; };
+    }, [selectedEventId, page]);
 
-  // 필터/정렬 변경 시 첫 페이지로 이동
-  useEffect(() => {
-    setPage(0);
-  }, [selectedEventId, sortKey]);
-
-  useEffect(() => {
-    setSortMenuOpen(false);
-  }, [sortKey]);
-
-  useEffect(() => {
-    setEventMenuOpen(false);
-  }, [selectedEventId]);
-
-  const handleEventSelect = (eventIdValue) => {
-    const v = eventIdValue == null ? "" : String(eventIdValue);
+  const handleEventChange = (e) => {
+    const v = e.target.value;
     if (v === "" || v === "all") {
       setSearchParams({});
       setPage(0);
@@ -1535,7 +1528,6 @@ export default function EventGallery() {
       setSearchParams({ eventId: v });
       setPage(0);
     }
-    setEventMenuOpen(false);
   };
 
   const toggleLike = async (galleryId) => {
@@ -1585,44 +1577,8 @@ export default function EventGallery() {
   };
   const handleEnlarge = (card, idx) => setViewer({ card, startIndex: idx });
 
-  const sortedGalleries = useMemo(() => {
-    const rows = [...galleries];
-    rows.sort((a, b) => {
-      if (sortKey === "views") {
-        const diff = (Number(b?.viewCount) || 0) - (Number(a?.viewCount) || 0);
-        if (diff !== 0) return diff;
-      } else if (sortKey === "likes") {
-        const diff = (Number(b?.likeCount) || 0) - (Number(a?.likeCount) || 0);
-        if (diff !== 0) return diff;
-      } else if (sortKey === "comments") {
-        // 현재 백엔드에서 갤러리 댓글 집계가 없어서 확장 가능한 키만 우선 대응.
-        const commentsA = Number(a?.commentCount ?? a?.replyCount ?? a?.comments ?? 0) || 0;
-        const commentsB = Number(b?.commentCount ?? b?.replyCount ?? b?.comments ?? 0) || 0;
-        const diff = commentsB - commentsA;
-        if (diff !== 0) return diff;
-      }
-      const recentDiff = toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
-      if (recentDiff !== 0) return recentDiff;
-      return (Number(b?.galleryId) || 0) - (Number(a?.galleryId) || 0);
-    });
-    return rows;
-  }, [galleries, sortKey]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedGalleries.length / pageSize));
-
-  useEffect(() => {
-    if (page >= totalPages) {
-      setPage(Math.max(0, totalPages - 1));
-    }
-  }, [page, totalPages]);
-
-  const pagedGalleries = useMemo(
-    () => sortedGalleries.slice(page * pageSize, (page + 1) * pageSize),
-    [sortedGalleries, page, pageSize],
-  );
-
   // API 응답 → 카드 형식 매핑 (기존 GALLERY_CARDS 구조에 맞춤, 상대 경로는 getImageSrc로 표시용 URL로 변환)
-  const cards = pagedGalleries.map((g) => ({
+  const cards = galleries.map((g) => ({
     id: g.galleryId,
     title: g.title ?? "",
     userId: g.userId,
@@ -1640,15 +1596,6 @@ export default function EventGallery() {
     views: g.viewCount ?? 0,
   }));
 
-  const currentSortLabel =
-    GALLERY_SORT_OPTIONS.find((option) => option.key === sortKey)?.label || GALLERY_SORT_OPTIONS[0].label;
-
-  const selectedEventLabel = useMemo(() => {
-    if (selectedEventId == null) return "전체 보기";
-    const found = events.find((ev) => Number(ev?.eventId) === Number(selectedEventId));
-    return found?.eventName ?? found?.eventTitle ?? found?.title ?? `행사 ${selectedEventId}`;
-  }, [events, selectedEventId]);
-
   return (
     <div className="eg-root">
       <style>{styles}</style>
@@ -1662,221 +1609,61 @@ export default function EventGallery() {
       />
 
       <main className="eg-container">
-        {/* 행사 선택/정렬 */}
-        <section
-          style={{
-            marginBottom: "24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingBottom: "14px",
-            borderBottom: "1px solid #e5e7eb",
-            gap: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>
-            {`\uCD1D ${sortedGalleries.length}\uAC1C`}
-          </span>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginLeft: "auto" }}>
-            <div style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setEventMenuOpen((prev) => !prev);
-                  setSortMenuOpen(false);
-                }}
-                disabled={eventsLoading}
-                style={{
-                  border: "1px solid #d1d5db",
-                  borderRadius: 8,
-                  background: "#fff",
-                  minHeight: 38,
-                  height: 38,
-                  padding: "0 12px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#334155",
-                  cursor: eventsLoading ? "not-allowed" : "pointer",
-                  opacity: eventsLoading ? 0.65 : 1,
-                }}
-              >
-                <ChevronDown size={14} />
-                {selectedEventLabel}
-              </button>
-              {eventMenuOpen ? (
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 42,
-                    minWidth: 260,
-                    maxWidth: "min(80vw, 420px)",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 8,
-                    background: "#fff",
-                    boxShadow: "0 8px 20px rgba(15,23,42,0.12)",
-                    zIndex: 22,
-                    overflow: "hidden",
-                    maxHeight: 280,
-                    overflowY: "auto",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleEventSelect("")}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      border: "none",
-                      borderBottom: "1px solid #f1f5f9",
-                      background: selectedEventId == null ? "#eff6ff" : "#fff",
-                      color: selectedEventId == null ? "#1D4ED8" : "#334155",
-                      padding: "9px 11px",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {"\uC804\uCCB4 \uBCF4\uAE30"}
-                  </button>
-                  {events.map((ev) => {
-                    const id = Number(ev?.eventId);
-                    const label = ev?.eventName ?? ev?.eventTitle ?? ev?.title ?? `\uD589\uC0AC ${id}`;
-                    const active = selectedEventId != null && Number(selectedEventId) === id;
-                    return (
-                      <button
-                        key={ev.eventId}
-                        type="button"
-                        onClick={() => handleEventSelect(ev.eventId)}
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          textAlign: "left",
-                          border: "none",
-                          borderBottom: "1px solid #f1f5f9",
-                          background: active ? "#eff6ff" : "#fff",
-                          color: active ? "#1D4ED8" : "#334155",
-                          padding: "9px 11px",
-                          fontSize: 13,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </div>
-
-            <div style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setSortMenuOpen((prev) => !prev);
-                  setEventMenuOpen(false);
-                }}
-                style={{
-                  border: "1px solid #d1d5db",
-                  borderRadius: 8,
-                  background: "#fff",
-                  height: 38,
-                  padding: "0 12px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#334155",
-                  cursor: "pointer",
-                }}
-              >
-                <img src={sortIcon} alt={"\uC815\uB82C \uC544\uC774\uCF58"} width={14} height={14} />
-                {currentSortLabel}
-              </button>
-              {sortMenuOpen ? (
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 42,
-                    minWidth: 120,
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 8,
-                    background: "#fff",
-                    boxShadow: "0 8px 20px rgba(15,23,42,0.12)",
-                    zIndex: 21,
-                    overflow: "hidden",
-                  }}
-                >
-                  {GALLERY_SORT_OPTIONS.map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => {
-                        setSortKey(option.key);
-                        setSortMenuOpen(false);
-                      }}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "left",
-                        border: "none",
-                        borderBottom: "1px solid #f1f5f9",
-                        background: option.key === sortKey ? "#eff6ff" : "#fff",
-                        color: option.key === sortKey ? "#1D4ED8" : "#334155",
-                        padding: "9px 11px",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            {isAuthed && (
-              <button
-                type="button"
-                onClick={() => {
-                  setCreateForm({
-                    eventId: selectedEventId ?? events[0]?.eventId ?? "",
-                    title: "",
-                    description: "",
-                    imageUrls: [],
-                  });
-                  setCreateError(null);
-                  setShowCreateModal(true);
-                }}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "8px 16px",
-                  borderRadius: 6,
-                  border: "none",
-                  background: "#4a7cf7",
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                <Plus size={14} strokeWidth={2.5} /> {"\uAE00\uC4F0\uAE30"}
-              </button>
-            )}
-          </div>
+        {/* 행사 선택 */}
+        <section style={{ marginBottom: "24px" }}>
+          <label htmlFor="eg-event-select" style={{ marginRight: "8px", fontSize: 14, color: "#374151" }}>
+            행사 선택
+          </label>
+          <select
+            id="eg-event-select"
+            value={selectedEventId ?? ""}
+            onChange={handleEventChange}
+            disabled={eventsLoading}
+            style={{
+              padding: "8px 12px",
+              fontSize: 14,
+              border: "1px solid #d1d5db",
+              borderRadius: 8,
+              minWidth: 200,
+            }}
+          >
+            <option value="">전체 보기</option>
+            {events.map((ev) => (
+              <option key={ev.eventId} value={ev.eventId}>
+                {ev.eventTitle ?? ev.title ?? `행사 ${ev.eventId}`}
+              </option>
+            ))}
+          </select>
+          {isAuthed && (
+            <button
+              type="button"
+              onClick={() => {
+                setCreateForm({
+                  eventId: selectedEventId ?? events[0]?.eventId ?? "",
+                  title: "",
+                  description: "",
+                  imageUrls: [],
+                });
+                setCreateError(null);
+                setShowCreateModal(true);
+              }}
+              style={{
+                marginLeft: 12,
+                padding: "8px 16px",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#fff",
+                background: "#1a4fd6",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+              }}
+            >
+              글쓰기
+            </button>
+          )}
         </section>
+
         <section style={{ marginBottom: "48px" }}>
           {galleriesLoading ? (
             <p style={{ color: "#6b7280", fontSize: 14 }}>갤러리를 불러오는 중...</p>
@@ -1891,7 +1678,24 @@ export default function EventGallery() {
               <button
                 type="button"
                 onClick={() => {
-                  refetchGalleries().catch(() => {});
+                  setGalleriesError(null);
+                  setGalleriesLoading(true);
+                  const promise = selectedEventId == null
+                    ? galleryApi.getList({ page, size })
+                    : galleryApi.getListByEvent(selectedEventId, { page, size });
+                  promise
+                    .then((res) => {
+                      const data = res.data?.data ?? res.data;
+                      const list = data?.content ?? (Array.isArray(data) ? data : []);
+                      setGalleries(Array.isArray(list) ? list : []);
+                      const total = data?.totalPages ?? 0;
+                      setTotalPages(typeof total === "number" ? total : 0);
+                    })
+                    .catch((e) => {
+                      setGalleries([]);
+                      setGalleriesError(e?.response?.data?.message ?? e?.message ?? "갤러리를 불러오지 못했습니다.");
+                    })
+                    .finally(() => setGalleriesLoading(false));
                 }}
                 style={{
                   padding: "8px 16px",
@@ -1988,7 +1792,7 @@ export default function EventGallery() {
           <option value="">선택</option>
           {events.map((ev) => (
             <option key={ev.eventId} value={ev.eventId}>
-              {ev.eventName ?? ev.eventTitle ?? ev.title ?? `행사 ${ev.eventId}`}
+              {ev.eventTitle ?? ev.title ?? `행사 ${ev.eventId}`}
             </option>
           ))}
         </select>

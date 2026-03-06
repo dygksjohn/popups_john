@@ -217,10 +217,9 @@ const inputStyle = {
   fontFamily: ds.ff,
   color: ds.ink,
   outline: "none",
-                  background: ds.bg,
+  background: ds.bg,
   boxSizing: "border-box",
   transition: "border-color .15s, box-shadow .15s",
-  background: ds.bg,
 };
 const inputFocus = (e) => {
   e.target.style.borderColor = ds.brand;
@@ -345,7 +344,8 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
         title: item.title ?? "",
         content: item.content ?? "",
         recipientScope: scope,
-        target: scopeOpt?.label ?? item.target ?? RECIPIENT_SCOPE_OPTIONS[0].label,
+        target:
+          scopeOpt?.label ?? item.target ?? RECIPIENT_SCOPE_OPTIONS[0].label,
         targetCount: item.targetCount ?? 0,
         status: item.status ?? "draft",
       };
@@ -371,8 +371,12 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
       setErr("대상 행사를 선택해 주세요.");
       return;
     }
-    const scopeOpt = RECIPIENT_SCOPE_OPTIONS.find((o) => o.value === form.recipientScope);
-    const eventName = events.find((e) => String(e.eventId) === String(form.eventId))?.eventName ?? "";
+    const scopeOpt = RECIPIENT_SCOPE_OPTIONS.find(
+      (o) => o.value === form.recipientScope,
+    );
+    const eventName =
+      events.find((e) => String(e.eventId) === String(form.eventId))
+        ?.eventName ?? "";
     onSave({
       ...form,
       eventId: form.eventId ? Number(form.eventId) : form.eventId,
@@ -519,7 +523,9 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
                 value={form.recipientScope}
                 onChange={(e) => {
                   const v = e.target.value;
-                  const opt = RECIPIENT_SCOPE_OPTIONS.find((o) => o.value === v);
+                  const opt = RECIPIENT_SCOPE_OPTIONS.find(
+                    (o) => o.value === v,
+                  );
                   set("recipientScope", v);
                   if (opt) set("target", opt.label);
                 }}
@@ -644,7 +650,9 @@ export default function AlertManage() {
       .catch(() => {
         if (!cancelled) setEvents([]);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const visible = items.filter((e) => e._visible);
@@ -692,7 +700,10 @@ export default function AlertManage() {
   const handleSend = (item) => {
     if (!item.eventId) {
       setModal(null);
-      show("대상 행사를 선택해 주세요. 알림을 수정한 뒤 다시 발송해 주세요.", "error");
+      show(
+        "대상 행사를 선택해 주세요. 알림을 수정한 뒤 다시 발송해 주세요.",
+        "error",
+      );
       return;
     }
     const payload = {
@@ -771,7 +782,10 @@ export default function AlertManage() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Checkbox checked={selected.length === rows.length && rows.length > 0} onChange={toggleAll} />
+            <Checkbox
+              checked={selected.length === rows.length && rows.length > 0}
+              onChange={toggleAll}
+            />
             <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
               알림 발송 내역
             </span>
@@ -868,48 +882,184 @@ export default function AlertManage() {
                 cursor: "pointer",
                 transition: "background .1s",
                 position: "relative",
-                background: selected.includes(r.id) ? `${ds.brand}06` : "transparent",
+                background: selected.includes(r.id)
+                  ? `${ds.brand}06`
+                  : "transparent",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = selected.includes(r.id) ? `${ds.brand}0A` : ds.bg)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = selected.includes(r.id) ? `${ds.brand}06` : "transparent")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = selected.includes(r.id)
+                  ? `${ds.brand}0A`
+                  : ds.bg)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = selected.includes(r.id)
+                  ? `${ds.brand}06`
+                  : "transparent")
+              }
             >
               <div style={{ marginRight: 12, flexShrink: 0 }}>
-                <Checkbox checked={selected.includes(r.id)} onChange={() => toggle(r.id)} />
+                <Checkbox
+                  checked={selected.includes(r.id)}
+                  onChange={() => toggle(r.id)}
+                />
               </div>
               <div style={{ width: 56, flexShrink: 0, marginRight: 10 }}>
-                <StatusDot status={r.status} label={r.status === "sent" ? "발송" : "임시"} />
+                <StatusDot
+                  status={r.status}
+                  label={r.status === "sent" ? "발송" : "임시"}
+                />
               </div>
-              <span style={{ flex: 1, fontSize: 13.5, color: ds.ink, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+              <span
+                style={{
+                  flex: 1,
+                  fontSize: 13.5,
+                  color: ds.ink,
+                  fontWeight: 600,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
+                }}
+              >
                 {r.title}
               </span>
-              <span style={{ width: 36, flexShrink: 0, fontSize: 11, color: ds.ink4, textAlign: "right" }}>
-                {r.eventName || "전체"}
-              </span>
-              <span style={{ width: 64, flexShrink: 0, textAlign: "right", display: "inline-flex", justifyContent: "flex-end" }}>
-                <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, background: ds.brandSoft, color: ds.brand, minWidth: 36, textAlign: "center", display: "inline-block" }}>{r.targetCount}명</span>
-              </span>
-              <span style={{ width: 80, flexShrink: 0, fontSize: 12, color: ds.ink4, textAlign: "right" }}>
-                {r.sentDate || "—"}
-              </span>
-              <div className="board-actions" style={{ opacity: 0, transition: "opacity .12s", display: "flex", gap: 3, marginLeft: 10, flexShrink: 0 }}>
-                {r.status === "draft" && (
-                  <button onClick={(e) => { e.stopPropagation(); setModal({ type: "send", item: r }); }}
-                    style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${ds.green}25`, background: ds.greenSoft, fontSize: 11, fontWeight: 600, color: ds.green, cursor: "pointer", fontFamily: ds.ff, lineHeight: 1.2, display: "flex", alignItems: "center", gap: 4 }}>
-                    <Send size={10} /> 발송
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  flexShrink: 0,
+                  width: 380,
+                }}
+              >
+                <span
+                  style={{
+                    width: 36,
+                    fontSize: 11,
+                    color: ds.ink4,
+                    textAlign: "right",
+                  }}
+                >
+                  {r.eventName || "전체"}
+                </span>
+                <span
+                  style={{
+                    width: 60,
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "2px 10px",
+                      borderRadius: 5,
+                      background: ds.brandSoft,
+                      color: ds.brand,
+                      minWidth: 48,
+                      textAlign: "center",
+                    }}
+                  >
+                    {r.targetCount}명
+                  </span>
+                </span>
+                <span
+                  style={{
+                    width: 80,
+                    fontSize: 12,
+                    color: ds.ink4,
+                    textAlign: "right",
+                  }}
+                >
+                  {r.sentDate || "—"}
+                </span>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 3,
+                    minWidth: 110,
+                    flexShrink: 0,
+                  }}
+                >
+                  {r.status === "draft" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setModal({ type: "send", item: r });
+                      }}
+                      style={{
+                        padding: "3px 8px",
+                        borderRadius: 5,
+                        border: `1px solid ${ds.green}25`,
+                        background: ds.greenSoft,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: ds.green,
+                        cursor: "pointer",
+                        fontFamily: ds.ff,
+                        lineHeight: 1.2,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <Send size={10} /> 발송
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPanel({ type: "edit", item: r });
+                    }}
+                    style={{
+                      padding: "3px 8px",
+                      borderRadius: 5,
+                      border: `1px solid ${ds.brand}25`,
+                      background: `${ds.brand}08`,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: ds.brand,
+                      cursor: "pointer",
+                      fontFamily: ds.ff,
+                      lineHeight: 1.2,
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = `${ds.brand}18`)
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = `${ds.brand}08`)
+                    }
+                  >
+                    수정
                   </button>
-                )}
-                <button onClick={(e) => { e.stopPropagation(); setPanel({ type: "edit", item: r }); }}
-                  style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${ds.brand}25`, background: `${ds.brand}08`, fontSize: 11, fontWeight: 600, color: ds.brand, cursor: "pointer", fontFamily: ds.ff, lineHeight: 1.2 }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = `${ds.brand}18`)}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = `${ds.brand}08`)}>
-                  수정
-                </button>
-                <button onClick={(e) => { e.stopPropagation(); setModal({ type: "delete", item: r }); }}
-                  style={{ padding: "3px 8px", borderRadius: 5, border: "none", background: "transparent", fontSize: 11, fontWeight: 600, color: ds.red, cursor: "pointer", fontFamily: ds.ff, lineHeight: 1.2 }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = ds.redSoft)}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
-                  삭제
-                </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModal({ type: "delete", item: r });
+                    }}
+                    style={{
+                      padding: "3px 8px",
+                      borderRadius: 5,
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: ds.red,
+                      cursor: "pointer",
+                      fontFamily: ds.ff,
+                      lineHeight: 1.2,
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = ds.redSoft)
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
+                  >
+                    삭제
+                  </button>
+                </div>
               </div>
             </div>
           ))}

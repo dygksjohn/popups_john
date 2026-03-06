@@ -5,7 +5,6 @@ import EventSelectPage from "../components/EventSelectPage";
 import { SERVICE_CATEGORIES, SUBTITLE_MAP } from "../constants/programConstants";
 import { eventApi } from "../../../app/http/eventApi";
 import { boothApi } from "../../../app/http/boothApi";
-import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 import {
   Store,
   MapPin,
@@ -72,12 +71,6 @@ const styles = `
   }
   .bt-booth-item:hover { border-color: #1a4fd6; background: #f8faff; }
   .bt-booth-item.popular { border-color: #fbbf24; background: #fffdf5; }
-  .bt-booth-thumb {
-    width: 96px; height: 72px; border-radius: 10px; overflow: hidden; flex-shrink: 0;
-    border: 1px solid #e5e7eb; background: #f3f4f6;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .bt-booth-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .bt-booth-icon {
     width: 44px; height: 44px; border-radius: 10px;
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -250,22 +243,9 @@ function BoothContent({ booths, loading, errorMsg }) {
             <div className="bt-booth-list">
               {booths.map((b) => (
                 <div key={b.zone + b.name} className={`bt-booth-item${b.popular ? " popular" : ""}`}>
-                  {b.imageUrl ? (
-                    <div className="bt-booth-thumb">
-                      <img
-                        src={b.imageUrl}
-                        alt={b.name}
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="bt-booth-icon" style={{ background: b.bg }}>
-                      <Store size={20} color={b.color} />
-                    </div>
-                  )}
+                  <div className="bt-booth-icon" style={{ background: b.bg }}>
+                    <Store size={20} color={b.color} />
+                  </div>
                   <div className="bt-booth-info">
                     <div className="bt-booth-name">
                       {b.name}
@@ -403,7 +383,6 @@ export default function Booth() {
               zone: item?.zone ?? item?.location ?? item?.placeName ?? `#${item?.boothId ?? idx + 1}`,
               visitors: Number.isFinite(visitors) ? visitors : 0,
               status: normalizeBoothStatus(item?.status),
-            imageUrl: toPublicAssetUrl(item?.imageUrl),
             bg: color.bg,
             color: color.color,
           };

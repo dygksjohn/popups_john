@@ -25,6 +25,14 @@ import ds, { statusMap } from "./designTokens";
 import { Pill } from "./Components";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
+import {
+  loadImageCache as loadEventImageCache,
+  injectEventImages,
+} from "./eventImageStore";
+import {
+  loadImageCache as loadProgramImageCache,
+  injectProgramImages,
+} from "./programImageStore";
 
 /* ── 스타일 ── */
 const styles = `
@@ -450,9 +458,7 @@ function FormModal({
                     ? `${categoryLabel} 수정`
                     : `새 ${categoryLabel} 등록`}
                 </h3>
-                <p
-                  style={{ fontSize: 12, color: ds.ink4, margin: "4px 0 0" }}
-                >
+                <p style={{ fontSize: 12, color: ds.ink4, margin: "4px 0 0" }}>
                   <span style={{ color: ds.brand, fontWeight: 700 }}>
                     {eventName}
                   </span>{" "}
@@ -1002,19 +1008,24 @@ export default function ProgramCategoryPage({
   /* ── 행사 목록 로드 ── */
   const loadEvents = async () => {
     try {
+      await loadEventImageCache();
       const res = await axiosInstance.get("/api/admin/dashboard/events", {
         headers: authHeaders(),
       });
       const list = res.data?.data || res.data || [];
-      setEvents(
-        list.map((e) => ({
-          ...e,
-          status: calcStatus(
-            e.startAt || e.date?.split("~")[0]?.trim(),
-            e.endAt || e.date?.split("~")[1]?.trim(),
-          ),
-        })),
+      const mapped = injectEventImages(list).map((e) => ({
+        ...e,
+        status: calcStatus(
+          e.startAt || e.date?.split("~")[0]?.trim(),
+          e.endAt || e.date?.split("~")[1]?.trim(),
+        ),
+      }));
+      /* 최신 등록순 (eventId 내림차순) */
+      mapped.sort(
+        (a, b) =>
+          (Number(b.eventId || b.id) || 0) - (Number(a.eventId || a.id) || 0),
       );
+      setEvents(mapped);
     } catch (err) {
       console.error("행사 로드 실패:", err);
       setEvents([]);
@@ -1027,20 +1038,26 @@ export default function ProgramCategoryPage({
   const loadPrograms = async (eventId) => {
     setLoadingPrograms(true);
     try {
+      await loadProgramImageCache();
       const res = await axiosInstance.get(
         `/api/admin/dashboard/events/${eventId}/programs?category=${category}`,
         { headers: authHeaders() },
       );
       const list = res.data?.data || res.data || [];
-      setPrograms(
-        list.map((p) => ({
-          ...p,
-          _visible: true,
-          status: calcStatus(p.startAt, p.endAt),
-          imageUrl:
-            imageMapRef.current[p.programId || p.id] || p.imageUrl || null,
-        })),
+      const mapped = injectProgramImages(list).map((p) => ({
+        ...p,
+        _visible: true,
+        status: calcStatus(p.startAt, p.endAt),
+        imageUrl:
+          imageMapRef.current[p.programId || p.id] || p.imageUrl || null,
+      }));
+      /* 최신 등록순 */
+      mapped.sort(
+        (a, b) =>
+          (Number(b.programId || b.id) || 0) -
+          (Number(a.programId || a.id) || 0),
       );
+      setPrograms(mapped);
     } catch (err) {
       console.error("프로그램 로드 실패:", err);
       setPrograms([]);
@@ -1309,94 +1326,158 @@ export default function ProgramCategoryPage({
             >
               {events.map((ev) => {
                 const st = statusMap[ev.status] || statusMap.pending;
+                const isEnded = ev.status === "ended";
                 return (
                   <div
                     key={ev.eventId || ev.id}
-                    onClick={() => selectEvent(ev)}
+                    onClick={() => !isEnded && selectEvent(ev)}
                     style={{
                       background: ds.card,
                       borderRadius: 14,
                       border: `1px solid ${ds.line}`,
                       padding: "20px",
-                      cursor: "pointer",
+                      cursor: isEnded ? "default" : "pointer",
                       transition: "all .2s ease",
+                      opacity: isEnded ? 0.48 : 1,
+                      position: "relative",
+                      overflow: "hidden",
                     }}
                     onMouseEnter={(e) => {
+                      if (isEnded) return;
                       e.currentTarget.style.borderColor = ds.brand;
                       e.currentTarget.style.boxShadow = `0 4px 20px ${ds.brand}12`;
                       e.currentTarget.style.transform = "translateY(-2px)";
                     }}
                     onMouseLeave={(e) => {
+                      if (isEnded) return;
                       e.currentTarget.style.borderColor = ds.lineSoft;
                       e.currentTarget.style.boxShadow = "none";
                       e.currentTarget.style.transform = "translateY(0)";
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <Pill color={st.c} bg={st.bg}>
-                        {st.l}
-                      </Pill>
-                      <ArrowRight size={16} color={ds.ink4} />
-                    </div>
-                    <h4
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 800,
-                        color: ds.ink,
-                        margin: "0 0 8px",
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      {ev.name || ev.eventName}
-                    </h4>
-                    {ev.date && (
+                    {/* 행사 이미지 배경 (있을 때) */}
+                    {ev.imageUrl && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          zIndex: 0,
+                          borderRadius: 14,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <img
+                          src={ev.imageUrl}
+                          alt=""
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            filter: isEnded
+                              ? "blur(2px) grayscale(0.6)"
+                              : "blur(0px)",
+                            transition: "filter .2s",
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            background: isEnded
+                              ? "rgba(0,0,0,0.68)"
+                              : "linear-gradient(160deg,rgba(0,0,0,0.55) 0%,rgba(0,0,0,0.35) 100%)",
+                          }}
+                        />
+                      </div>
+                    )}
+                    {/* 카드 콘텐츠 */}
+                    <div style={{ position: "relative", zIndex: 1 }}>
                       <div
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 6,
-                          fontSize: 12,
-                          color: ds.ink4,
-                          marginBottom: 4,
+                          justifyContent: "space-between",
+                          marginBottom: 12,
                         }}
                       >
-                        <CalendarDays size={12} /> {ev.date}
+                        <Pill
+                          color={ev.imageUrl ? "#fff" : st.c}
+                          bg={ev.imageUrl ? "rgba(255,255,255,0.18)" : st.bg}
+                        >
+                          {st.l}
+                        </Pill>
+                        <ArrowRight
+                          size={16}
+                          color={
+                            ev.imageUrl ? "rgba(255,255,255,0.7)" : ds.ink4
+                          }
+                        />
                       </div>
-                    )}
-                    {ev.location && (
+                      <h4
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 800,
+                          color: ev.imageUrl ? "#fff" : ds.ink,
+                          margin: "0 0 8px",
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {ev.name || ev.eventName}
+                      </h4>
+                      {ev.date && (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontSize: 12,
+                            color: ev.imageUrl
+                              ? "rgba(255,255,255,0.8)"
+                              : ds.ink4,
+                            marginBottom: 4,
+                          }}
+                        >
+                          <CalendarDays size={12} /> {ev.date}
+                        </div>
+                      )}
+                      {ev.location && (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontSize: 12,
+                            color: ev.imageUrl
+                              ? "rgba(255,255,255,0.75)"
+                              : ds.ink4,
+                          }}
+                        >
+                          <MapPin size={12} /> {ev.location}
+                        </div>
+                      )}
                       <div
                         style={{
+                          marginTop: 14,
+                          paddingTop: 12,
+                          borderTop: `1px solid ${ev.imageUrl ? "rgba(255,255,255,0.2)" : ds.line}`,
                           display: "flex",
                           alignItems: "center",
                           gap: 6,
                           fontSize: 12,
-                          color: ds.ink4,
+                          color: isEnded
+                            ? ev.imageUrl
+                              ? "rgba(255,255,255,0.35)"
+                              : ds.ink4
+                            : ev.imageUrl
+                              ? "#fff"
+                              : ds.brand,
+                          fontWeight: 700,
+                          opacity: isEnded ? 0.6 : 1,
                         }}
                       >
-                        <MapPin size={12} /> {ev.location}
+                        <Clipboard size={13} />
+                        {isEnded ? "기간 만료" : `${categoryLabel} 관리하기`}
                       </div>
-                    )}
-                    <div
-                      style={{
-                        marginTop: 14,
-                        paddingTop: 12,
-                        borderTop: `1px solid ${ds.line}`,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 12,
-                        color: ds.brand,
-                        fontWeight: 700,
-                      }}
-                    >
-                      <Clipboard size={13} /> {categoryLabel} 관리하기
                     </div>
                   </div>
                 );
@@ -1738,6 +1819,7 @@ export default function ProgramCategoryPage({
                     const st = statusMap[r.status] || statusMap.pending;
                     const isRemoving = removing === r.id;
                     const isChecked = selected.has(r.id);
+                    const isEnded = r.status === "ended";
                     return (
                       <tr
                         key={r.id}
@@ -1747,6 +1829,7 @@ export default function ProgramCategoryPage({
                           borderBottom: `1px solid ${ds.lineSoft}`,
                           cursor: "pointer",
                           transition: "background .1s",
+                          opacity: isEnded ? 0.45 : 1,
                           background: isChecked
                             ? `${ds.brand}06`
                             : "transparent",
@@ -1787,6 +1870,9 @@ export default function ProgramCategoryPage({
                                   objectFit: "cover",
                                   flexShrink: 0,
                                   border: `1px solid ${ds.line}`,
+                                  filter: isEnded
+                                    ? "blur(1.5px) grayscale(0.6)"
+                                    : "none",
                                 }}
                               />
                             )}

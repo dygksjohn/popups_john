@@ -57,17 +57,17 @@ export default function PageHeader({ title, subtitle, categories }) {
   const location = useLocation();
   const hiddenPaths = new Set(["/event/preregister", "/event/eventschedule"]);
   const programMatch = location.pathname.match(
-    /^\/program\/(?:all|schedule|experience|session|contest|booth)(?:\/([^/?#]+))?/,
+    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/([^/?#]+))?/,
   );
   const currentEventId = programMatch?.[1] || null;
 
   const isProgramTabPath = (path) =>
-    /^\/program\/(?:all|schedule|experience|session|contest|booth)(?:\/[^/?#]+)?$/.test(
+    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/[^/?#]+)?$/.test(
       path,
     );
 
   const hasEventIdInPath = (path) =>
-    /^\/program\/(?:all|schedule|experience|session|contest|booth)\/[^/?#]+$/.test(
+    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)\/[^/?#]+$/.test(
       path,
     );
 

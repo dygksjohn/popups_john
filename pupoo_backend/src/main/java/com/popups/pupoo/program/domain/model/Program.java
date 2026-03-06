@@ -103,7 +103,13 @@ public class Program {
 	}
 
 	// 프로그램 신청 관련
+	// CONTEST: 행사 종료 전까지 언제든 신청 가능 (투표 시작 이후도 허용)
+	// 그 외: 기존대로 startAt - 1시간 이전까지만 허용
 	public boolean isApplyAllowed() {
+		if (this.category == ProgramCategory.CONTEST) {
+			// 콘테스트는 endAt 이전이면 신청 허용
+			return !LocalDateTime.now().isAfter(this.endAt);
+		}
 		LocalDateTime cutoff = this.startAt.minusHours(1);
 		return !LocalDateTime.now().isAfter(cutoff); // now <= cutoff
 	}

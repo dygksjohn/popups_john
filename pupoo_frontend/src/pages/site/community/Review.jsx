@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import {
   Search,
@@ -267,7 +268,186 @@ function DetailModal({
   );
 }
 
+function WriteModal({
+  open,
+  form,
+  events,
+  loading,
+  error,
+  onClose,
+  onChange,
+  onSubmit,
+}) {
+  if (!open) return null;
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 5000,
+          background: "rgba(0,0,0,0.4)",
+          backdropFilter: "blur(4px)",
+        }}
+      />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 5001,
+          background: "#fff",
+          borderRadius: 16,
+          width: "92%",
+          maxWidth: 560,
+          boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+        }}
+      >
+        <div
+          style={{
+            padding: "22px 24px 18px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderBottom: "1px solid #E2E8F0",
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#1E293B" }}>후기 작성</div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              border: "1px solid #E2E8F0",
+              background: "#fff",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <X size={16} color="#94A3B8" />
+          </button>
+        </div>
+
+        <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>행사 선택</span>
+            <select
+              value={form.eventId}
+              onChange={(e) => onChange("eventId", e.target.value)}
+              style={{
+                height: 42,
+                borderRadius: 8,
+                border: "1px solid #CBD5E1",
+                padding: "0 12px",
+                fontSize: 13,
+                color: "#334155",
+              }}
+            >
+              <option value="">종료 행사를 선택하세요</option>
+              {events.map((event) => (
+                <option key={event.eventId} value={event.eventId}>
+                  {event.eventName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>별점</span>
+            <select
+              value={form.rating}
+              onChange={(e) => onChange("rating", e.target.value)}
+              style={{
+                height: 42,
+                borderRadius: 8,
+                border: "1px solid #CBD5E1",
+                padding: "0 12px",
+                fontSize: 13,
+                color: "#334155",
+              }}
+            >
+              {[5, 4, 3, 2, 1].map((value) => (
+                <option key={value} value={String(value)}>
+                  {value}점
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>후기 내용</span>
+            <textarea
+              value={form.content}
+              onChange={(e) => onChange("content", e.target.value)}
+              rows={8}
+              placeholder="행사 경험을 작성해주세요."
+              style={{
+                borderRadius: 8,
+                border: "1px solid #CBD5E1",
+                padding: 12,
+                resize: "vertical",
+                fontSize: 13,
+                color: "#334155",
+                lineHeight: 1.6,
+              }}
+            />
+          </label>
+
+          {error ? <div style={{ fontSize: 12, color: "#B91C1C" }}>{error}</div> : null}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                height: 40,
+                padding: "0 14px",
+                borderRadius: 8,
+                border: "1px solid #CBD5E1",
+                background: "#fff",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#475569",
+                cursor: "pointer",
+              }}
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={loading}
+              style={{
+                height: 40,
+                padding: "0 16px",
+                borderRadius: 8,
+                border: "none",
+                background: "#1D4ED8",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#fff",
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.65 : 1,
+              }}
+            >
+              {loading ? "등록 중..." : "등록"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function Review() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [currentPath, setCurrentPath] = useState("/community/review");
   const [ratingFilter, setRatingFilter] = useState("ALL");
@@ -291,6 +471,15 @@ export default function Review() {
   const [replyText, setReplyText] = useState("");
   const [replyError, setReplyError] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
+  const [writeOpen, setWriteOpen] = useState(false);
+  const [writeSubmitting, setWriteSubmitting] = useState(false);
+  const [writeError, setWriteError] = useState("");
+  const [writeEvents, setWriteEvents] = useState([]);
+  const [writeForm, setWriteForm] = useState({
+    eventId: "",
+    rating: "5",
+    content: "",
+  });
 
   const fetchList = useCallback(async (p = 1) => {
     setLoading(true);
@@ -333,6 +522,81 @@ export default function Review() {
   useEffect(() => {
     fetchList(1);
   }, [fetchList]);
+
+  const loadWriteEvents = useCallback(async () => {
+    if (writeEvents.length > 0) return;
+    try {
+      const res = await eventApi.getClosedAnalytics();
+      const list = Array.isArray(res?.data?.data) ? res.data.data : [];
+      setWriteEvents(
+        list.map((event) => ({
+          eventId: String(event?.eventId ?? ""),
+          eventName: event?.eventName ?? `행사 #${event?.eventId ?? ""}`,
+        })),
+      );
+    } catch (err) {
+      console.error("[Review] write events fetch failed:", err);
+    }
+  }, [writeEvents.length]);
+
+  const closeWrite = useCallback(() => {
+    setWriteOpen(false);
+    setWriteSubmitting(false);
+    setWriteError("");
+    setWriteForm({
+      eventId: "",
+      rating: "5",
+      content: "",
+    });
+  }, []);
+
+  const openWrite = useCallback(async () => {
+    if (!tokenStore.getAccess()) {
+      navigate("/auth/login", { state: { from: "/community/review" } });
+      return;
+    }
+    setWriteOpen(true);
+    setWriteError("");
+    await loadWriteEvents();
+  }, [loadWriteEvents, navigate]);
+
+  const updateWriteForm = useCallback((field, value) => {
+    setWriteForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const submitWrite = useCallback(async () => {
+    if (!writeForm.eventId) {
+      setWriteError("행사를 선택해주세요.");
+      return;
+    }
+    if (!writeForm.content.trim()) {
+      setWriteError("후기 내용을 입력해주세요.");
+      return;
+    }
+
+    setWriteSubmitting(true);
+    setWriteError("");
+    try {
+      await reviewApi.create({
+        eventId: Number(writeForm.eventId),
+        rating: Number(writeForm.rating),
+        content: writeForm.content.trim(),
+      });
+      closeWrite();
+      await fetchList(1);
+    } catch (err) {
+      console.error("[Review] write failed:", err);
+      if (err?.response?.status === 401) {
+        navigate("/auth/login", { state: { from: "/community/review" } });
+        return;
+      }
+      setWriteError(
+        err?.response?.data?.message || err?.message || "후기 등록에 실패했습니다.",
+      );
+    } finally {
+      setWriteSubmitting(false);
+    }
+  }, [closeWrite, fetchList, navigate, writeForm]);
 
   const loadCommentCounts = useCallback(
     async (rows) => {
@@ -515,6 +779,24 @@ export default function Review() {
           </span>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              type="button"
+              onClick={openWrite}
+              style={{
+                border: "none",
+                borderRadius: 8,
+                background: "#1D4ED8",
+                color: "#fff",
+                height: 38,
+                padding: "0 14px",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              글쓰기
+            </button>
             <select
               value={ratingFilter}
               onChange={(e) => setRatingFilter(e.target.value)}
@@ -793,6 +1075,17 @@ export default function Review() {
           </>
         )}
       </main>
+
+      <WriteModal
+        open={writeOpen}
+        form={writeForm}
+        events={writeEvents}
+        loading={writeSubmitting}
+        error={writeError}
+        onClose={closeWrite}
+        onChange={updateWriteForm}
+        onSubmit={submitWrite}
+      />
 
       <DetailModal
         item={selected}

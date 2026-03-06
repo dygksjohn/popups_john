@@ -26,9 +26,7 @@ export const fileApi = {
     form.append("file", file);
     form.append("targetType", targetType);
     form.append("contentId", String(contentId));
-    return axiosInstance.post("/api/files", form, {
-      headers: { "Content-Type": undefined },
-    }).then((res) => unwrap(res));
+    return axiosInstance.post("/api/files", form).then((res) => unwrap(res));
   },
 
   /** GET /api/files/{fileId} — 파일 메타 조회 */

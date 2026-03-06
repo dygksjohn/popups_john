@@ -19,4 +19,16 @@ public class InterestChannelUpdateRequest {
 
     @NotNull
     private Boolean allowSms;
+
+    public boolean allowInappValue() {
+        return Boolean.TRUE.equals(allowInapp);
+    }
+
+    public boolean allowEmailValue() {
+        return Boolean.TRUE.equals(allowEmail);
+    }
+
+    public boolean allowSmsValue() {
+        return Boolean.TRUE.equals(allowSms);
+    }
 }

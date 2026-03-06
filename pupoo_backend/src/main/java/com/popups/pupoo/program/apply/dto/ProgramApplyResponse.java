@@ -1,6 +1,7 @@
 /* file: src/main/java/com/popups/pupoo/program/apply/dto/ProgramApplyResponse.java */
 package com.popups.pupoo.program.apply.dto;
 
+import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.program.apply.domain.enums.ApplyStatus;
 import com.popups.pupoo.program.apply.domain.model.ProgramApply;
 import lombok.Builder;
@@ -40,7 +41,7 @@ public class ProgramApplyResponse {
                 .petId(a.getPetId())
                 .petName(null)
                 .ownerNickname(null)
-                .imageUrl(null)
+                .imageUrl(PublicUrlNormalizer.normalize(a.getImageUrl()))
                 .status(a.getStatus())
                 .ticketNo(a.getTicketNo())
                 .etaMin(a.getEtaMin())
@@ -62,7 +63,7 @@ public class ProgramApplyResponse {
                 .petId(a.getPetId())
                 .petName(petName)
                 .ownerNickname(null)
-                .imageUrl(null)
+                .imageUrl(PublicUrlNormalizer.normalize(a.getImageUrl()))
                 .status(a.getStatus())
                 .ticketNo(a.getTicketNo())
                 .etaMin(a.getEtaMin())
@@ -84,7 +85,7 @@ public class ProgramApplyResponse {
                 .petId(a.getPetId())
                 .petName(petName)
                 .ownerNickname(ownerNickname)
-                .imageUrl(null)
+                .imageUrl(PublicUrlNormalizer.normalize(a.getImageUrl()))
                 .status(a.getStatus())
                 .ticketNo(a.getTicketNo())
                 .etaMin(a.getEtaMin())
