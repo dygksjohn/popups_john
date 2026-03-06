@@ -1,4 +1,4 @@
-﻿import { axiosInstance } from "../app/http/axiosInstance";
+import { axiosInstance } from "../app/http/axiosInstance";
 
 /* 토큰 관리 */
 const TOKEN_KEY = "pupoo_admin_token";

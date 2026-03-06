@@ -39,6 +39,7 @@ export const reviewApi = {
       .post("/api/reviews", {
         eventId: payload.eventId,
         rating: payload.rating,
+        reviewTitle: payload.reviewTitle ?? "",
         content: payload.content ?? "",
       })
       .then((res) => unwrap(res));
@@ -50,6 +51,7 @@ export const reviewApi = {
     return axiosInstance
       .patch(`/api/reviews/${reviewId}`, {
         rating: payload?.rating ?? 5,
+        reviewTitle: payload?.reviewTitle ?? "",
         content: payload?.content ?? "",
       })
       .then((res) => unwrap(res));

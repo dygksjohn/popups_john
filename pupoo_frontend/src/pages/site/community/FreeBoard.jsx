@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import {
   Search,
@@ -19,6 +20,8 @@ import { boardApi } from "../../../app/http/boardApi";
 import { fileApi } from "../../../app/http/fileApi";
 import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
+import CommunityRichTextEditor from "./shared/CommunityRichTextEditor";
+import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 
 const PAGE_SIZE = 10;
 
@@ -84,14 +87,14 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
       setLocalError("제목을 입력해 주세요.");
       return;
     }
-    if (!content.trim()) {
+    if (!hasMeaningfulCommunityContent(content)) {
       setLocalError("내용을 입력해 주세요.");
       return;
     }
     setLocalError("");
     onSave({
       title: title.trim(),
-      content: content.trim(),
+      content,
       file,
     });
   };
@@ -182,7 +185,7 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목을 입력하세요"
+            placeholder="제목을 입력해 주세요"
             style={{
               width: "100%",
               padding: "10px 14px",
@@ -209,24 +212,11 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
           >
             내용 <span style={{ color: "#EF4444" }}>*</span>
           </label>
-          <textarea
-            rows={5}
+          <CommunityRichTextEditor
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="내용을 입력하세요"
-            style={{
-              width: "100%",
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "1px solid #ddd",
-              fontSize: 14,
-              color: "#222",
-              outline: "none",
-              boxSizing: "border-box",
-              resize: "vertical",
-              fontFamily: "'Noto Sans KR', sans-serif",
-              lineHeight: 1.6,
-            }}
+            onChange={setContent}
+            placeholder="내용을 입력해 주세요. 이미지는 본문에 바로 삽입할 수 있습니다."
+            height={280}
           />
         </div>
 
@@ -305,7 +295,6 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
     </Overlay>
   );
 }
-
 function DetailModal({
   item,
   loading,
@@ -433,7 +422,7 @@ function DetailModal({
         <div style={{ padding: "0 28px 14px" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>첨부파일</div>
           {attachmentLoading ? (
-            <div style={{ fontSize: 12, color: "#94A3B8" }}>첨부파일 정보를 불러오는 중입니다.</div>
+        <div style={{ fontSize: 12, color: "#94A3B8" }}>첨부파일 정보를 불러오는 중입니다.</div>
           ) : attachment ? (
             <a
               href={toPublicAssetUrl(attachment.publicPath)}
@@ -450,7 +439,7 @@ function DetailModal({
               }}
             >
               <Paperclip size={13} />
-              {attachment.originalName || "첨부파일 다운로드"}
+                {attachment.originalName || "첨부파일 다운로드"}
             </a>
           ) : (
             <div style={{ fontSize: 12, color: "#94A3B8" }}>첨부파일이 없습니다.</div>
@@ -471,7 +460,7 @@ function DetailModal({
             <textarea
               value={replyText}
               onChange={(e) => onReplyTextChange(e.target.value)}
-              placeholder="댓글을 입력하세요. (로그인 필요)"
+              placeholder="댓글을 입력해 주세요. (로그인 필요)"
               rows={3}
               style={{
                 width: "100%",
@@ -501,7 +490,7 @@ function DetailModal({
                   opacity: replySubmitting ? 0.6 : 1,
                 }}
               >
-                {replySubmitting ? "등록 중..." : "댓글 등록"}
+              {replySubmitting ? "등록 중..." : "댓글 등록"}
               </button>
             </div>
             {replyError ? (
@@ -542,6 +531,7 @@ function DetailModal({
 }
 
 export default function FreeBoard() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [currentPath, setCurrentPath] = useState("/community/freeboard");
   const [sortKey, setSortKey] = useState("recent");
@@ -740,7 +730,7 @@ export default function FreeBoard() {
         setAttachmentError("");
       } else {
         setAttachment(null);
-        setAttachmentError("첨부파일을 불러오지 못했습니다.");
+      setAttachmentError("첨부파일을 불러오지 못했습니다.");
       }
     } finally {
       setAttachmentLoading(false);
@@ -782,7 +772,7 @@ export default function FreeBoard() {
   const submitReply = async () => {
     if (!selected?.postId) return;
     if (!tokenStore.getAccess()) {
-      setReplyError("댓글 작성은 로그인 후 가능합니다.");
+      setReplyError("댓글 작성은 로그인이 필요합니다.");
       return;
     }
     const content = replyText.trim();
@@ -807,7 +797,7 @@ export default function FreeBoard() {
 
   const submitPost = async ({ title, content, file }) => {
     if (!tokenStore.getAccess()) {
-      setWriteError("글쓰기는 로그인 후 가능합니다.");
+      setWriteError("글쓰기는 로그인이 필요합니다.");
       return;
     }
     if (!freeBoardId) {
@@ -854,9 +844,9 @@ export default function FreeBoard() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <main
         style={{
-          maxWidth: "1400px",
+          width: "min(1400px, calc(100% - 32px))",
           margin: "0 auto",
-          padding: "40px 20px",
+          padding: "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
@@ -983,10 +973,7 @@ export default function FreeBoard() {
 
             <button
               type="button"
-              onClick={() => {
-                setWriteError("");
-                setWriteModalOpen(true);
-              }}
+              onClick={() => navigate("/community/freeboard/write")}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -1048,7 +1035,7 @@ export default function FreeBoard() {
               {pagedItems.map((item) => (
                 <div
                   key={item.postId}
-                  onClick={() => openDetail(item)}
+                  onClick={() => navigate(`/community/freeboard/${item.postId}`)}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -1172,14 +1159,11 @@ export default function FreeBoard() {
         attachmentError={attachmentError}
       />
 
-      {writeModalOpen ? (
-        <WriteModal
-          onClose={() => !writeSaving && setWriteModalOpen(false)}
-          onSave={submitPost}
-          saving={writeSaving}
-          errorMessage={writeError}
-        />
-      ) : null}
     </>
   );
 }
+
+
+
+
+

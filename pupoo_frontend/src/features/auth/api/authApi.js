@@ -1,4 +1,4 @@
-﻿import { apiClient, getApiErrorMessage, normalizeApiError } from "../../shared/api/apiClient";
+import { apiClient, getApiErrorMessage, normalizeApiError } from "../../shared/api/apiClient";
 import { unwrapApiResponse } from "../../shared/api/unwrapApiResponse";
 
 export { getApiErrorMessage, normalizeApiError, unwrapApiResponse };

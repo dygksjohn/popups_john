@@ -1,9 +1,8 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { mypageApi } from "./api/mypageApi";
 import { authApi } from "./api/authApi";
 import { userApi } from "../../../features/user/api/userApi";
-import { interestApi } from "../../../app/http/interestApi";
 import { resolveErrorMessage, toFieldMessageMap } from "../../../features/shared/forms/formError";
 import {
   mypageCardStyle,
@@ -14,44 +13,6 @@ import {
   mypagePrimaryButtonStyle,
   mypageTitleStyle,
 } from "../../../features/shared/ui/mypageStyles";
-
-const INTEREST_NAME_LABEL = {
-  EVENT: "행사",
-  SESSION: "세션",
-  EXPERIENCE: "체험",
-  BOOTH: "부스",
-  CONTEST: "콘테스트",
-  NOTICE: "공지",
-  SNACK: "간식",
-  BATH_SUPPLIES: "목욕용품",
-  GROOMING: "미용",
-  TOY: "장난감",
-  CLOTHING: "의류",
-  HEALTH: "건강",
-  TRAINING: "훈련",
-  WALK: "산책",
-  SUPPLEMENTS: "영양제",
-  ACCESSORIES: "액세서리",
-  OTHERS: "기타",
-};
-
-function interestLabel(name) {
-  return INTEREST_NAME_LABEL[String(name || "").toUpperCase()] || String(name || "기타");
-}
-
-function buildChannelMap(rows) {
-  const map = {};
-  (Array.isArray(rows) ? rows : []).forEach((row) => {
-    const key = Number(row?.interestId);
-    if (!Number.isFinite(key)) return;
-    map[key] = {
-      allowInapp: Boolean(row?.allowInapp),
-      allowEmail: Boolean(row?.allowEmail),
-      allowSms: Boolean(row?.allowSms),
-    };
-  });
-  return map;
-}
 function formatDateTimeDisplay(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -89,9 +50,6 @@ export default function MypageProfileEdit() {
   const [phoneCodeInput, setPhoneCodeInput] = useState("");
   const [phoneChanging, setPhoneChanging] = useState(false);
   const [phoneConfirming, setPhoneConfirming] = useState(false);
-  const [subscriptions, setSubscriptions] = useState([]);
-  const [channelDraftMap, setChannelDraftMap] = useState({});
-  const [channelSaving, setChannelSaving] = useState(false);
 
   const [form, setForm] = useState({
     email: "",
@@ -111,14 +69,6 @@ export default function MypageProfileEdit() {
   const nicknameChanged = useMemo(
     () => (form.nickname || "").trim() !== (initialNickname || "").trim(),
     [form.nickname, initialNickname],
-  );
-  const activeSubscriptions = useMemo(
-    () => subscriptions.filter((row) => String(row?.status || "").toUpperCase() === "ACTIVE"),
-    [subscriptions],
-  );
-  const originalChannelMap = useMemo(
-    () => buildChannelMap(activeSubscriptions),
-    [activeSubscriptions],
   );
   const wideButtonStyle = { minWidth: 120, whiteSpace: "nowrap" };
 
@@ -141,13 +91,6 @@ export default function MypageProfileEdit() {
     setNicknameCheckMsg("");
   };
 
-  const refreshSubscriptions = async () => {
-    const rows = await interestApi.getMySubscriptions(false);
-    const list = Array.isArray(rows) ? rows : [];
-    setSubscriptions(list);
-    setChannelDraftMap(buildChannelMap(list));
-  };
-
   useEffect(() => {
     let mounted = true;
 
@@ -155,10 +98,7 @@ export default function MypageProfileEdit() {
       try {
         setLoading(true);
         setGlobalError("");
-        const [me, rows] = await Promise.all([
-          mypageApi.getMe(),
-          interestApi.getMySubscriptions(false).catch(() => []),
-        ]);
+        const me = await mypageApi.getMe();
         if (!mounted) return;
         setForm({
           email: me?.email || "",
@@ -174,9 +114,6 @@ export default function MypageProfileEdit() {
           nextPhone: "",
         });
         setInitialNickname(me?.nickname || "");
-        const list = Array.isArray(rows) ? rows : [];
-        setSubscriptions(list);
-        setChannelDraftMap(buildChannelMap(list));
       } catch (error) {
         if (!mounted) return;
         setGlobalError(resolveErrorMessage(error, "내 정보를 불러오지 못했습니다."));
@@ -327,80 +264,6 @@ export default function MypageProfileEdit() {
     }
   };
 
-  const handleChannelToggle = (interestId, key, checked) => {
-    setChannelDraftMap((prev) => ({
-      ...prev,
-      [interestId]: {
-        allowInapp: prev?.[interestId]?.allowInapp ?? false,
-        allowEmail: prev?.[interestId]?.allowEmail ?? false,
-        allowSms: prev?.[interestId]?.allowSms ?? false,
-        [key]: checked,
-      },
-    }));
-  };
-
-  const channelChanged = useMemo(() => {
-    return activeSubscriptions.some((row) => {
-      const interestId = Number(row?.interestId);
-      const before = originalChannelMap[interestId] || {
-        allowInapp: false,
-        allowEmail: false,
-        allowSms: false,
-      };
-      const after = channelDraftMap[interestId] || before;
-      return (
-        Boolean(before.allowInapp) !== Boolean(after.allowInapp) ||
-        Boolean(before.allowEmail) !== Boolean(after.allowEmail) ||
-        Boolean(before.allowSms) !== Boolean(after.allowSms)
-      );
-    });
-  }, [activeSubscriptions, originalChannelMap, channelDraftMap]);
-
-  const saveChannelSettings = async () => {
-    try {
-      setChannelSaving(true);
-      setGlobalError("");
-
-      const changedRows = activeSubscriptions.filter((row) => {
-        const interestId = Number(row?.interestId);
-        const before = originalChannelMap[interestId] || {
-          allowInapp: false,
-          allowEmail: false,
-          allowSms: false,
-        };
-        const after = channelDraftMap[interestId] || before;
-        return (
-          Boolean(before.allowInapp) !== Boolean(after.allowInapp) ||
-          Boolean(before.allowEmail) !== Boolean(after.allowEmail) ||
-          Boolean(before.allowSms) !== Boolean(after.allowSms)
-        );
-      });
-
-      if (changedRows.length === 0) {
-        return;
-      }
-
-      await Promise.all(
-        changedRows.map((row) => {
-          const interestId = Number(row?.interestId);
-          const next = channelDraftMap[interestId];
-          return interestApi.updateChannels({
-            interestId,
-            allowInapp: Boolean(next?.allowInapp),
-            allowEmail: Boolean(next?.allowEmail),
-            allowSms: Boolean(next?.allowSms),
-          });
-        }),
-      );
-
-      await refreshSubscriptions();
-    } catch (error) {
-      setGlobalError(resolveErrorMessage(error, "수신 설정 저장에 실패했습니다."));
-    } finally {
-      setChannelSaving(false);
-    }
-  };
-
   return (
     <div style={mypagePageStyle}>
       <div style={{ ...mypageCardStyle, maxWidth: 760, margin: "120px auto 80px" }}>
@@ -502,94 +365,8 @@ export default function MypageProfileEdit() {
             </label>
           </div>
 
-          <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 14, marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>구독 알림 수신 설정</div>
-            {activeSubscriptions.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#6b7280" }}>
-                현재 활성 구독이 없습니다. 구독 추가 후 수신 채널을 설정할 수 있습니다.
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {activeSubscriptions.map((row) => {
-                  const interestId = Number(row?.interestId);
-                  const value = channelDraftMap[interestId] || {
-                    allowInapp: Boolean(row?.allowInapp),
-                    allowEmail: Boolean(row?.allowEmail),
-                    allowSms: Boolean(row?.allowSms),
-                  };
-                  return (
-                    <div
-                      key={`channel-${interestId}`}
-                      style={{
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 8,
-                        padding: "10px 12px",
-                        display: "flex",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 8,
-                      }}
-                    >
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>
-                        {interestLabel(row?.interestName)}
-                      </div>
-                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(value.allowInapp)}
-                            onChange={(e) => handleChannelToggle(interestId, "allowInapp", e.target.checked)}
-                            disabled={channelSaving}
-                          />
-                          앱 알림
-                        </label>
-                        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(value.allowEmail)}
-                            onChange={(e) => handleChannelToggle(interestId, "allowEmail", e.target.checked)}
-                            disabled={channelSaving}
-                          />
-                          이메일
-                        </label>
-                        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(value.allowSms)}
-                            onChange={(e) => handleChannelToggle(interestId, "allowSms", e.target.checked)}
-                            disabled={channelSaving}
-                          />
-                          문자
-                        </label>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                onClick={saveChannelSettings}
-                disabled={channelSaving || !channelChanged || activeSubscriptions.length === 0}
-                style={{
-                  ...mypageOutlineButtonStyle,
-                  ...wideButtonStyle,
-                  cursor:
-                    channelSaving || !channelChanged || activeSubscriptions.length === 0
-                      ? "not-allowed"
-                      : "pointer",
-                }}
-              >
-                {channelSaving ? "저장 중..." : "수신 설정 저장"}
-              </button>
-            </div>
-          </div>
-
           <div style={{ marginBottom: 16, fontSize: 12, color: "#6b7280", lineHeight: 1.6 }}>
-            닉네임/공개 설정은 프로필 저장 버튼으로 반영됩니다.
-            구독 알림 수신 설정은 위의 수신 설정 저장 버튼으로 반영됩니다.
+            현재 프로필 수정 API에서 변경 가능한 항목은 닉네임과 공개 설정입니다.
             이메일과 휴대전화는 아래 인증 절차로 변경할 수 있습니다.
           </div>
 

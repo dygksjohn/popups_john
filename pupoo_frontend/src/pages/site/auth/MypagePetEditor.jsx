@@ -13,8 +13,19 @@ import {
   mypageTitleStyle,
 } from "../../../features/shared/ui/mypageStyles";
 
-const PET_BREEDS = ["DOG", "CAT", "OTHER"];
-const PET_WEIGHTS = ["XS", "S", "M", "L", "XL"];
+const BREED_OPTIONS = [
+  { value: "DOG", label: "강아지" },
+  { value: "CAT", label: "고양이" },
+  { value: "OTHER", label: "기타" },
+];
+
+const WEIGHT_OPTIONS = [
+  { value: "XS", label: "초소형" },
+  { value: "S", label: "소형" },
+  { value: "M", label: "중형" },
+  { value: "L", label: "대형" },
+  { value: "XL", label: "초대형" },
+];
 
 export default function MypagePetEditor() {
   const navigate = useNavigate();
@@ -67,13 +78,13 @@ export default function MypagePetEditor() {
     };
   }, [isEditMode, petId]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const handleChange = (event) => {
+    const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     try {
       setSaving(true);
       setGlobalError("");
@@ -91,6 +102,7 @@ export default function MypagePetEditor() {
           petName: payload.petName,
           petBreed: payload.petBreed,
           petAge: payload.petAge,
+          petWeight: payload.petWeight,
         });
       } else {
         await mypageApi.createPet(payload);
@@ -121,12 +133,12 @@ export default function MypagePetEditor() {
     }
   };
 
+  const disabled = loading || saving || deleting;
+
   return (
     <div style={mypagePageStyle}>
       <div style={{ ...mypageCardStyle, maxWidth: 720, margin: "120px auto 80px" }}>
-        <h2 style={mypageTitleStyle}>
-          {isEditMode ? "반려동물 수정" : "반려동물 등록"}
-        </h2>
+        <h2 style={mypageTitleStyle}>{isEditMode ? "반려동물 수정" : "반려동물 등록"}</h2>
 
         {globalError ? (
           <div style={{ color: "#b91c1c", fontSize: 13, marginBottom: 12 }}>{globalError}</div>
@@ -144,7 +156,7 @@ export default function MypagePetEditor() {
               onChange={handleChange}
               style={mypageInputStyle}
               maxLength={100}
-              disabled={loading || saving || deleting}
+              disabled={disabled}
             />
             {fieldErrors.petName ? (
               <div style={{ marginTop: 6, color: "#b91c1c", fontSize: 12 }}>{fieldErrors.petName}</div>
@@ -153,7 +165,7 @@ export default function MypagePetEditor() {
 
           <div style={{ marginBottom: 14 }}>
             <label htmlFor="petBreed" style={mypageLabelStyle}>
-              품종 코드
+              종류
             </label>
             <select
               id="petBreed"
@@ -161,11 +173,11 @@ export default function MypagePetEditor() {
               value={form.petBreed}
               onChange={handleChange}
               style={mypageInputStyle}
-              disabled={loading || saving || deleting}
+              disabled={disabled}
             >
-              {PET_BREEDS.map((breed) => (
-                <option key={breed} value={breed}>
-                  {breed}
+              {BREED_OPTIONS.map((breed) => (
+                <option key={breed.value} value={breed.value}>
+                  {breed.label}
                 </option>
               ))}
             </select>
@@ -174,9 +186,9 @@ export default function MypagePetEditor() {
             ) : null}
           </div>
 
-          <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 14 }}>
             <label htmlFor="petAge" style={mypageLabelStyle}>
-              나이(0~100)
+              나이
             </label>
             <input
               id="petAge"
@@ -187,7 +199,7 @@ export default function MypagePetEditor() {
               value={form.petAge}
               onChange={handleChange}
               style={mypageInputStyle}
-              disabled={loading || saving || deleting}
+              disabled={disabled}
             />
             {fieldErrors.petAge ? (
               <div style={{ marginTop: 6, color: "#b91c1c", fontSize: 12 }}>{fieldErrors.petAge}</div>
@@ -196,7 +208,7 @@ export default function MypagePetEditor() {
 
           <div style={{ marginBottom: 20 }}>
             <label htmlFor="petWeight" style={mypageLabelStyle}>
-              Weight Code
+              체형
             </label>
             <select
               id="petWeight"
@@ -204,11 +216,11 @@ export default function MypagePetEditor() {
               value={form.petWeight}
               onChange={handleChange}
               style={mypageInputStyle}
-              disabled={loading || saving || deleting}
+              disabled={disabled}
             >
-              {PET_WEIGHTS.map((weight) => (
-                <option key={weight} value={weight}>
-                  {weight}
+              {WEIGHT_OPTIONS.map((weight) => (
+                <option key={weight.value} value={weight.value}>
+                  {weight.label}
                 </option>
               ))}
             </select>
@@ -220,18 +232,24 @@ export default function MypagePetEditor() {
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="submit"
-              disabled={loading || saving || deleting}
-              style={{ ...mypagePrimaryButtonStyle, cursor: loading || saving || deleting ? "not-allowed" : "pointer" }}
+              disabled={disabled}
+              style={{
+                ...mypagePrimaryButtonStyle,
+                cursor: disabled ? "not-allowed" : "pointer",
+              }}
             >
-              {isEditMode ? "수정 저장" : "등록"}
+              {isEditMode ? "수정 완료" : "등록"}
             </button>
 
             {isEditMode ? (
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={loading || saving || deleting}
-                style={{ ...mypageDangerButtonStyle, cursor: loading || saving || deleting ? "not-allowed" : "pointer" }}
+                disabled={disabled}
+                style={{
+                  ...mypageDangerButtonStyle,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                }}
               >
                 삭제
               </button>
@@ -240,8 +258,11 @@ export default function MypagePetEditor() {
             <button
               type="button"
               onClick={() => navigate("/mypage")}
-              disabled={loading || saving || deleting}
-              style={{ ...mypageOutlineButtonStyle, cursor: loading || saving || deleting ? "not-allowed" : "pointer" }}
+              disabled={disabled}
+              style={{
+                ...mypageOutlineButtonStyle,
+                cursor: disabled ? "not-allowed" : "pointer",
+              }}
             >
               취소
             </button>

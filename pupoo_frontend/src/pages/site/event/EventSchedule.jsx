@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { eventApi } from "../../../app/http/eventApi";
+import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 import {
   loadImageCache as loadEventImageCache,
   injectEventImages,
@@ -162,6 +163,7 @@ export default function EventSchedule() {
         )
           .map((row) => ({
             ...row,
+            eventName: normalizeEventTitle(row?.eventName, row),
             statusLabel: toStatus(row?.status, row?.startAt, row?.endAt),
           }))
           .sort((a, b) => {

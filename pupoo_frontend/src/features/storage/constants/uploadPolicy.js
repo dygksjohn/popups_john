@@ -1,4 +1,4 @@
-﻿export const UPLOAD_POLICY = {
+export const UPLOAD_POLICY = {
   maxFiles: 10,
   maxFileSizeMb: 10,
   allowedMimeTypes: [

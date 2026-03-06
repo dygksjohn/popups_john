@@ -78,11 +78,21 @@ import CheckinStatus from "./pages/site/realtime/CheckinStatus";
 
 /* Community */
 import FreeBoard from "./pages/site/community/FreeBoard";
+import FreeBoardDetailPage from "./pages/site/community/FreeBoardDetailPage";
+import FreeBoardWritePage from "./pages/site/community/FreeBoardWritePage";
 import Review from "./pages/site/community/Review";
+import ReviewDetailPage from "./pages/site/community/ReviewDetailPage";
+import ReviewWritePage from "./pages/site/community/ReviewWritePage";
 import QnA from "./pages/site/community/QnA";
+import QnADetailPage from "./pages/site/community/QnADetailPage";
+import QnAWritePage from "./pages/site/community/QnAWritePage";
 import Notice from "./pages/site/community/Notice";
+import NoticeDetailPage from "./pages/site/community/NoticeDetailPage";
 import CommunityFaq from "./pages/site/community/Faq";
 import InfoBoard from "./pages/site/community/InfoBoard";
+import InfoBoardDetailPage from "./pages/site/community/InfoBoardDetailPage";
+import InfoBoardWritePage from "./pages/site/community/InfoBoardWritePage";
+import FaqDetailPage from "./pages/site/community/FaqDetailPage";
 
 /* Info */
 import PlatformIntro from "./pages/site/info/PlatformIntro";
@@ -516,12 +526,22 @@ export default function App() {
             path="/realtime/waitingstatus/:eventId?"
             element={<WaitingStatus />}
           />
-          <Route path="/community/freeboard" element={<FreeBoard />} />
-          <Route path="/community/info" element={<InfoBoard />} />
-          <Route path="/community/review" element={<Review />} />
-          <Route path="/community/qna" element={<QnA />} />
+              <Route path="/community/freeboard" element={<FreeBoard />} />
+              <Route path="/community/freeboard/write" element={<FreeBoardWritePage />} />
+              <Route path="/community/freeboard/:postId" element={<FreeBoardDetailPage />} />
+              <Route path="/community/info" element={<InfoBoard />} />
+              <Route path="/community/info/write" element={<InfoBoardWritePage />} />
+              <Route path="/community/info/:postId" element={<InfoBoardDetailPage />} />
+              <Route path="/community/review" element={<Review />} />
+              <Route path="/community/review/write" element={<ReviewWritePage />} />
+              <Route path="/community/review/:reviewId" element={<ReviewDetailPage />} />
+              <Route path="/community/qna" element={<QnA />} />
+              <Route path="/community/qna/write" element={<QnAWritePage />} />
+              <Route path="/community/qna/:qnaId" element={<QnADetailPage />} />
           <Route path="/community/notice" element={<Notice />} />
+          <Route path="/community/notice/:noticeId" element={<NoticeDetailPage />} />
           <Route path="/community/faq" element={<CommunityFaq />} />
+          <Route path="/community/faq/:postId" element={<FaqDetailPage />} />
           <Route path="/info/intro" element={<PlatformIntro />} />
           <Route path="/info/faq" element={<InfoFAQ />} />
           <Route path="/info/inquiry" element={<Inquiry />} />

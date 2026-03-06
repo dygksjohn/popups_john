@@ -1,4 +1,4 @@
-﻿const CHANNEL = "pupoo_auth_events";
+const CHANNEL = "pupoo_auth_events";
 const LOGOUT_EVENT = "auth:logout";
 
 export function emitAuthLogout(reason = "manual") {

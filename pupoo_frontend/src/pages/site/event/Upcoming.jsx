@@ -1,10 +1,11 @@
-﻿import PageHeader from "../components/PageHeader";
+import PageHeader from "../components/PageHeader";
 import EventDetailModal from "./EventDetailModal";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { eventApi } from "../../../app/http/eventApi";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { tokenStore } from "../../../app/http/tokenStore";
+import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 import {
   MapPin,
   Clock,
@@ -240,7 +241,7 @@ function buildDateParts(startAt) {
 
 function mapEvent(raw) {
   const eventId = raw?.eventId ?? raw?.id ?? null;
-  const title = raw?.eventName ?? raw?.title ?? "행사";
+  const title = normalizeEventTitle(raw?.eventName ?? raw?.title, raw);
   const category = raw?.category ?? raw?.eventCategory ?? "행사";
   const location = raw?.location ?? raw?.place ?? "장소 미정";
   const startAt = raw?.startAt ?? raw?.startDateTime ?? raw?.startDate ?? null;
