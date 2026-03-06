@@ -5,7 +5,7 @@ import { COMMUNITY_CATEGORIES, getBoardBadge } from "../communityConfig";
 
 const styles = {
   main: {
-    width: "min(1400px, calc(100% - 32px))",
+    width: "min(1350px, calc(100% - 50px))",
     margin: "0 auto",
     padding: "40px 0 64px",
     fontFamily: "'Noto Sans KR', sans-serif",

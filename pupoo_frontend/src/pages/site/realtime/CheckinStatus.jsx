@@ -54,7 +54,7 @@ const styles = `
   .ck-ph-nav-btn:hover { background: #f3f4f6; color: #111827; }
   .ck-ph-nav-btn.active { background: #1a4fd6; color: #fff; font-weight: 600; }
 
-  .ck-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+  .ck-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
 
   .rt-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca; border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444; margin-bottom: 20px; }
   .rt-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; animation: ck-pulse 1.4s ease-in-out infinite; }

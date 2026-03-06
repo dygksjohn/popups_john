@@ -60,7 +60,7 @@ const styles = `
   .dt-nav-btn:hover { background: #f3f4f6; color: #111827; }
   .dt-nav-btn.active { background: #1a4fd6; color: #fff; font-weight: 600; }
 
-  .dt-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+  .dt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
 
   /* Event picker */
   .dt-event-tabs { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }

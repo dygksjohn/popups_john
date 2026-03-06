@@ -55,8 +55,8 @@ class RefundAdminServiceIT {
     @Test
     @Transactional
     void approveAndComplete_should_cancel_event_and_program_applies() {
-        long userId = 100L;
-        long eventId = 200L;
+        long userId = 10001L;
+        long eventId = 20001L;
 
         seedUser(userId);
         seedEvent(eventId);
@@ -72,7 +72,7 @@ class RefundAdminServiceIT {
         Refund refund = seedRequestedRefund(payment);
 
         Program program = seedProgram(eventId);
-        programApplyRepository.save(ProgramApply.create(userId, program.getProgramId()));
+        programApplyRepository.save(ProgramApply.create(userId, program.getProgramId(), null, null));
 
         Mockito.when(paymentGateway.cancel(any(Payment.class))).thenReturn(true);
 
@@ -105,8 +105,8 @@ class RefundAdminServiceIT {
     @Test
     @Transactional
     void approveAndComplete_completed_should_self_heal_without_pg_call() {
-        long userId = 101L;
-        long eventId = 201L;
+        long userId = 10002L;
+        long eventId = 20002L;
 
         seedUser(userId);
         seedEvent(eventId);
@@ -120,7 +120,7 @@ class RefundAdminServiceIT {
         Refund refund = seedRequestedRefund(payment);
 
         Program program = seedProgram(eventId);
-        ProgramApply apply = programApplyRepository.save(ProgramApply.create(userId, program.getProgramId()));
+        ProgramApply apply = programApplyRepository.save(ProgramApply.create(userId, program.getProgramId(), null, null));
         Long programApplyId = apply.getProgramApplyId();
 
         Mockito.when(paymentGateway.cancel(any(Payment.class))).thenReturn(true);

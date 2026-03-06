@@ -187,6 +187,16 @@ function formatRegistrationStatus(status) {
   return REGISTRATION_STATUS_LABEL[key] || String(status || "-");
 }
 
+function getDownloadFilename(contentDisposition, fallback) {
+  const value = String(contentDisposition || "");
+  const utf8Match = value.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+  const basicMatch = value.match(/filename=\"?([^\";]+)\"?/i);
+  return basicMatch?.[1] || fallback;
+}
+
 export default function QRCheckin() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -204,6 +214,7 @@ export default function QRCheckin() {
   const [error, setError] = useState("");
   const [smsSent, setSmsSent] = useState(false);
   const [smsSending, setSmsSending] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [useImage, setUseImage] = useState(true);
 
   const registrationMap = useMemo(() => {
@@ -372,27 +383,33 @@ export default function QRCheckin() {
   };
 
   const handleDownload = async () => {
-    if (!qrInfo?.originalUrl) return;
-    const filename = `qr-${qrInfo?.qrId ?? "code"}.png`;
+    if (!selectedEventId) return;
+
+    setDownloading(true);
+    setError("");
+
     try {
-      const imgRes = await fetch(qrInfo.originalUrl);
-      if (!imgRes.ok) throw new Error("download failed");
-      const blob = await imgRes.blob();
-      const objectUrl = URL.createObjectURL(blob);
+      const response = await axiosInstance.get("/api/qr/me/download", {
+        params: { eventId: selectedEventId },
+        responseType: "blob",
+      });
+      const filename = getDownloadFilename(
+        response?.headers?.["content-disposition"],
+        `qr-${qrInfo?.qrId ?? "code"}.png`,
+      );
+      const objectUrl = URL.createObjectURL(response.data);
       const a = document.createElement("a");
       a.href = objectUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(objectUrl);
-    } catch {
-      const a = document.createElement("a");
-      a.href = qrInfo.originalUrl;
-      a.download = filename;
-      a.target = "_blank";
-      a.rel = "noreferrer";
-      a.click();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (e) {
+      const message = e?.response?.data?.error?.message || "QR 이미지를 저장하지 못했습니다.";
+      setError(message);
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -490,9 +507,9 @@ export default function QRCheckin() {
                     ? "발송됨"
                     : "문자 받기"}
               </button>
-              <button className="qr-btn qr-btn-primary" onClick={handleDownload} disabled={!qrInfo?.originalUrl}>
+              <button className="qr-btn qr-btn-primary" onClick={handleDownload} disabled={!selectedEventId || downloading}>
                 <Download size={13} />
-                이미지 저장
+                {downloading ? "저장 중..." : "이미지 저장"}
               </button>
             </div>
           </div>

@@ -440,7 +440,7 @@ export default function Closed() {
 
       <main
         style={{
-          width: "min(1400px, calc(100% - 32px))",
+          width: "min(1350px, calc(100% - 50px))",
           margin: "0 auto",
           padding: "32px 0 72px",
         }}

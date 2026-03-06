@@ -4,7 +4,11 @@ import { ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import sortIcon from "../../../assets/sort-icon.svg";
 import { noticeApi, unwrap } from "../../../api/noticeApi";
-import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
+import {
+  COMMUNITY_CATEGORIES,
+  getBoardBadge,
+  getNoticeScopeBadge,
+} from "./communityConfig";
 
 const PAGE_SIZE = 10;
 
@@ -29,11 +33,6 @@ function fmtDate(value) {
 function toTimestamp(value) {
   const ts = Date.parse(String(value || ""));
   return Number.isFinite(ts) ? ts : 0;
-}
-
-function getScopeLabel(scope) {
-  const normalized = String(scope || "").toUpperCase();
-  return normalized === "EVENT" ? "행사" : "전체";
 }
 
 export default function Notice() {
@@ -130,7 +129,7 @@ export default function Notice() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <main
         style={{
-          width: "min(1400px, calc(100% - 32px))",
+          width: "min(1350px, calc(100% - 50px))",
           margin: "0 auto",
           padding: "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
@@ -322,40 +321,61 @@ export default function Notice() {
         {!loading && !error && (
           <>
             <div>
-              {paged.map((notice) => (
-                <div
-                  key={notice.noticeId}
-                  onClick={() => navigate(`/community/notice/${notice.noticeId}`)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "18px 6px",
-                    borderBottom: "1px solid #e8e8e8",
-                    cursor: "pointer",
-                    transition: "background 0.15s",
-                    gap: 10,
-                  }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.background = "#f9f9f9";
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  <span style={{ ...badge.style, marginRight: 2 }}>{badge.text}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#dc2626" }}>[{getScopeLabel(notice.scope)}]</span>
-                  {notice.pinned ? <span style={{ fontSize: 12, fontWeight: 800, color: "#dc2626" }}>📌</span> : null}
-                  <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500 }}>
-                    {notice.title}
-                  </span>
-                  <span style={{ fontSize: "12px", color: "#94A3B8", minWidth: 60, textAlign: "right" }}>
-                    조회 {notice.viewCount ?? 0}
-                  </span>
-                  <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", minWidth: 94, textAlign: "right" }}>
-                    {fmtDate(notice.createdAt)}
-                  </span>
-                </div>
-              ))}
+              {paged.map((notice) => {
+                const scopeBadge = getNoticeScopeBadge(notice.scope);
+                return (
+                  <div
+                    key={notice.noticeId}
+                    onClick={() => navigate(`/community/notice/${notice.noticeId}`)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "18px 6px",
+                      borderBottom: "1px solid #e8e8e8",
+                      cursor: "pointer",
+                      transition: "background 0.15s",
+                      gap: 10,
+                    }}
+                    onMouseEnter={(event) => {
+                      event.currentTarget.style.background = "#f9f9f9";
+                    }}
+                    onMouseLeave={(event) => {
+                      event.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <span style={{ ...badge.style, marginRight: 2 }}>{badge.text}</span>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: 50,
+                        padding: "4px 10px",
+                        borderRadius: 999,
+                        border: `1px solid ${scopeBadge.borderColor}`,
+                        background: scopeBadge.background,
+                        color: scopeBadge.color,
+                        fontSize: 12,
+                        fontWeight: 800,
+                        lineHeight: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {scopeBadge.compactLabel}
+                    </span>
+                    {notice.pinned ? <span style={{ fontSize: 12, fontWeight: 800, color: "#dc2626" }}>📌</span> : null}
+                    <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500 }}>
+                      {notice.title}
+                    </span>
+                    <span style={{ fontSize: "12px", color: "#94A3B8", minWidth: 60, textAlign: "right" }}>
+                      조회 {notice.viewCount ?? 0}
+                    </span>
+                    <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", minWidth: 94, textAlign: "right" }}>
+                      {fmtDate(notice.createdAt)}
+                    </span>
+                  </div>
+                );
+              })}
 
               {paged.length === 0 && (
                 <div style={{ textAlign: "center", padding: "60px 0", color: "#999", fontSize: "14px" }}>

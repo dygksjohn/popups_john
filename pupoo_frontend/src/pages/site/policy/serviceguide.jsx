@@ -1,7 +1,7 @@
 export default function ServiceGuide() {
   return (
     <div className="pt-36 pb-32 bg-white min-h-screen">
-      <div className="max-w-[820px] mx-auto px-6 text-gray-900">
+      <div className="max-w-[820px] mx-auto px-[25px] text-gray-900">
         {/* 타이틀 */}
         <div className="mb-20">
           <h1 className="text-5xl font-bold tracking-tight mb-6">이용안내</h1>

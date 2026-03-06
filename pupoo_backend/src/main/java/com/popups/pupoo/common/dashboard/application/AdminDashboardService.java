@@ -114,7 +114,6 @@ public class AdminDashboardService {
                 req.getType() != null ? BoothType.valueOf(req.getType()) : BoothType.BOOTH_EXPERIENCE,
                 req.getDescription(),
                 req.getCompany(),
-                req.getImageUrl(),
                 req.getZone() != null ? BoothZone.valueOf(req.getZone()) : BoothZone.ZONE_A,
                 req.getStatus() != null ? BoothStatus.valueOf(req.getStatus()) : BoothStatus.OPEN
         );
@@ -131,7 +130,6 @@ public class AdminDashboardService {
                 req.getType() != null ? BoothType.valueOf(req.getType()) : null,
                 req.getDescription(),
                 req.getCompany(),
-                req.getImageUrl(),
                 req.getZone() != null ? BoothZone.valueOf(req.getZone()) : null,
                 req.getStatus() != null ? BoothStatus.valueOf(req.getStatus()) : null
         );

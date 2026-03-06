@@ -18,13 +18,20 @@ import com.popups.pupoo.user.persistence.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
 @Transactional(readOnly = true)
 public class QrService {
+    private static final Duration QR_DOWNLOAD_TIMEOUT = Duration.ofSeconds(20);
 
     private final QrCodeRepository qrCodeRepository;
     private final QrCheckinRepository qrCheckinRepository;
@@ -32,6 +39,7 @@ public class QrService {
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
     private final BoothRepository boothRepository;
+    private final HttpClient httpClient;
 
     public QrService(QrCodeRepository qrCodeRepository,
                      QrCheckinRepository qrCheckinRepository,
@@ -43,6 +51,10 @@ public class QrService {
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
         this.boothRepository = boothRepository;
+        this.httpClient = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.ALWAYS)
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
     // =========================
@@ -80,6 +92,64 @@ public class QrService {
 
     private String buildQrUrl(Long userId, Long eventId) {
         return "https://pupoo.io/qr/" + userId + "/" + eventId;
+    }
+
+    public QrDownloadResult downloadMyQr(Long userId, Long eventId) {
+        QrIssueResponse qr = getMyQrOrIssue(userId, eventId);
+        String originalUrl = qr.getOriginalUrl();
+        if (originalUrl == null || originalUrl.isBlank()) {
+            throw new IllegalStateException("QR image url is empty");
+        }
+        HttpRequest request = HttpRequest.newBuilder(URI.create(originalUrl))
+                .timeout(QR_DOWNLOAD_TIMEOUT)
+                .header("Accept", "image/*,*/*;q=0.8")
+                .GET()
+                .build();
+        HttpResponse<byte[]> response;
+        try {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("QR image download interrupted", e);
+        } catch (IOException e) {
+            throw new IllegalStateException("QR image download failed", e);
+        }
+        byte[] body = response.body();
+        if (response.statusCode() < 200 || response.statusCode() >= 300 || body == null || body.length == 0) {
+            throw new IllegalStateException("QR image download failed");
+        }
+        String contentType = response.headers()
+                .firstValue("Content-Type")
+                .map(value -> value.split(";", 2)[0].trim())
+                .filter(value -> !value.isBlank())
+                .orElseGet(() -> defaultContentType(qr.getMimeType()));
+        String filename = "qr-" + qr.getQrId() + "." + resolveExtension(contentType, qr.getMimeType());
+        return new QrDownloadResult(body, contentType, filename);
+    }
+
+    private String defaultContentType(String mimeType) {
+        if (mimeType == null || mimeType.isBlank()) {
+            return "image/png";
+        }
+        String normalized = mimeType.toLowerCase(Locale.ROOT);
+        return normalized.contains("/") ? normalized : "image/" + normalized;
+    }
+
+    private String resolveExtension(String contentType, String mimeType) {
+        String normalizedType = String.valueOf(contentType).toLowerCase(Locale.ROOT);
+        if (normalizedType.startsWith("image/")) {
+            String extension = normalizedType.substring("image/".length()).trim();
+            if (!extension.isBlank()) {
+                return extension;
+            }
+        }
+        if (mimeType != null && !mimeType.isBlank()) {
+            return mimeType.toLowerCase(Locale.ROOT);
+        }
+        return "png";
+    }
+
+    public record QrDownloadResult(byte[] bytes, String contentType, String filename) {
     }
 
     // =========================

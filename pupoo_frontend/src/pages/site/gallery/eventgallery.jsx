@@ -21,12 +21,12 @@ import { useAuth } from "../auth/AuthProvider";
 import { userApi } from "../../../app/http/userApi";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
+import sortIcon from "../../../assets/sort-icon.svg";
 
 const PAGE_SIZE = 8;
 const SERVICE_CATEGORIES = [{ label: "행사 갤러리", path: "/gallery/eventgallery" }];
 const SORT_OPTIONS = [
   { value: "latest", label: "최신순" },
-  { value: "views", label: "조회순" },
   { value: "likes", label: "좋아요순" },
 ];
 
@@ -336,6 +336,9 @@ export default function EventGallery() {
   const totalPages = Math.max(1, Math.ceil(filteredGalleries.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pagedGalleries = useMemo(() => filteredGalleries.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE), [currentPage, filteredGalleries]);
+  const currentSortLabel =
+    SORT_OPTIONS.find((item) => item.value === sortOption)?.label ||
+    "최신순";
 
   const ensureAuthed = useCallback(() => {
     if (!isAuthed) {
@@ -404,7 +407,7 @@ export default function EventGallery() {
       <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
       <main
         style={{
-          width: "min(1400px, calc(100% - 32px))",
+          width: "min(1350px, calc(100% - 50px))",
           margin: "0 auto",
           padding: "36px 0 64px",
         }}
@@ -413,7 +416,7 @@ export default function EventGallery() {
           <div style={{ padding: "26px 28px 18px", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <select value={selectedEventId} onChange={(event) => setSearchParams(event.target.value ? { eventId: event.target.value } : {})} style={{ minWidth: 240, height: 44, borderRadius: 12, border: "1px solid #cbd5e1", padding: "0 14px", fontSize: 14, color: "#0f172a", background: "#fff" }}><option value="">전체 행사</option>{events.map((event) => <option key={event.eventId} value={event.eventId}>{event.eventName}</option>)}</select>
             <div style={{ position: "relative", flex: 1, minWidth: 220 }}><Search size={16} color="#94a3b8" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="제목, 설명, 행사명 검색" style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid #cbd5e1", padding: "0 14px 0 40px", fontSize: 14, color: "#0f172a" }} /></div>
-            <div style={{ position: "relative" }}><button type="button" onClick={() => setSortMenuOpen((prev) => !prev)} style={{ height: 44, minWidth: 136, borderRadius: 12, border: "1px solid #cbd5e1", background: "#fff", padding: "0 14px", display: "inline-flex", alignItems: "center", justifyContent: "space-between", gap: 10, fontSize: 13, fontWeight: 800, color: "#334155", cursor: "pointer" }}><span>{SORT_OPTIONS.find((item) => item.value === sortOption)?.label}</span><ChevronDown size={14} /></button>{sortMenuOpen ? <div style={{ position: "absolute", top: 50, right: 0, minWidth: 136, borderRadius: 14, overflow: "hidden", border: "1px solid #e2e8f0", background: "#fff", boxShadow: "0 18px 36px rgba(15,23,42,0.14)", zIndex: 20 }}>{SORT_OPTIONS.map((option) => <button key={option.value} type="button" onClick={() => { setSortOption(option.value); setSortMenuOpen(false); }} style={{ width: "100%", height: 42, border: "none", background: sortOption === option.value ? "#eff6ff" : "#fff", color: sortOption === option.value ? "#1d4ed8" : "#334155", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>{option.label}</button>)}</div> : null}</div>
+            <div style={{ position: "relative" }}><button type="button" onClick={() => setSortMenuOpen((prev) => !prev)} style={{ border: "1px solid #d1d5db", borderRadius: 8, background: "#fff", height: 38, padding: "0 12px", display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#334155", cursor: "pointer" }}><img src={sortIcon} alt="정렬 아이콘" width={14} height={14} />{currentSortLabel}</button>{sortMenuOpen ? <div style={{ position: "absolute", right: 0, top: 42, minWidth: 120, border: "1px solid #e2e8f0", borderRadius: 8, background: "#fff", boxShadow: "0 8px 20px rgba(15,23,42,0.12)", zIndex: 20, overflow: "hidden" }}>{SORT_OPTIONS.map((option) => <button key={option.value} type="button" onClick={() => { setSortOption(option.value); setSortMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: option.value === sortOption ? "#eff6ff" : "#fff", color: option.value === sortOption ? "#1D4ED8" : "#334155", padding: "9px 11px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{option.label}</button>)}</div> : null}</div>
             {isAuthed ? <button type="button" onClick={() => { setWriteError(""); setWriteForm({ eventId: selectedEventId || "", title: "", description: "", files: [] }); setWriteOpen(true); }} style={{ marginLeft: "auto", height: 44, padding: "0 18px", borderRadius: 12, border: "none", background: "#1d4ed8", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 800, cursor: "pointer" }}><Plus size={16} /> 글쓰기</button> : null}
           </div>
           <div style={{ padding: 28 }}>

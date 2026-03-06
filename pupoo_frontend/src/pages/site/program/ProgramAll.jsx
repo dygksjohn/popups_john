@@ -33,7 +33,7 @@ const styles = `
     min-height: 100vh;
   }
   .sc-root *, .sc-root *::before, .sc-root *::after { box-sizing: border-box; font-family: inherit; }
-  .sc-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+  .sc-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
 
   .sc-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
   .sc-stat-card {

@@ -3,20 +3,13 @@ import { useParams } from "react-router-dom";
 import { noticeApi, unwrap } from "../../../api/noticeApi";
 import CommunityDetailLayout from "./shared/CommunityDetailLayout";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
+import { getNoticeScopeBadge } from "./communityConfig";
 
 function fmtDate(value) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function getScopeMeta(scope) {
-  const normalized = String(scope || "").toUpperCase();
-  if (normalized === "GLOBAL" || normalized === "ALL") {
-    return { label: "전체 공지", color: "#1d4ed8" };
-  }
-  return { label: "행사 공지", color: "#0f766e" };
 }
 
 export default function NoticeDetailPage() {
@@ -59,7 +52,7 @@ export default function NoticeDetailPage() {
     ];
   }, [notice]);
 
-  const scopeMeta = getScopeMeta(notice?.scope);
+  const scopeBadge = getNoticeScopeBadge(notice?.scope);
   const eventLabel = notice?.eventName
     ? normalizeEventTitle(notice.eventName, notice)
     : "";
@@ -76,7 +69,23 @@ export default function NoticeDetailPage() {
       extraHead={
         !loading && notice ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-            <span style={{ fontSize: 12, fontWeight: 800, color: scopeMeta.color }}>{scopeMeta.label}</span>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "5px 11px",
+                borderRadius: 999,
+                border: `1px solid ${scopeBadge.borderColor}`,
+                background: scopeBadge.background,
+                color: scopeBadge.color,
+                fontSize: 12,
+                fontWeight: 800,
+                lineHeight: 1,
+              }}
+            >
+              {scopeBadge.label}
+            </span>
             {notice.pinned ? <span style={{ fontSize: 12, fontWeight: 800, color: "#dc2626" }}>📌 고정</span> : null}
             {eventLabel ? <span style={{ fontSize: 12, color: "#64748b" }}>{eventLabel}</span> : null}
           </div>

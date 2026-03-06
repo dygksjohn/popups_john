@@ -23,13 +23,24 @@ import {
   Info,
 } from "lucide-react";
 import ds, { statusMap } from "../shared/designTokens";
+const toAbsUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith("http")) return url;
+  const base = (
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
+  ).replace(/\/$/, "");
+  return base + url;
+};
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 
 /* ═══ Styles ═══ */
 const styles = `
-.card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;filter:none!important;opacity:1!important;-webkit-tap-highlight-color:transparent;}
+.card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent;}
+.ev-card-ended { opacity:0.42 !important; filter:grayscale(0.6) !important; pointer-events:none !important; }
+.ev-card-ended img { filter:blur(2px) !important; }
+.ev-card-ended .card-manage-btn { background:rgba(255,255,255,0.12) !important; color:rgba(255,255,255,0.35) !important; cursor:not-allowed !important; }
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -279,54 +290,6 @@ const ICON_POOL = [
   { icon: Medal, bg: ds.amberSoft, color: "#EA580C" },
 ];
 
-const MOCK_PARTICIPANTS = [
-  {
-    id: 1,
-    petName: "별이",
-    breedDetail: "포메라니안",
-    imageUrl:
-      "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=400&fit=crop",
-    votes: 184,
-    status: "APPROVED",
-  },
-  {
-    id: 2,
-    petName: "보리",
-    breedDetail: "시바견",
-    imageUrl:
-      "https://images.unsplash.com/photo-1583337130417-13571f57e3d9?w=400&h=400&fit=crop",
-    votes: 147,
-    status: "APPROVED",
-  },
-  {
-    id: 3,
-    petName: "하루",
-    breedDetail: "말티즈",
-    imageUrl:
-      "https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=400&h=400&fit=crop",
-    votes: 98,
-    status: "APPROVED",
-  },
-  {
-    id: 4,
-    petName: "코코",
-    breedDetail: "푸들",
-    imageUrl:
-      "https://images.unsplash.com/photo-1616567214565-ef020940b8e8?w=400&h=400&fit=crop",
-    votes: 53,
-    status: "APPROVED",
-  },
-  {
-    id: 5,
-    petName: "두부",
-    breedDetail: "비숑 프리제",
-    imageUrl:
-      "https://images.unsplash.com/photo-1598133894008-61f7fdb8cc3a?w=400&h=400&fit=crop",
-    votes: 30,
-    status: "APPLIED",
-  },
-];
-
 const RANK_COLORS = ["#F59E0B", "#94A3B8", "#CD7F32"];
 const CARD_COLORS = [
   RED.primary,
@@ -336,6 +299,17 @@ const CARD_COLORS = [
   "#991B1B",
   ds.line,
 ];
+
+const readApiList = (payload) => {
+  if (Array.isArray(payload?.content)) return payload.content;
+  if (Array.isArray(payload)) return payload;
+  return [];
+};
+
+const readVoteItems = (payload) => {
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+};
 
 /* ═══ 다크 이미지 업로드 영역 ═══ */
 function DarkImageUpload({
@@ -853,11 +827,11 @@ function ContestCard({
 }) {
   const badge = contestBadge(item.status);
   const icon = ICON_POOL[idx % ICON_POOL.length];
+  const isEnded = item.status === "ended";
   return (
     <div
       onClick={onClick}
       style={{
-        /* 선택 시 다크모드 어울리는 블루 테두리 */
         border: isSelected ? `2px solid #4F7FEF` : `1.5px solid #2E3A4E`,
         borderRadius: 12,
         background: isSelected ? "#1A2540" : ds.card,
@@ -865,6 +839,7 @@ function ContestCard({
         cursor: "pointer",
         transition: "all .18s",
         overflow: "hidden",
+        opacity: isEnded ? 0.45 : 1,
       }}
     >
       {/* 상단 행 */}
@@ -886,6 +861,7 @@ function ContestCard({
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
+            filter: isEnded ? "blur(1px) grayscale(0.5)" : "none",
           }}
         >
           <icon.icon size={19} color={icon.color} strokeWidth={2} />
@@ -1017,33 +993,70 @@ function ContestCard({
 }
 
 /* ═══ 참가자 카드 ═══ */
-function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
+function ParticipantCard({
+  p,
+  rank,
+  totalVotes,
+  onEdit,
+  onDelete,
+  onApprove,
+  onReject,
+}) {
   const pct = totalVotes > 0 ? Math.round((p.votes / totalVotes) * 100) : 0;
   const barPct = totalVotes > 0 ? (p.votes / totalVotes) * 100 : 0;
   const rankColor = RANK_COLORS[rank - 1] || "#94A3B8";
-  const cardColor = CARD_COLORS[(rank - 1) % CARD_COLORS.length];
+  const rankEmoji = ["🥇", "🥈", "🥉"][rank - 1] ?? null;
+
+  const statusStyle =
+    p.status === "APPROVED"
+      ? {
+          bg: "#0D2B1F",
+          border: "#065F46",
+          color: "#34D399",
+          label: "승인됨 ✅",
+        }
+      : p.status === "REJECTED"
+        ? {
+            bg: "#2B0D0D",
+            border: "#7F1D1D",
+            color: "#F87171",
+            label: "반려됨 ✕",
+          }
+        : {
+            bg: "#2B2200",
+            border: "#92400E",
+            color: "#FCD34D",
+            label: "검토 중 🔍",
+          };
+
   return (
     <div
       style={{
-        background: ds.card,
-        border: "1.5px solid #ECEEF3",
+        background: "#151E2D",
+        border:
+          p.status === "APPROVED"
+            ? "1.5px solid #065F46"
+            : p.status === "REJECTED"
+              ? "1.5px solid #7F1D1D"
+              : "1.5px solid #2E3A4E",
         borderRadius: 16,
         overflow: "hidden",
         animation: `cardIn .35s ease ${(rank - 1) * 0.07}s both`,
+        transition: "transform .18s, box-shadow .18s",
       }}
     >
+      {/* 이미지 영역 */}
       <div
         style={{
           width: "100%",
           aspectRatio: "1/1",
           position: "relative",
-          overflow: "hidden",
-          background: p.imageUrl ? ds.lineSoft : `${cardColor}15`,
+          background: "#0D1520",
         }}
       >
         {p.imageUrl ? (
           <img
-            src={p.imageUrl}
+            src={toAbsUrl(p.imageUrl)}
             alt={p.petName}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
             onError={(e) => {
@@ -1058,67 +1071,83 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              fontSize: 48,
             }}
           >
-            <Dog size={40} color={cardColor} />
+            🐾
           </div>
         )}
+        {/* 그라디언트 오버레이 */}
         <div
           style={{
             position: "absolute",
             inset: 0,
             background:
-              "linear-gradient(180deg,transparent 50%,rgba(0,0,0,0.35) 100%)",
+              "linear-gradient(180deg,rgba(0,0,0,0.1) 0%,rgba(0,0,0,0.6) 100%)",
             pointerEvents: "none",
           }}
         />
-        <div
-          style={{
-            position: "absolute",
-            top: 10,
-            left: 10,
-            width: 30,
-            height: 30,
-            borderRadius: 9,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 13,
-            fontWeight: 800,
-            color: "#fff",
-            background: rank <= 3 ? rankColor : "rgba(0,0,0,0.4)",
-            zIndex: 2,
-          }}
-        >
-          {rank}
-        </div>
-        <div
-          style={{
-            position: "absolute",
-            bottom: 10,
-            left: 12,
-            zIndex: 2,
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-            padding: "4px 10px",
-            borderRadius: 100,
-            background: "rgba(0,0,0,0.5)",
-            backdropFilter: "blur(6px)",
-            fontSize: 12,
-            fontWeight: 700,
-            color: "#fff",
-          }}
-        >
-          <Heart size={11} fill="#fff" /> {p.votes.toLocaleString()}표
-        </div>
+
+        {/* 순위 뱃지 */}
+        {rankEmoji ? (
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              left: 10,
+              fontSize: 20,
+              zIndex: 2,
+              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))",
+            }}
+          >
+            {rankEmoji}
+          </div>
+        ) : (
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              left: 10,
+              zIndex: 2,
+              background: "rgba(0,0,0,0.55)",
+              borderRadius: 8,
+              padding: "2px 8px",
+              fontSize: 12,
+              fontWeight: 800,
+              color: "#CBD5E1",
+            }}
+          >
+            #{rank}
+          </div>
+        )}
+
+        {/* 상태 뱃지 */}
         <div
           style={{
             position: "absolute",
             top: 10,
             right: 10,
+            zIndex: 2,
+            background: statusStyle.bg,
+            border: `1px solid ${statusStyle.border}`,
+            borderRadius: 8,
+            padding: "3px 9px",
+            fontSize: 11,
+            fontWeight: 700,
+            color: statusStyle.color,
+          }}
+        >
+          {statusStyle.label}
+        </div>
+
+        {/* 수정/삭제 버튼 */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 10,
+            right: 10,
             display: "flex",
-            gap: 4,
+            gap: 5,
             zIndex: 2,
           }}
         >
@@ -1130,16 +1159,17 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
             style={{
               width: 28,
               height: 28,
-              borderRadius: 7,
-              background: "rgba(255,255,255,0.9)",
-              border: "none",
+              borderRadius: 8,
+              background: "rgba(255,255,255,0.15)",
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(255,255,255,0.2)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Pencil size={12} color="#6B7280" />
+            <Pencil size={12} color="#fff" />
           </button>
           <button
             onClick={(e) => {
@@ -1149,108 +1179,167 @@ function ParticipantCard({ p, rank, totalVotes, onEdit, onDelete }) {
             style={{
               width: 28,
               height: 28,
-              borderRadius: 7,
-              background: "rgba(255,255,255,0.9)",
-              border: "none",
+              borderRadius: 8,
+              background: "rgba(239,68,68,0.25)",
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(239,68,68,0.4)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Trash2 size={12} color="#EF4444" />
+            <Trash2 size={12} color="#F87171" />
           </button>
         </div>
-      </div>
-      <div style={{ padding: "14px 16px 16px" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 4,
-          }}
-        >
-          <span style={{ fontSize: 16, fontWeight: 800, color: ds.ink }}>
-            {p.petName}
-          </span>
-          {totalVotes > 0 && (
-            <span style={{ fontSize: 14, fontWeight: 800, color: RED.dark }}>
-              {pct}%
-            </span>
-          )}
-        </div>
-        <div
-          style={{
-            fontSize: 13,
-            color: "#868E9C",
-            fontWeight: 500,
-            marginBottom: 10,
-          }}
-        >
-          {p.breedDetail || "미등록"}
-        </div>
+
+        {/* 득표수 */}
         {totalVotes > 0 && (
           <div
             style={{
-              height: 6,
-              background: ds.lineSoft,
-              borderRadius: 100,
-              overflow: "hidden",
-              marginBottom: 10,
+              position: "absolute",
+              bottom: 10,
+              left: 10,
+              zIndex: 2,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              background: "rgba(0,0,0,0.55)",
+              backdropFilter: "blur(6px)",
+              borderRadius: 8,
+              padding: "3px 9px",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#fff",
             }}
           >
-            <div
-              style={{
-                height: "100%",
-                width: `${barPct}%`,
-                borderRadius: 100,
-                background: cardColor,
-                transition: "width .6s cubic-bezier(.4,0,.2,1)",
-              }}
-            />
+            <Heart size={10} fill="#fff" /> {p.votes.toLocaleString()}표
           </div>
         )}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              padding: "2px 8px",
-              borderRadius: 100,
-              background: p.status === "APPROVED" ? ds.greenSoft : ds.amberSoft,
-              color: p.status === "APPROVED" ? "#059669" : "#D97706",
-            }}
-          >
-            {p.status === "APPROVED" ? "승인됨" : "대기 중"}
-          </span>
-          {rank === 1 && totalVotes > 0 && (
-            <span
+      </div>
+
+      {/* 정보 영역 */}
+      <div style={{ padding: "14px 14px 12px" }}>
+        <div
+          style={{
+            fontSize: 15,
+            fontWeight: 800,
+            color: "#F1F5F9",
+            marginBottom: 2,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {p.petName}
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            color: "#64748B",
+            marginBottom: totalVotes > 0 ? 10 : 12,
+          }}
+        >
+          {p.breedDetail || "견종 미등록"}
+        </div>
+
+        {/* 득표율 바 */}
+        {totalVotes > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <div
               style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#F59E0B",
                 display: "flex",
-                alignItems: "center",
-                gap: 3,
+                justifyContent: "space-between",
+                fontSize: 11,
+                color: "#64748B",
+                marginBottom: 4,
               }}
             >
-              <Crown size={11} /> 1위
-            </span>
-          )}
-        </div>
+              <span>득표율</span>
+              <span style={{ fontWeight: 700, color: rankColor }}>{pct}%</span>
+            </div>
+            <div
+              style={{
+                height: 5,
+                background: "#1E293B",
+                borderRadius: 99,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${barPct}%`,
+                  borderRadius: 99,
+                  background: `linear-gradient(90deg, ${rankColor}, ${rankColor}99)`,
+                  transition: "width .6s ease",
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 승인/반려 버튼 */}
+        {(p.status === "APPLIED" || p.status === "WAITING") && (
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onApprove && onApprove(p);
+              }}
+              style={{
+                flex: 1,
+                padding: "7px 0",
+                borderRadius: 8,
+                border: "none",
+                background: "#065F46",
+                color: "#34D399",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              ✅ 승인
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onReject && onReject(p);
+              }}
+              style={{
+                flex: 1,
+                padding: "7px 0",
+                borderRadius: 8,
+                border: "1px solid #7F1D1D",
+                background: "#2B0D0D",
+                color: "#F87171",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              ✕ 반려
+            </button>
+          </div>
+        )}
+
+        {rank === 1 && totalVotes > 0 && (
+          <div
+            style={{
+              marginTop: 8,
+              textAlign: "center",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#F59E0B",
+            }}
+          >
+            👑 1위
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-/* ═══════════════════════════════════════════
-   메인
-   Props
-     subTab          — 행사 목록 필터
-     onDetailEnter() — 콘테스트 대시보드 진입 → 부모 탭 숨김
-     onDetailLeave() — 행사 목록으로 복귀   → 부모 탭 복원
-═══════════════════════════════════════════ */
 export default function ContestManage({
   subTab = "all",
   onDetailEnter,
@@ -1267,8 +1356,9 @@ export default function ContestManage({
   const [participantModal, setParticipantModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteParticipant, setDeleteParticipant] = useState(null);
-  const [internalTab, setInternalTab] = useState("all"); // 탭 내부 관리
+  const [internalTab, setInternalTab] = useState("all");
   const imageMapRef = useRef({});
+  const selectedContestRef = useRef(null);
   const [participantsMap, setParticipantsMap] = useState({});
   const [selected, setSelected] = useState(new Set());
 
@@ -1307,42 +1397,148 @@ export default function ContestManage({
     });
 
   const getParticipants = useCallback(
-    (id) => participantsMap[id] || [],
+    (id) => participantsMap[id] ?? [],
     [participantsMap],
   );
-  const selectContest = useCallback(
-    (contest) => {
-      setSelectedContest(contest);
-      setParticipantsMap((prev) => {
-        if (prev[contest.programId]) return prev;
-        const isFirst =
-          items.length > 0 && items[0].programId === contest.programId;
-        return {
+
+  const loadContestParticipants = useCallback(
+    async (contest, { silent = false } = {}) => {
+      if (!contest?.programId) return [];
+      try {
+        const [applyRes, voteRes] = await Promise.all([
+          axiosInstance.get(
+            `/api/admin/dashboard/programs/${contest.programId}/applies`,
+            { params: { page: 0, size: 100 }, headers: authHeaders() },
+          ),
+          axiosInstance.get(`/api/programs/${contest.programId}/votes/result`),
+        ]);
+        const applyData = applyRes.data?.data ?? applyRes.data;
+        const voteData = voteRes.data?.data ?? voteRes.data;
+        const voteMap = new Map(
+          readVoteItems(voteData).map((item) => [
+            Number(item?.programApplyId),
+            Number(item?.voteCount ?? 0),
+          ]),
+        );
+        const mapped = readApiList(applyData).map((apply) => ({
+          id: apply.programApplyId,
+          programApplyId: apply.programApplyId,
+          petName: apply.petName || `신청 #${apply.programApplyId}`,
+          breedDetail: apply.ownerNickname || "",
+          imageUrl: apply.imageUrl || null,
+          votes: voteMap.get(Number(apply.programApplyId)) ?? 0,
+          status: apply.status,
+          userId: apply.userId,
+        }));
+        setParticipantsMap((prev) => ({
           ...prev,
-          [contest.programId]: isFirst ? MOCK_PARTICIPANTS : [],
-        };
-      });
+          [contest.programId]: mapped,
+        }));
+        return mapped;
+      } catch (e) {
+        if (!silent) {
+          showToast(
+            e.response?.data?.message || "참가 신청 조회에 실패했습니다.",
+            "error",
+          );
+        }
+        setParticipantsMap((prev) => ({ ...prev, [contest.programId]: [] }));
+        return [];
+      }
     },
-    [participantsMap, items],
+    [],
   );
 
-  /* ── API ── */
+  const selectContest = useCallback(
+    async (contest) => {
+      if (!contest?.programId) return;
+      setSelectedContest(contest);
+      selectedContestRef.current = contest;
+      setParticipantsMap((prev) => ({ ...prev, [contest.programId]: [] }));
+      await loadContestParticipants(contest);
+    },
+    [loadContestParticipants],
+  );
+
+  const handleApproveParticipant = async (participant) => {
+    const cid = selectedContest?.programId;
+    if (!cid) return;
+    const applyId = participant.programApplyId || participant.id;
+    if (!applyId) {
+      showToast("요청 ID를 확인할 수 없습니다.", "error");
+      return;
+    }
+    try {
+      await axiosInstance.patch(
+        `/api/admin/dashboard/program-applies/${applyId}/status`,
+        { status: "APPROVED" },
+        { headers: authHeaders() },
+      );
+      showToast(`${participant.petName} 승인 완료`);
+      setParticipantsMap((prev) => ({
+        ...prev,
+        [cid]: (prev[cid] || []).map((p) =>
+          (p.programApplyId || p.id) === applyId
+            ? { ...p, status: "APPROVED" }
+            : p,
+        ),
+      }));
+    } catch (e) {
+      showToast(e.response?.data?.message || "승인에 실패했습니다.", "error");
+    }
+  };
+
+  const handleRejectParticipant = async (participant) => {
+    const cid = selectedContest?.programId;
+    if (!cid) return;
+    const applyId = participant.programApplyId || participant.id;
+    if (!applyId) {
+      showToast("요청 ID를 확인할 수 없습니다.", "error");
+      return;
+    }
+    try {
+      await axiosInstance.patch(
+        `/api/admin/dashboard/program-applies/${applyId}/status`,
+        { status: "REJECTED" },
+        { headers: authHeaders() },
+      );
+      showToast(`${participant.petName} 반려 처리 완료`);
+      setParticipantsMap((prev) => ({
+        ...prev,
+        [cid]: (prev[cid] || []).map((p) =>
+          (p.programApplyId || p.id) === applyId
+            ? { ...p, status: "REJECTED" }
+            : p,
+        ),
+      }));
+    } catch (e) {
+      showToast(e.response?.data?.message || "승인에 실패했습니다.", "error");
+    }
+  };
+
   const loadEvents = async () => {
     try {
       await loadImageCache();
       const res = await axiosInstance.get("/api/admin/dashboard/events", {
         headers: authHeaders(),
+        params: { sort: "eventId,desc", size: 500 },
       });
       const list = res.data?.data || res.data || [];
-      setEvents(
-        injectEventImages(list).map((e) => ({
-          ...e,
-          status: calcStatus(
-            e.startAt || e.date?.split("~")[0]?.trim()?.replace(/\./g, "-"),
-            e.endAt || e.date?.split("~")[1]?.trim()?.replace(/\./g, "-"),
-          ),
-        })),
+      const mapped = injectEventImages(list).map((e) => ({
+        ...e,
+        status: calcStatus(
+          e.startAt || e.date?.split("~")[0]?.trim()?.replace(/\./g, "-"),
+          e.endAt || e.date?.split("~")[1]?.trim()?.replace(/\./g, "-"),
+        ),
+      }));
+      const parseId = (v) => {
+        const n = Number(v);
+        return !isNaN(n) ? n : Number(String(v ?? "").replace(/\D/g, "")) || 0;
+      };
+      mapped.sort(
+        (a, b) => parseId(b.eventId ?? b.id) - parseId(a.eventId ?? a.id),
       );
+      setEvents(mapped);
     } catch {
       setEvents([]);
     } finally {
@@ -1354,7 +1550,10 @@ export default function ContestManage({
     try {
       const res = await axiosInstance.get(
         `/api/admin/dashboard/events/${eventId}/programs`,
-        { params: { category: "CONTEST" }, headers: authHeaders() },
+        {
+          params: { category: "CONTEST", page: 0, size: 200 },
+          headers: authHeaders(),
+        },
       );
       const data = res.data?.data ?? res.data;
       const raw = Array.isArray(data?.content)
@@ -1362,11 +1561,22 @@ export default function ContestManage({
         : Array.isArray(data)
           ? data
           : [];
-      const list = raw.map((p) => ({
-        ...p,
-        status: calcStatus(p.startAt, p.endAt),
-        imageUrl: imageMapRef.current[p.programId] || p.imageUrl || null,
-      }));
+      const list = raw
+        .filter((p) => {
+          const cat = String(
+            p.category ?? p.programCategory ?? "",
+          ).toUpperCase();
+          return cat.includes("CONTEST") || cat === "";
+        })
+        .map((p) => ({
+          ...p,
+          status: calcStatus(p.startAt, p.endAt),
+          imageUrl: imageMapRef.current[p.programId] || p.imageUrl || null,
+        }));
+      /* 최신 등록순 */
+      list.sort(
+        (a, b) => (Number(b.programId) || 0) - (Number(a.programId) || 0),
+      );
       setItems(list);
       setSelected(new Set());
       if (list.length > 0) selectContest(list[0]);
@@ -1380,6 +1590,70 @@ export default function ContestManage({
   useEffect(() => {
     loadEvents();
   }, []);
+
+  // ── 자동 폴링: 5초마다 콘테스트 목록 + 선택된 콘테스트 참가자 갱신 ──
+  useEffect(() => {
+    const poll = setInterval(async () => {
+      const ev = selectedEvent;
+      if (!ev) return;
+      const eventId = ev.eventId || ev.id;
+
+      try {
+        const res = await axiosInstance.get(
+          `/api/admin/dashboard/events/${eventId}/programs`,
+          {
+            params: { category: "CONTEST", page: 0, size: 100 },
+            headers: authHeaders(),
+          },
+        );
+        const data = res.data?.data ?? res.data;
+        const filtered = readApiList(data)
+          .filter((p) => {
+            const cat = String(
+              p.category ?? p.programCategory ?? "",
+            ).toUpperCase();
+            return cat.includes("CONTEST") || cat === "";
+          })
+          .map((p) => ({
+            ...p,
+            programId: p.programId || p.id,
+            id: p.programId || p.id,
+            name: p.programTitle || p.name,
+            status: calcStatus(p.startAt, p.endAt),
+            imageUrl:
+              imageMapRef.current[p.programId || p.id] || p.imageUrl || null,
+          }));
+
+        setItems(filtered);
+
+        const selectedId = selectedContestRef.current?.programId;
+        if (!selectedId) return;
+
+        const refreshedContest = filtered.find(
+          (item) => Number(item.programId) === Number(selectedId),
+        );
+
+        if (!refreshedContest) {
+          selectedContestRef.current = null;
+          setSelectedContest(null);
+          setParticipantsMap((prev) => {
+            const next = { ...prev };
+            delete next[selectedId];
+            return next;
+          });
+          return;
+        }
+
+        selectedContestRef.current = refreshedContest;
+        setSelectedContest(refreshedContest);
+        await loadContestParticipants(refreshedContest, { silent: true });
+      } catch {
+        // silent polling
+      }
+    }, 5000);
+
+    return () => clearInterval(poll);
+  }, [loadContestParticipants, selectedEvent]);
 
   /* ── CRUD ── */
   const saveContest = async (form) => {
@@ -1410,21 +1684,16 @@ export default function ContestManage({
         const res = await axiosInstance.post(
           `/api/admin/dashboard/programs`,
           {
-            eventId: Number(eventId),
+            eventId: eventId,
             programTitle: form.name,
             description: form.description || "",
-            startAt: form.startAt
-              ? `${form.startAt}T00:00:00`
-              : new Date().toISOString().slice(0, 19),
-            endAt: form.endAt
-              ? `${form.endAt}T23:59:59`
-              : new Date().toISOString().slice(0, 19),
+            startAt: form.startAt ? `${form.startAt}T00:00:00` : null,
+            endAt: form.endAt ? `${form.endAt}T23:59:59` : null,
             category: "CONTEST",
-            imageUrl: null,
           },
           { headers: authHeaders() },
         );
-        const newId = res.data?.data?.programId ?? res.data?.programId;
+        const newId = res.data?.data?.programId;
         if (form.imageUrl && newId) imageMapRef.current[newId] = form.imageUrl;
       }
       showToast(
@@ -1433,9 +1702,69 @@ export default function ContestManage({
       setModal(null);
       await loadItems(selectedEvent?.eventId || selectedEvent?.id);
     } catch (e) {
-      showToast(e.response?.data?.message || "저장 실패", "error");
+      const errMsg =
+        e.response?.data?.message ||
+        e.response?.data?.error ||
+        JSON.stringify(e.response?.data) ||
+        "저장 실패";
+      console.error(
+        "[saveParticipant] error detail:",
+        JSON.stringify(e.response?.data),
+      );
+      showToast(errMsg, "error");
     }
   };
+  const handleVoteStart = async (now = true) => {
+    if (!selectedContest) return;
+    const id = selectedContest.programId;
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const nowStr = new Date().toISOString().slice(0, 19);
+      let newStartAt, newEndAt;
+      if (now) {
+        newStartAt = nowStr;
+        newEndAt = selectedContest.endAt || `${today}T23:59:59`;
+      } else {
+        newStartAt = selectedContest.startAt || `${today}T00:00:00`;
+        newEndAt = nowStr;
+      }
+      await axiosInstance.patch(
+        `/api/admin/dashboard/programs/${id}`,
+        {
+          programTitle: selectedContest.name,
+          description: selectedContest.description || "",
+          startAt: newStartAt,
+          endAt: newEndAt,
+          category: "CONTEST",
+        },
+        { headers: authHeaders() },
+      );
+      showToast(
+        now ? "🗳️ 투표가 시작되었습니다!" : "⏹️ 투표가 종료되었습니다.",
+      );
+      // 목록 새로고침 후 같은 콘테스트 다시 선택
+      const eventId = selectedEvent?.eventId || selectedEvent?.id;
+      const res2 = await axiosInstance.get(
+        `/api/admin/dashboard/events/${eventId}/programs`,
+        { params: { category: "CONTEST" }, headers: authHeaders() },
+      );
+      const data2 = res2.data?.data ?? res2.data;
+      const list2 = readApiList(data2).map((p) => ({
+        ...p,
+        status: calcStatus(p.startAt, p.endAt),
+        imageUrl: imageMapRef.current[p.programId] || p.imageUrl || null,
+      }));
+      setItems(list2);
+      const refreshed = list2.find((p) => p.programId === id);
+      if (refreshed) {
+        setSelectedContest(refreshed);
+        selectContest(refreshed);
+      }
+    } catch (e) {
+      showToast(e.response?.data?.message || "처리 실패", "error");
+    }
+  };
+
   const handleDeleteContest = async () => {
     if (!deleteTarget) return;
     try {
@@ -1495,31 +1824,29 @@ export default function ContestManage({
       showToast(e.response?.data?.message || "삭제 실패", "error");
     }
   };
-  const saveParticipant = (form) => {
-    const cid = selectedContest.programId;
-    setParticipantsMap((prev) => {
-      const list = [...(prev[cid] || [])];
-      if (participantModal?.item) {
-        const idx = list.findIndex((p) => p.id === participantModal.item.id);
-        if (idx >= 0) list[idx] = { ...list[idx], ...form };
-      } else
-        list.push({ ...form, id: Date.now(), votes: 0, status: "APPLIED" });
-      return { ...prev, [cid]: list };
-    });
-    showToast(
-      participantModal?.item ? "수정되었습니다" : "참가자가 등록되었습니다",
-    );
+  const saveParticipant = async () => {
+    showToast("관리자 직접 참가자 등록/수정은 지원하지 않습니다.", "error");
     setParticipantModal(null);
   };
-  const handleDeleteParticipant = () => {
+  const handleDeleteParticipant = async () => {
     if (!deleteParticipant) return;
     const cid = selectedContest.programId;
-    setParticipantsMap((prev) => ({
-      ...prev,
-      [cid]: (prev[cid] || []).filter((p) => p.id !== deleteParticipant.id),
-    }));
-    showToast("참가자가 삭제되었습니다");
-    setDeleteParticipant(null);
+    const applyId = deleteParticipant.programApplyId || deleteParticipant.id;
+    try {
+      await axiosInstance.delete(
+        `/api/admin/dashboard/program-applies/${applyId}`,
+        { headers: authHeaders() },
+      );
+      setParticipantsMap((prev) => ({
+        ...prev,
+        [cid]: (prev[cid] || []).filter((p) => p.id !== deleteParticipant.id),
+      }));
+      showToast("참가자가 삭제되었습니다");
+    } catch (e) {
+      showToast(e.response?.data?.message || "삭제 실패", "error");
+    } finally {
+      setDeleteParticipant(null);
+    }
   };
 
   /* ── 통계 ── */
@@ -1629,6 +1956,7 @@ export default function ContestManage({
                     enterDetail(ev);
                     loadItems(ev.eventId || ev.id);
                   }}
+                  className={isEnded ? "ev-card-ended" : ""}
                   style={{
                     borderRadius: 18,
                     overflow: "hidden",
@@ -1640,9 +1968,6 @@ export default function ContestManage({
                     background: hasImg ? "#000" : RED.primary,
                     boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
                     transition: "transform 0.22s ease, box-shadow 0.22s ease",
-                    opacity: isEnded ? 0.42 : 1,
-                    filter: isEnded ? "grayscale(0.65)" : "none",
-                    pointerEvents: isEnded ? "none" : "auto",
                   }}
                   onMouseEnter={(e) => {
                     if (isEnded) return;
@@ -1672,8 +1997,9 @@ export default function ContestManage({
                         style={{
                           position: "absolute",
                           inset: 0,
-                          background:
-                            "linear-gradient(to bottom,rgba(0,0,0,0.05) 0%,rgba(0,0,0,0.6) 100%)",
+                          background: isEnded
+                            ? "rgba(0,0,0,0.55)"
+                            : "linear-gradient(to bottom,rgba(0,0,0,0.05) 0%,rgba(0,0,0,0.6) 100%)",
                         }}
                       />
                     </div>
@@ -1806,6 +2132,7 @@ export default function ContestManage({
                       </div>
                     </div>
                     <button
+                      disabled={isEnded}
                       className="card-manage-btn"
                       style={{
                         width: "100%",
@@ -1816,7 +2143,7 @@ export default function ContestManage({
                         color: "#fff",
                         fontSize: 12.5,
                         fontWeight: 700,
-                        cursor: "pointer",
+                        cursor: isEnded ? "not-allowed" : "pointer",
                         fontFamily: ds.ff,
                         transition: "all .15s",
                         display: "flex",
@@ -1827,10 +2154,12 @@ export default function ContestManage({
                         WebkitTapHighlightColor: "transparent",
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = ds.brandDark;
+                        if (!isEnded)
+                          e.currentTarget.style.background = ds.brandDark;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = ds.brand;
+                        if (!isEnded)
+                          e.currentTarget.style.background = ds.brand;
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1839,7 +2168,6 @@ export default function ContestManage({
                           loadItems(ev.eventId || ev.id);
                         }
                       }}
-                      disabled={isEnded}
                     >
                       <Trophy size={13} />{" "}
                       {isEnded ? "기간 만료" : "콘테스트 관리하기"}
@@ -2286,7 +2614,14 @@ export default function ContestManage({
                 overflow: "hidden",
                 background: selectedContest.imageUrl
                   ? `url(${selectedContest.imageUrl}) center/cover no-repeat`
-                  : RED.primary,
+                  : selectedContest.status === "active"
+                    ? "linear-gradient(135deg, #052e16 0%, #14532d 60%, #166534 100%)"
+                    : selectedContest.status === "ended"
+                      ? "linear-gradient(135deg, #111827 0%, #1f2937 100%)"
+                      : "linear-gradient(135deg, #0f172a 0%, #1e2d45 60%, #162032 100%)",
+                border: selectedContest.imageUrl
+                  ? "none"
+                  : "1px solid rgba(255,255,255,0.08)",
                 minHeight: 110,
               }}
             >
@@ -2452,27 +2787,92 @@ export default function ContestManage({
                 >
                   {participants.length}팀
                 </span>
+                <button
+                  onClick={() => {
+                    if (!selectedContest) return;
+                    setParticipantsMap((prev) => {
+                      const n = { ...prev };
+                      delete n[selectedContest.programId];
+                      return n;
+                    });
+                    setTimeout(() => selectContest(selectedContest), 0);
+                  }}
+                  title="새로고침"
+                  style={{
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid #2E3A4E",
+                    borderRadius: 7,
+                    cursor: "pointer",
+                    color: "#6B7A99",
+                    fontSize: 13,
+                    padding: "3px 8px",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  🔄
+                </button>
               </div>
-              <button
-                onClick={() => setParticipantModal({ item: null })}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "8px 16px",
-                  borderRadius: 9,
-                  border: "none",
-                  background: ds.brand,
-                  color: "#fff",
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: ds.ff,
-                  boxShadow: "0 2px 8px rgba(67,97,238,.2)",
-                }}
-              >
-                <Plus size={14} /> 참가자 등록
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => handleVoteStart(true)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 16px",
+                    borderRadius: 9,
+                    border: "none",
+                    background: "linear-gradient(135deg,#10b981,#059669)",
+                    color: "#fff",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(16,185,129,.3)",
+                  }}
+                >
+                  ▶ 투표 시작
+                </button>
+                <button
+                  onClick={() => handleVoteStart(false)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 16px",
+                    borderRadius: 9,
+                    border: "none",
+                    background: "linear-gradient(135deg,#6366f1,#4f46e5)",
+                    color: "#fff",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(99,102,241,.3)",
+                  }}
+                >
+                  ⏹ 투표 종료
+                </button>
+                <button
+                  onClick={() => showToast("관리자 직접 참가자 수정은 지원하지 않습니다.", "error")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "8px 16px",
+                    borderRadius: 9,
+                    border: "none",
+                    background: ds.brand,
+                    color: "#fff",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: ds.ff,
+                    boxShadow: "0 2px 8px rgba(67,97,238,.2)",
+                  }}
+                >
+                  <Plus size={14} /> 참가자 등록
+                </button>
+              </div>
             </div>
 
             {/* 카드 그리드 */}
@@ -2516,7 +2916,7 @@ export default function ContestManage({
                   참가자를 등록해 콘테스트를 시작하세요
                 </div>
                 <button
-                  onClick={() => setParticipantModal({ item: null })}
+                  onClick={() => showToast("관리자 직접 참가자 수정은 지원하지 않습니다.", "error")}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -2549,14 +2949,16 @@ export default function ContestManage({
                     p={p}
                     rank={i + 1}
                     totalVotes={totalVotes}
-                    onEdit={(item) => setParticipantModal({ item })}
+                    onEdit={() => showToast("관리자 직접 참가자 수정은 지원하지 않습니다.", "error")}
                     onDelete={(item) => setDeleteParticipant(item)}
+                    onApprove={(item) => handleApproveParticipant(item)}
+                    onReject={(item) => handleRejectParticipant(item)}
                   />
                 ))}
                 {/* 참가자 추가 카드 — CSS 호버 (빨간 테두리 + 아이콘 빨간 배경) */}
                 <div
                   className="add-p-card"
-                  onClick={() => setParticipantModal({ item: null })}
+                  onClick={() => showToast("관리자 직접 참가자 수정은 지원하지 않습니다.", "error")}
                 >
                   <div
                     className="add-p-icon"

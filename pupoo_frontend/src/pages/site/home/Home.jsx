@@ -174,8 +174,8 @@ function EventSection() {
   };
 
   return (
-    <section className="w-full bg-gradient-to-b from-gray-50 to-white py-16 px-6">
-      <div className="max-w-[1400px] mx-auto px-6">
+    <section className="w-full bg-gradient-to-b from-gray-50 to-white py-16">
+      <div className="max-w-[1400px] mx-auto px-[25px]">
         <RevealSection>
           <div className="text-center mb-10">
             <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">진행 중인 행사 안내</p>
@@ -339,7 +339,7 @@ function SessionLineup() {
 
   return (
     <div className="w-full bg-white py-20">
-      <div className="max-w-[1400px] mx-auto px-6">
+      <div className="max-w-[1400px] mx-auto px-[25px]">
         <RevealSection>
           <div className="text-center mb-10">
             <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">PuPoo Session</p>
@@ -511,7 +511,7 @@ function fmtDate(dt) {
 }
 
 function getReviewHeadline(item) {
-  const explicitTitle = String(item?.title || "").trim();
+  const explicitTitle = String(item?.reviewTitle || item?.title || "").trim();
   if (explicitTitle) return explicitTitle;
   const firstLine = String(item?.content || "").split("\n").map((line) => line.trim()).find(Boolean);
   if (!firstLine) return "행사 후기";
@@ -540,7 +540,7 @@ function NoticeSection() {
 
   return (
     <section className="bg-black text-white py-24">
-      <div className="max-w-[1400px] mx-auto px-6 grid md:grid-cols-2 gap-16">
+      <div className="max-w-[1400px] mx-auto px-[25px] grid md:grid-cols-2 gap-16">
         {sections.map((section, idx) => (
           <RevealSection key={idx} delay={idx * 0.12}>
             <div>
@@ -621,7 +621,7 @@ export default function Home() {
         <video ref={videoRef} key={currentVideoIndex} src={heroVideos[currentVideoIndex]} autoPlay muted playsInline className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${fade ? "opacity-100" : "opacity-0"}`} />
         <div className="absolute inset-0 bg-black/40" />
         <div className="relative h-full flex items-center justify-center">
-          <div className="max-w-[1400px] w-full px-6 text-white">
+          <div className="max-w-[1400px] w-full px-[25px] text-white">
             <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
               지금 가장 주목할
               <br />
@@ -645,7 +645,7 @@ export default function Home() {
       <EventSection />
 
       <section className="bg-[#f4f5f7] py-24 overflow-hidden">
-        <div className="max-w-[1400px] mx-auto px-6">
+        <div className="max-w-[1400px] mx-auto px-[25px]">
           <RevealSection>
             <h2 className="text-2xl md:text-3xl font-extrabold mb-8">
                 <span className="text-blue-600">당신이</span> 좋아할 만한 추천 행사

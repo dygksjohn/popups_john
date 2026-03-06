@@ -844,7 +844,7 @@ export default function FreeBoard() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <main
         style={{
-          width: "min(1400px, calc(100% - 32px))",
+          width: "min(1350px, calc(100% - 50px))",
           margin: "0 auto",
           padding: "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",

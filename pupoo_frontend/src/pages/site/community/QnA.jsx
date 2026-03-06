@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import {
@@ -14,17 +14,35 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { qnaApi, unwrap } from "../../../api/qnaApi";
+import sortIcon from "../../../assets/sort-icon.svg";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import CommunityRichTextEditor from "./shared/CommunityRichTextEditor";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 
-const FILTER_OPTIONS = ["전체", "답변완료", "미답변"];
+const FILTER_OPTIONS = [
+  "전체",
+  "답변완료",
+  "미답변",
+];
+const SORT_OPTIONS = [
+  { key: "recent", label: "최신순" },
+  { key: "views", label: "조회순" },
+];
 
 /* ?? ?좎쭨 ?щ㎎ ?? */
 function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function toTimestamp(value) {
+  const time = Date.parse(String(value || ""));
+  return Number.isFinite(time) ? time : 0;
+}
+
+function hasAnswer(item) {
+  return Boolean(String(item?.answerContent ?? "").trim()) || Boolean(item?.answeredAt);
 }
 
 /* ?? ?좎뒪???? */
@@ -354,16 +372,16 @@ export default function ServicePage() {
   const [currentPath, setCurrentPath] = useState("/community/qna");
   const [filter, setFilter] = useState("전체");
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState("recent");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [openReplies, setOpenReplies] = useState({});
 
-  /* ?? API ?곹깭 ?? */
+  /* ???? API ???? ???? */
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
   const PAGE_SIZE = 10;
 
   const [writeModal, setWriteModal] = useState(null); // null | { } | { item }
@@ -377,36 +395,94 @@ export default function ServicePage() {
   };
 
   /* ?? 紐⑸줉 議고쉶 ?? */
-  const fetchList = useCallback(async (p = 1) => {
+  const fetchList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await qnaApi.list(p, PAGE_SIZE);
-      const d = unwrap(res);
-      setItems(d.content || []);
-      setTotalPages(d.totalPages || 0);
-      setTotalElements(d.totalElements ?? d.content?.length ?? 0);
-      setPage(p);
+      const fetchSize = 100;
+      const firstRes = await qnaApi.list(1, fetchSize);
+      const firstData = unwrap(firstRes) || {};
+      const rows = Array.isArray(firstData.content) ? [...firstData.content] : [];
+      const lastPage = Math.max(1, Number(firstData.totalPages) || 1);
+
+      if (lastPage > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: lastPage - 1 }, (_, index) =>
+            qnaApi.list(index + 2, fetchSize),
+          ),
+        );
+
+        rest.forEach((response) => {
+          const data = unwrap(response) || {};
+          const content = Array.isArray(data.content) ? data.content : [];
+          rows.push(...content);
+        });
+      }
+
+      setItems(rows);
     } catch (err) {
       console.error("[QnA] fetch error:", err);
       setError("질문 목록을 불러오지 못했습니다.");
+      setItems([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchList(1);
+    fetchList();
   }, [fetchList]);
 
   /* ?? ?꾪꽣留??? */
-  const filtered = items.filter((q) => {
-    const status = q.status === "CLOSED" ? "답변완료" : "미답변";
-    const matchFilter = filter === "전체" || filter === status;
-    const matchSearch =
-      !search || q.title?.includes(search) || q.content?.includes(search);
-    return matchFilter && matchSearch;
-  });
+  const filtered = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    return items.filter((q) => {
+      const statusLabel = hasAnswer(q)
+        ? "답변완료"
+        : "미답변";
+      const matchFilter = filter === "전체" || filter === statusLabel;
+      const matchSearch =
+        !keyword ||
+        String(q?.title || "").toLowerCase().includes(keyword) ||
+        String(q?.content || "").toLowerCase().includes(keyword) ||
+        String(q?.answerContent || "").toLowerCase().includes(keyword);
+      return matchFilter && matchSearch;
+    });
+  }, [filter, items, search]);
+
+  const sortedItems = useMemo(() => {
+    const rows = [...filtered];
+    rows.sort((a, b) => {
+      if (sortKey === "views") {
+        const diff = Number(b?.viewCount || 0) - Number(a?.viewCount || 0);
+        if (diff !== 0) return diff;
+      }
+      return toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
+    });
+    return rows;
+  }, [filtered, sortKey]);
+
+  const totalElements = sortedItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedItems = useMemo(
+    () => sortedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [currentPage, sortedItems],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, search, sortKey]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const currentSortLabel =
+    SORT_OPTIONS.find((option) => option.key === sortKey)?.label ||
+    "최신순";
 
   /* ?? ?깅줉 ?? */
   const handleCreate = async (form) => {
@@ -415,7 +491,7 @@ export default function ServicePage() {
       const res = await qnaApi.create(form);
       setWriteModal(null);
       showToast("질문이 등록되었습니다.");
-      fetchList(1);
+      fetchList();
     } catch (err) {
       console.error("[QnA] create error:", err);
       showToast("등록에 실패했습니다.", "error");
@@ -431,7 +507,7 @@ export default function ServicePage() {
       await qnaApi.update(writeModal.item.qnaId, form);
       setWriteModal(null);
       showToast("질문이 수정되었습니다.");
-      fetchList(page);
+      fetchList();
     } catch (err) {
       console.error("[QnA] update error:", err);
       showToast("수정에 실패했습니다.", "error");
@@ -447,7 +523,7 @@ export default function ServicePage() {
       await qnaApi.delete(deleteModal.qnaId);
       setDeleteModal(null);
       showToast("질문이 삭제되었습니다.");
-      fetchList(page);
+      fetchList();
     } catch (err) {
       console.error("[QnA] delete error:", err);
       setDeleteModal(null);
@@ -468,7 +544,7 @@ export default function ServicePage() {
       />
       <main
         style={{
-          width: "min(1400px, calc(100% - 32px))",
+          width: "min(1350px, calc(100% - 50px))",
           margin: "0 auto",
           padding: "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
@@ -489,7 +565,7 @@ export default function ServicePage() {
             총 {totalElements}건
           </span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <div style={{ position: "relative" }}>
               <select
                 value={filter}
@@ -525,6 +601,72 @@ export default function ServicePage() {
               >
                 <ChevronDown size={14} color="#666" />
               </span>
+            </div>
+
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setSortMenuOpen((prev) => !prev)}
+                style={{
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  background: "#fff",
+                  height: 38,
+                  padding: "0 12px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#334155",
+                  cursor: "pointer",
+                }}
+              >
+                <img src={sortIcon} alt="정렬 아이콘" width={14} height={14} />
+                {currentSortLabel}
+              </button>
+              {sortMenuOpen ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 42,
+                    minWidth: 120,
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    background: "#fff",
+                    boxShadow: "0 8px 20px rgba(15,23,42,0.12)",
+                    zIndex: 20,
+                    overflow: "hidden",
+                  }}
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => {
+                        setSortKey(option.key);
+                        setSortMenuOpen(false);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "left",
+                        border: "none",
+                        borderBottom: "1px solid #f1f5f9",
+                        background: option.key === sortKey ? "#eff6ff" : "#fff",
+                        color: option.key === sortKey ? "#1D4ED8" : "#334155",
+                        padding: "9px 11px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div
@@ -598,8 +740,7 @@ export default function ServicePage() {
                 (e.currentTarget.style.background = "#4a7cf7")
               }
             >
-              <Plus size={14} strokeWidth={2.5} /> 질문하기
-            </button>
+              <Plus size={14} strokeWidth={2.5} /> 질문하기</button>
           </div>
         </div>
 
@@ -648,7 +789,7 @@ export default function ServicePage() {
               {error}
             </div>
             <button
-              onClick={() => fetchList(page)}
+              onClick={fetchList}
               style={{
                 padding: "8px 20px",
                 borderRadius: 8,
@@ -668,8 +809,8 @@ export default function ServicePage() {
         {/* 紐⑸줉 */}
         {!loading && !error && (
           <div>
-            {filtered.map((q) => {
-              const isClosed = q.status === "CLOSED";
+            {pagedItems.map((q) => {
+              const isClosed = hasAnswer(q);
               const statusLabel = isClosed ? "답변완료" : "미답변";
 
               return (
@@ -897,7 +1038,7 @@ export default function ServicePage() {
               );
             })}
 
-            {filtered.length === 0 && (
+            {pagedItems.length === 0 && (
               <div
                 style={{
                   textAlign: "center",
@@ -926,14 +1067,14 @@ export default function ServicePage() {
             }}
           >
             <button
-              onClick={() => fetchList(page - 1)}
-              disabled={page <= 1}
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage <= 1}
               style={{
                 background: "none",
                 border: "none",
                 fontSize: "16px",
-                color: page <= 1 ? "#ddd" : "#888",
-                cursor: page <= 1 ? "default" : "pointer",
+                color: currentPage <= 1 ? "#ddd" : "#888",
+                cursor: currentPage <= 1 ? "default" : "pointer",
                 padding: "4px 8px",
               }}
             >
@@ -942,11 +1083,11 @@ export default function ServicePage() {
             {Array.from({ length: totalPages }, (_, i) => (
               <button
                 key={i}
-                onClick={() => fetchList(i + 1)}
+                onClick={() => setPage(i + 1)}
                 style={{
                   fontSize: "14px",
-                  fontWeight: i + 1 === page ? "700" : "500",
-                  color: i + 1 === page ? "#4a7cf7" : "#333",
+                  fontWeight: i + 1 === currentPage ? "700" : "500",
+                  color: i + 1 === currentPage ? "#4a7cf7" : "#333",
                   background: "none",
                   border: "none",
                   cursor: "pointer",
@@ -959,14 +1100,14 @@ export default function ServicePage() {
               </button>
             ))}
             <button
-              onClick={() => fetchList(page + 1)}
-              disabled={page >= totalPages}
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage >= totalPages}
               style={{
                 background: "none",
                 border: "none",
                 fontSize: "16px",
-                color: page >= totalPages ? "#ddd" : "#888",
-                cursor: page >= totalPages ? "default" : "pointer",
+                color: currentPage >= totalPages ? "#ddd" : "#888",
+                cursor: currentPage >= totalPages ? "default" : "pointer",
                 padding: "4px 8px",
               }}
             >

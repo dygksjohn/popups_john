@@ -57,7 +57,7 @@ const styles = `
   .pr-nav-btn:hover { background: #f3f4f6; color: #111827; }
   .pr-nav-btn.active { background: #1a4fd6; color: #fff; font-weight: 600; }
 
-  .pr-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+  .pr-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
 
   /* Steps */
   .pr-steps { display: flex; align-items: center; gap: 0; margin-bottom: 32px; }

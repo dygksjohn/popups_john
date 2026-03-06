@@ -73,7 +73,8 @@ public class FaqQueryService {
         return page.map(p -> new FaqListResponse(
                 p.getPostId(),
                 p.getPostTitle(),
-                p.getViewCount()
+                p.getViewCount(),
+                p.getCreatedAt()
         ));
     }
 

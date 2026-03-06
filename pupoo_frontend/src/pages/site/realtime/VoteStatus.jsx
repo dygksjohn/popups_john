@@ -34,7 +34,7 @@ const styles = `
     min-height: 100vh;
   }
   .vt-root *, .vt-root *::before, .vt-root *::after { box-sizing: border-box; font-family: inherit; }
-  .vt-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+  .vt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
 
   .rt-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; background: #fff0f0; border: 1px solid #fecaca; border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444; letter-spacing: 0.5px; }
   .rt-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; animation: vt-pulse 1.4s ease-in-out infinite; }

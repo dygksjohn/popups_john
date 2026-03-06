@@ -61,7 +61,7 @@ const styles = `
   .up-nav-btn:hover { background: #f3f4f6; color: #111827; }
   .up-nav-btn.active { background: #1a4fd6; color: #fff; font-weight: 600; }
 
-  .up-container { width: min(1400px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 64px; }
+  .up-container { width: min(1350px, calc(100% - 50px)); margin: 0 auto; padding: 32px 0 64px; }
 
   .up-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 100px; font-size: 11px; font-weight: 700; color: #2563eb; margin-bottom: 20px; }
   .up-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #2563eb; animation: up-pulse 1.4s ease-in-out infinite; }

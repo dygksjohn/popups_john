@@ -49,7 +49,7 @@ const PAGE_CONFIG = {
 
 const styles = `
   .ps-root { background:#f8f9fc; min-height:100vh; }
-  .ps-wrap { max-width:1400px; margin:0 auto; padding:32px 24px 64px; }
+  .ps-wrap { max-width:1400px; margin:0 auto; padding:32px 25px 64px; }
 
   .ps-toolbar {
     display:flex; align-items:center; justify-content:space-between; gap:14px;

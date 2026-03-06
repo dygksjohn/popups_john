@@ -23,7 +23,7 @@ const styles = `
 
   .cd-root { box-sizing: border-box; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; background: #f8f9fc; min-height: 100vh; }
   .cd-root *, .cd-root *::before, .cd-root *::after { box-sizing: border-box; font-family: inherit; }
-  .cd-container { width: min(1400px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 64px; }
+  .cd-container { width: min(1350px, calc(100% - 50px)); margin: 0 auto; padding: 28px 0 64px; }
 
   .cd-back {
     height: 36px; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff;

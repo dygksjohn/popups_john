@@ -93,7 +93,7 @@ const selectorStyles = `
   .rte-selector {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 32px 24px 64px;
+    padding: 32px 25px 64px;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
   }
   .rte-selector *, .rte-selector *::before, .rte-selector *::after {

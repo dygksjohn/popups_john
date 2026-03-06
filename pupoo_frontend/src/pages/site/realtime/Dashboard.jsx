@@ -34,7 +34,7 @@ const styles = `
     min-height: 100vh;
   }
   .rt-root *, .rt-root *::before, .rt-root *::after { box-sizing: border-box; font-family: inherit; }
-  .rt-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+  .rt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
 
   /* Live badge */
   .rt-live-badge {
