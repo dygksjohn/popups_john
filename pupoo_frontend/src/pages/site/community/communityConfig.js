@@ -1,4 +1,4 @@
-﻿export const COMMUNITY_CATEGORIES = [
+export const COMMUNITY_CATEGORIES = [
   { label: "공지사항", path: "/community/notice" },
   { label: "자유게시판", path: "/community/freeboard" },
   { label: "정보게시판", path: "/community/info" },

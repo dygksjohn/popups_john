@@ -4,7 +4,6 @@ import { mypageApi } from "./api/mypageApi";
 import { notificationApi } from "../../../app/http/notificationApi";
 import { reviewApi } from "../../../app/http/reviewApi";
 import { eventApi } from "../../../app/http/eventApi";
-import { interestApi } from "../../../app/http/interestApi";
 
 const styles = `
   .mp-root {
@@ -240,71 +239,6 @@ const styles = `
     flex-wrap: wrap;
     gap: 10px;
   }
-  .mp-inline-actions {
-    margin-top: 10px;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  .mp-link-btn {
-    border: 1px solid #dbe2ef;
-    border-radius: 8px;
-    background: #fff;
-    color: #334155;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 6px 10px;
-    cursor: pointer;
-  }
-  .mp-link-btn.warn {
-    color: #b91c1c;
-    border-color: #fecaca;
-    background: #fff5f5;
-  }
-  .mp-link-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  .mp-quick-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: flex-start;
-  }
-  .mp-quick-pill {
-    border: 1px solid #dbe2ef;
-    border-radius: 999px;
-    background: #f8fafc;
-    color: #334155;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    line-height: 1;
-  }
-  .mp-quick-name {
-    font-size: 12px;
-    font-weight: 700;
-  }
-  .mp-quick-btn {
-    border: 1px solid #c7d2fe;
-    background: #fff;
-    color: #1d4ed8;
-    border-radius: 999px;
-    padding: 3px 9px;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .mp-quick-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  .mp-quick-btn.warn {
-    border-color: #fecaca;
-    color: #b91c1c;
-    background: #fff5f5;
-  }
   .mp-badge {
     padding: 3px 9px;
     border-radius: 999px;
@@ -483,24 +417,18 @@ const REG_STATUS_LABEL = {
   REJECTED: "거절",
 };
 
-const INTEREST_NAME_LABEL = {
-  EVENT: "행사",
-  SESSION: "세션",
-  EXPERIENCE: "체험",
-  BOOTH: "부스",
-  CONTEST: "콘테스트",
-  NOTICE: "공지",
-  SNACK: "간식",
-  BATH_SUPPLIES: "목욕용품",
-  GROOMING: "미용",
-  TOY: "장난감",
-  CLOTHING: "의류",
-  HEALTH: "건강",
-  TRAINING: "훈련",
-  WALK: "산책",
-  SUPPLEMENTS: "영양제",
-  ACCESSORIES: "액세서리",
-  OTHERS: "기타",
+const PET_BREED_LABEL = {
+  DOG: "강아지",
+  CAT: "고양이",
+  OTHER: "기타",
+};
+
+const PET_WEIGHT_LABEL = {
+  XS: "초소형",
+  S: "소형",
+  M: "중형",
+  L: "대형",
+  XL: "초대형",
 };
 
 function fmtDate(value) {
@@ -556,8 +484,14 @@ function safeArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function interestLabel(name) {
-  return INTEREST_NAME_LABEL[String(name || "").toUpperCase()] || String(name || "기타");
+function formatPetBreed(value) {
+  const key = String(value || "").toUpperCase();
+  return PET_BREED_LABEL[key] || value || "-";
+}
+
+function formatPetWeight(value) {
+  const key = String(value || "").toUpperCase();
+  return PET_WEIGHT_LABEL[key] || value || "-";
 }
 
 export default function MyPage() {
@@ -575,21 +509,12 @@ export default function MyPage() {
   const [reviewCount, setReviewCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [interests, setInterests] = useState([]);
-  const [subscriptions, setSubscriptions] = useState([]);
-  const [subscriptionError, setSubscriptionError] = useState("");
-  const [subscriptionSavingMap, setSubscriptionSavingMap] = useState({});
 
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrEventId, setQrEventId] = useState("");
   const [qrPayload, setQrPayload] = useState(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrError, setQrError] = useState("");
-
-  const refreshSubscriptions = useCallback(async () => {
-    const rows = await interestApi.getMySubscriptions(false);
-    setSubscriptions(safeArray(rows));
-  }, []);
 
   const loadEventDetails = useCallback(async (ids) => {
     const eventIds = [...new Set(safeArray(ids).filter(Boolean))];
@@ -623,8 +548,6 @@ export default function MyPage() {
         visitRes,
         inboxRes,
         unreadRes,
-        interestsRes,
-        subscriptionsRes,
       ] = await Promise.allSettled([
         mypageApi.getMe(),
         mypageApi.getMyPets(),
@@ -632,21 +555,18 @@ export default function MyPage() {
         mypageApi.getMyBoothVisitsGroupedByEvent(),
         notificationApi.getInbox(0, 20),
         notificationApi.getUnreadCount(),
-        interestApi.listAll(),
-        interestApi.getMySubscriptions(false),
       ]);
 
       if (!mounted) return;
 
       const me = meRes.status === "fulfilled" ? meRes.value : null;
-      const petRows = petsRes.status === "fulfilled" ? safeArray(petsRes.value) : [];
+      const petRows = safeArray(petsRes.status === "fulfilled" ? petsRes.value : []).sort((a, b) => {
+        return Number(a?.petId || 0) - Number(b?.petId || 0);
+      });
       const regPage = regRes.status === "fulfilled" ? regRes.value : null;
       const visitGroups = visitRes.status === "fulfilled" ? visitRes.value : [];
       const inboxData = inboxRes.status === "fulfilled" ? inboxRes.value : null;
       const unread = unreadRes.status === "fulfilled" ? Number(unreadRes.value) || 0 : 0;
-      const interestRows = interestsRes.status === "fulfilled" ? safeArray(interestsRes.value) : [];
-      const subscriptionRows =
-        subscriptionsRes.status === "fulfilled" ? safeArray(subscriptionsRes.value) : [];
 
       if (me) {
         setProfile({
@@ -659,12 +579,13 @@ export default function MyPage() {
         setProfile({ userId: null, nickname: "회원", email: "-", createdAt: null });
       }
 
+      setPets(petRows);
+
       const regRows = safeArray(regPage?.content).sort((a, b) => {
         const aa = new Date(a?.appliedAt || 0).getTime();
         const bb = new Date(b?.appliedAt || 0).getTime();
         return bb - aa;
       });
-      setPets(petRows);
       setRegistrations(regRows);
 
       const mappedParticipations = safeArray(visitGroups)
@@ -705,13 +626,6 @@ export default function MyPage() {
       const inboxItems = safeArray(inboxData?.items);
       setNotifications(inboxItems);
       setUnreadCount(unread || inboxItems.length);
-      setInterests(interestRows);
-      setSubscriptions(subscriptionRows);
-      if (subscriptionsRes.status === "rejected" || interestsRes.status === "rejected") {
-        setSubscriptionError("구독 정보를 일부 불러오지 못했습니다.");
-      } else {
-        setSubscriptionError("");
-      }
 
       if (me?.userId != null) {
         try {
@@ -741,7 +655,7 @@ export default function MyPage() {
       }
 
       if (meRes.status === "rejected" || regRes.status === "rejected") {
-        setError("일부 데이터를 불러오지 못했습니다. 다시 시도해주세요.");
+        setError("일부 데이터를 불러오지 못했습니다. 다시 시도해 주세요.");
       }
 
       setLoading(false);
@@ -796,76 +710,6 @@ export default function MyPage() {
       };
     });
   }, [participations, eventMap]);
-
-  const activeSubscriptions = useMemo(
-    () =>
-      subscriptions.filter(
-        (row) => String(row?.status || "").toUpperCase() === "ACTIVE",
-      ),
-    [subscriptions],
-  );
-
-  const activeSubscriptionMap = useMemo(() => {
-    const map = new Map();
-    activeSubscriptions.forEach((row) => {
-      const key = Number(row?.interestId);
-      if (Number.isFinite(key)) {
-        map.set(key, row);
-      }
-    });
-    return map;
-  }, [activeSubscriptions]);
-
-  const availableInterests = useMemo(
-    () =>
-      interests.filter((row) => {
-        const id = Number(row?.interestId);
-        const active = row?.isActive !== false;
-        return Number.isFinite(id) && active && !activeSubscriptionMap.has(id);
-      }),
-    [interests, activeSubscriptionMap],
-  );
-
-  const setSubscriptionSaving = useCallback((interestId, saving) => {
-    setSubscriptionSavingMap((prev) => ({
-      ...prev,
-      [interestId]: saving,
-    }));
-  }, []);
-
-  const handleSubscribeInterest = useCallback(
-    async (interestId) => {
-      if (interestId == null) return;
-      setSubscriptionSaving(interestId, true);
-      setSubscriptionError("");
-      try {
-        await interestApi.subscribe({ interestId, allowInapp: true });
-        await refreshSubscriptions();
-      } catch (e) {
-        setSubscriptionError(e?.response?.data?.message || e?.message || "구독 처리에 실패했습니다.");
-      } finally {
-        setSubscriptionSaving(interestId, false);
-      }
-    },
-    [refreshSubscriptions, setSubscriptionSaving],
-  );
-
-  const handleUnsubscribeInterest = useCallback(
-    async (interestId) => {
-      if (interestId == null) return;
-      setSubscriptionSaving(interestId, true);
-      setSubscriptionError("");
-      try {
-        await interestApi.unsubscribe(interestId);
-        await refreshSubscriptions();
-      } catch (e) {
-        setSubscriptionError(e?.response?.data?.message || e?.message || "삭제에 실패했습니다.");
-      } finally {
-        setSubscriptionSaving(interestId, false);
-      }
-    },
-    [refreshSubscriptions, setSubscriptionSaving],
-  );
 
   const issueQr = useCallback(async () => {
     if (!qrEventId) return;
@@ -933,7 +777,7 @@ export default function MyPage() {
       <main className="mp-container">
         <div className="mp-header">
           <h1 className="mp-title">마이페이지</h1>
-          <p className="mp-subtitle">내 신청, 참여, 후기, 알림 정보를 실제 DB 데이터로 보여줍니다.</p>
+          <p className="mp-subtitle">신청, 참여, 후기, 알림 정보를 실제 DB 데이터 기준으로 보여줍니다.</p>
           <div className="mp-tabs">
             {TABS.map((tab) => (
               <button
@@ -972,13 +816,6 @@ export default function MyPage() {
                 >
                   회원정보 수정
                 </button>
-                <button
-                  type="button"
-                  className="mp-btn ghost"
-                  onClick={() => navigate("/mypage/pets/new")}
-                >
-                  반려동물 추가/수정
-                </button>
                 <button type="button" className="mp-btn ghost" onClick={openQrModal}>
                   QR 코드
                 </button>
@@ -988,19 +825,31 @@ export default function MyPage() {
             <section className="mp-grid4">
               <div className="mp-card mp-stat">
                 <div className="mp-stat-label">신청 행사</div>
-                <div className="mp-stat-value">{loading ? "-" : statRequested}<span className="mp-stat-unit">건</span></div>
+                <div className="mp-stat-value">
+                  {loading ? "-" : statRequested}
+                  <span className="mp-stat-unit">건</span>
+                </div>
               </div>
               <div className="mp-card mp-stat">
                 <div className="mp-stat-label">참여 완료</div>
-                <div className="mp-stat-value">{loading ? "-" : statCompleted}<span className="mp-stat-unit">건</span></div>
+                <div className="mp-stat-value">
+                  {loading ? "-" : statCompleted}
+                  <span className="mp-stat-unit">건</span>
+                </div>
               </div>
               <div className="mp-card mp-stat">
                 <div className="mp-stat-label">작성 후기</div>
-                <div className="mp-stat-value">{loading ? "-" : reviewCount}<span className="mp-stat-unit">건</span></div>
+                <div className="mp-stat-value">
+                  {loading ? "-" : reviewCount}
+                  <span className="mp-stat-unit">건</span>
+                </div>
               </div>
               <div className="mp-card mp-stat">
-                <div className="mp-stat-label">QR 사용(스캔)</div>
-                <div className="mp-stat-value">{loading ? "-" : statQrUsed}<span className="mp-stat-unit">회</span></div>
+                <div className="mp-stat-label">QR 사용(체크인)</div>
+                <div className="mp-stat-value">
+                  {loading ? "-" : statQrUsed}
+                  <span className="mp-stat-unit">회</span>
+                </div>
               </div>
             </section>
 
@@ -1026,7 +875,7 @@ export default function MyPage() {
                 </div>
                 <div className="mp-list">
                   {notifications.slice(0, 4).length === 0 ? (
-                    <div className="mp-empty">수신된 알림이 없습니다.</div>
+                    <div className="mp-empty">수신한 알림이 없습니다.</div>
                   ) : (
                     notifications.slice(0, 4).map((noti) => (
                       <div className="mp-item" key={noti?.inboxId || `${noti?.title}-${noti?.receivedAt}`}>
@@ -1073,78 +922,13 @@ export default function MyPage() {
                         </button>
                       </div>
                       <div className="mp-item-meta">
-                        <span>품종 {pet?.petBreed || "-"}</span>
+                        <span>종류 {formatPetBreed(pet?.petBreed)}</span>
                         <span>나이 {pet?.petAge ?? "-"}</span>
-                        <span>체형 {pet?.petWeight || "-"}</span>
+                        <span>체형 {formatPetWeight(pet?.petWeight)}</span>
                       </div>
                     </div>
                   ))
                 )}
-              </div>
-            </section>
-
-            <section className="mp-grid2" style={{ marginTop: 14 }}>
-              <div className="mp-card mp-section">
-                <div className="mp-section-head">
-                  <h3 className="mp-section-title">구독 관리</h3>
-                  <span className="mp-count">활성 {activeSubscriptions.length}건</span>
-                </div>
-                {subscriptionError ? <div className="mp-danger">{subscriptionError}</div> : null}
-                <div className="mp-list">
-                  {activeSubscriptions.length === 0 ? (
-                    <div className="mp-empty">활성 구독이 없습니다.</div>
-                  ) : (
-                    <div className="mp-quick-wrap">
-                      {activeSubscriptions.map((row) => {
-                        const interestId = Number(row?.interestId);
-                        const saving = !!subscriptionSavingMap[interestId];
-                        return (
-                          <div className="mp-quick-pill" key={`sub-active-${row?.subscriptionId || interestId}`}>
-                            <span className="mp-quick-name">{interestLabel(row?.interestName)}</span>
-                            <button
-                              type="button"
-                              className="mp-quick-btn warn"
-                              onClick={() => handleUnsubscribeInterest(interestId)}
-                              disabled={saving}
-                            >
-                              {saving ? "처리 중..." : "삭제"}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="mp-card mp-section">
-                <div className="mp-section-head">
-                  <h3 className="mp-section-title">빠른 구독 추가</h3>
-                  <span className="mp-count">가능 {availableInterests.length}건</span>
-                </div>
-                <div className="mp-quick-wrap">
-                  {availableInterests.length === 0 ? (
-                    <div className="mp-empty">추가로 구독 가능한 항목이 없습니다.</div>
-                  ) : (
-                    availableInterests.slice(0, 12).map((row) => {
-                      const interestId = Number(row?.interestId);
-                      const saving = !!subscriptionSavingMap[interestId];
-                      return (
-                        <div className="mp-quick-pill" key={`sub-available-${interestId}`}>
-                          <span className="mp-quick-name">{interestLabel(row?.interestName)}</span>
-                          <button
-                            type="button"
-                            className="mp-quick-btn"
-                            onClick={() => handleSubscribeInterest(interestId)}
-                            disabled={saving}
-                          >
-                            {saving ? "처리 중..." : "추가"}
-                          </button>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
               </div>
             </section>
           </>
@@ -1174,7 +958,7 @@ export default function MyPage() {
             </div>
             <div className="mp-list">
               {participationRows.length === 0 ? (
-                <div className="mp-empty">QR 스캔 기반 참여 이력이 없습니다.</div>
+                <div className="mp-empty">QR 체크인 기반 참여 이력이 없습니다.</div>
               ) : (
                 participationRows.map((row) => (
                   <div className="mp-item" key={`history-${row.eventId}`}>
@@ -1184,9 +968,9 @@ export default function MyPage() {
                     </div>
                     <div className="mp-item-meta">
                       <span>{row.location}</span>
-                      <span>스캔 {row.totalVisits}회</span>
+                      <span>방문 {row.totalVisits}회</span>
                       <span>부스 {row.boothCount}개</span>
-                      <span>최근 스캔 {fmtDateTime(row.lastVisitedAt)}</span>
+                      <span>최근 방문 {fmtDateTime(row.lastVisitedAt)}</span>
                     </div>
                   </div>
                 ))
@@ -1203,7 +987,7 @@ export default function MyPage() {
             </div>
             <div className="mp-list">
               {notifications.length === 0 ? (
-                <div className="mp-empty">수신된 알림이 없습니다.</div>
+                <div className="mp-empty">수신한 알림이 없습니다.</div>
               ) : (
                 notifications.map((noti) => (
                   <div className="mp-item" key={noti?.inboxId || `${noti?.title}-${noti?.receivedAt}`}>
@@ -1290,3 +1074,4 @@ export default function MyPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-﻿import { apiClient } from "../../shared/api/apiClient";
+import { apiClient } from "../../shared/api/apiClient";
 
 export const storageApi = {
   uploadFile({ file, targetType = "POST", contentId, signal, onUploadProgress }) {

@@ -1,4 +1,4 @@
-﻿import { axiosInstance } from "../../../app/http/axiosInstance";
+import { axiosInstance } from "../../../app/http/axiosInstance";
 import { unwrapApiResponse } from "./unwrapApiResponse";
 
 export function toFieldErrorMap(fieldErrors = []) {

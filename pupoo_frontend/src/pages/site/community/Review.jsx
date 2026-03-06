@@ -1,55 +1,52 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import PageHeader from "../components/PageHeader";
 import {
   Search,
   Loader2,
   ChevronLeft,
   ChevronRight,
-  X,
+  Plus,
   Star,
   MessageCircle,
+  ChevronDown,
 } from "lucide-react";
+import PageHeader from "../components/PageHeader";
 import sortIcon from "../../../assets/sort-icon.svg";
 import { reviewApi } from "../../../app/http/reviewApi";
 import { eventApi } from "../../../app/http/eventApi";
 import { reviewReplyApi } from "../../../app/http/replyApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
+import { htmlToPlainText } from "./shared/communityHtml";
+import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 
 const PAGE_SIZE = 10;
+
 const RATING_OPTIONS = [
   { value: "ALL", label: "별점 전체" },
-  { value: "5", label: "5점" },
-  { value: "4", label: "4점" },
-  { value: "3", label: "3점" },
-  { value: "2", label: "2점" },
   { value: "1", label: "1점" },
+  { value: "2", label: "2점" },
+  { value: "3", label: "3점" },
+  { value: "4", label: "4점" },
+  { value: "5", label: "5점" },
 ];
+
 const SORT_OPTIONS = [
   { value: "latest", label: "최신순" },
   { value: "comments", label: "댓글순" },
   { value: "views", label: "조회순" },
 ];
 
-function fmtDate(dt) {
-  if (!dt) return "-";
-  const d = new Date(dt);
-  if (Number.isNaN(d.getTime())) return "-";
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+function fmtDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function getReviewTitle(item) {
-  const title = String(item?.reviewTitle || "").trim();
-  if (title) return title.length > 58 ? `${title.slice(0, 58)}...` : title;
-
-  const firstLine = String(item?.content || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .find(Boolean);
-
-  if (!firstLine) return "행사 후기";
-  return firstLine.length > 58 ? `${firstLine.slice(0, 58)}...` : firstLine;
+function toTimestamp(value) {
+  const ts = Date.parse(String(value || ""));
+  return Number.isFinite(ts) ? ts : 0;
 }
 
 function renderStars(rating = 0, size = 14) {
@@ -64,437 +61,31 @@ function renderStars(rating = 0, size = 14) {
   ));
 }
 
-function DetailModal({
-  item,
-  onClose,
-  eventNameMap,
-  loading,
-  replies,
-  replyLoading,
-  replyError,
-  replyText,
-  onReplyTextChange,
-  onReplySubmit,
-  replySubmitting,
-}) {
-  if (!item) return null;
-
-  return (
-    <>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 5000,
-          background: "rgba(0,0,0,0.4)",
-          backdropFilter: "blur(4px)",
-        }}
-      />
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          zIndex: 5001,
-          background: "#fff",
-          borderRadius: 16,
-          width: "90%",
-          maxWidth: 760,
-          maxHeight: "85vh",
-          overflow: "auto",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
-        }}
-      >
-        <div
-          style={{
-            padding: "24px 28px 0",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
-        >
-          <div style={{ flex: 1, paddingRight: 16 }}>
-            <span style={getBoardBadge("REVIEW").style}>{getBoardBadge("REVIEW").text}</span>
-            <h2
-              style={{
-                fontSize: 20,
-                fontWeight: 800,
-                color: "#1E293B",
-                margin: "10px 0 0",
-                lineHeight: 1.4,
-              }}
-            >
-              {getReviewTitle(item)}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <X size={16} color="#94A3B8" />
-          </button>
-        </div>
-
-        <div
-          style={{
-            padding: "10px 28px 0",
-            display: "flex",
-            gap: 16,
-            flexWrap: "wrap",
-            fontSize: 13,
-            color: "#94A3B8",
-          }}
-        >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
-            {renderStars(item.rating || 0)}
-          </span>
-          <span>작성일 {fmtDate(item.createdAt)}</span>
-          <span>행사명 {eventNameMap?.[item.eventId] || item.eventName || "행사 정보 없음"}</span>
-          <span>댓글 {replies.length}</span>
-        </div>
-
-        <div style={{ margin: "16px 28px", borderBottom: "1px solid #E2E8F0" }} />
-
-        <div style={{ padding: "0 28px 12px" }}>
-          {loading ? (
-            <div style={{ fontSize: 14, color: "#94A3B8" }}>상세 내용을 불러오는 중입니다.</div>
-          ) : (
-            <p
-              style={{
-                fontSize: 15,
-                color: "#334155",
-                lineHeight: 1.75,
-                whiteSpace: "pre-wrap",
-                margin: 0,
-              }}
-            >
-              {item.content || "내용이 없습니다."}
-            </p>
-          )}
-        </div>
-
-        <div style={{ margin: "0 28px", borderBottom: "1px solid #E2E8F0" }} />
-
-        <div style={{ padding: "16px 28px 24px" }}>
-          <h3 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 700, color: "#1E293B" }}>
-            댓글
-          </h3>
-
-          <div style={{ marginBottom: 12 }}>
-            <textarea
-              value={replyText}
-              onChange={(e) => onReplyTextChange(e.target.value)}
-              placeholder="댓글을 입력하세요. (로그인 필요)"
-              rows={3}
-              style={{
-                width: "100%",
-                borderRadius: 8,
-                border: "1px solid #CBD5E1",
-                padding: 10,
-                resize: "vertical",
-                fontSize: 13,
-                color: "#334155",
-                fontFamily: "'Noto Sans KR', sans-serif",
-              }}
-            />
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-              <button
-                type="button"
-                onClick={onReplySubmit}
-                disabled={replySubmitting}
-                style={{
-                  border: "none",
-                  borderRadius: 8,
-                  background: "#B45309",
-                  color: "#fff",
-                  padding: "8px 14px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: replySubmitting ? "not-allowed" : "pointer",
-                  opacity: replySubmitting ? 0.6 : 1,
-                }}
-              >
-                {replySubmitting ? "등록 중..." : "댓글 등록"}
-              </button>
-            </div>
-            {replyError ? (
-              <div style={{ marginTop: 8, fontSize: 12, color: "#B91C1C" }}>{replyError}</div>
-            ) : null}
-          </div>
-
-          {replyLoading ? (
-            <div style={{ fontSize: 13, color: "#94A3B8" }}>댓글을 불러오는 중입니다.</div>
-          ) : replies.length === 0 ? (
-            <div style={{ fontSize: 13, color: "#94A3B8" }}>댓글이 없습니다.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {replies.map((reply) => (
-                <div
-                  key={reply.replyId}
-                  style={{
-                    border: "1px solid #E2E8F0",
-                    borderRadius: 10,
-                    padding: "10px 12px",
-                    background: "#F8FAFC",
-                  }}
-                >
-                  <div style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>
-                    {reply.writerEmail || `user#${reply.userId || "-"}`} · {fmtDate(reply.createdAt)}
-                  </div>
-                  <div style={{ fontSize: 13, color: "#334155", whiteSpace: "pre-wrap" }}>
-                    {reply.content}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
-
-function WriteModal({
-  open,
-  form,
-  events,
-  loading,
-  error,
-  onClose,
-  onChange,
-  onSubmit,
-}) {
-  if (!open) return null;
-
-  return (
-    <>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 5000,
-          background: "rgba(0,0,0,0.4)",
-          backdropFilter: "blur(4px)",
-        }}
-      />
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          zIndex: 5001,
-          background: "#fff",
-          borderRadius: 16,
-          width: "92%",
-          maxWidth: 560,
-          boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
-        }}
-      >
-        <div
-          style={{
-            padding: "22px 24px 18px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderBottom: "1px solid #E2E8F0",
-          }}
-        >
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#1E293B" }}>후기 작성</div>
-          <button
-            onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              border: "1px solid #E2E8F0",
-              background: "#fff",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <X size={16} color="#94A3B8" />
-          </button>
-        </div>
-
-        <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>행사 선택</span>
-            <select
-              value={form.eventId}
-              onChange={(e) => onChange("eventId", e.target.value)}
-              style={{
-                height: 42,
-                borderRadius: 8,
-                border: "1px solid #CBD5E1",
-                padding: "0 12px",
-                fontSize: 13,
-                color: "#334155",
-              }}
-            >
-              <option value="">종료 행사를 선택하세요</option>
-              {events.map((event) => (
-                <option key={event.eventId} value={event.eventId}>
-                  {event.eventName}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>별점</span>
-            <select
-              value={form.rating}
-              onChange={(e) => onChange("rating", e.target.value)}
-              style={{
-                height: 42,
-                borderRadius: 8,
-                border: "1px solid #CBD5E1",
-                padding: "0 12px",
-                fontSize: 13,
-                color: "#334155",
-              }}
-            >
-              {[5, 4, 3, 2, 1].map((value) => (
-                <option key={value} value={String(value)}>
-                  {value}점
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>후기 내용</span>
-            <textarea
-              value={form.content}
-              onChange={(e) => onChange("content", e.target.value)}
-              rows={8}
-              placeholder="행사 경험을 작성해주세요."
-              style={{
-                borderRadius: 8,
-                border: "1px solid #CBD5E1",
-                padding: 12,
-                resize: "vertical",
-                fontSize: 13,
-                color: "#334155",
-                lineHeight: 1.6,
-              }}
-            />
-          </label>
-
-          {error ? <div style={{ fontSize: 12, color: "#B91C1C" }}>{error}</div> : null}
-
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                height: 40,
-                padding: "0 14px",
-                borderRadius: 8,
-                border: "1px solid #CBD5E1",
-                background: "#fff",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#475569",
-                cursor: "pointer",
-              }}
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={onSubmit}
-              disabled={loading}
-              style={{
-                height: 40,
-                padding: "0 16px",
-                borderRadius: 8,
-                border: "none",
-                background: "#1D4ED8",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#fff",
-                cursor: loading ? "not-allowed" : "pointer",
-                opacity: loading ? 0.65 : 1,
-              }}
-            >
-              {loading ? "등록 중..." : "등록"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
 export default function Review() {
   const navigate = useNavigate();
+  const badge = getBoardBadge("REVIEW");
   const [search, setSearch] = useState("");
-  const [currentPath, setCurrentPath] = useState("/community/review");
   const [ratingFilter, setRatingFilter] = useState("ALL");
   const [sortOption, setSortOption] = useState("latest");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
-
   const [items, setItems] = useState([]);
   const [commentCountMap, setCommentCountMap] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
-
-  const [selected, setSelected] = useState(null);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [eventNameMap, setEventNameMap] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
 
-  const [replies, setReplies] = useState([]);
-  const [replyLoading, setReplyLoading] = useState(false);
-  const [replyText, setReplyText] = useState("");
-  const [replyError, setReplyError] = useState("");
-  const [replySubmitting, setReplySubmitting] = useState(false);
-  const [writeOpen, setWriteOpen] = useState(false);
-  const [writeSubmitting, setWriteSubmitting] = useState(false);
-  const [writeError, setWriteError] = useState("");
-  const [writeEvents, setWriteEvents] = useState([]);
-  const [writeForm, setWriteForm] = useState({
-    eventId: "",
-    rating: "5",
-    content: "",
-  });
-
-  const fetchList = useCallback(async (p = 1) => {
+  const loadReviews = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setError("");
     try {
-      const d = await reviewApi.list({
-        page: p - 1,
-        size: PAGE_SIZE,
+      const data = await reviewApi.list({
+        page: 0,
+        size: 200,
         rating: ratingFilter === "ALL" ? undefined : Number(ratingFilter),
       });
-      const content = Array.isArray(d?.content) ? d.content : [];
+      const content = Array.isArray(data?.content) ? data.content : [];
       setItems(content);
-      setTotalPages(d?.totalPages || 0);
-      setTotalElements(d?.totalElements ?? content.length);
-      setPage(p);
 
       const eventIds = [...new Set(content.map((row) => row?.eventId).filter(Boolean))];
       if (eventIds.length > 0) {
@@ -502,265 +93,121 @@ export default function Review() {
           eventIds.map(async (eventId) => {
             try {
               const res = await eventApi.getEventDetail(eventId);
-              const eventName = res?.data?.data?.eventName;
-              return [eventId, eventName || "행사 정보 없음"];
+              const eventDetail = res?.data?.data || {};
+              return [
+                eventId,
+                normalizeEventTitle(eventDetail?.eventName || `행사 ${eventId}`, eventDetail),
+              ];
             } catch {
-              return [eventId, "행사 정보 없음"];
+              return [eventId, `행사 ${eventId}`];
             }
           }),
         );
-        setEventNameMap((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+        setEventNameMap(Object.fromEntries(entries));
+      } else {
+        setEventNameMap({});
       }
-    } catch (e) {
-      console.error("[Review] list fetch failed:", e);
-      setError("행사후기 목록을 불러오지 못했습니다.");
+    } catch (err) {
+      console.error("[Review] load failed:", err);
+      setItems([]);
+      setError(err?.response?.data?.message || "행사 후기를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
   }, [ratingFilter]);
 
   useEffect(() => {
-    fetchList(1);
-  }, [fetchList]);
+    loadReviews();
+  }, [loadReviews]);
 
-  const loadWriteEvents = useCallback(async () => {
-    if (writeEvents.length > 0) return;
-    try {
-      const res = await eventApi.getClosedAnalytics();
-      const list = Array.isArray(res?.data?.data) ? res.data.data : [];
-      setWriteEvents(
-        list.map((event) => ({
-          eventId: String(event?.eventId ?? ""),
-          eventName: event?.eventName ?? `행사 #${event?.eventId ?? ""}`,
-        })),
-      );
-    } catch (err) {
-      console.error("[Review] write events fetch failed:", err);
-    }
-  }, [writeEvents.length]);
+  useEffect(() => {
+    setPage(1);
+  }, [search, ratingFilter, sortOption]);
 
-  const closeWrite = useCallback(() => {
-    setWriteOpen(false);
-    setWriteSubmitting(false);
-    setWriteError("");
-    setWriteForm({
-      eventId: "",
-      rating: "5",
-      content: "",
-    });
-  }, []);
+  useEffect(() => {
+    if (!items.length) return;
+    const pendingItems = items.filter((item) => commentCountMap[item.reviewId] == null);
+    if (!pendingItems.length) return;
 
-  const openWrite = useCallback(async () => {
-    if (!tokenStore.getAccess()) {
-      navigate("/auth/login", { state: { from: "/community/review" } });
-      return;
-    }
-    setWriteOpen(true);
-    setWriteError("");
-    await loadWriteEvents();
-  }, [loadWriteEvents, navigate]);
-
-  const updateWriteForm = useCallback((field, value) => {
-    setWriteForm((prev) => ({ ...prev, [field]: value }));
-  }, []);
-
-  const submitWrite = useCallback(async () => {
-    if (!writeForm.eventId) {
-      setWriteError("행사를 선택해주세요.");
-      return;
-    }
-    if (!writeForm.content.trim()) {
-      setWriteError("후기 내용을 입력해주세요.");
-      return;
-    }
-
-    setWriteSubmitting(true);
-    setWriteError("");
-    try {
-      await reviewApi.create({
-        eventId: Number(writeForm.eventId),
-        rating: Number(writeForm.rating),
-        content: writeForm.content.trim(),
-      });
-      closeWrite();
-      await fetchList(1);
-    } catch (err) {
-      console.error("[Review] write failed:", err);
-      if (err?.response?.status === 401) {
-        navigate("/auth/login", { state: { from: "/community/review" } });
-        return;
-      }
-      setWriteError(
-        err?.response?.data?.message || err?.message || "후기 등록에 실패했습니다.",
-      );
-    } finally {
-      setWriteSubmitting(false);
-    }
-  }, [closeWrite, fetchList, navigate, writeForm]);
-
-  const loadCommentCounts = useCallback(
-    async (rows) => {
-      const targets = rows.filter((row) => commentCountMap[row.reviewId] == null);
-      if (targets.length === 0) return;
-
+    const loadCounts = async () => {
       const pairs = await Promise.all(
-        targets.map(async (row) => {
+        pendingItems.map(async (item) => {
           try {
-            const d = await reviewReplyApi.list(row.reviewId, 0, 1);
-            const total = Number(d?.totalElements);
+            const data = await reviewReplyApi.list(item.reviewId, 0, 1);
+            const total = Number(data?.totalElements);
             const count = Number.isFinite(total)
               ? total
-              : Array.isArray(d?.content)
-                ? d.content.length
+              : Array.isArray(data?.content)
+                ? data.content.length
                 : 0;
-            return [row.reviewId, count];
+            return [item.reviewId, count];
           } catch {
-            return [row.reviewId, 0];
+            return [item.reviewId, 0];
           }
         }),
       );
 
-      setCommentCountMap((prev) => {
-        const next = { ...prev };
-        pairs.forEach(([reviewId, count]) => {
-          next[reviewId] = count;
-        });
-        return next;
-      });
-    },
-    [commentCountMap],
-  );
-
-  useEffect(() => {
-    if (items.length > 0) {
-      loadCommentCounts(items).catch(() => {});
-    }
-  }, [items, loadCommentCounts]);
-
-  const loadReplies = useCallback(async (reviewId) => {
-    if (!reviewId) return;
-    setReplyLoading(true);
-    setReplyError("");
-    try {
-      const d = await reviewReplyApi.list(reviewId, 0, 200);
-      const list = Array.isArray(d?.content) ? d.content : [];
-      setReplies(list);
       setCommentCountMap((prev) => ({
         ...prev,
-        [reviewId]: Number(d?.totalElements ?? list.length) || 0,
+        ...Object.fromEntries(pairs),
       }));
-    } catch (err) {
-      console.error("[Review] reply fetch failed:", err);
-      setReplies([]);
-      setReplyError("댓글을 불러오지 못했습니다.");
-    } finally {
-      setReplyLoading(false);
-    }
-  }, []);
+    };
 
-  const openDetail = useCallback(
-    async (item) => {
-      if (!item?.reviewId) return;
-      setSelected(item);
-      setDetailLoading(true);
-      setReplyText("");
-      setReplyError("");
-      try {
-        const detail = await reviewApi.get(item.reviewId);
-        setSelected(detail);
-        await loadReplies(detail.reviewId);
-      } catch (err) {
-        console.error("[Review] detail fetch failed:", err);
-        setReplyError("상세 정보를 불러오지 못했습니다.");
-      } finally {
-        setDetailLoading(false);
-      }
-    },
-    [loadReplies],
-  );
+    loadCounts().catch(() => {});
+  }, [commentCountMap, items]);
 
-  const closeDetail = () => {
-    setSelected(null);
-    setReplies([]);
-    setReplyText("");
-    setReplyError("");
-  };
-
-  const submitReply = async () => {
-    if (!selected?.reviewId) return;
-    if (!tokenStore.getAccess()) {
-      setReplyError("댓글 작성은 로그인 후 가능합니다.");
-      return;
-    }
-    const content = replyText.trim();
-    if (!content) {
-      setReplyError("댓글 내용을 입력해 주세요.");
-      return;
-    }
-
-    setReplySubmitting(true);
-    setReplyError("");
-    try {
-      await reviewReplyApi.create(selected.reviewId, content);
-      setReplyText("");
-      await loadReplies(selected.reviewId);
-    } catch (err) {
-      console.error("[Review] reply create failed:", err);
-      setReplyError("댓글 등록에 실패했습니다.");
-    } finally {
-      setReplySubmitting(false);
-    }
-  };
-
-  const visibleItems = useMemo(() => {
-    const q = search.trim();
-    const next = items.filter((item) => {
-      if (!q) return true;
-      return getReviewTitle(item).includes(q) || (item.content || "").includes(q);
+  const sortedFilteredItems = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    const filtered = items.filter((item) => {
+      const eventName = String(eventNameMap[item.eventId] || item.eventName || "").toLowerCase();
+      const title = String(item.reviewTitle || "").toLowerCase();
+      const text = htmlToPlainText(item.content || "").toLowerCase();
+      return !keyword || title.includes(keyword) || text.includes(keyword) || eventName.includes(keyword);
     });
 
-    if (sortOption === "comments") {
-      next.sort((a, b) => {
-        const commentDiff = (commentCountMap[b.reviewId] ?? 0) - (commentCountMap[a.reviewId] ?? 0);
-        if (commentDiff !== 0) return commentDiff;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-      return next;
+    return [...filtered].sort((a, b) => {
+      if (sortOption === "views") {
+        return Number(b.viewCount || 0) - Number(a.viewCount || 0);
+      }
+      if (sortOption === "comments") {
+        return Number(commentCountMap[b.reviewId] || 0) - Number(commentCountMap[a.reviewId] || 0);
+      }
+      return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
+    });
+  }, [commentCountMap, eventNameMap, items, search, sortOption]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedFilteredItems.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedItems = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return sortedFilteredItems.slice(start, start + PAGE_SIZE);
+  }, [currentPage, sortedFilteredItems]);
+
+  const currentSortLabel = SORT_OPTIONS.find((option) => option.value === sortOption)?.label || "최신순";
+
+  const handleWrite = () => {
+    if (!tokenStore.getAccess()) {
+      navigate("/auth/login", { state: { from: "/community/review" } });
+      return;
     }
-
-    if (sortOption === "views") {
-      next.sort((a, b) => {
-        const viewDiff = (b.viewCount ?? 0) - (a.viewCount ?? 0);
-        if (viewDiff !== 0) return viewDiff;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-      return next;
-    }
-
-    next.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return next;
-  }, [items, search, sortOption, commentCountMap]);
-
-  const badge = getBoardBadge("REVIEW");
-  const currentSortLabel =
-    SORT_OPTIONS.find((option) => option.value === sortOption)?.label || "최신순";
+    navigate("/community/review/write");
+  };
 
   return (
     <>
       <PageHeader
         title="행사후기"
-        subtitle="참가자들이 남긴 생생한 행사 후기를 확인해보세요."
+        subtitle="행사에 참여한 사용자의 후기와 별점을 확인하세요"
         categories={COMMUNITY_CATEGORIES}
-        currentPath={currentPath}
-        onNavigate={setCurrentPath}
+        currentPath="/community/review"
+        onNavigate={(path) => navigate(path)}
       />
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <main
         style={{
-          maxWidth: "1400px",
+          width: "min(1400px, calc(100% - 32px))",
           margin: "0 auto",
-          padding: "40px 20px",
+          padding: "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
@@ -772,51 +219,51 @@ export default function Review() {
             paddingBottom: "16px",
             borderBottom: "1px solid #e0e0e0",
             marginBottom: "8px",
+            gap: 8,
           }}
         >
-          <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>
-            총 {totalElements}개
-          </span>
+          <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>총 {sortedFilteredItems.length}개</span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <button
-              type="button"
-              onClick={openWrite}
-              style={{
-                border: "none",
-                borderRadius: 8,
-                background: "#1D4ED8",
-                color: "#fff",
-                height: 38,
-                padding: "0 14px",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              글쓰기
-            </button>
-            <select
-              value={ratingFilter}
-              onChange={(e) => setRatingFilter(e.target.value)}
-              style={{
-                border: "1px solid #d1d5db",
-                borderRadius: 8,
-                background: "#fff",
-                height: 38,
-                padding: "0 10px",
-                fontSize: 13,
-                color: "#334155",
-                minWidth: 110,
-              }}
-            >
-              {RATING_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ position: "relative" }}>
+              <select
+                value={ratingFilter}
+                onChange={(event) => setRatingFilter(event.target.value)}
+                style={{
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  background: "#fff",
+                  height: 38,
+                  padding: "0 34px 0 12px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#334155",
+                  cursor: "pointer",
+                  minWidth: 108,
+                }}
+              >
+                {RATING_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <ChevronDown size={14} color="#666" />
+              </span>
+            </div>
 
             <div style={{ position: "relative" }}>
               <button
@@ -855,12 +302,12 @@ export default function Review() {
                     overflow: "hidden",
                   }}
                 >
-                  {SORT_OPTIONS.map((opt) => (
+                  {SORT_OPTIONS.map((option) => (
                     <button
-                      key={opt.value}
+                      key={option.value}
                       type="button"
                       onClick={() => {
-                        setSortOption(opt.value);
+                        setSortOption(option.value);
                         setSortMenuOpen(false);
                       }}
                       style={{
@@ -869,15 +316,15 @@ export default function Review() {
                         textAlign: "left",
                         border: "none",
                         borderBottom: "1px solid #f1f5f9",
-                        background: opt.value === sortOption ? "#eff6ff" : "#fff",
-                        color: opt.value === sortOption ? "#1D4ED8" : "#334155",
+                        background: option.value === sortOption ? "#eff6ff" : "#fff",
+                        color: option.value === sortOption ? "#1D4ED8" : "#334155",
                         padding: "9px 11px",
                         fontSize: 13,
                         fontWeight: 600,
                         cursor: "pointer",
                       }}
                     >
-                      {opt.label}
+                      {option.label}
                     </button>
                   ))}
                 </div>
@@ -896,9 +343,9 @@ export default function Review() {
             >
               <input
                 type="text"
-                placeholder="후기 내용 검색"
+                placeholder="제목/행사명/내용 검색"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => setSearch(event.target.value)}
                 style={{
                   border: "none",
                   outline: "none",
@@ -924,6 +371,27 @@ export default function Review() {
                 <Search size={16} strokeWidth={2} color="#555" />
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={handleWrite}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "none",
+                background: "#4a7cf7",
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "'Noto Sans KR', sans-serif",
+              }}
+            >
+              <Plus size={14} strokeWidth={2.5} /> 글쓰기
+            </button>
           </div>
         </div>
 
@@ -946,7 +414,8 @@ export default function Review() {
           <div style={{ textAlign: "center", padding: "80px 0" }}>
             <div style={{ fontSize: "14px", color: "#999", marginBottom: 12 }}>{error}</div>
             <button
-              onClick={() => fetchList(page)}
+              type="button"
+              onClick={loadReviews}
               style={{
                 padding: "8px 20px",
                 borderRadius: "6px",
@@ -965,52 +434,64 @@ export default function Review() {
         {!loading && !error && (
           <>
             <div>
-              {visibleItems.map((item) => (
-                <div
-                  key={item.reviewId}
-                  onClick={() => openDetail(item)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "18px 6px",
-                    borderBottom: "1px solid #e8e8e8",
-                    cursor: "pointer",
-                    transition: "background 0.15s",
-                    gap: 10,
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f9f9f9")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <span style={{ ...badge.style, marginRight: 2 }}>{badge.text}</span>
-                  <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500 }}>
-                    {getReviewTitle(item)}
-                  </span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 2, marginRight: 4 }}>
-                    {renderStars(item.rating || 0)}
-                  </span>
-                  <span
+              {pagedItems.map((item) => {
+                const commentCount = Number(commentCountMap[item.reviewId] || 0);
+                const eventLabel = eventNameMap[item.eventId] || item.eventName || `행사 ${item.eventId}`;
+                return (
+                  <div
+                    key={item.reviewId}
+                    onClick={() => navigate(`/community/review/${item.reviewId}`)}
                     style={{
-                      display: "inline-flex",
+                      display: "flex",
                       alignItems: "center",
-                      gap: 4,
-                      fontSize: 12,
-                      color: "#64748B",
-                      minWidth: 64,
-                      justifyContent: "flex-end",
+                      padding: "18px 6px",
+                      borderBottom: "1px solid #e8e8e8",
+                      cursor: "pointer",
+                      transition: "background 0.15s",
+                      gap: 10,
+                    }}
+                    onMouseEnter={(event) => {
+                      event.currentTarget.style.background = "#f9f9f9";
+                    }}
+                    onMouseLeave={(event) => {
+                      event.currentTarget.style.background = "transparent";
                     }}
                   >
-                    <MessageCircle size={13} />
-                    {commentCountMap[item.reviewId] ?? 0}
-                  </span>
-                  <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", minWidth: 94, textAlign: "right" }}>
-                    {fmtDate(item.createdAt)}
-                  </span>
-                </div>
-              ))}
+                    <span style={{ ...badge.style, marginRight: 2 }}>{badge.text}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>[{eventLabel}]</span>
+                    <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500 }}>
+                      {item.reviewTitle || "행사 후기"}
+                    </span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 2, minWidth: 96, justifyContent: "center" }}>
+                      {renderStars(item.rating || 0, 13)}
+                    </span>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 12,
+                        color: "#64748B",
+                        minWidth: 64,
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <MessageCircle size={13} />
+                      {commentCount}
+                    </span>
+                    <span style={{ fontSize: "12px", color: "#94A3B8", minWidth: 60, textAlign: "right" }}>
+                      조회 {item.viewCount ?? 0}
+                    </span>
+                    <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", minWidth: 94, textAlign: "right" }}>
+                      {fmtDate(item.createdAt)}
+                    </span>
+                  </div>
+                );
+              })}
 
-              {visibleItems.length === 0 && (
+              {pagedItems.length === 0 && (
                 <div style={{ textAlign: "center", padding: "60px 0", color: "#999", fontSize: "14px" }}>
-                  검색 결과가 없습니다.
+                  {search.trim() ? "검색 결과가 없습니다." : "후기가 없습니다."}
                 </div>
               )}
             </div>
@@ -1021,50 +502,53 @@ export default function Review() {
                   display: "flex",
                   justifyContent: "center",
                   alignItems: "center",
-                  gap: "12px",
-                  marginTop: "36px",
+                  gap: 12,
+                  marginTop: 36,
                 }}
               >
                 <button
-                  onClick={() => page > 1 && fetchList(page - 1)}
-                  disabled={page <= 1}
+                  type="button"
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage <= 1}
                   style={{
                     background: "none",
                     border: "none",
-                    color: page <= 1 ? "#ccc" : "#666",
-                    cursor: page <= 1 ? "default" : "pointer",
+                    color: currentPage <= 1 ? "#ccc" : "#666",
+                    cursor: currentPage <= 1 ? "default" : "pointer",
                     padding: "4px 8px",
                   }}
                 >
                   <ChevronLeft size={16} />
                 </button>
 
-                {Array.from({ length: totalPages }, (_, i) => (
+                {Array.from({ length: totalPages }, (_, index) => (
                   <button
-                    key={i}
-                    onClick={() => fetchList(i + 1)}
+                    key={index}
+                    type="button"
+                    onClick={() => setPage(index + 1)}
                     style={{
                       background: "none",
                       border: "none",
-                      fontSize: "14px",
-                      fontWeight: i + 1 === page ? 700 : 500,
-                      color: i + 1 === page ? "#1A4FD6" : "#333",
+                      fontSize: 14,
+                      fontWeight: index + 1 === currentPage ? 700 : 500,
+                      color: index + 1 === currentPage ? "#1A4FD6" : "#333",
                       cursor: "pointer",
                       minWidth: 20,
                     }}
                   >
-                    {i + 1}
+                    {index + 1}
                   </button>
                 ))}
 
                 <button
-                  onClick={() => page < totalPages && fetchList(page + 1)}
-                  disabled={page >= totalPages}
+                  type="button"
+                  onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage >= totalPages}
                   style={{
                     background: "none",
                     border: "none",
-                    color: page >= totalPages ? "#ccc" : "#666",
-                    cursor: page >= totalPages ? "default" : "pointer",
+                    color: currentPage >= totalPages ? "#ccc" : "#666",
+                    cursor: currentPage >= totalPages ? "default" : "pointer",
                     padding: "4px 8px",
                   }}
                 >
@@ -1075,31 +559,6 @@ export default function Review() {
           </>
         )}
       </main>
-
-      <WriteModal
-        open={writeOpen}
-        form={writeForm}
-        events={writeEvents}
-        loading={writeSubmitting}
-        error={writeError}
-        onClose={closeWrite}
-        onChange={updateWriteForm}
-        onSubmit={submitWrite}
-      />
-
-      <DetailModal
-        item={selected}
-        onClose={closeDetail}
-        eventNameMap={eventNameMap}
-        loading={detailLoading}
-        replies={replies}
-        replyLoading={replyLoading}
-        replyError={replyError}
-        replyText={replyText}
-        onReplyTextChange={setReplyText}
-        onReplySubmit={submitReply}
-        replySubmitting={replySubmitting}
-      />
     </>
   );
 }

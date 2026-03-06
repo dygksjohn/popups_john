@@ -1,4 +1,4 @@
-﻿function normalizeApiFailure(payload, fallbackMessage) {
+function normalizeApiFailure(payload, fallbackMessage) {
   const error = payload?.error || payload || {};
   return {
     code: error.code || payload?.code || "API_ERROR",

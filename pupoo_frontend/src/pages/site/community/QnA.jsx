@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import {
   ChevronDown,
@@ -14,17 +15,19 @@ import {
 } from "lucide-react";
 import { qnaApi, unwrap } from "../../../api/qnaApi";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
+import CommunityRichTextEditor from "./shared/CommunityRichTextEditor";
+import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 
 const FILTER_OPTIONS = ["전체", "답변완료", "미답변"];
 
-/* ── 날짜 포맷 ── */
+/* ?? ?좎쭨 ?щ㎎ ?? */
 function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/* ── 토스트 ── */
+/* ?? ?좎뒪???? */
 function Toast({ msg, type = "success", onDone }) {
   useEffect(() => {
     const t = setTimeout(onDone, 2200);
@@ -51,12 +54,12 @@ function Toast({ msg, type = "success", onDone }) {
         gap: 8,
       }}
     >
-      {type === "success" ? "✓" : "✕"} {msg}
+      {type === "success" ? "완료" : "오류"} {msg}
     </div>
   );
 }
 
-/* ── 오버레이 ── */
+/* ?? ?ㅻ쾭?덉씠 ?? */
 function Overlay({ children, onClose }) {
   return (
     <div
@@ -89,7 +92,7 @@ function Overlay({ children, onClose }) {
   );
 }
 
-/* ── 삭제 확인 모달 ── */
+/* ?? 삭제 ?뺤씤 紐⑤떖 ?? */
 function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
   return (
     <Overlay onClose={onCancel}>
@@ -172,7 +175,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
   );
 }
 
-/* ── 글쓰기/수정 모달 ── */
+/* ?? 湲?곌린/수정 紐⑤떖 ?? */
 function WriteModal({ item, onSave, onClose, saving }) {
   const isEdit = !!item;
   const [form, setForm] = useState({
@@ -183,11 +186,11 @@ function WriteModal({ item, onSave, onClose, saving }) {
 
   const handleSave = () => {
     if (!form.title.trim()) {
-      setErr("제목을 입력해주세요.");
+      setErr("제목을 입력해 주세요.");
       return;
     }
-    if (!form.content.trim()) {
-      setErr("내용을 입력해주세요.");
+    if (!hasMeaningfulCommunityContent(form.content)) {
+      setErr("내용을 입력해 주세요.");
       return;
     }
     onSave(form);
@@ -262,7 +265,7 @@ function WriteModal({ item, onSave, onClose, saving }) {
           <input
             value={form.title}
             onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-            placeholder="질문 제목을 입력하세요"
+            placeholder="질문 제목을 입력해 주세요"
             style={{
               width: "100%",
               padding: "10px 14px",
@@ -291,28 +294,11 @@ function WriteModal({ item, onSave, onClose, saving }) {
           >
             내용 <span style={{ color: "#EF4444" }}>*</span>
           </label>
-          <textarea
-            rows={5}
+          <CommunityRichTextEditor
             value={form.content}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, content: e.target.value }))
-            }
-            placeholder="질문 내용을 입력하세요"
-            style={{
-              width: "100%",
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "1px solid #ddd",
-              fontSize: 14,
-              color: "#222",
-              outline: "none",
-              boxSizing: "border-box",
-              resize: "vertical",
-              fontFamily: "'Noto Sans KR', sans-serif",
-              lineHeight: 1.6,
-            }}
-            onFocus={(e) => (e.target.style.borderColor = "#4a7cf7")}
-            onBlur={(e) => (e.target.style.borderColor = "#ddd")}
+            onChange={(value) => setForm((p) => ({ ...p, content: value }))}
+            placeholder="질문 내용을 입력해 주세요. 이미지도 본문에 삽입할 수 있습니다."
+            height={280}
           />
         </div>
 
@@ -360,16 +346,17 @@ function WriteModal({ item, onSave, onClose, saving }) {
   );
 }
 
-/* ═══════════════════════════════════════════
-   메인 컴포넌트
-   ═══════════════════════════════════════════ */
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
+   硫붿씤 而댄룷?뚰듃
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 export default function ServicePage() {
+  const navigate = useNavigate();
   const [currentPath, setCurrentPath] = useState("/community/qna");
   const [filter, setFilter] = useState("전체");
   const [search, setSearch] = useState("");
   const [openReplies, setOpenReplies] = useState({});
 
-  /* ── API 상태 ── */
+  /* ?? API ?곹깭 ?? */
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -389,7 +376,7 @@ export default function ServicePage() {
     setOpenReplies((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  /* ── 목록 조회 ── */
+  /* ?? 紐⑸줉 議고쉶 ?? */
   const fetchList = useCallback(async (p = 1) => {
     setLoading(true);
     setError(null);
@@ -402,7 +389,7 @@ export default function ServicePage() {
       setPage(p);
     } catch (err) {
       console.error("[QnA] fetch error:", err);
-      setError("질문 목록을 불러오는데 실패했습니다.");
+      setError("질문 목록을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -412,7 +399,7 @@ export default function ServicePage() {
     fetchList(1);
   }, [fetchList]);
 
-  /* ── 필터링 ── */
+  /* ?? ?꾪꽣留??? */
   const filtered = items.filter((q) => {
     const status = q.status === "CLOSED" ? "답변완료" : "미답변";
     const matchFilter = filter === "전체" || filter === status;
@@ -421,7 +408,7 @@ export default function ServicePage() {
     return matchFilter && matchSearch;
   });
 
-  /* ── 등록 ── */
+  /* ?? ?깅줉 ?? */
   const handleCreate = async (form) => {
     setSaving(true);
     try {
@@ -437,7 +424,7 @@ export default function ServicePage() {
     }
   };
 
-  /* ── 수정 ── */
+  /* ?? 수정 ?? */
   const handleUpdate = async (form) => {
     setSaving(true);
     try {
@@ -453,7 +440,7 @@ export default function ServicePage() {
     }
   };
 
-  /* ── 삭제 ── */
+  /* ?? 삭제 ?? */
   const handleDelete = async () => {
     setSaving(true);
     try {
@@ -473,21 +460,21 @@ export default function ServicePage() {
   return (
     <>
       <PageHeader
-        title="질문 답변"
-        subtitle="서비스 이용과 관련된 문의사항을 등록하고 답변을 확인할 수 있습니다."
+        title="질문/답변"
+        subtitle="서비스 이용과 관련한 문의사항을 등록하고 답변을 확인할 수 있습니다."
         categories={COMMUNITY_CATEGORIES}
         currentPath={currentPath}
         onNavigate={setCurrentPath}
       />
       <main
         style={{
-          maxWidth: "1400px",
+          width: "min(1400px, calc(100% - 32px))",
           margin: "0 auto",
-          padding: "40px 20px",
+          padding: "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
-        {/* 상단 필터/검색 바 */}
+        {/* ?곷떒 ?꾪꽣/검색諛?*/}
         <div
           style={{
             display: "flex",
@@ -499,7 +486,7 @@ export default function ServicePage() {
           }}
         >
           <span style={{ fontSize: "15px", fontWeight: "600", color: "#222" }}>
-            총 {totalElements}개
+            총 {totalElements}건
           </span>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -552,7 +539,7 @@ export default function ServicePage() {
             >
               <input
                 type="text"
-                placeholder="검색어를 입력하세요."
+                placeholder="검색어를 입력해 주세요"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
@@ -586,9 +573,9 @@ export default function ServicePage() {
               </button>
             </div>
 
-            {/* 글쓰기 버튼 */}
+            {/* 湲?곌린 踰꾪듉 */}
             <button
-              onClick={() => setWriteModal({})}
+              onClick={() => navigate("/community/qna/write")}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -616,7 +603,7 @@ export default function ServicePage() {
           </div>
         </div>
 
-        {/* 로딩 */}
+        {/* 濡쒕뵫 */}
         {loading && (
           <div
             style={{
@@ -638,7 +625,7 @@ export default function ServicePage() {
           </div>
         )}
 
-        {/* 에러 */}
+        {/* ?먮윭 */}
         {!loading && error && (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
             <AlertTriangle
@@ -678,7 +665,7 @@ export default function ServicePage() {
           </div>
         )}
 
-        {/* 목록 */}
+        {/* 紐⑸줉 */}
         {!loading && !error && (
           <div>
             {filtered.map((q) => {
@@ -690,7 +677,7 @@ export default function ServicePage() {
                   key={q.qnaId}
                   style={{ borderBottom: "1px solid #e8e8e8" }}
                 >
-                  {/* 질문 행 */}
+                  {/* 吏덈Ц ??*/}
                   <div
                     style={{
                       display: "flex",
@@ -700,7 +687,7 @@ export default function ServicePage() {
                       transition: "background 0.15s",
                       gap: "0",
                     }}
-                    onClick={() => toggleReply(q.qnaId)}
+                    onClick={() => navigate(`/community/qna/${q.qnaId}`)}
                     onMouseEnter={(e) =>
                       (e.currentTarget.style.background = "#f9f9f9")
                     }
@@ -724,7 +711,7 @@ export default function ServicePage() {
                       {q.title}
                     </span>
 
-                    {/* 상태 뱃지 */}
+                    {/* ?곹깭 諭껋? */}
                     <span
                       style={{
                         fontSize: "11px",
@@ -765,7 +752,7 @@ export default function ServicePage() {
                     </span>
                   </div>
 
-                  {/* 상세 내용 (토글) */}
+                  {/* ?곸꽭 ?댁슜 (?좉?) */}
                   {openReplies[q.qnaId] && (
                     <div
                       style={{
@@ -774,7 +761,7 @@ export default function ServicePage() {
                         borderTop: "1px dashed #dde6ff",
                       }}
                     >
-                      {/* 질문 내용 */}
+                      {/* 吏덈Ц ?댁슜 */}
                       <p
                         style={{
                           fontSize: 14,
@@ -787,7 +774,7 @@ export default function ServicePage() {
                         {q.content}
                       </p>
 
-                      {/* 운영자 답변 */}
+                      {/* ?댁쁺???듬? */}
                       {q.answerContent && (
                         <div
                           style={{
@@ -837,7 +824,7 @@ export default function ServicePage() {
                         </div>
                       )}
 
-                      {/* 수정/삭제 버튼 */}
+                      {/* 수정/삭제 踰꾪듉 */}
                       <div
                         style={{
                           display: "flex",
@@ -920,14 +907,14 @@ export default function ServicePage() {
                 }}
               >
                 {items.length === 0
-                  ? "아직 질문이 없습니다. 첫 번째 질문을 등록해보세요!"
+                  ? "아직 질문이 없습니다. 첫 번째 질문을 등록해 보세요."
                   : "검색 결과가 없습니다."}
               </div>
             )}
           </div>
         )}
 
-        {/* 페이지네이션 */}
+        {/* ?섏씠吏?ㅼ씠??*/}
         {!loading && !error && totalPages > 1 && (
           <div
             style={{
@@ -950,7 +937,7 @@ export default function ServicePage() {
                 padding: "4px 8px",
               }}
             >
-              ‹
+              <ChevronLeft size={16} />
             </button>
             {Array.from({ length: totalPages }, (_, i) => (
               <button
@@ -983,34 +970,34 @@ export default function ServicePage() {
                 padding: "4px 8px",
               }}
             >
-              ›
+              <ChevronRight size={16} />
             </button>
           </div>
         )}
       </main>
 
-      {/* ── 글쓰기/수정 모달 ── */}
-      {writeModal && (
+      {/* ?? 湲?곌린/수정 紐⑤떖 ?? */}
+      {writeModal?.item ? (
         <WriteModal
           item={writeModal.item}
-          onSave={writeModal.item ? handleUpdate : handleCreate}
+          onSave={handleUpdate}
           onClose={() => setWriteModal(null)}
           saving={saving}
         />
-      )}
+      ) : null}
 
-      {/* ── 삭제 확인 모달 ── */}
+      {/* ?? 삭제 ?뺤씤 紐⑤떖 ?? */}
       {deleteModal && (
         <ConfirmModal
           title="질문 삭제"
           loading={saving}
-          msg={`"${deleteModal.title}" 을(를) 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          msg={`"${deleteModal.title}"을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
           onConfirm={handleDelete}
           onCancel={() => setDeleteModal(null)}
         />
       )}
 
-      {/* ── 토스트 ── */}
+      {/* ?? ?좎뒪???? */}
       {toast && (
         <Toast
           msg={toast.msg}
@@ -1021,3 +1008,7 @@ export default function ServicePage() {
     </>
   );
 }
+
+
+
+

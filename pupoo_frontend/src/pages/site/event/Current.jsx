@@ -1,8 +1,9 @@
-﻿import PageHeader from "../components/PageHeader";
+import PageHeader from "../components/PageHeader";
 import EventDetailModal from "./EventDetailModal";
 import { useEffect, useState } from "react";
 import { eventApi } from "../../../app/http/eventApi";
 import { loadImageCache, injectEventImages } from "../../admin/shared/eventImageStore";
+import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 import {
   MapPin,
   Calendar,
@@ -142,7 +143,7 @@ function isOngoingByTime(raw) {
 
 function mapEvent(raw) {
   const eventId = raw?.eventId ?? raw?.id ?? null;
-  const eventName = raw?.eventName ?? raw?.title ?? "행사";
+  const eventName = normalizeEventTitle(raw?.eventName ?? raw?.title, raw);
   const category = raw?.category ?? raw?.eventCategory ?? "행사";
   const location = raw?.location ?? raw?.place ?? "장소 미정";
   const startAt = raw?.startAt ?? raw?.startDateTime ?? raw?.startDate ?? null;

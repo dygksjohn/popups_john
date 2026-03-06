@@ -1,1 +1,1 @@
-﻿export { mypageApi } from "../../../../features/mypage/api/mypageApi";
+export { mypageApi } from "../../../../features/mypage/api/mypageApi";

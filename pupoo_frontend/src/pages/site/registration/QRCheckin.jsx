@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import {
@@ -16,6 +16,7 @@ import {
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { tokenStore } from "../../../app/http/tokenStore";
+import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 
 const QR_MATRIX = [
   [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1],
@@ -175,7 +176,7 @@ function formatDateTime(value) {
 }
 
 function formatDateRange(startAt, endAt) {
-  if (!startAt && !endAt) return "?쇱젙 ?뺣낫 ?놁쓬";
+  if (!startAt && !endAt) return "일정 정보 없음";
   const start = formatDateTime(startAt);
   const end = formatDateTime(endAt);
   return `${start} ~ ${end}`;
@@ -278,7 +279,11 @@ export default function QRCheckin() {
         registrations.map(async (item) => {
           try {
             const eventRes = await eventApi.getEventDetail(item.eventId);
-            return [item.eventId, eventRes?.data?.data?.eventName || `이벤트 #${item.eventId}`];
+            return [
+              item.eventId,
+              normalizeEventTitle(eventRes?.data?.data?.eventName, eventRes?.data?.data || {}) ||
+                `이벤트 #${item.eventId}`,
+            ];
           } catch {
             return [item.eventId, `이벤트 #${item.eventId}`];
           }
@@ -341,7 +346,7 @@ export default function QRCheckin() {
     if (!qrInfo || !eventDetail) return;
 
     const smsMessage =
-      `[${eventDetail.eventName || "이벤트"}]\n` +
+      `[${normalizeEventTitle(eventDetail?.eventName, eventDetail || {}) || "이벤트"}]\n` +
       `QR 번호: QR-${qrInfo.qrId}\n` +
       `행사일: ${formatDateRange(eventDetail.startAt, eventDetail.endAt)}\n` +
       `장소: ${eventDetail.location || "-"}\n` +
@@ -443,7 +448,9 @@ export default function QRCheckin() {
                 )}
               </div>
               <div className="qr-code-num">{qrInfo?.qrId ? `QR-${qrInfo.qrId}` : "QR-"}</div>
-              <div className="qr-event-name">{eventDetail?.eventName || "이벤트를 선택해 주세요"}</div>
+              <div className="qr-event-name">
+                {normalizeEventTitle(eventDetail?.eventName, eventDetail || {}) || "이벤트를 선택해 주세요"}
+              </div>
             </div>
 
             <div className="qr-ticket-info">

@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { storageApi } from "../api/storageApi";
 import { UPLOAD_POLICY } from "../constants/uploadPolicy";
 

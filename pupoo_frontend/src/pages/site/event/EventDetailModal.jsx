@@ -1,10 +1,11 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getEventImage } from "../../admin/shared/eventImageStore";
 import { tokenStore } from "../../../app/http/tokenStore";
+import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 import {
   X,
   MapPin,
@@ -991,6 +992,7 @@ export default function EventDetailModal({ event, onClose }) {
     : "";
   const rawFee = detail?.baseFee ?? event?.baseFee;
   const fee = normalizeFee(rawFee);
+  const displayTitle = normalizeEventTitle(detail?.eventName || event?.title, detail || event || {});
   const dateLabel = detail?.startAt ? formatDate(detail.startAt) : "일정 미정";
   const timeLabel =
     detail?.startAt || detail?.endAt
@@ -1111,7 +1113,7 @@ export default function EventDetailModal({ event, onClose }) {
         const params = new URLSearchParams({
           eventId: String(modalEventId),
           amount: String(fee),
-          title: detail?.eventName || event?.title || "",
+          title: displayTitle || "",
           returnUrl: location?.pathname || "/",
         });
         navigate(`/payment/checkout?${params.toString()}`);
@@ -1134,7 +1136,7 @@ export default function EventDetailModal({ event, onClose }) {
           const params = new URLSearchParams({
             eventId: String(modalEventId),
             amount: String(fee),
-            title: detail?.eventName || event?.title || "",
+              title: displayTitle || "",
             returnUrl: location?.pathname || "/",
           });
           navigate(`/payment/checkout?${params.toString()}`);
@@ -1250,7 +1252,7 @@ export default function EventDetailModal({ event, onClose }) {
             </div>
 
             <div className="evm-right-header">
-              <h2 className="evm-right-title">{detail?.eventName || event.title}</h2>
+              <h2 className="evm-right-title">{displayTitle}</h2>
               <div className="evm-right-sub">
                 {dateLabel} · {timeLabel} · {loc}
               </div>

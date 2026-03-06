@@ -1,4 +1,4 @@
-﻿/* 공용 프로그램 상수 */
+/* 공용 프로그램 상수 */
 
 export const SERVICE_CATEGORIES = [
   { label: "전체", path: "/program/all" },
