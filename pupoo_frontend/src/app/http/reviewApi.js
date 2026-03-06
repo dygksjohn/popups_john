@@ -18,7 +18,14 @@ export const reviewApi = {
    */
   list(opts = {}) {
     const { page = 0, size = 10, searchType, keyword, rating } = opts;
-    const params = { page, size };
+    const parsedPage = Number(page);
+    const parsedSize = Number(size);
+    const params = {
+      page: Number.isFinite(parsedPage) && parsedPage >= 0 ? parsedPage : 0,
+      size: Number.isFinite(parsedSize)
+        ? Math.min(Math.max(parsedSize, 1), 100)
+        : 10,
+    };
     if (searchType != null && searchType !== "") params.searchType = searchType;
     if (keyword != null && keyword !== "") params.keyword = keyword;
     if (rating != null && rating !== "") params.rating = rating;

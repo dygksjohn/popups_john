@@ -6,8 +6,13 @@ import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.qr.application.QrService;
 import com.popups.pupoo.qr.dto.QrHistoryResponse;
 import com.popups.pupoo.qr.dto.QrIssueResponse;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,6 +39,31 @@ public class QrController {
     public ApiResponse<QrIssueResponse> getMyQr(@RequestParam(name = "eventId") Long eventId) {
         Long userId = securityUtil.currentUserId();
         return ApiResponse.success(qrService.getMyQrOrIssue(userId, eventId));
+    }
+
+    @GetMapping("/qr/me/download")
+    public ResponseEntity<byte[]> downloadMyQr(@RequestParam(name = "eventId") Long eventId) {
+        Long userId = securityUtil.currentUserId();
+        QrService.QrDownloadResult result = qrService.downloadMyQr(userId, eventId);
+
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(result.contentType());
+        } catch (IllegalArgumentException e) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .contentLength(result.bytes().length)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(result.filename(), StandardCharsets.UTF_8)
+                                .build()
+                                .toString()
+                )
+                .body(result.bytes());
     }
 
     /**

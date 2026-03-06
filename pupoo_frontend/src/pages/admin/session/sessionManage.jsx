@@ -883,20 +883,18 @@ export default function SessionManage({ subTab = "all" }) {
     }
   };
 
-  const handleDeleteAll = async () => {
-    const eventId =
-      selectedEvent.eventId || selectedEvent.id?.replace("EV-", "");
+const handleDeleteAll = async () => {
     setModal(null);
     try {
-      const sessionIds = rows.map(
-        (r) => r.sessionId || Number(String(r.id).replace("SS-", "")),
+      const programIds = rows.map(
+        (r) => r.programId || Number(String(r.id).replace("SS-", "")),
       );
-      for (const sid of sessionIds) {
-        await axiosInstance.delete(`/api/admin/dashboard/sessions/${sid}`, {
-          headers: authHeaders(),
-        });
-      }
-      await loadSessions(eventId);
+      await axiosInstance.post(
+        "/api/admin/dashboard/programs/bulk-delete",
+        { programIds },
+        { headers: authHeaders() },
+      );
+      await loadItems(evId());
       setSelected(new Set());
       showToast(`${rows.length}건이 전체 삭제되었습니다.`);
     } catch (err) {

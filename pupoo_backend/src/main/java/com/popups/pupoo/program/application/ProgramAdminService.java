@@ -1,11 +1,13 @@
 // file: src/main/java/com/popups/pupoo/program/application/ProgramAdminService.java
 package com.popups.pupoo.program.application;
 
+import com.popups.pupoo.program.domain.enums.ProgramCategory;
 import com.popups.pupoo.program.domain.model.Program;
-import com.popups.pupoo.program.persistence.ProgramRepository;
 import com.popups.pupoo.program.dto.ProgramCreateRequest;
-import com.popups.pupoo.program.dto.ProgramUpdateRequest;
 import com.popups.pupoo.program.dto.ProgramResponse;
+import com.popups.pupoo.program.dto.ProgramUpdateRequest;
+import com.popups.pupoo.program.persistence.ProgramRepository;
+import com.popups.pupoo.program.speaker.persistence.ProgramSpeakerMappingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,7 @@ import java.time.LocalDateTime;
 public class ProgramAdminService {
 
     private final ProgramRepository programRepository;
+    private final ProgramSpeakerMappingRepository programSpeakerMappingRepository;
 
     /** 프로그램 등록 */
     public ProgramResponse createProgram(ProgramCreateRequest req) {
@@ -50,6 +53,9 @@ public class ProgramAdminService {
         if (req.endAt != null)        program.updateEndAt(req.endAt);
         if (req.boothId != null)      program.updateBoothId(req.boothId);
         if (req.imageUrl != null)     program.updateImageUrl(req.imageUrl);
+        if (program.getCategory() != ProgramCategory.SESSION) {
+            programSpeakerMappingRepository.deleteByProgramId(programId);
+        }
 
         return ProgramResponse.from(program);
     }
@@ -61,6 +67,7 @@ public class ProgramAdminService {
                         "프로그램을 찾을 수 없습니다. id=" + programId));
 
         ProgramResponse response = ProgramResponse.from(program);
+        programSpeakerMappingRepository.deleteByProgramId(programId);
         programRepository.delete(program);
         return response;
     }

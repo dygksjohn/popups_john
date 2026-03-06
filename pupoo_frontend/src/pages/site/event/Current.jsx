@@ -49,7 +49,7 @@ const styles = `
   .ev-nav-btn:hover { background: #f3f4f6; color: #111827; }
   .ev-nav-btn.active { background: #1a4fd6; color: #fff; font-weight: 600; }
 
-  .ev-container { width: min(1400px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 64px; }
+  .ev-container { width: min(1350px, calc(100% - 50px)); margin: 0 auto; padding: 32px 0 64px; }
 
   .ev-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca; border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444; margin-bottom: 20px; }
   .ev-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; animation: ev-pulse 1.4s ease-in-out infinite; }

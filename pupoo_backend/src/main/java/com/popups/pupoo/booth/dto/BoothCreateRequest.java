@@ -13,7 +13,6 @@ public class BoothCreateRequest {
     private String type;        // BOOTH_EXPERIENCE, BOOTH_FOOD, ...
     private String description;
     private String company;
-    private String imageUrl;
     private String zone;        // ZONE_A, ZONE_B, ZONE_C, OTHER
     private String status;      // OPEN, CLOSED, PAUSED (기본: OPEN)
 }

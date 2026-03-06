@@ -32,7 +32,7 @@ const styles = `
     min-height: 100vh;
   }
   .wt-root *, .wt-root *::before, .wt-root *::after { box-sizing: border-box; font-family: inherit; }
-  .wt-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+  .wt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
 
   .rt-live-badge {
     display: inline-flex; align-items: center; gap: 6px;

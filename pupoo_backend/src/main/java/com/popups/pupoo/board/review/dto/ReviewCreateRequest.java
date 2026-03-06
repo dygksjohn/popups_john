@@ -17,5 +17,7 @@ public class ReviewCreateRequest {
     @Max(5)
     private Integer rating;
 
+    private String reviewTitle;
+
     private String content;
 }

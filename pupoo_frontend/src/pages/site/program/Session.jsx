@@ -29,7 +29,7 @@ import {
 
 const styles = `
   .pg-root { background:#f8f9fc; min-height:100vh; }
-  .pg-wrap { max-width:1400px; margin:0 auto; padding:32px 24px 64px; }
+  .pg-wrap { max-width:1400px; margin:0 auto; padding:32px 25px 64px; }
 
   .pg-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
   .pg-stat { background:#fff; border:1px solid #e9ecef; border-radius:13px; padding:18px 20px; display:flex; align-items:center; gap:12px; }

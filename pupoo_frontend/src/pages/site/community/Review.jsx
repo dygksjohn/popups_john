@@ -21,6 +21,7 @@ import { htmlToPlainText } from "./shared/communityHtml";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 
 const PAGE_SIZE = 10;
+const REVIEW_FETCH_SIZE = 100;
 
 const RATING_OPTIONS = [
   { value: "ALL", label: "별점 전체" },
@@ -79,15 +80,28 @@ export default function Review() {
     setLoading(true);
     setError("");
     try {
-      const data = await reviewApi.list({
-        page: 0,
-        size: 200,
-        rating: ratingFilter === "ALL" ? undefined : Number(ratingFilter),
-      });
-      const content = Array.isArray(data?.content) ? data.content : [];
-      setItems(content);
+      const rows = [];
+      let pageIndex = 0;
+      let finished = false;
 
-      const eventIds = [...new Set(content.map((row) => row?.eventId).filter(Boolean))];
+      while (!finished && pageIndex < 20) {
+        const data = await reviewApi.list({
+          page: pageIndex,
+          size: REVIEW_FETCH_SIZE,
+          rating: ratingFilter === "ALL" ? undefined : Number(ratingFilter),
+        });
+        const content = Array.isArray(data?.content) ? data.content : [];
+        rows.push(...content);
+
+        const totalPages = Number(data?.totalPages) || 0;
+        finished =
+          Boolean(data?.last) || totalPages === 0 || pageIndex + 1 >= totalPages;
+        pageIndex += 1;
+      }
+
+      setItems(rows);
+
+      const eventIds = [...new Set(rows.map((row) => row?.eventId).filter(Boolean))];
       if (eventIds.length > 0) {
         const entries = await Promise.all(
           eventIds.map(async (eventId) => {
@@ -205,7 +219,7 @@ export default function Review() {
 
       <main
         style={{
-          width: "min(1400px, calc(100% - 32px))",
+          width: "min(1350px, calc(100% - 50px))",
           margin: "0 auto",
           padding: "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",

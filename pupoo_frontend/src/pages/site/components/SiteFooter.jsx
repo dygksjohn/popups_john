@@ -30,7 +30,7 @@ const Footer = () => {
 
   return (
     <footer className="bg-black w-full relative z-[1000] isolate pointer-events-auto">
-      <div className="max-w-[1400px] mx-auto px-6 py-20">
+      <div className="max-w-[1400px] mx-auto px-[25px] py-20">
         <div className="flex justify-between items-end mb-20">
           <div className="text-left">
             <div className="text-white text-xs mb-3 opacity-60">

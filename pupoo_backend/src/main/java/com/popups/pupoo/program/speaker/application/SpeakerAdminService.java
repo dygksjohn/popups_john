@@ -105,6 +105,11 @@ public class SpeakerAdminService {
     }
 
     private void assignSpeakerToProgram(Long speakerId, Program targetProgram) {
+        if (targetProgram.getCategory() != ProgramCategory.SESSION) {
+            programSpeakerMappingRepository.deleteByProgramId(targetProgram.getProgramId());
+            return;
+        }
+
         validateSessionSpeakerSchedule(speakerId, targetProgram);
 
         // One program has exactly one speaker.

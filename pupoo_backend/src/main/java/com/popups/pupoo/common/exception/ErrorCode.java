@@ -153,10 +153,10 @@ public enum ErrorCode {
     CONTEST_NOT_CONTEST(HttpStatus.BAD_REQUEST, "V4001", "Program is not a contest"),
     CONTEST_APPLY_NOT_MATCHED(HttpStatus.BAD_REQUEST, "V4002", "Program apply does not match program"),
     CONTEST_TARGET_INVALID(HttpStatus.BAD_REQUEST, "V4003", "Invalid vote target"),
-    CONTEST_CANNOT_VOTE_SELF(HttpStatus.FORBIDDEN, "V4031", "Cannot vote for yourself"),
+    CONTEST_CANNOT_VOTE_SELF(HttpStatus.FORBIDDEN, "V4031", "내 반려동물에게는 투표할 수 없어요 🐾"),
     CONTEST_VOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "V4041", "Vote not found"),
-    CONTEST_VOTE_ALREADY(HttpStatus.CONFLICT, "V4091", "Already voted"),
-    CONTEST_VOTE_PERIOD_CLOSED(HttpStatus.CONFLICT, "V4092", "Vote period closed"),
+    CONTEST_VOTE_ALREADY(HttpStatus.CONFLICT, "V4091", "이미 투표하셨어요! 한 번만 투표할 수 있답니다 🗳️"),
+    CONTEST_VOTE_PERIOD_CLOSED(HttpStatus.CONFLICT, "V4092", "투표 기간이 아니에요 ⏰"),
 
     // =========================
     // Refund - 400/403/404/409/500

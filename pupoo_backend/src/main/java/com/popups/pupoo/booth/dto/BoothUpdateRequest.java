@@ -12,7 +12,6 @@ public class BoothUpdateRequest {
     private String type;
     private String description;
     private String company;
-    private String imageUrl;
     private String zone;
     private String status;
 }

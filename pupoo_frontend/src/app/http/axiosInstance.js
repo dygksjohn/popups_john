@@ -16,11 +16,30 @@ export function createAxiosInstance() {
 
   console.log("🔥 axiosInstance baseURL =", instance.defaults.baseURL);
 
-  // ✅ 공개 엔드포인트(토큰 붙이면 안 됨) 목록을 인터셉터로 전달
   attachInterceptors(instance, {
     publicPathPrefixes: [
-      "/api/auth/", // login/refresh/logout/signup/oauth 전부 포함
-      "/api/storage/presign", // presign이 공개라면 유지, 아니라면 삭제
+      "/api/auth/",
+      "/api/storage/presign",
+    ],
+    publicGetPathPrefixes: [
+      "/api/ping",
+      "/api/health",
+      "/api/posts",
+      "/api/notices",
+      "/api/boards",
+      "/api/faqs",
+      "/api/events",
+      "/api/programs",
+      "/api/program-applies/programs/",
+      "/api/speakers",
+      "/api/booths",
+      "/api/qnas",
+      "/api/galleries",
+      "/api/reviews",
+      "/api/replies",
+      "/api/report-reasons",
+      "/api/files",
+      "/api/users/check-nickname",
     ],
   });
 

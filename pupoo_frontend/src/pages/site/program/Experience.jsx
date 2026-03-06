@@ -50,7 +50,7 @@ const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
   .ex-root { background:#f8f9fc; min-height:100vh; font-family:'Pretendard Variable','Pretendard',-apple-system,sans-serif; }
   .ex-root *,.ex-root *::before,.ex-root *::after { box-sizing:border-box; font-family:inherit; }
-  .ex-wrap { max-width:1400px; margin:0 auto; padding:32px 24px 64px; }
+  .ex-wrap { max-width:1400px; margin:0 auto; padding:32px 25px 64px; }
   .ex-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
   .ex-search-wrap {
     display:flex; align-items:center; gap:8px;

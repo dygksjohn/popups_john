@@ -849,13 +849,26 @@ export default function Dashboard() {
           e.date?.split("~")[1]?.trim();
         return calcSt(s, en);
       });
-      const prComputed = programs.map((p) => calcSt(p.startAt, p.endAt));
-
-      // 콘테스트: 전체 programs에서 CONTEST 카테고리 필터링
-      const contests = programs.filter((p) => {
-        const cat = String(
-          p.category ?? p.programCategory ?? p.programType ?? "",
+      const getProgramCategory = (program) =>
+        String(
+          program.category ?? program.programCategory ?? program.programType ?? "",
         ).toUpperCase();
+      const sessionPrograms = programs.filter(
+        (program) => getProgramCategory(program) === "SESSION",
+      );
+      const nonSessionPrograms = programs.filter(
+        (program) => getProgramCategory(program) !== "SESSION",
+      );
+      const prComputed = nonSessionPrograms.map((p) =>
+        calcSt(p.startAt, p.endAt),
+      );
+      const sessionComputed = sessionPrograms.map((p) =>
+        calcSt(p.startAt, p.endAt),
+      );
+
+      // ????: ?? programs?? CONTEST ???? ???
+      const contests = programs.filter((p) => {
+        const cat = getProgramCategory(p);
         return cat.includes("CONTEST");
       });
       const ctComputed = contests.map((p) => calcSt(p.startAt, p.endAt));
@@ -868,10 +881,17 @@ export default function Dashboard() {
       };
 
       const programCounts = {
-        all: programs.length,
+        all: nonSessionPrograms.length,
         active: prComputed.filter((s) => s === "active").length,
         ended: prComputed.filter((s) => s === "ended").length,
         pending: prComputed.filter((s) => s === "pending").length,
+      };
+
+      const sessionCounts = {
+        all: sessionPrograms.length,
+        active: sessionComputed.filter((s) => s === "active").length,
+        ended: sessionComputed.filter((s) => s === "ended").length,
+        pending: sessionComputed.filter((s) => s === "pending").length,
       };
 
       const contestCounts = {
@@ -909,7 +929,12 @@ export default function Dashboard() {
           { id: "ended", label: "종료", count: contestCounts.ended },
           { id: "pending", label: "대기", count: contestCounts.pending },
         ],
-        sessionManage: evTabRow("전체"),
+        sessionManage: [
+          { id: "all", label: "\uC804\uCCB4", count: sessionCounts.all },
+          { id: "active", label: "\uC6B4\uC601 \uC911", count: sessionCounts.active },
+          { id: "ended", label: "\uC885\uB8CC", count: sessionCounts.ended },
+          { id: "pending", label: "\uB300\uAE30", count: sessionCounts.pending },
+        ],
         paymentManage: evTabRow("전체"),
       }));
       setEventMenuBadge(eventCounts.all);

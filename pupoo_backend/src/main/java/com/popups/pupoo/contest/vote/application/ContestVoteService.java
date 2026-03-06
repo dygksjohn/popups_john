@@ -68,8 +68,8 @@ public class ContestVoteService {
             throw new BusinessException(ErrorCode.CONTEST_TARGET_INVALID);
         }
 
-        // 3️⃣ 자기 자신에게 투표 금지 (정책 선택)
-        if (apply.getUserId().equals(userId)) {
+        // 3️⃣ 자기 자신에게 투표 금지 (어드민 직접 등록 시 userId=null → 본인 아님)
+        if (apply.getUserId() != null && apply.getUserId().equals(userId)) {
             // 기능: 본인 투표 금지
             throw new BusinessException(ErrorCode.CONTEST_CANNOT_VOTE_SELF);
         }

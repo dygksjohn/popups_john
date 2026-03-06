@@ -25,7 +25,7 @@ const styles = `
     min-height: 100vh;
   }
   .bt-root *, .bt-root *::before, .bt-root *::after { box-sizing: border-box; font-family: inherit; }
-  .bt-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 64px; }
+  .bt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
 
   .bt-live-badge {
     display: inline-flex; align-items: center; gap: 6px;

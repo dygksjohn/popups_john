@@ -1,17 +1,40 @@
 import { tokenStore } from "./tokenStore";
 
-export function attachInterceptors(instance) {
-  instance.interceptors.request.use((config) => {
-    const url = config?.url || "";
+function normalizeUrlPath(url) {
+  return String(url || "")
+    .replace(/^https?:\/\/[^/]+/i, "")
+    .split("?")[0];
+}
 
-    // ✅ auth 계열은 Authorization 헤더를 붙이지 않는다
-    if (url.includes("/api/auth/")) {
+function matchesPrefix(path, prefixes = []) {
+  return prefixes.some((prefix) => path.startsWith(prefix));
+}
+
+function shouldSkipAutoAuth(config, options = {}) {
+  const path = normalizeUrlPath(config?.url);
+  const method = String(config?.method || "get").toUpperCase();
+  const { publicPathPrefixes = [], publicGetPathPrefixes = [] } = options;
+
+  if (matchesPrefix(path, publicPathPrefixes)) {
+    return true;
+  }
+
+  return method === "GET" && matchesPrefix(path, publicGetPathPrefixes);
+}
+
+function hasAuthHeader(config) {
+  return Boolean(
+    config?.headers?.Authorization || config?.headers?.authorization,
+  );
+}
+
+export function attachInterceptors(instance, options = {}) {
+  instance.interceptors.request.use((config) => {
+    if (shouldSkipAutoAuth(config, options)) {
       return config;
     }
 
-    const existingAuth =
-      config?.headers?.Authorization ?? config?.headers?.authorization;
-    if (existingAuth) {
+    if (hasAuthHeader(config)) {
       return config;
     }
 
@@ -30,9 +53,11 @@ export function attachInterceptors(instance) {
       const original = err?.config;
       if (!original) return Promise.reject(err);
 
-      // auth endpoint 제외
-      const url = original?.url || "";
-      const isAuth = url.includes("/api/auth/");
+      if (!hasAuthHeader(original)) {
+        return Promise.reject(err);
+      }
+
+      const isAuth = shouldSkipAutoAuth(original, options);
 
       if (status !== 401 || isAuth) {
         return Promise.reject(err);

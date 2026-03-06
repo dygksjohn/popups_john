@@ -23,19 +23,47 @@ import {
 } from "../../admin/shared/programImageStore";
 
 const AVATAR_COLORS = ["#1a4fd6", "#059669", "#d97706", "#dc2626", "#7c3aed"];
-const CATEGORY_MAP = {
-  SESSION: "세션",
-  EXPERIENCE: "체험",
-  CONTEST: "콘테스트",
-};
-const CATEGORY_COLOR = {
-  SESSION: { bg: "#eff4ff", color: "#1a4fd6" },
-  EXPERIENCE: { bg: "#ecfdf5", color: "#059669" },
-  CONTEST: { bg: "#fef3c7", color: "#b45309" },
+const CATEGORY_META = {
+  SESSION: { label: "세션/강연", bg: "#eff4ff", color: "#1a4fd6" },
+  EXPERIENCE: { label: "체험", bg: "#ecfdf5", color: "#059669" },
+  CONTEST: { label: "콘테스트", bg: "#fef3c7", color: "#b45309" },
+  ETC: { label: "프로그램", bg: "#f3f4f6", color: "#4b5563" },
 };
 
 const avatarColor = (id) =>
   AVATAR_COLORS[Math.abs(Number(id) || 0) % AVATAR_COLORS.length];
+
+function normalizeProgramCategory(value) {
+  const raw = String(value ?? "").toUpperCase();
+  if (
+    raw.includes("SESSION") ||
+    raw.includes("LECTURE") ||
+    raw.includes("SEMINAR") ||
+    raw.includes("세션") ||
+    raw.includes("강연")
+  ) {
+    return "SESSION";
+  }
+  if (
+    raw.includes("EXPERIENCE") ||
+    raw.includes("EXHIBIT") ||
+    raw.includes("BOOTH") ||
+    raw.includes("체험")
+  ) {
+    return "EXPERIENCE";
+  }
+  if (
+    raw.includes("CONTEST") ||
+    raw.includes("VOTE") ||
+    raw.includes("COMPETITION") ||
+    raw.includes("콘테스트") ||
+    raw.includes("대회") ||
+    raw.includes("투표")
+  ) {
+    return "CONTEST";
+  }
+  return "ETC";
+}
 
 function fmtDate(v) {
   if (!v) return "일정 미정";
@@ -149,7 +177,7 @@ const css = `
   background: linear-gradient(to bottom, transparent 0%, rgba(13,13,13,0.85) 100%);
 }
 .sd-title-inner {
-  width: 100%; max-width: 700px; padding: 0 24px;
+  width: 100%; max-width: 700px; padding: 0 25px;
 }
 .sd-badges { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
 .sd-status-badge {
@@ -298,27 +326,28 @@ export default function SessionDetail() {
       setErrorMsg("");
       await loadProgramImageCache();
       try {
-        const [progRes, speakerRes] = await Promise.all([
-          programApi.getProgramDetail(programId),
-          programApi
-            .getProgramSpeakers(programId)
-            .catch(() => ({ data: { data: [] } })),
+        const progRes = await programApi.getProgramDetail(programId);
+        const prog = progRes?.data?.data;
+        const normalizedCategory = normalizeProgramCategory(
+          prog?.category ?? prog?.programCategory,
+        );
+        const [speakerRes, eventRes] = await Promise.all([
+          normalizedCategory === "SESSION"
+            ? programApi
+                .getProgramSpeakers(programId)
+                .catch(() => ({ data: { data: [] } }))
+            : Promise.resolve({ data: { data: [] } }),
+          prog?.eventId
+            ? eventApi.getEventDetail(prog.eventId).catch(() => null)
+            : Promise.resolve(null),
         ]);
         if (!mounted) return;
-        const prog = progRes?.data?.data;
         const spList = Array.isArray(speakerRes?.data?.data)
           ? speakerRes.data.data
           : [];
         setProgram(prog ?? null);
-        setSpeaker(spList[0] ?? null);
-        if (prog?.eventId) {
-          try {
-            const ev = await eventApi.getEventDetail(prog.eventId);
-            if (mounted) setEventInfo(ev?.data?.data ?? null);
-          } catch {
-            if (mounted) setEventInfo(null);
-          }
-        }
+        setSpeaker(normalizedCategory === "SESSION" ? spList[0] ?? null : null);
+        setEventInfo(eventRes?.data?.data ?? null);
       } catch (e) {
         if (!mounted) return;
         const code = e?.response?.status;
@@ -374,11 +403,13 @@ export default function SessionDetail() {
       </div>
     );
 
-  const catRaw = String(
-    program?.category ?? program?.programCategory ?? "",
-  ).toUpperCase();
-  const catLabel = CATEGORY_MAP[catRaw] || "프로그램";
-  const catColor = CATEGORY_COLOR[catRaw] || CATEGORY_COLOR.SESSION;
+  const normalizedCategory = normalizeProgramCategory(
+    program?.category ?? program?.programCategory,
+  );
+  const catMeta = CATEGORY_META[normalizedCategory] || CATEGORY_META.ETC;
+  const catLabel = catMeta.label;
+  const catColor = { bg: catMeta.bg, color: catMeta.color };
+  const showSpeakerSection = normalizedCategory === "SESSION";
   const st = statusInfo(program);
   const heroImg = getProgramImage(programId) || program?.imageUrl || null;
   const hasImg = !!heroImg && !imgFailed;
@@ -565,74 +596,75 @@ export default function SessionDetail() {
             </div>
           )}
 
-          {/* 연사 */}
-          <div className="sd-card">
-            <div className="sd-card-title">
-              <div className="sd-pill" style={{ background: "#f3e8ff" }}>
-                <Mic2 size={14} color="#8b5cf6" />
-              </div>
-              연사 정보
-              <span
-                style={{
-                  marginLeft: 4,
-                  fontSize: 12,
-                  color: "#9ca3af",
-                  fontWeight: 600,
-                }}
-              >
-                {speaker ? "1명" : "0명"}
-              </span>
-            </div>
-            {!speaker ? (
-              <div className="sd-empty">등록된 연사가 없습니다.</div>
-            ) : (
-              <div
-                className="sd-speaker-row"
-                role="button"
-                tabIndex={0}
-                onClick={goSpeaker}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") goSpeaker();
-                }}
-              >
-                <div
-                  className="sd-av"
-                  style={{ background: avatarColor(speaker.speakerId) }}
+          {showSpeakerSection && (
+            <div className="sd-card">
+              <div className="sd-card-title">
+                <div className="sd-pill" style={{ background: "#f3e8ff" }}>
+                  <Mic2 size={14} color="#8b5cf6" />
+                </div>
+                연사 정보
+                <span
+                  style={{
+                    marginLeft: 4,
+                    fontSize: 12,
+                    color: "#9ca3af",
+                    fontWeight: 600,
+                  }}
                 >
-                  {speakerImageUrl ? (
-                    <img
-                      src={speakerImageUrl}
-                      alt={speaker.speakerName || "speaker"}
-                    />
-                  ) : (
-                    (speaker.speakerName || "?").charAt(0)
-                  )}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div className="sd-sp-name">{speaker.speakerName}</div>
-                  {!!speaker.speakerBio && (
-                    <div className="sd-sp-bio">{speaker.speakerBio}</div>
-                  )}
-                  {(speaker.speakerEmail || speaker.speakerPhone) && (
-                    <div className="sd-sp-ct">
-                      {!!speaker.speakerEmail && (
-                        <span className="sd-ct-item">
-                          <Mail size={11} />
-                          {speaker.speakerEmail}
-                        </span>
-                      )}
-                      {!!speaker.speakerPhone && (
-                        <span className="sd-ct-item">
-                          <Phone size={11} />
-                          {speaker.speakerPhone}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
+                  {speaker ? "1명" : "0명"}
+                </span>
               </div>
-            )}
-          </div>
+              {!speaker ? (
+                <div className="sd-empty">등록된 연사가 없습니다.</div>
+              ) : (
+                <div
+                  className="sd-speaker-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={goSpeaker}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") goSpeaker();
+                  }}
+                >
+                  <div
+                    className="sd-av"
+                    style={{ background: avatarColor(speaker.speakerId) }}
+                  >
+                    {speakerImageUrl ? (
+                      <img
+                        src={speakerImageUrl}
+                        alt={speaker.speakerName || "speaker"}
+                      />
+                    ) : (
+                      (speaker.speakerName || "?").charAt(0)
+                    )}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="sd-sp-name">{speaker.speakerName}</div>
+                    {!!speaker.speakerBio && (
+                      <div className="sd-sp-bio">{speaker.speakerBio}</div>
+                    )}
+                    {(speaker.speakerEmail || speaker.speakerPhone) && (
+                      <div className="sd-sp-ct">
+                        {!!speaker.speakerEmail && (
+                          <span className="sd-ct-item">
+                            <Mail size={11} />
+                            {speaker.speakerEmail}
+                          </span>
+                        )}
+                        {!!speaker.speakerPhone && (
+                          <span className="sd-ct-item">
+                            <Phone size={11} />
+                            {speaker.speakerPhone}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 사이드바 */}

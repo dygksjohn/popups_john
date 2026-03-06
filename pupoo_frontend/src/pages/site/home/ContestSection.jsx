@@ -592,7 +592,7 @@ export default function ContestSection() {
             }}
           >
             <div
-              style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}
+              style={{ maxWidth: 1200, margin: "0 auto", padding: "0 25px" }}
             >
               {/* ── 헤더 ── */}
               <div

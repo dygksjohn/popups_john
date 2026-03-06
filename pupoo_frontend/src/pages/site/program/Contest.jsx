@@ -46,7 +46,7 @@ const styles = `
     min-height: 100vh;
   }
   .ct-root *, .ct-root *::before, .ct-root *::after { box-sizing: border-box; font-family: inherit; }
-  .ct-container { max-width: 1400px; margin: 0 auto; padding: 32px 24px 80px; }
+  .ct-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 80px; }
 
   /* ?? Live badge ?? */
   .ct-live-badge {
@@ -1736,7 +1736,7 @@ export default function Contest() {
   });
 
   const listStyles = `
-    .cl-wrap { max-width:1400px; margin:0 auto; padding:32px 24px 64px; }
+    .cl-wrap { max-width:1400px; margin:0 auto; padding:32px 25px 64px; }
     .cl-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
     .cl-search { display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:8px 14px; flex:1; min-width:180px; max-width:320px; }
     .cl-search input { border:none; outline:none; font-size:13px; color:#374151; background:transparent; width:100%; font-family:inherit; }

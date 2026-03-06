@@ -1091,7 +1091,12 @@ export default function ProgramManage({ subTab = "all" }) {
         `/api/admin/dashboard/events/${eventId}/programs`,
         { headers: authHeaders() },
       );
-      const list = res.data?.data || res.data || [];
+      const list = (res.data?.data || res.data || []).filter((p) => {
+        const category = String(
+          p.category ?? p.programCategory ?? p.programType ?? "",
+        ).toUpperCase();
+        return !category.includes("SESSION");
+      });
       const mapped = list.map((p) => ({
         ...p,
         _visible: true,
