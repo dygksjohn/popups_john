@@ -4,6 +4,7 @@ package com.popups.pupoo.common.audit.aspect;
 import com.popups.pupoo.common.audit.annotation.AdminAudit;
 import com.popups.pupoo.common.audit.application.AdminLogService;
 import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
+import com.popups.pupoo.common.audit.web.AdminAuditInterceptor;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,8 @@ import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
 
@@ -78,6 +81,7 @@ public class AdminAuditAspect {
                     }
 
                     adminLogService.write(action, targetType, targetId);
+                    markRequestLogged();
                 }
             } catch (Exception ignored) {
                 // 감사 로그 실패는 무시
@@ -171,5 +175,12 @@ public class AdminAuditAspect {
             return s;
         }
         return s.substring(0, max);
+    }
+
+    private void markRequestLogged() {
+        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes)) {
+            return;
+        }
+        attributes.getRequest().setAttribute(AdminAuditInterceptor.REQUEST_ATTRIBUTE, Boolean.TRUE);
     }
 }

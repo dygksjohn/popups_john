@@ -1,70 +1,16 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Radio,
-  Users,
-  CheckCircle2,
-  Clock,
   ChevronRight,
   Signal,
   CalendarDays,
   MapPin,
   Search,
-  SlidersHorizontal,
 } from "lucide-react";
-
-/* ── 더미 행사 데이터 ── */
-const MOCK_EVENTS = [
-  {
-    id: "evt-001",
-    name: "2025 글로벌 AI 컨퍼런스",
-    date: "2025.03.15 (토)",
-    location: "코엑스 그랜드볼룸",
-    status: "live",
-    participants: 1284,
-    checkedIn: 847,
-    waiting: 23,
-  },
-  {
-    id: "evt-002",
-    name: "스타트업 네트워킹 데이",
-    date: "2025.03.18 (화)",
-    location: "서울 스타트업허브 3F",
-    status: "upcoming",
-    participants: 356,
-    checkedIn: 0,
-    waiting: 0,
-  },
-  {
-    id: "evt-003",
-    name: "디자인 워크숍 Vol.12",
-    date: "2025.03.20 (목)",
-    location: "성수 아트홀",
-    status: "upcoming",
-    participants: 128,
-    checkedIn: 0,
-    waiting: 0,
-  },
-  {
-    id: "evt-004",
-    name: "2025 봄 채용박람회",
-    date: "2025.03.10 (월)",
-    location: "세종대학교 대양홀",
-    status: "ended",
-    participants: 2140,
-    checkedIn: 1876,
-    waiting: 0,
-  },
-  {
-    id: "evt-005",
-    name: "ESG 경영 세미나",
-    date: "2025.03.08 (토)",
-    location: "여의도 전경련회관",
-    status: "ended",
-    participants: 412,
-    checkedIn: 389,
-    waiting: 0,
-  },
-];
+import { axiosInstance } from "../../../app/http/axiosInstance";
+import { eventApi } from "../../../app/http/eventApi";
+import { getToken } from "../../../api/noticeApi";
+import { sortAdminEventsByOperationalPriority } from "../../admin/shared/adminStatus";
 
 const STATUS_CONFIG = {
   live: {
@@ -85,6 +31,12 @@ const STATUS_CONFIG = {
     bg: "#f3f4f6",
     border: "#e5e7eb",
   },
+  cancelled: {
+    label: "취소",
+    color: "#b91c1c",
+    bg: "#fef2f2",
+    border: "#fecaca",
+  },
 };
 
 const selectorStyles = `
@@ -93,15 +45,12 @@ const selectorStyles = `
   .rte-selector {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 32px 25px 64px;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
   }
   .rte-selector *, .rte-selector *::before, .rte-selector *::after {
     box-sizing: border-box;
     font-family: inherit;
   }
-
-  /* ── Top bar ── */
   .rte-topbar {
     display: flex;
     align-items: center;
@@ -129,8 +78,6 @@ const selectorStyles = `
   .rte-topbar-desc {
     font-size: 12px; color: #9ca3af; margin-top: 1px;
   }
-
-  /* ── Search bar ── */
   .rte-search-wrap {
     position: relative;
     width: 260px;
@@ -160,12 +107,11 @@ const selectorStyles = `
     color: #c4c9d4;
     pointer-events: none;
   }
-
-  /* ── Filter tabs ── */
   .rte-filters {
     display: flex;
     gap: 6px;
     margin-bottom: 16px;
+    flex-wrap: wrap;
   }
   .rte-filter-tab {
     padding: 6px 14px;
@@ -197,8 +143,6 @@ const selectorStyles = `
   .rte-filter-tab.active .rte-filter-count {
     background: rgba(255,255,255,0.2);
   }
-
-  /* ── Event rows ── */
   .rte-event-list {
     display: flex;
     flex-direction: column;
@@ -217,6 +161,9 @@ const selectorStyles = `
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
+    opacity: 0;
+    transform: translateY(12px);
+    animation: rte-row-in 0.4s ease forwards;
   }
   .rte-event-row::before {
     content: '';
@@ -247,8 +194,6 @@ const selectorStyles = `
     width: 4px;
     background: linear-gradient(180deg, #ef4444, #dc2626);
   }
-
-  /* ── Status badge ── */
   .rte-status-badge {
     display: inline-flex;
     align-items: center;
@@ -270,8 +215,6 @@ const selectorStyles = `
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.4; transform: scale(0.7); }
   }
-
-  /* ── Event info ── */
   .rte-event-info { min-width: 0; }
   .rte-event-name {
     font-size: 15px;
@@ -286,6 +229,7 @@ const selectorStyles = `
     display: flex;
     gap: 14px;
     align-items: center;
+    flex-wrap: wrap;
   }
   .rte-meta-item {
     display: flex;
@@ -294,8 +238,6 @@ const selectorStyles = `
     font-size: 12px;
     color: #9ca3af;
   }
-
-  /* ── Metrics preview ── */
   .rte-metrics {
     display: flex;
     gap: 20px;
@@ -323,8 +265,6 @@ const selectorStyles = `
     height: 28px;
     background: #f1f3f5;
   }
-
-  /* ── Arrow ── */
   .rte-arrow {
     width: 36px; height: 36px;
     border-radius: 10px;
@@ -342,8 +282,6 @@ const selectorStyles = `
   .rte-event-row.live-row:hover .rte-arrow {
     background: #ef4444;
   }
-
-  /* ── Empty state ── */
   .rte-empty {
     text-align: center;
     padding: 60px 20px;
@@ -358,18 +296,9 @@ const selectorStyles = `
   }
   .rte-empty-text { font-size: 14px; font-weight: 600; color: #6b7280; }
   .rte-empty-sub { font-size: 12px; margin-top: 4px; }
-
-  /* ── Stagger animation ── */
-  .rte-event-row {
-    opacity: 0;
-    transform: translateY(12px);
-    animation: rte-row-in 0.4s ease forwards;
-  }
   @keyframes rte-row-in {
     to { opacity: 1; transform: translateY(0); }
   }
-
-  /* ── Responsive ── */
   @media (max-width: 900px) {
     .rte-event-row {
       grid-template-columns: auto 1fr auto;
@@ -378,39 +307,192 @@ const selectorStyles = `
     .rte-metrics { display: none; }
   }
   @media (max-width: 640px) {
-    .rte-selector { padding: 20px 16px 48px; }
     .rte-topbar { flex-direction: column; align-items: flex-start; }
     .rte-search-wrap { width: 100%; }
     .rte-event-row { padding: 16px 18px; }
   }
 `;
 
+const authHeaders = () => {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const unwrapData = (response, fallback) => response?.data?.data ?? response?.data ?? fallback;
+
+const toArray = (payload) =>
+  Array.isArray(payload?.content)
+    ? payload.content
+    : Array.isArray(payload)
+      ? payload
+      : [];
+
+const congestionLevelToPercent = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  return Math.min(Math.round(numeric * 20), 100);
+};
+
+const formatDateRange = (startAt, endAt) => {
+  const start = startAt ? new Date(startAt) : null;
+  const end = endAt ? new Date(endAt) : null;
+  const validStart = start && !Number.isNaN(start.getTime()) ? start : null;
+  const validEnd = end && !Number.isNaN(end.getTime()) ? end : null;
+
+  if (!validStart && !validEnd) return "일정 정보 없음";
+  if (validStart && validEnd) {
+    return `${validStart.getFullYear()}.${String(validStart.getMonth() + 1).padStart(2, "0")}.${String(validStart.getDate()).padStart(2, "0")} ~ ${validEnd.getFullYear()}.${String(validEnd.getMonth() + 1).padStart(2, "0")}.${String(validEnd.getDate()).padStart(2, "0")}`;
+  }
+  const target = validStart || validEnd;
+  return `${target.getFullYear()}.${String(target.getMonth() + 1).padStart(2, "0")}.${String(target.getDate()).padStart(2, "0")}`;
+};
+
+const toAdminStatus = (status) => {
+  const normalized = String(status ?? "").toUpperCase();
+  if (normalized === "ONGOING") return "active";
+  if (normalized === "ENDED" || normalized === "CANCELLED") return "ended";
+  return "pending";
+};
+
+const toSelectorStatus = (status) => {
+  const normalized = String(status ?? "").toUpperCase();
+  if (normalized === "ONGOING") return "live";
+  if (normalized === "ENDED") return "ended";
+  if (normalized === "CANCELLED") return "cancelled";
+  return "upcoming";
+};
+
+async function fetchAdminData(url, params, fallback) {
+  const token = getToken();
+  if (!token) return fallback;
+
+  try {
+    const response = await axiosInstance.get(url, {
+      headers: authHeaders(),
+      params,
+    });
+    return unwrapData(response, fallback);
+  } catch {
+    return fallback;
+  }
+}
+
 export default function RealtimeEventSelector({ onSelectEvent, pageTitle }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
-  const [events] = useState(MOCK_EVENTS);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = events.filter((evt) => {
-    const matchSearch =
-      search === "" ||
-      evt.name.toLowerCase().includes(search.toLowerCase()) ||
-      evt.location.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === "all" || evt.status === filter;
-    return matchSearch && matchFilter;
-  });
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      setLoading(true);
+
+      try {
+        const [eventsResponse, performanceRows] = await Promise.all([
+          eventApi.getEvents({ page: 0, size: 120, sort: "startAt,asc" }),
+          fetchAdminData("/api/admin/analytics/events", { page: 0, size: 200 }, []),
+        ]);
+
+        const rawEvents = toArray(unwrapData(eventsResponse, { content: [] }));
+        const performanceMap = new Map(
+          toArray(performanceRows).map((row) => [Number(row.eventId), row]),
+        );
+
+        const sortedEvents = sortAdminEventsByOperationalPriority(
+          rawEvents.map((event) => ({
+            ...event,
+            status: toAdminStatus(event.status),
+          })),
+        );
+
+        const liveEvents = sortedEvents
+          .filter((event) => String(event.status).toLowerCase() === "active")
+          .slice(0, 12);
+
+        const congestionEntries = await Promise.all(
+          liveEvents.map(async (event) => {
+            const payload = await fetchAdminData(
+              `/api/admin/dashboard/realtime/events/${event.eventId}/congestions`,
+              { limit: 60 },
+              [],
+            );
+            const values = toArray(payload)
+              .map((row) => congestionLevelToPercent(row.congestionLevel))
+              .filter((value) => Number.isFinite(value) && value > 0);
+            const average = values.length
+              ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+              : null;
+            return [Number(event.eventId), average];
+          }),
+        );
+
+        const congestionMap = new Map(congestionEntries);
+
+        if (!mounted) return;
+
+        setEvents(
+          sortedEvents.map((event, index) => {
+            const rawStatus = String(rawEvents.find((row) => Number(row.eventId) === Number(event.eventId))?.status ?? event.status).toUpperCase();
+            const performance = performanceMap.get(Number(event.eventId));
+            const registrations = Number(performance?.approvedRegistrationCount) || 0;
+            const checkedIn = Number(performance?.checkinCount) || 0;
+            return {
+              id: event.eventId,
+              name: event.eventName,
+              date: formatDateRange(event.startAt, event.endAt),
+              location: event.location || "장소 정보 없음",
+              rawStatus,
+              status: toSelectorStatus(rawStatus),
+              registrations,
+              checkedIn,
+              congestion: congestionMap.get(Number(event.eventId)),
+              delay: index * 60,
+            };
+          }),
+        );
+      } catch (error) {
+        console.error("[RealtimeEventSelector] load failed:", error);
+        if (mounted) setEvents([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    return events.filter((event) => {
+      const keyword = search.trim().toLowerCase();
+      const matchSearch =
+        keyword === "" ||
+        event.name.toLowerCase().includes(keyword) ||
+        event.location.toLowerCase().includes(keyword) ||
+        event.date.toLowerCase().includes(keyword);
+      const matchFilter =
+        filter === "all" ||
+        event.status === filter ||
+        (filter === "ended" && event.status === "cancelled");
+      return matchSearch && matchFilter;
+    });
+  }, [events, filter, search]);
 
   const counts = {
     all: events.length,
-    live: events.filter((e) => e.status === "live").length,
-    upcoming: events.filter((e) => e.status === "upcoming").length,
-    ended: events.filter((e) => e.status === "ended").length,
+    live: events.filter((event) => event.status === "live").length,
+    upcoming: events.filter((event) => event.status === "upcoming").length,
+    ended: events.filter((event) => event.status === "ended" || event.status === "cancelled").length,
   };
 
   return (
     <>
       <style>{selectorStyles}</style>
       <div className="rte-selector">
-        {/* Top bar */}
         <div className="rte-topbar">
           <div className="rte-topbar-left">
             <div className="rte-monitor-icon">
@@ -432,99 +514,98 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle }) {
               type="text"
               placeholder="행사명 또는 장소 검색..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
             />
           </div>
         </div>
 
-        {/* Filter tabs */}
         <div className="rte-filters">
           {[
             { key: "all", label: "전체" },
             { key: "live", label: "진행중" },
             { key: "upcoming", label: "예정" },
             { key: "ended", label: "종료" },
-          ].map((f) => (
+          ].map((item) => (
             <button
-              key={f.key}
-              className={`rte-filter-tab ${filter === f.key ? "active" : ""}`}
-              onClick={() => setFilter(f.key)}
+              key={item.key}
+              className={`rte-filter-tab ${filter === item.key ? "active" : ""}`}
+              onClick={() => setFilter(item.key)}
             >
-              {f.label}
-              <span className="rte-filter-count">{counts[f.key]}</span>
+              {item.label}
+              <span className="rte-filter-count">{counts[item.key]}</span>
             </button>
           ))}
         </div>
 
-        {/* Event list */}
         <div className="rte-event-list">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="rte-empty">
+              <div className="rte-empty-icon">
+                <Radio size={20} color="#9ca3af" />
+              </div>
+              <div className="rte-empty-text">행사 목록을 불러오는 중입니다</div>
+              <div className="rte-empty-sub">실제 행사 데이터를 연결하고 있습니다</div>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="rte-empty">
               <div className="rte-empty-icon">
                 <Search size={20} color="#9ca3af" />
               </div>
               <div className="rte-empty-text">검색 결과가 없습니다</div>
-              <div className="rte-empty-sub">
-                다른 검색어나 필터를 시도해보세요
-              </div>
+              <div className="rte-empty-sub">다른 검색어나 필터를 시도해보세요</div>
             </div>
           ) : (
-            filtered.map((evt, i) => {
-              const sc = STATUS_CONFIG[evt.status];
+            filtered.map((event) => {
+              const statusConfig = STATUS_CONFIG[event.status] || STATUS_CONFIG.upcoming;
               return (
                 <div
-                  key={evt.id}
-                  className={`rte-event-row ${evt.status === "live" ? "live-row" : ""}`}
-                  style={{ animationDelay: `${i * 60}ms` }}
-                  onClick={() => onSelectEvent(evt.id)}
+                  key={event.id}
+                  className={`rte-event-row ${event.status === "live" ? "live-row" : ""}`}
+                  style={{ animationDelay: `${event.delay}ms` }}
+                  onClick={() => onSelectEvent(event.id)}
                 >
-                  {/* Status badge */}
                   <div
                     className="rte-status-badge"
                     style={{
-                      color: sc.color,
-                      background: sc.bg,
-                      borderColor: sc.border,
+                      color: statusConfig.color,
+                      background: statusConfig.bg,
+                      borderColor: statusConfig.border,
                     }}
                   >
-                    {evt.status === "live" && (
-                      <span className="rte-live-pulse" />
-                    )}
-                    {sc.label}
+                    {event.status === "live" ? <span className="rte-live-pulse" /> : null}
+                    {statusConfig.label}
                   </div>
 
-                  {/* Event info */}
                   <div className="rte-event-info">
-                    <div className="rte-event-name">{evt.name}</div>
+                    <div className="rte-event-name">{event.name}</div>
                     <div className="rte-event-meta">
                       <span className="rte-meta-item">
                         <CalendarDays size={12} />
-                        {evt.date}
+                        {event.date}
                       </span>
                       <span className="rte-meta-item">
                         <MapPin size={12} />
-                        {evt.location}
+                        {event.location}
                       </span>
                     </div>
                   </div>
 
-                  {/* Metrics preview */}
                   <div className="rte-metrics">
                     <div className="rte-metric">
                       <div className="rte-metric-value">
-                        {evt.participants.toLocaleString()}
+                        {event.registrations.toLocaleString()}
                       </div>
-                      <div className="rte-metric-label">참가자</div>
+                      <div className="rte-metric-label">승인 등록</div>
                     </div>
                     <div className="rte-metric-divider" />
                     <div className="rte-metric">
                       <div
                         className="rte-metric-value"
                         style={{
-                          color: evt.checkedIn > 0 ? "#10b981" : "#d1d5db",
+                          color: event.checkedIn > 0 ? "#10b981" : "#d1d5db",
                         }}
                       >
-                        {evt.checkedIn.toLocaleString()}
+                        {event.checkedIn.toLocaleString()}
                       </div>
                       <div className="rte-metric-label">체크인</div>
                     </div>
@@ -533,16 +614,15 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle }) {
                       <div
                         className="rte-metric-value"
                         style={{
-                          color: evt.waiting > 0 ? "#f59e0b" : "#d1d5db",
+                          color: event.congestion != null ? "#d97706" : "#d1d5db",
                         }}
                       >
-                        {evt.waiting}
+                        {event.congestion != null ? `${event.congestion}%` : "-"}
                       </div>
-                      <div className="rte-metric-label">대기</div>
+                      <div className="rte-metric-label">평균 혼잡</div>
                     </div>
                   </div>
 
-                  {/* Arrow */}
                   <div className="rte-arrow">
                     <ChevronRight size={16} />
                   </div>
