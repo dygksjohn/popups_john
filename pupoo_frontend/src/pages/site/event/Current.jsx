@@ -72,6 +72,13 @@ const styles = `
   .ev-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
   .ev-search { width: 100%; height: 40px; padding: 0 13px 0 36px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13.5px; color: #111827; outline: none; font-family: inherit; background: #fff; transition: border-color 0.15s; }
   .ev-search:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
+  .ev-date-input {
+    width: 170px; height: 40px; padding: 0 12px;
+    border: 1px solid #e2e8f0; border-radius: 8px;
+    font-size: 13.5px; color: #111827; background: #fff;
+    outline: none; font-family: inherit;
+  }
+  .ev-date-input:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
 
   .ev-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .ev-event-card { background: #fff; border: 1px solid #e9ecef; border-radius: 14px; overflow: hidden; transition: box-shadow 0.2s, transform 0.2s; cursor: pointer; }
@@ -165,6 +172,8 @@ function mapEvent(raw) {
     organizerEmail: raw?.organizerEmail ?? null,
     image: raw?.imageUrl ?? raw?.posterUrl ?? raw?.thumbnail ?? null,
     date: formatDateRange(startAt, endAt),
+    startAt,
+    endAt,
     endSortKey: toSortTimestamp(endAt),
     participants: Number.isFinite(participants) ? participants : 0,
     capacity: Number.isFinite(capacity) && capacity > 0 ? capacity : 1,
@@ -206,6 +215,7 @@ function EventThumb({ ev }) {
 
 export default function Current() {
   const [query, setQuery] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
   const [currentPath, setCurrentPath] = useState("/event/current");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [events, setEvents] = useState([]);
@@ -253,12 +263,25 @@ export default function Current() {
     };
   }, []);
 
-  const filtered = events.filter(
-    (e) =>
+  const filtered = events.filter((e) => {
+    const matchKeyword =
       e.title.includes(query) ||
       e.category.includes(query) ||
-      e.location.includes(query),
-  );
+      e.location.includes(query);
+
+    if (!matchKeyword) return false;
+    if (!selectedDate) return true;
+
+    const target = toDateOrNull(`${selectedDate}T12:00:00`);
+    const start = toDateOrNull(e.startAt);
+    const end = toDateOrNull(e.endAt);
+    if (!target) return true;
+    if (start) start.setHours(0, 0, 0, 0);
+    if (end) end.setHours(23, 59, 59, 999);
+    if (start && target < start) return false;
+    if (end && target > end) return false;
+    return Boolean(start || end);
+  });
 
   return (
     <div className="ev-root">
@@ -304,6 +327,13 @@ export default function Current() {
                 onChange={(e) => setQuery(e.target.value)}
               />
             </div>
+            <input
+              className="ev-date-input"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              aria-label="날짜 검색"
+            />
           </div>
 
           <div className="ev-grid">

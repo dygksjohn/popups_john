@@ -86,6 +86,22 @@ const styles = `
     transition: border-color 0.15s;
   }
   .up-search:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
+  .up-date-input {
+    width: 170px;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    color: #111827;
+    font-size: 13.5px;
+    outline: none;
+    font-family: inherit;
+  }
+  .up-date-input:focus {
+    border-color: #1a4fd6;
+    box-shadow: 0 0 0 3px rgba(26,79,214,0.08);
+  }
   .up-filter-btn {
     height: 40px; padding: 0 14px; border: 1px solid #e2e8f0; border-radius: 8px;
     background: #fff; font-size: 13px; font-weight: 500; color: #374151;
@@ -166,6 +182,16 @@ const styles = `
     background: #1a4fd6; color: #fff; transition: all 0.15s;
   }
   .up-pre-btn:hover { background: #1640b8; }
+  .up-pre-btn.up-pre-btn-done {
+    background: #E0FAE8;
+    color: #458759;
+    border: 1px solid #CBEBD6;
+  }
+  .up-pre-btn.up-pre-btn-done:hover {
+    background: #D4F4DE;
+    color: #357D44;
+    border-color: #BFE3CC;
+  }
   .up-pre-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
   @media (max-width: 700px) {
@@ -275,6 +301,8 @@ function mapEvent(raw) {
     dow: parts.dow,
     location,
     time: startAt || endAt ? formatTime(startAt, endAt) : "시간 미정",
+    startAt,
+    endAt,
     sortKey: Number.isNaN(sortTime) ? Number.POSITIVE_INFINITY : sortTime,
     capacity: Number(raw?.capacity ?? raw?.maxParticipants ?? 0),
     registered: Number(raw?.participants ?? raw?.appliedCount ?? raw?.registered ?? 0),
@@ -288,15 +316,42 @@ function mapEvent(raw) {
   };
 }
 
+function buildLatestPaymentStatusByEvent(payments) {
+  const latestByEvent = new Map();
+  const rows = Array.isArray(payments) ? payments : [];
+
+  for (const row of rows) {
+    const eventId = Number(row?.eventId);
+    if (!Number.isFinite(eventId)) continue;
+
+    const status = String(row?.status || "").toUpperCase();
+    const parsed = Date.parse(String(row?.requestedAt || ""));
+    const requestedAtMs = Number.isFinite(parsed) ? parsed : -Infinity;
+
+    const prev = latestByEvent.get(eventId);
+    if (!prev || requestedAtMs >= prev.requestedAtMs) {
+      latestByEvent.set(eventId, { status, requestedAtMs });
+    }
+  }
+
+  const result = {};
+  latestByEvent.forEach((value, key) => {
+    result[key] = value.status;
+  });
+  return result;
+}
+
 export default function Upcoming() {
   const navigate = useNavigate();
   const location = useLocation();
   const [query, setQuery] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
   const [filter, setFilter] = useState("all");
   const [alarms, setAlarms] = useState({});
   const [currentPath, setCurrentPath] = useState("/event/upcoming");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [events, setEvents] = useState([]);
+  const [paymentStatusByEvent, setPaymentStatusByEvent] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submittingId, setSubmittingId] = useState(null);
@@ -327,7 +382,23 @@ export default function Upcoming() {
           list = all.filter(isPlannedByTime);
         }
 
+        let nextPaymentStatusByEvent = {};
+        if (tokenStore.getAccess()) {
+          try {
+            const paymentRes = await axiosInstance.get("/api/payments/my", {
+              params: { page: 0, size: 300, sort: "requestedAt,desc" },
+            });
+            const paymentRows = paymentRes?.data?.data?.content ?? [];
+            nextPaymentStatusByEvent = buildLatestPaymentStatusByEvent(paymentRows);
+          } catch (paymentError) {
+            if (paymentError?.response?.status !== 401) {
+              console.error(paymentError);
+            }
+          }
+        }
+
         if (mounted) {
+          setPaymentStatusByEvent(nextPaymentStatusByEvent);
           setEvents(
             list
               .map(mapEvent)
@@ -353,7 +424,21 @@ export default function Upcoming() {
   const filtered = events.filter((e) => {
     const matchQ = e.title.includes(query) || e.category.includes(query);
     const matchF = filter === "all" || e.category === filter;
-    return matchQ && matchF;
+    if (!matchQ || !matchF) return false;
+
+    if (!selectedDate) return true;
+
+    const target = toDateOrNull(`${selectedDate}T12:00:00`);
+    const start = toDateOrNull(e.startAt);
+    const end = toDateOrNull(e.endAt);
+
+    if (!target) return true;
+    if (start) start.setHours(0, 0, 0, 0);
+    if (end) end.setHours(23, 59, 59, 999);
+
+    if (start && target < start) return false;
+    if (end && target > end) return false;
+    return Boolean(start || end);
   });
 
   const categories = [
@@ -442,6 +527,13 @@ export default function Upcoming() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
+          <input
+            className="up-date-input"
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            aria-label="날짜 검색"
+          />
           {categories.map((c) => (
             <button
               key={c}
@@ -467,6 +559,8 @@ export default function Upcoming() {
               color: "#374151",
             };
             const isOn = alarms[ev.id];
+            const latestPaymentStatus = String(paymentStatusByEvent[ev.id] || "").toUpperCase();
+            const isPaymentCompleted = latestPaymentStatus === "APPROVED";
             return (
               <div
                 key={ev.id}
@@ -532,13 +626,25 @@ export default function Upcoming() {
                       {isOn ? <BellRing size={12} /> : <Bell size={12} />}
                       {isOn ? "알림 설정됨" : "알림 설정"}
                     </button>
-                    <button
-                      className="up-pre-btn"
-                      onClick={(e) => handlePreApply(ev, e)}
-                      disabled={submittingId === ev.id}
-                    >
-                      {submittingId === ev.id ? "처리중" : "사전신청"}
-                    </button>
+                    {isPaymentCompleted ? (
+                      <button
+                        className="up-pre-btn up-pre-btn-done"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate("/registration/paymenthistory");
+                        }}
+                      >
+                        결재완료
+                      </button>
+                    ) : (
+                      <button
+                        className="up-pre-btn"
+                        onClick={(e) => handlePreApply(ev, e)}
+                        disabled={submittingId === ev.id}
+                      >
+                        {submittingId === ev.id ? "처리중" : "사전신청"}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

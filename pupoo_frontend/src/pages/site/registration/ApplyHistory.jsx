@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Calendar,
   CheckCircle2,
@@ -185,11 +185,13 @@ function formatDateRange(startAt, endAt) {
 }
 
 export default function ApplyHistory() {
+  const location = useLocation();
   const navigate = useNavigate();
   const currentPath = "/registration/applyhistory";
   const [records, setRecords] = useState([]);
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [reapplyingEventId, setReapplyingEventId] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -241,6 +243,7 @@ export default function ApplyHistory() {
             appliedAt: item.appliedAt,
             startAt: detail.startAt,
             endAt: detail.endAt,
+            baseFee: detail.baseFee,
             location: detail.location || "장소 정보 없음",
           };
         });
@@ -299,6 +302,47 @@ export default function ApplyHistory() {
       },
     ];
   }, [records]);
+
+  const handleReapplyCheckout = async (record) => {
+    if (!record?.eventId || reapplyingEventId) return;
+
+    const from = `${location.pathname}${location.search || ""}`;
+    if (!tokenStore.getAccess()) {
+      navigate("/auth/login", { state: { from } });
+      return;
+    }
+
+    const amount = Number(record?.baseFee ?? 0);
+    const params = new URLSearchParams({
+      eventId: String(record.eventId),
+      amount: String(Number.isFinite(amount) ? amount : 0),
+      title: record?.eventName || "",
+      returnUrl: from || "/",
+    });
+
+    setError("");
+    setReapplyingEventId(record.eventId);
+    try {
+      await axiosInstance.post("/api/event-registrations", {
+        eventId: Number(record.eventId),
+      });
+      navigate(`/payment/checkout?${params.toString()}`);
+    } catch (e) {
+      if (e?.response?.status === 409) {
+        navigate(`/payment/checkout?${params.toString()}`);
+      } else if (e?.response?.status === 401) {
+        navigate("/auth/login", { state: { from } });
+      } else {
+        const message =
+          e?.response?.data?.error?.message ||
+          e?.response?.data?.message ||
+          "재신청 처리 중 오류가 발생했습니다.";
+        setError(message);
+      }
+    } finally {
+      setReapplyingEventId(null);
+    }
+  };
 
   return (
     <div className="hist-root">
@@ -362,6 +406,9 @@ export default function ApplyHistory() {
                 color: "#6B7280",
                 dot: "#9CA3AF",
               };
+              const canReapply = record.status === "CANCELLED" || record.status === "REJECTED";
+              const canQrAccess = record.status !== "CANCELLED";
+              const isReapplying = Number(reapplyingEventId) === Number(record.eventId);
 
               return (
                 <div key={record.id} className="hist-card">
@@ -382,15 +429,27 @@ export default function ApplyHistory() {
                       </span>
                     </div>
                     <div className="hist-top-actions">
-                      <button
-                        type="button"
-                        className="hist-btn hist-btn-primary hist-top-action"
-                        onClick={() =>
-                          navigate(`/registration/qrcheckin?eventId=${record.eventId}`)
-                        }
-                      >
-                        QR 발급/조회
-                      </button>
+                      {canReapply ? (
+                        <button
+                          type="button"
+                          className="hist-btn hist-btn-primary hist-top-action"
+                          onClick={() => handleReapplyCheckout(record)}
+                          disabled={isReapplying}
+                        >
+                          다시 신청
+                        </button>
+                      ) : null}
+                      {canQrAccess ? (
+                        <button
+                          type="button"
+                          className="hist-btn hist-btn-primary hist-top-action"
+                          onClick={() =>
+                            navigate(`/registration/qrcheckin?eventId=${record.eventId}`)
+                          }
+                        >
+                          QR 발급/조회
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="hist-btn hist-btn-outline hist-top-action"

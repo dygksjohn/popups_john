@@ -940,7 +940,7 @@ export default function EventDetailModal({ event, onClose }) {
     try {
       const regRes = await axiosInstance.get(
         "/api/users/me/event-registrations",
-        { params: { page: 0, size: 50 } },
+        { params: { page: 0, size: 200, sort: "appliedAt,desc" } },
       );
       const regContent = regRes.data.data.content;
       const regList = Array.isArray(regContent) ? regContent : [];
@@ -1011,7 +1011,10 @@ export default function EventDetailModal({ event, onClose }) {
   const canCancel =
     regStatus === RegistrationStatus.APPLIED ||
     regStatus === RegistrationStatus.APPROVED;
-  const canApply = !regStatus || regStatus === RegistrationStatus.CANCELLED;
+  const isReapply =
+    regStatus === RegistrationStatus.CANCELLED ||
+    regStatus === RegistrationStatus.REJECTED;
+  const canApply = !regStatus || isReapply;
 
   const fallbackDateKey = toDateKey(detail?.startAt);
   const normalizedPrograms = (
@@ -1721,7 +1724,7 @@ export default function EventDetailModal({ event, onClose }) {
                   disabled={detailLoading || regLoading}
                 >
                   <Zap size={14} />
-                  참가 신청
+                  {isReapply ? "다시 참가 신청" : "참가 신청"}
                 </button>
               ) : canCancel ? (
                 <button

@@ -174,8 +174,6 @@ const megaMenuData = {
           { label: "현재 진행 행사", href: "/event/current" },
           { label: "예정 행사", href: "/event/upcoming" },
           { label: "종료 행사", href: "/event/closed" },
-          { label: "행사 사전 등록", href: "/event/preregister" },
-          { label: "행사 일정 안내", href: "/event/eventschedule" },
         ],
       },
       {

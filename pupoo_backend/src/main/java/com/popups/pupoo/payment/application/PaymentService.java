@@ -8,6 +8,9 @@ import com.popups.pupoo.event.domain.enums.RegistrationStatus;
 import com.popups.pupoo.event.domain.model.EventRegistration;
 import com.popups.pupoo.event.persistence.EventRegistrationRepository;
 import com.popups.pupoo.event.persistence.EventRepository;
+import com.popups.pupoo.program.apply.domain.enums.ApplyStatus;
+import com.popups.pupoo.program.apply.domain.model.ProgramApply;
+import com.popups.pupoo.program.apply.persistence.ProgramApplyRepository;
 import com.popups.pupoo.payment.domain.enums.PaymentStatus;
 import com.popups.pupoo.payment.domain.enums.PaymentTransactionStatus;
 import com.popups.pupoo.payment.domain.enums.PaymentProvider;
@@ -26,6 +29,7 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.util.EnumSet;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -37,6 +41,7 @@ public class PaymentService {
     private final PaymentGateway paymentGateway;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final EventRegistrationRepository eventRegistrationRepository;
+    private final ProgramApplyRepository programApplyRepository;
     private final EventRepository eventRepository;
 
     public PaymentService(
@@ -44,12 +49,14 @@ public class PaymentService {
             PaymentGateway paymentGateway,
             PaymentTransactionRepository paymentTransactionRepository,
             EventRegistrationRepository eventRegistrationRepository,
+            ProgramApplyRepository programApplyRepository,
             EventRepository eventRepository
     ) {
         this.paymentRepository = paymentRepository;
         this.paymentGateway = paymentGateway;
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
+        this.programApplyRepository = programApplyRepository;
         this.eventRepository = eventRepository;
     }
 
@@ -190,6 +197,7 @@ public class PaymentService {
             if (payment.getStatus() != PaymentStatus.CANCELLED) {
                 payment.markCancelled();
             }
+            autoCancelEventApplyArtifacts(payment);
             return toResponseWithEvent(paymentId, payment);
         }
 
@@ -203,6 +211,7 @@ public class PaymentService {
         }
 
         if (payment.getStatus() == PaymentStatus.CANCELLED) {
+            autoCancelEventApplyArtifacts(payment);
         	return toResponseWithEvent(paymentId, payment);
         }
         if (payment.getStatus() != PaymentStatus.APPROVED) {
@@ -213,6 +222,7 @@ public class PaymentService {
         if (!ok) throw new BusinessException(ErrorCode.PAYMENT_PG_ERROR);
 
         payment.markCancelled();
+        autoCancelEventApplyArtifacts(payment);
         return toResponseWithEvent(paymentId, payment);
     }
 
@@ -252,6 +262,25 @@ public class PaymentService {
         if (er.getStatus() == RegistrationStatus.APPLIED) {
             er.approve();
         }
+    }
+
+    private void autoCancelEventApplyArtifacts(Payment payment) {
+        if (payment.getEventId() == null) return;
+
+        eventRegistrationRepository
+                .findActiveByEventIdAndUserIdForUpdate(
+                        payment.getEventId(),
+                        payment.getUserId(),
+                        List.of(RegistrationStatus.APPLIED, RegistrationStatus.APPROVED)
+                )
+                .ifPresent(EventRegistration::cancel);
+
+        List<ProgramApply> applies = programApplyRepository.findActiveByEventIdAndUserIdForUpdate(
+                payment.getEventId(),
+                payment.getUserId(),
+                List.of(ApplyStatus.APPLIED, ApplyStatus.WAITING, ApplyStatus.APPROVED)
+        );
+        applies.forEach(ProgramApply::cancel);
     }
 
     /**

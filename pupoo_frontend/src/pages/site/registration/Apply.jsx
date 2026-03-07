@@ -182,6 +182,7 @@ export default function Apply() {
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = "/registration/apply";
+  const preferredEventId = Number(new URLSearchParams(location.search).get("eventId"));
 
   const [events, setEvents] = useState([]);
   const [statusFilter, setStatusFilter] = useState("ONGOING");
@@ -215,7 +216,14 @@ export default function Apply() {
 
         const ongoing = available.find((e) => e.status === "ONGOING");
         const planned = available.find((e) => e.status === "PLANNED");
-        setSelectedEventId((ongoing ?? planned ?? available[0])?.eventId ?? null);
+        const preferred = Number.isFinite(preferredEventId)
+          ? available.find((e) => Number(e.eventId) === preferredEventId)
+          : null;
+
+        if (preferred?.status === "ONGOING" || preferred?.status === "PLANNED") {
+          setStatusFilter(preferred.status);
+        }
+        setSelectedEventId((preferred ?? ongoing ?? planned ?? available[0])?.eventId ?? null);
 
         if (tokenStore.getAccess()) {
           const regRes = await axiosInstance.get("/api/users/me/event-registrations", {
@@ -245,7 +253,7 @@ export default function Apply() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [preferredEventId]);
 
   const filteredEvents = useMemo(() => {
     const keywordRaw = searchKeyword.trim();
