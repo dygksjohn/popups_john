@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { mypageApi } from "./api/mypageApi";
-import { notificationApi } from "../../../app/http/notificationApi";
+import {
+  notificationApi,
+  emitNotificationUnreadCount,
+} from "../../../app/http/notificationApi";
 import { reviewApi } from "../../../app/http/reviewApi";
 import { eventApi } from "../../../app/http/eventApi";
 
@@ -761,7 +764,11 @@ export default function MyPage() {
         setNotifications((prev) =>
           prev.filter((item) => Number(item?.inboxId) !== Number(inboxId)),
         );
-        setUnreadCount((prev) => Math.max(0, (Number(prev) || 0) - 1));
+        setUnreadCount((prev) => {
+          const next = Math.max(0, (Number(prev) || 0) - 1);
+          emitNotificationUnreadCount(next);
+          return next;
+        });
       } catch (e) {
         setError(e?.message || "알림 삭제에 실패했습니다.");
       } finally {

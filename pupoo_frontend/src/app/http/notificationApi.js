@@ -1,9 +1,21 @@
 // src/app/http/notificationApi.js
 import { axiosInstance } from "./axiosInstance";
 
+export const NOTIFICATION_UNREAD_COUNT_EVENT =
+  "pupoo:notification-unread-count";
+
 function unwrap(res) {
   const body = res?.data;
   return body?.data ?? body;
+}
+
+export function emitNotificationUnreadCount(count) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(NOTIFICATION_UNREAD_COUNT_EVENT, {
+      detail: { count: Number(count) || 0 },
+    }),
+  );
 }
 
 /**
