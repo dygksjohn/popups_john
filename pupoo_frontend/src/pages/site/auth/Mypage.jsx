@@ -271,6 +271,33 @@ const styles = `
     font-weight: 700;
     color: #1e293b;
   }
+  .mp-noti-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .mp-noti-delete {
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #64748b;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .mp-noti-delete:hover:not(:disabled) {
+    border-color: #fca5a5;
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+  .mp-noti-delete:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
   .mp-noti-content {
     margin-top: 4px;
     font-size: 12px;
@@ -509,6 +536,7 @@ export default function MyPage() {
   const [reviewCount, setReviewCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [deletingInboxIds, setDeletingInboxIds] = useState([]);
 
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrEventId, setQrEventId] = useState("");
@@ -746,6 +774,28 @@ export default function MyPage() {
     navigate(`/program/all/${eventId}`);
   };
 
+  const handleDeleteNotification = useCallback(
+    async (inboxId) => {
+      if (inboxId == null || deletingInboxIds.includes(inboxId)) return;
+
+      setDeletingInboxIds((prev) => [...prev, inboxId]);
+      setError("");
+
+      try {
+        await notificationApi.click(inboxId);
+        setNotifications((prev) =>
+          prev.filter((item) => Number(item?.inboxId) !== Number(inboxId)),
+        );
+        setUnreadCount((prev) => Math.max(0, (Number(prev) || 0) - 1));
+      } catch (e) {
+        setError(e?.message || "알림 삭제에 실패했습니다.");
+      } finally {
+        setDeletingInboxIds((prev) => prev.filter((id) => id !== inboxId));
+      }
+    },
+    [deletingInboxIds],
+  );
+
   const renderRegistrationItem = (item, clickable = false) => {
     const detail = eventMap[String(item?.eventId)] || {};
     const status = String(item?.status || "").toUpperCase();
@@ -765,6 +815,33 @@ export default function MyPage() {
           <span>신청일 {fmtDateTime(item?.appliedAt)}</span>
           <span>일정 {fmtDate(detail?.startAt)}</span>
           <span>{detail?.location || "장소 정보 없음"}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderNotificationItem = (noti, withAbsoluteTime = false) => {
+    const inboxId = noti?.inboxId;
+    const isDeleting = deletingInboxIds.includes(inboxId);
+
+    return (
+      <div className="mp-item" key={inboxId || `${noti?.title}-${noti?.receivedAt}`}>
+        <div className="mp-noti-header">
+          <div className="mp-noti-title">{noti?.title || "알림"}</div>
+          <button
+            type="button"
+            className="mp-noti-delete"
+            onClick={() => handleDeleteNotification(inboxId)}
+            disabled={isDeleting}
+          >
+            {isDeleting ? "삭제 중" : "삭제"}
+          </button>
+        </div>
+        <div className="mp-noti-content">{noti?.content || "-"}</div>
+        <div className="mp-noti-time">
+          {withAbsoluteTime
+            ? `수신 ${fmtDateTime(noti?.receivedAt)}`
+            : fmtRelative(noti?.receivedAt)}
         </div>
       </div>
     );
@@ -877,13 +954,9 @@ export default function MyPage() {
                   {notifications.slice(0, 4).length === 0 ? (
                     <div className="mp-empty">수신한 알림이 없습니다.</div>
                   ) : (
-                    notifications.slice(0, 4).map((noti) => (
-                      <div className="mp-item" key={noti?.inboxId || `${noti?.title}-${noti?.receivedAt}`}>
-                        <div className="mp-noti-title">{noti?.title || "알림"}</div>
-                        <div className="mp-noti-content">{noti?.content || "-"}</div>
-                        <div className="mp-noti-time">{fmtRelative(noti?.receivedAt)}</div>
-                      </div>
-                    ))
+                    notifications
+                      .slice(0, 4)
+                      .map((noti) => renderNotificationItem(noti))
                   )}
                 </div>
               </div>
@@ -989,13 +1062,9 @@ export default function MyPage() {
               {notifications.length === 0 ? (
                 <div className="mp-empty">수신한 알림이 없습니다.</div>
               ) : (
-                notifications.map((noti) => (
-                  <div className="mp-item" key={noti?.inboxId || `${noti?.title}-${noti?.receivedAt}`}>
-                    <div className="mp-noti-title">{noti?.title || "알림"}</div>
-                    <div className="mp-noti-content">{noti?.content || "-"}</div>
-                    <div className="mp-noti-time">수신 {fmtDateTime(noti?.receivedAt)}</div>
-                  </div>
-                ))
+                notifications.map((noti) =>
+                  renderNotificationItem(noti, true),
+                )
               )}
             </div>
           </section>
