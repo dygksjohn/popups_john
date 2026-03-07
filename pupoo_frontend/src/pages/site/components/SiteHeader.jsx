@@ -3,7 +3,10 @@ import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { LogIn, LogOut, UserPlus, UserCircle, Bell } from "lucide-react";
-import { notificationApi } from "../../../app/http/notificationApi";
+import {
+  notificationApi,
+  NOTIFICATION_UNREAD_COUNT_EVENT,
+} from "../../../app/http/notificationApi";
 
 /* ?????????????????????????????????????????????
    ICONS
@@ -562,6 +565,25 @@ export default function PupooHeader() {
       .then((n) => setUnreadCount(Number(n) || 0))
       .catch(() => setUnreadCount(0));
   }, [isAuthed]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleUnreadCountChange = (event) => {
+      const nextCount = Number(event?.detail?.count);
+      if (Number.isFinite(nextCount)) {
+        setUnreadCount(Math.max(0, nextCount));
+      }
+    };
+    window.addEventListener(
+      NOTIFICATION_UNREAD_COUNT_EVENT,
+      handleUnreadCountChange,
+    );
+    return () =>
+      window.removeEventListener(
+        NOTIFICATION_UNREAD_COUNT_EVENT,
+        handleUnreadCountChange,
+      );
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
