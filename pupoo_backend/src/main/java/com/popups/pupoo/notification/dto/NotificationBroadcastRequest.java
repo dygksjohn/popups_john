@@ -26,4 +26,20 @@ public class NotificationBroadcastRequest {
     private Long targetId;
 
     private List<NotificationChannel> channels;
+
+    public static NotificationBroadcastRequest of(NotificationType type,
+                                                  String title,
+                                                  String content,
+                                                  InboxTargetType targetType,
+                                                  Long targetId,
+                                                  List<NotificationChannel> channels) {
+        NotificationBroadcastRequest request = new NotificationBroadcastRequest();
+        request.type = type;
+        request.title = title;
+        request.content = content;
+        request.targetType = targetType;
+        request.targetId = targetId;
+        request.channels = channels;
+        return request;
+    }
 }

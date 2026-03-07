@@ -54,4 +54,26 @@ public class NotificationCreateRequest {
      * - 미지정 시 recipientScope 또는 INTEREST_SUBSCRIBERS 로 fallback
      */
     private List<RecipientScope> recipientScopes;
+
+    public static NotificationCreateRequest of(NotificationType type,
+                                               String title,
+                                               String content,
+                                               InboxTargetType targetType,
+                                               Long targetId,
+                                               Long eventId,
+                                               List<NotificationChannel> channels,
+                                               RecipientScope recipientScope,
+                                               List<RecipientScope> recipientScopes) {
+        NotificationCreateRequest request = new NotificationCreateRequest();
+        request.type = type;
+        request.title = title;
+        request.content = content;
+        request.targetType = targetType;
+        request.targetId = targetId;
+        request.eventId = eventId;
+        request.channels = channels;
+        request.recipientScope = recipientScope;
+        request.recipientScopes = recipientScopes;
+        return request;
+    }
 }
