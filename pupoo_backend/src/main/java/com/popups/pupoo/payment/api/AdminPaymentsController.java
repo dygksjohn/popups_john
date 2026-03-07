@@ -21,15 +21,15 @@ public class AdminPaymentsController {
     @GetMapping("/payments")
     public ApiResponse<Page<PaymentResponse>> payments(Pageable pageable) {
         return ApiResponse.success(
-                paymentRepository.findAll(pageable).map(PaymentResponse::from)
+                paymentRepository.findAdminPaymentHistory(pageable).map(PaymentResponse::fromRow)
         );
     }
 
     @GetMapping("/payments/{id}")
     public ApiResponse<PaymentResponse> payment(@PathVariable Long id) {
         return ApiResponse.success(
-                paymentRepository.findById(id)
-                        .map(PaymentResponse::from)
+                paymentRepository.findAdminPaymentDetail(id)
+                        .map(PaymentResponse::fromRow)
                         .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + id))
         );
     }

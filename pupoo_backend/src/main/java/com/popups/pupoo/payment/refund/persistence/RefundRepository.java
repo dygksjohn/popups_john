@@ -12,6 +12,18 @@ import java.util.Optional;
 
 public interface RefundRepository extends JpaRepository<Refund, Long> {
 
+    interface AdminRefundRow {
+        Long getRefundId();
+        Long getPaymentId();
+        java.math.BigDecimal getRefundAmount();
+        String getReason();
+        RefundStatus getStatus();
+        java.time.LocalDateTime getRequestedAt();
+        java.time.LocalDateTime getCompletedAt();
+        Long getEventId();
+        String getEventTitle();
+    }
+
     Page<Refund> findAll(Pageable pageable);
 
     @Query("select r from Refund r join fetch r.payment p where r.refundId = :refundId")
@@ -26,6 +38,59 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     Page<Refund> findByPayment_UserId(Long userId, Pageable pageable);
 
     Page<Refund> findByStatus(RefundStatus status, Pageable pageable);
+
+    @Query("""
+        select
+          r.refundId as refundId,
+          p.paymentId as paymentId,
+          r.refundAmount as refundAmount,
+          r.reason as reason,
+          r.status as status,
+          r.requestedAt as requestedAt,
+          r.completedAt as completedAt,
+          p.eventId as eventId,
+          e.eventName as eventTitle
+        from Refund r
+        join r.payment p
+        left join Event e on e.eventId = p.eventId
+        """)
+    Page<AdminRefundRow> findAdminRefunds(Pageable pageable);
+
+    @Query("""
+        select
+          r.refundId as refundId,
+          p.paymentId as paymentId,
+          r.refundAmount as refundAmount,
+          r.reason as reason,
+          r.status as status,
+          r.requestedAt as requestedAt,
+          r.completedAt as completedAt,
+          p.eventId as eventId,
+          e.eventName as eventTitle
+        from Refund r
+        join r.payment p
+        left join Event e on e.eventId = p.eventId
+        where r.status = :status
+        """)
+    Page<AdminRefundRow> findAdminRefundsByStatus(@Param("status") RefundStatus status, Pageable pageable);
+
+    @Query("""
+        select
+          r.refundId as refundId,
+          p.paymentId as paymentId,
+          r.refundAmount as refundAmount,
+          r.reason as reason,
+          r.status as status,
+          r.requestedAt as requestedAt,
+          r.completedAt as completedAt,
+          p.eventId as eventId,
+          e.eventName as eventTitle
+        from Refund r
+        join r.payment p
+        left join Event e on e.eventId = p.eventId
+        where r.refundId = :refundId
+        """)
+    Optional<AdminRefundRow> findAdminRefundDetail(@Param("refundId") Long refundId);
 
     boolean existsByPayment_PaymentId(Long paymentId);
 

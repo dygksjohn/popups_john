@@ -2,6 +2,7 @@
 package com.popups.pupoo.payment.refund.dto;
 
 import com.popups.pupoo.payment.refund.domain.model.Refund;
+import com.popups.pupoo.payment.refund.persistence.RefundRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -13,22 +14,39 @@ public record RefundResponse(
         String reason,
         String status,
         LocalDateTime requestedAt,
-        LocalDateTime completedAt
+        LocalDateTime completedAt,
+        Long eventId,
+        String eventTitle
 ) {
-    public static RefundResponse from(Refund r) {
-        // 정책: API 응답에서는 COMPLETED를 REFUNDED로 노출한다.
-        String exposedStatus = (r.getStatus() != null && "COMPLETED".equals(r.getStatus().name()))
-                ? "REFUNDED"
-                : (r.getStatus() == null ? null : r.getStatus().name());
+    public static RefundResponse fromRow(RefundRepository.AdminRefundRow row) {
+        return new RefundResponse(
+                row.getRefundId(),
+                row.getPaymentId(),
+                row.getRefundAmount(),
+                row.getReason(),
+                exposeStatus(row.getStatus() == null ? null : row.getStatus().name()),
+                row.getRequestedAt(),
+                row.getCompletedAt(),
+                row.getEventId(),
+                row.getEventTitle()
+        );
+    }
 
+    public static RefundResponse from(Refund r) {
         return new RefundResponse(
                 r.getRefundId(),
                 r.getPaymentId(),
                 r.getRefundAmount(),
                 r.getReason(),
-                exposedStatus,
+                exposeStatus(r.getStatus() == null ? null : r.getStatus().name()),
                 r.getRequestedAt(),
-                r.getCompletedAt()
+                r.getCompletedAt(),
+                r.getPayment() == null ? null : r.getPayment().getEventId(),
+                null
         );
+    }
+
+    private static String exposeStatus(String rawStatus) {
+        return "COMPLETED".equals(rawStatus) ? "REFUNDED" : rawStatus;
     }
 }

@@ -16,8 +16,8 @@ public record PaymentResponse(
         PaymentProvider paymentMethod,
         PaymentStatus status,
         LocalDateTime requestedAt,
+        Long eventId,
 
-        // ✅ 추가
         String eventTitle,
         LocalDateTime eventStartAt,
         LocalDateTime eventEndAt
@@ -30,6 +30,7 @@ public record PaymentResponse(
                 r.getPaymentMethod(),
                 r.getStatus(),
                 r.getRequestedAt(),
+                r.getEventId(),
                 r.getEventTitle(),
                 r.getEventStartAt(),
                 r.getEventEndAt()
@@ -45,6 +46,7 @@ public record PaymentResponse(
                 p.getPaymentMethod(),
                 p.getStatus(),
                 p.getRequestedAt(),
+                p.getEventId(),
                 null,
                 null,
                 null

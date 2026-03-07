@@ -27,18 +27,20 @@ public class AdminRefundsController {
     public ApiResponse<Page<RefundResponse>> refunds(@RequestParam(value = "status", required = false) String status,
                                                      Pageable pageable) {
         if (status == null || status.isBlank()) {
-            return ApiResponse.success(refundRepository.findAll(pageable).map(RefundResponse::from));
+            return ApiResponse.success(refundRepository.findAdminRefunds(pageable).map(RefundResponse::fromRow));
         }
         // 정책: 외부 입력은 REFUNDED를 허용하되 내부 상태(COMPLETED)로 매핑한다.
         String raw = status.toUpperCase();
         RefundStatus s = "REFUNDED".equals(raw) ? RefundStatus.COMPLETED : RefundStatus.valueOf(raw);
-        return ApiResponse.success(refundRepository.findByStatus(s, pageable).map(RefundResponse::from));
+        return ApiResponse.success(
+                refundRepository.findAdminRefundsByStatus(s, pageable).map(RefundResponse::fromRow)
+        );
     }
 
     @GetMapping("/refunds/{id}")
     public ApiResponse<RefundResponse> refund(@PathVariable Long id) {
-        return ApiResponse.success(refundRepository.findById(id)
-                .map(RefundResponse::from)
+        return ApiResponse.success(refundRepository.findAdminRefundDetail(id)
+                .map(RefundResponse::fromRow)
                 .orElseThrow(() -> new BusinessException(ErrorCode.REFUND_NOT_FOUND)));
     }
 

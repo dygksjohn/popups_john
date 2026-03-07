@@ -9,6 +9,7 @@ import {
   MapPin,
   ChevronRight,
   Sparkles,
+  Search,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { eventApi } from "../../../app/http/eventApi";
@@ -55,9 +56,31 @@ const styles = `
     display:flex; align-items:center; justify-content:space-between; gap:14px;
     flex-wrap:wrap; margin-bottom:18px;
   }
+  .ps-toolbar-left {
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    min-width:0;
+  }
   .ps-select {
     min-width:240px; height:42px; padding:0 14px; border-radius:10px;
     border:1px solid #dbe2ea; background:#fff; color:#111827; font-size:13px;
+  }
+  .ps-search-wrap {
+    position:relative;
+    min-width:260px;
+    flex:1 1 280px;
+  }
+  .ps-search-input {
+    width:100%; height:42px; padding:0 14px 0 38px; border-radius:10px;
+    border:1px solid #dbe2ea; background:#fff; color:#111827; font-size:13px;
+    outline:none; transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .ps-search-input:focus {
+    border-color:#1a4fd6;
+    box-shadow:0 0 0 3px rgba(26,79,214,.08);
+  }
+  .ps-search-icon {
+    position:absolute; left:13px; top:50%; transform:translateY(-50%);
+    color:#94a3b8; pointer-events:none;
   }
   .ps-filter { display:flex; gap:8px; flex-wrap:wrap; }
   .ps-filter button {
@@ -143,7 +166,8 @@ const styles = `
     .ps-wrap { padding:20px 16px 48px; }
     .ps-stats { grid-template-columns:repeat(2,1fr); }
     .ps-grid { grid-template-columns:1fr; }
-    .ps-select { width:100%; }
+    .ps-toolbar-left { width:100%; }
+    .ps-select, .ps-search-wrap { width:100%; min-width:0; }
   }
 `;
 
@@ -254,6 +278,25 @@ function sortEventsByPage(events, statusKey) {
   });
 }
 
+function compareProgramsByPage(left, right, statusKey) {
+  const eventDiff =
+    (left.eventSortOrder ?? Number.POSITIVE_INFINITY) -
+    (right.eventSortOrder ?? Number.POSITIVE_INFINITY);
+  if (eventDiff !== 0) return eventDiff;
+
+  if (statusKey === "closed") {
+    const leftEnd = left.endSortAt ?? 0;
+    const rightEnd = right.endSortAt ?? 0;
+    if (leftEnd !== rightEnd) return rightEnd - leftEnd;
+  } else {
+    const leftStart = left.startSortAt ?? Number.POSITIVE_INFINITY;
+    const rightStart = right.startSortAt ?? Number.POSITIVE_INFINITY;
+    if (leftStart !== rightStart) return leftStart - rightStart;
+  }
+
+  return (left.programId ?? 0) - (right.programId ?? 0);
+}
+
 function normalizeCategory(value) {
   const raw = String(value ?? "").toUpperCase();
   if (
@@ -314,6 +357,7 @@ export default function ProgramStatus({ statusKey = "current" }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -389,6 +433,9 @@ export default function ProgramStatus({ statusKey = "current" }) {
         const eventMap = new Map(
           orderedEvents.map((row) => [Number(row?.eventId), row]),
         );
+        const eventOrderMap = new Map(
+          orderedEvents.map((row, index) => [Number(row?.eventId), index]),
+        );
         const rawProgramBaseDateByEvent = new Map();
         programLists.forEach((list, index) => {
           const eventId = Number(orderedEvents[index]?.eventId);
@@ -441,6 +488,9 @@ export default function ProgramStatus({ statusKey = "current" }) {
               key: `${row?.programId ?? row?.id ?? idx}`,
               programId: Number(row?.programId ?? row?.id ?? idx),
               eventId: Number(row?.eventId),
+              eventSortOrder:
+                eventOrderMap.get(Number(row?.eventId)) ??
+                Number.POSITIVE_INFINITY,
               eventName: eventInfo?.eventName ?? `행사 ${row?.eventId}`,
               title:
                 row?.programTitle ??
@@ -456,14 +506,16 @@ export default function ProgramStatus({ statusKey = "current" }) {
                 "장소 미정",
               schedule: formatDateTimeRange(rebasedStartAt, rebasedEndAt),
               dayLabel: dayIndex ? `${dayIndex}일차` : "",
-              sortAt: rebasedStartAt?.getTime?.() ?? Number.POSITIVE_INFINITY,
+              startSortAt:
+                rebasedStartAt?.getTime?.() ?? Number.POSITIVE_INFINITY,
+              endSortAt: rebasedEndAt?.getTime?.() ?? 0,
               imageUrl: row?.imageUrl ?? row?.image_url ?? null,
               status: toProgramRuntimeStatus(rebasedStartAt, rebasedEndAt),
               categoryKey: normalizedCategory,
               categoryLabel: categoryLabel(normalizedCategory),
             };
           })
-          .sort((a, b) => a.sortAt - b.sortAt || a.programId - b.programId);
+          .sort((a, b) => compareProgramsByPage(a, b, statusKey));
 
         const eligibleEventIds = new Set(
           matchingPrograms.map((row) => Number(row.eventId)),
@@ -500,10 +552,26 @@ export default function ProgramStatus({ statusKey = "current" }) {
     setCategoryFilter("ALL");
   }, [safeEventId, statusKey]);
 
+  useEffect(() => {
+    setSearchQuery("");
+  }, [safeEventId, statusKey]);
+
   const filteredPrograms = useMemo(() => {
-    if (categoryFilter === "ALL") return programs;
-    return programs.filter((row) => row.categoryKey === categoryFilter);
-  }, [programs, categoryFilter]);
+    const keyword = searchQuery.trim().toLowerCase();
+    return programs.filter((row) => {
+      const matchCategory =
+        categoryFilter === "ALL" || row.categoryKey === categoryFilter;
+      if (!matchCategory) return false;
+      if (!keyword) return true;
+      return [
+        row.title,
+        row.description,
+        row.location,
+        row.eventName,
+        row.categoryLabel,
+      ].some((value) => String(value ?? "").toLowerCase().includes(keyword));
+    });
+  }, [programs, categoryFilter, searchQuery]);
 
   const statPrograms = programs;
   const sessionCount = statPrograms.filter(
@@ -535,18 +603,30 @@ export default function ProgramStatus({ statusKey = "current" }) {
 
       <main className="ps-wrap">
         <div className="ps-toolbar">
-          <select
-            className="ps-select"
-            value={Number.isFinite(safeEventId) ? String(safeEventId) : ""}
-            onChange={(event) => handleEventChange(event.target.value)}
-          >
-            <option value="">전체 행사</option>
-            {events.map((row) => (
-              <option key={row?.eventId} value={row?.eventId}>
-                {row?.eventName ?? `행사 ${row?.eventId}`}
-              </option>
-            ))}
-          </select>
+          <div className="ps-toolbar-left">
+            <select
+              className="ps-select"
+              value={Number.isFinite(safeEventId) ? String(safeEventId) : ""}
+              onChange={(event) => handleEventChange(event.target.value)}
+            >
+              <option value="">전체 행사</option>
+              {events.map((row) => (
+                <option key={row?.eventId} value={row?.eventId}>
+                  {row?.eventName ?? `행사 ${row?.eventId}`}
+                </option>
+              ))}
+            </select>
+
+            <div className="ps-search-wrap">
+              <Search size={15} className="ps-search-icon" />
+              <input
+                className="ps-search-input"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="프로그램명, 행사명, 장소 검색"
+              />
+            </div>
+          </div>
 
           <div className="ps-filter">
             {CATEGORY_FILTERS.map((row) => (

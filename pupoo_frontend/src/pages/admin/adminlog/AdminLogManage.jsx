@@ -14,7 +14,7 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 const PAGE_SIZE = 20;
 
 const TARGET_TYPE_OPTIONS = [
-  { value: "ALL", label: "전체 대상" },
+  { value: "", label: "전체 대상" },
   { value: "EVENT", label: "행사" },
   { value: "NOTICE", label: "공지" },
   { value: "POST", label: "게시글" },
@@ -139,7 +139,7 @@ export default function AdminLogManage() {
   const [page, setPage] = useState(0);
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
-  const [targetType, setTargetType] = useState("ALL");
+  const [targetType, setTargetType] = useState("");
   const [logsPage, setLogsPage] = useState({
     content: [],
     page: 0,
@@ -167,7 +167,7 @@ export default function AdminLogManage() {
             page,
             size: PAGE_SIZE,
             keyword: appliedKeyword || undefined,
-            targetType: targetType !== "ALL" ? targetType : undefined,
+            targetType: targetType || undefined,
           },
         });
 

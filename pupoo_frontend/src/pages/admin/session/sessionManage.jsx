@@ -18,7 +18,10 @@ import {
 } from "lucide-react";
 import ds, { statusMap } from "../shared/designTokens";
 import { Pill } from "../shared/Components";
-import { resolveAdminStatus } from "../shared/adminStatus";
+import {
+  resolveAdminStatus,
+  sortAdminEventsByOperationalPriority,
+} from "../shared/adminStatus";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
@@ -737,14 +740,7 @@ export default function SessionManage({ subTab = "all" }) {
           ),
         ),
       }));
-      const parseId = (v) => {
-        const n = Number(v);
-        return !isNaN(n) ? n : Number(String(v ?? "").replace(/\D/g, "")) || 0;
-      };
-      mapped.sort(
-        (a, b) => parseId(b.eventId ?? b.id) - parseId(a.eventId ?? a.id),
-      );
-      setEvents(mapped);
+      setEvents(sortAdminEventsByOperationalPriority(mapped));
     } catch {
       setEvents([]);
     } finally {

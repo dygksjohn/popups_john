@@ -59,8 +59,8 @@ export default function QnADetailPage() {
       content={error ? `<p>${error}</p>` : item?.content || "<p>내용이 없습니다.</p>"}
       extraContent={
         !loading && item?.answerContent ? (
-          <div style={{ marginTop: 28, padding: "18px 20px", borderRadius: 14, background: "#eef4ff", borderLeft: "4px solid #1d4ed8" }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#1d4ed8", marginBottom: 8 }}>
+          <div style={{ marginTop: 28, padding: "18px 20px", borderRadius: 14, background: "#fffbeb", borderLeft: "4px solid #d97706" }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#d97706", marginBottom: 8 }}>
               관리자 답변 {item.answeredAt ? `· ${fmtDate(item.answeredAt)}` : ""}
             </div>
             <div style={{ fontSize: 14, color: "#334155", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
