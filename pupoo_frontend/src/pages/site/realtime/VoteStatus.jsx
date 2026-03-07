@@ -187,11 +187,11 @@ function AnimStatCard({ label, rawValue, suffix, icon, bg, index }) {
 function AnimVoteItem({ item, index, total, maxVotes, isLeading }) {
   const [barWidth, setBarWidth] = useState(0);
   const animVotes = useCountUp(item.votes, 900, index * 100 + 300);
-  const pct = Math.round((item.votes / total) * 100);
+  const pct = total > 0 ? Math.round((item.votes / total) * 100) : 0;
 
   useEffect(() => {
     const t = setTimeout(
-      () => setBarWidth((item.votes / maxVotes) * 100),
+      () => setBarWidth(maxVotes > 0 ? (item.votes / maxVotes) * 100 : 0),
       index * 100 + 400,
     );
     return () => clearTimeout(t);
@@ -270,7 +270,14 @@ function VoteContent({ onNavigate, eventId }) {
   useEffect(() => {
     let mounted = true;
     const loadVoteData = async () => {
-      if (!eventId) return;
+      if (!eventId) {
+        if (mounted) {
+          setContests([]);
+          setActiveVote(null);
+          setLoading(false);
+        }
+        return;
+      }
       setLoading(true);
       setErrorMsg("");
       try {
@@ -587,11 +594,12 @@ export default function VoteStatus({ onNavigate: onNavigateProp }) {
       />
       <main className="vt-container">
         {eventId ? (
-          <VoteContent onNavigate={handleNavigate} />
+          <VoteContent onNavigate={handleNavigate} eventId={eventId} />
         ) : (
           <RealtimeEventSelector
             onSelectEvent={handleSelectEvent}
             pageTitle="투표 현황"
+            programCategory="CONTEST"
           />
         )}
       </main>
