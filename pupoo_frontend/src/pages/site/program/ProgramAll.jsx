@@ -8,10 +8,15 @@ import {
 } from "../constants/programConstants";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
+import { boothApi } from "../../../app/http/boothApi";
 import {
   loadImageCache as loadEventImageCache,
   injectEventImages,
 } from "../../admin/shared/eventImageStore";
+import {
+  loadImageCache as loadProgramImageCache,
+  injectProgramImages,
+} from "../../admin/shared/programImageStore";
 import {
   CalendarDays,
   Clock,
@@ -220,27 +225,44 @@ function getStatus(raw) {
   return "upcoming";
 }
 
-function normalizeProgram(item, idx) {
+function getProgramStatus(item) {
+  if (item?.ongoing) return "live";
+  if (item?.ended) return "done";
+  if (item?.upcoming) return "upcoming";
+  return getStatus(item?.status ?? item?.programStatus);
+}
+
+function normalizeProgram(item, idx, boothMap = new Map()) {
   const startAt = item?.startAt ?? item?.startDateTime ?? null;
   const endAt = item?.endAt ?? item?.endDateTime ?? null;
   const time = getTimeLabel(startAt, endAt);
+  const boothId = Number(item?.boothId);
   return {
     id: item?.id ?? item?.programId ?? `p-${idx}`,
     dateKey: toDateKey(startAt ?? item?.date ?? item?.day),
     name:
-      item?.programName ?? item?.title ?? item?.name ?? `프로그램 ${idx + 1}`,
+      item?.programTitle ??
+      item?.programName ??
+      item?.title ??
+      item?.name ??
+      `프로그램 ${idx + 1}`,
     time,
     zone:
       item?.location ??
       item?.place ??
       item?.zone ??
       item?.boothName ??
+      boothMap.get(boothId) ??
       "장소 미정",
     people: Number(
-      item?.participantCount ?? item?.participants ?? item?.capacity ?? 0,
+      item?.participantCount ??
+        item?.participants ??
+        item?.applyCount ??
+        item?.capacity ??
+        0,
     ),
     type: getType(item?.category ?? item?.programCategory),
-    status: getStatus(item?.status),
+    status: getProgramStatus(item),
     period: getPeriod(time),
   };
 }
@@ -532,20 +554,39 @@ export default function ProgramAll() {
       setLoading(true);
       setError("");
       try {
-        const [eventRes, programRes] = await Promise.all([
+        const [eventRes, programRes, boothRes] = await Promise.all([
           eventApi.getEventDetail(safeEventId),
           programApi.getAllProgramsByEvent({
             eventId: safeEventId,
             sort: "startAt,asc",
           }),
+          boothApi.getEventBooths({
+            eventId: safeEventId,
+            page: 0,
+            size: 200,
+            sort: "boothId,asc",
+          }),
         ]);
         if (!mounted) return;
         setEventDetail(eventRes?.data?.data ?? null);
-        const list = Array.isArray(programRes) ? programRes : [];
+        const booths = Array.isArray(boothRes?.data?.data?.content)
+          ? boothRes.data.data.content
+          : [];
+        const boothMap = new Map(
+          booths
+            .map((item) => [Number(item?.boothId), item?.placeName])
+            .filter(([id, name]) => Number.isFinite(id) && !!name),
+        );
+        await loadProgramImageCache();
+        const list = injectProgramImages(
+          Array.isArray(programRes) ? programRes : [],
+        );
         const filtered = list.filter(
           (item) => Number(item?.eventId) === safeEventId,
         );
-        setPrograms(filtered.map(normalizeProgram));
+        setPrograms(
+          filtered.map((item, idx) => normalizeProgram(item, idx, boothMap)),
+        );
       } catch (e) {
         if (!mounted) return;
         setError(

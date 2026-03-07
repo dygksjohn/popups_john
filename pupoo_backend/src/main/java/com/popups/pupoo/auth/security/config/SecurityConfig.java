@@ -133,7 +133,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasAnyRole("USER", "ADMIN")
             .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasAnyRole("USER", "ADMIN")
 
-            .requestMatchers("/api/admin/**").hasRole("ADMIN")
+            .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 
             .requestMatchers("/api/users/me/**").hasRole("USER")
             .requestMatchers("/api/payments/**").hasRole("USER")
