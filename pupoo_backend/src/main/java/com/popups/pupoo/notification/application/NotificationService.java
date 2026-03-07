@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 
@@ -160,11 +161,11 @@ public class NotificationService {
         notificationRepository.save(notification);
 
         List<NotificationChannel> channels = normalizeChannels(request.getChannels());
-        RecipientScope scope = request.getRecipientScope() == null ? RecipientScope.INTEREST_SUBSCRIBERS : request.getRecipientScope();
+        List<RecipientScope> scopes = normalizeRecipientScopes(request);
 
         // 1) INAPP fan-out
         if (channels.contains(NotificationChannel.APP)) {
-            fanoutInbox(request.getEventId(), notification.getNotificationId(), request.getTargetType(), request.getTargetId(), scope);
+            fanoutInbox(request.getEventId(), notification, request.getTargetType(), request.getTargetId(), scopes);
             notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.APP));
             notificationSender.send(new NotificationSender.SendCommand(notification.getNotificationId(), null, adminUserId, SenderType.ADMIN, NotificationChannel.APP));
         }
@@ -172,12 +173,12 @@ public class NotificationService {
         // 2) EMAIL/SMS/PUSH는 v1.0에서는 로컬 로그/DB 적재로 대체
         // - 구독(allow_email/allow_sms) 정책을 DB로부터 fan-out하는 쿼리를 통해 수신자 범위를 확정한다.
         if (channels.contains(NotificationChannel.EMAIL)) {
-            fanoutSendOnly(request.getEventId(), notification.getNotificationId(), scope, NotificationChannel.EMAIL);
+            fanoutSendOnly(request.getEventId(), notification.getNotificationId(), scopes, NotificationChannel.EMAIL);
             notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.EMAIL));
         }
 
         if (channels.contains(NotificationChannel.SMS)) {
-            fanoutSendOnly(request.getEventId(), notification.getNotificationId(), scope, NotificationChannel.SMS);
+            fanoutSendOnly(request.getEventId(), notification.getNotificationId(), scopes, NotificationChannel.SMS);
             notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.SMS));
         }
 
@@ -234,6 +235,20 @@ public class NotificationService {
         return new ArrayList<>(set);
     }
 
+    private List<RecipientScope> normalizeRecipientScopes(NotificationCreateRequest request) {
+        EnumSet<RecipientScope> scopes = EnumSet.noneOf(RecipientScope.class);
+        if (request.getRecipientScopes() != null) {
+            scopes.addAll(request.getRecipientScopes());
+        }
+        if (request.getRecipientScope() != null) {
+            scopes.add(request.getRecipientScope());
+        }
+        if (scopes.isEmpty()) {
+            scopes.add(RecipientScope.INTEREST_SUBSCRIBERS);
+        }
+        return new ArrayList<>(scopes);
+    }
+
     private void fanoutInbox(Long eventId,
                              Long notificationId,
                              InboxTargetType targetType,
@@ -257,6 +272,21 @@ public class NotificationService {
         throw new BusinessException(ErrorCode.INVALID_REQUEST);
     }
 
+    private void fanoutInbox(Long eventId,
+                             Notification notification,
+                             InboxTargetType targetType,
+                             Long targetId,
+                             List<RecipientScope> scopes) {
+        LinkedHashSet<Long> recipientUserIds = resolveRecipientUserIds(eventId, scopes);
+        if (recipientUserIds.isEmpty()) {
+            return;
+        }
+        List<NotificationInbox> inboxes = recipientUserIds.stream()
+                .map(userId -> NotificationInbox.create(userId, notification, targetType, targetId))
+                .toList();
+        notificationInboxRepository.saveAll(inboxes);
+    }
+
 
     /**
      * EMAIL/SMS 전송 대상 산정 및 전송 호출.
@@ -265,12 +295,15 @@ public class NotificationService {
      * - 실제 외부 발송(SMS/Email)은 하지 않고, Sender 구현체에서 로그/DB(notification_send)로 대체한다.
      * - 대상자 필터(allow_email/allow_sms)는 DB 조회로 강제한다.
      */
-    private void fanoutSendOnly(Long eventId, Long notificationId, RecipientScope scope, NotificationChannel channel) {
+    private void fanoutSendOnly(Long eventId,
+                                Long notificationId,
+                                List<RecipientScope> scopes,
+                                NotificationChannel channel) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         if (channel == NotificationChannel.EMAIL) {
-            List<String> emails = resolveEmails(eventId, scope);
+            List<String> emails = resolveEmails(eventId, scopes);
             if (!emails.isEmpty()) {
                 notificationSender.sendEmail(emails, notification.getNotificationTitle(), notification.getContent());
             }
@@ -278,7 +311,7 @@ public class NotificationService {
         }
 
         if (channel == NotificationChannel.SMS) {
-            List<String> phones = resolvePhones(eventId, scope);
+            List<String> phones = resolvePhones(eventId, scopes);
             if (!phones.isEmpty()) {
                 notificationSender.sendSms(phones, notification.getContent());
             }
@@ -301,6 +334,14 @@ public class NotificationService {
         return List.of();
     }
 
+    private List<String> resolveEmails(Long eventId, List<RecipientScope> scopes) {
+        LinkedHashSet<String> emails = new LinkedHashSet<>();
+        for (RecipientScope scope : scopes) {
+            emails.addAll(resolveEmails(eventId, scope));
+        }
+        return new ArrayList<>(emails);
+    }
+
     private List<String> resolvePhones(Long eventId, RecipientScope scope) {
         if (scope == RecipientScope.INTEREST_SUBSCRIBERS) {
             return notificationInboxRepository.findSmsTargetsByEventInterest(eventId);
@@ -312,5 +353,33 @@ public class NotificationService {
             return notificationInboxRepository.findSmsTargetsByEventPayers(eventId);
         }
         return List.of();
+    }
+
+    private List<String> resolvePhones(Long eventId, List<RecipientScope> scopes) {
+        LinkedHashSet<String> phones = new LinkedHashSet<>();
+        for (RecipientScope scope : scopes) {
+            phones.addAll(resolvePhones(eventId, scope));
+        }
+        return new ArrayList<>(phones);
+    }
+
+    private LinkedHashSet<Long> resolveRecipientUserIds(Long eventId, List<RecipientScope> scopes) {
+        LinkedHashSet<Long> recipientUserIds = new LinkedHashSet<>();
+        for (RecipientScope scope : scopes) {
+            if (scope == RecipientScope.INTEREST_SUBSCRIBERS) {
+                recipientUserIds.addAll(notificationInboxRepository.findInAppUserIdsByEventInterest(eventId));
+                continue;
+            }
+            if (scope == RecipientScope.EVENT_REGISTRANTS) {
+                recipientUserIds.addAll(notificationInboxRepository.findInAppUserIdsByEventRegistrants(eventId));
+                continue;
+            }
+            if (scope == RecipientScope.EVENT_PAYERS) {
+                recipientUserIds.addAll(notificationInboxRepository.findInAppUserIdsByEventPayers(eventId));
+                continue;
+            }
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        return recipientUserIds;
     }
 }

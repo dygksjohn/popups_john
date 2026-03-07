@@ -115,35 +115,35 @@ public class SecurityConfig {
             .requestMatchers("/static/**").permitAll()
 
             // Admin console writes board content with admin token.
-            .requestMatchers(HttpMethod.POST, "/api/posts").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.PUT, "/api/posts/*").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.DELETE, "/api/posts/*").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.PATCH, "/api/posts/*/close").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.POST, "/api/reviews").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.PATCH, "/api/reviews/*").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.DELETE, "/api/reviews/*").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.POST, "/api/qnas").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.PATCH, "/api/qnas/*").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.DELETE, "/api/qnas/*").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.POST, "/api/qnas/*/close").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/posts").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.PUT, "/api/posts/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/posts/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.PATCH, "/api/posts/*/close").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/reviews").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.PATCH, "/api/reviews/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/reviews/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/qnas").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.PATCH, "/api/qnas/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/qnas/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/qnas/*/close").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
 
             // Gallery write APIs require login.
-            .requestMatchers(HttpMethod.POST, "/api/galleries/image/upload").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.POST, "/api/galleries").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasAnyRole("USER", "ADMIN")
-            .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasAnyRole("USER", "ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/galleries/image/upload").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/galleries").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
 
             .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 
-            .requestMatchers("/api/users/me/**").hasRole("USER")
-            .requestMatchers("/api/payments/**").hasRole("USER")
-            .requestMatchers("/api/refunds/**").hasRole("USER")
-            .requestMatchers("/api/notifications/**").hasRole("USER")
-            .requestMatchers(HttpMethod.POST, "/api/event-registrations").hasRole("USER")
-            .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**").hasRole("USER")
-            .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations").hasRole("USER")
+            .requestMatchers("/api/users/me/**").hasAnyRole("USER", "SUPER_ADMIN")
+            .requestMatchers("/api/payments/**").hasAnyRole("USER", "SUPER_ADMIN")
+            .requestMatchers("/api/refunds/**").hasAnyRole("USER", "SUPER_ADMIN")
+            .requestMatchers("/api/notifications/**").hasAnyRole("USER", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/event-registrations").hasAnyRole("USER", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**").hasAnyRole("USER", "SUPER_ADMIN")
+            .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations").hasAnyRole("USER", "SUPER_ADMIN")
 
-            .anyRequest().hasAnyRole("USER", "ADMIN")
+            .anyRequest().hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
         );
 
         http.addFilterBefore(

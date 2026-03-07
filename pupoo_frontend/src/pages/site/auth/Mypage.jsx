@@ -538,11 +538,7 @@ export default function MyPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [deletingInboxIds, setDeletingInboxIds] = useState([]);
 
-  const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrEventId, setQrEventId] = useState("");
-  const [qrPayload, setQrPayload] = useState(null);
-  const [qrLoading, setQrLoading] = useState(false);
-  const [qrError, setQrError] = useState("");
 
   const loadEventDetails = useCallback(async (ids) => {
     const eventIds = [...new Set(safeArray(ids).filter(Boolean))];
@@ -676,7 +672,7 @@ export default function MyPage() {
 
       const firstQrEvent = regRows.find((row) => {
         const s = String(row?.status || "").toUpperCase();
-        return row?.eventId && (s === "APPLIED" || s === "APPROVED");
+        return row?.eventId && s === "APPROVED";
       });
       if (firstQrEvent?.eventId) {
         setQrEventId(String(firstQrEvent.eventId));
@@ -704,7 +700,7 @@ export default function MyPage() {
     () =>
       registrations.filter((item) => {
         const status = String(item?.status || "").toUpperCase();
-        return item?.eventId && (status === "APPLIED" || status === "APPROVED");
+        return item?.eventId && status === "APPROVED";
       }),
     [registrations],
   );
@@ -739,34 +735,13 @@ export default function MyPage() {
     });
   }, [participations, eventMap]);
 
-  const issueQr = useCallback(async () => {
-    if (!qrEventId) return;
-
-    try {
-      setQrLoading(true);
-      setQrError("");
-      const data = await mypageApi.issueMyQr(Number(qrEventId));
-      setQrPayload(data || null);
-    } catch (e) {
-      setQrPayload(null);
-      setQrError(e?.message || "QR 조회에 실패했습니다.");
-    } finally {
-      setQrLoading(false);
-    }
-  }, [qrEventId]);
-
-  useEffect(() => {
-    if (!qrModalOpen || !qrEventId) return;
-    issueQr();
-  }, [qrModalOpen, qrEventId, issueQr]);
-
-  const openQrModal = () => {
-    if (!qrEventId && qrCandidates[0]?.eventId) {
-      setQrEventId(String(qrCandidates[0].eventId));
-    }
-    setQrError("");
-    setQrPayload(null);
-    setQrModalOpen(true);
+  const openQrCheckin = () => {
+    const nextEventId = qrEventId || String(qrCandidates[0]?.eventId || "");
+    navigate(
+      nextEventId
+        ? `/registration/qrcheckin?eventId=${nextEventId}`
+        : "/registration/qrcheckin",
+    );
   };
 
   const moveToEventPage = (eventId) => {
@@ -893,7 +868,7 @@ export default function MyPage() {
                 >
                   회원정보 수정
                 </button>
-                <button type="button" className="mp-btn ghost" onClick={openQrModal}>
+                <button type="button" className="mp-btn ghost" onClick={openQrCheckin}>
                   QR 코드
                 </button>
               </div>
@@ -1071,75 +1046,6 @@ export default function MyPage() {
         ) : null}
       </main>
 
-      {qrModalOpen ? (
-        <div className="mp-modal-backdrop" onClick={() => setQrModalOpen(false)}>
-          <div className="mp-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="mp-modal-head">
-              <h3 className="mp-modal-title">QR 코드</h3>
-              <button type="button" className="mp-close" onClick={() => setQrModalOpen(false)}>
-                ×
-              </button>
-            </div>
-
-            <div className="mp-field">
-              <label className="mp-label">QR 발급 행사 선택</label>
-              <select
-                className="mp-select"
-                value={qrEventId}
-                onChange={(e) => setQrEventId(e.target.value)}
-                disabled={qrCandidates.length === 0}
-              >
-                {qrCandidates.length === 0 ? (
-                  <option value="">QR 발급 가능한 신청 행사가 없습니다.</option>
-                ) : (
-                  qrCandidates.map((item) => {
-                    const detail = eventMap[String(item?.eventId)] || {};
-                    return (
-                      <option key={`qr-${item?.applyId}-${item?.eventId}`} value={String(item?.eventId)}>
-                        {item?.eventName || detail?.eventName || "행사 정보 없음"}
-                      </option>
-                    );
-                  })
-                )}
-              </select>
-            </div>
-
-            <div className="mp-modal-actions">
-              <button type="button" className="mp-btn ghost" onClick={() => setQrModalOpen(false)}>
-                닫기
-              </button>
-              <button
-                type="button"
-                className="mp-btn primary"
-                onClick={issueQr}
-                disabled={!qrEventId || qrLoading}
-              >
-                {qrLoading ? "조회 중..." : "QR 조회"}
-              </button>
-            </div>
-
-            {qrError ? <div className="mp-danger">{qrError}</div> : null}
-
-            {qrPayload ? (
-              <div className="mp-qr-box">
-                {qrPayload?.originalUrl ? (
-                  <img
-                    className="mp-qr-image"
-                    src={qrPayload.originalUrl}
-                    alt="내 QR 코드"
-                  />
-                ) : null}
-                <div className="mp-qr-meta">
-                  <div>qrId: {qrPayload?.qrId || "-"}</div>
-                  <div>eventId: {qrPayload?.eventId || "-"}</div>
-                  <div>issuedAt: {fmtDateTime(qrPayload?.issuedAt)}</div>
-                  <div>expiredAt: {fmtDateTime(qrPayload?.expiredAt)}</div>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
