@@ -40,4 +40,18 @@ export const adminNotificationApi = {
       .post("/api/admin/notifications/event", body)
       .then((res) => unwrap(res));
   },
+
+  publishBroadcast(payload) {
+    const body = {
+      type: payload.type,
+      title: payload.title,
+      content: payload.content,
+      targetType: payload.targetType ?? "NOTICE",
+      targetId: payload.targetId ?? 0,
+      channels: payload.channels ?? ["APP"],
+    };
+    return axiosInstance
+      .post("/api/admin/notifications/broadcast", body)
+      .then((res) => unwrap(res));
+  },
 };

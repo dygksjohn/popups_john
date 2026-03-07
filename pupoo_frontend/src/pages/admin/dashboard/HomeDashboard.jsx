@@ -55,6 +55,16 @@ const REFUND_STATUS_META = {
 };
 
 const DEMO_CONGESTION_BASE = [18, 24, 31, 43, 57, 68, 76, 72, 63, 55, 48, 39];
+const MULTI_EVENT_COLORS = [
+  ds.amber,
+  ds.brand,
+  ds.sky,
+  ds.green,
+  ds.red,
+  ds.violet,
+  "#0f766e",
+  "#f97316",
+];
 
 const authHeaders = () => {
   const token = getToken();
@@ -203,6 +213,61 @@ const buildDummyCongestionRows = (event) => {
   });
 };
 
+const normalizeCongestionRows = (payload) =>
+  toArray(payload)
+    .map((row) => ({
+      hour: Number(row.hour) || 0,
+      label: `${String(Number(row.hour) || 0).padStart(2, "0")}:00`,
+      value: Math.round(Number(row.avgCongestionLevel) || 0),
+    }))
+    .sort((a, b) => a.hour - b.hour);
+
+const buildCongestionLine = (event, payload, color) => {
+  const rawRows = normalizeCongestionRows(payload);
+  const useDummy =
+    rawRows.length === 0 || !rawRows.some((row) => Number(row.value) > 0);
+  const rows = useDummy ? buildDummyCongestionRows(event) : rawRows;
+  return {
+    eventId: Number(event?.eventId) || 0,
+    eventName: event?.eventName || `행사 ${event?.eventId}`,
+    color,
+    rows,
+    useDummy,
+  };
+};
+
+const mergeCongestionChartRows = (lines = []) => {
+  const bucket = new Map();
+  lines.forEach((line) => {
+    line.rows.forEach((row) => {
+      const hour = Number(row.hour) || 0;
+      const current = bucket.get(hour) || { hour, label: row.label };
+      current[`event_${line.eventId}`] = row.value;
+      bucket.set(hour, current);
+    });
+  });
+  return Array.from(bucket.values()).sort((a, b) => a.hour - b.hour);
+};
+
+const summarizeCongestionLines = (lines = []) => {
+  const latestValues = lines
+    .map((line) => Number(line.rows[line.rows.length - 1]?.value) || 0)
+    .filter((value) => Number.isFinite(value));
+  const peakValues = lines.flatMap((line) =>
+    line.rows.map((row) => Number(row.value) || 0),
+  );
+  return {
+    average: latestValues.length
+      ? Math.round(
+          latestValues.reduce((sum, value) => sum + value, 0) /
+            latestValues.length,
+        )
+      : 0,
+    peak: peakValues.length ? Math.max(...peakValues) : 0,
+    eventCount: lines.length,
+  };
+};
+
 const eventOptionLabel = (event) =>
   `${event.eventName} · ${formatDateRange(event.startAt, event.endAt)}`;
 
@@ -312,23 +377,46 @@ export default function HomeDashboard({ initialEventId = null }) {
         ? allEvents.find((event) => String(event.eventId) === String(selectedEventId)) || null
         : null;
       const focusEvent = selectedEvent || liveEvents[0] || allEvents[0] || null;
+      const isAllEventCongestionView = !selectedEvent && liveEvents.length > 0;
+      const [focusCongestionPayload, focusBoothPayload, multiEventCongestionPayloads] = await Promise.all([
+        focusEvent
+          ? safePayload(`/api/admin/analytics/events/${focusEvent.eventId}/congestion-by-hour`, {}, [])
+          : Promise.resolve([]),
+        focusEvent
+          ? safePayload(`/api/admin/dashboard/realtime/events/${focusEvent.eventId}/congestions`, { limit: 24 }, [])
+          : Promise.resolve([]),
+        isAllEventCongestionView
+          ? Promise.all(
+              liveEvents.map((event, index) =>
+                safePayload(`/api/admin/analytics/events/${event.eventId}/congestion-by-hour`, {}, []).then((payload) =>
+                  buildCongestionLine(
+                    event,
+                    payload,
+                    MULTI_EVENT_COLORS[index % MULTI_EVENT_COLORS.length],
+                  ),
+                ),
+              ),
+            )
+          : Promise.resolve([]),
+      ]);
 
-      const [focusCongestionPayload, focusBoothPayload] = focusEvent
-        ? await Promise.all([
-            safePayload(`/api/admin/analytics/events/${focusEvent.eventId}/congestion-by-hour`, {}, []),
-            safePayload(`/api/admin/dashboard/realtime/events/${focusEvent.eventId}/congestions`, { limit: 24 }, []),
-          ])
-        : [[], []];
-
-      const rawCongestion = toArray(focusCongestionPayload)
-        .map((row) => ({
-          hour: Number(row.hour) || 0,
-          label: `${String(Number(row.hour) || 0).padStart(2, "0")}:00`,
-          value: Math.round(Number(row.avgCongestionLevel) || 0),
-        }))
-        .sort((a, b) => a.hour - b.hour);
-      const usingDummyCongestion = rawCongestion.length === 0 || !rawCongestion.some((row) => row.value > 0);
-      const focusCongestion = usingDummyCongestion ? buildDummyCongestionRows(focusEvent) : rawCongestion;
+      const focusLine = focusEvent
+        ? buildCongestionLine(focusEvent, focusCongestionPayload, ds.amber)
+        : { rows: [], useDummy: false };
+      const usingDummyCongestion = Boolean(focusLine.useDummy);
+      const focusCongestion = focusLine.rows;
+      const allEventCongestionLines = isAllEventCongestionView
+        ? multiEventCongestionPayloads
+        : [];
+      const allEventCongestionChartData = mergeCongestionChartRows(
+        allEventCongestionLines,
+      );
+      const allEventCongestionSummary = summarizeCongestionLines(
+        allEventCongestionLines,
+      );
+      const usingAnyDummyCongestion = isAllEventCongestionView
+        ? allEventCongestionLines.some((line) => line.useDummy)
+        : usingDummyCongestion;
 
       const topBooths = toArray(focusBoothPayload)
         .filter((row) => Number.isFinite(Number(row.congestionLevel)))
@@ -407,13 +495,17 @@ export default function HomeDashboard({ initialEventId = null }) {
       const refundDonutRows = refundStatusRows.filter((row) => row.count > 0);
 
       const alerts = [];
-      if (usingDummyCongestion) {
+      if (usingAnyDummyCongestion) {
         alerts.push({
           icon: Radio,
           color: ds.amber,
           bg: ds.amberSoft,
           message: "혼잡 실측 데이터가 없어 시연용 더미 데이터를 표시합니다.",
-          detail: focusEvent ? `${focusEvent.eventName} 행사 기준 더미 추이입니다.` : "행사를 선택하면 자동으로 교체됩니다.",
+          detail: isAllEventCongestionView
+            ? `진행 중 행사 ${formatNumber(allEventCongestionLines.length)}건 중 일부는 더미 추이입니다.`
+            : focusEvent
+              ? `${focusEvent.eventName} 행사 기준 더미 추이입니다.`
+              : "행사를 선택하면 자동으로 교체됩니다.",
         });
       }
       if (requestedRefundCount > 0) {
@@ -469,7 +561,11 @@ export default function HomeDashboard({ initialEventId = null }) {
         liveEvents,
         focusEvent,
         focusCongestion,
-        usingDummyCongestion,
+        usingDummyCongestion: usingAnyDummyCongestion,
+        isAllEventCongestionView,
+        allEventCongestionLines,
+        allEventCongestionChartData,
+        allEventCongestionSummary,
         topBooths,
         eventPerformance,
         selectedPerformance,
@@ -547,6 +643,10 @@ export default function HomeDashboard({ initialEventId = null }) {
   }
 
   const selectedScope = selectedEventId !== "ALL" && snapshot.focusEvent;
+  const isAllEventCongestionView =
+    !selectedScope &&
+    snapshot.isAllEventCongestionView &&
+    snapshot.allEventCongestionLines.length > 0;
   const focusStatus = snapshot.focusEvent
     ? EVENT_STATUS_META[snapshot.focusEvent.status] || EVENT_STATUS_META.PLANNED
     : null;
@@ -646,14 +746,99 @@ export default function HomeDashboard({ initialEventId = null }) {
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 14, marginBottom: 14 }}>
           <SectionCard
             title="실시간 혼잡 추이"
-            subtitle={snapshot.focusEvent ? `${snapshot.focusEvent.eventName} 행사 기준 시간대별 평균 혼잡도` : "행사를 선택하면 시간대별 혼잡 추이를 보여줍니다."}
+            subtitle={isAllEventCongestionView
+              ? `진행 중 행사 ${formatNumber(snapshot.allEventCongestionLines.length)}건의 시간대별 평균 혼잡도`
+              : snapshot.focusEvent
+                ? `${snapshot.focusEvent.eventName} 행사 기준 시간대별 평균 혼잡도`
+                : "행사를 선택하면 시간대별 혼잡 추이를 보여줍니다."}
             action={snapshot.usingDummyCongestion ? (
               <Pill color={ds.amber} bg={ds.amberSoft}>시연용 데이터</Pill>
+            ) : isAllEventCongestionView ? (
+              <Pill color={ds.green} bg={ds.greenSoft}>
+                진행 중 {formatNumber(snapshot.allEventCongestionLines.length)}개 행사
+              </Pill>
             ) : topBooth ? (
               <Pill color={topBooth.state.c} bg={topBooth.state.bg}>최고 혼잡 {topBooth.placeName} {topBooth.congestionLevel}%</Pill>
             ) : null}
           >
-            {snapshot.focusCongestion.length > 0 ? (
+            {isAllEventCongestionView ? (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
+                  <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>현재 평균 혼잡도</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
+                      {formatNumber(snapshot.allEventCongestionSummary.average)}%
+                    </div>
+                  </div>
+                  <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>최고 혼잡도</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
+                      {formatNumber(snapshot.allEventCongestionSummary.peak)}%
+                    </div>
+                  </div>
+                  <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>집계 행사</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
+                      {formatNumber(snapshot.allEventCongestionSummary.eventCount)}
+                    </div>
+                  </div>
+                </div>
+                {snapshot.allEventCongestionChartData.length > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <LineChart data={snapshot.allEventCongestionChartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={ds.lineSoft} vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} width={34} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                        <Tooltip content={<ChartTip suffix="%" light showName />} />
+                        {snapshot.allEventCongestionLines.map((line) => (
+                          <Line
+                            key={line.eventId}
+                            type="monotone"
+                            dataKey={`event_${line.eventId}`}
+                            name={line.eventName}
+                            stroke={line.color}
+                            strokeWidth={2.4}
+                            dot={{ r: 2.6, fill: line.color, stroke: "#fff", strokeWidth: 1.5 }}
+                            activeDot={{ r: 4.4, fill: line.color, stroke: "#fff", strokeWidth: 2 }}
+                            connectNulls
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
+                      {snapshot.allEventCongestionLines.map((line) => (
+                        <div
+                          key={line.eventId}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "6px 10px",
+                            borderRadius: 999,
+                            background: ds.bg,
+                            border: `1px solid ${ds.line}`,
+                            fontSize: 11.5,
+                            color: ds.ink3,
+                            fontWeight: 700,
+                          }}
+                        >
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: line.color, flexShrink: 0 }} />
+                          <span>{line.eventName}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {snapshot.usingDummyCongestion && (
+                      <div style={{ marginTop: 10, fontSize: 11.5, color: ds.amber, fontWeight: 700 }}>
+                        실측 혼잡 데이터가 없는 행사는 시연용 더미 추이를 함께 표시하고 있습니다.
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <ChartEmpty title="표시할 혼잡 추이가 없습니다." description="진행 중 행사 데이터가 누적되면 자동으로 반영됩니다." />
+                )}
+              </>
+            ) : snapshot.focusCongestion.length > 0 ? (
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>

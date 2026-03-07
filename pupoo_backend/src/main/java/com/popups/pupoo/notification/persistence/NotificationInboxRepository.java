@@ -123,9 +123,25 @@ public interface NotificationInboxRepository extends JpaRepository<NotificationI
               AND p.status = 'APPROVED'
             """, nativeQuery = true)
     int fanoutInboxByEventPayers(@Param("eventId") Long eventId,
-                                @Param("notificationId") Long notificationId,
-                                @Param("targetType") String targetType,
-                                @Param("targetId") Long targetId);
+                                 @Param("notificationId") Long notificationId,
+                                 @Param("targetType") String targetType,
+                                 @Param("targetId") Long targetId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            INSERT INTO notification_inbox (user_id, notification_id, created_at, target_type, target_id)
+            SELECT
+                u.user_id,
+                :notificationId,
+                NOW(),
+                :targetType,
+                :targetId
+            FROM users u
+            WHERE u.status = 'ACTIVE'
+            """, nativeQuery = true)
+    int fanoutInboxByAllActiveUsers(@Param("notificationId") Long notificationId,
+                                    @Param("targetType") String targetType,
+                                    @Param("targetId") Long targetId);
 
     /* =========================================================
      * EMAIL/SMS 전송 대상 산정(로컬은 실제 발송 대신 send 테이블로 기록)

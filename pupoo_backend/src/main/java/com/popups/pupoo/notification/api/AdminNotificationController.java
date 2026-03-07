@@ -5,6 +5,7 @@ import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.notification.application.NotificationAdminService;
+import com.popups.pupoo.notification.dto.NotificationBroadcastRequest;
 import com.popups.pupoo.notification.dto.NotificationCreateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,13 @@ public class AdminNotificationController {
         // Keep a non-null payload per SSOT response policy.
         Long adminUserId = securityUtil.currentUserId();
         notificationAdminService.publishByEvent(request, adminUserId);
+        return ApiResponse.success(new MessageResponse("NOTIFICATION_PUBLISHED"));
+    }
+
+    @PostMapping("/broadcast")
+    public ApiResponse<MessageResponse> publishBroadcast(@Valid @RequestBody NotificationBroadcastRequest request) {
+        Long adminUserId = securityUtil.currentUserId();
+        notificationAdminService.publishBroadcast(request, adminUserId);
         return ApiResponse.success(new MessageResponse("NOTIFICATION_PUBLISHED"));
     }
 }

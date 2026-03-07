@@ -12,6 +12,7 @@ import com.popups.pupoo.notification.domain.model.Notification;
 import com.popups.pupoo.notification.domain.model.NotificationInbox;
 import com.popups.pupoo.notification.domain.model.NotificationSend;
 import com.popups.pupoo.notification.domain.model.NotificationSettings;
+import com.popups.pupoo.notification.dto.NotificationBroadcastRequest;
 import com.popups.pupoo.notification.dto.NotificationCreateRequest;
 import com.popups.pupoo.notification.dto.NotificationInboxResponse;
 import com.popups.pupoo.notification.dto.NotificationListResponse;
@@ -177,6 +178,38 @@ public class NotificationService {
 
         if (channels.contains(NotificationChannel.SMS)) {
             fanoutSendOnly(request.getEventId(), notification.getNotificationId(), scope, NotificationChannel.SMS);
+            notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.SMS));
+        }
+
+        if (channels.contains(NotificationChannel.PUSH)) {
+            notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.PUSH));
+        }
+    }
+
+    @Transactional
+    public void publishAdminBroadcastNotification(Long adminUserId, NotificationBroadcastRequest request) {
+        Notification notification = Notification.create(request.getType(), request.getTitle(), request.getContent());
+        notificationRepository.save(notification);
+
+        List<NotificationChannel> channels = normalizeChannels(request.getChannels());
+        InboxTargetType targetType = request.getTargetType() == null ? InboxTargetType.NOTICE : request.getTargetType();
+        Long targetId = request.getTargetId() == null ? 0L : request.getTargetId();
+
+        if (channels.contains(NotificationChannel.APP)) {
+            notificationInboxRepository.fanoutInboxByAllActiveUsers(
+                    notification.getNotificationId(),
+                    targetType.name(),
+                    targetId
+            );
+            notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.APP));
+            notificationSender.send(new NotificationSender.SendCommand(notification.getNotificationId(), null, adminUserId, SenderType.ADMIN, NotificationChannel.APP));
+        }
+
+        if (channels.contains(NotificationChannel.EMAIL)) {
+            notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.EMAIL));
+        }
+
+        if (channels.contains(NotificationChannel.SMS)) {
             notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.SMS));
         }
 
