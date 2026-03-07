@@ -6,6 +6,7 @@ import { LogIn, LogOut, UserPlus, UserCircle, Bell } from "lucide-react";
 import {
   notificationApi,
   NOTIFICATION_UNREAD_COUNT_EVENT,
+  emitNotificationUnreadCount,
 } from "../../../app/http/notificationApi";
 
 /* ?????????????????????????????????????????????
@@ -545,6 +546,7 @@ export default function PupooHeader() {
   const [activeMenu, setActiveMenu] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const unreadCountRef = useRef(0);
   const headerRef = useRef(null);
   const location = useLocation();
   const isHome = location.pathname === "/";
@@ -556,14 +558,66 @@ export default function PupooHeader() {
   }, []);
 
   useEffect(() => {
+    unreadCountRef.current = unreadCount;
+  }, [unreadCount]);
+
+  useEffect(() => {
     if (!isAuthed) {
+      unreadCountRef.current = 0;
       setUnreadCount(0);
       return;
     }
-    notificationApi
-      .getUnreadCount()
-      .then((n) => setUnreadCount(Number(n) || 0))
-      .catch(() => setUnreadCount(0));
+
+    let disposed = false;
+
+    const syncUnreadCount = async ({ forceEmit = false } = {}) => {
+      try {
+        const nextCount = Math.max(
+          0,
+          Number(await notificationApi.getUnreadCount()) || 0,
+        );
+        if (disposed) return;
+
+        const prevCount = unreadCountRef.current;
+        unreadCountRef.current = nextCount;
+        setUnreadCount(nextCount);
+
+        if (forceEmit || prevCount !== nextCount) {
+          emitNotificationUnreadCount(nextCount);
+        }
+      } catch {
+        if (disposed) return;
+        unreadCountRef.current = 0;
+        setUnreadCount(0);
+      }
+    };
+
+    syncUnreadCount({ forceEmit: true });
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      syncUnreadCount();
+    }, 5000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncUnreadCount();
+      }
+    };
+
+    const handleWindowFocus = () => {
+      syncUnreadCount();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleWindowFocus);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
   }, [isAuthed]);
 
   useEffect(() => {
