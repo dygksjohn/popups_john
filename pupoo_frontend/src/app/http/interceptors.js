@@ -1,5 +1,7 @@
 import { tokenStore } from "./tokenStore";
 
+const ADMIN_TOKEN_KEY = "pupoo_admin_token";
+
 function normalizeUrlPath(url) {
   return String(url || "")
     .replace(/^https?:\/\/[^/]+/i, "")
@@ -28,6 +30,14 @@ function hasAuthHeader(config) {
   );
 }
 
+function getAdminAccessToken() {
+  try {
+    return localStorage.getItem(ADMIN_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function attachInterceptors(instance, options = {}) {
   instance.interceptors.request.use((config) => {
     if (shouldSkipAutoAuth(config, options)) {
@@ -38,7 +48,13 @@ export function attachInterceptors(instance, options = {}) {
       return config;
     }
 
-    const access = tokenStore.getAccess();
+    const path = normalizeUrlPath(config?.url);
+    const isAdminRequest =
+      path === "/api/admin" || path.startsWith("/api/admin/");
+    const access = isAdminRequest
+      ? getAdminAccessToken()
+      : tokenStore.getAccess();
+
     if (access) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${access}`;
