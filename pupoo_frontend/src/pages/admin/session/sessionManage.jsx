@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import ds, { statusMap } from "../shared/designTokens";
 import { Pill } from "../shared/Components";
+import { resolveAdminStatus } from "../shared/adminStatus";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
@@ -728,9 +729,12 @@ export default function SessionManage({ subTab = "all" }) {
       const list = res.data?.data || res.data || [];
       const mapped = injectEventImages(list).map((e) => ({
         ...e,
-        status: calcStatus(
-          e.startAt || e.date?.split("~")[0]?.trim()?.replace(/\./g, "-"),
-          e.endAt || e.date?.split("~")[1]?.trim()?.replace(/\./g, "-"),
+        status: resolveAdminStatus(
+          e,
+          calcStatus(
+            e.startAt || e.date?.split("~")[0]?.trim()?.replace(/\./g, "-"),
+            e.endAt || e.date?.split("~")[1]?.trim()?.replace(/\./g, "-"),
+          ),
         ),
       }));
       const parseId = (v) => {
@@ -756,7 +760,7 @@ export default function SessionManage({ subTab = "all" }) {
       );
       const raw = (res.data?.data || res.data || []).map((p) => ({
         ...p,
-        status: calcStatus(p.startAt, p.endAt),
+        status: resolveAdminStatus(p, calcStatus(p.startAt, p.endAt)),
         imageUrl:
           imageMapRef.current[p.programId || p.id] || p.imageUrl || null,
       }));
