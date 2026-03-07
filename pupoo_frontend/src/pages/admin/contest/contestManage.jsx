@@ -1030,7 +1030,6 @@ function ParticipantCard({
   p,
   rank,
   totalVotes,
-  onEdit,
   onDelete,
   onApprove,
   onReject,
@@ -1184,26 +1183,6 @@ function ParticipantCard({
             zIndex: 2,
           }}
         >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(p);
-            }}
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: "rgba(255,255,255,0.15)",
-              backdropFilter: "blur(6px)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Pencil size={12} color="#fff" />
-          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -1386,7 +1365,6 @@ export default function ContestManage({
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState(null);
   const [selectedContest, setSelectedContest] = useState(null);
-  const [participantModal, setParticipantModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteParticipant, setDeleteParticipant] = useState(null);
   const [internalTab, setInternalTab] = useState("all");
@@ -1738,7 +1716,7 @@ export default function ContestManage({
         JSON.stringify(e.response?.data) ||
         "저장 실패";
       console.error(
-        "[saveParticipant] error detail:",
+        "[saveContest] error detail:",
         JSON.stringify(e.response?.data),
       );
       showToast(errMsg, "error");
@@ -1865,10 +1843,6 @@ export default function ContestManage({
     } catch (e) {
       showToast(e.response?.data?.message || "삭제 실패", "error");
     }
-  };
-  const saveParticipant = async () => {
-    showToast("관리자 직접 참가자 등록/수정은 지원하지 않습니다.", "error");
-    setParticipantModal(null);
   };
   const handleDeleteParticipant = async () => {
     if (!deleteParticipant) return;
@@ -2258,14 +2232,6 @@ export default function ContestManage({
           msg={`현재 목록의 ${items.length}건을 전체 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
           onConfirm={handleDeleteAll}
           onCancel={() => setModal(null)}
-        />
-      )}
-      {participantModal && (
-        <ParticipantFormModal
-          item={participantModal.item}
-          onSave={saveParticipant}
-          onClose={() => setParticipantModal(null)}
-          isEdit={!!participantModal.item}
         />
       )}
       {deleteTarget && (
@@ -2894,26 +2860,6 @@ export default function ContestManage({
                 >
                   ⏹ 투표 종료
                 </button>
-                <button
-                  onClick={() => showToast("관리자 직접 참가자 수정은 지원하지 않습니다.", "error")}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    padding: "8px 16px",
-                    borderRadius: 9,
-                    border: "none",
-                    background: ds.brand,
-                    color: "#fff",
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontFamily: ds.ff,
-                    boxShadow: "0 2px 8px rgba(67,97,238,.2)",
-                  }}
-                >
-                  <Plus size={14} /> 참가자 등록
-                </button>
               </div>
             </div>
 
@@ -2955,27 +2901,8 @@ export default function ContestManage({
                   아직 참가자가 없습니다
                 </div>
                 <div style={{ fontSize: 13, color: ds.ink4, marginBottom: 18 }}>
-                  참가자를 등록해 콘테스트를 시작하세요
+                  참가 신청이 들어오면 이곳에 표시됩니다
                 </div>
-                <button
-                  onClick={() => showToast("관리자 직접 참가자 수정은 지원하지 않습니다.", "error")}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "10px 24px",
-                    borderRadius: 10,
-                    border: "none",
-                    background: ds.brand,
-                    color: "#fff",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontFamily: ds.ff,
-                  }}
-                >
-                  <Plus size={14} /> 첫 참가자 등록하기
-                </button>
               </div>
             ) : (
               <div
@@ -2991,45 +2918,11 @@ export default function ContestManage({
                     p={p}
                     rank={i + 1}
                     totalVotes={totalVotes}
-                    onEdit={() => showToast("관리자 직접 참가자 수정은 지원하지 않습니다.", "error")}
                     onDelete={(item) => setDeleteParticipant(item)}
                     onApprove={(item) => handleApproveParticipant(item)}
                     onReject={(item) => handleRejectParticipant(item)}
                   />
                 ))}
-                {/* 참가자 추가 카드 — CSS 호버 (빨간 테두리 + 아이콘 빨간 배경) */}
-                <div
-                  className="add-p-card"
-                  onClick={() => showToast("관리자 직접 참가자 수정은 지원하지 않습니다.", "error")}
-                >
-                  <div
-                    className="add-p-icon"
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 12,
-                      background: "#273047",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginBottom: 10,
-                      transition: "background .18s",
-                    }}
-                  >
-                    <Plus size={20} color="#6B7A99" />
-                  </div>
-                  <div
-                    className="add-p-label"
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#6B7A99",
-                      transition: "color .18s",
-                    }}
-                  >
-                    참가자 추가
-                  </div>
-                </div>
               </div>
             )}
 

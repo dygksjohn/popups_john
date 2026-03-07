@@ -573,15 +573,17 @@ export default function ServicePage() {
                 style={{
                   appearance: "none",
                   WebkitAppearance: "none",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                  padding: "7px 32px 7px 12px",
-                  fontSize: "14px",
-                  color: "#333",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  height: 38,
+                  padding: "0 34px 0 12px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#334155",
                   background: "#fff",
                   cursor: "pointer",
                   outline: "none",
-                  minWidth: "80px",
+                  minWidth: 108,
                 }}
               >
                 {FILTER_OPTIONS.map((opt) => (
@@ -599,7 +601,7 @@ export default function ServicePage() {
                   alignItems: "center",
                 }}
               >
-                <ChevronDown size={14} color="#666" />
+                <ChevronDown size={14} color="#64748b" />
               </span>
             </div>
 
