@@ -52,6 +52,7 @@ import Gallery from "../gallery/Gallery";
 import ParticipantList from "../participant/ParticipantList";
 import PaymentManage from "../participant/PaymentManage";
 import AlertManage from "../participant/AlertManage";
+import AdminLogManage from "../adminlog/AdminLogManage";
 /**/
 
 /* ═══════════════════════════════════════════════
@@ -148,6 +149,10 @@ const NAV = [
       { id: "alertManage", label: "알림 관리", icon: Send },
     ],
   },
+  {
+    section: "관리자",
+    items: [{ id: "adminLogs", label: "관리자 로그", icon: Settings }],
+  },
 ];
 
 const DEFAULT_PAGE_TABS = {
@@ -204,11 +209,25 @@ const DEFAULT_PAGE_TABS = {
     { id: "pending", label: "대기", count: 0 },
   ],
   alertManage: [{ id: "all", label: "알림 내역" }],
+  adminLogs: [{ id: "all", label: "로그 내역" }],
 };
 
 const authHeaders = () => {
   const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const normalizeAdminProgramCategory = (program) => {
+  const raw = String(
+    program?.category ?? program?.programCategory ?? program?.programType ?? "",
+  ).trim();
+  const upper = raw.toUpperCase();
+
+  if (upper === "CONTEST" || raw === "대회") return "CONTEST";
+  if (upper === "SESSION" || raw === "교육" || raw === "강연") return "SESSION";
+  if (upper === "EXPERIENCE" || raw === "체험") return "EXPERIENCE";
+
+  return upper;
 };
 
 const PAGE_TITLES = {
@@ -225,6 +244,7 @@ const PAGE_TITLES = {
   participantList: "참가자 목록",
   paymentManage: "결제 관리",
   alertManage: "알림 관리",
+  adminLogs: "관리자 로그",
 };
 
 /* ═══════════════════════════════════════════════
@@ -849,15 +869,11 @@ export default function Dashboard() {
           e.date?.split("~")[1]?.trim();
         return calcSt(s, en);
       });
-      const getProgramCategory = (program) =>
-        String(
-          program.category ?? program.programCategory ?? program.programType ?? "",
-        ).toUpperCase();
       const sessionPrograms = programs.filter(
-        (program) => getProgramCategory(program) === "SESSION",
+        (program) => normalizeAdminProgramCategory(program) === "SESSION",
       );
       const nonSessionPrograms = programs.filter(
-        (program) => getProgramCategory(program) !== "SESSION",
+        (program) => normalizeAdminProgramCategory(program) !== "SESSION",
       );
       const prComputed = nonSessionPrograms.map((p) =>
         calcSt(p.startAt, p.endAt),
@@ -868,8 +884,7 @@ export default function Dashboard() {
 
       // ????: ?? programs?? CONTEST ???? ???
       const contests = programs.filter((p) => {
-        const cat = getProgramCategory(p);
-        return cat.includes("CONTEST");
+        return normalizeAdminProgramCategory(p) === "CONTEST";
       });
       const ctComputed = contests.map((p) => calcSt(p.startAt, p.endAt));
 
@@ -945,7 +960,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadTabCounts();
-  }, [nav, loadTabCounts]);
+    const timerId = setInterval(() => {
+      loadTabCounts();
+    }, 5000);
+
+    return () => clearInterval(timerId);
+  }, [loadTabCounts]);
 
   const tabs = pageTabs[nav] || [];
   const activeTab = subTab || tabs[0]?.id;
@@ -982,6 +1002,8 @@ export default function Dashboard() {
         return <PaymentManage subTab={activeTab} />;
       case "alertManage":
         return <AlertManage />;
+      case "adminLogs":
+        return <AdminLogManage />;
       default:
         return <PageHome />;
     }

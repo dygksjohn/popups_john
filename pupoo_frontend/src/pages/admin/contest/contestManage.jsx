@@ -33,7 +33,16 @@ const toAbsUrl = (url) => {
 };
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
-import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
+import {
+  injectEventImages,
+  loadImageCache as loadEventImageCache,
+} from "../shared/eventImageStore";
+import {
+  getProgramImageMap,
+  loadImageCache as loadProgramImageCache,
+  removeProgramImage,
+  setProgramImage,
+} from "../shared/programImageStore";
 
 /* ═══ Styles ═══ */
 const styles = `
@@ -307,8 +316,28 @@ const readApiList = (payload) => {
 };
 
 const readVoteItems = (payload) => {
+  if (Array.isArray(payload?.results)) return payload.results;
   if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload)) return payload;
   return [];
+};
+
+const normalizeProgramCategory = (program) => {
+  const raw = String(
+    program?.category ?? program?.programCategory ?? program?.programType ?? "",
+  ).trim();
+  const upper = raw.toUpperCase();
+
+  if (upper === "CONTEST" || raw === "대회") return "CONTEST";
+  if (upper === "SESSION" || raw === "교육" || raw === "강연") return "SESSION";
+  if (upper === "EXPERIENCE" || raw === "체험") return "EXPERIENCE";
+
+  return upper;
+};
+
+const isContestProgram = (program) => {
+  const category = normalizeProgramCategory(program);
+  return category === "CONTEST" || category === "";
 };
 
 /* ═══ 다크 이미지 업로드 영역 ═══ */
@@ -1518,7 +1547,8 @@ export default function ContestManage({
 
   const loadEvents = async () => {
     try {
-      await loadImageCache();
+      await Promise.all([loadEventImageCache(), loadProgramImageCache()]);
+      imageMapRef.current = getProgramImageMap();
       const res = await axiosInstance.get("/api/admin/dashboard/events", {
         headers: authHeaders(),
         params: { sort: "eventId,desc", size: 500 },
@@ -1562,12 +1592,7 @@ export default function ContestManage({
           ? data
           : [];
       const list = raw
-        .filter((p) => {
-          const cat = String(
-            p.category ?? p.programCategory ?? "",
-          ).toUpperCase();
-          return cat.includes("CONTEST") || cat === "";
-        })
+        .filter((p) => isContestProgram(p))
         .map((p) => ({
           ...p,
           status: calcStatus(p.startAt, p.endAt),
@@ -1608,12 +1633,7 @@ export default function ContestManage({
         );
         const data = res.data?.data ?? res.data;
         const filtered = readApiList(data)
-          .filter((p) => {
-            const cat = String(
-              p.category ?? p.programCategory ?? "",
-            ).toUpperCase();
-            return cat.includes("CONTEST") || cat === "";
-          })
+          .filter((p) => isContestProgram(p))
           .map((p) => ({
             ...p,
             programId: p.programId || p.id,
@@ -1674,11 +1694,17 @@ export default function ContestManage({
             startAt: form.startAt ? `${form.startAt}T00:00:00` : null,
             endAt: form.endAt ? `${form.endAt}T23:59:59` : null,
             category: "CONTEST",
+            imageUrl: form.imageUrl || null,
           },
           { headers: authHeaders() },
         );
-        if (form.imageUrl)
+        if (form.imageUrl) {
           imageMapRef.current[modal.item.programId] = form.imageUrl;
+          setProgramImage(modal.item.programId, form.imageUrl);
+        } else {
+          delete imageMapRef.current[modal.item.programId];
+          removeProgramImage(modal.item.programId);
+        }
       } else {
         // ✅ POST /api/admin/dashboard/programs  eventId는 body에, 필드명: programTitle
         const res = await axiosInstance.post(
@@ -1690,11 +1716,15 @@ export default function ContestManage({
             startAt: form.startAt ? `${form.startAt}T00:00:00` : null,
             endAt: form.endAt ? `${form.endAt}T23:59:59` : null,
             category: "CONTEST",
+            imageUrl: form.imageUrl || null,
           },
           { headers: authHeaders() },
         );
         const newId = res.data?.data?.programId;
-        if (form.imageUrl && newId) imageMapRef.current[newId] = form.imageUrl;
+        if (form.imageUrl && newId) {
+          imageMapRef.current[newId] = form.imageUrl;
+          setProgramImage(newId, form.imageUrl);
+        }
       }
       showToast(
         isEdit ? "콘테스트가 수정되었습니다" : "콘테스트가 등록되었습니다",
@@ -1772,6 +1802,8 @@ export default function ContestManage({
         `/api/admin/dashboard/programs/${deleteTarget.programId}`,
         { headers: authHeaders() },
       );
+      delete imageMapRef.current[deleteTarget.programId];
+      removeProgramImage(deleteTarget.programId);
       showToast("삭제되었습니다");
       setDeleteTarget(null);
       if (selectedContest?.programId === deleteTarget.programId)
@@ -1787,13 +1819,18 @@ export default function ContestManage({
       return;
     }
     try {
+      const ids = [...selected];
       await Promise.all(
-        [...selected].map((id) =>
+        ids.map((id) =>
           axiosInstance.delete(`/api/admin/dashboard/programs/${id}`, {
             headers: authHeaders(),
           }),
         ),
       );
+      ids.forEach((id) => {
+        delete imageMapRef.current[id];
+        removeProgramImage(id);
+      });
       showToast(`${selected.size}건이 삭제되었습니다`);
       setSelected(new Set());
       setModal(null);
@@ -1808,6 +1845,7 @@ export default function ContestManage({
       return;
     }
     try {
+      const ids = items.map((it) => it.programId);
       await Promise.all(
         items.map((it) =>
           axiosInstance.delete(
@@ -1816,6 +1854,10 @@ export default function ContestManage({
           ),
         ),
       );
+      ids.forEach((id) => {
+        delete imageMapRef.current[id];
+        removeProgramImage(id);
+      });
       showToast("전체 삭제되었습니다");
       setModal(null);
       setSelectedContest(null);

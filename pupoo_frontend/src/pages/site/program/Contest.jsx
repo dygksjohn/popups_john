@@ -525,6 +525,11 @@ function formatTimeRange(startAt, endAt) {
   return a || b || "시간 미정";
 }
 
+function toSafeNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
 function getContestStatus(item) {
   if (item?.ongoing) return "live";
   if (item?.ended) return "ended";
@@ -537,10 +542,84 @@ function getContestStatus(item) {
   return "live";
 }
 
+function getContestProgress(item) {
+  const status = getContestStatus(item);
+  if (status === "ended") return 100;
+  if (status === "upcoming") return 0;
+
+  const start = parseDate(item?.startAt)?.getTime();
+  const end = parseDate(item?.endAt)?.getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return item?.totalVotes > 0 ? 100 : 50;
+  }
+
+  const elapsedRatio = ((Date.now() - start) / (end - start)) * 100;
+  return Math.max(0, Math.min(100, Math.round(elapsedRatio)));
+}
+
 function statusLabel(status) {
   if (status === "live") return "투표 진행 중";
   if (status === "ended") return "투표 종료";
   return "투표 예정";
+}
+
+function extractTotalElements(response) {
+  const data = response?.data?.data ?? response?.data ?? {};
+  return toSafeNumber(data?.totalElements);
+}
+
+function extractVoteTotal(response) {
+  const data = response?.data?.data ?? response?.data ?? {};
+  return toSafeNumber(data?.totalVotes ?? data?.total);
+}
+
+async function loadContestMetrics(programId) {
+  if (!programId) {
+    return { participants: 0, totalVotes: 0 };
+  }
+
+  const [candidateResult, voteResult] = await Promise.allSettled([
+    programApi.getCandidates(programId, { page: 0, size: 1 }),
+    programApi.getContestVoteResult(programId),
+  ]);
+
+  return {
+    participants:
+      candidateResult.status === "fulfilled"
+        ? extractTotalElements(candidateResult.value)
+        : 0,
+    totalVotes:
+      voteResult.status === "fulfilled" ? extractVoteTotal(voteResult.value) : 0,
+  };
+}
+
+async function enrichContestCards(contests) {
+  if (!Array.isArray(contests) || contests.length === 0) return [];
+
+  const metricsList = await Promise.all(
+    contests.map(async (contest) => ({
+      id: contest.id,
+      ...(await loadContestMetrics(contest.id)),
+    })),
+  );
+
+  const metricsMap = new Map(
+    metricsList.map((item) => [Number(item.id), item]),
+  );
+
+  return contests.map((contest) => {
+    const metrics = metricsMap.get(Number(contest.id));
+    const next = {
+      ...contest,
+      participants: metrics?.participants ?? 0,
+      totalVotes: metrics?.totalVotes ?? 0,
+    };
+
+    return {
+      ...next,
+      progress: getContestProgress(next),
+    };
+  });
 }
 
 function VoteConfirmModal({ candidate, onConfirm, onCancel }) {
@@ -929,7 +1008,7 @@ function ContestContent({ eventId }) {
         ]);
         const imgMap = getProgramImageMap();
         if (!mounted) return;
-        const mapped = (Array.isArray(list) ? list : []).map((item, idx) => {
+        const baseCards = (Array.isArray(list) ? list : []).map((item, idx) => {
           const pid = String(item?.programId ?? "");
           const status = getContestStatus(item);
           return {
@@ -938,14 +1017,19 @@ function ContestContent({ eventId }) {
             description: item?.description ?? "콘테스트 프로그램",
             location: item?.boothId ? `부스 ${item.boothId}` : "장소 미정",
             participants: 0,
+            totalVotes: 0,
             time: formatTimeRange(item?.startAt, item?.endAt),
             status,
             statusLabel: statusLabel(status),
             bg: CARD_BG[idx % CARD_BG.length],
-            progress: status === "ended" ? 100 : status === "live" ? 50 : 0,
+            progress: 0,
+            startAt: item?.startAt ?? null,
+            endAt: item?.endAt ?? null,
             thumbnail: imgMap[pid] || item?.imageUrl || null,
           };
         });
+        const mapped = await enrichContestCards(baseCards);
+        if (!mounted) return;
         // ended는 맨 뒤로 정렬
         const sorted = [...mapped].sort((a, b) => {
           const order = { live: 0, upcoming: 1, ended: 2 };
@@ -1447,6 +1531,37 @@ function ContestContent({ eventId }) {
                             ? "투표 진행 중"
                             : "투표 예정"}
                       </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          flexWrap: "wrap",
+                          justifyContent: "flex-end",
+                          fontSize: 11,
+                          color: "#9ca3af",
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <Users size={11} /> 후보 {toSafeNumber(c.participants)}팀
+                        </span>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <Heart size={11} /> 총{" "}
+                          {toSafeNumber(c.totalVotes).toLocaleString()}표
+                        </span>
+                      </div>
                     </div>
                     <div className="ct-contest-progress">
                       <div
@@ -1664,15 +1779,21 @@ export default function Contest() {
               thumbnail: imgMap[pid] || item?.imageUrl || null,
               status,
               statusLabel: statusLabel(status),
+              participants: 0,
+              totalVotes: 0,
+              startAt: item?.startAt ?? null,
+              endAt: item?.endAt ?? null,
               eventId: evId,
               eventName,
             });
           });
         });
+        const enriched = await enrichContestCards(all);
+        if (!mounted) return;
         // live → upcoming → ended 순
         const order = { live: 0, upcoming: 1, ended: 2 };
-        all.sort((a, b) => (order[a.status] ?? 1) - (order[b.status] ?? 1));
-        setAllContests(all);
+        enriched.sort((a, b) => (order[a.status] ?? 1) - (order[b.status] ?? 1));
+        setAllContests(enriched);
       } catch (e) {
         if (!mounted) return;
         setListError(
@@ -1947,6 +2068,31 @@ export default function Contest() {
                     <div className="cl-meta">
                       <Clock size={12} />
                       {c.time}
+                    </div>
+                    <div
+                      className="cl-meta"
+                      style={{ justifyContent: "space-between", gap: 12 }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Users size={12} />
+                        후보 {toSafeNumber(c.participants)}팀
+                      </span>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Heart size={12} />
+                        총 {toSafeNumber(c.totalVotes).toLocaleString()}표
+                      </span>
                     </div>
                     <div className="cl-foot">
                       <span style={{ fontSize: 11, color: "#9ca3af" }}>

@@ -14,8 +14,7 @@ import {
   Search,
 } from "lucide-react";
 import ds from "../shared/designTokens";
-import DATA from "../shared/data";
-import { eventApi } from "../../../app/http/eventApi";
+import { axiosInstance } from "../../../app/http/axiosInstance";
 import { adminNotificationApi } from "../../../app/http/adminNotificationApi";
 
 /** 발송 대상(recipientScope) 옵션 — 백엔드 Enum 매핑 */
@@ -620,15 +619,7 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
    메인 컴포넌트
    ═══════════════════════════════════════════ */
 export default function AlertManage() {
-  const [items, setItems] = useState(() =>
-    (DATA.alertHistory || []).map((e) => ({
-      ...e,
-      _visible: true,
-      eventId: e.eventId ?? null,
-      recipientScope: e.recipientScope ?? "INTEREST_SUBSCRIBERS",
-      eventName: e.eventName ?? "",
-    })),
-  );
+  const [items, setItems] = useState([]);
   const [events, setEvents] = useState([]);
   const [modal, setModal] = useState(null);
   const [panel, setPanel] = useState(null);
@@ -639,8 +630,8 @@ export default function AlertManage() {
 
   useEffect(() => {
     let cancelled = false;
-    eventApi
-      .getEvents({ page: 0, size: 200 })
+    axiosInstance
+      .get("/api/admin/dashboard/events")
       .then((res) => {
         if (cancelled) return;
         const data = res?.data?.data ?? res?.data;

@@ -30,6 +30,19 @@ import {
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 
+const normalizeAdminProgramCategory = (program) => {
+  const raw = String(
+    program?.category ?? program?.programCategory ?? program?.programType ?? "",
+  ).trim();
+  const upper = raw.toUpperCase();
+
+  if (upper === "CONTEST" || raw === "대회") return "CONTEST";
+  if (upper === "SESSION" || raw === "교육" || raw === "강연") return "SESSION";
+  if (upper === "EXPERIENCE" || raw === "체험") return "EXPERIENCE";
+
+  return upper;
+};
+
 /* ═══════════════════════════════════════════
    전역 스타일
    ═══════════════════════════════════════════ */
@@ -1092,10 +1105,7 @@ export default function ProgramManage({ subTab = "all" }) {
         { headers: authHeaders() },
       );
       const list = (res.data?.data || res.data || []).filter((p) => {
-        const category = String(
-          p.category ?? p.programCategory ?? p.programType ?? "",
-        ).toUpperCase();
-        return !category.includes("SESSION");
+        return normalizeAdminProgramCategory(p) !== "SESSION";
       });
       const mapped = list.map((p) => ({
         ...p,

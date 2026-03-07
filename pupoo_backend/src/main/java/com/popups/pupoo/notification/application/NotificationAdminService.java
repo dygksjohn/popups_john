@@ -1,6 +1,8 @@
 // file: src/main/java/com/popups/pupoo/notification/application/NotificationAdminService.java
 package com.popups.pupoo.notification.application;
 
+import com.popups.pupoo.common.audit.application.AdminLogService;
+import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.notification.dto.NotificationCreateRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,13 +14,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationAdminService {
 
     private final NotificationService notificationService;
+    private final AdminLogService adminLogService;
 
-    public NotificationAdminService(NotificationService notificationService) {
+    public NotificationAdminService(NotificationService notificationService,
+                                    AdminLogService adminLogService) {
         this.notificationService = notificationService;
+        this.adminLogService = adminLogService;
     }
 
     @Transactional
     public void publishByEvent(NotificationCreateRequest request, Long adminUserId) {
         notificationService.publishAdminEventNotification(adminUserId, request);
+        adminLogService.write("NOTIFICATION_PUBLISH", AdminTargetType.EVENT, request.getEventId());
     }
 }

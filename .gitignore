@@ -96,6 +96,10 @@ application-test.properties
 ############################################
 uploads/
 **/uploads/
+!src/main/resources/uploads/
+!src/main/resources/uploads/**
+!pupoo_backend/src/main/resources/uploads/
+!pupoo_backend/src/main/resources/uploads/**
 
 ############################################
 # Temporary

@@ -99,7 +99,7 @@ public interface NotificationInboxRepository extends JpaRepository<NotificationI
                 :targetId
             FROM event_apply ea
             WHERE ea.event_id = :eventId
-              AND ea.status = 'APPLIED'
+              AND ea.status IN ('APPLIED', 'APPROVED')
             """, nativeQuery = true)
     int fanoutInboxByEventRegistrants(@Param("eventId") Long eventId,
                                      @Param("notificationId") Long notificationId,
@@ -170,7 +170,7 @@ public interface NotificationInboxRepository extends JpaRepository<NotificationI
             JOIN users u
               ON u.user_id = ea.user_id
             WHERE ea.event_id = :eventId
-              AND ea.status = 'APPLIED'
+              AND ea.status IN ('APPLIED', 'APPROVED')
             """, nativeQuery = true)
     List<String> findEmailTargetsByEventRegistrants(@Param("eventId") Long eventId);
 
@@ -180,7 +180,7 @@ public interface NotificationInboxRepository extends JpaRepository<NotificationI
             JOIN users u
               ON u.user_id = ea.user_id
             WHERE ea.event_id = :eventId
-              AND ea.status = 'APPLIED'
+              AND ea.status IN ('APPLIED', 'APPROVED')
             """, nativeQuery = true)
     List<String> findSmsTargetsByEventRegistrants(@Param("eventId") Long eventId);
 
