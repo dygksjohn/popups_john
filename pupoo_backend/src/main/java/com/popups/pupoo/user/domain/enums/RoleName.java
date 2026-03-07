@@ -4,6 +4,7 @@ package com.popups.pupoo.user.domain.enums;
 public enum RoleName {
 
     USER,
-    ADMIN
+    ADMIN,
+    SUPER_ADMIN
 
 }
