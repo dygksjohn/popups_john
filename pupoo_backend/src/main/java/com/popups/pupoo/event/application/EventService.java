@@ -14,9 +14,12 @@ import com.popups.pupoo.event.persistence.EventRegistrationRepository;
 import com.popups.pupoo.event.persistence.EventRepository;
 import com.popups.pupoo.program.persistence.ProgramRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -49,9 +52,31 @@ public class EventService {
             LocalDateTime fromAt,
             LocalDateTime toAt
     ) {
-        EventStatus safeStatus = (status == EventStatus.CANCELLED) ? null : status;
-        return eventRepository.searchPublic(keyword, safeStatus, fromAt, toAt, pageable)
-                .map(this::toEventResponse);
+        LocalDate today = LocalDate.now();
+        List<Event> filtered = eventRepository.findAll(
+                        Sort.by(Sort.Direction.DESC, "startAt").and(Sort.by(Sort.Direction.DESC, "eventId"))
+                ).stream()
+                .filter(event -> event.getStatus() != EventStatus.CANCELLED)
+                .filter(event -> matchesKeyword(event, keyword))
+                .filter(event -> matchesStartAtRange(event, fromAt, toAt))
+                .filter(event -> status == null || resolvePublicStatus(event, today) == status)
+                .toList();
+
+        if (pageable.isUnpaged()) {
+            return new PageImpl<>(filtered.stream().map(event -> toEventResponse(event, today)).toList());
+        }
+
+        int start = Math.toIntExact(pageable.getOffset());
+        if (start >= filtered.size()) {
+            return new PageImpl<>(List.of(), pageable, filtered.size());
+        }
+
+        int end = Math.min(start + pageable.getPageSize(), filtered.size());
+        return new PageImpl<>(
+                filtered.subList(start, end).stream().map(event -> toEventResponse(event, today)).toList(),
+                pageable,
+                filtered.size()
+        );
     }
 
     public EventResponse getEvent(Long eventId) {
@@ -60,24 +85,27 @@ public class EventService {
                         ErrorCode.INVALID_REQUEST,
                         "존재하지 않는 행사입니다. eventId=" + eventId
                 ));
-        return toEventResponse(event);
+        return toEventResponse(event, LocalDate.now());
     }
 
     public List<ClosedEventAnalyticsResponse> getClosedEventAnalytics() {
-        return eventRepository.searchPublic(
-                        null,
-                        EventStatus.ENDED,
-                        null,
-                        null,
-                        Pageable.unpaged()
-                )
-                .stream()
+        LocalDate today = LocalDate.now();
+        return eventRepository.findAll(
+                        Sort.by(Sort.Direction.DESC, "startAt").and(Sort.by(Sort.Direction.DESC, "eventId"))
+                ).stream()
+                .filter(event -> event.getStatus() != EventStatus.CANCELLED)
+                .filter(event -> resolvePublicStatus(event, today) == EventStatus.ENDED)
                 .map(this::toClosedEventAnalyticsResponse)
                 .toList();
     }
 
     private EventResponse toEventResponse(Event event) {
+        return toEventResponse(event, LocalDate.now());
+    }
+
+    private EventResponse toEventResponse(Event event, LocalDate today) {
         EventResponse response = EventResponse.from(event);
+        response.setStatus(resolvePublicStatus(event, today));
         if (response.getImageUrl() == null) {
             response.setImageUrl(resolveEventThumbnail(event.getEventId()));
         }
@@ -118,5 +146,44 @@ public class EventService {
                 averageRating == null ? 0.0 : Math.round(averageRating * 10.0) / 10.0,
                 reviewCount
         );
+    }
+
+    private boolean matchesKeyword(Event event, String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return true;
+        }
+
+        String normalizedKeyword = keyword.trim().toLowerCase();
+        String eventName = event.getEventName() == null ? "" : event.getEventName().toLowerCase();
+        String description = event.getDescription() == null ? "" : event.getDescription().toLowerCase();
+        return eventName.contains(normalizedKeyword) || description.contains(normalizedKeyword);
+    }
+
+    private boolean matchesStartAtRange(Event event, LocalDateTime fromAt, LocalDateTime toAt) {
+        LocalDateTime startAt = event.getStartAt();
+        if (fromAt != null && (startAt == null || startAt.isBefore(fromAt))) {
+            return false;
+        }
+        if (toAt != null && (startAt == null || startAt.isAfter(toAt))) {
+            return false;
+        }
+        return true;
+    }
+
+    private EventStatus resolvePublicStatus(Event event, LocalDate today) {
+        if (event.getStatus() == EventStatus.CANCELLED) {
+            return EventStatus.CANCELLED;
+        }
+
+        LocalDate startDate = event.getStartAt() == null ? null : event.getStartAt().toLocalDate();
+        LocalDate endDate = event.getEndAt() == null ? null : event.getEndAt().toLocalDate();
+
+        if (startDate != null && startDate.isAfter(today)) {
+            return EventStatus.PLANNED;
+        }
+        if (endDate != null && endDate.isBefore(today)) {
+            return EventStatus.ENDED;
+        }
+        return EventStatus.ONGOING;
     }
 }

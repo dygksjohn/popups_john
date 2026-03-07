@@ -133,12 +133,16 @@ function toDateOrNull(value) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function isOngoingByTime(raw) {
+function isOngoingByDate(raw) {
   const now = new Date();
+  now.setHours(12, 0, 0, 0);
   const start = toDateOrNull(raw?.startAt ?? raw?.startDateTime ?? raw?.startDate);
   const end = toDateOrNull(raw?.endAt ?? raw?.endDateTime ?? raw?.endDate);
-  if (start && end) return start <= now && end >= now;
-  return false;
+  if (start) start.setHours(0, 0, 0, 0);
+  if (end) end.setHours(23, 59, 59, 999);
+  if (start && now < start) return false;
+  if (end && now > end) return false;
+  return Boolean(start || end);
 }
 
 function mapEvent(raw) {
@@ -217,22 +221,11 @@ export default function Current() {
 
       try {
         const res = await eventApi.getEvents({
-          status: "ONGOING",
           page: 0,
-          size: 50,
+          size: 500,
         });
         const content = res?.data?.data?.content;
-        let list = Array.isArray(content) ? content : [];
-
-        if (list.length === 0) {
-          const fallbackRes = await eventApi.getEvents({
-            page: 0,
-            size: 200,
-          });
-          const fallbackContent = fallbackRes?.data?.data?.content;
-          const all = Array.isArray(fallbackContent) ? fallbackContent : [];
-          list = all.filter(isOngoingByTime);
-        }
+        let list = Array.isArray(content) ? content.filter(isOngoingByDate) : [];
 
         /* 이미지 캐시(IndexedDB) 로드 후 주입 */
         await loadImageCache();
@@ -242,8 +235,7 @@ export default function Current() {
           setEvents(
             list
               .map(mapEvent)
-              .sort((a, b) => a.endSortKey - b.endSortKey)
-              .slice(0, 4),
+              .sort((a, b) => a.endSortKey - b.endSortKey),
           );
         }
       } catch (e) {
