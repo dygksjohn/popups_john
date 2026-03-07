@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Send,
   Users,
@@ -16,6 +16,7 @@ import {
 import ds from "../shared/designTokens";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { adminNotificationApi } from "../../../app/http/adminNotificationApi";
+import { sortAdminEventsByOperationalPriority } from "../shared/adminStatus";
 
 /** 발송 대상(recipientScope) 옵션 — 백엔드 Enum 매핑 */
 const RECIPIENT_SCOPE_OPTIONS = [
@@ -23,6 +24,80 @@ const RECIPIENT_SCOPE_OPTIONS = [
   { value: "EVENT_REGISTRANTS", label: "이벤트 신청자" },
   { value: "EVENT_PAYERS", label: "결제 완료자" },
 ];
+
+const EVENT_FILTER_OPTIONS = [
+  { value: "all", label: "전체" },
+  { value: "active", label: "진행중" },
+  { value: "pending", label: "예정" },
+  { value: "ended", label: "종료" },
+  { value: "important", label: "중요" },
+  { value: "system", label: "시스템" },
+];
+
+const SPECIAL_ALERT_OPTIONS = {
+  important: [{ value: "IMPORTANT_ALL", label: "전체 중요 알림" }],
+  system: [{ value: "SYSTEM_INFO", label: "시스템 관련 알림" }],
+};
+
+const EVENT_FILTER_SET = new Set(["all", "active", "pending", "ended"]);
+
+const resolveAlertMode = (item, filter = "all") => {
+  const type = String(item?.notificationType ?? item?.type ?? "").toUpperCase();
+  if (item?.alertMode === "important" || type === "NOTICE") return "important";
+  if (item?.alertMode === "system" || type === "SYSTEM") return "system";
+  if (filter === "important" || filter === "system") return filter;
+  return "event";
+};
+
+const resolveSpecialTargetLabel = (mode) =>
+  SPECIAL_ALERT_OPTIONS[mode]?.[0]?.label ?? "";
+
+const resolveAlertFilterGroup = (item, eventMap) => {
+  const mode = resolveAlertMode(item);
+  if (mode === "important" || mode === "system") return mode;
+  return resolveItemEventStatus(item, eventMap) ?? "all";
+};
+
+const normalizeEventStatus = (status) => {
+  const normalized = String(status ?? "").trim().toUpperCase();
+  if (normalized === "ONGOING" || normalized === "ACTIVE") return "active";
+  if (normalized === "ENDED" || normalized === "CANCELLED") return "ended";
+  if (normalized === "PLANNED" || normalized === "PENDING") return "pending";
+  return "pending";
+};
+
+const normalizeEventRow = (event) => ({
+  ...event,
+  eventId: event?.eventId ?? event?.id ?? null,
+  eventName: event?.eventName ?? event?.name ?? event?.eventTitle ?? "",
+  status: normalizeEventStatus(event?.status),
+});
+
+const resolveLinkedEvent = (item, eventMap) => {
+  if (item?.eventId == null) return null;
+  return eventMap.get(String(item.eventId)) ?? null;
+};
+
+const resolveItemEventName = (item, eventMap) => {
+  const alertMode = resolveAlertMode(item);
+  if (alertMode === "important" || alertMode === "system") {
+    return item?.alertTargetLabel || resolveSpecialTargetLabel(alertMode);
+  }
+  const linkedEvent = resolveLinkedEvent(item, eventMap);
+  if (linkedEvent?.eventName) return linkedEvent.eventName;
+  if (item?.eventName) return item.eventName;
+  if (item?.eventId != null) return "연결되지 않은 행사";
+  return "전체";
+};
+
+const resolveItemEventStatus = (item, eventMap) => {
+  const alertMode = resolveAlertMode(item);
+  if (alertMode === "important" || alertMode === "system") return null;
+  const linkedEvent = resolveLinkedEvent(item, eventMap);
+  if (linkedEvent?.status) return linkedEvent.status;
+  if (item?.eventStatus) return normalizeEventStatus(item.eventStatus);
+  return null;
+};
 
 const styles = `
 @keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
@@ -333,7 +408,24 @@ function StatusDot({ status, label }) {
 const STATUS_LABEL = { sent: "발송완료", draft: "임시저장" };
 
 /* ── 슬라이드 패널 ── */
-function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
+function SlidePanel({
+  item,
+  onSave,
+  onClose,
+  isEdit,
+  events = [],
+  filter = "all",
+}) {
+  const panelMode = resolveAlertMode(item, filter);
+  const eventScope = EVENT_FILTER_SET.has(filter) ? filter : "all";
+  const filteredEvents =
+    panelMode === "event"
+      ? events.filter(
+          (event) => eventScope === "all" || event.status === eventScope,
+        )
+      : [];
+  const specialOptions = SPECIAL_ALERT_OPTIONS[panelMode] ?? [];
+
   const [form, setForm] = useState(() => {
     if (item) {
       const scope = item.recipientScope || "INTEREST_SUBSCRIBERS";
@@ -344,44 +436,91 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
         content: item.content ?? "",
         recipientScope: scope,
         target:
-          scopeOpt?.label ?? item.target ?? RECIPIENT_SCOPE_OPTIONS[0].label,
-        targetCount: item.targetCount ?? 0,
+          scopeOpt?.label ??
+          item.target ??
+          resolveSpecialTargetLabel(panelMode) ??
+          RECIPIENT_SCOPE_OPTIONS[0].label,
+        targetCount:
+          panelMode === "event" ? item.targetCount ?? 0 : item.targetCount ?? null,
         status: item.status ?? "draft",
+        specialTargetKey:
+          item.specialTargetKey ?? specialOptions[0]?.value ?? "",
+        notificationType:
+          item.notificationType ??
+          (panelMode === "system"
+            ? "SYSTEM"
+            : panelMode === "important"
+              ? "NOTICE"
+              : "EVENT"),
       };
     }
     return {
-      eventId: "",
+      eventId: filteredEvents[0]?.eventId ?? "",
       title: "",
       content: "",
       recipientScope: "INTEREST_SUBSCRIBERS",
-      target: RECIPIENT_SCOPE_OPTIONS[0].label,
-      targetCount: 0,
+      target:
+        panelMode === "event"
+          ? RECIPIENT_SCOPE_OPTIONS[0].label
+          : resolveSpecialTargetLabel(panelMode),
+      targetCount: panelMode === "event" ? 0 : null,
       status: "draft",
+      specialTargetKey: specialOptions[0]?.value ?? "",
+      notificationType:
+        panelMode === "system"
+          ? "SYSTEM"
+          : panelMode === "important"
+            ? "NOTICE"
+            : "EVENT",
     };
   });
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (panelMode !== "event" || filteredEvents.length === 0) return;
+    if (
+      form.eventId &&
+      filteredEvents.some((event) => String(event.eventId) === String(form.eventId))
+    ) {
+      return;
+    }
+    setForm((prev) => ({ ...prev, eventId: filteredEvents[0].eventId }));
+  }, [filteredEvents, form.eventId, panelMode]);
+
   const handleSave = () => {
     if (!form.title || !form.content) {
       setErr("제목과 내용은 필수입니다.");
       return;
     }
-    if (!form.eventId && !isEdit) {
+    if (panelMode === "event" && !form.eventId) {
       setErr("대상 행사를 선택해 주세요.");
       return;
     }
     const scopeOpt = RECIPIENT_SCOPE_OPTIONS.find(
       (o) => o.value === form.recipientScope,
     );
-    const eventName =
-      events.find((e) => String(e.eventId) === String(form.eventId))
-        ?.eventName ?? "";
+    const selectedEvent =
+      events.find((e) => String(e.eventId) === String(form.eventId)) || null;
+    const specialTargetLabel = resolveSpecialTargetLabel(panelMode);
     onSave({
       ...form,
-      eventId: form.eventId ? Number(form.eventId) : form.eventId,
-      eventName,
-      target: scopeOpt?.label ?? form.target,
-      targetCount: form.targetCount ?? 0,
+      alertMode: panelMode,
+      notificationType:
+        panelMode === "system"
+          ? "SYSTEM"
+          : panelMode === "important"
+            ? "NOTICE"
+            : "EVENT",
+      eventId: panelMode === "event" && form.eventId ? Number(form.eventId) : null,
+      eventName: panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
+      eventStatus: panelMode === "event" ? selectedEvent?.status ?? null : null,
+      alertTargetLabel:
+        panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
+      specialTargetKey: panelMode === "event" ? "" : form.specialTargetKey,
+      recipientScope: panelMode === "event" ? form.recipientScope : null,
+      target: panelMode === "event" ? scopeOpt?.label ?? form.target : specialTargetLabel,
+      targetCount: panelMode === "event" ? form.targetCount ?? 0 : null,
     });
   };
 
@@ -431,10 +570,20 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
                 margin: 0,
               }}
             >
-              {isEdit ? "알림 수정" : "새 알림 작성"}
+              {isEdit
+                ? "알림 수정"
+                : panelMode === "important"
+                  ? "새 중요 알림 작성"
+                  : panelMode === "system"
+                    ? "새 시스템 알림 작성"
+                    : "새 알림 작성"}
             </h3>
             <p style={{ fontSize: 11.5, color: ds.ink4, margin: "3px 0 0" }}>
-              {isEdit ? "알림을 수정합니다" : "새 알림을 작성합니다"}
+              {isEdit
+                ? "알림을 수정합니다"
+                : panelMode === "event"
+                  ? "행사 대상 알림을 작성합니다"
+                  : "전역 알림을 작성합니다"}
             </p>
           </div>
           <button
@@ -474,11 +623,15 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
               <AlertTriangle size={14} /> {err}
             </div>
           )}
-          <Field label="대상 행사" required>
+          <Field label={panelMode === "event" ? "대상 행사" : "알림 구분"} required>
             <div style={{ position: "relative" }}>
               <select
-                value={form.eventId}
-                onChange={(e) => set("eventId", e.target.value)}
+                value={panelMode === "event" ? form.eventId : form.specialTargetKey}
+                onChange={(e) =>
+                  panelMode === "event"
+                    ? set("eventId", e.target.value)
+                    : set("specialTargetKey", e.target.value)
+                }
                 style={{
                   ...inputStyle,
                   appearance: "none",
@@ -486,12 +639,22 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
                   cursor: "pointer",
                 }}
               >
-                <option value="">행사 선택</option>
-                {events.map((ev) => (
-                  <option key={ev.eventId} value={ev.eventId}>
-                    {ev.eventName ?? ev.eventTitle ?? `행사 ${ev.eventId}`}
-                  </option>
-                ))}
+                {panelMode === "event" ? (
+                  <>
+                    <option value="">행사 선택</option>
+                    {filteredEvents.map((ev) => (
+                      <option key={ev.eventId} value={ev.eventId}>
+                        {ev.eventName ?? ev.eventTitle ?? `행사 ${ev.eventId}`}
+                      </option>
+                    ))}
+                  </>
+                ) : (
+                  specialOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))
+                )}
               </select>
               <ChevronDown
                 size={14}
@@ -516,44 +679,46 @@ function SlidePanel({ item, onSave, onClose, isEdit, events = [] }) {
               placeholder="알림 제목"
             />
           </Field>
-          <Field label="발송 대상">
-            <div style={{ position: "relative" }}>
-              <select
-                value={form.recipientScope}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  const opt = RECIPIENT_SCOPE_OPTIONS.find(
-                    (o) => o.value === v,
-                  );
-                  set("recipientScope", v);
-                  if (opt) set("target", opt.label);
-                }}
-                style={{
-                  ...inputStyle,
-                  appearance: "none",
-                  paddingRight: 32,
-                  cursor: "pointer",
-                }}
-              >
-                {RECIPIENT_SCOPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={14}
-                color={ds.ink4}
-                style={{
-                  position: "absolute",
-                  right: 12,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  pointerEvents: "none",
-                }}
-              />
-            </div>
-          </Field>
+          {panelMode === "event" && (
+            <Field label="발송 대상">
+              <div style={{ position: "relative" }}>
+                <select
+                  value={form.recipientScope}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const opt = RECIPIENT_SCOPE_OPTIONS.find(
+                      (o) => o.value === v,
+                    );
+                    set("recipientScope", v);
+                    if (opt) set("target", opt.label);
+                  }}
+                  style={{
+                    ...inputStyle,
+                    appearance: "none",
+                    paddingRight: 32,
+                    cursor: "pointer",
+                  }}
+                >
+                  {RECIPIENT_SCOPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={14}
+                  color={ds.ink4}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    pointerEvents: "none",
+                  }}
+                />
+              </div>
+            </Field>
+          )}
           <Field label="내용" required>
             <textarea
               rows={5}
@@ -625,6 +790,7 @@ export default function AlertManage() {
   const [panel, setPanel] = useState(null);
   const [toast, setToast] = useState(null);
   const [search, setSearch] = useState("");
+  const [eventStatusFilter, setEventStatusFilter] = useState("all");
   const [selected, setSelected] = useState([]);
   const show = (msg, type = "success") => setToast({ msg, type });
 
@@ -636,7 +802,10 @@ export default function AlertManage() {
         if (cancelled) return;
         const data = res?.data?.data ?? res?.data;
         const list = data?.content ?? data ?? [];
-        setEvents(Array.isArray(list) ? list : []);
+        const normalized = Array.isArray(list)
+          ? list.map(normalizeEventRow)
+          : [];
+        setEvents(sortAdminEventsByOperationalPriority(normalized));
       })
       .catch(() => {
         if (!cancelled) setEvents([]);
@@ -646,13 +815,58 @@ export default function AlertManage() {
     };
   }, []);
 
+  const eventMap = useMemo(
+    () =>
+      new Map(
+        events
+          .filter((event) => event?.eventId != null)
+          .map((event) => [String(event.eventId), event]),
+      ),
+    [events],
+  );
+
   const visible = items.filter((e) => e._visible);
   const sent = visible.filter((e) => e.status === "sent").length;
   const draft = visible.filter((e) => e.status === "draft").length;
   const totalTarget = visible
     .filter((e) => e.status === "sent")
-    .reduce((a, b) => a + b.targetCount, 0);
-  const rows = visible.filter((e) => !search || e.title.includes(search));
+    .reduce((a, b) => a + Number(b.targetCount || 0), 0);
+  const eventFilterCounts = useMemo(
+    () =>
+      visible.reduce(
+        (counts, item) => {
+          const filterGroup = resolveAlertFilterGroup(item, eventMap);
+          counts.all += 1;
+          if (filterGroup && counts[filterGroup] != null) counts[filterGroup] += 1;
+          return counts;
+        },
+        { all: 0, active: 0, pending: 0, ended: 0, important: 0, system: 0 },
+      ),
+    [eventMap, visible],
+  );
+  const rows = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    return visible
+      .map((item) => {
+        const eventName = resolveItemEventName(item, eventMap);
+        const eventStatus = resolveItemEventStatus(item, eventMap);
+        const filterGroup = resolveAlertFilterGroup(item, eventMap);
+        return { ...item, eventName, eventStatus, filterGroup };
+      })
+      .filter((item) => {
+        const matchesSearch =
+          keyword === "" ||
+          String(item.title ?? "").toLowerCase().includes(keyword) ||
+          String(item.eventName ?? "").toLowerCase().includes(keyword);
+        const matchesStatus =
+          eventStatusFilter === "all" || item.filterGroup === eventStatusFilter;
+        return matchesSearch && matchesStatus;
+      });
+  }, [eventMap, eventStatusFilter, search, visible]);
+
+  useEffect(() => {
+    setSelected((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
+  }, [rows]);
 
   const toggleAll = () =>
     setSelected(selected.length === rows.length ? [] : rows.map((r) => r.id));
@@ -662,9 +876,13 @@ export default function AlertManage() {
     );
 
   const handleCreate = (f) => {
+    const eventName = resolveItemEventName(f, eventMap);
+    const eventStatus = resolveItemEventStatus(f, eventMap);
     setItems((p) => [
       {
         ...f,
+        eventName,
+        eventStatus,
         id: `AL-${String(p.length + 1).padStart(3, "0")}`,
         sentDate: null,
         _visible: true,
@@ -676,7 +894,15 @@ export default function AlertManage() {
     show("알림이 저장되었습니다.");
   };
   const handleUpdate = (f) => {
-    setItems((p) => p.map((e) => (e.id === f.id ? { ...e, ...f } : e)));
+    const eventName = resolveItemEventName(f, eventMap);
+    const eventStatus = resolveItemEventStatus(f, eventMap);
+    setItems((p) =>
+      p.map((e) =>
+        e.id === f.id
+          ? { ...e, ...f, eventName, eventStatus }
+          : e,
+      ),
+    );
     setPanel(null);
     show("알림이 수정되었습니다.");
   };
@@ -689,7 +915,7 @@ export default function AlertManage() {
     show("알림이 삭제되었습니다.");
   };
   const handleSend = (item) => {
-    if (!item.eventId) {
+    if (resolveAlertMode(item) === "event" && !item.eventId) {
       setModal(null);
       show(
         "대상 행사를 선택해 주세요. 알림을 수정한 뒤 다시 발송해 주세요.",
@@ -697,25 +923,39 @@ export default function AlertManage() {
       );
       return;
     }
-    const payload = {
-      type: "EVENT",
-      title: item.title,
-      content: item.content,
-      targetType: "EVENT",
-      targetId: Number(item.eventId),
-      eventId: Number(item.eventId),
-      channels: ["APP"],
-      recipientScope: item.recipientScope || "INTEREST_SUBSCRIBERS",
-    };
-    adminNotificationApi
-      .publishEvent(payload)
+    const alertMode = resolveAlertMode(item);
+    const request =
+      alertMode === "event"
+        ? adminNotificationApi.publishEvent({
+            type: "EVENT",
+            title: item.title,
+            content: item.content,
+            targetType: "EVENT",
+            targetId: Number(item.eventId),
+            eventId: Number(item.eventId),
+            channels: ["APP"],
+            recipientScope: item.recipientScope || "INTEREST_SUBSCRIBERS",
+          })
+        : adminNotificationApi.publishBroadcast({
+            type: alertMode === "system" ? "SYSTEM" : "NOTICE",
+            title: item.title,
+            content: item.content,
+            targetType: "NOTICE",
+            targetId: 0,
+            channels: ["APP"],
+          });
+    request
       .then(() => {
         const d = new Date();
+        const eventName = resolveItemEventName(item, eventMap);
+        const eventStatus = resolveItemEventStatus(item, eventMap);
         setItems((p) =>
           p.map((e) =>
             e.id === item.id
               ? {
                   ...e,
+                  eventName,
+                  eventStatus,
                   status: "sent",
                   sentDate: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`,
                 }
@@ -753,6 +993,62 @@ export default function AlertManage() {
           label="총 발송 대상"
           value={`${totalTarget.toLocaleString()}명`}
         />
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+          marginBottom: 16,
+        }}
+      >
+        {EVENT_FILTER_OPTIONS.map((option) => {
+          const active = eventStatusFilter === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setEventStatusFilter(option.value)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                height: 34,
+                padding: "0 14px",
+                borderRadius: 999,
+                border: active ? `1px solid ${ds.brand}` : `1px solid ${ds.line}`,
+                background: active ? ds.brand : ds.card,
+                color: active ? "#fff" : ds.ink3,
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: ds.ff,
+                transition: "all .15s ease",
+              }}
+            >
+              <span>{option.label}</span>
+              <span
+                style={{
+                  minWidth: 18,
+                  height: 18,
+                  padding: "0 6px",
+                  borderRadius: 999,
+                  background: active ? "rgba(255,255,255,0.18)" : ds.bg,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 10.5,
+                  fontWeight: 800,
+                  color: active ? "#fff" : ds.ink4,
+                }}
+              >
+                {eventFilterCounts[option.value] ?? 0}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div
@@ -837,7 +1133,7 @@ export default function AlertManage() {
               />
             </div>
             <button
-              onClick={() => setPanel({ type: "create" })}
+              onClick={() => setPanel({ type: "create", filter: eventStatusFilter })}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -864,7 +1160,13 @@ export default function AlertManage() {
             <div
               key={r.id}
               className="board-row"
-              onClick={() => setPanel({ type: "edit", item: r })}
+              onClick={() =>
+                setPanel({
+                  type: "edit",
+                  item: r,
+                  filter: r.filterGroup || eventStatusFilter,
+                })
+              }
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -920,16 +1222,21 @@ export default function AlertManage() {
                   alignItems: "center",
                   gap: 10,
                   flexShrink: 0,
-                  width: 380,
+                  width: 500,
                 }}
               >
                 <span
                   style={{
-                    width: 36,
-                    fontSize: 11,
+                    width: 160,
+                    minWidth: 0,
+                    fontSize: 11.5,
                     color: ds.ink4,
-                    textAlign: "right",
+                    textAlign: "left",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
+                  title={r.eventName}
                 >
                   {r.eventName || "전체"}
                 </span>
@@ -952,7 +1259,7 @@ export default function AlertManage() {
                       textAlign: "center",
                     }}
                   >
-                    {r.targetCount}명
+                    {r.targetCount == null ? "전체" : `${r.targetCount}명`}
                   </span>
                 </span>
                 <span
@@ -963,7 +1270,7 @@ export default function AlertManage() {
                     textAlign: "right",
                   }}
                 >
-                  {r.sentDate || "—"}
+                  {r.sentDate || "-"}
                 </span>
                 <div
                   style={{
@@ -1001,7 +1308,11 @@ export default function AlertManage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setPanel({ type: "edit", item: r });
+                      setPanel({
+                        type: "edit",
+                        item: r,
+                        filter: r.filterGroup || eventStatusFilter,
+                      });
                     }}
                     style={{
                       padding: "3px 8px",
@@ -1068,6 +1379,7 @@ export default function AlertManage() {
       {panel?.type === "create" && (
         <SlidePanel
           events={events}
+          filter={panel.filter || eventStatusFilter}
           onSave={handleCreate}
           onClose={() => setPanel(null)}
         />
@@ -1077,6 +1389,7 @@ export default function AlertManage() {
           item={panel.item}
           isEdit
           events={events}
+          filter={panel.filter || eventStatusFilter}
           onSave={handleUpdate}
           onClose={() => setPanel(null)}
         />
@@ -1092,7 +1405,11 @@ export default function AlertManage() {
       {modal?.type === "send" && (
         <ConfirmModal
           title="알림 발송"
-          msg={`"${modal.item.title}" 알림을 ${modal.item.target} 대상(${modal.item.targetCount}명)에게 발송하시겠습니까?`}
+          msg={
+            resolveAlertMode(modal.item) === "event"
+              ? `"${modal.item.title}" 알림을 ${modal.item.target} 대상(${modal.item.targetCount}명)에게 발송하시겠습니까?`
+              : `"${modal.item.title}" 알림을 ${resolveItemEventName(modal.item, eventMap)} 대상으로 발송하시겠습니까?`
+          }
           label="발송"
           danger={false}
           onConfirm={() => handleSend(modal.item)}

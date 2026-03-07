@@ -34,7 +34,7 @@ export function IconBox({ icon: I, color, bg, size = 34 }) {
 }
 
 /* ═══════ Chart Tooltip ═══════ */
-export function ChartTip({ active, payload, label, suffix = "", light = false }) {
+export function ChartTip({ active, payload, label, suffix = "", light = false, showName = false }) {
   if (!active || !payload?.length) return null;
   const background = light ? "#f8fafc" : ds.ink;
   const textColor = light ? ds.ink : "#fff";
@@ -43,9 +43,10 @@ export function ChartTip({ active, payload, label, suffix = "", light = false })
     <div style={{ background, color: textColor, padding: "8px 14px", borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: ds.ff, boxShadow: ds.sh2, border: light ? `1px solid ${ds.line}` : "none" }}>
       <div style={{ color: labelColor, fontSize: 11, marginBottom: 2 }}>{label}</div>
       {payload.map((p, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, color: labelColor }}>
           <span style={{ width: 6, height: 6, borderRadius: 2, background: p.color || p.stroke }} />
-          {p.value?.toLocaleString()}{suffix}
+          {showName && p.name ? <span>{p.name}</span> : null}
+          <span>{p.value?.toLocaleString()}{suffix}</span>
         </div>
       ))}
     </div>
