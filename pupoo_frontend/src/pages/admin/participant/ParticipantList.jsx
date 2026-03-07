@@ -47,6 +47,7 @@ import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 import DATA from "../shared/data";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
+import { sortAdminEventsByOperationalPriority } from "../shared/adminStatus";
 
 /* ── 스타일 ── */
 const styles = `
@@ -621,7 +622,7 @@ export default function ParticipantList({ subTab = "list" }) {
           e.endAt || e.date?.split("~")[1]?.trim(),
         ),
       }));
-      setEvents(injectEventImages(mapped));
+      setEvents(sortAdminEventsByOperationalPriority(injectEventImages(mapped)));
     } catch (err) {
       console.error("행사 로드 실패:", err);
       setEvents([]);

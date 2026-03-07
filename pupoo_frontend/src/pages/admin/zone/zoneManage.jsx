@@ -26,6 +26,7 @@ import {
 } from "../shared/boothImageStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
+import { sortAdminEventsByOperationalPriority } from "../shared/adminStatus";
 
 const styles = `
 .card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent;}
@@ -970,23 +971,7 @@ export default function ZoneManage({ subTab = "all" }) {
           e.endAt || e.date?.split("~")[1]?.trim()?.replace(/\./g, "-"),
         ),
       }));
-      const parseId = (v) => {
-        if (v == null) return 0;
-        const n = Number(v);
-        if (!isNaN(n)) return n;
-        return Number(String(v).replace(/\D/g, "")) || 0;
-      };
-      mapped.sort(
-        (a, b) => parseId(b.eventId ?? b.id) - parseId(a.eventId ?? a.id),
-      );
-      console.log(
-        "[ZoneManage] 정렬 후 이벤트:",
-        mapped.map((e) => ({
-          id: e.eventId ?? e.id,
-          name: e.name || e.eventName,
-        })),
-      );
-      setEvents(mapped);
+      setEvents(sortAdminEventsByOperationalPriority(mapped));
     } catch {
       setEvents([]);
     } finally {

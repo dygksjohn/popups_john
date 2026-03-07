@@ -22,6 +22,7 @@ import {
 import ds, { cardStyle, statusMap } from "../shared/designTokens";
 import { Pill, DataTable, Td } from "../shared/Components";
 import DATA from "../shared/data";
+import { sortAdminEventsByOperationalPriority } from "../shared/adminStatus";
 import {
   setEventImage,
   getEventImageMap,
@@ -1675,13 +1676,7 @@ export default function EventManage({ subTab = "all" }) {
           imageUrl: imgUrl || getDogImage(eid),
         };
       });
-      /* 최신 등록 행사가 맨 위 - eventId 내림차순 정렬 */
-      mapped.sort((a, b) => {
-        const idA = Number(a.eventId || a.id) || 0;
-        const idB = Number(b.eventId || b.id) || 0;
-        return idB - idA;
-      });
-      setItems(mapped);
+      setItems(sortAdminEventsByOperationalPriority(mapped));
     } catch (err) {
       console.error("[EventManage] 행사 목록 로드 실패:", err);
       setItems([]);

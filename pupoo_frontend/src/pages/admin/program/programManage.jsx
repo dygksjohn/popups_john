@@ -20,7 +20,10 @@ import {
 import ds, { statusMap } from "../shared/designTokens";
 import { Pill } from "../shared/Components";
 import DATA from "../shared/data";
-import { resolveAdminStatus } from "../shared/adminStatus";
+import {
+  resolveAdminStatus,
+  sortAdminEventsByOperationalPriority,
+} from "../shared/adminStatus";
 import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 import {
   setProgramImage,
@@ -1077,20 +1080,7 @@ export default function ProgramManage({ subTab = "all" }) {
           ),
         ),
       }));
-      /* 최신 등록순 - eventId/id 숫자 추출 내림차순 */
-      const parseId = (v) => {
-        if (v == null) return 0;
-        const n = Number(v);
-        if (!isNaN(n)) return n;
-        return Number(String(v).replace(/\D/g, "")) || 0;
-      };
-      mapped.sort((a, b) => {
-        const ia = parseId(a.eventId ?? a.id);
-        const ib = parseId(b.eventId ?? b.id);
-        return ib - ia; // 내림차순 = 높은 ID가 앞
-      });
-      console.log("[ProgramManage] 정렬 후 이벤트:", mapped.map(e => ({ id: e.eventId ?? e.id, name: e.name || e.eventName })));
-      setEvents(mapped);
+      setEvents(sortAdminEventsByOperationalPriority(mapped));
     } catch (err) {
       console.error("[ProgramManage] 행사 로드 실패:", err);
       setEvents([]);

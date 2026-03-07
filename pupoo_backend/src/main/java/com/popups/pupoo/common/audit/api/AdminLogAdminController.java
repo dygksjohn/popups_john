@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Locale;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/logs")
@@ -21,10 +23,29 @@ public class AdminLogAdminController {
     @GetMapping
     public ApiResponse<PageResponse<AdminLogListResponse>> list(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) AdminTargetType targetType,
+            @RequestParam(required = false) String targetType,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return ApiResponse.success(adminLogQueryService.list(keyword, targetType, page, size));
+        return ApiResponse.success(
+                adminLogQueryService.list(keyword, normalizeTargetType(targetType), page, size)
+        );
+    }
+
+    private AdminTargetType normalizeTargetType(String targetType) {
+        if (targetType == null) {
+            return null;
+        }
+
+        String normalized = targetType.trim();
+        if (normalized.isEmpty() || "ALL".equalsIgnoreCase(normalized)) {
+            return null;
+        }
+
+        try {
+            return AdminTargetType.valueOf(normalized.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 }
