@@ -40,6 +40,28 @@ const SPECIAL_ALERT_OPTIONS = {
 };
 
 const EVENT_FILTER_SET = new Set(["all", "active", "pending", "ended"]);
+const CREATE_FILTER_OPTIONS = EVENT_FILTER_OPTIONS.filter(
+  (option) => option.value !== "all",
+);
+
+const toRecipientScopeArray = (value) => {
+  const source = Array.isArray(value) ? value : value ? [value] : [];
+  return [...new Set(source.filter(Boolean).map((scope) => String(scope)))];
+};
+
+const normalizeRecipientScopes = (value) => {
+  const unique = toRecipientScopeArray(value);
+  return unique.length > 0 ? unique : ["INTEREST_SUBSCRIBERS"];
+};
+
+const resolveRecipientTargetLabel = (scopes) =>
+  normalizeRecipientScopes(scopes)
+    .map(
+      (scope) =>
+        RECIPIENT_SCOPE_OPTIONS.find((option) => option.value === scope)?.label ??
+        scope,
+    )
+    .join(", ");
 
 const resolveAlertMode = (item, filter = "all") => {
   const type = String(item?.notificationType ?? item?.type ?? "").toUpperCase();
@@ -416,8 +438,36 @@ function SlidePanel({
   events = [],
   filter = "all",
 }) {
-  const panelMode = resolveAlertMode(item, filter);
-  const eventScope = EVENT_FILTER_SET.has(filter) ? filter : "all";
+  const initialCreateFilter = useMemo(() => {
+    if (item) {
+      const itemMode = resolveAlertMode(item, filter);
+      if (itemMode === "important" || itemMode === "system") return itemMode;
+      const itemStatus = normalizeEventStatus(item?.eventStatus);
+      if (itemStatus !== "all" && EVENT_FILTER_SET.has(itemStatus)) {
+        return itemStatus;
+      }
+    }
+    if (filter !== "all") return filter;
+    const firstEventFilter = ["active", "pending", "ended"].find((status) =>
+      events.some((event) => event.status === status),
+    );
+    return firstEventFilter ?? "important";
+  }, [events, filter, item]);
+  const [createFilter, setCreateFilter] = useState(initialCreateFilter);
+
+  useEffect(() => {
+    setCreateFilter(initialCreateFilter);
+  }, [initialCreateFilter]);
+
+  const effectiveFilter = !isEdit && filter === "all" ? createFilter : filter;
+  const panelMode =
+    effectiveFilter === "important" || effectiveFilter === "system"
+      ? effectiveFilter
+      : resolveAlertMode(item, effectiveFilter);
+  const eventScope =
+    panelMode === "event" && EVENT_FILTER_SET.has(effectiveFilter)
+      ? effectiveFilter
+      : "all";
   const filteredEvents =
     panelMode === "event"
       ? events.filter(
@@ -428,15 +478,16 @@ function SlidePanel({
 
   const [form, setForm] = useState(() => {
     if (item) {
-      const scope = item.recipientScope || "INTEREST_SUBSCRIBERS";
-      const scopeOpt = RECIPIENT_SCOPE_OPTIONS.find((o) => o.value === scope);
+      const recipientScopes = normalizeRecipientScopes(
+        item.recipientScopes ?? item.recipientScope,
+      );
       return {
         eventId: item.eventId ?? "",
         title: item.title ?? "",
         content: item.content ?? "",
-        recipientScope: scope,
+        recipientScopes,
         target:
-          scopeOpt?.label ??
+          resolveRecipientTargetLabel(recipientScopes) ??
           item.target ??
           resolveSpecialTargetLabel(panelMode) ??
           RECIPIENT_SCOPE_OPTIONS[0].label,
@@ -458,10 +509,10 @@ function SlidePanel({
       eventId: filteredEvents[0]?.eventId ?? "",
       title: "",
       content: "",
-      recipientScope: "INTEREST_SUBSCRIBERS",
+      recipientScopes: ["INTEREST_SUBSCRIBERS"],
       target:
         panelMode === "event"
-          ? RECIPIENT_SCOPE_OPTIONS[0].label
+          ? resolveRecipientTargetLabel(["INTEREST_SUBSCRIBERS"])
           : resolveSpecialTargetLabel(panelMode),
       targetCount: panelMode === "event" ? 0 : null,
       status: "draft",
@@ -478,15 +529,60 @@ function SlidePanel({
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    if (panelMode !== "event" || filteredEvents.length === 0) return;
-    if (
-      form.eventId &&
-      filteredEvents.some((event) => String(event.eventId) === String(form.eventId))
-    ) {
-      return;
-    }
-    setForm((prev) => ({ ...prev, eventId: filteredEvents[0].eventId }));
-  }, [filteredEvents, form.eventId, panelMode]);
+    if (panelMode !== "event") return;
+    setForm((prev) => {
+      const nextEventId = filteredEvents.some(
+        (event) => String(event.eventId) === String(prev.eventId),
+      )
+        ? prev.eventId
+        : filteredEvents[0]?.eventId ?? "";
+      const nextRecipientScopes = normalizeRecipientScopes(prev.recipientScopes);
+      const nextTarget = resolveRecipientTargetLabel(nextRecipientScopes);
+      if (
+        String(nextEventId) === String(prev.eventId) &&
+        nextRecipientScopes.join("|") ===
+          toRecipientScopeArray(prev.recipientScopes).join("|") &&
+        nextTarget === prev.target &&
+        prev.notificationType === "EVENT"
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        eventId: nextEventId,
+        recipientScopes: nextRecipientScopes,
+        target: nextTarget,
+        notificationType: "EVENT",
+      };
+    });
+  }, [filteredEvents, panelMode]);
+
+  useEffect(() => {
+    if (panelMode === "event") return;
+    const defaultSpecialTarget = specialOptions[0]?.value ?? "";
+    const defaultSpecialLabel = resolveSpecialTargetLabel(panelMode);
+    setForm((prev) => {
+      const nextSpecialTarget = specialOptions.some(
+        (option) => option.value === prev.specialTargetKey,
+      )
+        ? prev.specialTargetKey
+        : defaultSpecialTarget;
+      const nextNotificationType = panelMode === "system" ? "SYSTEM" : "NOTICE";
+      if (
+        nextSpecialTarget === prev.specialTargetKey &&
+        nextNotificationType === prev.notificationType &&
+        defaultSpecialLabel === prev.target
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        specialTargetKey: nextSpecialTarget,
+        notificationType: nextNotificationType,
+        target: defaultSpecialLabel,
+      };
+    });
+  }, [panelMode, specialOptions]);
 
   const handleSave = () => {
     if (!form.title || !form.content) {
@@ -497,9 +593,13 @@ function SlidePanel({
       setErr("대상 행사를 선택해 주세요.");
       return;
     }
-    const scopeOpt = RECIPIENT_SCOPE_OPTIONS.find(
-      (o) => o.value === form.recipientScope,
-    );
+    const recipientScopes =
+      panelMode === "event" ? toRecipientScopeArray(form.recipientScopes) : [];
+    if (panelMode === "event" && recipientScopes.length === 0) {
+      setErr("발송 대상을 1개 이상 선택해 주세요.");
+      return;
+    }
+    const normalizedRecipientScopes = normalizeRecipientScopes(recipientScopes);
     const selectedEvent =
       events.find((e) => String(e.eventId) === String(form.eventId)) || null;
     const specialTargetLabel = resolveSpecialTargetLabel(panelMode);
@@ -518,8 +618,14 @@ function SlidePanel({
       alertTargetLabel:
         panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
       specialTargetKey: panelMode === "event" ? "" : form.specialTargetKey,
-      recipientScope: panelMode === "event" ? form.recipientScope : null,
-      target: panelMode === "event" ? scopeOpt?.label ?? form.target : specialTargetLabel,
+      recipientScope:
+        panelMode === "event" ? normalizedRecipientScopes[0] : null,
+      recipientScopes:
+        panelMode === "event" ? normalizedRecipientScopes : [],
+      target:
+        panelMode === "event"
+          ? resolveRecipientTargetLabel(normalizedRecipientScopes)
+          : specialTargetLabel,
       targetCount: panelMode === "event" ? form.targetCount ?? 0 : null,
     });
   };
@@ -623,6 +729,39 @@ function SlidePanel({
               <AlertTriangle size={14} /> {err}
             </div>
           )}
+          {!isEdit && filter === "all" && (
+            <Field label="대상 분류" required>
+              <div style={{ position: "relative" }}>
+                <select
+                  value={createFilter}
+                  onChange={(e) => setCreateFilter(e.target.value)}
+                  style={{
+                    ...inputStyle,
+                    appearance: "none",
+                    paddingRight: 32,
+                    cursor: "pointer",
+                  }}
+                >
+                  {CREATE_FILTER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={14}
+                  color={ds.ink4}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    pointerEvents: "none",
+                  }}
+                />
+              </div>
+            </Field>
+          )}
           <Field label={panelMode === "event" ? "대상 행사" : "알림 구분"} required>
             <div style={{ position: "relative" }}>
               <select
@@ -641,7 +780,11 @@ function SlidePanel({
               >
                 {panelMode === "event" ? (
                   <>
-                    <option value="">행사 선택</option>
+                    <option value="">
+                      {filteredEvents.length > 0
+                        ? "행사 선택"
+                        : "해당 분류의 행사가 없습니다"}
+                    </option>
                     {filteredEvents.map((ev) => (
                       <option key={ev.eventId} value={ev.eventId}>
                         {ev.eventName ?? ev.eventTitle ?? `행사 ${ev.eventId}`}
@@ -681,41 +824,66 @@ function SlidePanel({
           </Field>
           {panelMode === "event" && (
             <Field label="발송 대상">
-              <div style={{ position: "relative" }}>
-                <select
-                  value={form.recipientScope}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    const opt = RECIPIENT_SCOPE_OPTIONS.find(
-                      (o) => o.value === v,
-                    );
-                    set("recipientScope", v);
-                    if (opt) set("target", opt.label);
-                  }}
+              <div style={{ display: "grid", gap: 8 }}>
+                {RECIPIENT_SCOPE_OPTIONS.map((option) => {
+                  const checked = toRecipientScopeArray(
+                    form.recipientScopes,
+                  ).includes(option.value);
+                  return (
+                    <label
+                      key={option.value}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        border: `1px solid ${checked ? ds.brand : ds.line}`,
+                        background: checked ? `${ds.brand}08` : ds.card,
+                        borderRadius: 10,
+                        padding: "11px 12px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          const current = toRecipientScopeArray(
+                            form.recipientScopes,
+                          );
+                          const next = checked
+                            ? current.filter((scope) => scope !== option.value)
+                            : [...current, option.value];
+                          set("recipientScopes", next);
+                          set("target", resolveRecipientTargetLabel(next));
+                        }}
+                        style={{
+                          width: 15,
+                          height: 15,
+                          accentColor: ds.brand,
+                          cursor: "pointer",
+                        }}
+                      />
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: checked ? ds.brand : ds.ink,
+                        }}
+                      >
+                        {option.label}
+                      </div>
+                    </label>
+                  );
+                })}
+                <div
                   style={{
-                    ...inputStyle,
-                    appearance: "none",
-                    paddingRight: 32,
-                    cursor: "pointer",
+                    fontSize: 11.5,
+                    color: ds.ink4,
+                    lineHeight: 1.5,
                   }}
                 >
-                  {RECIPIENT_SCOPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  color={ds.ink4}
-                  style={{
-                    position: "absolute",
-                    right: 12,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    pointerEvents: "none",
-                  }}
-                />
+                  중복 선택 가능합니다.
+                </div>
               </div>
             </Field>
           )}
@@ -796,9 +964,9 @@ export default function AlertManage() {
 
   useEffect(() => {
     let cancelled = false;
-    axiosInstance
-      .get("/api/admin/dashboard/events")
-      .then((res) => {
+    const loadEvents = async () => {
+      try {
+        const res = await axiosInstance.get("/api/admin/dashboard/events");
         if (cancelled) return;
         const data = res?.data?.data ?? res?.data;
         const list = data?.content ?? data ?? [];
@@ -806,10 +974,24 @@ export default function AlertManage() {
           ? list.map(normalizeEventRow)
           : [];
         setEvents(sortAdminEventsByOperationalPriority(normalized));
-      })
-      .catch(() => {
-        if (!cancelled) setEvents([]);
-      });
+      } catch {
+        try {
+          const fallbackRes = await axiosInstance.get("/api/events", {
+            params: { page: 0, size: 200, sort: "startAt,asc" },
+          });
+          if (cancelled) return;
+          const data = fallbackRes?.data?.data ?? fallbackRes?.data;
+          const list = data?.content ?? data ?? [];
+          const normalized = Array.isArray(list)
+            ? list.map(normalizeEventRow)
+            : [];
+          setEvents(sortAdminEventsByOperationalPriority(normalized));
+        } catch {
+          if (!cancelled) setEvents([]);
+        }
+      }
+    };
+    loadEvents();
     return () => {
       cancelled = true;
     };
@@ -924,6 +1106,9 @@ export default function AlertManage() {
       return;
     }
     const alertMode = resolveAlertMode(item);
+    const recipientScopes = normalizeRecipientScopes(
+      item.recipientScopes ?? item.recipientScope,
+    );
     const request =
       alertMode === "event"
         ? adminNotificationApi.publishEvent({
@@ -934,7 +1119,8 @@ export default function AlertManage() {
             targetId: Number(item.eventId),
             eventId: Number(item.eventId),
             channels: ["APP"],
-            recipientScope: item.recipientScope || "INTEREST_SUBSCRIBERS",
+            recipientScope: recipientScopes[0],
+            recipientScopes,
           })
         : adminNotificationApi.publishBroadcast({
             type: alertMode === "system" ? "SYSTEM" : "NOTICE",

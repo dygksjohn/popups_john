@@ -21,7 +21,8 @@ export const adminNotificationApi = {
    *   targetId: number,
    *   eventId: number,
    *   channels?: string[],
-   *   recipientScope?: string
+   *   recipientScope?: string,
+   *   recipientScopes?: string[]
    * }} payload
    * @returns {Promise<void>}
    */
@@ -35,6 +36,7 @@ export const adminNotificationApi = {
       eventId: payload.eventId,
       channels: payload.channels ?? ["APP"],
       recipientScope: payload.recipientScope ?? "INTEREST_SUBSCRIBERS",
+      recipientScopes: payload.recipientScopes,
     };
     return axiosInstance
       .post("/api/admin/notifications/event", body)

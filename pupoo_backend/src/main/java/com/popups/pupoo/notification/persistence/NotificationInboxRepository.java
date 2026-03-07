@@ -127,6 +127,33 @@ public interface NotificationInboxRepository extends JpaRepository<NotificationI
                                  @Param("targetType") String targetType,
                                  @Param("targetId") Long targetId);
 
+    @Query(value = """
+            SELECT DISTINCT uis.user_id
+            FROM event_interest_map eim
+            JOIN user_interest_subscriptions uis
+              ON uis.interest_id = eim.interest_id
+            WHERE eim.event_id = :eventId
+              AND uis.status = 'ACTIVE'
+              AND uis.allow_inapp = 1
+            """, nativeQuery = true)
+    List<Long> findInAppUserIdsByEventInterest(@Param("eventId") Long eventId);
+
+    @Query(value = """
+            SELECT DISTINCT ea.user_id
+            FROM event_apply ea
+            WHERE ea.event_id = :eventId
+              AND ea.status IN ('APPLIED', 'APPROVED')
+            """, nativeQuery = true)
+    List<Long> findInAppUserIdsByEventRegistrants(@Param("eventId") Long eventId);
+
+    @Query(value = """
+            SELECT DISTINCT p.user_id
+            FROM payments p
+            WHERE p.event_id = :eventId
+              AND p.status = 'APPROVED'
+            """, nativeQuery = true)
+    List<Long> findInAppUserIdsByEventPayers(@Param("eventId") Long eventId);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """
             INSERT INTO notification_inbox (user_id, notification_id, created_at, target_type, target_id)

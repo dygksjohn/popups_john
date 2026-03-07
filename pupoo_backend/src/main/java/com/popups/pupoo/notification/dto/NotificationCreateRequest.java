@@ -47,4 +47,11 @@ public class NotificationCreateRequest {
      * 발송 대상 범위(미지정 시 INTEREST_SUBSCRIBERS)
      */
     private RecipientScope recipientScope;
+
+    /**
+     * 발송 대상 범위 다중 선택.
+     * - 프론트 체크박스 UI와 호환
+     * - 미지정 시 recipientScope 또는 INTEREST_SUBSCRIBERS 로 fallback
+     */
+    private List<RecipientScope> recipientScopes;
 }
