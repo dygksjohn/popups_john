@@ -4,6 +4,7 @@ package com.popups.pupoo.notification.application;
 import com.popups.pupoo.common.audit.application.AdminLogService;
 import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.notification.domain.enums.NotificationType;
+import com.popups.pupoo.notification.dto.AdminNotificationPublishResult;
 import com.popups.pupoo.notification.dto.NotificationBroadcastRequest;
 import com.popups.pupoo.notification.dto.NotificationCreateRequest;
 import org.springframework.stereotype.Service;
@@ -25,18 +26,20 @@ public class NotificationAdminService {
     }
 
     @Transactional
-    public void publishByEvent(NotificationCreateRequest request, Long adminUserId) {
-        notificationService.publishAdminEventNotification(adminUserId, request);
+    public AdminNotificationPublishResult publishByEvent(NotificationCreateRequest request, Long adminUserId) {
+        AdminNotificationPublishResult result = notificationService.publishAdminEventNotification(adminUserId, request);
         adminLogService.write("NOTIFICATION_PUBLISH", AdminTargetType.EVENT, request.getEventId());
+        return result;
     }
 
     @Transactional
-    public void publishBroadcast(NotificationBroadcastRequest request, Long adminUserId) {
-        notificationService.publishAdminBroadcastNotification(adminUserId, request);
+    public AdminNotificationPublishResult publishBroadcast(NotificationBroadcastRequest request, Long adminUserId) {
+        AdminNotificationPublishResult result = notificationService.publishAdminBroadcastNotification(adminUserId, request);
         AdminTargetType targetType = request.getType() == NotificationType.SYSTEM
                 ? AdminTargetType.SYSTEM
                 : AdminTargetType.NOTICE;
         Long targetId = request.getTargetId() == null ? 0L : request.getTargetId();
         adminLogService.write("NOTIFICATION_PUBLISH", targetType, targetId);
+        return result;
     }
 }

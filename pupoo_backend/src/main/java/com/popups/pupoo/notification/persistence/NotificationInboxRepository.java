@@ -170,6 +170,13 @@ public interface NotificationInboxRepository extends JpaRepository<NotificationI
                                     @Param("targetType") String targetType,
                                     @Param("targetId") Long targetId);
 
+    @Query(value = """
+            SELECT COUNT(*)
+            FROM users u
+            WHERE u.status = 'ACTIVE'
+            """, nativeQuery = true)
+    int countAllActiveUsers();
+
     /* =========================================================
      * EMAIL/SMS 전송 대상 산정(로컬은 실제 발송 대신 send 테이블로 기록)
      * - 수신허용(allow_email/allow_sms) 정책 강제

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Send,
   Users,
@@ -62,6 +62,61 @@ const resolveRecipientTargetLabel = (scopes) =>
         scope,
     )
     .join(", ");
+
+const formatSentDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(
+    date.getDate(),
+  ).padStart(2, "0")}`;
+};
+
+const normalizeAlertItem = (item) => {
+  const alertMode = String(item?.alertMode ?? "event").toLowerCase();
+  const recipientScopes =
+    alertMode === "event"
+      ? normalizeRecipientScopes(item?.recipientScopes ?? item?.recipientScope)
+      : [];
+  return {
+    ...item,
+    id: item?.id ?? item?.adminNotificationId ?? null,
+    status: String(item?.status ?? "draft").toLowerCase(),
+    alertMode,
+    notificationType: String(item?.notificationType ?? "EVENT").toUpperCase(),
+    eventId: item?.eventId ?? null,
+    eventName: item?.eventName ?? item?.alertTargetLabel ?? "",
+    eventStatus: item?.eventStatus ?? null,
+    alertTargetLabel: item?.alertTargetLabel ?? item?.eventName ?? "",
+    specialTargetKey: item?.specialTargetKey ?? "",
+    recipientScope: recipientScopes[0] ?? null,
+    recipientScopes,
+    target:
+      item?.target ??
+      (alertMode === "event" && recipientScopes.length > 0
+        ? resolveRecipientTargetLabel(recipientScopes)
+        : item?.alertTargetLabel ?? resolveSpecialTargetLabel(item?.alertMode)),
+    targetCount:
+      item?.targetCount == null ? null : Number(item.targetCount),
+    sentDate: item?.sentDate ?? formatSentDate(item?.sentAt),
+  };
+};
+
+const buildDraftPayload = (item) => ({
+  title: item.title,
+  content: item.content,
+  alertMode: item.alertMode,
+  eventId: item.eventId,
+  eventName: item.eventName,
+  eventStatus: item.eventStatus,
+  alertTargetLabel: item.alertTargetLabel,
+  specialTargetKey: item.specialTargetKey,
+  recipientScope: item.recipientScope ?? null,
+  recipientScopes: item.recipientScopes ?? [],
+});
+
+const resolveErrorMessage = (error, fallback) =>
+  error?.response?.data?.error?.message || error?.message || fallback;
 
 const resolveAlertMode = (item, filter = "all") => {
   const type = String(item?.notificationType ?? item?.type ?? "").toUpperCase();
@@ -584,7 +639,7 @@ function SlidePanel({
     });
   }, [panelMode, specialOptions]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title || !form.content) {
       setErr("제목과 내용은 필수입니다.");
       return;
@@ -603,31 +658,39 @@ function SlidePanel({
     const selectedEvent =
       events.find((e) => String(e.eventId) === String(form.eventId)) || null;
     const specialTargetLabel = resolveSpecialTargetLabel(panelMode);
-    onSave({
-      ...form,
-      alertMode: panelMode,
-      notificationType:
-        panelMode === "system"
-          ? "SYSTEM"
-          : panelMode === "important"
-            ? "NOTICE"
-            : "EVENT",
-      eventId: panelMode === "event" && form.eventId ? Number(form.eventId) : null,
-      eventName: panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
-      eventStatus: panelMode === "event" ? selectedEvent?.status ?? null : null,
-      alertTargetLabel:
-        panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
-      specialTargetKey: panelMode === "event" ? "" : form.specialTargetKey,
-      recipientScope:
-        panelMode === "event" ? normalizedRecipientScopes[0] : null,
-      recipientScopes:
-        panelMode === "event" ? normalizedRecipientScopes : [],
-      target:
-        panelMode === "event"
-          ? resolveRecipientTargetLabel(normalizedRecipientScopes)
-          : specialTargetLabel,
-      targetCount: panelMode === "event" ? form.targetCount ?? 0 : null,
-    });
+    try {
+      await onSave({
+        ...form,
+        alertMode: panelMode,
+        notificationType:
+          panelMode === "system"
+            ? "SYSTEM"
+            : panelMode === "important"
+              ? "NOTICE"
+              : "EVENT",
+        eventId:
+          panelMode === "event" && form.eventId ? Number(form.eventId) : null,
+        eventName:
+          panelMode === "event"
+            ? selectedEvent?.eventName ?? ""
+            : specialTargetLabel,
+        eventStatus: panelMode === "event" ? selectedEvent?.status ?? null : null,
+        alertTargetLabel:
+          panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
+        specialTargetKey: panelMode === "event" ? "" : form.specialTargetKey,
+        recipientScope:
+          panelMode === "event" ? normalizedRecipientScopes[0] : null,
+        recipientScopes:
+          panelMode === "event" ? normalizedRecipientScopes : [],
+        target:
+          panelMode === "event"
+            ? resolveRecipientTargetLabel(normalizedRecipientScopes)
+            : specialTargetLabel,
+        targetCount: panelMode === "event" ? form.targetCount ?? 0 : null,
+      });
+    } catch (error) {
+      setErr(resolveErrorMessage(error, "저장에 실패했습니다."));
+    }
   };
 
   return (
@@ -961,9 +1024,23 @@ export default function AlertManage() {
   const [eventStatusFilter, setEventStatusFilter] = useState("all");
   const [selected, setSelected] = useState([]);
   const show = (msg, type = "success") => setToast({ msg, type });
+  const loadItems = useCallback(async () => {
+    const list = await adminNotificationApi.list();
+    setItems(Array.isArray(list) ? list.map(normalizeAlertItem) : []);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    const loadAlerts = async () => {
+      try {
+        const list = await adminNotificationApi.list();
+        if (!cancelled) {
+          setItems(Array.isArray(list) ? list.map(normalizeAlertItem) : []);
+        }
+      } catch {
+        if (!cancelled) setItems([]);
+      }
+    };
     const loadEvents = async () => {
       try {
         const res = await axiosInstance.get("/api/admin/dashboard/events");
@@ -991,6 +1068,7 @@ export default function AlertManage() {
         }
       }
     };
+    loadAlerts();
     loadEvents();
     return () => {
       cancelled = true;
@@ -1007,7 +1085,7 @@ export default function AlertManage() {
     [events],
   );
 
-  const visible = items.filter((e) => e._visible);
+  const visible = items;
   const sent = visible.filter((e) => e.status === "sent").length;
   const draft = visible.filter((e) => e.status === "draft").length;
   const totalTarget = visible
@@ -1057,107 +1135,52 @@ export default function AlertManage() {
       p.includes(id) ? p.filter((x) => x !== id) : [...p, id],
     );
 
-  const handleCreate = (f) => {
-    const eventName = resolveItemEventName(f, eventMap);
-    const eventStatus = resolveItemEventStatus(f, eventMap);
-    setItems((p) => [
-      {
-        ...f,
-        eventName,
-        eventStatus,
-        id: `AL-${String(p.length + 1).padStart(3, "0")}`,
-        sentDate: null,
-        _visible: true,
-        status: f.status ?? "draft",
-      },
-      ...p,
-    ]);
+  const handleCreate = async (f) => {
+    await adminNotificationApi.createDraft(buildDraftPayload(f));
+    await loadItems();
     setPanel(null);
     show("알림이 저장되었습니다.");
   };
-  const handleUpdate = (f) => {
-    const eventName = resolveItemEventName(f, eventMap);
-    const eventStatus = resolveItemEventStatus(f, eventMap);
-    setItems((p) =>
-      p.map((e) =>
-        e.id === f.id
-          ? { ...e, ...f, eventName, eventStatus }
-          : e,
-      ),
-    );
+  const handleUpdate = async (f) => {
+    await adminNotificationApi.updateDraft(f.id, buildDraftPayload(f));
+    await loadItems();
     setPanel(null);
     show("알림이 수정되었습니다.");
   };
-  const handleDelete = () => {
-    const id = modal.item.id;
+  const handleDelete = async () => {
+    const id = modal?.item?.id;
     setModal(null);
-    setItems((p) =>
-      p.map((e) => (e.id === id ? { ...e, _visible: false } : e)),
-    );
-    show("알림이 삭제되었습니다.");
-  };
-  const handleSend = (item) => {
-    if (resolveAlertMode(item) === "event" && !item.eventId) {
-      setModal(null);
-      show(
-        "대상 행사를 선택해 주세요. 알림을 수정한 뒤 다시 발송해 주세요.",
-        "error",
-      );
-      return;
+    if (!id) return;
+    try {
+      await adminNotificationApi.delete(id);
+      await loadItems();
+      setSelected((prev) => prev.filter((itemId) => itemId !== id));
+      show("알림이 삭제되었습니다.");
+    } catch (error) {
+      show(resolveErrorMessage(error, "삭제에 실패했습니다."), "error");
     }
-    const alertMode = resolveAlertMode(item);
-    const recipientScopes = normalizeRecipientScopes(
-      item.recipientScopes ?? item.recipientScope,
-    );
-    const request =
-      alertMode === "event"
-        ? adminNotificationApi.publishEvent({
-            type: "EVENT",
-            title: item.title,
-            content: item.content,
-            targetType: "EVENT",
-            targetId: Number(item.eventId),
-            eventId: Number(item.eventId),
-            channels: ["APP"],
-            recipientScope: recipientScopes[0],
-            recipientScopes,
-          })
-        : adminNotificationApi.publishBroadcast({
-            type: alertMode === "system" ? "SYSTEM" : "NOTICE",
-            title: item.title,
-            content: item.content,
-            targetType: "NOTICE",
-            targetId: 0,
-            channels: ["APP"],
-          });
-    request
-      .then(() => {
-        const d = new Date();
-        const eventName = resolveItemEventName(item, eventMap);
-        const eventStatus = resolveItemEventStatus(item, eventMap);
-        setItems((p) =>
-          p.map((e) =>
-            e.id === item.id
-              ? {
-                  ...e,
-                  eventName,
-                  eventStatus,
-                  status: "sent",
-                  sentDate: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`,
-                }
-              : e,
-          ),
-        );
-        setModal(null);
-        show("알림이 발송되었습니다.");
-      })
-      .catch((err) => {
-        const msg =
-          err?.response?.data?.error?.message ||
-          err?.message ||
-          "발송에 실패했습니다.";
-        show(msg, "error");
-      });
+  };
+  const handleBatchDelete = async () => {
+    const ids = [...selected];
+    setModal(null);
+    try {
+      await Promise.all(ids.map((id) => adminNotificationApi.delete(id)));
+      await loadItems();
+      setSelected([]);
+      show("선택한 알림을 삭제했습니다.");
+    } catch (error) {
+      show(resolveErrorMessage(error, "삭제에 실패했습니다."), "error");
+    }
+  };
+  const handleSend = async (item) => {
+    try {
+      await adminNotificationApi.send(item.id);
+      await loadItems();
+      setModal(null);
+      show("알림을 발송했습니다.");
+    } catch (error) {
+      show(resolveErrorMessage(error, "발송에 실패했습니다."), "error");
+    }
   };
 
   return (
@@ -1596,6 +1619,14 @@ export default function AlertManage() {
           title="알림 삭제"
           msg={`"${modal.item.title}" 알림을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
           onConfirm={handleDelete}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === "batchDelete" && (
+        <ConfirmModal
+          title="선택 알림 삭제"
+          msg={`${selected.length}개의 알림을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
+          onConfirm={handleBatchDelete}
           onCancel={() => setModal(null)}
         />
       )}

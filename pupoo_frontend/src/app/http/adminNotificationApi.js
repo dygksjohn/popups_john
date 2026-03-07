@@ -1,4 +1,3 @@
-// src/app/http/adminNotificationApi.js
 import { axiosInstance } from "./axiosInstance";
 
 function unwrap(res) {
@@ -6,26 +5,59 @@ function unwrap(res) {
   return body?.data ?? body;
 }
 
-/**
- * 관리자 알림 API (인증: ADMIN)
- * POST /api/admin/notifications/event — 이벤트 기반 알림 발행
- */
 export const adminNotificationApi = {
-  /**
-   * 이벤트 기반 알림 발행
-   * @param {{
-   *   type: string,
-   *   title: string,
-   *   content: string,
-   *   targetType: string,
-   *   targetId: number,
-   *   eventId: number,
-   *   channels?: string[],
-   *   recipientScope?: string,
-   *   recipientScopes?: string[]
-   * }} payload
-   * @returns {Promise<void>}
-   */
+  list() {
+    return axiosInstance
+      .get("/api/admin/notifications")
+      .then((res) => unwrap(res));
+  },
+
+  createDraft(payload) {
+    return axiosInstance
+      .post("/api/admin/notifications", {
+        title: payload.title,
+        content: payload.content,
+        alertMode: payload.alertMode,
+        eventId: payload.eventId,
+        eventName: payload.eventName,
+        eventStatus: payload.eventStatus,
+        alertTargetLabel: payload.alertTargetLabel,
+        specialTargetKey: payload.specialTargetKey,
+        recipientScope: payload.recipientScope ?? null,
+        recipientScopes: payload.recipientScopes ?? [],
+      })
+      .then((res) => unwrap(res));
+  },
+
+  updateDraft(id, payload) {
+    return axiosInstance
+      .put(`/api/admin/notifications/${id}`, {
+        title: payload.title,
+        content: payload.content,
+        alertMode: payload.alertMode,
+        eventId: payload.eventId,
+        eventName: payload.eventName,
+        eventStatus: payload.eventStatus,
+        alertTargetLabel: payload.alertTargetLabel,
+        specialTargetKey: payload.specialTargetKey,
+        recipientScope: payload.recipientScope ?? null,
+        recipientScopes: payload.recipientScopes ?? [],
+      })
+      .then((res) => unwrap(res));
+  },
+
+  delete(id) {
+    return axiosInstance
+      .delete(`/api/admin/notifications/${id}`)
+      .then((res) => unwrap(res));
+  },
+
+  send(id) {
+    return axiosInstance
+      .post(`/api/admin/notifications/${id}/send`)
+      .then((res) => unwrap(res));
+  },
+
   publishEvent(payload) {
     const body = {
       type: payload.type,

@@ -12,6 +12,7 @@ import com.popups.pupoo.notification.domain.model.Notification;
 import com.popups.pupoo.notification.domain.model.NotificationInbox;
 import com.popups.pupoo.notification.domain.model.NotificationSend;
 import com.popups.pupoo.notification.domain.model.NotificationSettings;
+import com.popups.pupoo.notification.dto.AdminNotificationPublishResult;
 import com.popups.pupoo.notification.dto.NotificationBroadcastRequest;
 import com.popups.pupoo.notification.dto.NotificationCreateRequest;
 import com.popups.pupoo.notification.dto.NotificationInboxResponse;
@@ -156,12 +157,13 @@ public class NotificationService {
      * ========================================================= */
 
     @Transactional
-    public void publishAdminEventNotification(Long adminUserId, NotificationCreateRequest request) {
+    public AdminNotificationPublishResult publishAdminEventNotification(Long adminUserId, NotificationCreateRequest request) {
         Notification notification = Notification.create(request.getType(), request.getTitle(), request.getContent());
         notificationRepository.save(notification);
 
         List<NotificationChannel> channels = normalizeChannels(request.getChannels());
         List<RecipientScope> scopes = normalizeRecipientScopes(request);
+        int targetCount = countAdminEventRecipients(request.getEventId(), scopes);
 
         // 1) INAPP fan-out
         if (channels.contains(NotificationChannel.APP)) {
@@ -185,19 +187,21 @@ public class NotificationService {
         if (channels.contains(NotificationChannel.PUSH)) {
             notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.PUSH));
         }
+        return new AdminNotificationPublishResult(notification.getNotificationId(), targetCount);
     }
 
     @Transactional
-    public void publishAdminBroadcastNotification(Long adminUserId, NotificationBroadcastRequest request) {
+    public AdminNotificationPublishResult publishAdminBroadcastNotification(Long adminUserId, NotificationBroadcastRequest request) {
         Notification notification = Notification.create(request.getType(), request.getTitle(), request.getContent());
         notificationRepository.save(notification);
 
         List<NotificationChannel> channels = normalizeChannels(request.getChannels());
         InboxTargetType targetType = request.getTargetType() == null ? InboxTargetType.NOTICE : request.getTargetType();
         Long targetId = request.getTargetId() == null ? 0L : request.getTargetId();
+        int targetCount = countAllActiveRecipients();
 
         if (channels.contains(NotificationChannel.APP)) {
-            notificationInboxRepository.fanoutInboxByAllActiveUsers(
+            targetCount = notificationInboxRepository.fanoutInboxByAllActiveUsers(
                     notification.getNotificationId(),
                     targetType.name(),
                     targetId
@@ -217,6 +221,7 @@ public class NotificationService {
         if (channels.contains(NotificationChannel.PUSH)) {
             notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.PUSH));
         }
+        return new AdminNotificationPublishResult(notification.getNotificationId(), targetCount);
     }
 
     /* =========================================================
@@ -235,18 +240,23 @@ public class NotificationService {
         return new ArrayList<>(set);
     }
 
-    private List<RecipientScope> normalizeRecipientScopes(NotificationCreateRequest request) {
+    public List<RecipientScope> normalizeAdminRecipientScopes(RecipientScope recipientScope,
+                                                              List<RecipientScope> recipientScopes) {
         EnumSet<RecipientScope> scopes = EnumSet.noneOf(RecipientScope.class);
-        if (request.getRecipientScopes() != null) {
-            scopes.addAll(request.getRecipientScopes());
+        if (recipientScopes != null) {
+            scopes.addAll(recipientScopes);
         }
-        if (request.getRecipientScope() != null) {
-            scopes.add(request.getRecipientScope());
+        if (recipientScope != null) {
+            scopes.add(recipientScope);
         }
         if (scopes.isEmpty()) {
             scopes.add(RecipientScope.INTEREST_SUBSCRIBERS);
         }
         return new ArrayList<>(scopes);
+    }
+
+    private List<RecipientScope> normalizeRecipientScopes(NotificationCreateRequest request) {
+        return normalizeAdminRecipientScopes(request.getRecipientScope(), request.getRecipientScopes());
     }
 
     private void fanoutInbox(Long eventId,
@@ -381,5 +391,13 @@ public class NotificationService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
         return recipientUserIds;
+    }
+
+    public int countAdminEventRecipients(Long eventId, List<RecipientScope> scopes) {
+        return resolveRecipientUserIds(eventId, scopes).size();
+    }
+
+    public int countAllActiveRecipients() {
+        return notificationInboxRepository.countAllActiveUsers();
     }
 }
