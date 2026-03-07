@@ -61,4 +61,5 @@ public class EventResponse {
     public BigDecimal getBaseFee() { return baseFee; }
 
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public void setStatus(EventStatus status) { this.status = status; }
 }

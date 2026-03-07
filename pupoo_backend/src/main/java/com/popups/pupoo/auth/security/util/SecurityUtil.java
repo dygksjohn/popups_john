@@ -94,7 +94,11 @@ public class SecurityUtil {
             return false;
         }
         for (GrantedAuthority a : auth.getAuthorities()) {
-            if (a != null && "ROLE_ADMIN".equals(a.getAuthority())) {
+            if (a == null) {
+                continue;
+            }
+            String authority = a.getAuthority();
+            if ("ROLE_ADMIN".equals(authority) || "ROLE_SUPER_ADMIN".equals(authority)) {
                 return true;
             }
         }
