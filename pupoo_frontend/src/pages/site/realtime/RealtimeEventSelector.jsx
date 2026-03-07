@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
+import { programApi } from "../../../app/http/programApi";
 import { getToken } from "../../../api/noticeApi";
 import { sortAdminEventsByOperationalPriority } from "../../admin/shared/adminStatus";
 
@@ -377,7 +378,7 @@ async function fetchAdminData(url, params, fallback) {
   }
 }
 
-export default function RealtimeEventSelector({ onSelectEvent, pageTitle }) {
+export default function RealtimeEventSelector({ onSelectEvent, pageTitle, programCategory }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [events, setEvents] = useState([]);
@@ -407,7 +408,33 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle }) {
           })),
         );
 
-        const liveEvents = sortedEvents
+        const eventAvailabilityMap = programCategory
+          ? new Map(
+              await Promise.all(
+                sortedEvents.map(async (event) => {
+                  try {
+                    const response = await programApi.getPrograms({
+                      eventId: Number(event.eventId),
+                      category: programCategory,
+                      page: 0,
+                      size: 1,
+                      sort: "startAt,asc",
+                    });
+                    const totalElements = Number(response?.data?.data?.totalElements ?? 0);
+                    return [Number(event.eventId), totalElements > 0];
+                  } catch {
+                    return [Number(event.eventId), false];
+                  }
+                }),
+              ),
+            )
+          : null;
+
+        const visibleEvents = eventAvailabilityMap
+          ? sortedEvents.filter((event) => eventAvailabilityMap.get(Number(event.eventId)))
+          : sortedEvents;
+
+        const liveEvents = visibleEvents
           .filter((event) => String(event.status).toLowerCase() === "active")
           .slice(0, 12);
 
@@ -433,7 +460,7 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle }) {
         if (!mounted) return;
 
         setEvents(
-          sortedEvents.map((event, index) => {
+          visibleEvents.map((event, index) => {
             const rawStatus = String(rawEvents.find((row) => Number(row.eventId) === Number(event.eventId))?.status ?? event.status).toUpperCase();
             const performance = performanceMap.get(Number(event.eventId));
             const registrations = Number(performance?.approvedRegistrationCount) || 0;
