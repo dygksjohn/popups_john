@@ -43,6 +43,7 @@ import {
   removeProgramImage,
   setProgramImage,
 } from "../shared/programImageStore";
+import { resolveAdminStatus } from "../shared/adminStatus";
 
 /* ═══ Styles ═══ */
 const styles = `
@@ -1556,9 +1557,12 @@ export default function ContestManage({
       const list = res.data?.data || res.data || [];
       const mapped = injectEventImages(list).map((e) => ({
         ...e,
-        status: calcStatus(
-          e.startAt || e.date?.split("~")[0]?.trim()?.replace(/\./g, "-"),
-          e.endAt || e.date?.split("~")[1]?.trim()?.replace(/\./g, "-"),
+        status: resolveAdminStatus(
+          e,
+          calcStatus(
+            e.startAt || e.date?.split("~")[0]?.trim()?.replace(/\./g, "-"),
+            e.endAt || e.date?.split("~")[1]?.trim()?.replace(/\./g, "-"),
+          ),
         ),
       }));
       const parseId = (v) => {
@@ -1595,7 +1599,7 @@ export default function ContestManage({
         .filter((p) => isContestProgram(p))
         .map((p) => ({
           ...p,
-          status: calcStatus(p.startAt, p.endAt),
+          status: resolveAdminStatus(p, calcStatus(p.startAt, p.endAt)),
           imageUrl: imageMapRef.current[p.programId] || p.imageUrl || null,
         }));
       /* 최신 등록순 */
@@ -1639,7 +1643,7 @@ export default function ContestManage({
             programId: p.programId || p.id,
             id: p.programId || p.id,
             name: p.programTitle || p.name,
-            status: calcStatus(p.startAt, p.endAt),
+            status: resolveAdminStatus(p, calcStatus(p.startAt, p.endAt)),
             imageUrl:
               imageMapRef.current[p.programId || p.id] || p.imageUrl || null,
           }));
@@ -1781,7 +1785,7 @@ export default function ContestManage({
       const data2 = res2.data?.data ?? res2.data;
       const list2 = readApiList(data2).map((p) => ({
         ...p,
-        status: calcStatus(p.startAt, p.endAt),
+        status: resolveAdminStatus(p, calcStatus(p.startAt, p.endAt)),
         imageUrl: imageMapRef.current[p.programId] || p.imageUrl || null,
       }));
       setItems(list2);
