@@ -40,7 +40,7 @@ CREATE TABLE users (
   nickname          VARCHAR(30)   NOT NULL COMMENT '커뮤니티 표시명 닉네임',
   phone             VARCHAR(30)   NOT NULL COMMENT '휴대전화번호',
   status            ENUM('ACTIVE','SUSPENDED','DELETED') NOT NULL DEFAULT 'ACTIVE' COMMENT '계정 상태',
-  role_name         ENUM('USER','ADMIN') NOT NULL DEFAULT 'USER' COMMENT '권한명(USER/ADMIN)',
+role_name         ENUM('USER','ADMIN','SUPER_ADMIN') NOT NULL DEFAULT 'USER' COMMENT '권한명(USER/ADMIN/SUPER_ADMIN)',
   show_age          TINYINT(1)    NOT NULL DEFAULT 0 COMMENT '나이 공개 여부',
   show_gender       TINYINT(1)    NOT NULL DEFAULT 0 COMMENT '성별 공개 여부',
   show_pet          TINYINT(1)    NOT NULL DEFAULT 0 COMMENT '반려동물 공개 여부',
