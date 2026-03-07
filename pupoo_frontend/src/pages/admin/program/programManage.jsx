@@ -20,6 +20,7 @@ import {
 import ds, { statusMap } from "../shared/designTokens";
 import { Pill } from "../shared/Components";
 import DATA from "../shared/data";
+import { resolveAdminStatus } from "../shared/adminStatus";
 import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 import {
   setProgramImage,
@@ -1068,9 +1069,12 @@ export default function ProgramManage({ subTab = "all" }) {
       const list = res.data?.data || res.data || [];
       const mapped = injectEventImages(list).map((e) => ({
         ...e,
-        status: calcStatus(
-          e.startAt || e.date?.split("~")[0]?.trim()?.replace(/\./g, "-"),
-          e.endAt || e.date?.split("~")[1]?.trim()?.replace(/\./g, "-"),
+        status: resolveAdminStatus(
+          e,
+          calcStatus(
+            e.startAt || e.date?.split("~")[0]?.trim()?.replace(/\./g, "-"),
+            e.endAt || e.date?.split("~")[1]?.trim()?.replace(/\./g, "-"),
+          ),
         ),
       }));
       /* 최신 등록순 - eventId/id 숫자 추출 내림차순 */
@@ -1110,7 +1114,7 @@ export default function ProgramManage({ subTab = "all" }) {
       const mapped = list.map((p) => ({
         ...p,
         _visible: true,
-        status: calcStatus(p.startAt, p.endAt),
+        status: resolveAdminStatus(p, calcStatus(p.startAt, p.endAt)),
         imageUrl:
           getProgramImage(p.programId || p.id) ||
           imageMapRef.current[p.programId || p.id] ||

@@ -35,6 +35,10 @@ import {
 import { CircleDot } from "lucide-react";
 import ds, { cardStyle } from "../shared/designTokens";
 import { KpiCard, ChartTip } from "../shared/Components";
+import {
+  countAdminStatuses,
+  resolveAdminStatus,
+} from "../shared/adminStatus";
 import DATA from "../shared/data";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken, clearToken } from "../../../api/noticeApi";
@@ -808,29 +812,12 @@ export default function Dashboard() {
         headers: authHeaders(),
       });
 
-      const eventList = eventRes?.data?.data || eventRes?.data || [];
-      const events = Array.isArray(eventList) ? eventList : [];
-
-      // 이벤트별로 programs 병렬 호출 (session + contest 포함)
-      const eventIds = events.map((e) => e.eventId ?? e.id).filter(Boolean);
-      const programResults = await Promise.allSettled(
-        eventIds.map((eid) =>
-          axiosInstance.get(`/api/admin/dashboard/events/${eid}/programs`, {
-            headers: authHeaders(),
-            params: { size: 200 },
-          }),
-        ),
-      );
-      const programs = programResults.flatMap((r) => {
-        if (r.status !== "fulfilled") return [];
-        const d = r.value?.data?.data;
-        const arr = Array.isArray(d?.content)
-          ? d.content
-          : Array.isArray(d)
-            ? d
+      const readList = (payload) =>
+        Array.isArray(payload?.content)
+          ? payload.content
+          : Array.isArray(payload)
+            ? payload
             : [];
-        return arr;
-      });
 
       /* 날짜 기반 상태 계산 — 각 관리 페이지의 calcStatus와 동일 로직 */
       const calcSt = (startAt, endAt) => {
@@ -856,65 +843,25 @@ export default function Dashboard() {
         return "active";
       };
 
-      const evComputed = events.map((e) => {
-        const s =
-          e.startAt ??
-          e.startDateTime ??
-          e.startDate ??
-          e.date?.split("~")[0]?.trim();
-        const en =
-          e.endAt ??
-          e.endDateTime ??
-          e.endDate ??
-          e.date?.split("~")[1]?.trim();
-        return calcSt(s, en);
-      });
-      const sessionPrograms = programs.filter(
-        (program) => normalizeAdminProgramCategory(program) === "SESSION",
+      const events = readList(eventRes?.data?.data || eventRes?.data).map(
+        (event) => {
+          const startAt =
+            event.startAt ??
+            event.startDateTime ??
+            event.startDate ??
+            event.date?.split("~")[0]?.trim();
+          const endAt =
+            event.endAt ??
+            event.endDateTime ??
+            event.endDate ??
+            event.date?.split("~")[1]?.trim();
+          return {
+            ...event,
+            status: resolveAdminStatus(event, calcSt(startAt, endAt)),
+          };
+        },
       );
-      const nonSessionPrograms = programs.filter(
-        (program) => normalizeAdminProgramCategory(program) !== "SESSION",
-      );
-      const prComputed = nonSessionPrograms.map((p) =>
-        calcSt(p.startAt, p.endAt),
-      );
-      const sessionComputed = sessionPrograms.map((p) =>
-        calcSt(p.startAt, p.endAt),
-      );
-
-      // ????: ?? programs?? CONTEST ???? ???
-      const contests = programs.filter((p) => {
-        return normalizeAdminProgramCategory(p) === "CONTEST";
-      });
-      const ctComputed = contests.map((p) => calcSt(p.startAt, p.endAt));
-
-      const eventCounts = {
-        all: events.length,
-        active: evComputed.filter((s) => s === "active").length,
-        ended: evComputed.filter((s) => s === "ended").length,
-        pending: evComputed.filter((s) => s === "pending").length,
-      };
-
-      const programCounts = {
-        all: nonSessionPrograms.length,
-        active: prComputed.filter((s) => s === "active").length,
-        ended: prComputed.filter((s) => s === "ended").length,
-        pending: prComputed.filter((s) => s === "pending").length,
-      };
-
-      const sessionCounts = {
-        all: sessionPrograms.length,
-        active: sessionComputed.filter((s) => s === "active").length,
-        ended: sessionComputed.filter((s) => s === "ended").length,
-        pending: sessionComputed.filter((s) => s === "pending").length,
-      };
-
-      const contestCounts = {
-        all: contests.length,
-        active: ctComputed.filter((s) => s === "active").length,
-        ended: ctComputed.filter((s) => s === "ended").length,
-        pending: ctComputed.filter((s) => s === "pending").length,
-      };
+      const eventCounts = countAdminStatuses(events);
 
       const evTabRow = (label = "전체") => [
         { id: "all", label, count: eventCounts.all },
@@ -932,24 +879,14 @@ export default function Dashboard() {
           { id: "new", label: "신규", count: eventCounts.pending },
         ],
         programManage: [
-          { id: "all", label: "전체", count: programCounts.all },
-          { id: "active", label: "운영 중", count: programCounts.active },
-          { id: "ended", label: "종료", count: programCounts.ended },
-          { id: "pending", label: "대기", count: programCounts.pending },
+          { id: "all", label: "전체", count: eventCounts.all },
+          { id: "active", label: "운영 중", count: eventCounts.active },
+          { id: "ended", label: "종료", count: eventCounts.ended },
+          { id: "pending", label: "대기", count: eventCounts.pending },
         ],
         zoneManage: evTabRow("전체"),
-        contestManage: [
-          { id: "all", label: "전체", count: contestCounts.all },
-          { id: "active", label: "운영 중", count: contestCounts.active },
-          { id: "ended", label: "종료", count: contestCounts.ended },
-          { id: "pending", label: "대기", count: contestCounts.pending },
-        ],
-        sessionManage: [
-          { id: "all", label: "\uC804\uCCB4", count: sessionCounts.all },
-          { id: "active", label: "\uC6B4\uC601 \uC911", count: sessionCounts.active },
-          { id: "ended", label: "\uC885\uB8CC", count: sessionCounts.ended },
-          { id: "pending", label: "\uB300\uAE30", count: sessionCounts.pending },
-        ],
+        contestManage: evTabRow("전체"),
+        sessionManage: evTabRow("전체"),
         paymentManage: evTabRow("전체"),
       }));
       setEventMenuBadge(eventCounts.all);
