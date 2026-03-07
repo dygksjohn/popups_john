@@ -16,25 +16,37 @@ const PAGE_SIZE = 20;
 const TARGET_TYPE_OPTIONS = [
   { value: "", label: "전체 대상" },
   { value: "EVENT", label: "행사" },
+  { value: "PROGRAM", label: "프로그램" },
+  { value: "BOOTH", label: "부스" },
   { value: "NOTICE", label: "공지" },
   { value: "POST", label: "게시글" },
+  { value: "QNA", label: "QnA" },
+  { value: "INQUIRY", label: "문의" },
   { value: "REVIEW", label: "후기" },
   { value: "PAYMENT", label: "결제" },
   { value: "REFUND", label: "환불" },
+  { value: "GALLERY", label: "갤러리" },
   { value: "QR", label: "QR" },
   { value: "USER", label: "회원" },
+  { value: "SYSTEM", label: "시스템" },
   { value: "OTHER", label: "기타" },
 ];
 
 const TARGET_TYPE_META = {
   EVENT: { label: "행사", color: ds.green, background: ds.greenSoft },
+  PROGRAM: { label: "프로그램", color: ds.brand, background: ds.brandSoft },
+  BOOTH: { label: "부스", color: ds.sky, background: ds.skySoft },
   NOTICE: { label: "공지", color: ds.brand, background: ds.brandSoft },
   POST: { label: "게시글", color: ds.sky, background: ds.skySoft },
+  QNA: { label: "QnA", color: ds.violet, background: ds.violetSoft },
+  INQUIRY: { label: "문의", color: ds.violet, background: ds.violetSoft },
   REVIEW: { label: "후기", color: ds.violet, background: ds.violetSoft },
   PAYMENT: { label: "결제", color: ds.amber, background: ds.amberSoft },
   REFUND: { label: "환불", color: ds.red, background: ds.redSoft },
+  GALLERY: { label: "갤러리", color: ds.green, background: ds.greenSoft },
   QR: { label: "QR", color: ds.sky, background: ds.skySoft },
   USER: { label: "회원", color: ds.green, background: ds.greenSoft },
+  SYSTEM: { label: "시스템", color: ds.ink2, background: ds.lineSoft },
   OTHER: { label: "기타", color: ds.ink2, background: ds.lineSoft },
 };
 

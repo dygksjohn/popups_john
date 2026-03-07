@@ -360,14 +360,23 @@ export default function HomeDashboard({ initialEventId = null }) {
       const requestedRefundCount = scopedRefundRows.filter((refund) => refund.status === "REQUESTED").length;
       const completedRefundCount = scopedRefundRows.filter((refund) => refund.status === "REFUNDED").length;
 
-      const summary = {
-        plannedCount: Number(summaryPayload?.plannedCount) || 0,
-        ongoingCount: Number(summaryPayload?.ongoingCount) || 0,
-        endedCount: Number(summaryPayload?.endedCount) || 0,
-        cancelledCount: Number(summaryPayload?.cancelledCount) || 0,
-        todayCheckinCount: Number(summaryPayload?.todayCheckinCount) || 0,
-      };
-      const totalEventCount = summary.plannedCount + summary.ongoingCount + summary.endedCount + summary.cancelledCount;
+      const summary = allEvents.reduce(
+        (counts, event) => {
+          if (event.status === "ONGOING") counts.ongoingCount += 1;
+          else if (event.status === "PLANNED") counts.plannedCount += 1;
+          else if (event.status === "CANCELLED") counts.cancelledCount += 1;
+          else counts.endedCount += 1;
+          return counts;
+        },
+        {
+          plannedCount: 0,
+          ongoingCount: 0,
+          endedCount: 0,
+          cancelledCount: 0,
+          todayCheckinCount: Number(summaryPayload?.todayCheckinCount) || 0,
+        },
+      );
+      const totalEventCount = allEvents.length;
 
       const yearlyMap = new Map();
       for (let year = currentYear - 4; year <= currentYear; year += 1) {
@@ -671,7 +680,7 @@ export default function HomeDashboard({ initialEventId = null }) {
                     <CartesianGrid strokeDasharray="3 3" stroke={ds.lineSoft} vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} width={34} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                    <Tooltip content={<ChartTip suffix="%" />} />
+                    <Tooltip content={<ChartTip suffix="%" light />} />
                     <Area type="monotone" dataKey="value" stroke={ds.amber} strokeWidth={2.8} fill="url(#homeCongestion)" activeDot={{ r: 4, fill: ds.amber, stroke: "#fff", strokeWidth: 2 }} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -745,7 +754,7 @@ export default function HomeDashboard({ initialEventId = null }) {
                     <CartesianGrid strokeDasharray="3 3" stroke={ds.lineSoft} vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} width={38} allowDecimals={false} />
-                    <Tooltip content={<ChartTip suffix="건" />} />
+                    <Tooltip content={<ChartTip suffix="건" light />} />
                     <Line type="monotone" dataKey="eventCount" stroke={ds.amber} strokeWidth={3} dot={{ r: 3, fill: ds.amber }} activeDot={{ r: 5 }} name="행사 수" />
                     <Line type="monotone" dataKey="approvedRegistrationCount" stroke={ds.sky} strokeWidth={2.2} dot={{ r: 2.5, fill: ds.sky }} activeDot={{ r: 4 }} name="승인 등록" />
                     <Line type="monotone" dataKey="refundRequestCount" stroke={ds.brand} strokeWidth={2.2} dot={{ r: 2.5, fill: ds.brand }} activeDot={{ r: 4 }} name="환불 요청" />

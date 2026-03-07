@@ -14,6 +14,7 @@ import com.popups.pupoo.event.persistence.EventRepository;
 import com.popups.pupoo.qr.persistence.QrCheckinRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -36,12 +37,20 @@ public class AdminDashboardRealtimeQueryService {
     private final BoothCongestionQueryRepository boothCongestionQueryRepository;
 
     public AdminRealtimeSummaryResponse summary() {
-        long planned = eventRepository.countByStatus(EventStatus.PLANNED);
-        long ongoing = eventRepository.countByStatus(EventStatus.ONGOING);
-        long ended = eventRepository.countByStatus(EventStatus.ENDED);
-        long cancelled = eventRepository.countByStatus(EventStatus.CANCELLED);
-
         LocalDate today = LocalDate.now();
+        long planned = 0;
+        long ongoing = 0;
+        long ended = 0;
+        long cancelled = 0;
+
+        for (Event event : eventRepository.findAll()) {
+            EventStatus realtimeStatus = resolveRealtimeStatus(event, today);
+            if (realtimeStatus == EventStatus.PLANNED) planned += 1;
+            else if (realtimeStatus == EventStatus.ONGOING) ongoing += 1;
+            else if (realtimeStatus == EventStatus.ENDED) ended += 1;
+            else if (realtimeStatus == EventStatus.CANCELLED) cancelled += 1;
+        }
+
         LocalDateTime from = LocalDateTime.of(today, LocalTime.MIN);
         LocalDateTime to = LocalDateTime.of(today, LocalTime.MAX);
         long todayCheckin = qrCheckinRepository.countByCheckedAtBetween(from, to);
@@ -50,8 +59,30 @@ public class AdminDashboardRealtimeQueryService {
     }
 
     public Page<AdminRealtimeEventListResponse> events(String keyword, EventStatus status, Pageable pageable) {
-        return eventRepository.search(keyword, status, null, null, pageable)
-                .map(e -> new AdminRealtimeEventListResponse(e.getEventId(), e.getEventName(), e.getStatus(), e.getStartAt(), e.getEndAt()));
+        LocalDate today = LocalDate.now();
+        String normalizedKeyword = normalizeKeyword(keyword);
+
+        List<AdminRealtimeEventListResponse> rows = eventRepository
+                .findAll(Sort.by(Sort.Direction.DESC, "startAt").and(Sort.by(Sort.Direction.DESC, "eventId")))
+                .stream()
+                .filter(event -> matchesKeyword(event, normalizedKeyword))
+                .map(event -> new AdminRealtimeEventListResponse(
+                        event.getEventId(),
+                        event.getEventName(),
+                        resolveRealtimeStatus(event, today),
+                        event.getStartAt(),
+                        event.getEndAt()
+                ))
+                .filter(event -> status == null || event.getStatus() == status)
+                .toList();
+
+        int start = Math.toIntExact(pageable.getOffset());
+        if (start >= rows.size()) {
+            return new PageImpl<>(List.of(), pageable, rows.size());
+        }
+
+        int end = Math.min(start + pageable.getPageSize(), rows.size());
+        return new PageImpl<>(rows.subList(start, end), pageable, rows.size());
     }
 
     public List<AdminRealtimeCongestionResponse> congestions(Long eventId, int limit) {
@@ -67,5 +98,39 @@ public class AdminDashboardRealtimeQueryService {
                     return new AdminRealtimeCongestionResponse(b.getBoothId(), b.getPlaceName(), r.congestionLevel, r.measuredAt, r.programId);
                 })
                 .toList();
+    }
+
+    private boolean matchesKeyword(Event event, String keyword) {
+        if (keyword == null) {
+            return true;
+        }
+        String eventName = event.getEventName() == null ? "" : event.getEventName().toLowerCase();
+        String description = event.getDescription() == null ? "" : event.getDescription().toLowerCase();
+        return eventName.contains(keyword) || description.contains(keyword);
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String trimmed = keyword.trim().toLowerCase();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private EventStatus resolveRealtimeStatus(Event event, LocalDate today) {
+        if (event.getStatus() == EventStatus.CANCELLED) {
+            return EventStatus.CANCELLED;
+        }
+
+        LocalDate startDate = event.getStartAt() == null ? null : event.getStartAt().toLocalDate();
+        LocalDate endDate = event.getEndAt() == null ? null : event.getEndAt().toLocalDate();
+
+        if (startDate != null && startDate.isAfter(today)) {
+            return EventStatus.PLANNED;
+        }
+        if (endDate != null && endDate.isBefore(today)) {
+            return EventStatus.ENDED;
+        }
+        return EventStatus.ONGOING;
     }
 }

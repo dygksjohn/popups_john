@@ -133,8 +133,13 @@ public class AdminAuditInterceptor implements HandlerInterceptor {
         String normalized = normalizePath(path);
 
         if (normalized.contains("/events")) return AdminTargetType.EVENT;
+        if (normalized.contains("/programs")) return AdminTargetType.PROGRAM;
+        if (normalized.contains("/booths")) return AdminTargetType.BOOTH;
         if (normalized.contains("/notices")) return AdminTargetType.NOTICE;
-        if (normalized.contains("/posts") || normalized.contains("/qna") || normalized.contains("/faq")) return AdminTargetType.POST;
+        if (normalized.contains("/posts")) return AdminTargetType.POST;
+        if (normalized.contains("/qna") || normalized.contains("/faq")) return AdminTargetType.QNA;
+        if (normalized.contains("/inquiries")) return AdminTargetType.INQUIRY;
+        if (normalized.contains("/gallery")) return AdminTargetType.GALLERY;
         if (normalized.contains("/reviews")) return AdminTargetType.REVIEW;
         if (normalized.contains("/payments")) return AdminTargetType.PAYMENT;
         if (normalized.contains("/refunds")) return AdminTargetType.REFUND;

@@ -5,6 +5,7 @@ import com.popups.pupoo.event.domain.model.Event;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -31,7 +32,7 @@ public class DashboardEventResponse {
 
     public static DashboardEventResponse from(Event e, long participantCount) {
         String dateStr = e.getStartAt().format(FMT) + " ~ " + e.getEndAt().format(FMT);
-        String frontStatus = mapStatus(e.getStatus());
+        String frontStatus = mapStatus(e);
         String frontId = "EV-" + String.format("%03d", e.getEventId());
 
         return DashboardEventResponse.builder()
@@ -47,13 +48,18 @@ public class DashboardEventResponse {
                 .build();
     }
 
-    private static String mapStatus(EventStatus s) {
-        if (s == null) return "pending";
-        return switch (s) {
-            case ONGOING   -> "active";
-            case ENDED     -> "ended";
-            case CANCELLED -> "ended";
-            default        -> "pending";   // PLANNED
-        };
+    private static String mapStatus(Event event) {
+        if (event == null) return "pending";
+
+        EventStatus status = event.getStatus();
+        if (status == EventStatus.CANCELLED) return "ended";
+
+        LocalDate today = LocalDate.now();
+        LocalDate startDate = event.getStartAt() == null ? null : event.getStartAt().toLocalDate();
+        LocalDate endDate = event.getEndAt() == null ? null : event.getEndAt().toLocalDate();
+
+        if (startDate != null && startDate.isAfter(today)) return "pending";
+        if (endDate != null && endDate.isBefore(today)) return "ended";
+        return "active";
     }
 }

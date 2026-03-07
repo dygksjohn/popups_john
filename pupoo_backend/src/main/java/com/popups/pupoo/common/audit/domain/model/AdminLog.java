@@ -31,7 +31,10 @@ public class AdminLog {
     private String action;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "target_type", columnDefinition = "ENUM('EVENT','NOTICE','POST','REVIEW','PAYMENT','REFUND','QR','USER','OTHER')")
+    @Column(
+            name = "target_type",
+            columnDefinition = "ENUM('USER','EVENT','PROGRAM','BOOTH','NOTICE','PAYMENT','REFUND','REVIEW','POST','QNA','INQUIRY','GALLERY','QR','SYSTEM','OTHER')"
+    )
     private AdminTargetType targetType;
 
     @Column(name = "target_id")

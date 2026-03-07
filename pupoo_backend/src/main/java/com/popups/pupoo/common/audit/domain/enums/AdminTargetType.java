@@ -6,13 +6,19 @@ package com.popups.pupoo.common.audit.domain.enums;
  * DB: admin_logs.target_type ENUM 과 정합성을 유지한다.
  */
 public enum AdminTargetType {
+    USER,
     EVENT,
+    PROGRAM,
+    BOOTH,
     NOTICE,
-    POST,
-    REVIEW,
     PAYMENT,
     REFUND,
+    REVIEW,
+    POST,
+    QNA,
+    INQUIRY,
+    GALLERY,
     QR,
-    USER,
+    SYSTEM,
     OTHER
 }
