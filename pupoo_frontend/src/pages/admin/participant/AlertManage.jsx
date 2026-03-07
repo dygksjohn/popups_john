@@ -1275,8 +1275,9 @@ export default function AlertManage() {
                 <div
                   style={{
                     display: "flex",
+                    alignItems: "center",
                     gap: 3,
-                    minWidth: 110,
+                    minWidth: 164,
                     flexShrink: 0,
                   }}
                 >
@@ -1304,6 +1305,16 @@ export default function AlertManage() {
                     >
                       <Send size={10} /> 발송
                     </button>
+                  )}
+                  {r.status !== "draft" && (
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 52,
+                        height: 24,
+                        flexShrink: 0,
+                      }}
+                    />
                   )}
                   <button
                     onClick={(e) => {
