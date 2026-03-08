@@ -54,7 +54,7 @@ export default function PageHeader({ title, subtitle, categories }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const hiddenPaths = new Set(["/event/preregister", "/event/eventschedule"]);
+  const hiddenPaths = new Set(["/event/preregister"]);
   const programMatch = location.pathname.match(
     /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/([^/?#]+))?/,
   );

@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public record RefundResponse(
         Long refundId,
         Long paymentId,
+        Long eventApplyId,
         BigDecimal refundAmount,
         String reason,
         String status,
@@ -22,6 +23,7 @@ public record RefundResponse(
         return new RefundResponse(
                 row.getRefundId(),
                 row.getPaymentId(),
+                row.getEventApplyId(),
                 row.getRefundAmount(),
                 row.getReason(),
                 exposeStatus(row.getStatus() == null ? null : row.getStatus().name()),
@@ -36,6 +38,7 @@ public record RefundResponse(
         return new RefundResponse(
                 r.getRefundId(),
                 r.getPaymentId(),
+                r.getPayment() == null ? null : r.getPayment().getEventApplyId(),
                 r.getRefundAmount(),
                 r.getReason(),
                 exposeStatus(r.getStatus() == null ? null : r.getStatus().name()),

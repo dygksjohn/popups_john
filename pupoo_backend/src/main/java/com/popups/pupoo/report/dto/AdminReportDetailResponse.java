@@ -15,6 +15,8 @@ public class AdminReportDetailResponse {
     private Long reporterUserId;
     private String targetType;
     private Long targetId;
+    private String targetTitle;
+    private String targetPath;
     private String targetStatus;
     private String reasonCode;
     private String reasonLabel;
@@ -24,13 +26,22 @@ public class AdminReportDetailResponse {
     private LocalDateTime createdAt;
     private LocalDateTime resolvedAt;
     private Long resolvedByAdminId;
+    private long totalReportCount;
+    private long pendingReportCount;
 
-    public static AdminReportDetailResponse from(ContentReport r, String targetStatus) {
+    public static AdminReportDetailResponse from(ContentReport r,
+                                                 String targetTitle,
+                                                 String targetPath,
+                                                 String targetStatus,
+                                                 long totalReportCount,
+                                                 long pendingReportCount) {
         AdminReportDetailResponse dto = new AdminReportDetailResponse();
         dto.reportId = r.getReportId();
         dto.reporterUserId = r.getReporterUserId();
         dto.targetType = (r.getTargetType() == null) ? null : r.getTargetType().name();
         dto.targetId = r.getTargetId();
+        dto.targetTitle = targetTitle;
+        dto.targetPath = targetPath;
         dto.targetStatus = targetStatus;
 
         dto.reasonCode = (r.getReasonCode() == null) ? null : r.getReasonCode().name();
@@ -41,6 +52,8 @@ public class AdminReportDetailResponse {
         dto.createdAt = r.getCreatedAt();
         dto.resolvedAt = r.getResolvedAt();
         dto.resolvedByAdminId = r.getResolvedByAdminId();
+        dto.totalReportCount = totalReportCount;
+        dto.pendingReportCount = pendingReportCount;
         return dto;
     }
 
@@ -48,6 +61,8 @@ public class AdminReportDetailResponse {
     public Long getReporterUserId() { return reporterUserId; }
     public String getTargetType() { return targetType; }
     public Long getTargetId() { return targetId; }
+    public String getTargetTitle() { return targetTitle; }
+    public String getTargetPath() { return targetPath; }
     public String getTargetStatus() { return targetStatus; }
     public String getReasonCode() { return reasonCode; }
     public String getReasonLabel() { return reasonLabel; }
@@ -57,4 +72,6 @@ public class AdminReportDetailResponse {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getResolvedAt() { return resolvedAt; }
     public Long getResolvedByAdminId() { return resolvedByAdminId; }
+    public long getTotalReportCount() { return totalReportCount; }
+    public long getPendingReportCount() { return pendingReportCount; }
 }

@@ -9,6 +9,8 @@ import com.popups.pupoo.board.review.domain.model.Review;
 import com.popups.pupoo.board.review.persistence.ReviewRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.gallery.domain.enums.GalleryStatus;
+import com.popups.pupoo.gallery.persistence.GalleryRepository;
 import com.popups.pupoo.reply.domain.model.PostComment;
 import com.popups.pupoo.reply.domain.model.ReviewComment;
 import com.popups.pupoo.reply.persistence.PostCommentRepository;
@@ -35,6 +37,7 @@ public class ReportService {
 
     private final PostRepository postRepository;
     private final ReviewRepository reviewRepository;
+    private final GalleryRepository galleryRepository;
     private final PostCommentRepository postCommentRepository;
     private final ReviewCommentRepository reviewCommentRepository;
 
@@ -42,12 +45,14 @@ public class ReportService {
                          ContentReportRepository reportRepository,
                          PostRepository postRepository,
                          ReviewRepository reviewRepository,
+                         GalleryRepository galleryRepository,
                          PostCommentRepository postCommentRepository,
                          ReviewCommentRepository reviewCommentRepository) {
         this.securityUtil = securityUtil;
         this.reportRepository = reportRepository;
         this.postRepository = postRepository;
         this.reviewRepository = reviewRepository;
+        this.galleryRepository = galleryRepository;
         this.postCommentRepository = postCommentRepository;
         this.reviewCommentRepository = reviewCommentRepository;
     }
@@ -117,6 +122,23 @@ public class ReportService {
         validateReason(reasonCode, reasonDetail);
 
         ContentReport report = reportRepository.save(ContentReport.pending(userId, ReportTargetType.REVIEW_COMMENT, commentId, reasonCode, reasonDetail));
+        return ReportResponse.from(report);
+    }
+
+    @Transactional
+    public ReportResponse reportGallery(Long galleryId, ReportReasonCode reasonCode, String reasonDetail) {
+        Long userId = securityUtil.currentUserId();
+
+        galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        ensureNotDuplicate(userId, ReportTargetType.GALLERY, galleryId);
+
+        validateReason(reasonCode, reasonDetail);
+
+        ContentReport report = reportRepository.save(
+                ContentReport.pending(userId, ReportTargetType.GALLERY, galleryId, reasonCode, reasonDetail)
+        );
         return ReportResponse.from(report);
     }
 

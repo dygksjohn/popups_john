@@ -39,6 +39,35 @@ public interface ContentReportRepository extends JpaRepository<ContentReport, Lo
                               @Param("reporterUserId") Long reporterUserId,
                               Pageable pageable);
 
+    @Query(
+        value = """
+            select r
+              from ContentReport r
+             where (:status is null or r.status = :status)
+               and (:targetType is null or r.targetType = :targetType)
+               and (:reporterUserId is null or r.reporterUserId = :reporterUserId)
+             order by (
+                 select count(r2)
+                   from ContentReport r2
+                  where r2.targetType = r.targetType
+                    and r2.targetId = r.targetId
+             ) desc,
+             r.createdAt desc,
+             r.reportId desc
+        """,
+        countQuery = """
+            select count(r)
+              from ContentReport r
+             where (:status is null or r.status = :status)
+               and (:targetType is null or r.targetType = :targetType)
+               and (:reporterUserId is null or r.reporterUserId = :reporterUserId)
+        """
+    )
+    Page<ContentReport> searchOrderByTotalReportCount(@Param("status") ReportStatus status,
+                                                      @Param("targetType") ReportTargetType targetType,
+                                                      @Param("reporterUserId") Long reporterUserId,
+                                                      Pageable pageable);
+
     @Query("""
         select count(r)
           from ContentReport r

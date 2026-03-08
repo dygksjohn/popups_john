@@ -21,6 +21,8 @@ import GalleryManage from "./pages/admin/gallery/Gallery";
 import ParticipantList from "./pages/admin/participant/ParticipantList";
 import PaymentManage from "./pages/admin/participant/PaymentManage";
 import AlertManage from "./pages/admin/participant/AlertManage";
+import RefundManage from "./pages/admin/refund/RefundManage";
+import ReportManage from "./pages/admin/report/ReportManage";
 import AdminLogin from "./pages/admin/shared/AdminLogin";
 
 /* Home */
@@ -312,6 +314,22 @@ export default function App() {
           element={
             <RequireAdmin>
               <GalleryManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <RequireAdmin>
+              <ReportManage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/refunds"
+          element={
+            <RequireAdmin>
+              <RefundManage />
             </RequireAdmin>
           }
         />

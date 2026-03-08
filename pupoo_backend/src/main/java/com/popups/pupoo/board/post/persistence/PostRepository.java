@@ -73,6 +73,14 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     Optional<Post> findByPostIdAndDeletedFalse(Long postId);
 
+    @Query("""
+        select p
+          from Post p
+          join fetch p.board b
+         where p.postId in :postIds
+    """)
+    List<Post> findAllWithBoardByPostIdIn(@Param("postIds") List<Long> postIds);
+
     Optional<Post> findByPostIdAndUserIdAndDeletedFalse(Long postId, Long userId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)

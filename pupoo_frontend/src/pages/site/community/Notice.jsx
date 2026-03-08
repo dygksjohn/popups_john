@@ -18,9 +18,9 @@ const SORT_OPTIONS = [
 ];
 
 const SCOPE_OPTIONS = [
-  { key: "all", label: "전체" },
-  { key: "GLOBAL", label: "전체 공지" },
-  { key: "EVENT", label: "행사 공지" },
+  { key: "all", label: "모든 공지" },
+  { key: "GLOBAL", label: "전체공지" },
+  { key: "EVENT", label: "행사공지" },
 ];
 
 function fmtDate(value) {
@@ -149,29 +149,40 @@ export default function Notice() {
           <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>총 {filtered.length}개</span>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {SCOPE_OPTIONS.map((option) => {
-              const active = scopeKey === option.key;
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => setScopeKey(option.key)}
-                  style={{
-                    height: 38,
-                    padding: "0 14px",
-                    borderRadius: 999,
-                    border: active ? "1px solid #1d4ed8" : "1px solid #d1d5db",
-                    background: active ? "#eff6ff" : "#fff",
-                    color: active ? "#1d4ed8" : "#334155",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
+            <div style={{ position: "relative" }}>
+              <select
+                value={scopeKey}
+                onChange={(event) => setScopeKey(event.target.value)}
+                style={{
+                  height: 38,
+                  minWidth: 128,
+                  borderRadius: 10,
+                  border: "1px solid #d1d5db",
+                  background: "#fff",
+                  color: "#334155",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  padding: "0 36px 0 12px",
+                  cursor: "pointer",
+                  appearance: "none",
+                }}
+              >
+                {SCOPE_OPTIONS.map((option) => (
+                  <option key={option.key} value={option.key}>{option.label}</option>
+                ))}
+              </select>
+              <ChevronRight
+                size={14}
+                style={{
+                  position: "absolute",
+                  right: 12,
+                  top: "50%",
+                  transform: "translateY(-50%) rotate(90deg)",
+                  color: "#64748b",
+                  pointerEvents: "none",
+                }}
+              />
+            </div>
 
             <div style={{ position: "relative" }}>
               <button

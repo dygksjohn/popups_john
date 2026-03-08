@@ -33,6 +33,14 @@ export const mypageApi = {
     });
   },
 
+  getMyRefunds({ page = 0, size = 50, sort = "requestedAt,desc" } = {}, options) {
+    return apiClient.get("/api/refunds/my", {
+      ...options,
+      params: { page, size, sort },
+      fallbackMessage: "Failed to load my refunds.",
+    });
+  },
+
   getMyProgramApplies({ page = 0, size = 20 } = {}, options) {
     return apiClient.get("/api/program-applies/my", {
       ...options,

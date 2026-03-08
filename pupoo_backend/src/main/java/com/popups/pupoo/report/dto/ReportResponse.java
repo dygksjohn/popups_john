@@ -11,6 +11,9 @@ public class ReportResponse {
     private Long reporterUserId;
     private String targetType;
     private Long targetId;
+    private String targetTitle;
+    private String targetPath;
+    private String targetStatus;
     private String reasonCode;
     private String reasonLabel;
     private String reasonDetail;
@@ -25,15 +28,27 @@ public class ReportResponse {
     private long pendingReportCount;
 
     public static ReportResponse from(ContentReport r) {
-        return from(r, 0L, 0L);
+        return from(r, 0L, 0L, null, null, null);
     }
 
     public static ReportResponse from(ContentReport r, long totalReportCount, long pendingReportCount) {
+        return from(r, totalReportCount, pendingReportCount, null, null, null);
+    }
+
+    public static ReportResponse from(ContentReport r,
+                                      long totalReportCount,
+                                      long pendingReportCount,
+                                      String targetTitle,
+                                      String targetPath,
+                                      String targetStatus) {
         ReportResponse dto = new ReportResponse();
         dto.reportId = r.getReportId();
         dto.reporterUserId = r.getReporterUserId();
         dto.targetType = r.getTargetType().name();
         dto.targetId = r.getTargetId();
+        dto.targetTitle = targetTitle;
+        dto.targetPath = targetPath;
+        dto.targetStatus = targetStatus;
 
         dto.reasonCode = (r.getReasonCode() == null) ? null : r.getReasonCode().name();
         dto.reasonLabel = (r.getReasonCode() == null) ? null : r.getReasonCode().getLabel();
@@ -53,6 +68,9 @@ public class ReportResponse {
     public Long getReporterUserId() { return reporterUserId; }
     public String getTargetType() { return targetType; }
     public Long getTargetId() { return targetId; }
+    public String getTargetTitle() { return targetTitle; }
+    public String getTargetPath() { return targetPath; }
+    public String getTargetStatus() { return targetStatus; }
     public String getReasonCode() { return reasonCode; }
     public String getReasonLabel() { return reasonLabel; }
     public String getReasonDetail() { return reasonDetail; }

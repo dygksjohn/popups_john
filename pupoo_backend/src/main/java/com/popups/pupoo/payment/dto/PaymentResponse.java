@@ -17,36 +17,61 @@ public record PaymentResponse(
         PaymentStatus status,
         LocalDateTime requestedAt,
         Long eventId,
-
         String eventTitle,
         LocalDateTime eventStartAt,
-        LocalDateTime eventEndAt
+        LocalDateTime eventEndAt,
+        String buyerName,
+        String buyerEmail,
+        String buyerPhone
 ) {
-    public static PaymentResponse fromRow(PaymentRepository.PaymentHistoryRow r) {
+    public static PaymentResponse fromRow(PaymentRepository.PaymentHistoryRow row) {
         return new PaymentResponse(
-                r.getPaymentId(),
-                r.getOrderNo(),
-                r.getAmount(),
-                r.getPaymentMethod(),
-                r.getStatus(),
-                r.getRequestedAt(),
-                r.getEventId(),
-                r.getEventTitle(),
-                r.getEventStartAt(),
-                r.getEventEndAt()
+                row.getPaymentId(),
+                row.getOrderNo(),
+                row.getAmount(),
+                row.getPaymentMethod(),
+                row.getStatus(),
+                row.getRequestedAt(),
+                row.getEventId(),
+                row.getEventTitle(),
+                row.getEventStartAt(),
+                row.getEventEndAt(),
+                null,
+                null,
+                null
         );
     }
 
-    // fallback(조인 조회 실패 등 극단 케이스용)
-    public static PaymentResponse from(Payment p) {
+    public static PaymentResponse fromAdminRow(PaymentRepository.AdminPaymentRow row) {
         return new PaymentResponse(
-                p.getPaymentId(),
-                p.getOrderNo(),
-                p.getAmount(),
-                p.getPaymentMethod(),
-                p.getStatus(),
-                p.getRequestedAt(),
-                p.getEventId(),
+                row.getPaymentId(),
+                row.getOrderNo(),
+                row.getAmount(),
+                row.getPaymentMethod(),
+                row.getStatus(),
+                row.getRequestedAt(),
+                row.getEventId(),
+                row.getEventTitle(),
+                row.getEventStartAt(),
+                row.getEventEndAt(),
+                row.getBuyerName(),
+                row.getBuyerEmail(),
+                row.getBuyerPhone()
+        );
+    }
+
+    public static PaymentResponse from(Payment payment) {
+        return new PaymentResponse(
+                payment.getPaymentId(),
+                payment.getOrderNo(),
+                payment.getAmount(),
+                payment.getPaymentMethod(),
+                payment.getStatus(),
+                payment.getRequestedAt(),
+                payment.getEventId(),
+                null,
+                null,
+                null,
                 null,
                 null,
                 null

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MessageCircle, Paperclip } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { AlertTriangle, MessageCircle, Paperclip } from "lucide-react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { postApi } from "../../../app/http/postApi";
 import { postReplyApi } from "../../../app/http/replyApi";
+import { reportApi } from "../../../app/http/reportApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { fileApi } from "../../../app/http/fileApi";
 import CommunityDetailLayout from "./shared/CommunityDetailLayout";
+import ReportModal from "../components/ReportModal";
 
 function fmtDate(value) {
   if (!value) return "-";
@@ -32,6 +34,7 @@ export default function CommunityPostDetailPage({
   badgeType,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { postId } = useParams();
   const numericPostId = Number(postId);
 
@@ -45,6 +48,10 @@ export default function CommunityPostDetailPage({
   const [replyLoading, setReplyLoading] = useState(true);
   const [replyError, setReplyError] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
+  const [reportNotice, setReportNotice] = useState("");
+  const [reportTarget, setReportTarget] = useState(null);
+
+  const detailPath = `${currentPath}/${post?.postId ?? numericPostId}`;
 
   const loadReplies = useCallback(async (id) => {
     setReplyLoading(true);
@@ -113,6 +120,21 @@ export default function CommunityPostDetailPage({
     };
   }, [loadAttachment, loadReplies, numericPostId]);
 
+  useEffect(() => {
+    if (!location.hash) return;
+    const anchorId = location.hash.replace(/^#/, "");
+    if (!anchorId) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const element = document.getElementById(anchorId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [location.hash, replies.length]);
+
   const submitReply = async () => {
     if (!post?.postId) return;
     if (!tokenStore.getAccess()) {
@@ -138,6 +160,103 @@ export default function CommunityPostDetailPage({
       setReplySubmitting(false);
     }
   };
+
+  const ensureAuthed = useCallback(() => {
+    if (!tokenStore.getAccess()) {
+      navigate("/auth/login", { state: { from: detailPath } });
+      return false;
+    }
+    return true;
+  }, [detailPath, navigate]);
+
+  const openPostReport = useCallback(() => {
+    if (!post?.postId || !ensureAuthed()) return;
+    setReportNotice("");
+    setReportTarget({
+      kind: "post",
+      targetId: post.postId,
+      title: "게시글 신고",
+      successMessage: "게시글 신고가 접수되었습니다.",
+    });
+  }, [ensureAuthed, post]);
+
+  const openReplyReport = useCallback(
+    (reply) => {
+      if (!reply?.replyId || !ensureAuthed()) return;
+      setReportNotice("");
+      setReportTarget({
+        kind: "reply",
+        targetId: reply.replyId,
+        title: "댓글 신고",
+        successMessage: "댓글 신고가 접수되었습니다.",
+      });
+    },
+    [ensureAuthed],
+  );
+
+  const submitReport = useCallback(
+    async (payload) => {
+      if (!reportTarget) return;
+      if (reportTarget.kind === "post") {
+        await reportApi.reportPost(reportTarget.targetId, payload);
+        return;
+      }
+      await reportApi.reportReply("POST", reportTarget.targetId, payload);
+    },
+    [reportTarget],
+  );
+
+  const reportHead = !loading && post ? (
+    <div
+      style={{
+        marginTop: 12,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        flexWrap: "wrap",
+      }}
+    >
+      {reportNotice ? (
+        <div
+          style={{
+            padding: "7px 12px",
+            borderRadius: 999,
+            background: "#ecfdf5",
+            border: "1px solid #bbf7d0",
+            color: "#166534",
+            fontSize: 12,
+            fontWeight: 800,
+          }}
+        >
+          {reportNotice}
+        </div>
+      ) : (
+        <span />
+      )}
+      <button
+        type="button"
+        onClick={openPostReport}
+        style={{
+          height: 38,
+          padding: "0 14px",
+          borderRadius: 999,
+          border: "1px solid #fecaca",
+          background: "#fff5f5",
+          color: "#b91c1c",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 12,
+          fontWeight: 800,
+          cursor: "pointer",
+        }}
+      >
+        <AlertTriangle size={14} />
+        신고하기
+      </button>
+    </div>
+  ) : null;
 
   const metaItems = useMemo(() => {
     if (!post) return [];
@@ -185,6 +304,7 @@ export default function CommunityPostDetailPage({
       articleTitle={post.postTitle}
       metaItems={metaItems}
       content={post.content}
+      extraHead={reportHead}
     >
       <section style={sectionStyle}>
         <div style={{ display: "grid", gap: 16 }}>
@@ -262,9 +382,26 @@ export default function CommunityPostDetailPage({
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 {replies.map((reply) => (
-                  <div key={reply.replyId} style={{ borderRadius: 12, background: "#fff", border: "1px solid #e2e8f0", padding: "14px 16px" }}>
-                    <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>
-                      {reply.writerEmail || `user#${reply.userId || "-"}`} · {fmtDate(reply.createdAt)}
+                  <div id={`reply-${reply.replyId}`} key={reply.replyId} style={{ borderRadius: 12, background: "#fff", border: "1px solid #e2e8f0", padding: "14px 16px", scrollMarginTop: 120 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
+                      <div style={{ fontSize: 12, color: "#64748b" }}>
+                        {reply.writerEmail || `user#${reply.userId || "-"}`} · {fmtDate(reply.createdAt)}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openReplyReport(reply)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          color: "#b91c1c",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                          padding: 0,
+                        }}
+                      >
+                        신고
+                      </button>
                     </div>
                     <div style={{ fontSize: 14, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
                       {reply.content}
@@ -276,6 +413,15 @@ export default function CommunityPostDetailPage({
           </div>
         </div>
       </section>
+      <ReportModal
+        open={Boolean(reportTarget)}
+        title={reportTarget?.title || "신고하기"}
+        onClose={() => setReportTarget(null)}
+        onSubmit={submitReport}
+        onSuccess={() =>
+          setReportNotice(reportTarget?.successMessage || "신고가 접수되었습니다.")
+        }
+      />
     </CommunityDetailLayout>
   );
 }

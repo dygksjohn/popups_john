@@ -588,7 +588,7 @@ CREATE TABLE board_banned_words (
 CREATE TABLE content_reports (
   report_id            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '신고 ID',
   reporter_user_id     BIGINT       NOT NULL COMMENT '신고자 ID',
-  target_type          ENUM('POST','REVIEW','POST_COMMENT','REVIEW_COMMENT') NOT NULL COMMENT '대상 타입',
+  target_type          ENUM('POST','REVIEW','POST_COMMENT','REVIEW_COMMENT','GALLERY') NOT NULL COMMENT '대상 타입',
   target_id            BIGINT       NOT NULL COMMENT '대상 ID',
   reason_code          ENUM('SPAM','ABUSE','HATE','SEXUAL','VIOLENCE','PRIVACY','FRAUD','COPYRIGHT','OTHER') NOT NULL COMMENT '사유 코드',
   reason_detail        VARCHAR(255) NULL COMMENT '사유 상세',

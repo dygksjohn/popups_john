@@ -269,6 +269,26 @@ const styles = `
     color: #475569;
     border-color: #e2e8f0;
   }
+  .mp-badge.refund-requested {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fdba74;
+  }
+  .mp-badge.refund-approved {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+  }
+  .mp-badge.refund-rejected {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+  }
+  .mp-badge.refunded {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+  }
   .mp-noti-title {
     font-size: 13px;
     font-weight: 700;
@@ -447,6 +467,13 @@ const REG_STATUS_LABEL = {
   REJECTED: "거절",
 };
 
+const REFUND_STATUS_LABEL = {
+  REQUESTED: "환불 요청",
+  APPROVED: "환불 승인",
+  REJECTED: "환불 거절",
+  REFUNDED: "환불 완료",
+};
+
 const PET_BREED_LABEL = {
   DOG: "강아지",
   CAT: "고양이",
@@ -502,6 +529,10 @@ function statusClass(status) {
   if (key === "APPLIED") return "applied";
   if (key === "APPROVED") return "approved";
   if (key === "CANCELLED") return "cancelled";
+  if (key === "REFUND_REQUESTED") return "refund-requested";
+  if (key === "REFUND_APPROVED") return "refund-approved";
+  if (key === "REFUND_REJECTED") return "refund-rejected";
+  if (key === "REFUNDED") return "refunded";
   return "rejected";
 }
 
@@ -524,6 +555,33 @@ function formatPetWeight(value) {
   return PET_WEIGHT_LABEL[key] || value || "-";
 }
 
+function buildRefundMap(rows) {
+  return safeArray(rows).reduce((acc, row) => {
+    const applyId = row?.eventApplyId;
+    if (applyId == null) return acc;
+    acc[String(applyId)] = row;
+    return acc;
+  }, {});
+}
+
+function resolveRegistrationStatus(item, refundMap) {
+  const refund = refundMap[String(item?.applyId)];
+  const refundStatus = String(refund?.status || "").toUpperCase();
+
+  if (refundStatus && REFUND_STATUS_LABEL[refundStatus]) {
+    return {
+      badgeStatus: refundStatus === "REFUNDED" ? "REFUNDED" : `REFUND_${refundStatus}`,
+      label: REFUND_STATUS_LABEL[refundStatus],
+    };
+  }
+
+  const status = String(item?.status || "").toUpperCase();
+  return {
+    badgeStatus: status,
+    label: REG_STATUS_LABEL[status] || status || "-",
+  };
+}
+
 export default function MyPage() {
   const navigate = useNavigate();
 
@@ -534,6 +592,7 @@ export default function MyPage() {
   const [profile, setProfile] = useState(null);
   const [pets, setPets] = useState([]);
   const [registrations, setRegistrations] = useState([]);
+  const [refunds, setRefunds] = useState([]);
   const [eventMap, setEventMap] = useState({});
   const [participations, setParticipations] = useState([]);
   const [reviewCount, setReviewCount] = useState(0);
@@ -572,6 +631,7 @@ export default function MyPage() {
         meRes,
         petsRes,
         regRes,
+        refundRes,
         visitRes,
         inboxRes,
         unreadRes,
@@ -579,6 +639,7 @@ export default function MyPage() {
         mypageApi.getMe(),
         mypageApi.getMyPets(),
         mypageApi.getMyEventRegistrations({ page: 0, size: 200 }),
+        mypageApi.getMyRefunds({ page: 0, size: 200 }),
         mypageApi.getMyBoothVisitsGroupedByEvent(),
         notificationApi.getInbox(0, 20),
         notificationApi.getUnreadCount(),
@@ -591,6 +652,7 @@ export default function MyPage() {
         return Number(a?.petId || 0) - Number(b?.petId || 0);
       });
       const regPage = regRes.status === "fulfilled" ? regRes.value : null;
+      const refundPage = refundRes.status === "fulfilled" ? refundRes.value : null;
       const visitGroups = visitRes.status === "fulfilled" ? visitRes.value : [];
       const inboxData = inboxRes.status === "fulfilled" ? inboxRes.value : null;
       const unread = unreadRes.status === "fulfilled" ? Number(unreadRes.value) || 0 : 0;
@@ -614,6 +676,7 @@ export default function MyPage() {
         return bb - aa;
       });
       setRegistrations(regRows);
+      setRefunds(safeArray(refundPage?.content));
 
       const mappedParticipations = safeArray(visitGroups)
         .map((group) => {
@@ -681,7 +744,11 @@ export default function MyPage() {
         setQrEventId(String(firstQrEvent.eventId));
       }
 
-      if (meRes.status === "rejected" || regRes.status === "rejected") {
+      if (
+        meRes.status === "rejected" ||
+        regRes.status === "rejected" ||
+        refundRes.status === "rejected"
+      ) {
         setError("일부 데이터를 불러오지 못했습니다. 다시 시도해 주세요.");
       }
 
@@ -698,6 +765,8 @@ export default function MyPage() {
       mounted = false;
     };
   }, [loadEventDetails]);
+
+  const refundMap = useMemo(() => buildRefundMap(refunds), [refunds]);
 
   const qrCandidates = useMemo(
     () =>
@@ -720,12 +789,13 @@ export default function MyPage() {
       const detail = eventMap[String(item?.eventId)] || {};
       return {
         ...item,
+        refundStatus: refundMap[String(item?.applyId)]?.status || null,
         eventName: item?.eventName || detail?.eventName || "행사 정보 없음",
         location: detail?.location || "장소 정보 없음",
         startAt: detail?.startAt,
       };
     });
-  }, [registrations, eventMap]);
+  }, [eventMap, refundMap, registrations]);
 
   const participationRows = useMemo(() => {
     return participations.map((item) => {
@@ -780,8 +850,7 @@ export default function MyPage() {
 
   const renderRegistrationItem = (item, clickable = false) => {
     const detail = eventMap[String(item?.eventId)] || {};
-    const status = String(item?.status || "").toUpperCase();
-    const label = REG_STATUS_LABEL[status] || status || "-";
+    const { badgeStatus, label } = resolveRegistrationStatus(item, refundMap);
 
     return (
       <div
@@ -791,7 +860,7 @@ export default function MyPage() {
       >
         <div className="mp-item-top">
           <div className="mp-item-title">{item?.eventName || detail?.eventName || "행사 정보 없음"}</div>
-          <span className={`mp-badge ${statusClass(status)}`}>{label}</span>
+          <span className={`mp-badge ${statusClass(badgeStatus)}`}>{label}</span>
         </div>
         <div className="mp-item-meta">
           <span>신청일 {fmtDateTime(item?.appliedAt)}</span>

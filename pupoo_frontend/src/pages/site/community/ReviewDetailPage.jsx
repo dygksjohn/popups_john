@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MessageCircle, Star } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { AlertTriangle, MessageCircle, Star } from "lucide-react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { reviewApi } from "../../../app/http/reviewApi";
 import { eventApi } from "../../../app/http/eventApi";
 import { reviewReplyApi } from "../../../app/http/replyApi";
+import { reportApi } from "../../../app/http/reportApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import CommunityDetailLayout from "./shared/CommunityDetailLayout";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
+import ReportModal from "../components/ReportModal";
 
 function fmtDate(value) {
   if (!value) return "-";
@@ -32,6 +34,7 @@ function Stars({ value }) {
 
 export default function ReviewDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { reviewId } = useParams();
   const numericReviewId = Number(reviewId);
 
@@ -44,6 +47,10 @@ export default function ReviewDetailPage() {
   const [replyLoading, setReplyLoading] = useState(true);
   const [replyError, setReplyError] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
+  const [reportNotice, setReportNotice] = useState("");
+  const [reportTarget, setReportTarget] = useState(null);
+
+  const detailPath = `/community/review/${review?.reviewId ?? numericReviewId}`;
 
   const loadReplies = useCallback(async (id) => {
     setReplyLoading(true);
@@ -95,6 +102,21 @@ export default function ReviewDetailPage() {
     };
   }, [loadReplies, numericReviewId]);
 
+  useEffect(() => {
+    if (!location.hash) return;
+    const anchorId = location.hash.replace(/^#/, "");
+    if (!anchorId) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const element = document.getElementById(anchorId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [location.hash, replies.length]);
+
   const submitReply = async () => {
     if (!review?.reviewId) return;
     if (!tokenStore.getAccess()) {
@@ -120,6 +142,51 @@ export default function ReviewDetailPage() {
     }
   };
 
+  const ensureAuthed = useCallback(() => {
+    if (!tokenStore.getAccess()) {
+      navigate("/auth/login", { state: { from: detailPath } });
+      return false;
+    }
+    return true;
+  }, [detailPath, navigate]);
+
+  const openReviewReport = useCallback(() => {
+    if (!review?.reviewId || !ensureAuthed()) return;
+    setReportNotice("");
+    setReportTarget({
+      kind: "review",
+      targetId: review.reviewId,
+      title: "후기 신고",
+      successMessage: "후기 신고가 접수되었습니다.",
+    });
+  }, [ensureAuthed, review]);
+
+  const openReplyReport = useCallback(
+    (reply) => {
+      if (!reply?.replyId || !ensureAuthed()) return;
+      setReportNotice("");
+      setReportTarget({
+        kind: "reply",
+        targetId: reply.replyId,
+        title: "댓글 신고",
+        successMessage: "댓글 신고가 접수되었습니다.",
+      });
+    },
+    [ensureAuthed],
+  );
+
+  const submitReport = useCallback(
+    async (payload) => {
+      if (!reportTarget) return;
+      if (reportTarget.kind === "review") {
+        await reportApi.reportReview(reportTarget.targetId, payload);
+        return;
+      }
+      await reportApi.reportReply("REVIEW", reportTarget.targetId, payload);
+    },
+    [reportTarget],
+  );
+
   const metaItems = useMemo(() => {
     if (!review) return [];
     return [
@@ -138,7 +205,60 @@ export default function ReviewDetailPage() {
       articleTitle={loading ? "불러오는 중" : review?.reviewTitle || "행사 후기"}
       metaItems={metaItems}
       content={error ? `<p>${error}</p>` : review?.content || "<p>내용이 없습니다.</p>"}
-      extraHead={!loading && review ? <div style={{ marginTop: 12 }}><Stars value={review.rating || 0} /></div> : null}
+      extraHead={
+        !loading && review ? (
+          <div
+            style={{
+              marginTop: 12,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <Stars value={review.rating || 0} />
+              {reportNotice ? (
+                <div
+                  style={{
+                    padding: "7px 12px",
+                    borderRadius: 999,
+                    background: "#ecfdf5",
+                    border: "1px solid #bbf7d0",
+                    color: "#166534",
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                >
+                  {reportNotice}
+                </div>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={openReviewReport}
+              style={{
+                height: 38,
+                padding: "0 14px",
+                borderRadius: 999,
+                border: "1px solid #fecaca",
+                background: "#fff5f5",
+                color: "#b91c1c",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              <AlertTriangle size={14} />
+              신고하기
+            </button>
+          </div>
+        ) : null
+      }
     >
       <section style={{ padding: "0 32px 32px" }}>
         <div style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: "18px 20px", background: "#f8fafc" }}>
@@ -193,9 +313,26 @@ export default function ReviewDetailPage() {
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
               {replies.map((reply) => (
-                <div key={reply.replyId} style={{ borderRadius: 12, background: "#fff", border: "1px solid #e2e8f0", padding: "14px 16px" }}>
-                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>
-                    {reply.writerEmail || `user#${reply.userId || "-"}`} · {fmtDate(reply.createdAt)}
+                <div id={`reply-${reply.replyId}`} key={reply.replyId} style={{ borderRadius: 12, background: "#fff", border: "1px solid #e2e8f0", padding: "14px 16px", scrollMarginTop: 120 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>
+                      {reply.writerEmail || `user#${reply.userId || "-"}`} · {fmtDate(reply.createdAt)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openReplyReport(reply)}
+                      style={{
+                        border: "none",
+                        background: "none",
+                        color: "#b91c1c",
+                        fontSize: 12,
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      신고
+                    </button>
                   </div>
                   <div style={{ fontSize: 14, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
                     {reply.content}
@@ -206,6 +343,15 @@ export default function ReviewDetailPage() {
           )}
         </div>
       </section>
+      <ReportModal
+        open={Boolean(reportTarget)}
+        title={reportTarget?.title || "신고하기"}
+        onClose={() => setReportTarget(null)}
+        onSubmit={submitReport}
+        onSuccess={() =>
+          setReportNotice(reportTarget?.successMessage || "신고가 접수되었습니다.")
+        }
+      />
     </CommunityDetailLayout>
   );
 }

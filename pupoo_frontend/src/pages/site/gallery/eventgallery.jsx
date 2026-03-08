@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
+  AlertTriangle,
   Calendar,
   ChevronDown,
   ChevronLeft,
@@ -17,11 +18,13 @@ import {
 import PageHeader from "../components/PageHeader";
 import { eventApi } from "../../../app/http/eventApi";
 import { galleryApi } from "../../../app/http/galleryApi";
+import { reportApi } from "../../../app/http/reportApi";
 import { useAuth } from "../auth/AuthProvider";
 import { userApi } from "../../../app/http/userApi";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 import sortIcon from "../../../assets/sort-icon.svg";
+import ReportModal from "../components/ReportModal";
 
 const PAGE_SIZE = 8;
 const SERVICE_CATEGORIES = [{ label: "행사 갤러리", path: "/gallery/eventgallery" }];
@@ -189,7 +192,7 @@ function GalleryWriteModal({
     </>
   );
 }
-function GalleryViewer({ item, eventName, onClose, onToggleLike, liked }) {
+function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, liked }) {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -247,9 +250,14 @@ function GalleryViewer({ item, eventName, onClose, onToggleLike, liked }) {
                   ))}
                 </div>
               ) : null}
-              <button type="button" onClick={onToggleLike} style={{ marginTop: "auto", alignSelf: "flex-start", height: 42, padding: "0 16px", borderRadius: 999, border: liked ? "1px solid #fecdd3" : "1px solid #dbe2ea", background: liked ? "#fff1f2" : "#fff", color: liked ? "#e11d48" : "#334155", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
-                <Heart size={15} fill={liked ? "currentColor" : "none"} /> 좋아요 {item.likeCount}
-              </button>
+              <div style={{ marginTop: "auto", display: "flex", flexWrap: "wrap", gap: 10 }}>
+                <button type="button" onClick={onToggleLike} style={{ height: 42, padding: "0 16px", borderRadius: 999, border: liked ? "1px solid #fecdd3" : "1px solid #dbe2ea", background: liked ? "#fff1f2" : "#fff", color: liked ? "#e11d48" : "#334155", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+                  <Heart size={15} fill={liked ? "currentColor" : "none"} /> 좋아요 {item.likeCount}
+                </button>
+                <button type="button" onClick={onReport} style={{ height: 42, padding: "0 16px", borderRadius: 999, border: "1px solid #fecaca", background: "#fff5f5", color: "#b91c1c", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+                  <AlertTriangle size={15} /> 신고하기
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -261,6 +269,7 @@ export default function EventGallery() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedEventId = searchParams.get("eventId") || "";
+  const requestedGalleryId = searchParams.get("galleryId") || "";
   const { isAuthed } = useAuth();
 
   const [events, setEvents] = useState([]);
@@ -278,6 +287,8 @@ export default function EventGallery() {
   const [writeLoading, setWriteLoading] = useState(false);
   const [writeError, setWriteError] = useState("");
   const [writeForm, setWriteForm] = useState({ eventId: "", title: "", description: "", files: [] });
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reportNotice, setReportNotice] = useState("");
 
   const eventNameMap = useMemo(() => Object.fromEntries(events.map((event) => [String(event.eventId), event.eventName])), [events]);
 
@@ -348,7 +359,14 @@ export default function EventGallery() {
     return true;
   }, [isAuthed, navigate]);
 
-  const openViewer = useCallback(async (gallery) => {
+  const openViewer = useCallback(async (gallery, { syncUrl = true } = {}) => {
+    if (!gallery?.galleryId) return;
+    if (syncUrl) {
+      const next = new URLSearchParams(searchParams);
+      if (gallery.eventId != null) next.set("eventId", String(gallery.eventId));
+      next.set("galleryId", String(gallery.galleryId));
+      setSearchParams(next);
+    }
     setViewer(gallery);
     try {
       const res = await galleryApi.getOne(gallery.galleryId);
@@ -358,7 +376,51 @@ export default function EventGallery() {
     } catch (err) {
       console.error("[EventGallery] detail load failed:", err);
     }
-  }, []);
+  }, [searchParams, setSearchParams]);
+
+  const closeViewer = useCallback(() => {
+    setViewer(null);
+    if (!requestedGalleryId) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("galleryId");
+    setSearchParams(next);
+  }, [requestedGalleryId, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const numericGalleryId = Number(requestedGalleryId);
+    if (!Number.isFinite(numericGalleryId) || numericGalleryId <= 0) return;
+    if (viewer?.galleryId === numericGalleryId) return;
+
+    let cancelled = false;
+
+    const openRequestedGallery = async () => {
+      const cached = galleries.find((item) => item.galleryId === numericGalleryId);
+      if (cached) {
+        await openViewer(cached, { syncUrl: false });
+        return;
+      }
+
+      try {
+        const res = await galleryApi.getOne(numericGalleryId);
+        const detail = normalizeGallery(res?.data?.data ?? res?.data ?? {});
+        if (cancelled || !detail?.galleryId) return;
+        setViewer(detail);
+        setGalleries((prev) => (
+          prev.some((item) => item.galleryId === detail.galleryId)
+            ? prev.map((item) => item.galleryId === detail.galleryId ? detail : item)
+            : [detail, ...prev]
+        ));
+      } catch (err) {
+        console.error("[EventGallery] query open failed:", err);
+      }
+    };
+
+    openRequestedGallery();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [galleries, openViewer, requestedGalleryId, viewer?.galleryId]);
 
   const toggleLike = useCallback(async (gallery) => {
     if (!ensureAuthed()) return;
@@ -402,6 +464,27 @@ export default function EventGallery() {
     }
   }, [ensureAuthed, loadGalleries, selectedEventId, writeForm]);
 
+  const openGalleryReport = useCallback(
+    (gallery) => {
+      if (!gallery?.galleryId || !ensureAuthed()) return;
+      setReportNotice("");
+      setReportTarget({
+        galleryId: gallery.galleryId,
+        title: "갤러리 신고",
+        successMessage: "갤러리 신고가 접수되었습니다.",
+      });
+    },
+    [ensureAuthed],
+  );
+
+  const submitGalleryReport = useCallback(
+    async (payload) => {
+      if (!reportTarget?.galleryId) return;
+      await reportApi.reportGallery(reportTarget.galleryId, payload);
+    },
+    [reportTarget],
+  );
+
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)", fontFamily: "'Noto Sans KR', sans-serif" }}>
       <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
@@ -419,13 +502,21 @@ export default function EventGallery() {
             <div style={{ position: "relative" }}><button type="button" onClick={() => setSortMenuOpen((prev) => !prev)} style={{ border: "1px solid #d1d5db", borderRadius: 8, background: "#fff", height: 38, padding: "0 12px", display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#334155", cursor: "pointer" }}><img src={sortIcon} alt="정렬 아이콘" width={14} height={14} />{currentSortLabel}</button>{sortMenuOpen ? <div style={{ position: "absolute", right: 0, top: 42, minWidth: 120, border: "1px solid #e2e8f0", borderRadius: 8, background: "#fff", boxShadow: "0 8px 20px rgba(15,23,42,0.12)", zIndex: 20, overflow: "hidden" }}>{SORT_OPTIONS.map((option) => <button key={option.value} type="button" onClick={() => { setSortOption(option.value); setSortMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: option.value === sortOption ? "#eff6ff" : "#fff", color: option.value === sortOption ? "#1D4ED8" : "#334155", padding: "9px 11px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{option.label}</button>)}</div> : null}</div>
             {isAuthed ? <button type="button" onClick={() => { setWriteError(""); setWriteForm({ eventId: selectedEventId || "", title: "", description: "", files: [] }); setWriteOpen(true); }} style={{ marginLeft: "auto", height: 44, padding: "0 18px", borderRadius: 12, border: "none", background: "#1d4ed8", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 800, cursor: "pointer" }}><Plus size={16} /> 글쓰기</button> : null}
           </div>
+          {reportNotice ? (
+            <div style={{ padding: "16px 28px 0" }}>
+              <div style={{ padding: "12px 14px", borderRadius: 12, background: "#ecfdf5", border: "1px solid #bbf7d0", color: "#166534", fontSize: 13, fontWeight: 800 }}>
+                {reportNotice}
+              </div>
+            </div>
+          ) : null}
           <div style={{ padding: 28 }}>
             {loading ? <div style={{ minHeight: 360, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "#64748b", fontSize: 14 }}><Loader2 size={18} className="animate-spin" /> 갤러리를 불러오는 중입니다.</div> : error ? <div style={{ minHeight: 360, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", fontSize: 14 }}>{error}</div> : pagedGalleries.length === 0 ? <div style={{ minHeight: 360, display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 14 }}>조건에 맞는 갤러리가 없습니다.</div> : <><div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 xl:grid-cols-4">{pagedGalleries.map((gallery) => { const cover = gallery.imageUrls[0] || ""; const liked = !!likedMap[gallery.galleryId]; return <article key={gallery.galleryId} style={{ borderRadius: 20, overflow: "hidden", border: "1px solid #e2e8f0", background: "#fff", boxShadow: "0 12px 24px rgba(15,23,42,0.05)", display: "flex", flexDirection: "column" }}><button type="button" onClick={() => openViewer(gallery)} style={{ border: "none", padding: 0, background: "none", cursor: "pointer" }}><div style={{ aspectRatio: "4 / 3", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>{cover ? <img src={cover} alt={gallery.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <ImageOff size={30} color="#94a3b8" />}</div></button><div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12, flex: 1 }}><div><div style={{ fontSize: 12, fontWeight: 800, color: "#1d4ed8", marginBottom: 6 }}>{eventNameMap[String(gallery.eventId)] || `행사 ${gallery.eventId}`}</div><div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a", lineHeight: 1.35 }}>{gallery.title}</div><div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7, color: "#64748b", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{gallery.description || "설명이 없습니다."}</div></div><div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, paddingTop: 12, borderTop: "1px solid #eef2f7" }}><div style={{ display: "flex", gap: 12, fontSize: 12, color: "#64748b" }}><span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Calendar size={13} /> {formatDate(gallery.createdAt)}</span><span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Eye size={13} /> {gallery.viewCount}</span></div><button type="button" onClick={() => toggleLike(gallery)} style={{ border: "none", background: "none", color: liked ? "#e11d48" : "#64748b", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, cursor: "pointer" }}><Heart size={14} fill={liked ? "currentColor" : "none"} /> {gallery.likeCount}</button></div></div></article>; })}</div><div style={{ marginTop: 26, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}><button type="button" onClick={() => setPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage <= 1} style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid #dbe2ea", background: currentPage <= 1 ? "#f8fafc" : "#fff", color: currentPage <= 1 ? "#cbd5e1" : "#334155", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: currentPage <= 1 ? "not-allowed" : "pointer" }}><ChevronLeft size={16} /></button><span style={{ minWidth: 110, textAlign: "center", fontSize: 13, fontWeight: 800, color: "#475569" }}>{currentPage} / {totalPages}</span><button type="button" onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))} disabled={currentPage >= totalPages} style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid #dbe2ea", background: currentPage >= totalPages ? "#f8fafc" : "#fff", color: currentPage >= totalPages ? "#cbd5e1" : "#334155", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: currentPage >= totalPages ? "not-allowed" : "pointer" }}><ChevronRight size={16} /></button></div></>}
           </div>
         </section>
       </main>
       <GalleryWriteModal open={writeOpen} events={events} form={writeForm} onChange={(field, value) => setWriteForm((prev) => ({ ...prev, [field]: value }))} onFilesChange={(files) => setWriteForm((prev) => ({ ...prev, files }))} onClose={() => setWriteOpen(false)} onSubmit={handleCreate} loading={writeLoading} error={writeError} />
-      <GalleryViewer item={viewer} eventName={eventNameMap[String(viewer?.eventId)] || `행사 ${viewer?.eventId || ""}`} onClose={() => setViewer(null)} onToggleLike={() => viewer && toggleLike(viewer)} liked={!!likedMap[viewer?.galleryId]} />
+      <GalleryViewer item={viewer} eventName={eventNameMap[String(viewer?.eventId)] || `행사 ${viewer?.eventId || ""}`} onClose={closeViewer} onToggleLike={() => viewer && toggleLike(viewer)} onReport={() => viewer && openGalleryReport(viewer)} liked={!!likedMap[viewer?.galleryId]} />
+      <ReportModal open={Boolean(reportTarget)} title={reportTarget?.title || "신고하기"} onClose={() => setReportTarget(null)} onSubmit={submitGalleryReport} onSuccess={() => setReportNotice(reportTarget?.successMessage || "신고가 접수되었습니다.")} />
     </div>
   );
 }

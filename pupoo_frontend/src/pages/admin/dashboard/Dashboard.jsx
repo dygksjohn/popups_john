@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+﻿import { useState, useCallback, useEffect } from "react";
 import {
+  AlertTriangle,
   Home,
   CalendarDays,
   Archive,
@@ -13,6 +14,7 @@ import {
   Trophy,
   Image,
   CreditCard,
+  RotateCcw,
   Send,
   Layers,
   Mic,
@@ -26,7 +28,7 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken, clearToken } from "../../../api/noticeApi";
 import HomeDashboard from "./HomeDashboard";
 
-/* 페이지 import */
+/* ?섏씠吏 import */
 import EventManage from "../event/eventManage";
 import ProgramManage from "../program/programManage";
 import BoardManage from "../board/boardManage";
@@ -39,12 +41,14 @@ import Gallery from "../gallery/Gallery";
 import ParticipantList from "../participant/ParticipantList";
 import PaymentManage from "../participant/PaymentManage";
 import AlertManage from "../participant/AlertManage";
+import RefundManage from "../refund/RefundManage";
 import AdminLogManage from "../adminlog/AdminLogManage";
+import ReportManage from "../report/ReportManage";
 /**/
 
-/* ═══════════════════════════════════════════════
-   벨 애니메이션 CSS
-   ═══════════════════════════════════════════════ */
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
+   踰??좊땲硫붿씠??CSS
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 const globalStyles = `
 @keyframes bellRing {
   0%   { transform: rotate(0deg); }
@@ -59,7 +63,7 @@ const globalStyles = `
   100% { transform: rotate(0deg); }
 }
 
-/* ── 세련된 다크 스크롤바 ── */
+/* ?? ?몃젴???ㅽ겕 ?ㅽ겕濡ㅻ컮 ?? */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -78,7 +82,7 @@ const globalStyles = `
   background: transparent;
 }
 
-/* 사이드바 전용 */
+/* ?ъ씠?쒕컮 ?꾩슜 */
 aside ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.07);
 }
@@ -96,9 +100,9 @@ aside * {
 }
 `;
 
-/* ═══════════════════════════════════════════════
-   사이드바 & 탭 설정
-   ═══════════════════════════════════════════════ */
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
+   ?ъ씠?쒕컮 & ???ㅼ젙
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 const NAV = [
   {
     section: "대시보드",
@@ -129,16 +133,20 @@ const NAV = [
     ],
   },
   {
-    section: "참가자",
+    section: "참가",
     items: [
       { id: "participantList", label: "참가자 목록", icon: Users },
       { id: "paymentManage", label: "결제 관리", icon: CreditCard },
+      { id: "refundManage", label: "환불 관리", icon: RotateCcw },
       { id: "alertManage", label: "알림 관리", icon: Send },
     ],
   },
   {
     section: "관리자",
-    items: [{ id: "adminLogs", label: "관리자 로그", icon: Settings }],
+    items: [
+      { id: "reports", label: "신고 관리", icon: AlertTriangle },
+      { id: "adminLogs", label: "관리자 로그", icon: Settings },
+    ],
   },
 ];
 
@@ -148,7 +156,7 @@ const DEFAULT_PAGE_TABS = {
     { id: "all", label: "전체 이벤트", count: 0 },
     { id: "active", label: "진행 중", count: 0 },
     { id: "ended", label: "종료", count: 0 },
-    { id: "new", label: "신규", count: 0 },
+    { id: "new", label: "예정", count: 0 },
   ],
   programManage: [
     { id: "all", label: "전체", count: 0 },
@@ -180,7 +188,7 @@ const DEFAULT_PAGE_TABS = {
     { id: "info", label: "정보게시판" },
     { id: "review", label: "행사후기" },
     { id: "qna", label: "질문·답변" },
-    { id: "faq", label: "자주묻는질문" },
+    { id: "faq", label: "자주 묻는 질문" },
   ],
   gallery: [{ id: "all", label: "갤러리" }],
   notice: [{ id: "all", label: "공지사항", count: 5 }],
@@ -195,8 +203,10 @@ const DEFAULT_PAGE_TABS = {
     { id: "ended", label: "종료", count: 0 },
     { id: "pending", label: "대기", count: 0 },
   ],
-  alertManage: [{ id: "all", label: "알림 내역" }],
-  adminLogs: [{ id: "all", label: "로그 내역" }],
+  refundManage: [{ id: "all", label: "환불 요청" }],
+  alertManage: [{ id: "all", label: "알림 이력" }],
+  reports: [{ id: "all", label: "신고 이력" }],
+  adminLogs: [{ id: "all", label: "로그 이력" }],
 };
 
 const authHeaders = () => {
@@ -218,7 +228,7 @@ const normalizeAdminProgramCategory = (program) => {
 };
 
 const PAGE_TITLES = {
-  dashboard: "홈",
+  dashboard: "대시보드",
   eventManage: "행사 관리",
   programManage: "프로그램 관리",
   pastEvents: "지난 행사",
@@ -230,18 +240,17 @@ const PAGE_TITLES = {
   notice: "공지사항 관리",
   participantList: "참가자 목록",
   paymentManage: "결제 관리",
+  refundManage: "환불 관리",
   alertManage: "알림 관리",
+  reports: "신고 관리",
   adminLogs: "관리자 로그",
 };
 
-/* ═══════════════════════════════════════════════
-   오늘 날짜 + 인사말 (헤더용)
-   ═══════════════════════════════════════════════ */
 function TodayGreeting() {
   const now = new Date();
   const h = now.getHours();
   const greeting =
-    h < 12 ? "좋은 아침이에요" : h < 17 ? "좋은 오후예요" : "수고하셨어요";
+    h < 12 ? "좋은 아침입니다" : h < 17 ? "좋은 오후입니다" : "수고 많으셨습니다";
   const days = ["일", "월", "화", "수", "목", "금", "토"];
   const formatted = `${now.getFullYear()}. ${now.getMonth() + 1}. ${now.getDate()} (${days[now.getDay()]})`;
   const timeStr = `${String(h).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
@@ -262,31 +271,24 @@ function TodayGreeting() {
         <span style={{ fontSize: 12.5, fontWeight: 600, color: ds.ink3 }}>
           {formatted}
         </span>
-        <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 500 }}>
-          {timeStr}
-        </span>
+        <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 500 }}>{timeStr}</span>
       </div>
-      <span style={{ fontSize: 12.5, color: ds.ink4, fontWeight: 500 }}>
-        {greeting} 👋
-      </span>
+      <span style={{ fontSize: 12.5, color: ds.ink4, fontWeight: 500 }}>{greeting}</span>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════
-   홈 페이지 (Dashboard 내장)
-   ═══════════════════════════════════════════════ */
 function PageHome() {
   return <HomeDashboard />;
 }
 
-/* ═══════════════════════════════════════════════
-   메인 컴포넌트
-   ═══════════════════════════════════════════════ */
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
+   硫붿씤 而댄룷?뚰듃
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
 export default function Dashboard() {
   const [nav, setNav] = useState("dashboard");
   const [subTab, setSubTab] = useState(null);
-  // bellAnim removed — logout button now
+  // bellAnim removed ??logout button now
   const [pageTabs, setPageTabs] = useState(DEFAULT_PAGE_TABS);
   const [eventMenuBadge, setEventMenuBadge] = useState(0);
 
@@ -311,7 +313,7 @@ export default function Dashboard() {
             ? payload
             : [];
 
-      /* 날짜 기반 상태 계산 — 각 관리 페이지의 calcStatus와 동일 로직 */
+      /* ?좎쭨 湲곕컲 ?곹깭 怨꾩궛 ??媛?愿由??섏씠吏??calcStatus? ?숈씪 濡쒖쭅 */
       const calcSt = (startAt, endAt) => {
         if (!startAt && !endAt) return "pending";
         const norm = (v) => (v ? String(v).replace(/\./g, "-").trim() : v);
@@ -368,7 +370,7 @@ export default function Dashboard() {
           { id: "all", label: "전체 이벤트", count: eventCounts.all },
           { id: "active", label: "진행 중", count: eventCounts.active },
           { id: "ended", label: "종료", count: eventCounts.ended },
-          { id: "new", label: "신규", count: eventCounts.pending },
+          { id: "new", label: "예정", count: eventCounts.pending },
         ],
         programManage: [
           { id: "all", label: "전체", count: eventCounts.all },
@@ -429,8 +431,12 @@ export default function Dashboard() {
         return <ParticipantList subTab={activeTab} />;
       case "paymentManage":
         return <PaymentManage subTab={activeTab} />;
+      case "refundManage":
+        return <RefundManage />;
       case "alertManage":
         return <AlertManage />;
+      case "reports":
+        return <ReportManage />;
       case "adminLogs":
         return <AdminLogManage />;
       default:
@@ -450,7 +456,7 @@ export default function Dashboard() {
     >
       <style>{globalStyles}</style>
 
-      {/* ─── SIDEBAR ─── */}
+      {/* ??? SIDEBAR ??? */}
       <aside
         style={{
           width: 240,
@@ -460,7 +466,7 @@ export default function Dashboard() {
           flexShrink: 0,
         }}
       >
-        {/* 로고 */}
+        {/* 濡쒓퀬 */}
         <div
           style={{
             padding: "22px 18px 16px",
@@ -516,7 +522,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 메뉴 그룹 */}
+        {/* 硫붾돱 洹몃９ */}
         <nav style={{ flex: 1, padding: "0 10px", overflow: "auto" }}>
           {NAV.map((group) => (
             <div key={group.section}>
@@ -591,7 +597,7 @@ export default function Dashboard() {
           ))}
         </nav>
 
-        {/* 유저 */}
+        {/* ?좎? */}
         <div
           style={{
             padding: "12px 14px 16px",
@@ -615,7 +621,7 @@ export default function Dashboard() {
               fontWeight: 800,
             }}
           >
-            김
+            源
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: ds.inkW }}>
@@ -627,7 +633,7 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      {/* ─── MAIN ─── */}
+      {/* ??? MAIN ??? */}
       <main
         style={{
           flex: 1,
@@ -636,7 +642,7 @@ export default function Dashboard() {
           overflow: "hidden",
         }}
       >
-        {/* 헤더 */}
+        {/* ?ㅻ뜑 */}
         <header
           style={{
             background: ds.card,
@@ -660,10 +666,10 @@ export default function Dashboard() {
             {PAGE_TITLES[nav] || "대시보드"}
           </h1>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* ── 오늘 날짜 + 인사말 ── */}
+            {/* ?? ?ㅻ뒛 ?좎쭨 + ?몄궗留??? */}
             <TodayGreeting />
 
-            {/* 로그아웃 */}
+            {/* 濡쒓렇?꾩썐 */}
             <button
               onClick={() => {
                 clearToken();
@@ -702,7 +708,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* 탭 (2개 이상일 때만 표시) */}
+        {/* ??(2媛??댁긽???뚮쭔 ?쒖떆) */}
         {tabs.length > 1 && (
           <div
             style={{
@@ -763,7 +769,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* 페이지 콘텐츠 */}
+        {/* ?섏씠吏 肄섑뀗痢?*/}
         <div style={{ flex: 1, overflow: "auto", padding: "20px 28px 28px" }}>
           {renderPage()}
         </div>
@@ -771,3 +777,6 @@ export default function Dashboard() {
     </div>
   );
 }
+
+
+

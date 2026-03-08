@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Banknote,
+  CheckCircle2,
+  CreditCard,
+  Loader2,
+  Receipt,
+} from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { tokenStore } from "../../../app/http/tokenStore";
-import {
-  CreditCard,
-  Banknote,
-  CheckCircle2,
-  Receipt,
-} from "lucide-react";
 
 export const SERVICE_CATEGORIES = [
   { label: "행사 참가 신청", path: "/registration/apply" },
@@ -17,384 +18,442 @@ export const SERVICE_CATEGORIES = [
 ];
 
 export const SUBTITLE_MAP = {
-  "/registration/apply": "행사에 참가 신청하세요",
-  "/registration/applyhistory": "나의 행사 참가 신청 이력을 확인하세요",
-  "/registration/paymenthistory": "결제 완료된 내역을 확인하세요",
-  "/registration/qrcheckin": "내 QR 코드를 확인하세요",
-};
-
-const KBCardSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#FFB800" />
-    <text x="14" y="19" textAnchor="middle" fontSize="11" fontWeight="800" fill="#3C1A00" fontFamily="Arial,sans-serif">
-      KB
-    </text>
-  </svg>
-);
-const ShinhanCardSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#0046FF" />
-    <path d="M9 14.5C9 12 11.5 10 14 10C16.5 10 18 11.5 18 11.5" stroke="white" strokeWidth="2" strokeLinecap="round" />
-    <path d="M19 13.5C19 16 16.5 18 14 18C11.5 18 10 16.5 10 16.5" stroke="white" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-const SamsungCardSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#1428A0" />
-    <text x="14" y="19" textAnchor="middle" fontSize="7.5" fontWeight="700" fill="white" fontFamily="Arial,sans-serif">
-      SAMSUNG
-    </text>
-  </svg>
-);
-const HyundaiCardSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#1A1A1A" />
-    <text x="14" y="19" textAnchor="middle" fontSize="9" fontWeight="700" fill="white" fontFamily="Arial,sans-serif">
-      HYUNDAI
-    </text>
-  </svg>
-);
-const LotteCardSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#ED1C24" />
-    <text x="14" y="19" textAnchor="middle" fontSize="9" fontWeight="800" fill="white" fontFamily="Arial,sans-serif">
-      LOTTE
-    </text>
-  </svg>
-);
-const HanaCardSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#009B77" />
-    <text x="14" y="19" textAnchor="middle" fontSize="9" fontWeight="700" fill="white" fontFamily="Arial,sans-serif">
-      HANA
-    </text>
-  </svg>
-);
-const WooriCardSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#0068B7" />
-    <text x="14" y="19" textAnchor="middle" fontSize="9" fontWeight="700" fill="white" fontFamily="Arial,sans-serif">
-      WOORI
-    </text>
-  </svg>
-);
-const NHCardSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#00843D" />
-    <text x="14" y="17" textAnchor="middle" fontSize="10" fontWeight="800" fill="white" fontFamily="Arial,sans-serif">
-      NH
-    </text>
-  </svg>
-);
-const IBKCardSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#005BAC" />
-    <text x="14" y="19" textAnchor="middle" fontSize="10" fontWeight="800" fill="white" fontFamily="Arial,sans-serif">
-      IBK
-    </text>
-  </svg>
-);
-const BCCardSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#EF3E23" />
-    <text x="14" y="19" textAnchor="middle" fontSize="11" fontWeight="800" fill="white" fontFamily="Arial,sans-serif">
-      BC
-    </text>
-  </svg>
-);
-const KakaoPaySVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#FEE500" />
-    <path
-      d="M14 7C10.134 7 7 9.686 7 12.994C7 15.073 8.256 16.912 10.196 18.01L9.4 21L12.768 18.818C13.168 18.873 13.58 18.9 14 18.9C17.866 18.9 21 16.214 21 12.906C21 9.598 17.866 7 14 7Z"
-      fill="#3A1D1D"
-    />
-  </svg>
-);
-const NaverPaySVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#03C75A" />
-    <path d="M9 8H12.2L15.1 13.2V8H19V20H15.8L12.9 14.8V20H9V8Z" fill="white" />
-  </svg>
-);
-const TossPaySVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#0064FF" />
-    <text x="14" y="19" textAnchor="middle" fontSize="9" fontWeight="800" fill="white" fontFamily="Arial,sans-serif">
-      TOSS
-    </text>
-  </svg>
-);
-const PaycoSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#FF0000" />
-    <text x="14" y="19" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="white" fontFamily="Arial,sans-serif">
-      PAYCO
-    </text>
-  </svg>
-);
-const SamsungPaySVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#1428A0" />
-    <text x="14" y="16" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="white" fontFamily="Arial,sans-serif">
-      SAMSUNG
-    </text>
-    <text x="14" y="22" textAnchor="middle" fontSize="7" fontWeight="800" fill="white" fontFamily="Arial,sans-serif">
-      Pay
-    </text>
-  </svg>
-);
-const ApplePaySVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#000000" />
-    <path
-      d="M14.8 8.2C15.3 7.6 15.6 6.8 15.5 6C14.8 6.05 14 6.45 13.5 7.05C13.05 7.6 12.7 8.4 12.85 9.15C13.6 9.2 14.3 8.8 14.8 8.2Z"
-      fill="white"
-    />
-    <path
-      d="M17.15 13.75C17.15 11.55 18.85 10.55 18.9 10.5C17.85 8.95 16.2 8.75 15.6 8.7C14.2 8.55 12.9 9.5 12.2 9.5C11.5 9.5 10.4 8.7 9.2 8.75C7.7 8.8 6.3 9.6 5.55 10.9C4 13.5 5.1 17.35 6.6 19.45C7.35 20.5 8.2 21.65 9.4 21.6C10.55 21.55 11 20.85 12.4 20.85C13.8 20.85 14.2 21.6 15.45 21.55C16.65 21.5 17.4 20.5 18.15 19.45C18.65 18.75 18.9 18.05 18.95 18C18.9 17.95 17.15 17.3 17.15 13.75Z"
-      fill="white"
-    />
-  </svg>
-);
-const BankTransferSVG = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="28" height="28" rx="6" fill="#F3F4F6" />
-    <rect x="7" y="12" width="14" height="2" rx="1" fill="#6B7280" />
-    <rect x="7" y="16" width="14" height="2" rx="1" fill="#6B7280" />
-    <path d="M14 7L9 11H19L14 7Z" fill="#6B7280" />
-  </svg>
-);
-
-const METHOD_ICON = {
-  kb: <KBCardSVG />,
-  shinhan: <ShinhanCardSVG />,
-  samsung_card: <SamsungCardSVG />,
-  hyundai: <HyundaiCardSVG />,
-  lotte: <LotteCardSVG />,
-  hana: <HanaCardSVG />,
-  woori: <WooriCardSVG />,
-  nh: <NHCardSVG />,
-  ibk: <IBKCardSVG />,
-  bc: <BCCardSVG />,
-  kakao: <KakaoPaySVG />,
-  naver: <NaverPaySVG />,
-  toss: <TossPaySVG />,
-  payco: <PaycoSVG />,
-  samsung_pay: <SamsungPaySVG />,
-  apple_pay: <ApplePaySVG />,
-  bank: <BankTransferSVG />,
+  "/registration/apply": "행사 참가 신청 현황을 확인할 수 있습니다.",
+  "/registration/applyhistory": "행사 신청 이력을 확인할 수 있습니다.",
+  "/registration/paymenthistory": "결제와 환불 처리 상태를 확인할 수 있습니다.",
+  "/registration/qrcheckin": "행사 입장용 QR 코드를 확인할 수 있습니다.",
 };
 
 const styles = `
-  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
-
   .pay-root {
     box-sizing: border-box;
-    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    background: #F5F6FA; min-height: 100vh;
+    min-height: 100vh;
+    background: #f5f7fb;
+    color: #0f172a;
+    font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
-  .pay-root *, .pay-root *::before, .pay-root *::after { box-sizing: border-box; font-family: inherit; }
-  .pay-container { max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; }
-
-  .pay-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+  .pay-root *, .pay-root *::before, .pay-root *::after {
+    box-sizing: border-box;
+    font-family: inherit;
+  }
+  .pay-container {
+    width: min(920px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 28px 0 72px;
+  }
+  .pay-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
   .pay-stat {
-    background: #fff; border: 1px solid #EBEBEB; border-radius: 16px;
-    padding: 20px 18px; display: flex; flex-direction: column; gap: 4px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
   }
-  .pay-stat-icon-wrap {
-    width: 38px; height: 38px; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center; margin-bottom: 8px;
+  .pay-stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
   }
-  .pay-stat-icon-wrap.blue  { background: #EEF2FF; color: #1B50D9; }
-  .pay-stat-icon-wrap.green { background: #DCFCE7; color: #15803D; }
-  .pay-stat-icon-wrap.amber { background: #FEF3C7; color: #B45309; }
-  .pay-stat-value { font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.8px; line-height: 1; }
-  .pay-stat-label { font-size: 12px; color: #9CA3AF; font-weight: 500; margin-top: 3px; }
-
-  .pay-toolbar { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
-  .pay-title { font-size: 17px; font-weight: 800; color: #111827; letter-spacing: -0.3px; }
-  .pay-sub { font-size: 13px; color: #9CA3AF; margin-top: 3px; }
-
-  .pay-list { display: flex; flex-direction: column; gap: 10px; }
-
+  .pay-stat-icon.blue { background: #dbeafe; color: #1d4ed8; }
+  .pay-stat-icon.green { background: #dcfce7; color: #15803d; }
+  .pay-stat-icon.amber { background: #fef3c7; color: #b45309; }
+  .pay-stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .pay-stat-label {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 700;
+  }
+  .pay-toolbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .pay-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+  }
+  .pay-sub {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #64748b;
+  }
+  .pay-list {
+    display: grid;
+    gap: 12px;
+  }
   .pay-card {
-    background: #fff; border: 1px solid #EBEBEB; border-radius: 16px;
-    overflow: hidden; transition: box-shadow 0.2s;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
   }
-  .pay-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.07); }
-  .pay-card-body { padding: 18px 20px; display: flex; align-items: center; gap: 16px; }
-  .pay-card-method { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .pay-card-method-name { font-size: 13.5px; color: #374151; font-weight: 500; white-space: nowrap; }
-  .pay-card-info { flex: 1; min-width: 0; }
-  .pay-card-event { font-size: 14px; font-weight: 700; color: #111827; line-height: 1.4; }
-  .pay-card-id { font-size: 11px; color: #C9CDD4; font-family: 'Courier New', monospace; margin-top: 3px; }
-  .pay-card-right { text-align: right; flex-shrink: 0; }
-  .pay-card-amount { font-size: 17px; font-weight: 800; color: #1B50D9; letter-spacing: -0.5px; }
-  .pay-card-date { font-size: 12px; color: #9CA3AF; margin-top: 3px; }
-
+  .pay-card-body {
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .pay-card-main {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+  .pay-card-method {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 700;
+  }
+  .pay-card-event {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.45;
+  }
+  .pay-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: #64748b;
+  }
+  .pay-card-side {
+    text-align: right;
+    display: grid;
+    gap: 6px;
+    min-width: 160px;
+  }
+  .pay-card-amount {
+    font-size: 20px;
+    font-weight: 800;
+    color: #1d4ed8;
+  }
   .pay-card-footer {
-    padding: 12px 20px; background: #FAFAFA; border-top: 1px solid #F3F4F6;
-    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
   }
   .pay-status-badge {
-    padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: 700;
-    background: #DCFCE7; color: #15803D;
-    display: inline-flex; align-items: center; gap: 5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #15803d;
+    font-size: 12px;
+    font-weight: 800;
   }
-  .pay-footer-actions { display: flex; align-items: center; gap: 8px; }
-  .pay-receipt-btn {
-    padding: 6px 14px; font-size: 12px; font-weight: 600;
-    border: 1.5px solid #EBEBEB; border-radius: 8px; background: #fff;
-    color: #6B7280; cursor: pointer; font-family: inherit; transition: all 0.15s;
-    display: flex; align-items: center; gap: 5px;
+  .pay-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
-  .pay-receipt-btn:hover { border-color: #9CA3AF; color: #374151; }
-  .pay-refund-btn {
-    padding: 6px 14px; font-size: 12px; font-weight: 600;
-    border: 1px solid #FCA5A5; border-radius: 8px; background: #FEF2F2;
-    color: #DC2626; cursor: pointer; transition: all 0.15s;
+  .pay-btn {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
   }
-  .pay-refund-btn:hover { background: #FFE4E6; }
-  .pay-refund-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
+  .pay-btn.refund {
+    border-color: #fecaca;
+    background: #fff1f2;
+    color: #b91c1c;
+  }
+  .pay-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .pay-error {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .pay-empty {
+    padding: 28px 18px;
+    text-align: center;
+    background: #fff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 16px;
+    color: #64748b;
+    font-size: 13px;
+  }
   .pay-total-card {
-    background: #EEF2FF; border: 1.5px solid #C7D2FA; border-radius: 16px;
-    padding: 18px 20px; display: flex; align-items: center; justify-content: space-between;
     margin-top: 16px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 18px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
   }
-  .pay-total-label { font-size: 14px; font-weight: 700; color: #374151; }
-  .pay-total-amount { font-size: 22px; font-weight: 800; color: #1B50D9; letter-spacing: -0.8px; }
-
-  @media (max-width: 640px) {
-    .pay-stats { grid-template-columns: 1fr; }
-    .pay-container { padding: 20px 16px 64px; }
+  .pay-total-label {
+    font-size: 14px;
+    font-weight: 800;
+    color: #1e3a8a;
+  }
+  .pay-total-amount {
+    font-size: 26px;
+    font-weight: 800;
+    color: #1d4ed8;
+  }
+  @media (max-width: 768px) {
+    .pay-stats {
+      grid-template-columns: 1fr;
+    }
+    .pay-container {
+      width: min(100%, calc(100% - 28px));
+      padding: 20px 0 60px;
+    }
+    .pay-card-body,
+    .pay-card-footer,
+    .pay-total-card {
+      align-items: flex-start;
+    }
+    .pay-card-side {
+      min-width: 0;
+      text-align: left;
+    }
   }
 `;
 
-const statusLabel = {
-  REQUESTED: "결제 요청",
-  APPROVED: "결제 완료",
-  FAILED: "결제 실패",
-  CANCELLED: "취소됨",
-  REFUNDED: "환불 완료",
-};
+function toNumberAmount(amount) {
+  const value = Number(amount);
+  return Number.isFinite(value) ? value : 0;
+}
 
-function methodTypeOf(paymentMethod) {
-  switch (paymentMethod) {
-    case "KAKAOPAY":
-      return "kakao";
-    case "CARD":
-      return "kb";
-    case "BANK":
-      return "bank";
-    default:
-      return "bank";
-  }
+function formatAmount(amount) {
+  return `₩${toNumberAmount(amount).toLocaleString("ko-KR")}`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(
+    date.getDate(),
+  ).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(
+    date.getMinutes(),
+  ).padStart(2, "0")}`;
+}
+
+function parseDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isAutoRefundEligible(payment) {
+  const startAt = parseDate(payment?.eventStartAt);
+  if (!startAt) return true;
+  return Date.now() < startAt.getTime();
 }
 
 function methodLabelOf(paymentMethod) {
-  switch (paymentMethod) {
+  switch (String(paymentMethod || "").toUpperCase()) {
     case "KAKAOPAY":
       return "카카오페이";
     case "CARD":
-      return "카드";
+      return "카드 결제";
     case "BANK":
-      return "계좌이체";
+      return "계좌 이체";
     default:
-      return paymentMethod || "기타";
+      return paymentMethod || "기타 결제";
   }
 }
 
-function formatDateTime(isoLike) {
-  if (!isoLike) return { date: "-", time: "-" };
-  const [d, t] = String(isoLike).split("T");
-  if (!d) return { date: "-", time: "-" };
-  const date = d.replaceAll("-", ".");
-  const time = t ? t.slice(0, 5) : "-";
-  return { date, time };
-}
+function getStatusMeta(payment) {
+  const refundStatus = String(payment?.refund?.status || "").toUpperCase();
+  if (refundStatus === "REQUESTED") {
+    return { label: "환불 요청", style: { background: "#fef3c7", color: "#b45309" } };
+  }
+  if (refundStatus === "APPROVED") {
+    return { label: "환불 승인", style: { background: "#dbeafe", color: "#1d4ed8" } };
+  }
+  if (refundStatus === "REJECTED") {
+    return { label: "환불 거절", style: { background: "#fee2e2", color: "#b91c1c" } };
+  }
+  if (refundStatus === "REFUNDED") {
+    return { label: "환불 완료", style: { background: "#e5e7eb", color: "#374151" } };
+  }
 
-function toNumberAmount(amount) {
-  const n = Number(amount);
-  return Number.isFinite(n) ? n : 0;
+  switch (String(payment?.status || "").toUpperCase()) {
+    case "APPROVED":
+      return { label: "결제 완료", style: undefined };
+    case "REQUESTED":
+      return { label: "결제 요청", style: { background: "#e0f2fe", color: "#0369a1" } };
+    case "FAILED":
+      return { label: "결제 실패", style: { background: "#fee2e2", color: "#b91c1c" } };
+    case "CANCELLED":
+      return { label: "취소됨", style: { background: "#fee2e2", color: "#b91c1c" } };
+    case "REFUNDED":
+      return { label: "환불 완료", style: { background: "#e5e7eb", color: "#374151" } };
+    default:
+      return { label: payment?.status || "-", style: { background: "#e5e7eb", color: "#475569" } };
+  }
 }
 
 export default function PaymentHistory({ onNavigate }) {
   const currentPath = "/registration/paymenthistory";
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [payments, setPayments] = useState([]);
+  const [refunds, setRefunds] = useState([]);
   const [refundingId, setRefundingId] = useState(null);
 
-  const page = 0;
-  const size = 20;
+  const loadHistory = useCallback(async () => {
+    if (!tokenStore.getAccess()) {
+      setError("로그인이 필요합니다.");
+      setLoading(false);
+      return;
+    }
 
-  const stats = useMemo(() => {
-    const totalCount = payments.length;
-    const approved = payments.filter((p) => p.status === "APPROVED");
-    const approvedCount = approved.length;
-    const totalAmount = approved.reduce((acc, p) => acc + toNumberAmount(p.amount), 0);
-    return { totalCount, approvedCount, totalAmount };
-  }, [payments]);
+    setLoading(true);
+    setError("");
+
+    try {
+      const [paymentsRes, refundsRes] = await Promise.all([
+        axiosInstance.get("/api/payments/my", {
+          params: { page: 0, size: 20, sort: "requestedAt,desc" },
+        }),
+        axiosInstance.get("/api/refunds/my", {
+          params: { page: 0, size: 200, sort: "requestedAt,desc" },
+        }),
+      ]);
+
+      setPayments(paymentsRes?.data?.data?.content ?? []);
+      setRefunds(refundsRes?.data?.data?.content ?? []);
+    } catch (err) {
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        "결제 내역을 불러오지 못했습니다.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchPayments = async () => {
-      if (!tokenStore.getAccess()) {
-        setError("로그인이 필요합니다.");
-        setLoading(false);
-        return;
-      }
+    loadHistory();
+  }, [loadHistory]);
 
-      setLoading(true);
-      setError("");
+  const refundIndex = useMemo(
+    () =>
+      refunds.reduce((acc, refund) => {
+        if (refund?.paymentId != null) {
+          acc[String(refund.paymentId)] = refund;
+        }
+        return acc;
+      }, {}),
+    [refunds],
+  );
 
-      try {
-        const res = await axiosInstance.get("/api/payments/my", {
-          params: { page, size, sort: "requestedAt,desc" },
-        });
+  const paymentRows = useMemo(
+    () =>
+      payments.map((payment) => ({
+        ...payment,
+        refund: refundIndex[String(payment?.paymentId)] || null,
+      })),
+    [payments, refundIndex],
+  );
 
-        const pageData = res?.data?.data;
-        const list = pageData?.content ?? [];
-        setPayments(list);
-      } catch (e) {
-        const msg =
-          e?.response?.data?.error?.message ||
-          e?.response?.data?.message ||
-          "결제 내역을 불러오지 못했습니다.";
-        setError(msg);
-      } finally {
-        setLoading(false);
-      }
+  const stats = useMemo(() => {
+    const approvedRows = paymentRows.filter((item) => item.status === "APPROVED" && !item.refund);
+    return {
+      totalCount: paymentRows.length,
+      approvedCount: approvedRows.length,
+      totalAmount: approvedRows.reduce((sum, item) => sum + toNumberAmount(item.amount), 0),
     };
-
-    fetchPayments();
-  }, []);
+  }, [paymentRows]);
 
   const handleRefund = async (payment) => {
     const paymentId = payment?.paymentId;
-    if (!paymentId || payment?.status !== "APPROVED" || refundingId) return;
+    if (!paymentId || payment?.status !== "APPROVED" || payment?.refund || refundingId) return;
 
-    const ok = window.confirm("정말 환불하시겠습니까?\n환불 후 결제 상태는 취소됨으로 변경됩니다.");
-    if (!ok) return;
+    const autoRefund = isAutoRefundEligible(payment);
+    const confirmed = window.confirm(
+      autoRefund
+        ? "행사 시작 전 환불은 자동으로 처리됩니다. 환불하시겠습니까?"
+        : "행사 시작 후 환불은 관리자 승인이 필요합니다. 환불을 신청하시겠습니까?",
+    );
+    if (!confirmed) return;
+
+    let reason = autoRefund ? "행사 시작 전 자동 환불 요청" : "";
+    if (!autoRefund) {
+      const input = window.prompt("환불 사유를 입력해주세요.", "개인 사정");
+      if (input == null) return;
+      reason = String(input || "").trim();
+      if (!reason) {
+        window.alert("환불 사유를 입력해주세요.");
+        return;
+      }
+    }
 
     setRefundingId(paymentId);
     try {
-      const res = await axiosInstance.post(`/api/payments/${paymentId}/cancel`);
-      const changedStatus = res?.data?.data?.status || "CANCELLED";
-      setPayments((prev) =>
-        prev.map((row) =>
-          row?.paymentId === paymentId ? { ...row, status: changedStatus } : row,
-        ),
-      );
-      window.alert("환불이 완료되었습니다.");
-    } catch (e) {
-      const msg =
-        e?.response?.data?.error?.message ||
-        e?.response?.data?.message ||
+      await axiosInstance.post("/api/refunds", {
+        paymentId,
+        refundAmount: toNumberAmount(payment?.amount),
+        reason,
+      });
+      await loadHistory();
+      window.alert(autoRefund ? "환불이 완료되었습니다." : "환불 요청이 접수되었습니다.");
+    } catch (err) {
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
         "환불 처리 중 오류가 발생했습니다.";
-      window.alert(msg);
+      window.alert(message);
     } finally {
       setRefundingId(null);
     }
@@ -417,14 +476,14 @@ export default function PaymentHistory({ onNavigate }) {
           {[
             {
               icon: <CreditCard size={18} />,
-              label: "총 결제 횟수",
-              value: `${stats.totalCount}회`,
+              label: "전체 결제 건수",
+              value: `${stats.totalCount}건`,
               cls: "blue",
             },
             {
               icon: <Banknote size={18} />,
-              label: "누적 결제 금액",
-              value: `${stats.totalAmount.toLocaleString()}원`,
+              label: "유효 결제 금액",
+              value: formatAmount(stats.totalAmount),
               cls: "green",
             },
             {
@@ -433,99 +492,91 @@ export default function PaymentHistory({ onNavigate }) {
               value: `${stats.approvedCount}건`,
               cls: "amber",
             },
-          ].map((s) => (
-            <div key={s.label} className="pay-stat">
-              <div className={`pay-stat-icon-wrap ${s.cls}`}>{s.icon}</div>
-              <div className="pay-stat-value">{s.value}</div>
-              <div className="pay-stat-label">{s.label}</div>
+          ].map((item) => (
+            <div key={item.label} className="pay-stat">
+              <div className={`pay-stat-icon ${item.cls}`}>{item.icon}</div>
+              <div className="pay-stat-value">{item.value}</div>
+              <div className="pay-stat-label">{item.label}</div>
             </div>
           ))}
         </div>
 
         <div className="pay-toolbar">
           <div>
-            <div className="pay-title">결제 내역</div>
+            <div className="pay-title">결제 및 환불 상태</div>
             <div className="pay-sub">
-              {loading ? "불러오는 중..." : `총 ${stats.totalCount}건 · ${stats.totalAmount.toLocaleString()}원`}
+              {loading
+                ? "불러오는 중..."
+                : `총 ${stats.totalCount}건, 유효 결제 금액 ${formatAmount(stats.totalAmount)}`}
             </div>
           </div>
         </div>
 
-        {error && (
-          <div style={{ color: "#b91c1c", marginBottom: 12 }}>
-            {error}
-          </div>
-        )}
+        {error ? <div className="pay-error">{error}</div> : null}
 
-        {!loading && !error && payments.length === 0 && (
-          <div style={{ color: "#6b7280" }}>
-            결제 내역이 없습니다.
-          </div>
-        )}
+        {!loading && !error && paymentRows.length === 0 ? (
+          <div className="pay-empty">결제 내역이 없습니다.</div>
+        ) : null}
 
         <div className="pay-list">
-          {payments.map((p) => {
-            const methodType = methodTypeOf(p.paymentMethod);
-            const methodLabel = methodLabelOf(p.paymentMethod);
-            const amount = toNumberAmount(p.amount);
-            const { date, time } = formatDateTime(p.requestedAt);
-
-            const displayId = p.orderNo || `PAY-${p.paymentId}`;
-            const isApproved = p.status === "APPROVED";
+          {paymentRows.map((payment) => {
+            const statusMeta = getStatusMeta(payment);
+            const canRefund = payment.status === "APPROVED" && !payment.refund;
+            const refundLabel = isAutoRefundEligible(payment) ? "환불하기" : "환불 신청";
 
             return (
-              <div key={p.paymentId ?? displayId} className="pay-card">
+              <div key={payment.paymentId || payment.orderNo} className="pay-card">
                 <div className="pay-card-body">
-                  <div className="pay-card-method">
-                    {METHOD_ICON[methodType] || <BankTransferSVG />}
-                    <span className="pay-card-method-name">{methodLabel}</span>
-                  </div>
-
-                  <div className="pay-card-info">
-                    <div className="pay-card-event">
-                      {p.eventTitle || "이벤트 결제"}
+                  <div className="pay-card-main">
+                    <div className="pay-card-method">
+                      <CreditCard size={14} />
+                      {methodLabelOf(payment.paymentMethod)}
+                    </div>
+                    <div className="pay-card-event">{payment.eventTitle || "행사 결제"}</div>
+                    <div className="pay-card-meta">
+                      <span>결제 번호 {payment.orderNo || `PAY-${payment.paymentId}`}</span>
+                      <span>결제일 {formatDateTime(payment.requestedAt)}</span>
+                      {payment.eventStartAt ? (
+                        <span>행사 시작 {formatDateTime(payment.eventStartAt)}</span>
+                      ) : null}
                     </div>
                   </div>
-
-                  <div className="pay-card-right">
-                    <div className="pay-card-amount">{amount.toLocaleString()}원</div>
-                    <div className="pay-card-date">
-                      {date} {time}
+                  <div className="pay-card-side">
+                    <div className="pay-card-amount">{formatAmount(payment.amount)}</div>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>
+                      {payment.refund?.reason ? `환불 사유: ${payment.refund.reason}` : "-"}
                     </div>
                   </div>
                 </div>
-
                 <div className="pay-card-footer">
-                  <span
-                    className="pay-status-badge"
-                    style={
-                      isApproved
-                        ? undefined
-                        : {
-                            background: "#FEE2E2",
-                            color: "#B91C1C",
-                          }
-                    }
-                  >
-                    <CheckCircle2 size={11} /> {statusLabel[p.status] || p.status}
+                  <span className="pay-status-badge" style={statusMeta.style}>
+                    <CheckCircle2 size={12} />
+                    {statusMeta.label}
                   </span>
-
                   <div className="pay-footer-actions">
                     <button
-                      className="pay-receipt-btn"
-                      onClick={() => {
-                        window.alert("영수증 기능은 추후 연결 예정입니다.");
-                      }}
+                      type="button"
+                      className="pay-btn"
+                      onClick={() => window.alert("영수증 기능은 추후 연결 예정입니다.")}
                     >
-                      <Receipt size={12} /> 영수증
+                      <Receipt size={13} />
+                      영수증
                     </button>
-                    {p.status === "APPROVED" ? (
+                    {canRefund ? (
                       <button
-                        className="pay-refund-btn"
-                        onClick={() => handleRefund(p)}
-                        disabled={refundingId === p.paymentId}
+                        type="button"
+                        className="pay-btn refund"
+                        onClick={() => handleRefund(payment)}
+                        disabled={refundingId === payment.paymentId}
                       >
-                        {refundingId === p.paymentId ? "처리 중..." : "환불하기"}
+                        {refundingId === payment.paymentId ? (
+                          <>
+                            <Loader2 size={13} className="animate-spin" />
+                            처리 중...
+                          </>
+                        ) : (
+                          refundLabel
+                        )}
                       </button>
                     ) : null}
                   </div>
@@ -536,8 +587,8 @@ export default function PaymentHistory({ onNavigate }) {
         </div>
 
         <div className="pay-total-card">
-          <div className="pay-total-label">총 결제 금액</div>
-          <div className="pay-total-amount">{stats.totalAmount.toLocaleString()}원</div>
+          <div className="pay-total-label">현재 유효 결제 금액</div>
+          <div className="pay-total-amount">{formatAmount(stats.totalAmount)}</div>
         </div>
       </main>
     </div>

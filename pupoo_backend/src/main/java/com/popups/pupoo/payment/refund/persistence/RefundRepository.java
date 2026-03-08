@@ -15,6 +15,7 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     interface AdminRefundRow {
         Long getRefundId();
         Long getPaymentId();
+        Long getEventApplyId();
         java.math.BigDecimal getRefundAmount();
         String getReason();
         RefundStatus getStatus();
@@ -43,6 +44,7 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
         select
           r.refundId as refundId,
           p.paymentId as paymentId,
+          p.eventApplyId as eventApplyId,
           r.refundAmount as refundAmount,
           r.reason as reason,
           r.status as status,
@@ -60,6 +62,7 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
         select
           r.refundId as refundId,
           p.paymentId as paymentId,
+          p.eventApplyId as eventApplyId,
           r.refundAmount as refundAmount,
           r.reason as reason,
           r.status as status,
@@ -78,6 +81,7 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
         select
           r.refundId as refundId,
           p.paymentId as paymentId,
+          p.eventApplyId as eventApplyId,
           r.refundAmount as refundAmount,
           r.reason as reason,
           r.status as status,

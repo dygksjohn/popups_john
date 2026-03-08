@@ -82,7 +82,7 @@ public class AdminReportService {
     private AdminTargetType resolveAdminTargetType(ContentReport report) {
         if (report.getTargetType() == ReportTargetType.POST) return AdminTargetType.POST;
         if (report.getTargetType() == ReportTargetType.REVIEW) return AdminTargetType.REVIEW;
-        if (report.getTargetType() == ReportTargetType.GALLERY) return AdminTargetType.OTHER;
+        if (report.getTargetType() == ReportTargetType.GALLERY) return AdminTargetType.GALLERY;
         // 댓글(POST_COMMENT/REVIEW_COMMENT)은 admin_logs enum에 REPLY가 없으므로 OTHER로 기록한다.
         return AdminTargetType.OTHER;
     }

@@ -136,8 +136,7 @@ public class AdminModerationService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "갤러리가 존재하지 않습니다."));
 
         gallery.blind();
-        // AdminTargetType에 GALLERY가 없으면 OTHER로 두되, 가능하면 enum에 GALLERY 추가 추천
-        adminLogService.write("GALLERY_BLIND" + suffixReason(reason), AdminTargetType.OTHER, galleryId);
+        adminLogService.write("GALLERY_BLIND" + suffixReason(reason), AdminTargetType.GALLERY, galleryId);
     }
 
     @Transactional
@@ -146,7 +145,7 @@ public class AdminModerationService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "갤러리가 존재하지 않습니다."));
 
         gallery.restore();
-        adminLogService.write("GALLERY_RESTORE" + suffixReason(reason), AdminTargetType.OTHER, galleryId);
+        adminLogService.write("GALLERY_RESTORE" + suffixReason(reason), AdminTargetType.GALLERY, galleryId);
     }
 
     /* =========================

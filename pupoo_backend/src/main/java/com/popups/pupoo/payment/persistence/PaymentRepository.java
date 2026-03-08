@@ -3,12 +3,16 @@ package com.popups.pupoo.payment.persistence;
 
 import com.popups.pupoo.payment.domain.enums.PaymentStatus;
 import com.popups.pupoo.payment.domain.model.Payment;
-import org.springframework.data.domain.*;
-import org.springframework.data.jpa.repository.*;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import jakarta.persistence.LockModeType;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
@@ -33,7 +37,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             @Param("statuses") EnumSet<PaymentStatus> statuses
     );
 
-    // ✅ 조인 조회 결과용 Projection
     interface PaymentHistoryRow {
         Long getPaymentId();
         String getOrderNo();
@@ -42,18 +45,17 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
         com.popups.pupoo.payment.domain.enums.PaymentStatus getStatus();
         java.time.LocalDateTime getRequestedAt();
         Long getEventId();
-
-        // Event
-        String getEventTitle();              // ← eventName을 eventTitle로 alias
-        java.time.LocalDateTime getEventStartAt(); // ← startAt을 alias
-        java.time.LocalDateTime getEventEndAt();   // ← endAt을 alias
+        String getEventTitle();
+        java.time.LocalDateTime getEventStartAt();
+        java.time.LocalDateTime getEventEndAt();
     }
 
-    /**
-     * ✅ 내 결제 내역(Page): Payment + Event 조인
-     * - Event 엔티티: com.popups.pupoo.event.domain.model.Event
-     * - 필드: eventId, eventName, startAt, endAt
-     */
+    interface AdminPaymentRow extends PaymentHistoryRow {
+        String getBuyerName();
+        String getBuyerEmail();
+        String getBuyerPhone();
+    }
+
     @Query("""
         select
           p.paymentId as paymentId,
@@ -72,9 +74,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
         """)
     Page<PaymentHistoryRow> findMyPaymentHistory(@Param("userId") Long userId, Pageable pageable);
 
-    /**
-     * ✅ 결제 단건(approve/cancel 응답도 event 정보 포함시키기)
-     */
     @Query("""
         select
           p.paymentId as paymentId,
@@ -104,11 +103,15 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
           p.eventId as eventId,
           e.eventName as eventTitle,
           e.startAt as eventStartAt,
-          e.endAt as eventEndAt
+          e.endAt as eventEndAt,
+          u.nickname as buyerName,
+          u.email as buyerEmail,
+          u.phone as buyerPhone
         from Payment p
         left join Event e on e.eventId = p.eventId
+        left join User u on u.userId = p.userId
         """)
-    Page<PaymentHistoryRow> findAdminPaymentHistory(Pageable pageable);
+    Page<AdminPaymentRow> findAdminPaymentHistory(Pageable pageable);
 
     @Query("""
         select
@@ -121,13 +124,39 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
           p.eventId as eventId,
           e.eventName as eventTitle,
           e.startAt as eventStartAt,
-          e.endAt as eventEndAt
+          e.endAt as eventEndAt,
+          u.nickname as buyerName,
+          u.email as buyerEmail,
+          u.phone as buyerPhone
         from Payment p
         left join Event e on e.eventId = p.eventId
+        left join User u on u.userId = p.userId
         where p.paymentId = :paymentId
         """)
-    Optional<PaymentHistoryRow> findAdminPaymentDetail(@Param("paymentId") Long paymentId);
+    Optional<AdminPaymentRow> findAdminPaymentDetail(@Param("paymentId") Long paymentId);
 
-    // (기존에 있던 findByUserId는 남겨도 되지만, 이제 myPayments에서는 사용 안 함)
+    @Query("""
+        select
+          p.paymentId as paymentId,
+          p.orderNo as orderNo,
+          p.amount as amount,
+          p.paymentMethod as paymentMethod,
+          p.status as status,
+          p.requestedAt as requestedAt,
+          p.eventId as eventId,
+          e.eventName as eventTitle,
+          e.startAt as eventStartAt,
+          e.endAt as eventEndAt,
+          u.nickname as buyerName,
+          u.email as buyerEmail,
+          u.phone as buyerPhone
+        from Payment p
+        left join Event e on e.eventId = p.eventId
+        left join User u on u.userId = p.userId
+        where p.eventId = :eventId
+        order by p.requestedAt desc, p.paymentId desc
+        """)
+    List<AdminPaymentRow> findAdminPaymentsByEventId(@Param("eventId") Long eventId);
+
     Page<Payment> findByUserId(Long userId, Pageable pageable);
 }

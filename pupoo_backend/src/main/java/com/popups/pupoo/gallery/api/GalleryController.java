@@ -21,6 +21,9 @@ import com.popups.pupoo.gallery.dto.GalleryCreateRequest;
 import com.popups.pupoo.gallery.dto.GalleryLikeResponse;
 import com.popups.pupoo.gallery.dto.GalleryResponse;
 import com.popups.pupoo.gallery.dto.GalleryUpdateRequest;
+import com.popups.pupoo.report.application.ReportService;
+import com.popups.pupoo.report.dto.ReportCreateRequest;
+import com.popups.pupoo.report.dto.ReportResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +35,7 @@ public class GalleryController {
 
     private final GalleryService galleryService;
     private final GalleryAdminService galleryAdminService;
+    private final ReportService reportService;
     private final SecurityUtil securityUtil;
 
     @GetMapping("/{galleryId}")
@@ -67,6 +71,14 @@ public class GalleryController {
         boolean isAdmin = securityUtil.isAdmin();
         galleryAdminService.deleteByAuthorOrAdmin(galleryId, currentUserId, isAdmin);
         return ApiResponse.success(new IdResponse(galleryId));
+    }
+
+    @PostMapping("/{galleryId}/report")
+    public ApiResponse<ReportResponse> report(@PathVariable("galleryId") Long galleryId,
+                                              @Valid @RequestBody ReportCreateRequest request) {
+        return ApiResponse.success(
+                reportService.reportGallery(galleryId, request.getReasonCode(), request.getReasonDetail())
+        );
     }
 
     @PostMapping("/{galleryId}/like")

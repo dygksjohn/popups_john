@@ -81,7 +81,7 @@ public GalleryResponse create(Long adminUserId, GalleryCreateRequest request) {G
 
         Gallery saved = galleryRepository.save(g);
 
-        adminLogService.write("GALLERY_CREATE", AdminTargetType.OTHER, saved.getGalleryId());
+        adminLogService.write("GALLERY_CREATE", AdminTargetType.GALLERY, saved.getGalleryId());
 
         List<String> urls = request.getImageUrls() == null ? List.of() : request.getImageUrls();
         int order = 1;
@@ -194,7 +194,7 @@ public GalleryResponse create(Long adminUserId, GalleryCreateRequest request) {G
                 .updatedAt(LocalDateTime.now())
                 .build());
 
-        adminLogService.write("GALLERY_UPDATE", AdminTargetType.OTHER, galleryId);
+        adminLogService.write("GALLERY_UPDATE", AdminTargetType.GALLERY, galleryId);
 
         List<String> urls = PublicUrlNormalizer.normalizeAll(
                 galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
@@ -238,7 +238,7 @@ public GalleryResponse create(Long adminUserId, GalleryCreateRequest request) {G
                 .build());
 
         if (isAdmin) {
-            adminLogService.write("GALLERY_UPDATE", AdminTargetType.OTHER, galleryId);
+            adminLogService.write("GALLERY_UPDATE", AdminTargetType.GALLERY, galleryId);
         }
 
         List<String> urls = PublicUrlNormalizer.normalizeAll(
@@ -272,7 +272,7 @@ public GalleryResponse create(Long adminUserId, GalleryCreateRequest request) {G
                 .galleryStatus(GalleryStatus.DELETED)
                 .updatedAt(LocalDateTime.now())
                 .build());
-        adminLogService.write("GALLERY_DELETE", AdminTargetType.OTHER, galleryId);
+        adminLogService.write("GALLERY_DELETE", AdminTargetType.GALLERY, galleryId);
     }
     /**
      * 작성자 본인 또는 관리자만 삭제(소프트 삭제) 가능.
@@ -295,7 +295,7 @@ public GalleryResponse create(Long adminUserId, GalleryCreateRequest request) {G
                 .build());
 
         if (isAdmin) {
-            adminLogService.write("GALLERY_DELETE", AdminTargetType.OTHER, galleryId);
+            adminLogService.write("GALLERY_DELETE", AdminTargetType.GALLERY, galleryId);
         }
     }
 }

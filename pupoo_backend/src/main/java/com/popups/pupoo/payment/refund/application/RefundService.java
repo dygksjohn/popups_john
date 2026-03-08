@@ -3,6 +3,8 @@ package com.popups.pupoo.payment.refund.application;
 
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.event.domain.model.Event;
+import com.popups.pupoo.event.persistence.EventRepository;
 import com.popups.pupoo.payment.domain.enums.PaymentStatus;
 import com.popups.pupoo.payment.domain.model.Payment;
 import com.popups.pupoo.payment.persistence.PaymentRepository;
@@ -15,16 +17,24 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Service
 public class RefundService {
 
     private final RefundRepository refundRepository;
     private final PaymentRepository paymentRepository;
+    private final EventRepository eventRepository;
+    private final RefundAdminService refundAdminService;
 
-    public RefundService(RefundRepository refundRepository, PaymentRepository paymentRepository) {
+    public RefundService(RefundRepository refundRepository,
+                         PaymentRepository paymentRepository,
+                         EventRepository eventRepository,
+                         RefundAdminService refundAdminService) {
         this.refundRepository = refundRepository;
         this.paymentRepository = paymentRepository;
+        this.eventRepository = eventRepository;
+        this.refundAdminService = refundAdminService;
     }
 
     /**
@@ -56,14 +66,33 @@ public class RefundService {
         if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
+        if (req.reason() == null || req.reason().isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Refund reason is required");
+        }
 
-        Refund refund = Refund.requested(payment, refundAmount, req.reason());
-        refundRepository.save(refund);
+        Refund refund = refundRepository.saveAndFlush(
+                Refund.requested(payment, refundAmount, req.reason())
+        );
+
+        if (shouldAutoCompleteRefund(payment)) {
+            return refundAdminService.approveAndComplete(refund.getRefundId());
+        }
 
         return RefundResponse.from(refund);
     }
 
     public Page<RefundResponse> myRefunds(Long userId, Pageable pageable) {
         return refundRepository.findByPayment_UserId(userId, pageable).map(RefundResponse::from);
+    }
+
+    private boolean shouldAutoCompleteRefund(Payment payment) {
+        if (payment.getEventId() == null) {
+            return true;
+        }
+
+        Event event = eventRepository.findById(payment.getEventId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.EVENT_NOT_FOUND));
+
+        return LocalDateTime.now().isBefore(event.getStartAt());
     }
 }
