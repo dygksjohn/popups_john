@@ -105,6 +105,29 @@ CREATE TABLE event (
   PRIMARY KEY (event_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 4-1. event_images
+CREATE TABLE IF NOT EXISTS event_images (
+  event_image_id       BIGINT NOT NULL AUTO_INCREMENT COMMENT '행사 이미지 ID',
+  event_id             BIGINT NOT NULL COMMENT '행사 ID',
+  original_url         VARCHAR(500) NOT NULL COMMENT '원본 이미지 URL',
+  thumb_url            VARCHAR(500) NULL COMMENT '썸네일 이미지 URL',
+  image_order          INT NOT NULL DEFAULT 1 COMMENT '행사 내 이미지 순서',
+  mime_type            ENUM('jpeg','jpg','png','gif','webp','tiff','svg') NULL COMMENT '이미지 MIME 타입',
+  file_size            BIGINT NULL COMMENT '파일 크기(byte)',
+  created_by_admin_id  BIGINT NULL COMMENT '등록 관리자 ID',
+  created_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '등록일시',
+  PRIMARY KEY (event_image_id),
+  UNIQUE KEY uk_event_images_event_order (event_id, image_order),
+  KEY ix_event_images_event_id (event_id),
+  KEY ix_event_images_admin_id (created_by_admin_id),
+  CONSTRAINT fk_event_images_event
+    FOREIGN KEY (event_id) REFERENCES event(event_id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_event_images_admin
+    FOREIGN KEY (created_by_admin_id) REFERENCES users(user_id)
+    ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 5. event_apply 
 CREATE TABLE event_apply (
   apply_id    BIGINT   NOT NULL AUTO_INCREMENT COMMENT '신청 ID',
@@ -588,7 +611,7 @@ CREATE TABLE board_banned_words (
 CREATE TABLE content_reports (
   report_id            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '신고 ID',
   reporter_user_id     BIGINT       NOT NULL COMMENT '신고자 ID',
-  target_type          ENUM('POST','REVIEW','POST_COMMENT','REVIEW_COMMENT') NOT NULL COMMENT '대상 타입',
+  target_type          ENUM('POST','REVIEW','POST_COMMENT','REVIEW_COMMENT','GALLERY') NOT NULL COMMENT '대상 타입',
   target_id            BIGINT       NOT NULL COMMENT '대상 ID',
   reason_code          ENUM('SPAM','ABUSE','HATE','SEXUAL','VIOLENCE','PRIVACY','FRAUD','COPYRIGHT','OTHER') NOT NULL COMMENT '사유 코드',
   reason_detail        VARCHAR(255) NULL COMMENT '사유 상세',
@@ -859,6 +882,33 @@ CREATE TABLE notification_settings (
   updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '변경일시',
   PRIMARY KEY (user_id),
   CONSTRAINT fk_notification_settings_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 39-1. admin_notification
+CREATE TABLE IF NOT EXISTS admin_notification (
+  admin_notification_id BIGINT NOT NULL AUTO_INCREMENT COMMENT '관리자 알림 ID',
+  admin_user_id         BIGINT NOT NULL COMMENT '등록 관리자 ID',
+  notification_id       BIGINT NULL COMMENT '실제 발행 notification ID',
+  title                 VARCHAR(255) NOT NULL COMMENT '제목',
+  content               TEXT NOT NULL COMMENT '내용',
+  alert_mode            VARCHAR(20) NOT NULL COMMENT '알림 모드',
+  notification_type     VARCHAR(20) NOT NULL COMMENT '알림 타입',
+  event_id              BIGINT NULL COMMENT '연결 행사 ID',
+  event_name            VARCHAR(255) NULL COMMENT '행사명 스냅샷',
+  event_status          VARCHAR(20) NULL COMMENT '행사 상태 스냅샷',
+  alert_target_label    VARCHAR(255) NOT NULL COMMENT '대상 라벨',
+  special_target_key    VARCHAR(60) NULL COMMENT '특수 대상 키',
+  recipient_scopes      VARCHAR(255) NULL COMMENT '수신자 범위 목록',
+  target_count          INT NULL COMMENT '대상자 수',
+  status                VARCHAR(20) NOT NULL COMMENT '상태',
+  sent_at               DATETIME NULL COMMENT '발송 시각',
+  deleted               TINYINT(1) NOT NULL DEFAULT 0 COMMENT '소프트 삭제 여부',
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
+  updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시',
+  PRIMARY KEY (admin_notification_id),
+  KEY idx_admin_notification_status (status, deleted),
+  KEY idx_admin_notification_event (event_id),
+  KEY idx_admin_notification_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 40. interests
