@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "./api/authApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { useAuth } from "./AuthProvider";
 
-// ── Social button (reusable) ──────────────────────────────────────────────────
+// ?? Social button (reusable) ??????????????????????????????????????????????????
 const SocialButton = ({ onClick, style, children }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -35,7 +35,7 @@ const SocialButton = ({ onClick, style, children }) => {
   );
 };
 
-// ── SVG icons ─────────────────────────────────────────────────────────────────
+// ?? SVG icons ?????????????????????????????????????????????????????????????????
 const KakaoIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24">
     <path
@@ -75,7 +75,7 @@ const AppleIcon = () => (
   </svg>
 );
 
-// ── Animated geometric shapes for the left panel ─────────────────────────────
+// ?? Animated geometric shapes for the left panel ?????????????????????????????
 const FloatingShape = ({ style }) => (
   <div
     style={{
@@ -88,7 +88,7 @@ const FloatingShape = ({ style }) => (
   />
 );
 
-// ── Main LoginPage component ──────────────────────────────────────────────────
+// ?? Main LoginPage component ??????????????????????????????????????????????????
 const LoginPage = ({ leftBgImage = null }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -110,10 +110,10 @@ const LoginPage = ({ leftBgImage = null }) => {
       return;
     }
 
-    // ✅ 로그인 성공 후 돌아갈 경로 저장
-    // 1순위: ProtectedRoute가 넘겨준 from
-    // 2순위: 직전 저장 값
-    // 3순위: 기본 홈
+    // ??濡쒓렇???깃났 ???뚯븘媛?寃쎈줈 ???
+    // 1?쒖쐞: ProtectedRoute媛 ?섍꺼以 from
+    // 2?쒖쐞: 吏곸쟾 ???媛?
+    // 3?쒖쐞: 湲곕낯 ??
     const redirectTo = resolvePostLoginRedirect();
     sessionStorage.setItem("post_login_redirect", redirectTo);
 
@@ -155,9 +155,9 @@ const LoginPage = ({ leftBgImage = null }) => {
 
     setError("");
 
-    const email = (userId || "").trim(); // ✅ userId를 email로 사용
-    if (!email.trim()) return setError("이메일을 입력하세요.");
-    if (!password) return setError("비밀번호를 입력하세요.");
+    const email = (userId || "").trim(); // ??userId瑜?email濡??ъ슜
+    if (!email.trim()) return setError("?대찓?쇱쓣 ?낅젰?섏꽭??");
+    if (!password) return setError("鍮꾨?踰덊샇瑜??낅젰?섏꽭??");
 
     setLoading(true);
     try {
@@ -165,16 +165,16 @@ const LoginPage = ({ leftBgImage = null }) => {
       const accessToken = res?.accessToken;
 
       if (!accessToken) {
-        throw new Error("로그인 응답에 accessToken이 없습니다.");
+        throw new Error("濡쒓렇???묐떟??accessToken???놁뒿?덈떎.");
       }
 
       tokenStore.setAccess(accessToken);
-      login(); // ✅ 전역 인증 상태 true -> 헤더 즉시 전환
+      login(); // ???꾩뿭 ?몄쬆 ?곹깭 true -> ?ㅻ뜑 利됱떆 ?꾪솚
       const redirectTo = resolvePostLoginRedirect();
       sessionStorage.removeItem("post_login_redirect");
       navigate(redirectTo, { replace: true });
     } catch (e) {
-      setError(e?.response?.data?.message ?? e?.message ?? "로그인 실패");
+      setError(e?.response?.data?.message ?? e?.message ?? "濡쒓렇???ㅽ뙣");
     } finally {
       setLoading(false);
     }
@@ -207,7 +207,7 @@ const LoginPage = ({ leftBgImage = null }) => {
     <>
       {/* Google Fonts */}
 
-      {/* ── Page wrapper ── */}
+      {/* ?? Page wrapper ?? */}
       <div
         style={{
           minHeight: "100vh",
@@ -220,7 +220,7 @@ const LoginPage = ({ leftBgImage = null }) => {
         }}
       >
         <div style={{ width: "100%", maxWidth: 860 }}>
-          {/* ── Card ── */}
+          {/* ?? Card ?? */}
           <div
             className="login-card card-enter"
             style={{
@@ -234,7 +234,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               marginTop: 100,
             }}
           >
-            {/* ════════════════ LEFT PANEL ════════════════ */}
+            {/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 LEFT PANEL ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */}
             <div
               className="left-panel"
               style={{
@@ -334,9 +334,9 @@ const LoginPage = ({ leftBgImage = null }) => {
                 >
                   지금 로그인하고
                   <br />
-                  푸푸와 함께 멍멍나라로
+                  푸푸와 함께 반려생활을
                   <br />
-                  떠나던지말던지
+                  더 편하게 시작하세요
                 </h1>
                 <p
                   style={{
@@ -347,14 +347,14 @@ const LoginPage = ({ leftBgImage = null }) => {
                     letterSpacing: "0.2px",
                   }}
                 >
-                  Mobile Performance
+                  행사 신청부터 참여 기록, 알림까지
                   <br />
-                  Management Solution
+                  한 번에 관리할 수 있어요
                 </p>
               </div>
             </div>
 
-            {/* ════════════════ RIGHT PANEL ════════════════ */}
+            {/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 RIGHT PANEL ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */}
             <div
               className="right-panel"
               style={{
@@ -393,11 +393,11 @@ const LoginPage = ({ leftBgImage = null }) => {
                 </div>
               </div>
 
-              {/* ─── ID input ─── */}
+              {/* ??? ID input ??? */}
               <div style={{ marginBottom: 12 }}>
                 <input
                   type="text"
-                  placeholder="아이디를 입력하세요."
+                  placeholder="?꾩씠?붾? ?낅젰?섏꽭??"
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   onFocus={() => setFocusedField("id")}
@@ -407,11 +407,11 @@ const LoginPage = ({ leftBgImage = null }) => {
                 />
               </div>
 
-              {/* ─── Password input ─── */}
+              {/* ??? Password input ??? */}
               <div style={{ marginBottom: 16 }}>
                 <input
                   type="password"
-                  placeholder="비밀번호를 입력하세요."
+                  placeholder="鍮꾨?踰덊샇瑜??낅젰?섏꽭??"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setFocusedField("pw")}
@@ -421,7 +421,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 />
               </div>
 
-              {/* ─── Remember me ─── */}
+              {/* ??? Remember me ??? */}
               <label
                 style={{
                   display: "flex",
@@ -445,10 +445,10 @@ const LoginPage = ({ leftBgImage = null }) => {
                     cursor: "pointer",
                   }}
                 />
-                아이디 저장
+                ?꾩씠?????
               </label>
 
-              {/* ─── Login button ─── */}
+              {/* ??? Login button ??? */}
               <button
                 className="login-btn"
                 onClick={handleLogin}
@@ -470,10 +470,10 @@ const LoginPage = ({ leftBgImage = null }) => {
                   marginBottom: 16,
                 }}
               >
-                로그인
+                濡쒓렇??
               </button>
 
-              {/* ─── Sign-up / Find password links ─── */}
+              {/* ??? Sign-up / Find password links ??? */}
               <div
                 style={{
                   display: "flex",
@@ -496,7 +496,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                     borderRight: "1px solid #CBD5E0",
                   }}
                 >
-                  회원가입하기
+                  ?뚯썝媛?낇븯湲?
                 </a>
                 <a
                   href="/auth/find-password"
@@ -511,11 +511,11 @@ const LoginPage = ({ leftBgImage = null }) => {
                     padding: "0 14px",
                   }}
                 >
-                  비밀번호 찾기
+                  鍮꾨?踰덊샇 李얘린
                 </a>
               </div>
 
-              {/* ─── Divider ─── */}
+              {/* ??? Divider ??? */}
               <div
                 style={{
                   display: "flex",
@@ -532,7 +532,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  SNS 계정으로 로그인
+                  SNS 怨꾩젙?쇰줈 濡쒓렇??
                 </span>
                 <div style={{ flex: 1, height: 1, background: "#E8EDF5" }} />
               </div>
@@ -578,7 +578,7 @@ const LoginPage = ({ leftBgImage = null }) => {
             </div>
           </div>
 
-          {/* ── Footer ── */}
+          {/* ?? Footer ?? */}
           <div
             style={{
               textAlign: "center",
@@ -589,7 +589,7 @@ const LoginPage = ({ leftBgImage = null }) => {
             }}
           >
             <strong style={{ color: "#718096" }}>
-              멍멍나라 문의는 전문 컨설턴트가 도와드립니다.
+              硫띾찉?섎씪 臾몄쓽???꾨Ц 而⑥꽕?댄듃媛 ?꾩??쒕┰?덈떎.
             </strong>
             <br />
             dogcat@imqa.io / Tel : 02-123-1234

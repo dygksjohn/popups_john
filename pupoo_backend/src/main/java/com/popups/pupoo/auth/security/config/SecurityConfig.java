@@ -6,6 +6,7 @@ import com.popups.pupoo.auth.security.authentication.filter.JwtAuthenticationFil
 import com.popups.pupoo.auth.security.handler.JwtAccessDeniedHandler;
 import com.popups.pupoo.auth.security.handler.JwtAuthenticationEntryPoint;
 import com.popups.pupoo.auth.token.JwtProvider;
+import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -13,6 +14,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -21,6 +23,15 @@ import java.util.List;
 
 @Configuration
 public class SecurityConfig {
+
+    private static final List<String> SPA_EXCLUDED_PREFIXES = List.of(
+        "/api",
+        "/actuator",
+        "/swagger-ui",
+        "/v3/api-docs",
+        "/uploads",
+        "/static"
+    );
 
     private final JwtProvider jwtProvider;
     private final ObjectMapper objectMapper;
@@ -113,6 +124,18 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/users/check-nickname").permitAll()
             .requestMatchers("/uploads/**").permitAll()
             .requestMatchers("/static/**").permitAll()
+            .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
+            .requestMatchers(
+                "/",
+                "/index.html",
+                "/assets/**",
+                "/font/**",
+                "/favicon.ico",
+                "/logo_blue.png",
+                "/logo_white.png",
+                "/logo_gray.png",
+                "/vite.svg"
+            ).permitAll()
 
             // Admin console writes board content with admin token.
             .requestMatchers(HttpMethod.POST, "/api/posts").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
@@ -142,6 +165,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/event-registrations").hasAnyRole("USER", "SUPER_ADMIN")
             .requestMatchers(HttpMethod.DELETE, "/api/event-registrations/**").hasAnyRole("USER", "SUPER_ADMIN")
             .requestMatchers(HttpMethod.GET, "/api/users/me/event-registrations").hasAnyRole("USER", "SUPER_ADMIN")
+            .requestMatchers(spaRouteMatcher()).permitAll()
 
             .anyRequest().hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
         );
@@ -152,5 +176,26 @@ public class SecurityConfig {
         );
 
         return http.build();
+    }
+
+    private RequestMatcher spaRouteMatcher() {
+        return request -> {
+            if (!HttpMethod.GET.matches(request.getMethod())) {
+                return false;
+            }
+
+            String uri = request.getRequestURI();
+            if (uri == null || uri.isBlank()) {
+                return false;
+            }
+
+            boolean excluded = SPA_EXCLUDED_PREFIXES.stream()
+                .anyMatch(prefix -> uri.equals(prefix) || uri.startsWith(prefix + "/"));
+            if (excluded) {
+                return false;
+            }
+
+            return !uri.contains(".");
+        };
     }
 }
