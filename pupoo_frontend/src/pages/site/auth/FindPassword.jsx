@@ -10,7 +10,6 @@ export default function FindPassword() {
   const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [issuedCode, setIssuedCode] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
   const [requestingCode, setRequestingCode] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -39,17 +38,17 @@ export default function FindPassword() {
         email: email.trim(),
         phone: phone.trim(),
       });
-      setIssuedCode(String(response?.verificationCode || ""));
-      setExpiresAt(String(response?.expiresAt || ""));
-      setVerificationCode("");
-      setSuccessMessage("인증번호를 발급했습니다. 아래에 입력한 뒤 확인해 주세요.");
+      const nextCode = String(response?.verificationCode || "");
+      setIssuedCode(nextCode);
+      setVerificationCode(nextCode);
+      setSuccessMessage("인증번호를 자동으로 입력했습니다. 확인 버튼을 눌러 진행해 주세요.");
     } catch (error) {
       const message =
         error?.response?.data?.error?.message ||
         "인증번호 발급에 실패했습니다. 잠시 후 다시 시도해 주세요.";
       setErrorMessage(message);
       setIssuedCode("");
-      setExpiresAt("");
+      setVerificationCode("");
     } finally {
       setRequestingCode(false);
     }
@@ -170,28 +169,6 @@ export default function FindPassword() {
             {requestingCode ? "발급 중..." : "인증번호 요청"}
           </button>
         </form>
-
-        {issuedCode ? (
-          <div
-            style={{
-              marginTop: 16,
-              padding: 14,
-              borderRadius: 10,
-              background: "#F8FAFC",
-              border: "1px solid #DBEAFE",
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>응답 인증번호</div>
-            <div style={{ marginTop: 6, fontSize: 22, fontWeight: 700, letterSpacing: 4, color: "#0F172A" }}>
-              {issuedCode}
-            </div>
-            {expiresAt ? (
-              <div style={{ marginTop: 8, fontSize: 12, color: "#64748B" }}>
-                만료 시각: {expiresAt}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
 
         {issuedCode ? (
           <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
