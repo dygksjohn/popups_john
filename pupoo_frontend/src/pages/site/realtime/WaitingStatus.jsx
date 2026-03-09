@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import RealtimeEventSelector from "./RealtimeEventSelector";
@@ -8,7 +8,6 @@ import {
   Users,
   CheckCircle2,
   ArrowRight,
-  Bell,
   ListOrdered,
   Timer,
   RefreshCw,
@@ -21,6 +20,9 @@ import {
   useBarAnimate,
   SHARED_ANIM_STYLES,
 } from "./useRealtimeAnimations";
+import { eventApi } from "../../../app/http/eventApi";
+import { boothApi } from "../../../app/http/boothApi";
+import { programApi } from "../../../app/http/programApi";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -105,7 +107,7 @@ const styles = `
     background: #fff; transition: all 0.15s;
   }
   .wt-queue-item.calling { border-color: #1a4fd6; background: #f5f8ff; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
-  .wt-queue-item.done { opacity: 0.5; }
+  .wt-queue-item.done { opacity: 0.7; }
   .wt-queue-num {
     width: 36px; height: 36px; border-radius: 9px; background: #f3f4f6;
     display: flex; align-items: center; justify-content: center;
@@ -113,17 +115,18 @@ const styles = `
   }
   .wt-queue-num.calling { background: #1a4fd6; color: #fff; }
   .wt-queue-num.done { background: #ecfdf5; color: #10b981; }
-  .wt-queue-info { flex: 1; }
-  .wt-queue-name { font-size: 14px; font-weight: 600; color: #111827; }
-  .wt-queue-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+  .wt-queue-info { flex: 1; min-width: 0; }
+  .wt-queue-name { font-size: 14px; font-weight: 600; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wt-queue-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wt-queue-badge {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600;
+    flex-shrink: 0;
   }
   .wt-queue-badge.calling { background: #eff4ff; color: #1a4fd6; }
   .wt-queue-badge.waiting { background: #fff7ed; color: #d97706; }
   .wt-queue-badge.done { background: #ecfdf5; color: #059669; }
-  .wt-queue-wait { font-size: 12px; color: #9ca3af; min-width: 40px; text-align: right; }
+  .wt-queue-wait { font-size: 12px; color: #9ca3af; min-width: 56px; text-align: right; flex-shrink: 0; }
 
   .wt-zone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 0; }
   .wt-zone-card { border: 1.5px solid #e9ecef; border-radius: 10px; padding: 16px 18px; text-align: center; }
@@ -148,7 +151,7 @@ const styles = `
   .wt-notify-btn.active { background: rgba(255,255,255,0.9); color: #1a4fd6; }
 
   .wt-wave-wrap { display: flex; align-items: flex-end; gap: 4px; height: 60px; padding: 0 4px; }
-  .wt-wave-bar { flex: 1; border-radius: 4px 4px 0 0; background: #bfdbfe; cursor: default; position: relative; }
+  .wt-wave-bar { flex: 1; border-radius: 4px 4px 0 0; background: #bfdbfe; cursor: default; position: relative; min-width: 0; }
   .wt-wave-bar.current { background: #1a4fd6; }
   .wt-wave-bar:hover .wt-wave-tooltip { display: block; }
   .wt-wave-tooltip {
@@ -158,15 +161,45 @@ const styles = `
   }
 
   /* Live header */
-  .wt-live-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .wt-live-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
+  .wt-live-header-left { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .wt-live-title { font-size: 28px; font-weight: 900; color: #111827; line-height: 1.05; letter-spacing: -0.03em; }
+  .wt-live-sub { font-size: 13px; color: #6b7280; }
   .wt-live-header-right { display: flex; align-items: center; gap: 12px; }
   .wt-timestamp { font-size: 12px; color: #9ca3af; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  .wt-status-banner {
+    margin-bottom: 16px; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c;
+    font-size: 13px; font-weight: 600;
+  }
+  .wt-empty-state {
+    min-height: 144px; border: 1px dashed #dbe3f0; border-radius: 10px;
+    background: #fafcff; color: #6b7280; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 20px;
+  }
+  .wt-chart-label-row {
+    display: flex; justify-content: space-between; margin-top: 8px; padding-left: 4px; gap: 4px;
+  }
+  .wt-chart-label {
+    flex: 1; text-align: center; font-size: 10px; color: #9ca3af;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .wt-card-note {
+    margin-top: 12px; display: flex; gap: 16px; font-size: 12.5px; color: #6b7280;
+  }
+  .wt-card-note-item { display: flex; align-items: center; gap: 5px; }
+  .wt-card-note-swatch { width: 10px; height: 10px; border-radius: 2px; }
 
   @media (max-width: 1000px) { .wt-main-grid { grid-template-columns: 1fr; } }
   @media (max-width: 640px) {
     .wt-container { padding: 20px 16px 48px; }
     .wt-stat-grid { grid-template-columns: 1fr 1fr; }
     .wt-zone-grid { grid-template-columns: 1fr; }
+    .wt-live-title { font-size: 22px; }
+    .wt-card { padding: 20px 18px; }
+    .wt-ticket-num { font-size: 40px; }
   }
 `;
 
@@ -183,105 +216,134 @@ export const SUBTITLE_MAP = {
   "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 확인합니다",
 };
 
-const QUEUE_DATA = [
-  {
-    num: "W-018",
-    name: "코코 & 박*희",
-    ticket: "가족 패키지",
-    wait: "-",
-    status: "done",
-  },
-  {
-    num: "W-019",
-    name: "두부 & 최*혁",
-    ticket: "일반 입장",
-    wait: "-",
-    status: "done",
-  },
-  {
-    num: "W-020",
-    name: "하루 & 이*연",
-    ticket: "VIP 패키지",
-    wait: "입장 중",
-    status: "calling",
-  },
-  {
-    num: "W-021",
-    name: "별이 & 홍*동",
-    ticket: "일반 입장",
-    wait: "약 5분",
-    status: "waiting",
-  },
-  {
-    num: "W-022",
-    name: "초코 & 김*수",
-    ticket: "일반 입장",
-    wait: "약 10분",
-    status: "waiting",
-  },
-  {
-    num: "W-023",
-    name: "몽이 & 정*아",
-    ticket: "가족 패키지",
-    wait: "약 15분",
-    status: "waiting",
-  },
-  {
-    num: "W-024",
-    name: "루비 & 윤*진",
-    ticket: "VIP 패키지",
-    wait: "약 18분",
-    status: "waiting",
-  },
-  {
-    num: "W-025",
-    name: "탄이 & 임*호",
-    ticket: "일반 입장",
-    wait: "약 22분",
-    status: "waiting",
-  },
-];
-
-const ZONES = [
-  { name: "A 게이트", count: 12, status: "busy" },
-  { name: "B 게이트", count: 7, status: "normal" },
-  { name: "VIP 게이트", count: 3, status: "clear" },
-];
 const ZONE_LABEL = { busy: "혼잡", normal: "보통", clear: "원활" };
+const ZONE_NAME_MAP = {
+  ZONE_A: "A 구역",
+  ZONE_B: "B 구역",
+  ZONE_C: "C 구역",
+  OTHER: "기타",
+};
 
-const HOURS = ["10", "11", "12", "13", "14", "15", "16", "17", "18"];
-const AVG_WAIT = [5, 8, 18, 15, 12, 9, 7, 4, 2];
+const unwrapData = (response, fallback) =>
+  response?.data?.data ?? response?.data ?? fallback;
 
-const STAT_ITEMS = [
-  {
-    label: "현재 대기",
-    rawValue: 23,
-    suffix: "팀",
-    icon: <Clock size={20} color="#f59e0b" />,
-    bg: "#fffbeb",
-  },
-  {
-    label: "입장 완료",
-    rawValue: 142,
-    suffix: "팀",
-    icon: <CheckCircle2 size={20} color="#10b981" />,
-    bg: "#ecfdf5",
-  },
-  {
-    label: "평균 대기",
-    rawValue: 8,
-    suffix: "분",
-    icon: <Timer size={20} color="#1a4fd6" />,
-    bg: "#eff4ff",
-  },
-  {
-    label: "총 대기 등록",
-    rawValue: 165,
-    suffix: "팀",
-    icon: <Users size={20} color="#8b5cf6" />,
-    bg: "#f5f3ff",
-  },
-];
+const toArray = (payload) =>
+  Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.content)
+      ? payload.content
+      : [];
+
+function safeNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatZoneName(value) {
+  return ZONE_NAME_MAP[String(value ?? "").toUpperCase()] ?? "미분류";
+}
+
+function formatWaitText(waitMin, waitCount) {
+  const normalizedWait = safeNumber(waitMin);
+  const normalizedCount = safeNumber(waitCount);
+  if (normalizedWait > 0) return `약 ${normalizedWait}분`;
+  if (normalizedCount > 0) return `${normalizedCount}팀 대기`;
+  return "즉시 입장";
+}
+
+function formatTimeValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatTimeRange(startAt, endAt) {
+  const start = formatTimeValue(startAt);
+  const end = formatTimeValue(endAt);
+  if (start && end) return `${start}~${end}`;
+  return start || end || "시간 정보 없음";
+}
+
+function truncateLabel(value, max = 7) {
+  const label = String(value ?? "").trim();
+  if (label.length <= max) return label;
+  return `${label.slice(0, max)}…`;
+}
+
+function resolveZoneTone(waitCount, waitMin) {
+  const normalizedCount = safeNumber(waitCount);
+  const normalizedWait = safeNumber(waitMin);
+  if (normalizedCount >= 10 || normalizedWait >= 20) return "busy";
+  if (normalizedCount > 0 || normalizedWait > 0) return "normal";
+  return "clear";
+}
+
+async function getAllBoothsByEvent(eventId) {
+  const all = [];
+  let page = 0;
+  let isLast = false;
+
+  while (!isLast && page < 100) {
+    const response = await boothApi.getEventBooths({
+      eventId,
+      page,
+      size: 200,
+      sort: "boothId,asc",
+    });
+    const payload = unwrapData(response, {});
+    all.push(...toArray(payload));
+    isLast = Boolean(payload?.last);
+    page += 1;
+  }
+
+  return all;
+}
+
+function mapBoothWait(detail) {
+  if (!detail?.wait) return null;
+
+  return {
+    id: `booth-${detail.boothId}`,
+    name: detail.placeName || `부스 ${detail.boothId}`,
+    kind: "booth",
+    typeLabel: "부스",
+    groupName: formatZoneName(detail.zone),
+    subText: detail.company
+      ? `${detail.company} · ${formatZoneName(detail.zone)}`
+      : `${formatZoneName(detail.zone)} · 부스 대기`,
+    waitCount: safeNumber(detail.wait?.waitCount),
+    waitMin: safeNumber(detail.wait?.waitMin),
+    updatedAt: detail.wait?.updatedAt || detail.createdAt || null,
+  };
+}
+
+function mapExperienceWait(detail) {
+  if (!detail?.experienceWait) return null;
+
+  return {
+    id: `program-${detail.programId}`,
+    name: detail.programTitle || `체험 프로그램 ${detail.programId}`,
+    kind: "experience",
+    typeLabel: "체험",
+    groupName: "체험 프로그램",
+    subText: `${formatTimeRange(detail.startAt, detail.endAt)} · 체험 프로그램`,
+    waitCount: safeNumber(detail.experienceWait?.waitCount),
+    waitMin: safeNumber(detail.experienceWait?.waitMin),
+    updatedAt: detail.experienceWait?.updatedAt || detail.startAt || null,
+  };
+}
+
+function compareWaitingRows(a, b) {
+  return (
+    safeNumber(b.waitMin) - safeNumber(a.waitMin) ||
+    safeNumber(b.waitCount) - safeNumber(a.waitCount) ||
+    String(a.name ?? "").localeCompare(String(b.name ?? ""), "ko-KR")
+  );
+}
 
 /* ── Animated stat card ── */
 function AnimStatCard({ item, index }) {
@@ -328,36 +390,232 @@ function AnimZoneCard({ zone, index }) {
   );
 }
 
-function WaitingContent() {
-  const [notifyOn, setNotifyOn] = useState(false);
-  const { tick, lastUpdated } = useAutoRefresh(5000);
-  const { spinning, refresh } = useRefresh(() => {}, 800);
-  const queueVisible = useStaggerIn(QUEUE_DATA.length, 80);
-  const maxAvg = Math.max(...AVG_WAIT);
-  const barHeights = useBarAnimate(
-    AVG_WAIT.map((v) => (v / maxAvg) * 100),
-    70,
-  );
+function WaitingContent({ eventId }) {
+  const numericEventId = Number(eventId);
+  const { tick } = useAutoRefresh(15000);
+  const [eventDetail, setEventDetail] = useState(null);
+  const [waitingRows, setWaitingRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
   const [flashKey, setFlashKey] = useState(0);
+  const [lastLoadedAt, setLastLoadedAt] = useState(new Date());
 
-  // Ticket number count-up
-  const ticketNum = useCountUp(21, 1400, 200);
+  const loadData = useCallback(
+    async (options = {}) => {
+      const { preserveLoading = false } = options;
+
+      if (!numericEventId || Number.isNaN(numericEventId)) {
+        setErrorMsg("잘못된 행사 경로입니다.");
+        setLoading(false);
+        return;
+      }
+
+      if (!preserveLoading) setLoading(true);
+
+      try {
+        const [eventResponse, booths, programs] = await Promise.all([
+          eventApi.getEventDetail(numericEventId),
+          getAllBoothsByEvent(numericEventId),
+          programApi.getAllProgramsByEvent({
+            eventId: numericEventId,
+            category: "EXPERIENCE",
+            sort: "startAt,asc",
+            pageSize: 200,
+          }),
+        ]);
+
+        const [boothDetails, programDetails] = await Promise.all([
+          Promise.allSettled(
+            booths.map((booth) => boothApi.getBoothDetail(booth.boothId)),
+          ),
+          Promise.allSettled(
+            programs.map((program) => programApi.getProgramDetail(program.programId)),
+          ),
+        ]);
+
+        const boothWaitingRows = boothDetails
+          .map((result) =>
+            result.status === "fulfilled"
+              ? mapBoothWait(unwrapData(result.value, null))
+              : null,
+          )
+          .filter(Boolean);
+
+        const experienceWaitingRows = programDetails
+          .map((result) =>
+            result.status === "fulfilled"
+              ? mapExperienceWait(unwrapData(result.value, null))
+              : null,
+          )
+          .filter(Boolean);
+
+        setEventDetail(unwrapData(eventResponse, null));
+        setWaitingRows(
+          [...boothWaitingRows, ...experienceWaitingRows].sort(compareWaitingRows),
+        );
+        setErrorMsg("");
+        setLastLoadedAt(new Date());
+      } catch (error) {
+        console.error("[WaitingStatus] load failed:", error);
+        setErrorMsg("대기 데이터를 불러오지 못했습니다.");
+      } finally {
+        if (!preserveLoading) setLoading(false);
+      }
+    },
+    [numericEventId],
+  );
+
+  const { spinning, refresh } = useRefresh(() => {
+    loadData({ preserveLoading: true });
+  }, 800);
 
   useEffect(() => {
-    setFlashKey((k) => k + 1);
-  }, [tick]);
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    if (!loading) {
+      loadData({ preserveLoading: true });
+    }
+  }, [tick, loadData, loading]);
+
+  useEffect(() => {
+    setFlashKey((value) => value + 1);
+  }, [lastLoadedAt]);
+
+  const liveSummary = useMemo(() => {
+    const activeRows = waitingRows.filter(
+      (row) => safeNumber(row.waitCount) > 0 || safeNumber(row.waitMin) > 0,
+    );
+    const totalWaitCount = waitingRows.reduce(
+      (sum, row) => sum + safeNumber(row.waitCount),
+      0,
+    );
+    const averageWaitMin = activeRows.length
+      ? Math.round(
+          activeRows.reduce((sum, row) => sum + safeNumber(row.waitMin), 0) /
+            activeRows.length,
+        )
+      : 0;
+    const maxWaitMin = activeRows.length
+      ? Math.max(...activeRows.map((row) => safeNumber(row.waitMin)))
+      : 0;
+    const busiest = activeRows[0] ?? waitingRows[0] ?? null;
+
+    const stats = [
+      {
+        label: "집계 리소스",
+        rawValue: waitingRows.length,
+        suffix: "곳",
+        icon: <ListOrdered size={20} color="#f59e0b" />,
+        bg: "#fffbeb",
+      },
+      {
+        label: "현재 대기",
+        rawValue: totalWaitCount,
+        suffix: "팀",
+        icon: <Users size={20} color="#10b981" />,
+        bg: "#ecfdf5",
+      },
+      {
+        label: "평균 대기",
+        rawValue: averageWaitMin,
+        suffix: "분",
+        icon: <Timer size={20} color="#1a4fd6" />,
+        bg: "#eff4ff",
+      },
+      {
+        label: "최장 대기",
+        rawValue: maxWaitMin,
+        suffix: "분",
+        icon: <Clock size={20} color="#8b5cf6" />,
+        bg: "#f5f3ff",
+      },
+    ];
+
+    const grouped = new Map();
+    waitingRows.forEach((row) => {
+      const key = row.groupName;
+      const current = grouped.get(key) ?? {
+        name: key,
+        count: 0,
+        waitMin: 0,
+      };
+      current.count += safeNumber(row.waitCount);
+      current.waitMin = Math.max(current.waitMin, safeNumber(row.waitMin));
+      grouped.set(key, current);
+    });
+
+    const zoneItems = Array.from(grouped.values())
+      .sort(
+        (a, b) =>
+          safeNumber(b.count) - safeNumber(a.count) ||
+          safeNumber(b.waitMin) - safeNumber(a.waitMin),
+      )
+      .slice(0, 3)
+      .map((item) => ({
+        name: item.name,
+        count: safeNumber(item.count),
+        status: resolveZoneTone(item.count, item.waitMin),
+      }));
+
+    const chartItems = activeRows.slice(0, 8);
+
+    return {
+      totalWaitCount,
+      averageWaitMin,
+      maxWaitMin,
+      busiest,
+      stats,
+      zoneItems,
+      chartItems,
+    };
+  }, [waitingRows]);
+
+  const queueVisible = useStaggerIn(waitingRows.length, 80);
+  const chartMax = useMemo(
+    () =>
+      Math.max(1, ...liveSummary.chartItems.map((item) => safeNumber(item.waitMin))),
+    [liveSummary.chartItems],
+  );
+  const barHeights = useBarAnimate(
+    liveSummary.chartItems.map((item) =>
+      chartMax > 0 ? (safeNumber(item.waitMin) / chartMax) * 100 : 0,
+    ),
+    70,
+  );
+  const lastLoadedLabel = lastLoadedAt.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const eventName =
+    eventDetail?.eventName || eventDetail?.title || `행사 ${numericEventId}`;
+  const summaryTitle = loading ? "집계 중" : `${liveSummary.totalWaitCount}팀`;
+  const summaryStatus = liveSummary.busiest
+    ? `${liveSummary.busiest.name} · ${formatWaitText(
+        liveSummary.busiest.waitMin,
+        liveSummary.busiest.waitCount,
+      )}`
+    : "현재 집계된 대기 리소스가 없습니다";
+  const isEmpty = !loading && waitingRows.length === 0;
 
   return (
     <>
-      {/* Live header with refresh */}
       <div className="wt-live-header">
-        <div className="rt-live-badge anim-glow">
-          <div className="rt-live-dot" />
-          LIVE
+        <div className="wt-live-header-left">
+          <div className="rt-live-badge anim-glow">
+            <div className="rt-live-dot" />
+            LIVE
+          </div>
+          <div className="wt-live-title">{eventName}</div>
+          <div className="wt-live-sub">
+            부스 상세와 체험 프로그램 상세의 실시간 대기 집계를 반영합니다
+          </div>
         </div>
         <div className="wt-live-header-right">
           <span key={flashKey} className="wt-timestamp anim-flash">
-            마지막 갱신: {lastUpdated}
+            마지막 갱신: {lastLoadedLabel}
           </span>
           <button
             className="rt-refresh-btn"
@@ -389,80 +647,83 @@ function WaitingContent() {
         </div>
       </div>
 
-      {/* Stats — count up + pop in */}
+      {errorMsg ? <div className="wt-status-banner">{errorMsg}</div> : null}
+
       <div className="wt-stat-grid">
-        {STAT_ITEMS.map((s, i) => (
-          <AnimStatCard key={s.label} item={s} index={i} />
+        {liveSummary.stats.map((item, index) => (
+          <AnimStatCard key={item.label} item={item} index={index} />
         ))}
       </div>
 
       <div className="wt-main-grid">
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* My ticket */}
           <div className="wt-my-ticket">
-            <div className="wt-ticket-label">내 대기 번호</div>
-            <div className="wt-ticket-num">
-              W-0{ticketNum < 10 ? "0" : ""}
-              {ticketNum}
-            </div>
+            <div className="wt-ticket-label">행사 대기 요약</div>
+            <div className="wt-ticket-num">{summaryTitle}</div>
             <div className="wt-ticket-info">
               <div className="wt-ticket-row">
-                <Users size={13} /> 별이 & 홍*동
+                <Users size={13} /> {eventName}
               </div>
               <div className="wt-ticket-row">
-                <Clock size={13} /> 일반 입장 · 14:05 등록
+                <Clock size={13} /> 집계 리소스 {waitingRows.length}곳 · 평균 {liveSummary.averageWaitMin}분
               </div>
             </div>
             <div className="wt-ticket-divider" />
             <div className="wt-ticket-status">
               <div className="wt-ticket-status-dot" />
-              <span className="wt-ticket-status-text">
-                대기 중 · 현재 W-020 입장 중
-              </span>
+              <span className="wt-ticket-status-text">{summaryStatus}</span>
             </div>
             <div className="wt-ahead">
-              <span className="wt-ahead-label">내 앞 대기</span>
-              <span className="wt-ahead-val">1팀</span>
+              <span className="wt-ahead-label">최장 예상 대기</span>
+              <span className="wt-ahead-val">{liveSummary.maxWaitMin}분</span>
             </div>
-            <button
-              className={`wt-notify-btn${notifyOn ? " active" : ""}`}
-              onClick={() => setNotifyOn((v) => !v)}
-            >
-              <Bell size={14} />
-              {notifyOn ? "알림 설정 완료" : "내 차례 알림 받기"}
+            <button className="wt-notify-btn" onClick={refresh}>
+              <RefreshCw
+                size={14}
+                style={{
+                  animation: spinning
+                    ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)"
+                    : "none",
+                }}
+              />
+              지금 다시 집계
             </button>
           </div>
 
-          {/* Zone status — count up + pop */}
           <div className="wt-card">
             <div className="wt-card-header">
               <div className="wt-card-title">
                 <div className="wt-card-title-icon">
                   <ListOrdered size={14} color="#f59e0b" />
                 </div>
-                구역별 혼잡도
+                대기 구역 요약
               </div>
             </div>
-            <div className="wt-zone-grid">
-              {ZONES.map((z, i) => (
-                <AnimZoneCard key={z.name} zone={z} index={i} />
-              ))}
-            </div>
+            {loading && waitingRows.length === 0 ? (
+              <div className="wt-empty-state">실시간 대기 구역 정보를 불러오는 중입니다.</div>
+            ) : liveSummary.zoneItems.length === 0 ? (
+              <div className="wt-empty-state">표시할 구역별 대기 데이터가 없습니다.</div>
+            ) : (
+              <div className="wt-zone-grid">
+                {liveSummary.zoneItems.map((zone, index) => (
+                  <AnimZoneCard key={zone.name} zone={zone} index={index} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Queue list — stagger slide in */}
           <div className="wt-card">
             <div className="wt-card-header">
               <div className="wt-card-title">
                 <div className="wt-card-title-icon">
                   <Users size={14} color="#f59e0b" />
                 </div>
-                현재 대기열
+                현재 대기 리소스
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="wt-card-tag">실시간 업데이트</span>
+                <span className="wt-card-tag">실시간 집계</span>
                 <button
                   style={{
                     width: 30,
@@ -490,117 +751,114 @@ function WaitingContent() {
                 </button>
               </div>
             </div>
-            <div className="wt-queue-list">
-              {QUEUE_DATA.map((q, i) => (
-                <div
-                  key={q.num}
-                  className={`wt-queue-item${q.status === "calling" ? " calling" : q.status === "done" ? " done" : ""} anim-slide-right ${queueVisible.includes(i) ? "visible" : ""}`}
-                >
-                  <div
-                    className={`wt-queue-num${q.status === "calling" ? " calling" : q.status === "done" ? " done" : ""}`}
-                  >
-                    {q.status === "done" ? (
-                      <CheckCircle2 size={16} />
-                    ) : (
-                      q.num.split("-")[1]
-                    )}
-                  </div>
-                  <div className="wt-queue-info">
-                    <div className="wt-queue-name">{q.name}</div>
-                    <div className="wt-queue-sub">{q.ticket}</div>
-                  </div>
-                  <span className={`wt-queue-badge ${q.status}`}>
-                    {q.status === "calling" && <ArrowRight size={11} />}
-                    {q.status === "calling"
-                      ? "입장 중"
-                      : q.status === "done"
-                        ? "완료"
-                        : "대기 중"}
-                  </span>
-                  <span className="wt-queue-wait">{q.wait}</span>
-                </div>
-              ))}
-            </div>
+            {loading && waitingRows.length === 0 ? (
+              <div className="wt-empty-state">실시간 대기 리소스를 불러오는 중입니다.</div>
+            ) : isEmpty ? (
+              <div className="wt-empty-state">현재 연결된 대기 데이터가 없습니다.</div>
+            ) : (
+              <div className="wt-queue-list">
+                {waitingRows.map((row, index) => {
+                  const isActive =
+                    safeNumber(row.waitCount) > 0 || safeNumber(row.waitMin) > 0;
+                  const visualStatus = !isActive
+                    ? "done"
+                    : index === 0
+                      ? "calling"
+                      : "waiting";
+                  const badgeLabel = !isActive
+                    ? "즉시 입장"
+                    : index === 0
+                      ? "최장 대기"
+                      : "대기 중";
+
+                  return (
+                    <div
+                      key={row.id}
+                      className={`wt-queue-item${visualStatus === "calling" ? " calling" : visualStatus === "done" ? " done" : ""} anim-slide-right ${queueVisible.includes(index) ? "visible" : ""}`}
+                    >
+                      <div
+                        className={`wt-queue-num${visualStatus === "calling" ? " calling" : visualStatus === "done" ? " done" : ""}`}
+                      >
+                        {visualStatus === "done" ? (
+                          <CheckCircle2 size={16} />
+                        ) : (
+                          String(index + 1).padStart(2, "0")
+                        )}
+                      </div>
+                      <div className="wt-queue-info">
+                        <div className="wt-queue-name">{row.name}</div>
+                        <div className="wt-queue-sub">
+                          {row.typeLabel} · {row.subText} · {row.waitCount}팀
+                        </div>
+                      </div>
+                      <span className={`wt-queue-badge ${visualStatus}`}>
+                        {visualStatus === "calling" ? <ArrowRight size={11} /> : null}
+                        {badgeLabel}
+                      </span>
+                      <span className="wt-queue-wait">
+                        {formatWaitText(row.waitMin, row.waitCount)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Avg wait chart — bars animate up */}
           <div className="wt-card">
             <div className="wt-card-header">
               <div className="wt-card-title">
                 <div className="wt-card-title-icon">
                   <Timer size={14} color="#f59e0b" />
                 </div>
-                시간대별 평균 대기 시간
+                대기 리소스별 예상 대기 시간
               </div>
               <span className="wt-card-tag">단위: 분</span>
             </div>
-            <div className="wt-wave-wrap">
-              {AVG_WAIT.map((v, i) => (
-                <div
-                  key={i}
-                  className={`wt-wave-bar${i === 4 ? " current" : ""} anim-bar-grow`}
-                  style={{ height: `${barHeights[i]}%` }}
-                >
-                  <div className="wt-wave-tooltip">
-                    {HOURS[i]}시 {v}분
-                  </div>
+            {loading && liveSummary.chartItems.length === 0 ? (
+              <div className="wt-empty-state">대기 시간 차트를 준비하는 중입니다.</div>
+            ) : liveSummary.chartItems.length === 0 ? (
+              <div className="wt-empty-state">표시할 예상 대기 시간 데이터가 없습니다.</div>
+            ) : (
+              <>
+                <div className="wt-wave-wrap">
+                  {liveSummary.chartItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`wt-wave-bar${index === 0 ? " current" : ""} anim-bar-grow`}
+                      style={{ height: `${barHeights[index] ?? 0}%` }}
+                    >
+                      <div className="wt-wave-tooltip">
+                        {item.name} · {safeNumber(item.waitMin)}분
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginTop: 6,
-                paddingLeft: 4,
-              }}
-            >
-              {HOURS.map((h) => (
-                <div
-                  key={h}
-                  style={{
-                    flex: 1,
-                    textAlign: "center",
-                    fontSize: 9.5,
-                    color: "#9ca3af",
-                  }}
-                >
-                  {h}
+                <div className="wt-chart-label-row">
+                  {liveSummary.chartItems.map((item) => (
+                    <div key={item.id} className="wt-chart-label">
+                      {truncateLabel(item.name)}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div
-              style={{
-                marginTop: 12,
-                display: "flex",
-                gap: 16,
-                fontSize: 12.5,
-                color: "#6b7280",
-              }}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 2,
-                    background: "#bfdbfe",
-                  }}
-                />{" "}
-                일반 시간대
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 2,
-                    background: "#1a4fd6",
-                  }}
-                />{" "}
-                현재
-              </span>
-            </div>
+                <div className="wt-card-note">
+                  <span className="wt-card-note-item">
+                    <div
+                      className="wt-card-note-swatch"
+                      style={{ background: "#bfdbfe" }}
+                    />
+                    일반 대기
+                  </span>
+                  <span className="wt-card-note-item">
+                    <div
+                      className="wt-card-note-swatch"
+                      style={{ background: "#1a4fd6" }}
+                    />
+                    최장 대기
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -639,7 +897,7 @@ export default function WaitingStatus({ onNavigate: onNavigateProp }) {
       />
       <main className="wt-container">
         {eventId ? (
-          <WaitingContent />
+          <WaitingContent eventId={eventId} />
         ) : (
           <RealtimeEventSelector
             onSelectEvent={handleSelectEvent}

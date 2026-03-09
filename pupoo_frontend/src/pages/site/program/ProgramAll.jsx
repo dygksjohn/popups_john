@@ -268,6 +268,11 @@ function normalizeProgram(item, idx, boothMap = new Map()) {
 }
 
 function buildDateKeys(eventDetail, programs) {
+  const programKeys = [...new Set(programs.map((p) => p.dateKey).filter(Boolean))].sort();
+  if (programKeys.length > 0) {
+    return programKeys;
+  }
+
   const startKey = toDateKey(eventDetail?.startAt);
   const endKey = toDateKey(eventDetail?.endAt);
   if (startKey && endKey) {
@@ -283,8 +288,7 @@ function buildDateKeys(eventDetail, programs) {
     }
     return out;
   }
-  const keys = programs.map((p) => p.dateKey).filter(Boolean);
-  return [...new Set(keys)].sort();
+  return [];
 }
 
 function ScheduleContent({ eventDetail, programs, loading, error }) {
