@@ -4,6 +4,8 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
+import org.gradle.internal.os.OperatingSystem
+
 group = 'com.popups'
 version = '0.0.1-SNAPSHOT'
 description = 'Pupoo project for Spring Boot'
@@ -42,6 +44,16 @@ configurations {
 repositories {
 	mavenCentral()
 }
+
+def frontendDir = file("${rootDir}/../pupoo_frontend")
+def frontendPackageJson = file("${frontendDir}/package.json")
+def frontendPackageLock = file("${frontendDir}/package-lock.json")
+def frontendNodeModules = file("${frontendDir}/node_modules")
+def frontendViteRuntime = file("${frontendDir}/node_modules/vite/bin/vite.js")
+def frontendDistDir = file("${frontendDir}/dist")
+def generatedFrontendResourcesDir = file("${buildDir}/generated-resources/frontend")
+def excludedEmbeddedResourcePatterns = ['uploads/**']
+def npmCommand = OperatingSystem.current().isWindows() ? 'npm.cmd' : 'npm'
 
 dependencies {
 
@@ -114,9 +126,74 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+tasks.register('installFrontendDependencies', Exec) {
+	group = 'build'
+	description = 'Install frontend dependencies for the integrated workspace build.'
+	doNotTrackState('node_modules is managed by npm and may contain unreadable transient paths on Windows.')
+	onlyIf {
+		frontendPackageJson.exists() && !frontendViteRuntime.exists()
+	}
+	workingDir(frontendDir)
+	commandLine(npmCommand, 'install')
+	inputs.file(frontendPackageJson)
+	if (frontendPackageLock.exists()) {
+		inputs.file(frontendPackageLock)
+	}
+}
+
+tasks.register('buildFrontend', Exec) {
+	group = 'build'
+	description = 'Build the React frontend and prepare static assets for Spring Boot.'
+	dependsOn('installFrontendDependencies')
+	onlyIf {
+		frontendPackageJson.exists()
+	}
+	workingDir(frontendDir)
+	commandLine(npmCommand, 'run', 'build')
+	inputs.file(frontendPackageJson)
+	if (frontendPackageLock.exists()) {
+		inputs.file(frontendPackageLock)
+	}
+	inputs.file(file("${frontendDir}/vite.config.js"))
+	inputs.file(file("${frontendDir}/index.html"))
+	inputs.dir(file("${frontendDir}/src"))
+	if (file("${frontendDir}/public").exists()) {
+		inputs.dir(file("${frontendDir}/public"))
+	}
+	outputs.dir(frontendDistDir)
+}
+
+tasks.register('syncFrontendAssets', Sync) {
+	group = 'build'
+	description = 'Copy the built React assets into Spring Boot static resources.'
+	dependsOn('buildFrontend')
+	onlyIf {
+		frontendDistDir.exists()
+	}
+	from(frontendDistDir)
+	into(generatedFrontendResourcesDir)
+}
+
+tasks.named('processResources') {
+	doNotTrackState('Resource output contains generated frontend assets and mutable local uploads on Windows.')
+	dependsOn('syncFrontendAssets')
+	exclude(excludedEmbeddedResourcePatterns)
+	doFirst {
+		delete(file("${buildDir}/resources/main"))
+	}
+	from(generatedFrontendResourcesDir) {
+		into 'static'
+	}
+}
+
+tasks.named('clean') {
+	delete(generatedFrontendResourcesDir)
+}
+
 /* =========================
  * 운영 배포용 Jar 이름 고정
  * ========================= */
 bootJar {
 	archiveFileName = "pupoo-backend.jar"
+	dependsOn(tasks.named('syncFrontendAssets'))
 }

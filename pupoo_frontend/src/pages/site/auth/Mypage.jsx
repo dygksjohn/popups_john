@@ -338,20 +338,22 @@ const styles = `
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 10px;
   }
   .mp-channel-btn {
-    border: none;
-    background: transparent;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    background: #fff;
     color: #6b7280;
     font-size: 11px;
     font-weight: 500;
-    padding: 0;
+    padding: 5px 10px;
     cursor: pointer;
+    white-space: nowrap;
   }
   .mp-channel-btn.active {
     color: #111827;
     font-weight: 800;
+    border-color: #9ca3af;
   }
   .mp-channel-btn:disabled {
     opacity: 0.6;
@@ -368,6 +370,13 @@ const styles = `
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
+  }
+  .mp-subscription-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   .mp-subscription-btn {
     border: none;
@@ -1338,41 +1347,43 @@ export default function MyPage() {
                           className="mp-item"
                           key={`sub-active-${row?.subscriptionId || interestId}`}
                         >
-                          <div className="mp-subscription-controls">
-                            {SUBSCRIPTION_CHANNEL_OPTIONS.map((channel) => (
-                              <button
-                                key={`${interestId}-${channel.key}`}
-                                type="button"
-                                className={`mp-channel-btn ${
-                                  channelOptions[channel.key] ? "active" : ""
-                                }`}
-                                onClick={() =>
-                                  handleToggleSubscriptionChannel(
-                                    row,
-                                    channel.key,
-                                  )
-                                }
-                                disabled={saving}
-                              >
-                                {channel.label}{" "}
-                                {channelOptions[channel.key] ? "ON" : "OFF"}
-                              </button>
-                            ))}
-                          </div>
                           <div className="mp-subscription-head">
                             <div className="mp-subscription-meta">
                               <div className="mp-item-title">
                                 {interestLabel(row?.interestName)}
                               </div>
                             </div>
-                            <button
-                              type="button"
-                              className="mp-subscription-btn warn"
-                              onClick={() => handleUnsubscribeInterest(interestId)}
-                              disabled={saving}
-                            >
-                              {saving ? "처리 중..." : "구독 해지"}
-                            </button>
+                            <div className="mp-subscription-actions">
+                              <div className="mp-subscription-controls">
+                                {SUBSCRIPTION_CHANNEL_OPTIONS.map((channel) => (
+                                  <button
+                                    key={`${interestId}-${channel.key}`}
+                                    type="button"
+                                    className={`mp-channel-btn ${
+                                      channelOptions[channel.key] ? "active" : ""
+                                    }`}
+                                    onClick={() =>
+                                      handleToggleSubscriptionChannel(
+                                        row,
+                                        channel.key,
+                                      )
+                                    }
+                                    disabled={saving}
+                                  >
+                                    {channel.label}{" "}
+                                    {channelOptions[channel.key] ? "ON" : "OFF"}
+                                  </button>
+                                ))}
+                              </div>
+                              <button
+                                type="button"
+                                className="mp-subscription-btn warn"
+                                onClick={() => handleUnsubscribeInterest(interestId)}
+                                disabled={saving}
+                              >
+                                {saving ? "처리 중..." : "구독 해지"}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
