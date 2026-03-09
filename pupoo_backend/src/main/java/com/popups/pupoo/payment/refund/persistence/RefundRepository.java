@@ -4,6 +4,7 @@ package com.popups.pupoo.payment.refund.persistence;
 import com.popups.pupoo.payment.refund.domain.enums.RefundStatus;
 import com.popups.pupoo.payment.refund.domain.model.Refund;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
@@ -36,6 +37,7 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
 
     Optional<Refund> findByPayment_PaymentId(Long paymentId);
 
+    @EntityGraph(attributePaths = "payment")
     Page<Refund> findByPayment_UserId(Long userId, Pageable pageable);
 
     Page<Refund> findByStatus(RefundStatus status, Pageable pageable);
