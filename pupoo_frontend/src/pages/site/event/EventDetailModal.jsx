@@ -6,7 +6,6 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getEventImage } from "../../admin/shared/eventImageStore";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
-import { loadKakaoMapScript } from "../../../shared/utils/kakaoMapScript";
 import {
   X,
   MapPin,
@@ -710,116 +709,6 @@ function getDogImage(eventId) {
   return DOG_SAMPLES[Math.abs(idx) % DOG_SAMPLES.length];
 }
 
-const TRANSPORT_LINE_CANDIDATES = [
-  "1호선",
-  "2호선",
-  "3호선",
-  "4호선",
-  "5호선",
-  "6호선",
-  "7호선",
-  "8호선",
-  "9호선",
-  "신분당선",
-  "수인분당선",
-  "경의중앙선",
-];
-
-const LOCATION_TRANSPORT_PRESETS = [
-  {
-    keywords: ["코엑스", "영동대로"],
-    subway: "2호선 삼성역 5번 출구 도보 100m",
-    bus: "코엑스 동문 정류소: 143, 146, 301, 341, 360",
-    car: "코엑스 주차장 (서울 강남구 영동대로 513) / 기본 30분 2,400원, 1일 최대 60,000원",
-  },
-  {
-    keywords: ["킨텍스"],
-    subway: "GTX-A 킨텍스역 1번 출구 도보 100m",
-    bus: "킨텍스 제1전시장 정류소: 039, 082, 9700, M7646",
-    car: "킨텍스 제1전시장 주차장 (경기 고양시 일산서구 킨텍스로 217-60) / 기본 20분 1,200원",
-  },
-  {
-    keywords: ["대전컨벤션센터", "도룡동"],
-    subway: "대전 1호선 정부청사역 도보 100m",
-    bus: "대전컨벤션센터 정류소: 705, 911, 918",
-    car: "대전컨벤션센터 주차장 (대전 유성구 엑스포로 107) / 기본 30분 1,000원",
-  },
-];
-
-function hashLocationText(text) {
-  const source = String(text || "");
-  let hash = 0;
-  for (let i = 0; i < source.length; i += 1) {
-    hash = (hash * 31 + source.charCodeAt(i)) >>> 0;
-  }
-  return hash;
-}
-
-function cleanAddressToken(token) {
-  return String(token || "")
-    .replace(/[()]/g, "")
-    .replace(/[0-9-]/g, "")
-    .replace(/(특별자치도|특별자치시|특별시|광역시|자치시|도|시|군|구|읍|면|동|리|대로|로|길)$/g, "")
-    .trim();
-}
-
-function pickAddressAnchor(locationText) {
-  const text = String(locationText || "").trim();
-  if (!text || text === "장소 미정") return "행사장";
-
-  const parts = text.split(/\s+/).filter(Boolean);
-  const reversed = [...parts].reverse();
-  const placeToken = reversed.find(
-    (part) => /[가-힣A-Za-z]/.test(part) && !/^[0-9-]+$/.test(part),
-  );
-  const areaToken = parts.find((part) => /(구|군|시|읍|면|동)$/.test(part));
-  const anchor = cleanAddressToken(placeToken) || cleanAddressToken(areaToken) || "행사장";
-  return anchor.length > 10 ? anchor.slice(0, 10) : anchor;
-}
-
-function buildTransportGuideFromLocation(locationText) {
-  const location = String(locationText || "").trim();
-  if (!location || location === "장소 미정") {
-    return {
-      subway: "정보 없음",
-      bus: "정보 없음",
-      car: "정보 없음",
-    };
-  }
-
-  const preset = LOCATION_TRANSPORT_PRESETS.find((item) =>
-    item.keywords.some((keyword) => location.includes(keyword)),
-  );
-  if (preset) {
-    return {
-      subway: preset.subway,
-      bus: preset.bus,
-      car: preset.car,
-    };
-  }
-
-  const seed = hashLocationText(location);
-  const anchor = pickAddressAnchor(location);
-  const line = TRANSPORT_LINE_CANDIDATES[seed % TRANSPORT_LINE_CANDIDATES.length];
-  const stationName = anchor.endsWith("역") ? anchor : `${anchor}역`;
-  const stopName = `${anchor}입구 정류소`;
-  const busNumbers = [
-    String(100 + (seed % 700)),
-    String(200 + ((seed * 3) % 600)),
-    String(300 + ((seed * 7) % 500)),
-  ];
-  const parkingName = `${anchor} 공영주차장`;
-  const baseFee = 2000 + (seed % 4) * 500;
-  const addFee = 500 + (seed % 3) * 100;
-
-  return {
-    subway: `${line} ${stationName} 도보 100m`,
-    bus: `${stopName}: ${busNumbers.join(", ")}`,
-    car: `${parkingName} (${location}) / 기본 30분 ${baseFee.toLocaleString()}원, 추가 10분 ${addFee.toLocaleString()}원`,
-  };
-}
-
-
 function formatDistanceLabel(distanceValue) {
   const distance = Number(distanceValue || 0);
   if (!Number.isFinite(distance) || distance <= 0) return "거리 정보 없음";
@@ -833,137 +722,110 @@ function joinGuideParts(parts) {
   return parts.filter(Boolean).join(" · ");
 }
 
-function getKakaoServices() {
-  const kakao = window.kakao;
-  if (!kakao?.maps?.services) {
-    throw new Error("Kakao map services unavailable");
+const KAKAO_LOCAL_API_BASE_URL = "https://dapi.kakao.com/v2/local";
+
+function buildKakaoLocalParams(params = {}) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    searchParams.set(key, String(value));
+  });
+  return searchParams.toString();
+}
+
+async function fetchKakaoLocal(path, params, restKey) {
+  const query = buildKakaoLocalParams(params);
+  const endpoint = `${KAKAO_LOCAL_API_BASE_URL}${path}${query ? `?${query}` : ""}`;
+  const response = await fetch(endpoint, {
+    headers: {
+      Authorization: `KakaoAK ${restKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Kakao Local API failed: ${response.status}`);
   }
-  return kakao;
+
+  const payload = await response.json();
+  return Array.isArray(payload?.documents) ? payload.documents : [];
 }
 
-function addressSearchKakao(kakao, query) {
-  return new Promise((resolve, reject) => {
-    const geocoder = new kakao.maps.services.Geocoder();
-    geocoder.addressSearch(query, (result, status) => {
-      if (status === kakao.maps.services.Status.OK && Array.isArray(result) && result[0]) {
-        resolve(result[0]);
-        return;
-      }
-      reject(new Error(`addressSearch failed: ${status}`));
-    });
-  });
-}
-
-function keywordSearchKakao(kakao, query, options = {}) {
-  return new Promise((resolve, reject) => {
-    const places = new kakao.maps.services.Places();
-    places.keywordSearch(
-      query,
-      (result, status) => {
-        if (status === kakao.maps.services.Status.OK && Array.isArray(result)) {
-          resolve(result);
-          return;
-        }
-        if (status === kakao.maps.services.Status.ZERO_RESULT) {
-          resolve([]);
-          return;
-        }
-        reject(new Error(`keywordSearch failed: ${status}`));
-      },
-      options,
-    );
-  });
-}
-
-function categorySearchKakao(kakao, categoryCode, options = {}) {
-  return new Promise((resolve, reject) => {
-    const places = new kakao.maps.services.Places();
-    places.categorySearch(
-      categoryCode,
-      (result, status) => {
-        if (status === kakao.maps.services.Status.OK && Array.isArray(result)) {
-          resolve(result);
-          return;
-        }
-        if (status === kakao.maps.services.Status.ZERO_RESULT) {
-          resolve([]);
-          return;
-        }
-        reject(new Error(`categorySearch failed: ${status}`));
-      },
-      options,
-    );
-  });
-}
-
-async function resolveLocationOrigin(locationText) {
-  const kakao = getKakaoServices();
-
-  try {
-    const addressResult = await addressSearchKakao(kakao, locationText);
+async function resolveLocationOrigin(locationText, restKey) {
+  const keywordResults = await fetchKakaoLocal(
+    "/search/keyword.json",
+    { query: locationText, size: 1 },
+    restKey,
+  );
+  const keywordMatch = keywordResults[0];
+  if (keywordMatch) {
     return {
-      x: Number(addressResult.x),
-      y: Number(addressResult.y),
-    };
-  } catch (addressError) {
-    const keywordResults = await keywordSearchKakao(kakao, locationText, { size: 1 });
-    const place = Array.isArray(keywordResults) ? keywordResults[0] : null;
-    if (!place) throw addressError;
-
-    return {
-      x: Number(place.x),
-      y: Number(place.y),
+      x: Number(keywordMatch.x),
+      y: Number(keywordMatch.y),
     };
   }
+
+  const addressResults = await fetchKakaoLocal(
+    "/search/address.json",
+    { query: locationText, size: 1 },
+    restKey,
+  );
+  const addressMatch = addressResults[0];
+  if (!addressMatch) {
+    throw new Error("Location origin not found");
+  }
+
+  return {
+    x: Number(addressMatch.x),
+    y: Number(addressMatch.y),
+  };
 }
 
 function pickNearestPlace(list) {
   return Array.isArray(list) && list.length > 0 ? list[0] : null;
 }
 
-function buildNearbyGuide(place, emptyMessage, unavailableMessage) {
-  if (!place) return emptyMessage;
+function buildNearbyGuide(place, extraInfo = "") {
+  if (!place) return "정보 없음";
 
   return joinGuideParts([
     `${place.place_name} 도보 ${formatDistanceLabel(place.distance)}`,
     place.road_address_name || place.address_name || "",
-    unavailableMessage,
+    extraInfo,
   ]);
 }
 
-async function fetchActualTransportGuide(locationText) {
-  const kakao = getKakaoServices();
-  const origin = await resolveLocationOrigin(locationText);
+async function fetchActualTransportGuide(locationText, restKey) {
+  const origin = await resolveLocationOrigin(locationText, restKey);
   const nearbyOptions = {
     x: origin.x,
     y: origin.y,
     radius: 2000,
-    sort: kakao.maps.services.SortBy.DISTANCE,
+    sort: "distance",
     size: 5,
   };
 
   const [subwayResults, busResults, parkingResults] = await Promise.all([
-    categorySearchKakao(kakao, "SW8", nearbyOptions),
-    keywordSearchKakao(kakao, "버스정류장", { ...nearbyOptions, radius: 1500 }),
-    categorySearchKakao(kakao, "PK6", nearbyOptions),
+    fetchKakaoLocal(
+      "/search/category.json",
+      { category_group_code: "SW8", ...nearbyOptions },
+      restKey,
+    ),
+    fetchKakaoLocal(
+      "/search/keyword.json",
+      { query: "버스정류장", ...nearbyOptions, radius: 1500 },
+      restKey,
+    ),
+    fetchKakaoLocal(
+      "/search/category.json",
+      { category_group_code: "PK6", ...nearbyOptions },
+      restKey,
+    ),
   ]);
 
   return {
-    subway: buildNearbyGuide(
-      pickNearestPlace(subwayResults),
-      "주변 지하철역 정보를 찾지 못했습니다.",
-      "",
-    ),
-    bus: buildNearbyGuide(
-      pickNearestPlace(busResults),
-      "주변 버스정류장 정보를 찾지 못했습니다.",
-      "노선 정보는 지도 상세에서 확인",
-    ),
-    car: buildNearbyGuide(
-      pickNearestPlace(parkingResults),
-      "주변 주차장 정보를 찾지 못했습니다.",
-      "요금 정보는 지도 상세에서 확인",
-    ),
+    subway: buildNearbyGuide(pickNearestPlace(subwayResults)),
+    bus: buildNearbyGuide(pickNearestPlace(busResults)),
+    car: buildNearbyGuide(pickNearestPlace(parkingResults)),
   };
 }
 
@@ -1083,13 +945,13 @@ export default function EventDetailModal({ event, onClose }) {
       };
     }
 
-    const appKey = import.meta.env.VITE_KAKAO_MAP_KEY;
-    if (!appKey) {
+    const restKey = import.meta.env.VITE_KAKAO_REST_KEY;
+    if (!restKey) {
       setTransportInfo({
         loading: false,
-        subway: "카카오 지도 설정이 필요합니다.",
-        bus: "카카오 지도 설정이 필요합니다.",
-        car: "카카오 지도 설정이 필요합니다.",
+        subway: "정보 없음",
+        bus: "정보 없음",
+        car: "정보 없음",
       });
       return () => {
         cancelled = true;
@@ -1098,8 +960,7 @@ export default function EventDetailModal({ event, onClose }) {
 
     setTransportInfo((prev) => ({ ...prev, loading: true }));
 
-    loadKakaoMapScript(appKey)
-      .then(() => fetchActualTransportGuide(locationText))
+    fetchActualTransportGuide(locationText, restKey)
       .then((next) => {
         if (!cancelled) {
           setTransportInfo({
@@ -1115,9 +976,9 @@ export default function EventDetailModal({ event, onClose }) {
         if (!cancelled) {
           setTransportInfo({
             loading: false,
-            subway: "실제 주변 지하철역 정보를 불러오지 못했습니다.",
-            bus: "실제 주변 버스정류장 정보를 불러오지 못했습니다.",
-            car: "실제 주변 주차장 정보를 불러오지 못했습니다.",
+            subway: "정보 없음",
+            bus: "정보 없음",
+            car: "정보 없음",
           });
         }
       });

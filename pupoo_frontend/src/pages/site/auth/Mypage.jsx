@@ -346,8 +346,13 @@ const styles = `
     color: #6b7280;
     font-size: 11px;
     font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 84px;
     padding: 5px 10px;
     cursor: pointer;
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
   .mp-channel-btn.active {
