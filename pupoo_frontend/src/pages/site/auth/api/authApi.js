@@ -53,12 +53,8 @@ export const authApi = {
     return post("/api/auth/password-reset/request", payload, config);
   },
 
-  passwordResetValidate: async (token, config = {}) => {
-    const res = await axiosInstance.get("/api/auth/password-reset/validate", {
-      params: { token },
-      ...config,
-    });
-    return unwrap(res);
+  passwordResetVerifyCode: async (payload, config) => {
+    return post("/api/auth/password-reset/verify-code", payload, config);
   },
 
   passwordResetConfirm: async (payload, config) => {

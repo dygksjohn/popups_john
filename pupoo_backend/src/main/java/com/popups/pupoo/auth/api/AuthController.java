@@ -15,6 +15,7 @@ import com.popups.pupoo.auth.dto.LoginResponse;
 import com.popups.pupoo.auth.dto.PasswordResetConfirmRequest;
 import com.popups.pupoo.auth.dto.PasswordResetRequest;
 import com.popups.pupoo.auth.dto.PasswordResetRequestResponse;
+import com.popups.pupoo.auth.dto.PasswordResetVerifyRequest;
 import com.popups.pupoo.auth.dto.SignupCompleteRequest;
 import com.popups.pupoo.auth.dto.SignupEmailConfirmRequest;
 import com.popups.pupoo.auth.dto.SignupEmailRequest;
@@ -149,10 +150,10 @@ public class AuthController {
         return ApiResponse.success(passwordResetService.requestPasswordReset(req));
     }
 
-    @GetMapping("/password-reset/validate")
-    public ApiResponse<MessageResponse> validatePasswordResetToken(@RequestParam("token") String token) {
-        passwordResetService.validatePasswordResetToken(token);
-        return ApiResponse.success(new MessageResponse("PASSWORD_RESET_TOKEN_VALID"));
+    @PostMapping("/password-reset/verify-code")
+    public ApiResponse<MessageResponse> verifyPasswordResetCode(@RequestBody PasswordResetVerifyRequest req) {
+        passwordResetService.verifyPasswordResetCode(req);
+        return ApiResponse.success(new MessageResponse("PASSWORD_RESET_CODE_VERIFIED"));
     }
 
     @PostMapping("/password-reset/confirm")

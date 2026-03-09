@@ -4,12 +4,12 @@ import com.popups.pupoo.auth.domain.model.PasswordResetToken;
 import com.popups.pupoo.auth.dto.PasswordResetConfirmRequest;
 import com.popups.pupoo.auth.dto.PasswordResetRequest;
 import com.popups.pupoo.auth.dto.PasswordResetRequestResponse;
+import com.popups.pupoo.auth.dto.PasswordResetVerifyRequest;
 import com.popups.pupoo.auth.persistence.PasswordResetTokenRepository;
 import com.popups.pupoo.auth.persistence.RefreshTokenRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.util.HashUtil;
-import com.popups.pupoo.notification.port.NotificationSender;
 import com.popups.pupoo.user.domain.enums.UserStatus;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.persistence.UserRepository;
@@ -18,102 +18,70 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class PasswordResetService {
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int VERIFICATION_CODE_LENGTH = 6;
+
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final NotificationSender notificationSender;
     private final PasswordEncoder passwordEncoder;
 
     private final String hashSalt;
-    private final String baseUrl;
     private final int tokenTtlMinutes;
-    private final int requestCooldownSeconds;
-    private final boolean exposeDevToken;
 
     public PasswordResetService(
             UserRepository userRepository,
             PasswordResetTokenRepository passwordResetTokenRepository,
             RefreshTokenRepository refreshTokenRepository,
-            NotificationSender notificationSender,
             PasswordEncoder passwordEncoder,
             @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
-            @Value("${verification.password-reset.base-url:http://localhost:8080}") String baseUrl,
-            @Value("${verification.password-reset.ttl-minutes:30}") int tokenTtlMinutes,
-            @Value("${verification.request.cooldown-seconds:60}") int requestCooldownSeconds,
-            @Value("${verification.dev.expose:true}") boolean exposeDevToken
+            @Value("${verification.password-reset.ttl-minutes:30}") int tokenTtlMinutes
     ) {
         this.userRepository = userRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.refreshTokenRepository = refreshTokenRepository;
-        this.notificationSender = notificationSender;
         this.passwordEncoder = passwordEncoder;
         this.hashSalt = hashSalt;
-        this.baseUrl = baseUrl;
         this.tokenTtlMinutes = tokenTtlMinutes;
-        this.requestCooldownSeconds = requestCooldownSeconds;
-        this.exposeDevToken = exposeDevToken;
     }
 
     @Transactional
     public PasswordResetRequestResponse requestPasswordReset(PasswordResetRequest request) {
         validateHashSalt();
 
-        String email = normalizeEmail(request == null ? null : request.getEmail());
-        String phone = normalizePhone(request == null ? null : request.getPhone());
-
-        User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null) {
-            return new PasswordResetRequestResponse(null, null);
-        }
-
-        if (!normalizePhone(user.getPhone()).equals(phone) || !isResetAllowedUser(user)) {
-            return new PasswordResetRequestResponse(null, null);
-        }
+        User user = resolveResetUser(
+                request == null ? null : request.getEmail(),
+                request == null ? null : request.getPhone()
+        );
 
         LocalDateTime now = LocalDateTime.now();
-        PasswordResetToken latestToken = passwordResetTokenRepository
-                .findTopByUserIdAndUsedAtIsNullOrderByCreatedAtDesc(user.getUserId())
-                .orElse(null);
-
-        if (latestToken != null && now.isBefore(latestToken.getCreatedAt().plusSeconds(requestCooldownSeconds))) {
-            return new PasswordResetRequestResponse(latestToken.getExpiresAt(), null);
-        }
-
         List<PasswordResetToken> activeTokens =
                 passwordResetTokenRepository.findAllByUserIdAndUsedAtIsNull(user.getUserId());
         for (PasswordResetToken token : activeTokens) {
             token.markUsed(now);
         }
 
-        String token = UUID.randomUUID().toString().replace("-", "");
-        String tokenHash = HashUtil.sha256Hex(token + hashSalt);
+        String verificationCode = generateVerificationCode();
+        String tokenHash = HashUtil.sha256Hex(verificationCode + hashSalt);
         LocalDateTime expiresAt = now.plusMinutes(tokenTtlMinutes);
 
         passwordResetTokenRepository.save(new PasswordResetToken(user.getUserId(), tokenHash, expiresAt));
 
-        String resetUrl = baseUrl + "/auth/reset-password?token=" + token;
-        String subject = "POPUPS 비밀번호 재설정";
-        String body = "아래 링크에서 새 비밀번호를 설정해 주세요.\n\n"
-                + resetUrl
-                + "\n\n이 링크는 "
-                + tokenTtlMinutes
-                + "분 동안 유효합니다.";
-
-        notificationSender.sendEmail(List.of(user.getEmail()), subject, body);
-
-        return new PasswordResetRequestResponse(expiresAt, exposeDevToken ? token : null);
+        return new PasswordResetRequestResponse(expiresAt, verificationCode);
     }
 
     @Transactional(readOnly = true)
-    public void validatePasswordResetToken(String token) {
-        resolveValidToken(token);
+    public void verifyPasswordResetCode(PasswordResetVerifyRequest request) {
+        resolveVerifiedContext(request == null ? null : request.getEmail(),
+                request == null ? null : request.getPhone(),
+                request == null ? null : request.getVerificationCode());
     }
 
     @Transactional
@@ -122,37 +90,40 @@ public class PasswordResetService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "newPassword: must not be blank");
         }
 
-        PasswordResetToken passwordResetToken = resolveValidToken(request.getToken());
+        PasswordResetContext context = resolveVerifiedContext(
+                request.getEmail(),
+                request.getPhone(),
+                request.getVerificationCode()
+        );
 
-        User user = userRepository.findById(passwordResetToken.getUserId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_PROFILE_NOT_FOUND));
-        validateUserStatus(user);
+        context.user().setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(context.user());
 
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
+        refreshTokenRepository.deleteAllByUserId(context.user().getUserId());
 
-        refreshTokenRepository.deleteAllByUserId(user.getUserId());
-
-        passwordResetToken.markUsed(LocalDateTime.now());
-        passwordResetTokenRepository.save(passwordResetToken);
+        context.token().markUsed(LocalDateTime.now());
+        passwordResetTokenRepository.save(context.token());
     }
 
-    private PasswordResetToken resolveValidToken(String rawToken) {
+    private PasswordResetContext resolveVerifiedContext(String email, String phone, String verificationCode) {
         validateHashSalt();
 
-        if (rawToken == null || rawToken.isBlank()) {
-            throw new BusinessException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
-        }
-
-        String tokenHash = HashUtil.sha256Hex(rawToken + hashSalt);
-        PasswordResetToken passwordResetToken = passwordResetTokenRepository.findByTokenHashAndUsedAtIsNull(tokenHash)
+        User user = resolveResetUser(email, phone);
+        PasswordResetToken passwordResetToken = passwordResetTokenRepository
+                .findTopByUserIdAndUsedAtIsNullOrderByCreatedAtDesc(user.getUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID));
 
         if (passwordResetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.PASSWORD_RESET_TOKEN_EXPIRED);
         }
 
-        return passwordResetToken;
+        String normalizedCode = normalizeVerificationCode(verificationCode);
+        String tokenHash = HashUtil.sha256Hex(normalizedCode + hashSalt);
+        if (!passwordResetToken.getTokenHash().equals(tokenHash)) {
+            throw new BusinessException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+        }
+
+        return new PasswordResetContext(user, passwordResetToken);
     }
 
     private void validateHashSalt() {
@@ -161,22 +132,19 @@ public class PasswordResetService {
         }
     }
 
-    private boolean isResetAllowedUser(User user) {
-        UserStatus status = user.getStatus();
-        return status == UserStatus.ACTIVE;
-    }
+    private User resolveResetUser(String email, String phone) {
+        String normalizedEmail = normalizeEmail(email);
+        String normalizedPhone = normalizePhone(phone);
 
-    private void validateUserStatus(User user) {
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "일치하는 회원 정보를 찾지 못했습니다."));
+
         UserStatus status = user.getStatus();
-        if (status == null) {
-            throw new BusinessException(ErrorCode.USER_STATUS_INVALID);
+        if (status != UserStatus.ACTIVE || !normalizePhone(user.getPhone()).equals(normalizedPhone)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "일치하는 회원 정보를 찾지 못했습니다.");
         }
-        if (status == UserStatus.DELETED) {
-            throw new BusinessException(ErrorCode.USER_INACTIVE);
-        }
-        if (status == UserStatus.SUSPENDED) {
-            throw new BusinessException(ErrorCode.USER_SUSPENDED);
-        }
+
+        return user;
     }
 
     private String normalizeEmail(String email) {
@@ -196,5 +164,24 @@ public class PasswordResetService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "phone: must contain digits");
         }
         return normalized;
+    }
+
+    private String normalizeVerificationCode(String verificationCode) {
+        if (verificationCode == null || verificationCode.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "verificationCode: must not be blank");
+        }
+
+        String normalized = verificationCode.trim();
+        if (!normalized.matches("\\d{" + VERIFICATION_CODE_LENGTH + "}")) {
+            throw new BusinessException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+        }
+        return normalized;
+    }
+
+    private String generateVerificationCode() {
+        return String.format("%0" + VERIFICATION_CODE_LENGTH + "d", SECURE_RANDOM.nextInt(1_000_000));
+    }
+
+    private record PasswordResetContext(User user, PasswordResetToken token) {
     }
 }

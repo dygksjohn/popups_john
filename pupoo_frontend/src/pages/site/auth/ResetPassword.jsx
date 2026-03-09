@@ -1,56 +1,42 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { authApi } from "./api/authApi";
+
+const PASSWORD_RESET_CONTEXT_KEY = "password_reset_context";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const token = (searchParams.get("token") || "").trim();
 
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [tokenValid, setTokenValid] = useState(false);
+  const [resetContext, setResetContext] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    let mounted = true;
+    const raw = sessionStorage.getItem(PASSWORD_RESET_CONTEXT_KEY);
+    if (!raw) {
+      setErrorMessage("인증번호 확인이 필요합니다.");
+      setLoading(false);
+      return;
+    }
 
-    const validateToken = async () => {
-      if (!token) {
-        if (mounted) {
-          setErrorMessage("유효하지 않거나 만료된 링크입니다.");
-          setLoading(false);
-        }
-        return;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed?.email || !parsed?.phone || !parsed?.verificationCode) {
+        throw new Error("INVALID_CONTEXT");
       }
-
-      try {
-        await authApi.passwordResetValidate(token);
-        if (mounted) {
-          setTokenValid(true);
-          setErrorMessage("");
-        }
-      } catch {
-        if (mounted) {
-          setTokenValid(false);
-          setErrorMessage("유효하지 않거나 만료된 링크입니다.");
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    validateToken();
-
-    return () => {
-      mounted = false;
-    };
-  }, [token]);
+      setResetContext(parsed);
+      setErrorMessage("");
+    } catch {
+      sessionStorage.removeItem(PASSWORD_RESET_CONTEXT_KEY);
+      setErrorMessage("인증번호 확인이 필요합니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,15 +56,18 @@ export default function ResetPassword() {
 
     try {
       await authApi.passwordResetConfirm({
-        token,
+        email: resetContext.email,
+        phone: resetContext.phone,
+        verificationCode: resetContext.verificationCode,
         newPassword: password,
       });
+      sessionStorage.removeItem(PASSWORD_RESET_CONTEXT_KEY);
       setSuccessMessage("비밀번호가 변경되었습니다. 다시 로그인해 주세요.");
       setTimeout(() => navigate("/auth/login"), 1200);
     } catch (error) {
       const message =
         error?.response?.data?.error?.message ||
-        "비밀번호를 변경하지 못했습니다. 링크를 다시 확인해 주세요.";
+        "비밀번호를 변경하지 못했습니다. 인증번호를 다시 확인해 주세요.";
       setErrorMessage(message);
       setSuccessMessage("");
     } finally {
@@ -114,11 +103,11 @@ export default function ResetPassword() {
 
         {loading ? (
           <p style={{ margin: "12px 0 0", color: "#2563EB", fontSize: 13 }}>
-            재설정 링크를 확인하는 중입니다.
+            인증 상태를 확인하는 중입니다.
           </p>
         ) : null}
 
-        {!loading && tokenValid ? (
+        {!loading && resetContext ? (
           <form onSubmit={handleSubmit} style={{ display: "grid", gap: 10 }}>
             <input
               type="password"

@@ -12,5 +12,5 @@ import java.time.LocalDateTime;
 public class PasswordResetRequestResponse {
 
     private LocalDateTime expiresAt;
-    private String devToken;
+    private String verificationCode;
 }

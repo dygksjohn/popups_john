@@ -76,11 +76,11 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/request").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/verify-code").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/confirm").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/signup/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/oauth/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/auth/oauth/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/auth/password-reset/validate").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/auth/email/verification/confirm").permitAll()
 
             .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()

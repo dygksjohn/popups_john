@@ -2,46 +2,98 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "./api/authApi";
 
+const PASSWORD_RESET_CONTEXT_KEY = "password_reset_context";
+
 export default function FindPassword() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [issuedCode, setIssuedCode] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [requestingCode, setRequestingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const handleSubmit = async (e) => {
+  const handleRequestCode = async (e) => {
     e.preventDefault();
 
     if (!email.trim()) {
       setErrorMessage("이메일을 입력해 주세요.");
-      setSuccessMessage("");
       return;
     }
 
     if (!phone.trim()) {
       setErrorMessage("휴대전화 번호를 입력해 주세요.");
-      setSuccessMessage("");
       return;
     }
 
-    setLoading(true);
+    setRequestingCode(true);
     setErrorMessage("");
+    setSuccessMessage("");
+    sessionStorage.removeItem(PASSWORD_RESET_CONTEXT_KEY);
 
     try {
-      await authApi.passwordResetRequest({
+      const response = await authApi.passwordResetRequest({
         email: email.trim(),
         phone: phone.trim(),
       });
-      setSuccessMessage("입력하신 정보가 맞으면 비밀번호 재설정 링크를 이메일로 보냈습니다.");
+      setIssuedCode(String(response?.verificationCode || ""));
+      setExpiresAt(String(response?.expiresAt || ""));
+      setVerificationCode("");
+      setSuccessMessage("인증번호를 발급했습니다. 아래에 입력한 뒤 확인해 주세요.");
     } catch (error) {
       const message =
         error?.response?.data?.error?.message ||
-        "비밀번호 재설정 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+        "인증번호 발급에 실패했습니다. 잠시 후 다시 시도해 주세요.";
       setErrorMessage(message);
-      setSuccessMessage("");
+      setIssuedCode("");
+      setExpiresAt("");
     } finally {
-      setLoading(false);
+      setRequestingCode(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!issuedCode) {
+      setErrorMessage("먼저 인증번호를 요청해 주세요.");
+      return;
+    }
+
+    if (!verificationCode.trim()) {
+      setErrorMessage("인증번호를 입력해 주세요.");
+      return;
+    }
+
+    setVerifyingCode(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      await authApi.passwordResetVerifyCode({
+        email: email.trim(),
+        phone: phone.trim(),
+        verificationCode: verificationCode.trim(),
+      });
+
+      sessionStorage.setItem(
+        PASSWORD_RESET_CONTEXT_KEY,
+        JSON.stringify({
+          email: email.trim(),
+          phone: phone.trim(),
+          verificationCode: verificationCode.trim(),
+        })
+      );
+
+      navigate("/auth/reset-password");
+    } catch (error) {
+      const message =
+        error?.response?.data?.error?.message ||
+        "인증번호 확인에 실패했습니다. 다시 시도해 주세요.";
+      setErrorMessage(message);
+    } finally {
+      setVerifyingCode(false);
     }
   };
 
@@ -68,10 +120,10 @@ export default function FindPassword() {
       >
         <h1 style={{ margin: 0, fontSize: 24, color: "#1F2937" }}>비밀번호 찾기</h1>
         <p style={{ marginTop: 10, marginBottom: 20, color: "#6B7280", fontSize: 14 }}>
-          가입한 이메일과 휴대전화 번호를 입력해 주세요.
+          가입한 이메일과 휴대전화 번호로 인증번호를 발급받아 비밀번호를 재설정합니다.
         </p>
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 10 }}>
+        <form onSubmit={handleRequestCode} style={{ display: "grid", gap: 10 }}>
           <input
             type="email"
             value={email}
@@ -102,22 +154,80 @@ export default function FindPassword() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={requestingCode}
             style={{
               height: 46,
               border: "none",
               borderRadius: 8,
-              background: loading ? "#93C5FD" : "#3B82F6",
+              background: requestingCode ? "#93C5FD" : "#3B82F6",
               color: "#fff",
               fontSize: 15,
               fontWeight: 600,
-              cursor: loading ? "default" : "pointer",
+              cursor: requestingCode ? "default" : "pointer",
               marginTop: 4,
             }}
           >
-            {loading ? "요청 중..." : "확인"}
+            {requestingCode ? "발급 중..." : "인증번호 요청"}
           </button>
         </form>
+
+        {issuedCode ? (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 14,
+              borderRadius: 10,
+              background: "#F8FAFC",
+              border: "1px solid #DBEAFE",
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>응답 인증번호</div>
+            <div style={{ marginTop: 6, fontSize: 22, fontWeight: 700, letterSpacing: 4, color: "#0F172A" }}>
+              {issuedCode}
+            </div>
+            {expiresAt ? (
+              <div style={{ marginTop: 8, fontSize: 12, color: "#64748B" }}>
+                만료 시각: {expiresAt}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {issuedCode ? (
+          <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+            <input
+              type="text"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+              placeholder="인증번호 6자리"
+              maxLength={6}
+              style={{
+                height: 44,
+                border: "1px solid #D1D5DB",
+                borderRadius: 8,
+                padding: "0 12px",
+                fontSize: 14,
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleVerifyCode}
+              disabled={verifyingCode}
+              style={{
+                height: 46,
+                border: "none",
+                borderRadius: 8,
+                background: verifyingCode ? "#93C5FD" : "#111827",
+                color: "#fff",
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: verifyingCode ? "default" : "pointer",
+              }}
+            >
+              {verifyingCode ? "확인 중..." : "인증번호 확인"}
+            </button>
+          </div>
+        ) : null}
 
         {successMessage ? (
           <p style={{ marginTop: 12, color: "#2563EB", fontSize: 13 }}>
