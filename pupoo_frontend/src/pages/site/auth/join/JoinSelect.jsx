@@ -90,10 +90,11 @@ export default function JoinSelect() {
   const [hovered, setHovered] = useState(null);
 
   // 🔥 여기로 이동 (handle 함수보다 위에!)
+  const defaultKakaoRedirectUri = `${window.location.origin}/auth/kakao/callback`;
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
   const KAKAO_REDIRECT_URI =
     import.meta.env.VITE_KAKAO_REDIRECT_URI ||
-    "http://localhost:5173/auth/kakao/callback";
+    defaultKakaoRedirectUri;
 
   const handleKakaoContinue = () => {
     tokenStore.clear(); // ✅ 이전 로그인 토큰 제거 (중요)

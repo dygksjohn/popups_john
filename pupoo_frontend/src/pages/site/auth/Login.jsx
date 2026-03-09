@@ -94,8 +94,10 @@ const LoginPage = ({ leftBgImage = null }) => {
   const location = useLocation();
   const { login } = useAuth();
 
+  const defaultKakaoRedirectUri = `${window.location.origin}/auth/kakao/callback`;
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
-  const KAKAO_REDIRECT_URI = import.meta.env.VITE_KAKAO_REDIRECT_URI;
+  const KAKAO_REDIRECT_URI =
+    import.meta.env.VITE_KAKAO_REDIRECT_URI || defaultKakaoRedirectUri;
   const resolvePostLoginRedirect = () => {
     const target =
       location.state?.from ||
@@ -155,9 +157,9 @@ const LoginPage = ({ leftBgImage = null }) => {
 
     setError("");
 
-    const email = (userId || "").trim(); // ??userId瑜?email濡??ъ슜
-    if (!email.trim()) return setError("?대찓?쇱쓣 ?낅젰?섏꽭??");
-    if (!password) return setError("鍮꾨?踰덊샇瑜??낅젰?섏꽭??");
+    const email = (userId || "").trim();
+    if (!email.trim()) return setError("이메일을 입력하세요.");
+    if (!password) return setError("비밀번호를 입력하세요.");
 
     setLoading(true);
     try {
@@ -165,16 +167,16 @@ const LoginPage = ({ leftBgImage = null }) => {
       const accessToken = res?.accessToken;
 
       if (!accessToken) {
-        throw new Error("濡쒓렇???묐떟??accessToken???놁뒿?덈떎.");
+          throw new Error("로그인 응답에 accessToken이 없습니다.");
       }
 
       tokenStore.setAccess(accessToken);
-      login(); // ???꾩뿭 ?몄쬆 ?곹깭 true -> ?ㅻ뜑 利됱떆 ?꾪솚
+        login();
       const redirectTo = resolvePostLoginRedirect();
       sessionStorage.removeItem("post_login_redirect");
       navigate(redirectTo, { replace: true });
     } catch (e) {
-      setError(e?.response?.data?.message ?? e?.message ?? "濡쒓렇???ㅽ뙣");
+        setError(e?.response?.data?.message ?? e?.message ?? "로그인 실패");
     } finally {
       setLoading(false);
     }
@@ -397,7 +399,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               <div style={{ marginBottom: 12 }}>
                 <input
                   type="text"
-                  placeholder="?꾩씠?붾? ?낅젰?섏꽭??"
+                  placeholder="이메일을 입력하세요"
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   onFocus={() => setFocusedField("id")}
@@ -411,7 +413,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               <div style={{ marginBottom: 16 }}>
                 <input
                   type="password"
-                  placeholder="鍮꾨?踰덊샇瑜??낅젰?섏꽭??"
+                  placeholder="비밀번호를 입력하세요"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setFocusedField("pw")}
@@ -445,7 +447,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                     cursor: "pointer",
                   }}
                 />
-                ?꾩씠?????
+                아이디 저장
               </label>
 
               {/* ??? Login button ??? */}
@@ -470,7 +472,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                   marginBottom: 16,
                 }}
               >
-                濡쒓렇??
+                로그인
               </button>
 
               {/* ??? Sign-up / Find password links ??? */}
@@ -496,7 +498,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                     borderRight: "1px solid #CBD5E0",
                   }}
                 >
-                  ?뚯썝媛?낇븯湲?
+                  회원가입하기
                 </a>
                 <a
                   href="/auth/find-password"
@@ -511,7 +513,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                     padding: "0 14px",
                   }}
                 >
-                  鍮꾨?踰덊샇 李얘린
+                  비밀번호 찾기
                 </a>
               </div>
 
@@ -532,7 +534,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  SNS 怨꾩젙?쇰줈 濡쒓렇??
+                  SNS 계정으로 로그인
                 </span>
                 <div style={{ flex: 1, height: 1, background: "#E8EDF5" }} />
               </div>
@@ -588,9 +590,9 @@ const LoginPage = ({ leftBgImage = null }) => {
               lineHeight: 1.7,
             }}
           >
-            <strong style={{ color: "#718096" }}>
-              硫띾찉?섎씪 臾몄쓽???꾨Ц 而⑥꽕?댄듃媛 ?꾩??쒕┰?덈떎.
-            </strong>
+              <strong style={{ color: "#718096" }}>
+                멤버십 문의는 아래 연락처로 문의해 주세요.
+              </strong>
             <br />
             dogcat@imqa.io / Tel : 02-123-1234
           </div>
