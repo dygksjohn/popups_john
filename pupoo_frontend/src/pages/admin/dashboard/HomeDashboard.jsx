@@ -56,14 +56,16 @@ const REFUND_STATUS_META = {
 
 const DEMO_CONGESTION_BASE = [18, 24, 31, 43, 57, 68, 76, 72, 63, 55, 48, 39];
 const MULTI_EVENT_COLORS = [
-  ds.amber,
-  ds.brand,
-  ds.sky,
-  ds.green,
-  ds.red,
-  ds.violet,
-  "#0f766e",
+  "#ef4444",
   "#f97316",
+  "#eab308",
+  "#22c55e",
+  "#3b82f6",
+  "#1e3a8a",
+  "#7c3aed",
+  "#f8fafc",
+  "#38bdf8",
+  "#ec4899",
 ];
 
 const authHeaders = () => {
@@ -188,6 +190,70 @@ const sortRealtimeEvents = (items = []) =>
     status: __rawStatus,
     adminStatus: toAdminStatus(__rawStatus),
   }));
+
+const toEventTimestamp = (...values) => {
+  for (const value of values) {
+    const timestamp = value ? new Date(value).getTime() : Number.NaN;
+    if (Number.isFinite(timestamp)) return timestamp;
+  }
+  return 0;
+};
+
+const getRecentEventPriority = (event) => {
+  const status = String(event?.status || "").toUpperCase();
+  if (status === "ENDED" || status === "CANCELLED") return 0;
+  if (status === "PLANNED") return 1;
+  return 2;
+};
+
+const pickCongestionGraphEvents = (events = [], limit = 10) => {
+  const ongoingEvents = events
+    .filter((event) => event.status === "ONGOING")
+    .slice(0, limit);
+
+  if (ongoingEvents.length >= limit) {
+    return {
+      items: ongoingEvents,
+      ongoingCount: ongoingEvents.length,
+      recentCount: 0,
+      totalCount: ongoingEvents.length,
+    };
+  }
+
+  const recentEvents = events
+    .filter((event) => event.status !== "ONGOING")
+    .slice()
+    .sort(
+      (a, b) =>
+        getRecentEventPriority(a) - getRecentEventPriority(b) ||
+        toEventTimestamp(b?.endAt, b?.startAt, b?.updatedAt, b?.createdAt) -
+          toEventTimestamp(a?.endAt, a?.startAt, a?.updatedAt, a?.createdAt) ||
+        (Number(b?.eventId) || 0) - (Number(a?.eventId) || 0),
+    )
+    .slice(0, Math.max(limit - ongoingEvents.length, 0));
+
+  return {
+    items: [...ongoingEvents, ...recentEvents],
+    ongoingCount: ongoingEvents.length,
+    recentCount: recentEvents.length,
+    totalCount: ongoingEvents.length + recentEvents.length,
+  };
+};
+
+const describeCongestionGraphScope = (meta = {}) => {
+  const ongoingCount = Number(meta.ongoingCount) || 0;
+  const recentCount = Number(meta.recentCount) || 0;
+  const totalCount =
+    Number(meta.totalCount) || ongoingCount + recentCount;
+
+  if (recentCount > 0 && ongoingCount > 0) {
+    return `진행 중 ${formatNumber(ongoingCount)}건 + 최근 ${formatNumber(recentCount)}건`;
+  }
+  if (recentCount > 0) {
+    return `최근 ${formatNumber(totalCount)}건`;
+  }
+  return `진행 중 ${formatNumber(totalCount)}건`;
+};
 
 const toEventId = (row) => {
   const eventId = Number(row?.eventId ?? row?.event?.eventId ?? null);
@@ -358,6 +424,8 @@ export default function HomeDashboard({ initialEventId = null }) {
 
       const allEvents = sortRealtimeEvents(toArray(eventPayload));
       const liveEvents = allEvents.filter((event) => event.status === "ONGOING");
+      const graphEventSelection = pickCongestionGraphEvents(allEvents, 10);
+      const graphEvents = graphEventSelection.items;
       const recentLogs = toArray(logPayload).slice(0, 5);
       const eventPerformance = toArray(performancePayload)
         .map((event) => {
@@ -376,8 +444,12 @@ export default function HomeDashboard({ initialEventId = null }) {
       const selectedEvent = selectedEventId !== "ALL"
         ? allEvents.find((event) => String(event.eventId) === String(selectedEventId)) || null
         : null;
-      const focusEvent = selectedEvent || liveEvents[0] || allEvents[0] || null;
-      const isAllEventCongestionView = !selectedEvent && liveEvents.length > 0;
+      const focusEvent = selectedEvent || graphEvents[0] || liveEvents[0] || allEvents[0] || null;
+      const isAllEventCongestionView = !selectedEvent && graphEvents.length > 0;
+      const allEventGraphMeta = {
+        ...graphEventSelection,
+        totalCount: graphEvents.length,
+      };
       const [focusCongestionPayload, focusBoothPayload, multiEventCongestionPayloads] = await Promise.all([
         focusEvent
           ? safePayload(`/api/admin/analytics/events/${focusEvent.eventId}/congestion-by-hour`, {}, [])
@@ -387,7 +459,7 @@ export default function HomeDashboard({ initialEventId = null }) {
           : Promise.resolve([]),
         isAllEventCongestionView
           ? Promise.all(
-              liveEvents.map((event, index) =>
+              graphEvents.map((event, index) =>
                 safePayload(`/api/admin/analytics/events/${event.eventId}/congestion-by-hour`, {}, []).then((payload) =>
                   buildCongestionLine(
                     event,
@@ -502,7 +574,7 @@ export default function HomeDashboard({ initialEventId = null }) {
           bg: ds.amberSoft,
           message: "혼잡 실측 데이터가 없어 시연용 더미 데이터를 표시합니다.",
           detail: isAllEventCongestionView
-            ? `진행 중 행사 ${formatNumber(allEventCongestionLines.length)}건 중 일부는 더미 추이입니다.`
+            ? `그래프 대상 ${describeCongestionGraphScope(allEventGraphMeta)} 중 일부는 더미 추이입니다.`
             : focusEvent
               ? `${focusEvent.eventName} 행사 기준 더미 추이입니다.`
               : "행사를 선택하면 자동으로 교체됩니다.",
@@ -564,6 +636,7 @@ export default function HomeDashboard({ initialEventId = null }) {
         usingDummyCongestion: usingAnyDummyCongestion,
         isAllEventCongestionView,
         allEventCongestionLines,
+        allEventGraphMeta,
         allEventCongestionChartData,
         allEventCongestionSummary,
         topBooths,
@@ -653,6 +726,9 @@ export default function HomeDashboard({ initialEventId = null }) {
   const topBooth = snapshot.topBooths[0] || null;
   const hasTrendData = snapshot.operationsTrend.some(
     (row) => row.eventCount || row.approvedRegistrationCount || row.refundRequestCount,
+  );
+  const congestionGraphScope = describeCongestionGraphScope(
+    snapshot.allEventGraphMeta,
   );
 
   return (
@@ -744,10 +820,10 @@ export default function HomeDashboard({ initialEventId = null }) {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 14, marginBottom: 14 }}>
-          <SectionCard
-            title="실시간 혼잡 추이"
-            subtitle={isAllEventCongestionView
-              ? `진행 중 행사 ${formatNumber(snapshot.allEventCongestionLines.length)}건의 시간대별 평균 혼잡도`
+        <SectionCard
+          title="실시간 혼잡 추이"
+          subtitle={isAllEventCongestionView
+              ? `${congestionGraphScope}의 시간대별 평균 혼잡도`
               : snapshot.focusEvent
                 ? `${snapshot.focusEvent.eventName} 행사 기준 시간대별 평균 혼잡도`
                 : "행사를 선택하면 시간대별 혼잡 추이를 보여줍니다."}
@@ -755,7 +831,7 @@ export default function HomeDashboard({ initialEventId = null }) {
               <Pill color={ds.amber} bg={ds.amberSoft}>시연용 데이터</Pill>
             ) : isAllEventCongestionView ? (
               <Pill color={ds.green} bg={ds.greenSoft}>
-                진행 중 {formatNumber(snapshot.allEventCongestionLines.length)}개 행사
+                {congestionGraphScope}
               </Pill>
             ) : topBooth ? (
               <Pill color={topBooth.state.c} bg={topBooth.state.bg}>최고 혼잡 {topBooth.placeName} {topBooth.congestionLevel}%</Pill>
@@ -835,7 +911,7 @@ export default function HomeDashboard({ initialEventId = null }) {
                     )}
                   </>
                 ) : (
-                  <ChartEmpty title="표시할 혼잡 추이가 없습니다." description="진행 중 행사 데이터가 누적되면 자동으로 반영됩니다." />
+                  <ChartEmpty title="표시할 혼잡 추이가 없습니다." description="진행 중 또는 최근 행사 데이터가 누적되면 자동으로 반영됩니다." />
                 )}
               </>
             ) : snapshot.focusCongestion.length > 0 ? (

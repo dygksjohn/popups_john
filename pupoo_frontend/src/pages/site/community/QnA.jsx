@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
+import CommunityPagination from "./shared/CommunityPagination";
 import {
   ChevronDown,
   Search,
@@ -1058,65 +1059,13 @@ export default function ServicePage() {
         )}
 
         {/* ?섏씠吏?ㅼ씠??*/}
-        {!loading && !error && totalPages > 1 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: "8px",
-              marginTop: "36px",
-            }}
-          >
-            <button
-              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage <= 1}
-              style={{
-                background: "none",
-                border: "none",
-                fontSize: "16px",
-                color: currentPage <= 1 ? "#ddd" : "#888",
-                cursor: currentPage <= 1 ? "default" : "pointer",
-                padding: "4px 8px",
-              }}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i}
-                onClick={() => setPage(i + 1)}
-                style={{
-                  fontSize: "14px",
-                  fontWeight: i + 1 === currentPage ? "700" : "500",
-                  color: i + 1 === currentPage ? "#4a7cf7" : "#333",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "4px 8px",
-                  minWidth: "20px",
-                  textAlign: "center",
-                }}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage >= totalPages}
-              style={{
-                background: "none",
-                border: "none",
-                fontSize: "16px",
-                color: currentPage >= totalPages ? "#ddd" : "#888",
-                cursor: currentPage >= totalPages ? "default" : "pointer",
-                padding: "4px 8px",
-              }}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
+        {!loading && !error ? (
+          <CommunityPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onChange={setPage}
+          />
+        ) : null}
       </main>
 
       {/* ?? 湲?곌린/수정 紐⑤떖 ?? */}

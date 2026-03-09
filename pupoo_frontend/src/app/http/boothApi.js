@@ -8,5 +8,10 @@ export const boothApi = {
       params: { page, size, sort },
     });
   },
+
+  getBoothDetail: (boothId) => {
+    if (boothId == null) throw new Error("getBoothDetail: boothId is required");
+    return axiosInstance.get(`/api/booths/${boothId}`);
+  },
 };
 

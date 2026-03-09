@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import CommunityPagination from "./shared/CommunityPagination";
 import {
   Search,
   Loader2,
@@ -510,66 +511,11 @@ export default function Review() {
               )}
             </div>
 
-            {totalPages > 1 && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  gap: 12,
-                  marginTop: 36,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage <= 1}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: currentPage <= 1 ? "#ccc" : "#666",
-                    cursor: currentPage <= 1 ? "default" : "pointer",
-                    padding: "4px 8px",
-                  }}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-
-                {Array.from({ length: totalPages }, (_, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => setPage(index + 1)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      fontSize: 14,
-                      fontWeight: index + 1 === currentPage ? 700 : 500,
-                      color: index + 1 === currentPage ? "#1A4FD6" : "#333",
-                      cursor: "pointer",
-                      minWidth: 20,
-                    }}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
-
-                <button
-                  type="button"
-                  onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage >= totalPages}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: currentPage >= totalPages ? "#ccc" : "#666",
-                    cursor: currentPage >= totalPages ? "default" : "pointer",
-                    padding: "4px 8px",
-                  }}
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            )}
+            <CommunityPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onChange={setPage}
+            />
           </>
         )}
       </main>

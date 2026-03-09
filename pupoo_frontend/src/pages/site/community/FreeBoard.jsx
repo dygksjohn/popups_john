@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
+import CommunityPagination from "./shared/CommunityPagination";
 import {
   Search,
   Loader2,
@@ -1082,63 +1083,11 @@ export default function FreeBoard() {
               )}
             </div>
 
-            {totalPages > 1 && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  gap: "12px",
-                  marginTop: "36px",
-                }}
-              >
-                <button
-                  onClick={() => pageSafe > 1 && setPage(pageSafe - 1)}
-                  disabled={pageSafe <= 1}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: pageSafe <= 1 ? "#ccc" : "#666",
-                    cursor: pageSafe <= 1 ? "default" : "pointer",
-                    padding: "4px 8px",
-                  }}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPage(i + 1)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      fontSize: "14px",
-                      fontWeight: i + 1 === pageSafe ? 700 : 500,
-                      color: i + 1 === pageSafe ? "#1A4FD6" : "#333",
-                      cursor: "pointer",
-                      minWidth: 20,
-                    }}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-
-                <button
-                  onClick={() => pageSafe < totalPages && setPage(pageSafe + 1)}
-                  disabled={pageSafe >= totalPages}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: pageSafe >= totalPages ? "#ccc" : "#666",
-                    cursor: pageSafe >= totalPages ? "default" : "pointer",
-                    padding: "4px 8px",
-                  }}
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            )}
+            <CommunityPagination
+              currentPage={pageSafe}
+              totalPages={totalPages}
+              onChange={setPage}
+            />
           </>
         )}
       </main>
