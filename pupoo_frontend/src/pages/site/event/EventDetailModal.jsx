@@ -6,6 +6,7 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getEventImage } from "../../admin/shared/eventImageStore";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
+import { loadKakaoMapScript } from "../../../shared/utils/kakaoMapScript";
 import {
   X,
   MapPin,
@@ -819,6 +820,153 @@ function buildTransportGuideFromLocation(locationText) {
 }
 
 
+function formatDistanceLabel(distanceValue) {
+  const distance = Number(distanceValue || 0);
+  if (!Number.isFinite(distance) || distance <= 0) return "거리 정보 없음";
+  if (distance >= 1000) {
+    return `${(distance / 1000).toFixed(distance >= 10000 ? 0 : 1)}km`;
+  }
+  return `${Math.round(distance)}m`;
+}
+
+function joinGuideParts(parts) {
+  return parts.filter(Boolean).join(" · ");
+}
+
+function getKakaoServices() {
+  const kakao = window.kakao;
+  if (!kakao?.maps?.services) {
+    throw new Error("Kakao map services unavailable");
+  }
+  return kakao;
+}
+
+function addressSearchKakao(kakao, query) {
+  return new Promise((resolve, reject) => {
+    const geocoder = new kakao.maps.services.Geocoder();
+    geocoder.addressSearch(query, (result, status) => {
+      if (status === kakao.maps.services.Status.OK && Array.isArray(result) && result[0]) {
+        resolve(result[0]);
+        return;
+      }
+      reject(new Error(`addressSearch failed: ${status}`));
+    });
+  });
+}
+
+function keywordSearchKakao(kakao, query, options = {}) {
+  return new Promise((resolve, reject) => {
+    const places = new kakao.maps.services.Places();
+    places.keywordSearch(
+      query,
+      (result, status) => {
+        if (status === kakao.maps.services.Status.OK && Array.isArray(result)) {
+          resolve(result);
+          return;
+        }
+        if (status === kakao.maps.services.Status.ZERO_RESULT) {
+          resolve([]);
+          return;
+        }
+        reject(new Error(`keywordSearch failed: ${status}`));
+      },
+      options,
+    );
+  });
+}
+
+function categorySearchKakao(kakao, categoryCode, options = {}) {
+  return new Promise((resolve, reject) => {
+    const places = new kakao.maps.services.Places();
+    places.categorySearch(
+      categoryCode,
+      (result, status) => {
+        if (status === kakao.maps.services.Status.OK && Array.isArray(result)) {
+          resolve(result);
+          return;
+        }
+        if (status === kakao.maps.services.Status.ZERO_RESULT) {
+          resolve([]);
+          return;
+        }
+        reject(new Error(`categorySearch failed: ${status}`));
+      },
+      options,
+    );
+  });
+}
+
+async function resolveLocationOrigin(locationText) {
+  const kakao = getKakaoServices();
+
+  try {
+    const addressResult = await addressSearchKakao(kakao, locationText);
+    return {
+      x: Number(addressResult.x),
+      y: Number(addressResult.y),
+    };
+  } catch (addressError) {
+    const keywordResults = await keywordSearchKakao(kakao, locationText, { size: 1 });
+    const place = Array.isArray(keywordResults) ? keywordResults[0] : null;
+    if (!place) throw addressError;
+
+    return {
+      x: Number(place.x),
+      y: Number(place.y),
+    };
+  }
+}
+
+function pickNearestPlace(list) {
+  return Array.isArray(list) && list.length > 0 ? list[0] : null;
+}
+
+function buildNearbyGuide(place, emptyMessage, unavailableMessage) {
+  if (!place) return emptyMessage;
+
+  return joinGuideParts([
+    `${place.place_name} 도보 ${formatDistanceLabel(place.distance)}`,
+    place.road_address_name || place.address_name || "",
+    unavailableMessage,
+  ]);
+}
+
+async function fetchActualTransportGuide(locationText) {
+  const kakao = getKakaoServices();
+  const origin = await resolveLocationOrigin(locationText);
+  const nearbyOptions = {
+    x: origin.x,
+    y: origin.y,
+    radius: 2000,
+    sort: kakao.maps.services.SortBy.DISTANCE,
+    size: 5,
+  };
+
+  const [subwayResults, busResults, parkingResults] = await Promise.all([
+    categorySearchKakao(kakao, "SW8", nearbyOptions),
+    keywordSearchKakao(kakao, "버스정류장", { ...nearbyOptions, radius: 1500 }),
+    categorySearchKakao(kakao, "PK6", nearbyOptions),
+  ]);
+
+  return {
+    subway: buildNearbyGuide(
+      pickNearestPlace(subwayResults),
+      "주변 지하철역 정보를 찾지 못했습니다.",
+      "",
+    ),
+    bus: buildNearbyGuide(
+      pickNearestPlace(busResults),
+      "주변 버스정류장 정보를 찾지 못했습니다.",
+      "노선 정보는 지도 상세에서 확인",
+    ),
+    car: buildNearbyGuide(
+      pickNearestPlace(parkingResults),
+      "주변 주차장 정보를 찾지 못했습니다.",
+      "요금 정보는 지도 상세에서 확인",
+    ),
+  };
+}
+
 export default function EventDetailModal({ event, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -834,6 +982,12 @@ export default function EventDetailModal({ event, onClose }) {
   const [regError, setRegError] = useState("");
   const [regLoaded, setRegLoaded] = useState(true);
   const [selectedDateKey, setSelectedDateKey] = useState("");
+  const [transportInfo, setTransportInfo] = useState({
+    loading: true,
+    subway: "",
+    bus: "",
+    car: "",
+  });
   const overlayRef = useRef(null);
 
   const modalEventId = Number(event?.eventId ?? event?.id);
@@ -913,6 +1067,66 @@ export default function EventDetailModal({ event, onClose }) {
     };
   }, [modalEventId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const locationText = String(detail?.location || event?.location || "").trim();
+
+    if (!locationText || locationText === "장소 미정") {
+      setTransportInfo({
+        loading: false,
+        subway: "주변 지하철역 정보를 확인할 수 없습니다.",
+        bus: "주변 버스정류장 정보를 확인할 수 없습니다.",
+        car: "주변 주차장 정보를 확인할 수 없습니다.",
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const appKey = import.meta.env.VITE_KAKAO_MAP_KEY;
+    if (!appKey) {
+      setTransportInfo({
+        loading: false,
+        subway: "카카오 지도 설정이 필요합니다.",
+        bus: "카카오 지도 설정이 필요합니다.",
+        car: "카카오 지도 설정이 필요합니다.",
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setTransportInfo((prev) => ({ ...prev, loading: true }));
+
+    loadKakaoMapScript(appKey)
+      .then(() => fetchActualTransportGuide(locationText))
+      .then((next) => {
+        if (!cancelled) {
+          setTransportInfo({
+            loading: false,
+            subway: next.subway,
+            bus: next.bus,
+            car: next.car,
+          });
+        }
+      })
+      .catch((transportError) => {
+        console.error("[EventDetailModal] transport lookup failed:", transportError);
+        if (!cancelled) {
+          setTransportInfo({
+            loading: false,
+            subway: "실제 주변 지하철역 정보를 불러오지 못했습니다.",
+            bus: "실제 주변 버스정류장 정보를 불러오지 못했습니다.",
+            car: "실제 주변 주차장 정보를 불러오지 못했습니다.",
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [detail?.location, event?.location]);
+
   const handleClose = () => {
     setIsOpen(false);
     setTimeout(onClose, 280);
@@ -969,16 +1183,17 @@ export default function EventDetailModal({ event, onClose }) {
   };
 
   const desc = detail?.description || "설명 없음";
-  const loc = detail?.location || "장소 미정";
+  const loc = detail?.location || event?.location || "장소 미정";
   const organizerName = detail?.organizer || event?.organizer || "정보 없음";
   const organizerPhone =
     detail?.organizerPhone || event?.organizerPhone || detail?.contact?.phone || "정보 없음";
   const organizerEmail =
     detail?.organizerEmail || event?.organizerEmail || detail?.contact?.email || "정보 없음";
-  const transportGuide = buildTransportGuideFromLocation(loc);
-  const subwayGuide = transportGuide?.subway || detail?.transport?.subway || "정보 없음";
-  const busGuide = transportGuide?.bus || detail?.transport?.bus || "정보 없음";
-  const carGuide = transportGuide?.car || detail?.transport?.car || "정보 없음";
+  const transportLoadingText = "주변 정보를 불러오는 중...";
+  const transportFallbackText = "주변 정보를 확인할 수 없습니다.";
+  const subwayGuide = transportInfo.loading ? transportLoadingText : transportInfo.subway || transportFallbackText;
+  const busGuide = transportInfo.loading ? transportLoadingText : transportInfo.bus || transportFallbackText;
+  const carGuide = transportInfo.loading ? transportLoadingText : transportInfo.car || transportFallbackText;
   const hasValidLocation = Boolean(loc && loc !== "장소 미정");
   const encodedLocation = hasValidLocation ? encodeURIComponent(loc) : "";
   const mapEmbedUrl = hasValidLocation

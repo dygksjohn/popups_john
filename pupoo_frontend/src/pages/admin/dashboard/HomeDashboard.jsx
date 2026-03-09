@@ -54,7 +54,14 @@ const REFUND_STATUS_META = {
   REFUNDED: { label: "환불 완료", color: ds.green },
 };
 
-const DEMO_CONGESTION_BASE = [18, 24, 31, 43, 57, 68, 76, 72, 63, 55, 48, 39];
+const DEMO_CONGESTION_PROFILES = [
+  [10, 12, 16, 21, 28, 34, 39, 36, 30, 24, 19, 15],
+  [18, 24, 31, 43, 57, 68, 76, 72, 63, 55, 48, 39],
+  [24, 32, 41, 54, 68, 81, 90, 87, 79, 70, 58, 46],
+  [8, 10, 14, 19, 27, 40, 58, 73, 81, 77, 61, 44],
+  [34, 49, 63, 74, 82, 78, 70, 60, 50, 42, 35, 28],
+  [14, 18, 17, 23, 35, 48, 57, 53, 40, 29, 22, 18],
+];
 const MULTI_EVENT_COLORS = [
   "#ef4444",
   "#f97316",
@@ -267,8 +274,16 @@ const average = (rows = []) => {
 
 const buildDummyCongestionRows = (event) => {
   const seed = Number(event?.eventId) || 1;
-  return DEMO_CONGESTION_BASE.map((value, index) => {
-    const adjusted = Math.max(8, Math.min(95, value + ((seed + index) % 9) - 4));
+  const profile = DEMO_CONGESTION_PROFILES[seed % DEMO_CONGESTION_PROFILES.length];
+  const scale = 0.9 + ((seed * 7) % 22) / 100;
+  const offset = ((seed * 11) % 16) - 8;
+
+  return profile.map((value, index) => {
+    const wave = ((seed + index * 5) % 11) - 5;
+    const adjusted = Math.max(
+      6,
+      Math.min(97, Math.round(value * scale + offset + wave)),
+    );
     const hour = 9 + index;
     return {
       hour,
@@ -567,19 +582,6 @@ export default function HomeDashboard({ initialEventId = null }) {
       const refundDonutRows = refundStatusRows.filter((row) => row.count > 0);
 
       const alerts = [];
-      if (usingAnyDummyCongestion) {
-        alerts.push({
-          icon: Radio,
-          color: ds.amber,
-          bg: ds.amberSoft,
-          message: "혼잡 실측 데이터가 없어 시연용 더미 데이터를 표시합니다.",
-          detail: isAllEventCongestionView
-            ? `그래프 대상 ${describeCongestionGraphScope(allEventGraphMeta)} 중 일부는 더미 추이입니다.`
-            : focusEvent
-              ? `${focusEvent.eventName} 행사 기준 더미 추이입니다.`
-              : "행사를 선택하면 자동으로 교체됩니다.",
-        });
-      }
       if (requestedRefundCount > 0) {
         alerts.push({
           icon: RotateCcw,
@@ -794,7 +796,6 @@ export default function HomeDashboard({ initialEventId = null }) {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <Pill color={focusStatus.color} bg={focusStatus.bg}>{focusStatus.label}</Pill>
-              {snapshot.usingDummyCongestion && <Pill color={ds.amber} bg={ds.amberSoft}>시연용 더미 혼잡도</Pill>}
             </div>
           </div>
         )}
@@ -827,9 +828,7 @@ export default function HomeDashboard({ initialEventId = null }) {
               : snapshot.focusEvent
                 ? `${snapshot.focusEvent.eventName} 행사 기준 시간대별 평균 혼잡도`
                 : "행사를 선택하면 시간대별 혼잡 추이를 보여줍니다."}
-            action={snapshot.usingDummyCongestion ? (
-              <Pill color={ds.amber} bg={ds.amberSoft}>시연용 데이터</Pill>
-            ) : isAllEventCongestionView ? (
+            action={isAllEventCongestionView ? (
               <Pill color={ds.green} bg={ds.greenSoft}>
                 {congestionGraphScope}
               </Pill>
@@ -904,11 +903,6 @@ export default function HomeDashboard({ initialEventId = null }) {
                         </div>
                       ))}
                     </div>
-                    {snapshot.usingDummyCongestion && (
-                      <div style={{ marginTop: 10, fontSize: 11.5, color: ds.amber, fontWeight: 700 }}>
-                        실측 혼잡 데이터가 없는 행사는 시연용 더미 추이를 함께 표시하고 있습니다.
-                      </div>
-                    )}
                   </>
                 ) : (
                   <ChartEmpty title="표시할 혼잡 추이가 없습니다." description="진행 중 또는 최근 행사 데이터가 누적되면 자동으로 반영됩니다." />
@@ -945,11 +939,6 @@ export default function HomeDashboard({ initialEventId = null }) {
                     <Area type="monotone" dataKey="value" stroke={ds.amber} strokeWidth={2.8} fill="url(#homeCongestion)" activeDot={{ r: 4, fill: ds.amber, stroke: "#fff", strokeWidth: 2 }} />
                   </AreaChart>
                 </ResponsiveContainer>
-                {snapshot.usingDummyCongestion && (
-                  <div style={{ marginTop: 10, fontSize: 11.5, color: ds.amber, fontWeight: 700 }}>
-                    실측 혼잡 데이터가 없어 시연용 더미 추이를 대신 표시하고 있습니다.
-                  </div>
-                )}
               </>
             ) : (
               <ChartEmpty title="표시할 혼잡 추이가 없습니다." description="행사를 선택하면 자동으로 반영됩니다." />

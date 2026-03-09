@@ -40,7 +40,7 @@ export function loadKakaoMapScript(appKey) {
 
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&autoload=false`;
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&autoload=false&libraries=services`;
     script.async = true;
     script.onload = () => {
       if (window.kakao?.maps?.load) {

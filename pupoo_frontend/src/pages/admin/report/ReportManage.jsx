@@ -1,6 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
   Ban,
   ChevronLeft,
   ChevronRight,
@@ -70,7 +69,7 @@ const actionButton = {
   padding: "0 12px",
   borderRadius: 10,
   fontSize: 12,
-  fontWeight: 800,
+  fontWeight: 700,
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
@@ -89,7 +88,7 @@ const detailButton = {
   background: "none",
   color: ds.ink3,
   fontSize: 12,
-  fontWeight: 800,
+  fontWeight: 700,
   cursor: "pointer",
 };
 
@@ -343,15 +342,11 @@ export default function ReportManage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: ds.bg, color: ds.ink, fontFamily: ds.ff, padding: 28 }}>
-      <div style={{ display: "grid", gap: 20 }}>
-        <section style={{ ...panel, padding: 24, display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+    <div style={{ display: "grid", gap: 18, color: ds.ink, fontFamily: ds.ff }}>
+      <div style={{ display: "grid", gap: 18 }}>
+        <section style={{ ...panel, padding: 20, display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div style={{ display: "grid", gap: 8 }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 800, color: ds.brand }}>
-              <AlertTriangle size={14} />
-              ADMIN REPORTS
-            </div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: ds.inkW }}>신고 관리</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: ds.inkW }}>신고 관리</div>
             <div style={{ fontSize: 13, color: ds.ink3 }}>
               신고가 많은 대상을 우선 확인하고, 제목 클릭으로 원문 이동과 승인·거절 처리를 바로 진행합니다.
             </div>
@@ -383,7 +378,7 @@ export default function ReportManage() {
           <StatCard label="평균 신고수" value={pageStats.avgCount} hint="현재 페이지 대상별 평균 신고 횟수" />
         </section>
 
-        <section style={{ ...panel, padding: 22, display: "grid", gap: 16 }}>
+        <section style={{ ...panel, padding: 20, display: "grid", gap: 16 }}>
           <div style={{ display: "grid", gap: 12, gridTemplateColumns: "minmax(220px, 1fr) 180px 180px 180px 132px" }}>
             <div style={{ position: "relative" }}>
               <Search size={14} color={ds.ink4} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
@@ -471,7 +466,7 @@ export default function ReportManage() {
 
                       return (
                         <tr key={report.reportId}>
-                          <td style={{ padding: 14, borderBottom: `1px solid ${ds.lineSoft}`, color: ds.inkW, fontWeight: 700 }}>#{report.reportId}</td>
+                          <td style={{ padding: 14, borderBottom: `1px solid ${ds.lineSoft}`, fontSize: 13, color: ds.inkW, fontWeight: 700 }}>#{report.reportId}</td>
                           <td style={{ padding: 14, borderBottom: `1px solid ${ds.lineSoft}` }}>{badge(statusMeta[report.status], report.status)}</td>
                           <td style={{ padding: 14, borderBottom: `1px solid ${ds.lineSoft}`, minWidth: 340 }}>
                             <div style={{ display: "grid", gap: 6 }}>
@@ -490,25 +485,26 @@ export default function ReportManage() {
                                     alignItems: "center",
                                     gap: 6,
                                     minWidth: 0,
-                                    maxWidth: "100%",
-                                    color: ds.inkW,
-                                    fontWeight: 800,
-                                    lineHeight: 1.45,
-                                    textDecoration: "none",
-                                  }}
-                                >
+                                  maxWidth: "100%",
+                                  color: ds.inkW,
+                                  fontSize: 13,
+                                  fontWeight: 700,
+                                  lineHeight: 1.45,
+                                  textDecoration: "none",
+                                }}
+                              >
                                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{targetTitle}</span>
                                   <ExternalLink size={13} style={{ flexShrink: 0, color: ds.brand }} />
                                 </a>
                               ) : (
-                                <div style={{ color: ds.inkW, fontWeight: 800, lineHeight: 1.45 }}>{targetTitle}</div>
+                                <div style={{ fontSize: 13, color: ds.inkW, fontWeight: 700, lineHeight: 1.45 }}>{targetTitle}</div>
                               )}
                             </div>
                           </td>
                           <td style={{ padding: 14, borderBottom: `1px solid ${ds.lineSoft}` }}>#{report.reporterUserId}</td>
                           <td style={{ padding: 14, borderBottom: `1px solid ${ds.lineSoft}`, maxWidth: 280 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                              <div style={{ flex: 1, minWidth: 0, color: ds.inkW, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: ds.inkW, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                                 {report.reasonLabel || report.reasonCode || "-"}
                               </div>
                               <button
@@ -522,7 +518,7 @@ export default function ReportManage() {
                           </td>
                           <td style={{ padding: 14, borderBottom: `1px solid ${ds.lineSoft}` }}>
                             <div style={{ display: "grid", gap: 4 }}>
-                              <div style={{ color: ds.inkW, fontWeight: 800 }}>{report.totalReportCount}건</div>
+                              <div style={{ fontSize: 13, color: ds.inkW, fontWeight: 700 }}>{report.totalReportCount}건</div>
                               <div style={{ fontSize: 12, color: ds.ink3 }}>대기 {report.pendingReportCount}건</div>
                             </div>
                           </td>
@@ -655,11 +651,7 @@ export default function ReportManage() {
             <div style={{ width: "min(900px, 100%)", maxHeight: "90vh", overflow: "auto", background: ds.card, borderRadius: 22, border: `1px solid ${ds.line}`, boxShadow: ds.sh3 }}>
               <div style={{ padding: "24px 26px 20px", borderBottom: `1px solid ${ds.line}`, display: "flex", justifyContent: "space-between", gap: 16 }}>
                 <div style={{ display: "grid", gap: 10 }}>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 800, color: ds.brand }}>
-                    <AlertTriangle size={14} />
-                    REPORT DETAIL
-                  </div>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: ds.inkW }}>신고 #{selected.reportId}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: ds.inkW }}>신고 #{selected.reportId}</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {badge(statusMeta[active?.status], active?.status)}
                     {badge(targetMeta[active?.targetType], active?.targetType)}
@@ -701,8 +693,8 @@ export default function ReportManage() {
                               minWidth: 0,
                               maxWidth: "100%",
                               color: ds.inkW,
-                              fontSize: 16,
-                              fontWeight: 800,
+                              fontSize: 14,
+                              fontWeight: 700,
                               textDecoration: "none",
                             }}
                           >
@@ -712,7 +704,7 @@ export default function ReportManage() {
                             <ExternalLink size={14} style={{ flexShrink: 0, color: ds.brand }} />
                           </a>
                         ) : (
-                          <div style={{ fontSize: 16, color: ds.inkW, fontWeight: 800 }}>
+                          <div style={{ fontSize: 14, color: ds.inkW, fontWeight: 700 }}>
                             {active?.targetTitle || `대상 #${active?.targetId || "-"}`}
                           </div>
                         )}
@@ -732,20 +724,20 @@ export default function ReportManage() {
                         ["사유 코드", active?.reasonLabel || active?.reasonCode || "-"],
                       ].map(([label, value]) => (
                         <div key={label} style={{ display: "grid", gap: 6 }}>
-                          <div style={{ fontSize: 11.5, color: ds.ink4, fontWeight: 700 }}>{label}</div>
+                          <div style={{ fontSize: 12, color: ds.ink4, fontWeight: 700 }}>{label}</div>
                           <div style={{ fontSize: 14, color: ds.ink }}>{value || "-"}</div>
                         </div>
                       ))}
                     </div>
 
                     <div style={{ ...panel, padding: 18 }}>
-                      <div style={{ fontSize: 11.5, color: ds.ink4, fontWeight: 700 }}>신고 상세 사유</div>
+                      <div style={{ fontSize: 12, color: ds.ink4, fontWeight: 700 }}>신고 상세 사유</div>
                       <div style={{ marginTop: 8, fontSize: 14, color: ds.ink, lineHeight: 1.7 }}>{active?.reasonDetail || active?.reason || "-"}</div>
                     </div>
 
                     {active?.status === "PENDING" ? (
                       <div style={{ ...panel, padding: 18, display: "grid", gap: 12 }}>
-                        <div style={{ fontSize: 13, color: ds.ink2, fontWeight: 800 }}>처리 메모</div>
+                        <div style={{ fontSize: 13, color: ds.ink2, fontWeight: 700 }}>처리 메모</div>
                         <textarea
                           value={decisionReason}
                           onChange={(event) => setDecisionReason(event.target.value)}
