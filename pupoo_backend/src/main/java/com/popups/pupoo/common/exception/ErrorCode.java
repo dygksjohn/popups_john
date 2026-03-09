@@ -85,6 +85,8 @@ public enum ErrorCode {
     EMAIL_ALREADY_VERIFIED(HttpStatus.BAD_REQUEST, "A4006", "Email already verified"),
     EMAIL_VERIFICATION_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "A4007", "Invalid email verification token"),
     EMAIL_VERIFICATION_TOKEN_EXPIRED(HttpStatus.BAD_REQUEST, "A4008", "Email verification token expired"),
+    PASSWORD_RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "A4021", "Invalid password reset token"),
+    PASSWORD_RESET_TOKEN_EXPIRED(HttpStatus.BAD_REQUEST, "A4022", "Password reset token expired"),
     VERIFICATION_TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "A4291", "Too many verification requests"),
 
     // =========================

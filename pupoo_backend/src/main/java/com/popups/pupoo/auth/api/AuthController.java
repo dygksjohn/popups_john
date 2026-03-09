@@ -3,6 +3,7 @@ package com.popups.pupoo.auth.api;
 
 import com.popups.pupoo.auth.application.AuthService;
 import com.popups.pupoo.auth.application.KakaoOAuthService;
+import com.popups.pupoo.auth.application.PasswordResetService;
 import com.popups.pupoo.auth.application.SignupSessionService;
 import com.popups.pupoo.auth.dto.EmailVerificationRequestResponse;
 import com.popups.pupoo.auth.dto.KakaoExchangeRequest;
@@ -11,6 +12,9 @@ import com.popups.pupoo.auth.dto.KakaoOauthLoginRequest;
 import com.popups.pupoo.auth.dto.KakaoOauthLoginResponse;
 import com.popups.pupoo.auth.dto.LoginRequest;
 import com.popups.pupoo.auth.dto.LoginResponse;
+import com.popups.pupoo.auth.dto.PasswordResetConfirmRequest;
+import com.popups.pupoo.auth.dto.PasswordResetRequest;
+import com.popups.pupoo.auth.dto.PasswordResetRequestResponse;
 import com.popups.pupoo.auth.dto.SignupCompleteRequest;
 import com.popups.pupoo.auth.dto.SignupEmailConfirmRequest;
 import com.popups.pupoo.auth.dto.SignupEmailRequest;
@@ -41,17 +45,20 @@ public class AuthController {
     private final AuthService authService;
     private final SignupSessionService signupSessionService;
     private final KakaoOAuthService kakaoOAuthService;
+    private final PasswordResetService passwordResetService;
     private final boolean refreshCookieSecure;
     private final String refreshCookiePath;
 
     public AuthController(AuthService authService,
                           SignupSessionService signupSessionService,
                           KakaoOAuthService kakaoOAuthService,
+                          PasswordResetService passwordResetService,
                           @Value("${auth.refresh.cookie.secure:false}") boolean refreshCookieSecure,
                           @Value("${auth.refresh.cookie.path:/api/auth}") String refreshCookiePath) {
         this.authService = authService;
         this.signupSessionService = signupSessionService;
         this.kakaoOAuthService = kakaoOAuthService;
+        this.passwordResetService = passwordResetService;
         this.refreshCookieSecure = refreshCookieSecure;
         this.refreshCookiePath = refreshCookiePath;
     }
@@ -135,6 +142,23 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@RequestBody LoginRequest req, HttpServletResponse response) {
         return ApiResponse.success(authService.login(req, response));
+    }
+
+    @PostMapping("/password-reset/request")
+    public ApiResponse<PasswordResetRequestResponse> requestPasswordReset(@RequestBody PasswordResetRequest req) {
+        return ApiResponse.success(passwordResetService.requestPasswordReset(req));
+    }
+
+    @GetMapping("/password-reset/validate")
+    public ApiResponse<MessageResponse> validatePasswordResetToken(@RequestParam("token") String token) {
+        passwordResetService.validatePasswordResetToken(token);
+        return ApiResponse.success(new MessageResponse("PASSWORD_RESET_TOKEN_VALID"));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    public ApiResponse<MessageResponse> confirmPasswordReset(@RequestBody PasswordResetConfirmRequest req) {
+        passwordResetService.confirmPasswordReset(req);
+        return ApiResponse.success(new MessageResponse("PASSWORD_RESET_COMPLETED"));
     }
 
     /**

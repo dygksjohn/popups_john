@@ -31,6 +31,7 @@ import Home from "./pages/site/home/Home";
 /* Auth */
 import Login from "./pages/site/auth/Login";
 import FindPassword from "./pages/site/auth/FindPassword";
+import ResetPassword from "./pages/site/auth/ResetPassword";
 import Mypage from "./pages/site/auth/mypage";
 import MypageQr from "./pages/site/auth/MypageQr";
 import MypageProfileEdit from "./pages/site/auth/MypageProfileEdit";
@@ -417,6 +418,7 @@ export default function App() {
               </PublicOnly>
             }
           />
+          <Route path="/auth/reset-password" element={<ResetPassword />} />
           <Route path="/auth/mypage" element={<Mypage />} />
           <Route path="/auth/mypage/qr" element={<MypageQr />} />
           <Route path="/auth/mypage/profile" element={<MypageProfileEdit />} />
@@ -478,6 +480,7 @@ export default function App() {
           />
           <Route path="/join" element={<JoinSelect />} />
           <Route path="/find-password" element={<FindPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/join/select" element={<JoinSelect />} />
           <Route path="/join/normal" element={<JoinNormal />} />
           <Route path="/join/social" element={<JoinSocial />} />

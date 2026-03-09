@@ -49,6 +49,22 @@ export const authApi = {
     return post("/api/auth/login", payload, config);
   },
 
+  passwordResetRequest: async (payload, config) => {
+    return post("/api/auth/password-reset/request", payload, config);
+  },
+
+  passwordResetValidate: async (token, config = {}) => {
+    const res = await axiosInstance.get("/api/auth/password-reset/validate", {
+      params: { token },
+      ...config,
+    });
+    return unwrap(res);
+  },
+
+  passwordResetConfirm: async (payload, config) => {
+    return post("/api/auth/password-reset/confirm", payload, config);
+  },
+
   refresh: async (config) => {
     // refresh는 보통 payload 없음
     const res = await axiosInstance.post("/api/auth/refresh", null, {

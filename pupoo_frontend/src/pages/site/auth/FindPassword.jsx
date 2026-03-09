@@ -1,15 +1,48 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { authApi } from "./api/authApi";
 
 export default function FindPassword() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
+
+    if (!email.trim()) {
+      setErrorMessage("이메일을 입력해 주세요.");
+      setSuccessMessage("");
+      return;
+    }
+
+    if (!phone.trim()) {
+      setErrorMessage("휴대전화 번호를 입력해 주세요.");
+      setSuccessMessage("");
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage("");
+
+    try {
+      await authApi.passwordResetRequest({
+        email: email.trim(),
+        phone: phone.trim(),
+      });
+      setSuccessMessage("입력하신 정보가 맞으면 비밀번호 재설정 링크를 이메일로 보냈습니다.");
+    } catch (error) {
+      const message =
+        error?.response?.data?.error?.message ||
+        "비밀번호 재설정 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+      setErrorMessage(message);
+      setSuccessMessage("");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -69,25 +102,32 @@ export default function FindPassword() {
 
           <button
             type="submit"
+            disabled={loading}
             style={{
               height: 46,
               border: "none",
               borderRadius: 8,
-              background: "#3B82F6",
+              background: loading ? "#93C5FD" : "#3B82F6",
               color: "#fff",
               fontSize: 15,
               fontWeight: 600,
-              cursor: "pointer",
+              cursor: loading ? "default" : "pointer",
               marginTop: 4,
             }}
           >
-            확인
+            {loading ? "요청 중..." : "확인"}
           </button>
         </form>
 
-        {submitted ? (
+        {successMessage ? (
           <p style={{ marginTop: 12, color: "#2563EB", fontSize: 13 }}>
-            현재 비밀번호 재설정 API 연동 전입니다. 관리자에게 문의해 주세요.
+            {successMessage}
+          </p>
+        ) : null}
+
+        {errorMessage ? (
+          <p style={{ marginTop: 12, color: "#DC2626", fontSize: 13 }}>
+            {errorMessage}
           </p>
         ) : null}
 
