@@ -22,6 +22,7 @@ import DATA from "../shared/data";
 import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const authHeaders = () => {
   const t = getToken();
@@ -114,7 +115,10 @@ export default function PastEvents() {
         );
         const list = res.data?.data || res.data || [];
         if (list.length > 0) {
-          const withImages = injectEventImages(list);
+          const withImages = injectEventImages(list).map((item) => ({
+            ...item,
+            imageUrl: item.imageUrl ? toPublicAssetUrl(item.imageUrl) : null,
+          }));
           setEvents(withImages);
           setSelectedId(withImages[0].id || withImages[0].eventId);
         } else {
