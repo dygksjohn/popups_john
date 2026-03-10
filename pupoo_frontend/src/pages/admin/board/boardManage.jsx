@@ -678,7 +678,6 @@ function DetailModal({
                   resize: "vertical",
                   boxSizing: "border-box",
                   lineHeight: 1.6,
-                  background: ds.bg,
                 }}
               />
               <div

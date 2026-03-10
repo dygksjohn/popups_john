@@ -873,7 +873,7 @@ export default function ParticipantList({ subTab = "list" }) {
                           onClick={() => setEventFilter(t.id)}
                           style={{
                             padding: "8px 18px",
-                            border: "none",
+                            border: `1px solid ${on ? ds.brand : ds.line}`,
                             cursor: "pointer",
                             borderRadius: 22,
                             fontSize: 13,
@@ -885,7 +885,6 @@ export default function ParticipantList({ subTab = "list" }) {
                             alignItems: "center",
                             gap: 6,
                             fontFamily: ds.ff,
-                            border: `1px solid ${on ? ds.brand : ds.line}`,
                           }}
                         >
                           {t.label}
