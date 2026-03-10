@@ -21,7 +21,7 @@ import { boardApi } from "../../../app/http/boardApi";
 import { fileApi } from "../../../app/http/fileApi";
 import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
-import CommunityRichTextEditor from "./shared/CommunityRichTextEditor";
+import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 
 const PAGE_SIZE = 10;
@@ -213,10 +213,10 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
           >
             내용 <span style={{ color: "#EF4444" }}>*</span>
           </label>
-          <CommunityRichTextEditor
+          <CommunityContentTextarea
             value={content}
             onChange={setContent}
-            placeholder="내용을 입력해 주세요. 이미지는 본문에 바로 삽입할 수 있습니다."
+            placeholder="내용을 입력해 주세요."
             height={280}
           />
         </div>
