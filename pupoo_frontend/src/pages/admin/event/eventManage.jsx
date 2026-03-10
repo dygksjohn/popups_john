@@ -25,26 +25,13 @@ import DATA from "../shared/data";
 import { sortAdminEventsByOperationalPriority } from "../shared/adminStatus";
 import {
   setEventImage,
-  getEventImageMap,
   removeEventImage,
   loadImageCache,
 } from "../shared/eventImageStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
+import { eventApi } from "../../../app/http/eventApi";
 import { getToken } from "../../../api/noticeApi";
-
-/* ── 이미지 없을 때 강아지 샘플 폴백 ── */
-const DOG_SAMPLES = [
-  "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1552053831-71594a27632d?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=200&h=200&fit=crop",
-];
-const getDogImage = (id) =>
-  DOG_SAMPLES[Math.abs(Number(id) || 0) % DOG_SAMPLES.length];
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 /* ═══════════════════════════════════════════
    전역 스타일
@@ -682,9 +669,15 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
   const [visible, setVisible] = useState(false);
 
   /* 이미지 업로드 상태 */
-  const [imagePreview, setImagePreview] = useState(item?.imageUrl || null);
+  const initialImageUrl = item?.imageUrl || null;
+  const [imagePreview, setImagePreview] = useState(
+    initialImageUrl ? toPublicAssetUrl(initialImageUrl) : null,
+  );
+  const [imageValue, setImageValue] = useState(initialImageUrl);
   const [imageFile, setImageFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const [isGeneratingPoster, setIsGeneratingPoster] = useState(false);
+  const [posterPrompt, setPosterPrompt] = useState("");
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -704,6 +697,7 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
       return;
     }
     setImageFile(file);
+    setImageValue(null);
     const reader = new FileReader();
     reader.onload = (e) => setImagePreview(e.target.result);
     reader.readAsDataURL(file);
@@ -726,8 +720,49 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
 
   const removeImage = () => {
     setImagePreview(null);
+    setImageValue(null);
     setImageFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleGeneratePoster = async () => {
+    if (!form.name?.trim() || !form.location?.trim()) {
+      setErr("행사명과 장소를 입력한 뒤 AI 포스터를 생성하세요.");
+      return;
+    }
+
+    setIsGeneratingPoster(true);
+    try {
+      const res = await eventApi.generateAdminPoster(
+        {
+          eventName: form.name.trim(),
+          description: form.description?.trim() || "",
+          startAt: toISO(form.dateStart, false),
+          endAt: toISO(form.dateEnd, true),
+          location: form.location.trim(),
+          extraPrompt: posterPrompt.trim(),
+        },
+        {
+          headers: authHeaders(),
+        },
+      );
+      const poster = res.data?.data || res.data;
+      if (!poster?.imageUrl) {
+        throw new Error("AI poster response is empty.");
+      }
+      setImageFile(null);
+      setImageValue(poster.imageUrl);
+      setImagePreview(toPublicAssetUrl(poster.imageUrl));
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setErr("");
+    } catch (error) {
+      console.error("[EventManage] AI 포스터 생성 실패:", error);
+      const message =
+        error?.response?.data?.message || "AI 포스터 생성에 실패했습니다.";
+      setErr(message);
+    } finally {
+      setIsGeneratingPoster(false);
+    }
   };
 
   const handleSave = () => {
@@ -746,7 +781,7 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
       dateStart,
       dateEnd,
       imageFile,
-      imageUrl: imagePreview,
+      imageUrl: imageFile ? null : imageValue,
     });
   };
 
@@ -1007,6 +1042,55 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
                 style={{ display: "none" }}
                 onChange={(e) => handleImageFile(e.target.files?.[0])}
               />
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0, 1fr) auto",
+                  gap: 10,
+                  alignItems: "center",
+                }}
+              >
+                <input
+                  type="text"
+                  value={posterPrompt}
+                  maxLength={1000}
+                  disabled={isGeneratingPoster}
+                  onChange={(e) => setPosterPrompt(e.target.value)}
+                  onFocus={inputFocus}
+                  onBlur={inputBlur}
+                  placeholder={"\uCD94\uAC00 \uD504\uB86C\uD504\uD2B8\uB97C \uC785\uB825\uD558\uC138\uC694. \uC608) \uBD04 \uBC9A\uAF43 \uD14C\uB9C8, \uBBF8\uB2C8\uBA40 \uD3EC\uC2A4\uD130"}
+                  style={{
+                    ...inputStyle,
+                    minWidth: 0,
+                    padding: "9px 14px",
+                    fontSize: 12.5,
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleGeneratePoster}
+                  disabled={isGeneratingPoster}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "9px 14px",
+                    borderRadius: 10,
+                    border: `1px solid ${ds.brand}22`,
+                    background: `${ds.brand}10`,
+                    color: ds.brand,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    fontFamily: ds.ff,
+                    cursor: isGeneratingPoster ? "wait" : "pointer",
+                    opacity: isGeneratingPoster ? 0.7 : 1,
+                  }}
+                >
+                  <Upload size={14} />
+                  {isGeneratingPoster ? "생성 중..." : "AI 생성하기"}
+                </button>
+              </div>
             </Field>
 
             {/* ── 2열 레이아웃: 행사명 / 장소 ── */}
@@ -1249,7 +1333,7 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
             }}
           >
             <img
-              src={item.imageUrl}
+              src={toPublicAssetUrl(item.imageUrl)}
               alt={item.name}
               style={{
                 width: "100%",
@@ -1629,9 +1713,6 @@ export default function EventManage({ subTab = "all" }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  /* ── 이미지 로컬 저장 (DB에 image_url 컬럼 추가 전까지) ── */
-  const imageMapRef = useRef({});
-
   /* ── API에서 행사 목록 로드 ── */
   const loadEvents = async () => {
     try {
@@ -1640,18 +1721,11 @@ export default function EventManage({ subTab = "all" }) {
         headers: authHeaders(),
       });
       const list = res.data?.data || res.data || [];
-      const sharedMap = getEventImageMap();
       const mapped = list.map((e) => {
         const eid = e.eventId || e.id;
-        const imgUrl =
-          imageMapRef.current[eid] ||
-          sharedMap[String(eid)] ||
-          e.imageUrl ||
-          null;
-        /* 공유 저장소에 동기화 */
-        if (imgUrl && !sharedMap[String(eid)]) {
-          setEventImage(eid, imgUrl);
-        }
+        const imgUrl = e.imageUrl || null;
+        if (imgUrl) setEventImage(eid, imgUrl);
+        else removeEventImage(eid);
         /* startAt/endAt → 표시용 date 문자열 생성 */
         const fmtD = (iso) => {
           if (!iso) return "";
@@ -1673,7 +1747,7 @@ export default function EventManage({ subTab = "all" }) {
           capacity: e.capacity || 500,
           _visible: true,
           status: calcAutoStatus(dateStr),
-          imageUrl: imgUrl || getDogImage(eid),
+          imageUrl: imgUrl,
         };
       });
       setItems(sortAdminEventsByOperationalPriority(mapped));
@@ -1738,9 +1812,22 @@ export default function EventManage({ subTab = "all" }) {
     });
   };
 
+  const uploadEventPoster = async (imageFile) => {
+    if (!imageFile) return null;
+    const formData = new FormData();
+    formData.append("file", imageFile);
+    const res = await eventApi.uploadAdminPoster(formData, {
+      headers: authHeaders(),
+    });
+    return res.data?.data?.imageUrl || res.data?.imageUrl || null;
+  };
+
   const handleCreate = async (form) => {
     try {
       const autoStatus = calcAutoStatus(`${form.dateStart} ~ ${form.dateEnd}`);
+      const imageUrl = form.imageFile
+        ? await uploadEventPoster(form.imageFile)
+        : form.imageUrl || null;
       const body = {
         eventName: form.name,
         description: form.description || "",
@@ -1750,6 +1837,7 @@ export default function EventManage({ subTab = "all" }) {
         ),
         endAt: toISO(form.dateEnd || form.date?.split("~")[1]?.trim(), true),
         location: form.location,
+        imageUrl,
         status: STATUS_TO_BACKEND[autoStatus] || "PLANNED",
       };
       const res = await axiosInstance.post(
@@ -1759,14 +1847,11 @@ export default function EventManage({ subTab = "all" }) {
           headers: authHeaders(),
         },
       );
-      /* 이미지 로컬 저장 */
-      if (form.imageUrl) {
-        const created = res.data?.data || res.data;
-        const newId = created?.eventId || created?.id;
-        if (newId) {
-          imageMapRef.current[newId] = form.imageUrl;
-          setEventImage(newId, form.imageUrl);
-        }
+      const created = res.data?.data || res.data;
+      const newId = created?.eventId || created?.id;
+      if (newId) {
+        if (imageUrl) setEventImage(newId, imageUrl);
+        else removeEventImage(newId);
       }
       await loadEvents();
       setPanel(null);
@@ -1780,6 +1865,9 @@ export default function EventManage({ subTab = "all" }) {
     try {
       const eventId = form.eventId || form.id?.replace("EV-", "");
       const autoStatus = calcAutoStatus(`${form.dateStart} ~ ${form.dateEnd}`);
+      const imageUrl = form.imageFile
+        ? await uploadEventPoster(form.imageFile)
+        : form.imageUrl || null;
       const body = {
         eventName: form.name,
         description: form.description || "",
@@ -1789,6 +1877,7 @@ export default function EventManage({ subTab = "all" }) {
         ),
         endAt: toISO(form.dateEnd || form.date?.split("~")[1]?.trim(), true),
         location: form.location,
+        imageUrl,
         status: STATUS_TO_BACKEND[autoStatus] || "PLANNED",
       };
       await axiosInstance.patch(
@@ -1798,14 +1887,8 @@ export default function EventManage({ subTab = "all" }) {
           headers: authHeaders(),
         },
       );
-      /* 이미지 로컬 저장 */
-      if (form.imageUrl) {
-        imageMapRef.current[eventId] = form.imageUrl;
-        setEventImage(eventId, form.imageUrl);
-      } else {
-        delete imageMapRef.current[eventId];
-        removeEventImage(eventId);
-      }
+      if (imageUrl) setEventImage(eventId, imageUrl);
+      else removeEventImage(eventId);
       await loadEvents();
       setPanel(null);
       showToast("행사 정보가 수정되었습니다.");
@@ -2159,7 +2242,7 @@ export default function EventManage({ subTab = "all" }) {
                         >
                           {r.imageUrl && (
                             <img
-                              src={r.imageUrl}
+                              src={toPublicAssetUrl(r.imageUrl)}
                               alt=""
                               style={{
                                 width: 36,

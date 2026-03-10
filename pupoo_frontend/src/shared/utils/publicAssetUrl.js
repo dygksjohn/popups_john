@@ -9,6 +9,10 @@ export function toPublicAssetUrl(rawUrl) {
     return raw;
   }
 
+  if (/^(data|blob):/i.test(raw)) {
+    return raw;
+  }
+
   let normalized = raw.replace(/\\/g, "/");
   const lower = normalized.toLowerCase();
   const uploadsMarkerIndex = lower.indexOf("/uploads/");

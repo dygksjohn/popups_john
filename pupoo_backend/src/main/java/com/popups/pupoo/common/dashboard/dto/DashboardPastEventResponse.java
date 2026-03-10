@@ -1,5 +1,6 @@
 package com.popups.pupoo.common.dashboard.dto;
 
+import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.event.domain.model.Event;
 import lombok.Builder;
 import lombok.Getter;
@@ -28,6 +29,7 @@ public class DashboardPastEventResponse {
     private int    zoneUsage;       // % (event_history 기반 집계 or 기본값)
     private int    eventRate;       // %
     private int    avgCongestion;   // %
+    private String imageUrl;
 
     public static DashboardPastEventResponse from(
             Event e,
@@ -48,6 +50,7 @@ public class DashboardPastEventResponse {
                 .zoneUsage(zoneUsage)
                 .eventRate(eventRate)
                 .avgCongestion(avgCongestion)
+                .imageUrl(PublicUrlNormalizer.normalize(e.getImageUrl()))
                 .build();
     }
 }
