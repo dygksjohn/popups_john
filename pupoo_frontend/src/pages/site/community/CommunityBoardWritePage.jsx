@@ -5,7 +5,7 @@ import { boardApi } from "../../../app/http/boardApi";
 import { fileApi } from "../../../app/http/fileApi";
 import { postApi } from "../../../app/http/postApi";
 import { tokenStore } from "../../../app/http/tokenStore";
-import CommunityRichTextEditor from "./shared/CommunityRichTextEditor";
+import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 import CommunityWriteLayout from "./shared/CommunityWriteLayout";
 
@@ -211,10 +211,10 @@ export default function CommunityBoardWritePage({
 
             <label style={{ display: "grid", gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>내용</span>
-              <CommunityRichTextEditor
+              <CommunityContentTextarea
                 value={content}
                 onChange={setContent}
-                placeholder="내용을 입력해 주세요. 이미지는 본문에 바로 삽입할 수 있습니다."
+                placeholder="내용을 입력해 주세요."
                 height={340}
               />
             </label>

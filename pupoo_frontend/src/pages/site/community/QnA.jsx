@@ -17,7 +17,7 @@ import {
 import { qnaApi, unwrap } from "../../../api/qnaApi";
 import sortIcon from "../../../assets/sort-icon.svg";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
-import CommunityRichTextEditor from "./shared/CommunityRichTextEditor";
+import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 
 const FILTER_OPTIONS = [
@@ -313,10 +313,10 @@ function WriteModal({ item, onSave, onClose, saving }) {
           >
             내용 <span style={{ color: "#EF4444" }}>*</span>
           </label>
-          <CommunityRichTextEditor
+          <CommunityContentTextarea
             value={form.content}
             onChange={(value) => setForm((p) => ({ ...p, content: value }))}
-            placeholder="질문 내용을 입력해 주세요. 이미지도 본문에 삽입할 수 있습니다."
+            placeholder="질문 내용을 입력해 주세요."
             height={280}
           />
         </div>
