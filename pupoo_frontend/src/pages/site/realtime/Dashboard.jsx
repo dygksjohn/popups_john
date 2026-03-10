@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import RealtimeEventSelector from "./RealtimeEventSelector";
@@ -22,7 +22,12 @@ import {
 } from "./useRealtimeAnimations";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
+import { aiApi } from "../../../app/http/aiApi";
 import { getToken } from "../../../api/noticeApi";
+import {
+  formatKoreanTime,
+  normalizePrediction,
+} from "./aiCongestionViewModel";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -235,7 +240,8 @@ export const SUBTITLE_MAP = {
   "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 확인합니다",
 };
 
-const DEFAULT_HOURS = Array.from({ length: 12 }, (_, index) => 10 + index);
+const FALLBACK_HOURS = Array.from({ length: 12 }, (_, index) => 10 + index);
+const AI_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const STATUS_BADGE = {
   ONGOING: { className: "", label: "LIVE", showDot: true },
@@ -257,6 +263,124 @@ const toArray = (payload) =>
     : Array.isArray(payload)
       ? payload
       : [];
+
+const toValidDate = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const toHour = (value) => {
+  const date = toValidDate(value);
+  return date ? date.getHours() : null;
+};
+
+const normalizeHour = (value) => ((Number(value) % 24) + 24) % 24;
+
+const toDateKey = (value) => {
+  const date = toValidDate(value);
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const formatDateOptionLabel = (dateKey) => {
+  if (!dateKey) return "";
+  const date = toValidDate(`${dateKey}T00:00:00`);
+  if (!date) return dateKey;
+  return date.toLocaleDateString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+  });
+};
+
+const buildDateKeysFromRange = (startAt, endAt, maxDays = 60) => {
+  const startDate = toValidDate(startAt);
+  const endDate = toValidDate(endAt);
+  if (!startDate || !endDate || endDate < startDate) return [];
+
+  const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const limit = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+  const keys = [];
+
+  while (cursor <= limit && keys.length < maxDays) {
+    keys.push(toDateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return keys;
+};
+
+const clipRangeByDate = (startAt, endAt, dateKey) => {
+  const startDate = toValidDate(startAt);
+  const endDate = toValidDate(endAt);
+  const baseDate = toValidDate(`${dateKey}T00:00:00`);
+  if (!startDate || !endDate || !baseDate || endDate < startDate) {
+    return { startAt: null, endAt: null };
+  }
+
+  const dayStart = new Date(baseDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(baseDate);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  if (endDate < dayStart || startDate > dayEnd) {
+    return { startAt: null, endAt: null };
+  }
+
+  const clippedStart = startDate > dayStart ? startDate : dayStart;
+  const clippedEnd = endDate < dayEnd ? endDate : dayEnd;
+  return { startAt: clippedStart, endAt: clippedEnd };
+};
+
+const buildHourRange = (startAt, endAt) => {
+  const startDate = toValidDate(startAt);
+  const endDate = toValidDate(endAt);
+  if (!startDate || !endDate || endDate < startDate) return [];
+
+  const sameDay = startDate.toDateString() === endDate.toDateString();
+  const startHour = startDate.getHours();
+  const endHour = sameDay ? endDate.getHours() : 23;
+  if (endHour < startHour) return [normalizeHour(startHour)];
+
+  return Array.from({ length: endHour - startHour + 1 }, (_, index) =>
+    normalizeHour(startHour + index),
+  );
+};
+
+const uniqueNormalizedHours = (hours) =>
+  Array.from(new Set(hours.map((hour) => normalizeHour(hour)).filter(Number.isFinite))).sort(
+    (a, b) => a - b,
+  );
+
+const buildHourAxis = ({ hourlyRows, timeline, startAt, endAt, preferRange = false }) => {
+  if (preferRange) {
+    const range = buildHourRange(startAt, endAt);
+    if (range.length > 0) return range;
+  }
+
+  const rowHours = uniqueNormalizedHours(
+    toArray(hourlyRows)
+      .map((row) => Number(row?.hour ?? row?.h))
+      .filter(Number.isFinite),
+  );
+  if (rowHours.length > 0) return rowHours;
+
+  const timelineHours = uniqueNormalizedHours(
+    Array.isArray(timeline)
+      ? timeline.map((point) => toHour(point?.time)).filter(Number.isFinite)
+      : [],
+  );
+  if (timelineHours.length > 0) return timelineHours;
+
+  const range = buildHourRange(startAt, endAt);
+  if (range.length > 0) return range;
+
+  return [...FALLBACK_HOURS];
+};
 
 const formatDateRange = (startAt, endAt) => {
   const start = startAt ? new Date(startAt) : null;
@@ -441,14 +565,22 @@ function DashboardContent({ eventId }) {
   const [performance, setPerformance] = useState({ approved: 0, checkin: 0 });
   const [hourlyRows, setHourlyRows] = useState([]);
   const [congestionRows, setCongestionRows] = useState([]);
+  const [eventPrediction, setEventPrediction] = useState(null);
+  const [aiErrorMsg, setAiErrorMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [lastLoadedAt, setLastLoadedAt] = useState(new Date());
+  const aiPredictionRef = useRef(null);
+  const aiLoadedAtRef = useRef(0);
+  const [selectedForecastDate, setSelectedForecastDate] = useState("");
 
   const loadData = useCallback(async (options = {}) => {
-    const { preserveLoading = false } = options;
+    const { preserveLoading = false, forceAi = false } = options;
     if (!numericEventId || Number.isNaN(numericEventId)) {
       setErrorMsg("잘못된 행사 경로입니다.");
+      setEventPrediction(null);
+      aiPredictionRef.current = null;
+      aiLoadedAtRef.current = 0;
       setLoading(false);
       return;
     }
@@ -477,6 +609,29 @@ function DashboardContent({ eventId }) {
       setCongestionRows(toArray(latestCongestions));
       setErrorMsg("");
       setLastLoadedAt(new Date());
+
+      const now = Date.now();
+      const shouldLoadAi =
+        forceAi ||
+        !aiPredictionRef.current ||
+        now - aiLoadedAtRef.current >= AI_REFRESH_INTERVAL_MS;
+
+      if (shouldLoadAi) {
+        try {
+          const aiResponse = await aiApi.predictEventCongestion(numericEventId);
+          const aiPayload = normalizePrediction(unwrapData(aiResponse, null));
+          aiPredictionRef.current = aiPayload;
+          aiLoadedAtRef.current = now;
+          setEventPrediction(aiPayload);
+          setAiErrorMsg("");
+        } catch (aiError) {
+          console.error("[Realtime Dashboard] ai predict failed:", aiError);
+          setAiErrorMsg("AI prediction is temporarily unavailable.");
+        }
+      } else {
+        setEventPrediction(aiPredictionRef.current);
+        setAiErrorMsg("");
+      }
     } catch (error) {
       console.error("[Realtime Dashboard] load failed:", error);
       setErrorMsg("실시간 운영 데이터를 불러오지 못했습니다.");
@@ -486,7 +641,7 @@ function DashboardContent({ eventId }) {
   }, [numericEventId]);
 
   const { spinning, refresh } = useRefresh(() => {
-    loadData({ preserveLoading: true });
+    loadData({ preserveLoading: true, forceAi: true });
   }, 800);
 
   useEffect(() => {
@@ -527,23 +682,136 @@ function DashboardContent({ eventId }) {
     [measuredCongestions],
   );
 
+  const eventStatus = String(eventDetail?.status ?? "").toUpperCase();
+  const isPlannedEvent = eventStatus === "PLANNED";
+  const isOngoingEvent = eventStatus === "ONGOING";
+
+  const forecastDateOptions = useMemo(() => {
+    const timelineDates = Array.isArray(eventPrediction?.timeline)
+      ? Array.from(
+          new Set(
+            eventPrediction.timeline
+              .map((point) => toDateKey(point?.time))
+              .filter(Boolean),
+          ),
+        ).sort((left, right) => left.localeCompare(right))
+      : [];
+    if (timelineDates.length > 0) return timelineDates;
+    return buildDateKeysFromRange(eventDetail?.startAt, eventDetail?.endAt);
+  }, [eventDetail?.endAt, eventDetail?.startAt, eventPrediction?.timeline]);
+
+  useEffect(() => {
+    if (!isPlannedEvent) {
+      if (selectedForecastDate) {
+        setSelectedForecastDate("");
+      }
+      return;
+    }
+    if (forecastDateOptions.length === 0) {
+      if (selectedForecastDate) {
+        setSelectedForecastDate("");
+      }
+      return;
+    }
+    if (!forecastDateOptions.includes(selectedForecastDate)) {
+      setSelectedForecastDate(forecastDateOptions[0]);
+    }
+  }, [forecastDateOptions, isPlannedEvent, selectedForecastDate]);
+
+  const chartTimeline = useMemo(() => {
+    const baseTimeline = Array.isArray(eventPrediction?.timeline)
+      ? eventPrediction.timeline
+      : [];
+    if (baseTimeline.length === 0) return [];
+    if (isPlannedEvent) {
+      if (!selectedForecastDate) return [];
+      return baseTimeline.filter(
+        (point) => toDateKey(point?.time) === selectedForecastDate,
+      );
+    }
+    if (isOngoingEvent) {
+      const todayKey = toDateKey(new Date());
+      return baseTimeline.filter((point) => toDateKey(point?.time) === todayKey);
+    }
+    return baseTimeline;
+  }, [eventPrediction?.timeline, isOngoingEvent, isPlannedEvent, selectedForecastDate]);
+
   const hours = useMemo(() => {
     const hourlyMap = new Map(
-      hourlyRows.map((row) => [
-        Number(row.hour ?? row.h),
-        congestionLevelToPercent(row.avgCongestionLevel ?? row.avgCongestion ?? row.avg_level),
-      ]),
+      toArray(hourlyRows)
+        .map((row) => [
+          normalizeHour(Number(row?.hour ?? row?.h)),
+          congestionLevelToPercent(row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level),
+        ])
+        .filter(([hour]) => Number.isFinite(hour)),
     );
 
-    return DEFAULT_HOURS.map((hour) => {
-      const value = hourlyMap.get(hour) ?? 0;
+    const timelineMap = new Map();
+    if (Array.isArray(chartTimeline)) {
+      chartTimeline.forEach((point) => {
+        const hour = toHour(point?.time);
+        if (!Number.isFinite(hour)) return;
+        const normalizedHour = normalizeHour(hour);
+        const score = clamp(Math.round(Number(point?.score) || 0), 0, 100);
+        const previous = timelineMap.get(normalizedHour);
+        if (previous == null || score > previous) {
+          timelineMap.set(normalizedHour, score);
+        }
+      });
+    }
+
+    let axisStart = eventDetail?.startAt;
+    let axisEnd = eventDetail?.endAt;
+
+    if (isPlannedEvent && selectedForecastDate) {
+      const clipped = clipRangeByDate(
+        eventDetail?.startAt,
+        eventDetail?.endAt,
+        selectedForecastDate,
+      );
+      axisStart = clipped.startAt;
+      axisEnd = clipped.endAt;
+    } else if (isOngoingEvent) {
+      const todayKey = toDateKey(new Date());
+      const clipped = clipRangeByDate(
+        eventDetail?.startAt,
+        eventDetail?.endAt,
+        todayKey,
+      );
+      if (clipped.startAt && clipped.endAt) {
+        axisStart = clipped.startAt;
+        axisEnd = clipped.endAt;
+      }
+    }
+
+    const hourAxis = buildHourAxis({
+      hourlyRows,
+      timeline: chartTimeline,
+      startAt: axisStart,
+      endAt: axisEnd,
+      preferRange: isPlannedEvent || isOngoingEvent,
+    });
+
+    return hourAxis.map((hour) => {
+      const normalizedHour = normalizeHour(hour);
+      const value = isPlannedEvent
+        ? timelineMap.get(normalizedHour) ?? hourlyMap.get(normalizedHour) ?? 0
+        : hourlyMap.get(normalizedHour) ?? timelineMap.get(normalizedHour) ?? 0;
       return {
-        h: String(hour),
+        h: String(normalizedHour).padStart(2, "0"),
         v: value,
         pct: value,
       };
     });
-  }, [hourlyRows]);
+  }, [
+    chartTimeline,
+    eventDetail?.endAt,
+    eventDetail?.startAt,
+    hourlyRows,
+    isOngoingEvent,
+    isPlannedEvent,
+    selectedForecastDate,
+  ]);
 
   const progressData = useMemo(() => {
     const totalBooths = congestionRows.length;
@@ -647,6 +915,11 @@ function DashboardContent({ eventId }) {
     },
   ], [averageCongestion, checkinRate, hotBoothCount, performance.approved, performance.checkin]);
 
+  const aiTimelinePreview = useMemo(
+    () => (Array.isArray(chartTimeline) ? chartTimeline.slice(0, 6) : []),
+    [chartTimeline],
+  );
+
   const badge = STATUS_BADGE[String(eventDetail?.status).toUpperCase()] || STATUS_BADGE.PLANNED;
 
   if (loading && !eventDetail) {
@@ -706,6 +979,115 @@ function DashboardContent({ eventId }) {
         ))}
       </div>
 
+      <div className="rt-card">
+        <div className="rt-card-header">
+          <div className="rt-card-title">
+            <div className="rt-card-title-icon">
+              <Radio size={14} color="#1a4fd6" />
+            </div>
+            AI ??? ??
+          </div>
+          <span className="rt-card-tag">5? ??</span>
+        </div>
+
+        {eventPrediction ? (
+          <>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                gap: 12,
+              }}
+            >
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontSize: 12, color: "#6b7280" }}>?? ??</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: "#111827", marginTop: 4 }}>
+                  {Math.round(eventPrediction.avgScore)}
+                </div>
+              </div>
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontSize: 12, color: "#6b7280" }}>?? ??</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: "#111827", marginTop: 4 }}>
+                  {Math.round(eventPrediction.peakScore)}
+                </div>
+              </div>
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontSize: 12, color: "#6b7280" }}>?? ??</div>
+                <div style={{ marginTop: 7 }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      border: `1px solid ${eventPrediction.levelTone.border}`,
+                      color: eventPrediction.levelTone.color,
+                      background: eventPrediction.levelTone.bg,
+                    }}
+                  >
+                    Lv.{eventPrediction.level} {eventPrediction.levelLabel}
+                  </span>
+                </div>
+              </div>
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontSize: 12, color: "#6b7280" }}>?? ??</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: "#111827", marginTop: 4 }}>
+                  {eventPrediction.waitMinutes}
+                  <span style={{ fontSize: 14, fontWeight: 600, marginLeft: 4 }}>min</span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: 12,
+                display: "flex",
+                gap: 16,
+                flexWrap: "wrap",
+                fontSize: 12,
+                color: "#6b7280",
+              }}
+            >
+              <span>?? ??: {formatKoreanTime(eventPrediction.baseTime)}</span>
+              <span>???: {Math.round(eventPrediction.confidence * 100)}%</span>
+              <span>??: {eventPrediction.fallbackUsed ? "Fallback" : "AI Inference"}</span>
+            </div>
+
+            {aiTimelinePreview.length > 0 ? (
+              <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {aiTimelinePreview.map((point) => (
+                  <span
+                    key={`${point.time}-${point.score}`}
+                    style={{
+                      border: `1px solid ${point.tone.border}`,
+                      background: point.tone.bg,
+                      color: point.tone.color,
+                      borderRadius: 999,
+                      padding: "4px 10px",
+                      fontSize: 11,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {formatKoreanTime(point.time)} {Math.round(point.score)}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="rt-empty">
+            <span className="rt-empty-strong">AI ?? ???? ?? ?? ?????.</span>
+            ?? ? ?? ??? ???.
+          </div>
+        )}
+
+        {aiErrorMsg ? (
+          <div style={{ marginTop: 12, fontSize: 12, color: "#b91c1c" }}>{aiErrorMsg}</div>
+        ) : null}
+      </div>
+
       <div className="rt-two-col">
         <div className="rt-card">
           <div className="rt-card-header">
@@ -713,14 +1095,44 @@ function DashboardContent({ eventId }) {
               <div className="rt-card-title-icon">
                 <BarChart2 size={14} color="#1a4fd6" />
               </div>
-              실시간 운영 추이
+              ??? ?? ??
             </div>
-            <span className="rt-card-tag">시간대별 혼잡</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span className="rt-card-tag">
+                {isPlannedEvent ? "?? ??" : "??? ??"}
+              </span>
+              {isPlannedEvent && forecastDateOptions.length > 0 ? (
+                <select
+                  value={selectedForecastDate}
+                  onChange={(event) => setSelectedForecastDate(event.target.value)}
+                  style={{
+                    height: 28,
+                    border: "1px solid #dbe2ea",
+                    borderRadius: 7,
+                    padding: "0 8px",
+                    fontSize: 12,
+                    color: "#374151",
+                    background: "#fff",
+                  }}
+                >
+                  {forecastDateOptions.map((dateKey) => (
+                    <option key={dateKey} value={dateKey}>
+                      {formatDateOptionLabel(dateKey)}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+            </div>
           </div>
 
-          <div className="rt-hour-grid">
+          <div
+            className="rt-hour-grid"
+            style={{
+              gridTemplateColumns: `repeat(${Math.max(hours.length, 1)}, 1fr)`,
+            }}
+          >
             {hours.map((item, index) => (
-              <AnimatedHeatCell key={item.h} item={item} index={index} />
+              <AnimatedHeatCell key={`${item.h}-${index}`} item={item} index={index} />
             ))}
           </div>
 
@@ -732,7 +1144,7 @@ function DashboardContent({ eventId }) {
               alignItems: "center",
             }}
           >
-            <span style={{ fontSize: 11, color: "#9ca3af" }}>낮음</span>
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>??</span>
             {["#dbeafe", "#93c5fd", "#3b82f6", "#1d4ed8"].map((color) => (
               <div
                 key={color}
@@ -744,7 +1156,7 @@ function DashboardContent({ eventId }) {
                 }}
               />
             ))}
-            <span style={{ fontSize: 11, color: "#9ca3af" }}>높음</span>
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>??</span>
           </div>
         </div>
 
@@ -754,9 +1166,9 @@ function DashboardContent({ eventId }) {
               <div className="rt-card-title-icon">
                 <TrendingUp size={14} color="#1a4fd6" />
               </div>
-              참가 현황 요약
+              ?? ?? ??
             </div>
-            <span className="rt-card-tag">실시간</span>
+            <span className="rt-card-tag">???</span>
           </div>
 
           {progressData.map((item, index) => (
@@ -764,7 +1176,6 @@ function DashboardContent({ eventId }) {
           ))}
         </div>
       </div>
-
       <div className="rt-card">
         <div className="rt-card-header">
           <div className="rt-card-title">

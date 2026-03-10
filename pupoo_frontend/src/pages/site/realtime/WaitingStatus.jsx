@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import RealtimeEventSelector from "./RealtimeEventSelector";
@@ -23,6 +23,12 @@ import {
 import { eventApi } from "../../../app/http/eventApi";
 import { boothApi } from "../../../app/http/boothApi";
 import { programApi } from "../../../app/http/programApi";
+import { aiApi } from "../../../app/http/aiApi";
+import {
+  formatKoreanTime,
+  normalizePrediction,
+  normalizeRecommendation,
+} from "./aiCongestionViewModel";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -224,6 +230,8 @@ const ZONE_NAME_MAP = {
   OTHER: "기타",
 };
 
+const AI_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+
 const unwrapData = (response, fallback) =>
   response?.data?.data ?? response?.data ?? fallback;
 
@@ -326,6 +334,7 @@ function mapExperienceWait(detail) {
 
   return {
     id: `program-${detail.programId}`,
+    programId: detail.programId,
     name: detail.programTitle || `체험 프로그램 ${detail.programId}`,
     kind: "experience",
     typeLabel: "체험",
@@ -399,13 +408,23 @@ function WaitingContent({ eventId }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [flashKey, setFlashKey] = useState(0);
   const [lastLoadedAt, setLastLoadedAt] = useState(new Date());
+  const [focusProgram, setFocusProgram] = useState(null);
+  const [programPrediction, setProgramPrediction] = useState(null);
+  const [programRecommendation, setProgramRecommendation] = useState(null);
+  const [aiErrorMsg, setAiErrorMsg] = useState("");
+  const aiCacheRef = useRef({ programId: null, loadedAt: 0 });
 
   const loadData = useCallback(
     async (options = {}) => {
-      const { preserveLoading = false } = options;
+      const { preserveLoading = false, forceAi = false } = options;
 
       if (!numericEventId || Number.isNaN(numericEventId)) {
         setErrorMsg("잘못된 행사 경로입니다.");
+        setFocusProgram(null);
+        setProgramPrediction(null);
+        setProgramRecommendation(null);
+        setAiErrorMsg("");
+        aiCacheRef.current = { programId: null, loadedAt: 0 };
         setLoading(false);
         return;
       }
@@ -449,10 +468,67 @@ function WaitingContent({ eventId }) {
           )
           .filter(Boolean);
 
+        const mergedWaitingRows = [...boothWaitingRows, ...experienceWaitingRows].sort(compareWaitingRows);
+        const sortedExperienceRows = [...experienceWaitingRows].sort(compareWaitingRows);
+        const nextFocusProgram = sortedExperienceRows[0] ?? null;
+        const nextFocusProgramId = Number(nextFocusProgram?.programId);
+
         setEventDetail(unwrapData(eventResponse, null));
-        setWaitingRows(
-          [...boothWaitingRows, ...experienceWaitingRows].sort(compareWaitingRows),
-        );
+        setWaitingRows(mergedWaitingRows);
+        setFocusProgram(nextFocusProgram);
+
+        if (Number.isFinite(nextFocusProgramId)) {
+          const now = Date.now();
+          const shouldLoadAi =
+            forceAi ||
+            aiCacheRef.current.programId !== nextFocusProgramId ||
+            now - aiCacheRef.current.loadedAt >= AI_REFRESH_INTERVAL_MS;
+
+          if (shouldLoadAi) {
+            const [predictionResult, recommendationResult] = await Promise.allSettled([
+              aiApi.predictProgramCongestion(nextFocusProgramId),
+              aiApi.getProgramRecommendations(nextFocusProgramId),
+            ]);
+
+            if (predictionResult.status === "fulfilled") {
+              setProgramPrediction(
+                normalizePrediction(unwrapData(predictionResult.value, null)),
+              );
+            } else {
+              setProgramPrediction(null);
+            }
+
+            if (recommendationResult.status === "fulfilled") {
+              setProgramRecommendation(
+                normalizeRecommendation(unwrapData(recommendationResult.value, null)),
+              );
+            } else {
+              setProgramRecommendation(null);
+            }
+
+            if (
+              predictionResult.status === "rejected" ||
+              recommendationResult.status === "rejected"
+            ) {
+              setAiErrorMsg("AI recommendation data is temporarily unavailable.");
+            } else {
+              setAiErrorMsg("");
+            }
+
+            aiCacheRef.current = {
+              programId: nextFocusProgramId,
+              loadedAt: now,
+            };
+          } else {
+            setAiErrorMsg("");
+          }
+        } else {
+          setProgramPrediction(null);
+          setProgramRecommendation(null);
+          setAiErrorMsg("");
+          aiCacheRef.current = { programId: null, loadedAt: 0 };
+        }
+
         setErrorMsg("");
         setLastLoadedAt(new Date());
       } catch (error) {
@@ -466,7 +542,7 @@ function WaitingContent({ eventId }) {
   );
 
   const { spinning, refresh } = useRefresh(() => {
-    loadData({ preserveLoading: true });
+    loadData({ preserveLoading: true, forceAi: true });
   }, 800);
 
   useEffect(() => {
@@ -599,6 +675,20 @@ function WaitingContent({ eventId }) {
       )}`
     : "현재 집계된 대기 리소스가 없습니다";
   const isEmpty = !loading && waitingRows.length === 0;
+  const aiTimelinePreview = useMemo(
+    () =>
+      Array.isArray(programPrediction?.timeline)
+        ? programPrediction.timeline.slice(0, 6)
+        : [],
+    [programPrediction],
+  );
+  const recommendationItems = useMemo(
+    () =>
+      Array.isArray(programRecommendation?.recommendations)
+        ? programRecommendation.recommendations.slice(0, 3)
+        : [],
+    [programRecommendation],
+  );
 
   return (
     <>
@@ -714,6 +804,143 @@ function WaitingContent({ eventId }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="wt-card">
+            <div className="wt-card-header">
+              <div className="wt-card-title">
+                <div className="wt-card-title-icon">
+                  <Timer size={14} color="#f59e0b" />
+                </div>
+                AI 프로그램 예측
+              </div>
+              <span className="wt-card-tag">5분 주기</span>
+            </div>
+
+            {focusProgram && programPrediction ? (
+              <>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 12, color: "#6b7280" }}>대상 프로그램</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginTop: 4 }}>
+                      {focusProgram.name}
+                    </div>
+                  </div>
+                  <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 12, color: "#6b7280" }}>예측 점수</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", marginTop: 2 }}>
+                      {Math.round(programPrediction.peakScore)}
+                    </div>
+                  </div>
+                  <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 12, color: "#6b7280" }}>예상 대기</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", marginTop: 2 }}>
+                      {programPrediction.waitMinutes}
+                      <span style={{ fontSize: 13, fontWeight: 600, marginLeft: 4 }}>min</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      borderRadius: 999,
+                      padding: "4px 10px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      border: `1px solid ${programPrediction.levelTone.border}`,
+                      color: programPrediction.levelTone.color,
+                      background: programPrediction.levelTone.bg,
+                    }}
+                  >
+                    Lv.{programPrediction.level} {programPrediction.levelLabel}
+                  </span>
+                  <span style={{ fontSize: 12, color: "#6b7280" }}>
+                    기준 시각: {formatKoreanTime(programPrediction.baseTime)}
+                  </span>
+                  <span style={{ fontSize: 12, color: "#6b7280" }}>
+                    모드: {programPrediction.fallbackUsed ? "Fallback" : "AI Inference"}
+                  </span>
+                </div>
+
+                {aiTimelinePreview.length > 0 ? (
+                  <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {aiTimelinePreview.map((point) => (
+                      <span
+                        key={`${point.time}-${point.score}`}
+                        style={{
+                          border: `1px solid ${point.tone.border}`,
+                          background: point.tone.bg,
+                          color: point.tone.color,
+                          borderRadius: 999,
+                          padding: "3px 9px",
+                          fontSize: 11,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {formatKoreanTime(point.time)} {Math.round(point.score)}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>
+                    대체 추천
+                  </div>
+                  {recommendationItems.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {recommendationItems.map((item, index) => (
+                        <div
+                          key={`${item.programId ?? "rec"}-${index}`}
+                          style={{
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 10,
+                            padding: "10px 12px",
+                            background: "#fff",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>
+                              {item.title}
+                            </div>
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>
+                              {Math.round(item.score)} / {item.waitMinutes}min
+                            </div>
+                          </div>
+                          {item.reason ? (
+                            <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                              {item.reason}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="wt-empty-state" style={{ minHeight: 88 }}>
+                      {programRecommendation?.message ||
+                        "추천 가능한 대체 프로그램이 없습니다. 예상 대기시간만 안내합니다."}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="wt-empty-state">
+                체험 프로그램이 확인되면 AI 예측 카드가 표시됩니다.
+              </div>
+            )}
+
+            {aiErrorMsg ? (
+              <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>{aiErrorMsg}</div>
+            ) : null}
+          </div>
+
           <div className="wt-card">
             <div className="wt-card-header">
               <div className="wt-card-title">
