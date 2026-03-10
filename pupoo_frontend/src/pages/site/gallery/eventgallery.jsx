@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -289,6 +289,7 @@ export default function EventGallery() {
   const [writeForm, setWriteForm] = useState({ eventId: "", title: "", description: "", files: [] });
   const [reportTarget, setReportTarget] = useState(null);
   const [reportNotice, setReportNotice] = useState("");
+  const userClosedViewerRef = useRef(false);
 
   const eventNameMap = useMemo(() => Object.fromEntries(events.map((event) => [String(event.eventId), event.eventName])), [events]);
 
@@ -379,6 +380,7 @@ export default function EventGallery() {
   }, [searchParams, setSearchParams]);
 
   const closeViewer = useCallback(() => {
+    userClosedViewerRef.current = true;
     setViewer(null);
     if (!requestedGalleryId) return;
     const next = new URLSearchParams(searchParams);
@@ -390,6 +392,10 @@ export default function EventGallery() {
     const numericGalleryId = Number(requestedGalleryId);
     if (!Number.isFinite(numericGalleryId) || numericGalleryId <= 0) return;
     if (viewer?.galleryId === numericGalleryId) return;
+    if (userClosedViewerRef.current) {
+      userClosedViewerRef.current = false;
+      return;
+    }
 
     let cancelled = false;
 
