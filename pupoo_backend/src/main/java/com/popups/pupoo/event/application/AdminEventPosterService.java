@@ -49,6 +49,8 @@ public class AdminEventPosterService {
 
     private static final int POSTER_IMAGE_COUNT = 1;
     private static final String POSTER_IMAGE_SIZE = "1024x1792";
+    private static final int POSTER_OUTPUT_WIDTH = 400;
+    private static final int POSTER_OUTPUT_HEIGHT = 847;
     private static final String[] POSTER_FONT_CANDIDATES = {
             "Malgun Gothic",
             "Apple SD Gothic Neo",
@@ -183,18 +185,22 @@ public class AdminEventPosterService {
                 : "No extra creative direction provided.";
 
         return """
-                Create a polished promotional poster image for a Korean pet event.
+                Create a premium background artwork layer for a Korean pet event.
+                This image is background art only. All title, date, location, and every piece of typography will be added later in software.
+                Internal event metadata for mood only. Never render or write any of these details literally in the image:
                 Event title: %s
                 Location: %s
                 Schedule: %s
                 Description: %s
                 Organizer creative direction: %s
-                Use a vertical poster composition suitable for a website cover image.
-                Do not render readable text, dates, logos, or labels directly into the artwork.
-                Leave a clean lower area so crisp real text can be added later as an overlay.
+                Use a vertical composition suitable for a website poster cover.
                 Show pets or a festival atmosphere that matches the event theme.
                 Keep the design modern, warm, energetic, and premium.
-                Keep text minimal and clean. Avoid long paragraphs, watermarks, QR codes, logos, and unreadable gibberish.
+                Reserve the lower 35 percent as a calm, simple, low-detail area for later text overlay.
+                Absolutely no text, letters, words, numbers, Hangul, English, signage, banners, labels, logos, posters, badges, QR codes, UI, packaging text, watermarks, or typographic marks anywhere in the image.
+                Avoid scenes with storefronts, stage screens, printed materials, or any object that could contain readable markings.
+                If a sign or label would normally appear, replace it with clean abstract shapes or plain surfaces.
+                Do not generate a poster mockup. Do not generate any typography. Generate only the image background layer.
                 """.formatted(
                 request.eventName().trim(),
                 request.location().trim(),
@@ -236,10 +242,11 @@ public class AdminEventPosterService {
             if (source == null) {
                 return bytes;
             }
+            BufferedImage resized = resizePosterCanvas(source);
 
             BufferedImage canvas = new BufferedImage(
-                    source.getWidth(),
-                    source.getHeight(),
+                    resized.getWidth(),
+                    resized.getHeight(),
                     BufferedImage.TYPE_INT_ARGB
             );
             Graphics2D g = canvas.createGraphics();
@@ -247,20 +254,24 @@ public class AdminEventPosterService {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
                 g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                g.drawImage(source, 0, 0, null);
+                g.drawImage(resized, 0, 0, null);
 
                 int width = canvas.getWidth();
                 int height = canvas.getHeight();
-                int panelHeight = Math.max(300, height / 4);
+                int panelHeight = Math.max(300, Math.round(height * 0.35f));
                 int panelTop = height - panelHeight;
+
+                g.setComposite(AlphaComposite.SrcOver);
+                g.setColor(new Color(8, 12, 20, 238));
+                g.fillRect(0, panelTop, width, panelHeight);
 
                 g.setPaint(new GradientPaint(
                         0,
-                        panelTop,
-                        new Color(0, 0, 0, 0),
+                        Math.max(0, panelTop - 80),
+                        new Color(8, 12, 20, 0),
                         0,
                         height,
-                        new Color(8, 12, 20, 225)
+                        new Color(8, 12, 20, 210)
                 ));
                 g.fillRect(0, panelTop, width, panelHeight);
 
@@ -299,6 +310,45 @@ public class AdminEventPosterService {
             log.warn("Poster text overlay failed, returning raw AI image", e);
             return bytes;
         }
+    }
+
+    private BufferedImage resizePosterCanvas(BufferedImage source) {
+        int sourceWidth = source.getWidth();
+        int sourceHeight = source.getHeight();
+        if (sourceWidth <= 0 || sourceHeight <= 0) {
+            return source;
+        }
+        if (sourceWidth == POSTER_OUTPUT_WIDTH && sourceHeight == POSTER_OUTPUT_HEIGHT) {
+            return source;
+        }
+
+        double scale = Math.max(
+                (double) POSTER_OUTPUT_WIDTH / sourceWidth,
+                (double) POSTER_OUTPUT_HEIGHT / sourceHeight
+        );
+        int drawWidth = (int) Math.round(sourceWidth * scale);
+        int drawHeight = (int) Math.round(sourceHeight * scale);
+        int offsetX = (POSTER_OUTPUT_WIDTH - drawWidth) / 2;
+        int verticalOverflow = Math.max(0, drawHeight - POSTER_OUTPUT_HEIGHT);
+        int offsetY = -(verticalOverflow / 4);
+
+        BufferedImage resized = new BufferedImage(
+                POSTER_OUTPUT_WIDTH,
+                POSTER_OUTPUT_HEIGHT,
+                BufferedImage.TYPE_INT_ARGB
+        );
+        Graphics2D g = resized.createGraphics();
+        try {
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setColor(new Color(8, 12, 20));
+            g.fillRect(0, 0, POSTER_OUTPUT_WIDTH, POSTER_OUTPUT_HEIGHT);
+            g.drawImage(source, offsetX, offsetY, drawWidth, drawHeight, null);
+        } finally {
+            g.dispose();
+        }
+        return resized;
     }
 
     private Font pickFont(String text, int style, int size) {
