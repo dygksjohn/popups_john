@@ -16,13 +16,10 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
-import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
-import java.awt.GradientPaint;
 import java.awt.Graphics2D;
-import java.awt.GraphicsEnvironment;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -142,7 +139,7 @@ public class AdminEventPosterService {
             }
 
             byte[] imageBytes = extractImageBytes(response.data().get(0));
-            imageBytes = overlayPosterText(imageBytes, request);
+            imageBytes = normalizePosterImage(imageBytes);
             return storeImage(imageBytes, "png");
         } catch (RestClientResponseException e) {
             log.warn("AI poster generation failed: status={} body={}", e.getStatusCode().value(), e.getResponseBodyAsString());
@@ -196,7 +193,7 @@ public class AdminEventPosterService {
                 Use a vertical composition suitable for a website poster cover.
                 Show pets or a festival atmosphere that matches the event theme.
                 Keep the design modern, warm, energetic, and premium.
-                Reserve the lower 35 percent as a calm, simple, low-detail area for later text overlay.
+                Keep the main subject centered with safe margins so the image still works after a centered crop to a narrow mobile poster ratio.
                 Absolutely no text, letters, words, numbers, Hangul, English, signage, banners, labels, logos, posters, badges, QR codes, UI, packaging text, watermarks, or typographic marks anywhere in the image.
                 Avoid scenes with storefronts, stage screens, printed materials, or any object that could contain readable markings.
                 If a sign or label would normally appear, replace it with clean abstract shapes or plain surfaces.
@@ -236,7 +233,7 @@ public class AdminEventPosterService {
         throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AI poster generation returned unusable image content");
     }
 
-    private byte[] overlayPosterText(byte[] bytes, AdminEventPosterGenerateRequest request) {
+    private byte[] normalizePosterImage(byte[] bytes) {
         try {
             BufferedImage source = ImageIO.read(new ByteArrayInputStream(bytes));
             if (source == null) {
@@ -244,70 +241,11 @@ public class AdminEventPosterService {
             }
             BufferedImage resized = resizePosterCanvas(source);
 
-            BufferedImage canvas = new BufferedImage(
-                    resized.getWidth(),
-                    resized.getHeight(),
-                    BufferedImage.TYPE_INT_ARGB
-            );
-            Graphics2D g = canvas.createGraphics();
-            try {
-                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-                g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                g.drawImage(resized, 0, 0, null);
-
-                int width = canvas.getWidth();
-                int height = canvas.getHeight();
-                int panelHeight = Math.max(300, Math.round(height * 0.35f));
-                int panelTop = height - panelHeight;
-
-                g.setComposite(AlphaComposite.SrcOver);
-                g.setColor(new Color(8, 12, 20, 238));
-                g.fillRect(0, panelTop, width, panelHeight);
-
-                g.setPaint(new GradientPaint(
-                        0,
-                        Math.max(0, panelTop - 80),
-                        new Color(8, 12, 20, 0),
-                        0,
-                        height,
-                        new Color(8, 12, 20, 210)
-                ));
-                g.fillRect(0, panelTop, width, panelHeight);
-
-                int paddingX = Math.max(48, width / 18);
-                int baselineY = panelTop + Math.max(92, panelHeight / 3);
-                String title = safeTrim(request.eventName());
-                String schedule = formatDateRange(request.startAt(), request.endAt());
-                String location = safeTrim(request.location());
-
-                Font titleFont = pickFont(title, Font.BOLD, Math.max(42, width / 18));
-                Font metaFont = pickFont(schedule + " " + location, Font.PLAIN, Math.max(24, width / 34));
-
-                g.setColor(Color.WHITE);
-                drawWrappedText(g, title, titleFont, paddingX, baselineY, width - (paddingX * 2), 2);
-
-                FontMetrics titleMetrics = g.getFontMetrics(titleFont);
-                int titleLines = countWrappedLines(g, title, titleFont, width - (paddingX * 2), 2);
-                int metaY = baselineY + (titleMetrics.getHeight() * titleLines) + 18;
-
-                g.setComposite(AlphaComposite.SrcOver);
-                g.setColor(new Color(255, 255, 255, 220));
-                drawWrappedText(g, schedule, metaFont, paddingX, metaY, width - (paddingX * 2), 1);
-
-                FontMetrics metaMetrics = g.getFontMetrics(metaFont);
-                int locationY = metaY + metaMetrics.getHeight() + 8;
-                g.setColor(new Color(240, 245, 255, 190));
-                drawWrappedText(g, location, metaFont, paddingX, locationY, width - (paddingX * 2), 1);
-            } finally {
-                g.dispose();
-            }
-
             ByteArrayOutputStream output = new ByteArrayOutputStream();
-            ImageIO.write(canvas, "png", output);
+            ImageIO.write(resized, "png", output);
             return output.toByteArray();
         } catch (IOException e) {
-            log.warn("Poster text overlay failed, returning raw AI image", e);
+            log.warn("Poster image normalization failed, returning raw AI image", e);
             return bytes;
         }
     }
