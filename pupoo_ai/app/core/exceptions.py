@@ -29,6 +29,18 @@ class ApiException(Exception):
         self.errors = errors or []
 
 
+def _sanitize_error_value(value: Any) -> Any:
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, list):
+        return [_sanitize_error_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_sanitize_error_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _sanitize_error_value(item) for key, item in value.items()}
+    return str(value)
+
+
 def _resolve_trace_id(request: Request) -> str:
     return getattr(request.state, "trace_id", None) or get_trace_id()
 
@@ -70,12 +82,13 @@ async def validation_exception_handler(
     request: Request,
     exc: RequestValidationError,
 ) -> JSONResponse:
+    sanitized_errors = [_sanitize_error_value(item) for item in exc.errors()]
     return _error_response(
         request,
         code=ERROR_VALIDATION,
         message="\uc694\uccad \uac12\uc774 \uc62c\ubc14\ub974\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.",
         status_code=422,
-        errors=exc.errors(),
+        errors=sanitized_errors,
     )
 
 

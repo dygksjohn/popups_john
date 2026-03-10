@@ -30,6 +30,7 @@ import {
   loadImageCache,
 } from "../shared/eventImageStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
+import { eventApi } from "../../../app/http/eventApi";
 import { getToken } from "../../../api/noticeApi";
 
 /* ── 이미지 없을 때 강아지 샘플 폴백 ── */
@@ -1198,7 +1199,14 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
 /* ═══════════════════════════════════════════
    상세 모달
    ═══════════════════════════════════════════ */
-function DetailModal({ item, onClose, onEdit, onDelete }) {
+function DetailModal({
+  item,
+  onClose,
+  onEdit,
+  onDelete,
+  onGeneratePoster,
+  isGeneratingPoster,
+}) {
   const st = statusMap[item.status];
   const pct =
     item.capacity > 0
@@ -1345,6 +1353,28 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
           )}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button
+            onClick={() => onGeneratePoster(item)}
+            disabled={isGeneratingPoster}
+            style={{
+              padding: "9px 16px",
+              borderRadius: 8,
+              border: `1px solid ${ds.brand}22`,
+              background: `${ds.brand}10`,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: isGeneratingPoster ? "wait" : "pointer",
+              fontFamily: ds.ff,
+              color: ds.brand,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              opacity: isGeneratingPoster ? 0.7 : 1,
+            }}
+          >
+            <Upload size={13} />
+            {isGeneratingPoster ? "생성 중..." : "AI 포스터 생성"}
+          </button>
           <button
             onClick={() => {
               onClose();
@@ -1578,6 +1608,15 @@ const authHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+const DEFAULT_POSTER_REQUEST = {
+  style: "MODERN",
+  tone: "bright and welcoming",
+  size: "1024x1536",
+  quality: "high",
+  background: "auto",
+  outputFormat: "png",
+};
+
 /* 프론트 날짜("2026.01.10") → ISO LocalDateTime */
 const toISO = (dotDate, isEnd) => {
   if (!dotDate) return null;
@@ -1624,6 +1663,7 @@ export default function EventManage({ subTab = "all" }) {
   const [modal, setModal] = useState(null);
   const [panel, setPanel] = useState(null);
   const [toast, setToast] = useState(null);
+  const [posterGeneratingId, setPosterGeneratingId] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [dateFrom, setDateFrom] = useState("");
@@ -1689,6 +1729,33 @@ export default function EventManage({ subTab = "all" }) {
     loadEvents();
   }, []);
 
+  const getEventIdValue = (item) => {
+    if (!item) return null;
+    return item.eventId || item.id?.replace("EV-", "") || null;
+  };
+
+  const applyPosterImage = (eventId, imageUrl) => {
+    if (!eventId || !imageUrl) return;
+
+    imageMapRef.current[eventId] = imageUrl;
+    setEventImage(eventId, imageUrl);
+
+    setItems((prev) =>
+      prev.map((item) =>
+        String(getEventIdValue(item)) === String(eventId)
+          ? { ...item, imageUrl }
+          : item,
+      ),
+    );
+
+    setModal((current) => {
+      if (!current?.item) return current;
+      return String(getEventIdValue(current.item)) === String(eventId)
+        ? { ...current, item: { ...current.item, imageUrl } }
+        : current;
+    });
+  };
+
   const normalizeDate = (str) => {
     if (!str) return null;
     return str.replace(/\./g, "-").split("~")[0].trim();
@@ -1715,6 +1782,46 @@ export default function EventManage({ subTab = "all" }) {
     });
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
+
+  const handleGeneratePoster = async (item) => {
+    const eventId = getEventIdValue(item);
+    if (!eventId || posterGeneratingId) return;
+
+    setPosterGeneratingId(String(eventId));
+    try {
+      const res = await eventApi.generateAdminPoster(
+        eventId,
+        DEFAULT_POSTER_REQUEST,
+        {
+          headers: authHeaders(),
+        },
+      );
+      const poster = res.data?.data || res.data;
+      if (!poster?.imageUrl) {
+        throw new Error("Poster response missing imageUrl");
+      }
+
+      const applyRes = await eventApi.applyAdminPoster(
+        eventId,
+        { imageUrl: poster.imageUrl },
+        {
+          headers: authHeaders(),
+        },
+      );
+      const applied = applyRes.data?.data || applyRes.data;
+      applyPosterImage(eventId, applied?.imageUrl || poster.imageUrl);
+      showToast("AI 포스터가 생성되어 대표 이미지에 적용되었습니다.");
+    } catch (err) {
+      console.error("[EventManage] AI 포스터 생성 실패:", err);
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "AI 포스터 생성에 실패했습니다.";
+      showToast(message, "error");
+    } finally {
+      setPosterGeneratingId(null);
+    }
+  };
 
   const vis = items.filter((e) => e._visible);
   const totalEvents = vis.length;
@@ -2245,6 +2352,16 @@ export default function EventManage({ subTab = "all" }) {
                               fn: () => setModal({ type: "detail", item: r }),
                             },
                             {
+                              icon: ImagePlus,
+                              tip: posterGeneratingId
+                                ? "생성 중"
+                                : "AI 포스터 생성",
+                              color: ds.brand,
+                              bg: `${ds.brand}10`,
+                              disabled: Boolean(posterGeneratingId),
+                              fn: () => handleGeneratePoster(r),
+                            },
+                            {
                               icon: Pencil,
                               tip: "수정",
                               color: ds.brand,
@@ -2264,8 +2381,10 @@ export default function EventManage({ subTab = "all" }) {
                               title={a.tip}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (a.disabled) return;
                                 a.fn();
                               }}
+                              disabled={a.disabled}
                               style={{
                                 width: 30,
                                 height: 30,
@@ -2277,8 +2396,10 @@ export default function EventManage({ subTab = "all" }) {
                                 justifyContent: "center",
                                 cursor: "pointer",
                                 transition: "all .12s",
+                                opacity: a.disabled ? 0.55 : 1,
                               }}
                               onMouseEnter={(e) => {
+                                if (a.disabled) return;
                                 e.currentTarget.style.background = a.bg;
                               }}
                               onMouseLeave={(e) => {
@@ -2355,6 +2476,8 @@ export default function EventManage({ subTab = "all" }) {
         <DetailModal
           item={modal.item}
           onClose={() => setModal(null)}
+          onGeneratePoster={handleGeneratePoster}
+          isGeneratingPoster={Boolean(posterGeneratingId)}
           onEdit={(item) => {
             setModal(null);
             setPanel({ type: "edit", item });

@@ -118,6 +118,7 @@ uploads/
 /src/main/resources/uploads/**
 /pupoo_frontend/_.zip
 /pupoo_ai.zip
+/pupoo_ai/generated/
 
 ############################################
 # Temporary

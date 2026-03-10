@@ -3,6 +3,7 @@ import pkgutil
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from pupoo_ai.app.core.config import settings
 from pupoo_ai.app.core.exceptions import register_exception_handlers
@@ -25,6 +26,11 @@ def include_registered_routers(app: FastAPI) -> None:
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.service_name)
     app.add_middleware(TraceIdMiddleware)
+    app.mount(
+        settings.storage_mount_path,
+        StaticFiles(directory=settings.storage_root_dir, check_dir=False),
+        name="generated",
+    )
     register_exception_handlers(app)
     include_registered_routers(app)
     return app

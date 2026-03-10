@@ -132,6 +132,10 @@ public class Event {
         this.status = status;
     }
 
+    public void updateImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
     // ===== Getter =====
     public Long getEventId() { return eventId; }
     public String getEventName() { return eventName; }

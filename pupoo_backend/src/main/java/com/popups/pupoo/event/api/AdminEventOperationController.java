@@ -1,6 +1,10 @@
 // file: src/main/java/com/popups/pupoo/event/api/AdminEventOperationController.java
 package com.popups.pupoo.event.api;
 
+import com.popups.pupoo.ai.application.AdminEventPosterService;
+import com.popups.pupoo.ai.dto.AdminEventPosterApplyRequest;
+import com.popups.pupoo.ai.dto.AdminEventPosterGenerateRequest;
+import com.popups.pupoo.ai.dto.AdminEventPosterGenerateResponse;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.event.application.EventAdminService;
 import com.popups.pupoo.event.dto.AdminEventCreateRequest;
@@ -13,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -29,9 +34,14 @@ import org.springframework.web.bind.annotation.*;
 public class AdminEventOperationController {
 
     private final EventAdminService eventAdminService;
+    private final AdminEventPosterService adminEventPosterService;
 
-    public AdminEventOperationController(EventAdminService eventAdminService) {
+    public AdminEventOperationController(
+            EventAdminService eventAdminService,
+            AdminEventPosterService adminEventPosterService
+    ) {
         this.eventAdminService = eventAdminService;
+        this.adminEventPosterService = adminEventPosterService;
     }
 
     /** 행사 등록(관리자) */
@@ -74,5 +84,21 @@ public class AdminEventOperationController {
             @RequestParam EventStatus status
     ) {
         return ApiResponse.success(eventAdminService.changeStatus(eventId, status));
+    }
+
+    @PostMapping("/{eventId}/poster/generate")
+    public ApiResponse<AdminEventPosterGenerateResponse> generatePoster(
+            @PathVariable Long eventId,
+            @Valid @RequestBody AdminEventPosterGenerateRequest request
+    ) {
+        return ApiResponse.success(adminEventPosterService.generate(eventId, request));
+    }
+
+    @PostMapping("/{eventId}/poster/apply")
+    public ApiResponse<EventResponse> applyPoster(
+            @PathVariable Long eventId,
+            @Valid @RequestBody AdminEventPosterApplyRequest request
+    ) {
+        return ApiResponse.success(adminEventPosterService.apply(eventId, request));
     }
 }
