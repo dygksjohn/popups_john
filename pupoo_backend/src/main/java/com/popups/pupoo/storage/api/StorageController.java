@@ -11,6 +11,7 @@ import com.popups.pupoo.storage.dto.FileResponse;
 import com.popups.pupoo.storage.dto.UploadRequest;
 import com.popups.pupoo.storage.dto.UploadResponse;
 import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator.UploadTargetType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/files")
 public class StorageController {
@@ -41,11 +43,19 @@ public class StorageController {
             @RequestParam("targetType") String targetType,
             @RequestParam("contentId") Long contentId
     ) {
-        UploadRequest req = new UploadRequest(targetType, contentId);
-        if (req.parsedTargetType() == UploadTargetType.NOTICE) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "notice file upload is admin-only");
+        try {
+            UploadRequest req = new UploadRequest(targetType, contentId);
+            if (req.parsedTargetType() == UploadTargetType.NOTICE) {
+                throw new BusinessException(ErrorCode.FORBIDDEN, "notice file upload is admin-only");
+            }
+            return ApiResponse.success(storageService.uploadForFilesTable(file, req));
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("File upload failed: contentId={} targetType={}", contentId, targetType, e);
+            String msg = e.getMessage() != null && !e.getMessage().isBlank() ? e.getMessage() : e.getClass().getSimpleName();
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "File upload failed: " + msg);
         }
-        return ApiResponse.success(storageService.uploadForFilesTable(file, req));
     }
 
     @PostMapping("/admin/notice")
