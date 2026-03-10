@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import PageHeader from "../components/PageHeader";
@@ -16,11 +16,12 @@ const PAGE_SIZE = 10;
 const SORT_OPTIONS = [
   { key: "recent", label: "최신순" },
   { key: "views", label: "조회순" },
+  { key: "oldest", label: "오래된순" },
 ];
 
 const SCOPE_OPTIONS = [
   { key: "all", label: "모든 공지" },
-  { key: "GLOBAL", label: "전체공지" },
+  { key: "ALL", label: "전체공지" },
   { key: "EVENT", label: "행사공지" },
 ];
 
@@ -29,11 +30,6 @@ function fmtDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function toTimestamp(value) {
-  const ts = Date.parse(String(value || ""));
-  return Number.isFinite(ts) ? ts : 0;
 }
 
 export default function Notice() {
@@ -47,74 +43,45 @@ export default function Notice() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
+  const [totalFromApi, setTotalFromApi] = useState(0);
+  const [totalPagesFromApi, setTotalPagesFromApi] = useState(1);
+  const [keyword, setKeyword] = useState("");
 
-  const fetchNotices = useCallback(async () => {
+  const fetchNotices = useCallback(async (pageNum) => {
     setLoading(true);
     setError("");
     try {
-      const rows = [];
-      let pageIndex = 1;
-      let finished = false;
-
-      while (!finished && pageIndex <= 20) {
-        const res = await noticeApi.list(
-          pageIndex,
-          50,
-          undefined,
-          undefined,
-          scopeKey === "all" ? undefined : scopeKey,
-          undefined,
-        );
-        const data = unwrap(res);
-        const content = Array.isArray(data?.content) ? data.content : [];
-        rows.push(...content);
-
-        const totalPages = Number(data?.totalPages) || 0;
-        finished = Boolean(data?.last) || totalPages === 0 || pageIndex >= totalPages;
-        pageIndex += 1;
-      }
-
-      setNotices(rows);
-      setPage(1);
+      const res = await noticeApi.list(
+        pageNum,
+        PAGE_SIZE,
+        "TITLE_CONTENT",
+        keyword.trim() || undefined,
+        scopeKey === "all" ? undefined : scopeKey,
+        sortKey,
+      );
+      const data = unwrap(res);
+      const content = Array.isArray(data?.content) ? data.content : [];
+      setNotices(content);
+      setTotalFromApi(Number(data?.totalElements) ?? 0);
+      setTotalPagesFromApi(Math.max(1, Number(data?.totalPages) ?? 1));
     } catch (err) {
       console.error("[Notice] fetch error:", err);
       setError("공지사항을 불러오지 못했습니다.");
       setNotices([]);
+      setTotalFromApi(0);
+      setTotalPagesFromApi(1);
     } finally {
       setLoading(false);
     }
-  }, [scopeKey]);
+  }, [scopeKey, sortKey, keyword]);
 
   useEffect(() => {
-    fetchNotices();
-  }, [fetchNotices]);
+    fetchNotices(page);
+  }, [page, scopeKey, sortKey, keyword, fetchNotices]);
 
-  const filtered = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    const rows = notices.filter((notice) => {
-      if (!keyword) return true;
-      return [notice?.title, notice?.content]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(keyword));
-    });
-
-    return [...rows].sort((a, b) => {
-      if (sortKey === "views") {
-        return Number(b?.viewCount || 0) - Number(a?.viewCount || 0);
-      }
-      if (a?.pinned !== b?.pinned) {
-        return a?.pinned ? -1 : 1;
-      }
-      return toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
-    });
-  }, [notices, search, sortKey]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, totalPagesFromApi);
   const currentPage = Math.min(page, totalPages);
-  const paged = useMemo(
-    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [currentPage, filtered],
-  );
+  const paged = notices;
 
   const currentSortLabel = SORT_OPTIONS.find((option) => option.key === sortKey)?.label || "최신순";
 
@@ -147,13 +114,16 @@ export default function Notice() {
             gap: 8,
           }}
         >
-          <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>총 {filtered.length}개</span>
+          <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>총 {totalFromApi}개</span>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <div style={{ position: "relative" }}>
               <select
                 value={scopeKey}
-                onChange={(event) => setScopeKey(event.target.value)}
+                onChange={(event) => {
+                  setScopeKey(event.target.value);
+                  setPage(1);
+                }}
                 style={{
                   height: 38,
                   minWidth: 128,
@@ -229,6 +199,7 @@ export default function Notice() {
                       onClick={() => {
                         setSortKey(option.key);
                         setSortMenuOpen(false);
+                        setPage(1);
                       }}
                       style={{
                         display: "block",
@@ -266,6 +237,12 @@ export default function Notice() {
                 placeholder="제목/내용 검색"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setKeyword(search.trim());
+                    setPage(1);
+                  }
+                }}
                 style={{
                   border: "none",
                   outline: "none",
@@ -278,6 +255,10 @@ export default function Notice() {
               />
               <button
                 type="button"
+                onClick={() => {
+                  setKeyword(search.trim());
+                  setPage(1);
+                }}
                 style={{
                   border: "none",
                   background: "#fff",
@@ -314,7 +295,7 @@ export default function Notice() {
             <div style={{ fontSize: "14px", color: "#999", marginBottom: 12 }}>{error}</div>
             <button
               type="button"
-              onClick={fetchNotices}
+              onClick={() => fetchNotices(page)}
               style={{
                 padding: "8px 20px",
                 borderRadius: "6px",
@@ -391,7 +372,7 @@ export default function Notice() {
 
               {paged.length === 0 && (
                 <div style={{ textAlign: "center", padding: "60px 0", color: "#999", fontSize: "14px" }}>
-                  {search.trim() ? "검색 결과가 없습니다." : "공지사항이 없습니다."}
+                  {keyword ? "검색 결과가 없습니다." : "공지사항이 없습니다."}
                 </div>
               )}
             </div>

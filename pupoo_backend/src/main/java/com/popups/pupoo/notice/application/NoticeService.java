@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Order;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,65 +40,41 @@ public class NoticeService {
 
     /**
      * (관리자/공용) 검색 없이 목록 조회
-     * - AdminNoticeController가 호출하는 시그니처(list(page,size))를 유지한다.
-     * - 검색 분기 로직은 SearchType.TITLE_CONTENT + 빈 키워드로 통일한다. (null 사용 안 함)
      */
     public Page<NoticeResponse> list(int page, int size) {
-        return list(SearchType.TITLE_CONTENT, "", page, size, null, null);
+        return list(SearchType.TITLE_CONTENT, "", page, size, null, null, null);
     }
 
-    /** 공지 목록 정렬: 고정(pinned) 내림차순, 작성일(createdAt) 내림차순 (전체 항목 기준) */
-    private static final Sort NOTICE_LIST_SORT = Sort.by(
-            Sort.Order.desc("pinned"),
-            Sort.Order.desc("createdAt")
-    );
-
-    public Page<NoticeResponse> list(SearchType searchType, String keyword, int page, int size, String scope, Boolean pinned) {
+    /**
+     * 공지 목록 조회 (사용자 API).
+     * 1. 정렬: is_pinned=1 상단 고정, is_pinned=0 이후 나열 (전체 공지 대상).
+     * 2. 필터: scope/검색어는 is_pinned=0 인 것에만 적용.
+     * 3. 정렬: 고정/비고정 각각 최신순(recent)|조회순(views)|오래된순(oldest).
+     */
+    public Page<NoticeResponse> list(SearchType searchType, String keyword, int page, int size, String scope, Boolean pinned, String sort) {
         validatePageRequest(page, size);
-        PageRequest pageable = PageRequest.of(page, size, NOTICE_LIST_SORT);
-
-        SearchType type = (searchType == null) ? SearchType.TITLE_CONTENT : searchType;
         String kw = (keyword == null) ? "" : keyword.trim();
-        boolean hasFilter = (scope != null && !scope.isBlank()) || pinned != null;
-
-        if (hasFilter) {
-            if (kw.isBlank()) {
-                return noticeRepository.findByStatusWithScopeAndPinned(NoticeStatus.PUBLISHED, scope, pinned, pageable)
-                        .map(this::toResponse);
-            }
-            if (type == SearchType.TITLE_CONTENT) {
-                return noticeRepository.searchByTitleOrContentWithScopeAndPinned(NoticeStatus.PUBLISHED, kw, scope, pinned, pageable)
-                        .map(this::toResponse);
-            }
-        }
-
-        if (kw.isBlank()) {
-            return noticeRepository.findByStatus(NoticeStatus.PUBLISHED, pageable)
-                    .map(this::toResponse);
-        }
-
-        return switch (type) {
-            case TITLE -> noticeRepository.searchByTitle(NoticeStatus.PUBLISHED, kw, pageable).map(this::toResponse);
-            case CONTENT -> noticeRepository.searchByContent(NoticeStatus.PUBLISHED, kw, pageable).map(this::toResponse);
-            case WRITER -> {
-                Long adminId = parseLongOrNull(kw);
-                if (adminId == null) {
-                    yield Page.empty(pageable);
-                }
-                yield noticeRepository.findByStatusAndCreatedByAdminId(NoticeStatus.PUBLISHED, adminId, pageable)
-                        .map(this::toResponse);
-            }
-            case TITLE_CONTENT -> noticeRepository.searchByTitleOrContent(NoticeStatus.PUBLISHED, kw, pageable).map(this::toResponse);
-        };
+        // scope null/빈 값/"all"(소문자, 모든공지 옵션) -> 비고정 필터 없음. "ALL"은 DB값(전체공지)이므로 유지.
+        String scopeParam = (scope == null || scope.isBlank() || "all".equals(scope)) ? null : scope.trim();
+        Sort order = buildNoticeListSort(sort);
+        PageRequest pageable = PageRequest.of(page, size, order);
+        Page<Notice> result = noticeRepository.findPublishedPinnedFirstFilterNonPinnedOnly(
+                NoticeStatus.PUBLISHED,
+                scopeParam,
+                kw,
+                pageable);
+        return result.map(this::toResponse);
     }
 
-    private static Long parseLongOrNull(String keyword) {
-        if (keyword == null || keyword.isBlank()) return null;
-        try {
-            return Long.parseLong(keyword.trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
+    /** recent=최신순, views=조회순, oldest=오래된순. 고정(pinned) 내림차순 후 두 번째 기준 적용. */
+    private static Sort buildNoticeListSort(String sort) {
+        String key = (sort == null || sort.isBlank()) ? "recent" : sort.trim().toLowerCase();
+        Order second = switch (key) {
+            case "views" -> Order.desc("viewCount");
+            case "oldest" -> Order.asc("createdAt");
+            default -> Order.desc("createdAt"); // recent
+        };
+        return Sort.by(Order.desc("pinned"), second, Order.desc("noticeId"));
     }
 
     /**
