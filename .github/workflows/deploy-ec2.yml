@@ -38,6 +38,13 @@ jobs:
           cache: npm
           cache-dependency-path: pupoo_frontend/package-lock.json
 
+      # 추가된 단계 (프론트 의존성 설치)
+      - name: Install frontend dependencies
+        working-directory: pupoo_frontend
+        run: |
+          rm -rf node_modules
+          npm install
+
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
