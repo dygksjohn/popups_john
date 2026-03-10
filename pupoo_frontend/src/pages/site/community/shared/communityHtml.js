@@ -54,6 +54,27 @@ export function hasMeaningfulCommunityContent(html) {
   return /<img[\s\S]*?>/i.test(String(html || ""));
 }
 
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/**
+ * HTML이 아닌 단순 텍스트면 이스케이프 후 줄바꿈을 <br />로, 아니면 기존 HTML 새니타이즈.
+ */
+export function prepareContentForDisplay(html) {
+  const s = String(html || "").trim();
+  if (!s) return "";
+  if (!/<[a-z][\s\S]*>/i.test(s)) {
+    return escapeHtml(s).replace(/\n/g, "<br />");
+  }
+  return sanitizeCommunityHtml(s);
+}
+
 export function sanitizeCommunityHtml(html) {
   const ssrFallback = withParser(html, String(html || ""));
   if (ssrFallback !== null) {

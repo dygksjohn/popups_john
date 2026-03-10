@@ -2,7 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "../communityConfig";
-import { sanitizeCommunityHtml } from "./communityHtml";
+import { prepareContentForDisplay } from "./communityHtml";
 
 const styles = {
   main: {
@@ -109,7 +109,7 @@ export default function CommunityDetailLayout({
           <div style={styles.body}>
             <div
               style={styles.content}
-              dangerouslySetInnerHTML={{ __html: sanitizeCommunityHtml(content || "") }}
+              dangerouslySetInnerHTML={{ __html: prepareContentForDisplay(content || "") }}
             />
             {extraContent}
           </div>
