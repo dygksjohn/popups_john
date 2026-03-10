@@ -814,7 +814,7 @@ export default function InfoBoard() {
         postTitle: title,
         content,
       });
-      const createdPostId = Number(created?.postId);
+      const createdPostId = Number(created?.postId ?? created);
       if (file && createdPostId) {
         await fileApi.upload(file, "POST", createdPostId);
       }
