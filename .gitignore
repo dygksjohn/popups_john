@@ -96,10 +96,13 @@ application-test.properties
 ############################################
 uploads/
 **/uploads/
-!src/main/resources/uploads/
-!src/main/resources/uploads/**
 !pupoo_backend/src/main/resources/uploads/
 !pupoo_backend/src/main/resources/uploads/**
+
+# Local runtime artifacts outside the backend module
+/src/main/resources/uploads/
+/src/main/resources/uploads/**
+/pupoo_frontend/_.zip
 
 ############################################
 # Temporary
