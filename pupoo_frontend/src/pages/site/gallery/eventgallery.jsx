@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  GripVertical,
   Heart,
   ImageOff,
   Loader2,
@@ -133,7 +134,71 @@ function GalleryWriteModal({
   loading,
   error,
 }) {
+  const fileInputRef = useRef(null);
+  const prevUrlsRef = useRef([]);
+  const [dragOver, setDragOver] = useState(false);
+  const [dragIndex, setDragIndex] = useState(null);
+  const [dropIndex, setDropIndex] = useState(null);
+
+  const previewUrls = useMemo(() => {
+    prevUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    prevUrlsRef.current = (form.files || []).map((f) => URL.createObjectURL(f));
+    return prevUrlsRef.current;
+  }, [form.files]);
+
+  useEffect(() => {
+    return () => {
+      prevUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      prevUrlsRef.current = [];
+    };
+  }, []);
+
+  const handleFileAdd = useCallback(
+    (newFiles) => {
+      const files = Array.isArray(newFiles) ? newFiles : [];
+      if (!files.length) return;
+      const imageFiles = files.filter((f) => f?.type?.startsWith("image/"));
+      onFilesChange([...(form.files || []), ...imageFiles]);
+    },
+    [form.files, onFilesChange],
+  );
+
+  const handleDrop = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragOver(false);
+      const files = Array.from(e.dataTransfer?.files || []);
+      handleFileAdd(files);
+    },
+    [handleFileAdd],
+  );
+
+  const handleReorder = useCallback(
+    (fromIndex, toIndex) => {
+      if (fromIndex === toIndex || toIndex < 0) return;
+      const list = [...(form.files || [])];
+      const [removed] = list.splice(fromIndex, 1);
+      list.splice(toIndex, 0, removed);
+      onFilesChange(list);
+      setDragIndex(null);
+      setDropIndex(null);
+    },
+    [form.files, onFilesChange],
+  );
+
+  const handleRemoveFile = useCallback(
+    (index) => {
+      const list = [...(form.files || [])];
+      list.splice(index, 1);
+      onFilesChange(list);
+    },
+    [form.files, onFilesChange],
+  );
+
   if (!open) return null;
+
+  const files = form.files || [];
 
   return (
     <>
@@ -171,16 +236,109 @@ function GalleryWriteModal({
               <textarea value={form.description} onChange={(event) => onChange("description", event.target.value)} rows={5} placeholder="현장 분위기와 설명을 입력해 주세요" style={{ borderRadius: 12, border: "1px solid #cbd5e1", padding: 14, fontSize: 14, lineHeight: 1.7, resize: "vertical" }} />
             </label>
 
-            <label style={{ display: "grid", gap: 8 }}>
+            <div style={{ display: "grid", gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>이미지 업로드</span>
-              <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 74, borderRadius: 14, border: "1px dashed #93c5fd", background: "#eff6ff", padding: "0 16px", cursor: "pointer" }}>
-                <Upload size={18} color="#1d4ed8" />
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#1d4ed8" }}>여러 장 선택</span>
-                <input type="file" accept="image/*" multiple onChange={(event) => onFilesChange(Array.from(event.target.files || []))} style={{ display: "none" }} />
-              </label>
-            </label>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
+                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); }}
+                onDrop={handleDrop}
+                style={{
+                  minHeight: 100,
+                  borderRadius: 14,
+                  border: `2px dashed ${dragOver ? "#1d4ed8" : "#93c5fd"}`,
+                  background: dragOver ? "#eff6ff" : "#f8fafc",
+                  padding: 20,
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                  transition: "background 0.15s, border-color 0.15s",
+                }}
+              >
+                <Upload size={24} color="#1d4ed8" />
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#1d4ed8" }}>
+                  {dragOver ? "여기에 놓으세요" : "클릭하여 파일 선택 또는 이미지를 여기에 드래그"}
+                </span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    handleFileAdd(Array.from(e.target.files || []));
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+            </div>
 
-            {form.files.length ? <div style={{ display: "grid", gap: 8 }}>{form.files.map((file) => <div key={`${file.name}-${file.lastModified}`} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13, color: "#475569", background: "#fff" }}>{file.name}</div>)}</div> : null}
+            {files.length > 0 ? (
+              <div style={{ display: "grid", gap: 12 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>미리보기 (첫 번째 사진이 대표 이미지)</span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                  {files.map((file, index) => (
+                    <div
+                      key={`${file.name}-${file.lastModified}-${index}`}
+                      draggable
+                      onDragStart={() => setDragIndex(index)}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDropIndex(index);
+                      }}
+                      onDragLeave={() => setDropIndex(null)}
+                      onDragEnd={() => { setDragIndex(null); setDropIndex(null); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (dragIndex != null && dragIndex !== index) handleReorder(dragIndex, index);
+                        setDragIndex(null);
+                        setDropIndex(null);
+                      }}
+                      style={{
+                        width: 100,
+                        flexShrink: 0,
+                        borderRadius: 12,
+                        overflow: "hidden",
+                        border: dragIndex === index ? "2px solid #1d4ed8" : dropIndex === index ? "2px solid #93c5fd" : "1px solid #e2e8f0",
+                        background: "#fff",
+                        boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
+                        position: "relative",
+                        cursor: "grab",
+                        opacity: dragIndex === index ? 0.85 : 1,
+                      }}
+                    >
+                      <div style={{ aspectRatio: "1", position: "relative", background: "#f1f5f9" }}>
+                        <img src={previewUrls[index]} alt={file.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        {index === 0 ? (
+                          <span style={{ position: "absolute", top: 6, left: 6, padding: "4px 8px", borderRadius: 6, background: "#1d4ed8", color: "#fff", fontSize: 11, fontWeight: 800 }}>
+                            대표
+                          </span>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveFile(index); }}
+                          style={{ position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: 6, border: "none", background: "rgba(15,23,42,0.6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                          aria-label="삭제"
+                        >
+                          <X size={12} />
+                        </button>
+                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "6px 8px", background: "linear-gradient(transparent, rgba(15,23,42,0.7))", display: "flex", alignItems: "center", gap: 4 }}>
+                          <GripVertical size={12} color="#fff" />
+                          <span style={{ fontSize: 10, color: "#fff", fontWeight: 600 }}>드래그하여 순서 변경</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div style={{ padding: "0 28px 28px", display: "flex", justifyContent: "flex-end", gap: 10 }}>
