@@ -11,6 +11,7 @@ import com.popups.pupoo.storage.dto.UploadResponse;
 import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator;
 import com.popups.pupoo.storage.persistence.StoredFileRepository;
 import com.popups.pupoo.storage.port.ObjectStoragePort;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 public class StorageService {
 
@@ -45,38 +47,46 @@ public class StorageService {
      */
     @Transactional
     public UploadResponse uploadForFilesTable(MultipartFile file, UploadRequest request) {
-        request.validateForFilesTable();
-
-        if (file == null || file.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file is required");
-        }
-
-        StorageKeyGenerator.UploadTargetType type = request.parsedTargetType();
-        if (type == StorageKeyGenerator.UploadTargetType.NOTICE && !securityUtil.isAdmin()) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "notice file upload is admin-only");
-        }
-
-        Long uploaderId = securityUtil.currentUserId();
-        Long contentId = request.getContentId();
-        String originalName = safeOriginalName(file.getOriginalFilename());
-
-        String key = keyGenerator.generateKey(type, contentId, originalName);
-        String storedName = key.substring(key.lastIndexOf('/') + 1);
-
         try {
-            objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
-        } catch (IOException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload bytes: " + e.getMessage());
+            request.validateForFilesTable();
+
+            if (file == null || file.isEmpty()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file is required");
+            }
+
+            StorageKeyGenerator.UploadTargetType type = request.parsedTargetType();
+            if (type == StorageKeyGenerator.UploadTargetType.NOTICE && !securityUtil.isAdmin()) {
+                throw new BusinessException(ErrorCode.FORBIDDEN, "notice file upload is admin-only");
+            }
+
+            Long uploaderId = securityUtil.currentUserId();
+            Long contentId = request.getContentId();
+            String originalName = safeOriginalName(file.getOriginalFilename());
+
+            String key = keyGenerator.generateKey(type, contentId, originalName);
+            String storedName = key.substring(key.lastIndexOf('/') + 1);
+
+            try {
+                objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
+            } catch (IOException e) {
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload bytes: " + e.getMessage());
+            }
+
+            StoredFile storedFile = (type == StorageKeyGenerator.UploadTargetType.POST)
+                    ? StoredFile.forPost(originalName, storedName, uploaderId, contentId)
+                    : StoredFile.forNotice(originalName, storedName, uploaderId, contentId);
+
+            StoredFile saved = storedFileRepository.save(storedFile);
+            String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
+
+            return UploadResponse.of(saved.getFileId(), saved.getOriginalName(), saved.getStoredName(), publicPath);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("File upload error: {}", e.getMessage(), e);
+            String msg = e.getMessage() != null && !e.getMessage().isBlank() ? e.getMessage() : e.getClass().getSimpleName();
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "File upload failed: " + msg);
         }
-
-        StoredFile storedFile = (type == StorageKeyGenerator.UploadTargetType.POST)
-                ? StoredFile.forPost(originalName, storedName, uploaderId, contentId)
-                : StoredFile.forNotice(originalName, storedName, uploaderId, contentId);
-
-        StoredFile saved = storedFileRepository.save(storedFile);
-        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
-
-        return UploadResponse.of(saved.getFileId(), saved.getOriginalName(), saved.getStoredName(), publicPath);
     }
 
     /**

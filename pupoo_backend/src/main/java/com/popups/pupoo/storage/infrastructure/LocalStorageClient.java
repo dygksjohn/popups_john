@@ -8,7 +8,10 @@ import org.springframework.stereotype.Component;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 /**
  * 로컬 파일시스템 접근을 담당하는 저수준(Local) 클라이언트.
@@ -24,15 +27,18 @@ import java.nio.file.*;
 public class LocalStorageClient {
 
     public void write(Path absolutePath, byte[] bytes) {
+        Path target = absolutePath.toAbsolutePath().normalize();
+        Path parent = target.getParent();
+        if (parent == null) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Invalid upload path: no parent");
+        }
         try {
-            Path parent = absolutePath.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-
-            Path tmp = Files.createTempFile(parent, ".upload-", ".tmp");
-            Files.write(tmp, bytes, StandardOpenOption.TRUNCATE_EXISTING);
-            Files.move(tmp, absolutePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            Files.createDirectories(parent);
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to create upload directory: " + e.getMessage());
+        }
+        try {
+            Files.write(target, bytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException e) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to write file: " + e.getMessage());
         }

@@ -40,6 +40,11 @@ function getAdminAccessToken() {
 
 export function attachInterceptors(instance, options = {}) {
   instance.interceptors.request.use((config) => {
+    // FormData 전송 시 Content-Type을 제거해야 브라우저가 boundary를 넣은 multipart/form-data로 설정함.
+    if (config.data && config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
+
     if (shouldSkipAutoAuth(config, options)) {
       return config;
     }
