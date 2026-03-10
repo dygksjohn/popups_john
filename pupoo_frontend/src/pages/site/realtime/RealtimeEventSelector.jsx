@@ -10,8 +10,10 @@ import {
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
+import { aiApi } from "../../../app/http/aiApi";
 import { getToken } from "../../../api/noticeApi";
 import { sortAdminEventsByOperationalPriority } from "../../admin/shared/adminStatus";
+import { normalizePrediction } from "./aiCongestionViewModel";
 
 const STATUS_CONFIG = {
   live: {
@@ -434,24 +436,45 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
           ? sortedEvents.filter((event) => eventAvailabilityMap.get(Number(event.eventId)))
           : sortedEvents;
 
-        const liveEvents = visibleEvents
-          .filter((event) => String(event.status).toLowerCase() === "active")
-          .slice(0, 12);
+        const congestionTargets = visibleEvents.filter((event) => {
+          const status = String(event.status).toLowerCase();
+          return status === "active" || status === "pending";
+        });
 
         const congestionEntries = await Promise.all(
-          liveEvents.map(async (event) => {
-            const payload = await fetchAdminData(
-              `/api/admin/dashboard/realtime/events/${event.eventId}/congestions`,
-              { limit: 60 },
-              [],
-            );
-            const values = toArray(payload)
-              .map((row) => congestionLevelToPercent(row.congestionLevel))
-              .filter((value) => Number.isFinite(value) && value > 0);
-            const average = values.length
-              ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
-              : null;
-            return [Number(event.eventId), average];
+          congestionTargets.map(async (event) => {
+            const eventId = Number(event.eventId);
+            const status = String(event.status).toLowerCase();
+
+            if (status === "active") {
+              const payload = await fetchAdminData(
+                `/api/admin/dashboard/realtime/events/${event.eventId}/congestions`,
+                { limit: 60 },
+                [],
+              );
+              const values = toArray(payload)
+                .map((row) => congestionLevelToPercent(row.congestionLevel))
+                .filter((value) => Number.isFinite(value) && value > 0);
+              const average = values.length
+                ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+                : null;
+
+              if (average != null) {
+                return [eventId, average];
+              }
+            }
+
+            // For active/pending events: fallback (or primary for pending) with AI prediction.
+            try {
+              const aiResponse = await aiApi.predictEventCongestion(eventId);
+              const aiPrediction = normalizePrediction(unwrapData(aiResponse, null));
+              const aiAverage = aiPrediction
+                ? Math.round(Number(aiPrediction.avgScore) || 0)
+                : null;
+              return [eventId, Number.isFinite(aiAverage) ? aiAverage : null];
+            } catch {
+              return [eventId, null];
+            }
           }),
         );
 
