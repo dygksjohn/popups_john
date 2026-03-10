@@ -53,6 +53,13 @@ export const BOARD_BADGES = {
 };
 
 export const NOTICE_SCOPE_BADGES = {
+  ALL: {
+    label: "전체 공지",
+    compactLabel: "전체",
+    color: "#1d4ed8",
+    background: "#eff6ff",
+    borderColor: "#bfdbfe",
+  },
   GLOBAL: {
     label: "전체 공지",
     compactLabel: "전체",
@@ -86,5 +93,5 @@ export function getNoticeScopeBadge(scope) {
   if (normalized === "EVENT") {
     return NOTICE_SCOPE_BADGES.EVENT;
   }
-  return NOTICE_SCOPE_BADGES.GLOBAL;
+  return NOTICE_SCOPE_BADGES.ALL || NOTICE_SCOPE_BADGES.GLOBAL;
 }
