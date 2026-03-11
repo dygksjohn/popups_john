@@ -1219,9 +1219,9 @@ function ContestContent({ eventId }) {
             if (rawPath.startsWith("http")) {
               uploadedImageUrl = rawPath;
             } else {
-              const apiBase = (
-                import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
-              ).replace(/\/$/, "");
+              const apiBase = String(import.meta.env.VITE_API_BASE_URL || "")
+                .trim()
+                .replace(/\/$/, "");
               uploadedImageUrl =
                 apiBase + (rawPath.startsWith("/") ? rawPath : "/" + rawPath);
             }
