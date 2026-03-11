@@ -6,6 +6,7 @@ import com.popups.pupoo.auth.security.authentication.filter.JwtAuthenticationFil
 import com.popups.pupoo.auth.security.handler.JwtAccessDeniedHandler;
 import com.popups.pupoo.auth.security.handler.JwtAuthenticationEntryPoint;
 import com.popups.pupoo.auth.token.JwtProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,6 +20,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -35,16 +37,25 @@ public class SecurityConfig {
 
     private final JwtProvider jwtProvider;
     private final ObjectMapper objectMapper;
+    private final List<String> corsAllowedOriginPatterns;
 
-    public SecurityConfig(JwtProvider jwtProvider, ObjectMapper objectMapper) {
+    public SecurityConfig(
+        JwtProvider jwtProvider,
+        ObjectMapper objectMapper,
+        @Value("${app.cors.allowed-origin-patterns}") String corsAllowedOriginPatterns
+    ) {
         this.jwtProvider = jwtProvider;
         this.objectMapper = objectMapper;
+        this.corsAllowedOriginPatterns = Arrays.stream(corsAllowedOriginPatterns.split(","))
+            .map(String::trim)
+            .filter(pattern -> !pattern.isBlank())
+            .toList();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:8080"));
+        config.setAllowedOriginPatterns(corsAllowedOriginPatterns);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));

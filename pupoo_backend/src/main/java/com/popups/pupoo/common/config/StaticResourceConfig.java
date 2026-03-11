@@ -19,7 +19,7 @@ import java.util.Set;
  *
  *  현재(Windows/로컬)
  * - storage.base-path=./uploads (프로젝트 내부)
- * - 브라우저: http://localhost:8080/static/post/10/uuid.png
+ * - 브라우저: http://3.38.233.224:8080/static/post/10/uuid.png
  *
  *  운영(우분투 + Nginx) 전환 시
  * - 이 클래스는 prod 프로필에서 로딩되지 않도록 유지
