@@ -45,6 +45,13 @@ jobs:
         working-directory: pupoo_frontend
         run: npm ci
 
+      - name: Install lightningcss Linux binary
+        if: runner.os == 'Linux'
+        working-directory: pupoo_frontend
+        run: |
+          LIGHTNINGCSS_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/lightningcss'].version")
+          npm install --no-save "lightningcss-linux-x64-gnu@${LIGHTNINGCSS_VERSION}"
+
       - name: Check frontend import casing
         run: node ./scripts/check-import-case.mjs
 
