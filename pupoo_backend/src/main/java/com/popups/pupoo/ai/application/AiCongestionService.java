@@ -95,10 +95,15 @@ public class AiCongestionService {
     }
 
     public AiCongestionPredictionResponse predictEvent(Long eventId) {
+        return predictEvent(eventId, null, null);
+    }
+
+    public AiCongestionPredictionResponse predictEvent(Long eventId, LocalDateTime from, LocalDateTime to) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EVENT_NOT_FOUND));
         LocalDateTime baseTime = LocalDateTime.now();
         List<Program> programs = programRepository.findByEventId(eventId, Pageable.unpaged()).getContent();
+        TimeWindow predictionWindow = resolveEventPredictionWindow(event, from, to);
 
         int entryCount = countEventEntryCount(eventId);
         int activeApplyCount = countEventActiveApplies(eventId);
@@ -109,8 +114,8 @@ public class AiCongestionService {
         AiEventPredictionRequest request = new AiEventPredictionRequest(
                 event.getEventId(),
                 baseTime,
-                event.getStartAt(),
-                event.getEndAt(),
+                predictionWindow.startAt(),
+                predictionWindow.endAt(),
                 entryCount,
                 activeApplyCount,
                 runningProgramCount,
@@ -352,7 +357,7 @@ public class AiCongestionService {
                 request.totalWaitCount(),
                 request.averageWaitMinutes()
         );
-        List<AiTimelinePoint> timeline = buildTimeline(event.getStartAt(), event.getEndAt(), baseScore);
+        List<AiTimelinePoint> timeline = buildTimeline(request.eventStartAt(), request.eventEndAt(), baseScore);
         return buildPredictionResponse("EVENT", event.getEventId(), null, baseTime, timeline, baseScore, true);
     }
 
@@ -570,11 +575,12 @@ public class AiCongestionService {
         double programOperationRate = runningProgramCount / (double) Math.max(totalProgramCount, 1);
         double waitDensityRate = Math.min((totalWaitCount / (double) Math.max(runningProgramCount, 1)) / 15.0, 1.5);
 
-        double score = (entryRate * 0.30)
-                + (waitRate * 0.35)
-                + (waitTimeRate * 0.20)
-                + (waitDensityRate * 0.25)
-                - (programOperationRate * 0.10);
+        // Re-estimated from ai_event_congestion_timeseries (2026-03-11, constrained no-bias fit)
+        double score = (entryRate * 0.1022)
+                + (waitRate * 0.0000)
+                + (waitTimeRate * 0.0266)
+                + (waitDensityRate * 0.2616)
+                - (programOperationRate * 0.0000);
 
         return clampScore(Math.max(0.0, Math.min(1.0, score)) * 100.0);
     }
@@ -590,9 +596,10 @@ public class AiCongestionService {
         double waitRate = waitCount / applyBase;
         double waitTimeRate = Math.min(waitMinutes / 15.0, 1.5);
 
-        double score = (checkinRate * 0.30)
-                + (waitRate * 0.40)
-                + (waitTimeRate * 0.30);
+        // Re-estimated from ai_program_congestion_timeseries (2026-03-11, constrained no-bias fit)
+        double score = (checkinRate * 0.1417)
+                + (waitRate * 0.4864)
+                + (waitTimeRate * 0.0157);
 
         return clampScore(Math.max(0.0, Math.min(1.0, score)) * 100.0);
     }
@@ -620,6 +627,32 @@ public class AiCongestionService {
 
     private int waitFromScore(double score) {
         return Math.max(0, (int) Math.round(score * 0.35));
+    }
+
+    private TimeWindow resolveEventPredictionWindow(Event event, LocalDateTime from, LocalDateTime to) {
+        LocalDateTime eventStart = event.getStartAt();
+        LocalDateTime eventEnd = event.getEndAt();
+
+        LocalDateTime startAt = from != null ? from : eventStart;
+        LocalDateTime endAt = to != null ? to : eventEnd;
+
+        if (startAt.isBefore(eventStart)) {
+            startAt = eventStart;
+        }
+        if (startAt.isAfter(eventEnd)) {
+            startAt = eventEnd;
+        }
+        if (endAt.isBefore(eventStart)) {
+            endAt = eventStart;
+        }
+        if (endAt.isAfter(eventEnd)) {
+            endAt = eventEnd;
+        }
+        if (startAt.isAfter(endAt)) {
+            startAt = endAt;
+        }
+
+        return new TimeWindow(startAt, endAt);
     }
 
     private void savePredictionLog(AiCongestionPredictionResponse prediction) {
@@ -664,6 +697,9 @@ public class AiCongestionService {
 
     private BigDecimal toScoreDecimal(double score) {
         return BigDecimal.valueOf(score).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private record TimeWindow(LocalDateTime startAt, LocalDateTime endAt) {
     }
 
     private record WaitAggregate(int totalWaitCount, double averageWaitMinutes) {

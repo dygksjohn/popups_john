@@ -129,3 +129,30 @@ uploads/
 # Old Workspace
 ############################################
 pupoo_v0.01/
+
+
+############################################
+# AI / ML artifacts (추가 🔥)
+############################################
+
+# trained models
+*.joblib
+*.pkl
+*.model
+*.h5
+
+# training artifacts
+pupoo_ai/artifacts/
+**/artifacts/
+
+# training reports
+training_report*.json
+**/training_report*.json
+
+# runtime logs
+run_logs/
+**/run_logs/
+
+# experiment cache
+.mlflow/
+wandb/

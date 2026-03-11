@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import RealtimeEventSelector from "./RealtimeEventSelector";
@@ -9,7 +9,6 @@ import {
   ChevronUp,
   CheckCircle2,
   BarChart2,
-  PieChart,
   RefreshCw,
   TrendingUp,
   ArrowRight,
@@ -35,6 +34,7 @@ const styles = `
   }
   .vt-root *, .vt-root *::before, .vt-root *::after { box-sizing: border-box; font-family: inherit; }
   .vt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
+  .vt-container.selector-mode { padding-top: 104px; }
 
   .rt-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; background: #fff0f0; border: 1px solid #fecaca; border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444; letter-spacing: 0.5px; }
   .rt-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; animation: vt-pulse 1.4s ease-in-out infinite; }
@@ -63,6 +63,9 @@ const styles = `
   .vt-vote-list { display: flex; flex-direction: column; gap: 10px; }
   .vt-vote-item { border: 1.5px solid #eceef3; border-radius: 12px; padding: 16px 18px; transition: all 0.15s; }
   .vt-vote-item.leading { border-color: #c4b5fd; background: #faf8ff; }
+  .vt-vote-item.clickable { cursor: pointer; }
+  .vt-vote-item.selected { border-color: #7c3aed; box-shadow: 0 0 0 2px rgba(124,58,237,0.1); }
+  .vt-vote-item.clickable:hover { border-color: #c4b5fd; transform: translateY(-1px); }
   .vt-vote-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
   .vt-vote-rank { width: 28px; height: 28px; border-radius: 8px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #6b7280; flex-shrink: 0; }
   .vt-vote-rank.first { background: #fef3c7; color: #d97706; }
@@ -76,14 +79,6 @@ const styles = `
 
   .vt-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-  .vt-opinion-list { display: flex; flex-direction: column; gap: 8px; }
-  .vt-opinion-item { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-radius: 10px; border: 1px solid #eceef3; }
-  .vt-opinion-bar-wrap { flex: 1; }
-  .vt-opinion-label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; }
-  .vt-opinion-track { height: 6px; background: #f1f3f6; border-radius: 100px; overflow: hidden; }
-  .vt-opinion-fill { height: 100%; border-radius: 100px; }
-  .vt-opinion-val { font-size: 14px; font-weight: 800; color: #1a1d24; min-width: 36px; text-align: right; }
-
   .vt-history-list { display: flex; flex-direction: column; gap: 0; }
   .vt-history-item { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid #f9fafb; font-size: 13px; }
   .vt-history-item:last-child { border-bottom: none; }
@@ -92,9 +87,26 @@ const styles = `
   .vt-history-name { color: #374151; }
   .vt-history-choice { font-weight: 600; color: #7c3aed; }
 
+  .vt-pet-card { padding: 16px; border: 1px solid #eceef3; border-radius: 12px; background: #fff; }
+  .vt-pet-media { width: 100%; aspect-ratio: 16 / 10; border-radius: 12px; overflow: hidden; border: 1px solid #eceef3; background: #f9fafb; margin-bottom: 12px; }
+  .vt-pet-head { display: block; }
+  .vt-pet-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .vt-pet-name { font-size: 16px; font-weight: 800; color: #111827; line-height: 1.2; }
+  .vt-pet-owner { font-size: 12px; color: #6b7280; margin-top: 4px; }
+  .vt-pet-chip { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: #f5f3ff; color: #6d28d9; font-size: 11px; font-weight: 700; margin-top: 8px; }
+  .vt-pet-meta { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .vt-pet-meta-item { border: 1px solid #eceef3; border-radius: 9px; padding: 9px 10px; background: #fcfcfd; }
+  .vt-pet-meta-label { font-size: 11px; color: #9ca3af; margin-bottom: 3px; }
+  .vt-pet-meta-value { font-size: 13px; font-weight: 700; color: #374151; }
+
   .vt-live-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
   .vt-live-header-right { display: flex; align-items: center; gap: 12px; }
   .vt-timestamp { font-size: 12px; color: #9ca3af; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .vt-status-banner {
+    margin-bottom: 12px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c;
+    font-size: 12px; font-weight: 600;
+  }
 
   /* CTA to contest page */
   .vt-cta-banner {
@@ -115,7 +127,7 @@ const styles = `
   .vt-cta-arrow { color: #7c3aed; }
 
   @media (max-width: 900px) { .vt-stat-grid { grid-template-columns: 1fr 1fr 1fr; } .vt-two-col { grid-template-columns: 1fr; } }
-  @media (max-width: 640px) { .vt-container { padding: 20px 16px 48px; } .vt-stat-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 640px) { .vt-container { padding: 20px 16px 48px; } .vt-container.selector-mode { padding-top: 88px; } .vt-stat-grid { grid-template-columns: 1fr 1fr; } }
 `;
 
 export const SERVICE_CATEGORIES = [
@@ -132,6 +144,23 @@ export const SUBTITLE_MAP = {
 };
 
 const CANDIDATE_COLORS = ["#8b5cf6", "#a78bfa", "#c4b5fd", "#ddd6fe", "#ede9fe", "#c084fc"];
+const PET_FALLBACK = [
+  "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=400&fit=crop",
+  "https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=400&fit=crop",
+  "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&h=400&fit=crop",
+  "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=400&h=400&fit=crop",
+];
+
+function fallbackPetImage(id) {
+  return PET_FALLBACK[Math.abs(Number(id) || 0) % PET_FALLBACK.length];
+}
+
+function toAbsUrl(url) {
+  if (!url) return null;
+  if (url.startsWith("http")) return url;
+  const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
+  return `${base}${url}`;
+}
 
 function parseDate(value) {
   if (!value) return null;
@@ -150,14 +179,6 @@ function toContestStatus(item) {
   if (e && now > e) return "종료";
   return "진행 중";
 }
-
-const OPINION_DATA = [
-  { label: "프로그램 구성", pct: 88, color: "#8b5cf6" },
-  { label: "부스 운영", pct: 75, color: "#4f46e5" },
-  { label: "음식/간식", pct: 92, color: "#10b981" },
-  { label: "시설 환경", pct: 68, color: "#f59e0b" },
-  { label: "전반적 만족", pct: 84, color: "#ef4444" },
-];
 
 /* ── Animated stat card ── */
 function AnimStatCard({ label, rawValue, suffix, icon, bg, index }) {
@@ -184,7 +205,7 @@ function AnimStatCard({ label, rawValue, suffix, icon, bg, index }) {
 }
 
 /* ── Animated vote item ── */
-function AnimVoteItem({ item, index, total, maxVotes, isLeading }) {
+function AnimVoteItem({ item, index, total, maxVotes, isLeading, isSelected, onClick }) {
   const [barWidth, setBarWidth] = useState(0);
   const animVotes = useCountUp(item.votes, 900, index * 100 + 300);
   const pct = total > 0 ? Math.round((item.votes / total) * 100) : 0;
@@ -198,7 +219,10 @@ function AnimVoteItem({ item, index, total, maxVotes, isLeading }) {
   }, [item.votes, maxVotes, index]);
 
   return (
-    <div className={`vt-vote-item${isLeading ? " leading" : ""}`}>
+    <div
+      className={`vt-vote-item${isLeading ? " leading" : ""}${isSelected ? " selected" : ""}${onClick ? " clickable" : ""}`}
+      onClick={onClick}
+    >
       <div className="vt-vote-header">
         <div
           className={`vt-vote-rank${index === 0 ? " first" : index === 1 ? " second" : index === 2 ? " third" : ""}`}
@@ -222,37 +246,13 @@ function AnimVoteItem({ item, index, total, maxVotes, isLeading }) {
   );
 }
 
-/* ── Animated opinion bar ── */
-function AnimOpinionItem({ o, index }) {
-  const [width, setWidth] = useState(0);
-  const animPct = useCountUp(o.pct, 800, index * 100 + 300);
-
-  useEffect(() => {
-    const t = setTimeout(() => setWidth(o.pct), index * 100 + 300);
-    return () => clearTimeout(t);
-  }, [o.pct, index]);
-
-  return (
-    <div className="vt-opinion-item">
-      <div className="vt-opinion-bar-wrap">
-        <div className="vt-opinion-label">{o.label}</div>
-        <div className="vt-opinion-track">
-          <div
-            className="vt-opinion-fill anim-progress-fill"
-            style={{ width: `${width}%`, background: o.color }}
-          />
-        </div>
-      </div>
-      <span className="vt-opinion-val">{animPct}%</span>
-    </div>
-  );
-}
-
 function VoteContent({ onNavigate, eventId }) {
   const [activeVote, setActiveVote] = useState(null);
   const [contests, setContests] = useState([]);
+  const [selectedCandidateByContest, setSelectedCandidateByContest] = useState({});
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const hasLoadedRef = useRef(false);
   const { tick, lastUpdated } = useAutoRefresh(5000);
   const { spinning, refresh } = useRefresh(() => {}, 800);
   const historyVisible = useStaggerIn(6, 80);
@@ -268,17 +268,29 @@ function VoteContent({ onNavigate, eventId }) {
   };
 
   useEffect(() => {
+    hasLoadedRef.current = false;
+    setContests([]);
+    setSelectedCandidateByContest({});
+    setActiveVote(null);
+    setErrorMsg("");
+    setLoading(true);
+  }, [eventId]);
+
+  useEffect(() => {
     let mounted = true;
     const loadVoteData = async () => {
       if (!eventId) {
         if (mounted) {
           setContests([]);
+          setSelectedCandidateByContest({});
           setActiveVote(null);
+          hasLoadedRef.current = false;
           setLoading(false);
         }
         return;
       }
-      setLoading(true);
+      const showInitialLoading = !hasLoadedRef.current;
+      if (showInitialLoading) setLoading(true);
       setErrorMsg("");
       try {
         const programs = await programApi.getAllProgramsByEvent({
@@ -302,11 +314,24 @@ function VoteContent({ onNavigate, eventId }) {
                 ? candRes.value?.data?.data?.content ?? []
                 : [];
 
-            const nameByApplyId = new Map(
-              candidateRows.map((row) => [
-                Number(row?.programApplyId),
-                row?.petName || (row?.ticketNo ? `참가자 ${row.ticketNo}` : `참가자 #${row?.programApplyId}`),
-              ]),
+            const candidateByApplyId = new Map(
+              candidateRows.map((row) => {
+                const applyId = Number(row?.programApplyId);
+                const name =
+                  row?.petName || (row?.ticketNo ? `참가자 ${row.ticketNo}` : `참가자 #${row?.programApplyId}`);
+                return [
+                  applyId,
+                  {
+                    applyId,
+                    petName: name,
+                    ownerNickname:
+                      row?.ownerNickname || (row?.userId ? `보호자 #${row?.userId}` : "보호자 정보 없음"),
+                    imageUrl: row?.imageUrl || null,
+                    ticketNo: row?.ticketNo ?? null,
+                    userId: row?.userId ?? null,
+                  },
+                ];
+              }),
             );
 
             const results = Array.isArray(voteData?.results) ? voteData.results : [];
@@ -317,14 +342,38 @@ function VoteContent({ onNavigate, eventId }) {
             const items =
               sorted.length > 0
                 ? sorted.map((r, idx) => ({
-                    name: nameByApplyId.get(Number(r?.programApplyId)) || `참가자 #${r?.programApplyId}`,
+                    applyId: Number(r?.programApplyId),
+                    name:
+                      candidateByApplyId.get(Number(r?.programApplyId))?.petName ||
+                      `참가자 #${r?.programApplyId}`,
+                    pet:
+                      candidateByApplyId.get(Number(r?.programApplyId)) || {
+                        applyId: Number(r?.programApplyId),
+                        petName: `참가자 #${r?.programApplyId}`,
+                        ownerNickname: "보호자 정보 없음",
+                        imageUrl: null,
+                        ticketNo: null,
+                        userId: null,
+                      },
                     votes: Number(r?.voteCount ?? 0),
                     color: CANDIDATE_COLORS[idx % CANDIDATE_COLORS.length],
                   }))
                 : candidateRows.map((row, idx) => ({
+                    applyId: Number(row?.programApplyId),
                     name:
                       row?.petName ||
                       (row?.ticketNo ? `참가자 ${row.ticketNo}` : `참가자 #${row?.programApplyId}`),
+                    pet:
+                      candidateByApplyId.get(Number(row?.programApplyId)) || {
+                        applyId: Number(row?.programApplyId),
+                        petName:
+                          row?.petName ||
+                          (row?.ticketNo ? `참가자 ${row.ticketNo}` : `참가자 #${row?.programApplyId}`),
+                        ownerNickname: "보호자 정보 없음",
+                        imageUrl: null,
+                        ticketNo: row?.ticketNo ?? null,
+                        userId: row?.userId ?? null,
+                      },
                     votes: 0,
                     color: CANDIDATE_COLORS[idx % CANDIDATE_COLORS.length],
                   }));
@@ -343,13 +392,30 @@ function VoteContent({ onNavigate, eventId }) {
 
         if (!mounted) return;
         setContests(mapped);
-        setActiveVote(mapped[0]?.key ?? null);
+        setSelectedCandidateByContest((prev) => {
+          const next = {};
+          mapped.forEach((contest) => {
+            const keepId = prev?.[contest.key];
+            if (keepId && contest.items.some((item) => item.applyId === keepId)) {
+              next[contest.key] = keepId;
+              return;
+            }
+            next[contest.key] = contest.items?.[0]?.applyId ?? null;
+          });
+          return next;
+        });
+        setActiveVote((prev) => {
+          if (prev && mapped.some((contest) => contest.key === prev)) {
+            return prev;
+          }
+          return mapped[0]?.key ?? null;
+        });
+        hasLoadedRef.current = true;
       } catch (e) {
         if (!mounted) return;
         setErrorMsg(e?.response?.data?.message || e?.message || "투표 데이터를 불러오지 못했습니다.");
-        setContests([]);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted && showInitialLoading) setLoading(false);
       }
     };
     loadVoteData();
@@ -360,6 +426,11 @@ function VoteContent({ onNavigate, eventId }) {
 
   const data = contests.find((c) => c.key === activeVote) || null;
   const maxVotes = data?.items?.[0]?.votes ?? 0;
+  const selectedCandidateId = data?.key ? selectedCandidateByContest?.[data.key] : null;
+  const selectedCandidate =
+    (data?.items || []).find((item) => item.applyId === selectedCandidateId) ||
+    data?.items?.[0] ||
+    null;
   const recentVotes = (data?.items || []).slice(0, 6).map((item, idx) => ({
     time: lastUpdated?.split(" ").pop() || "--:--:--",
     name: `집계 ${idx + 1}`,
@@ -369,12 +440,14 @@ function VoteContent({ onNavigate, eventId }) {
   const activeContestCount = contests.filter((c) => c.status === "진행 중").length;
   const endedContestCount = contests.filter((c) => c.status === "종료").length;
 
-  if (loading) return <div className="vt-card-tag">투표 데이터를 불러오는 중...</div>;
-  if (!loading && errorMsg) return <div className="vt-card-tag">{errorMsg}</div>;
+  if (loading && contests.length === 0) return <div className="vt-card-tag">투표 데이터를 불러오는 중...</div>;
+  if (!loading && errorMsg && contests.length === 0) return <div className="vt-card-tag">{errorMsg}</div>;
   if (!loading && contests.length === 0) return <div className="vt-card-tag">표시할 콘테스트가 없습니다.</div>;
 
   return (
     <>
+      {errorMsg ? <div className="vt-status-banner">{errorMsg}</div> : null}
+
       {/* Live header */}
       <div className="vt-live-header">
         <div className="rt-live-badge anim-glow">
@@ -496,19 +569,25 @@ function VoteContent({ onNavigate, eventId }) {
           <div className="vt-vote-list">
               {(data?.items || []).map((item, i) => (
                 <AnimVoteItem
-                  key={item.name}
+                  key={`${item.applyId ?? item.name}-${i}`}
                   item={item}
                   index={i}
                   total={data?.total || 1}
                   maxVotes={maxVotes}
                   isLeading={i === 0}
+                  isSelected={item.applyId === selectedCandidate?.applyId}
+                  onClick={() =>
+                    setSelectedCandidateByContest((prev) => ({
+                      ...prev,
+                      [data.key]: item.applyId,
+                    }))
+                  }
                 />
             ))}
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Opinion scores */}
           <div className="vt-card">
             <div className="vt-card-header">
               <div className="vt-card-title">
@@ -516,17 +595,54 @@ function VoteContent({ onNavigate, eventId }) {
                   className="vt-card-title-icon"
                   style={{ background: "#f5f0ff" }}
                 >
-                  <PieChart size={14} color="#7c3aed" />
+                  <Users size={14} color="#7c3aed" />
                 </div>
-                항목별 만족도
+                선택 펫 정보
               </div>
-              <span className="vt-card-tag">평균 점수</span>
+              {selectedCandidate ? (
+                <span className="vt-card-tag">#{selectedCandidate.applyId}</span>
+              ) : null}
             </div>
-            <div className="vt-opinion-list">
-              {OPINION_DATA.map((o, i) => (
-                <AnimOpinionItem key={o.label} o={o} index={i} />
-              ))}
-            </div>
+
+            {selectedCandidate ? (
+              <div className="vt-pet-card">
+                <div className="vt-pet-media">
+                  <img
+                    className="vt-pet-thumb"
+                    src={toAbsUrl(selectedCandidate?.pet?.imageUrl) || fallbackPetImage(selectedCandidate.applyId)}
+                    alt={selectedCandidate?.pet?.petName || selectedCandidate.name}
+                    onError={(e) => {
+                      e.currentTarget.src = fallbackPetImage(selectedCandidate.applyId);
+                    }}
+                  />
+                </div>
+                <div className="vt-pet-head">
+                  <div style={{ minWidth: 0 }}>
+                    <div className="vt-pet-name">{selectedCandidate?.pet?.petName || selectedCandidate.name}</div>
+                    <div className="vt-pet-owner">{selectedCandidate?.pet?.ownerNickname || "보호자 정보 없음"}</div>
+                    <div className="vt-pet-chip">
+                      현재 득표 {selectedCandidate.votes.toLocaleString()}표
+                    </div>
+                  </div>
+                </div>
+                <div className="vt-pet-meta">
+                  <div className="vt-pet-meta-item">
+                    <div className="vt-pet-meta-label">후보 번호</div>
+                    <div className="vt-pet-meta-value">
+                      {selectedCandidate.applyId ?? "-"}
+                    </div>
+                  </div>
+                  <div className="vt-pet-meta-item">
+                    <div className="vt-pet-meta-label">티켓 번호</div>
+                    <div className="vt-pet-meta-value">
+                      {selectedCandidate?.pet?.ticketNo ?? "-"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="vt-card-tag">선택된 후보가 없습니다.</div>
+            )}
           </div>
 
           {/* Recent votes */}
@@ -585,14 +701,16 @@ export default function VoteStatus({ onNavigate: onNavigateProp }) {
     <div className="vt-root">
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
-      <PageHeader
-        title="투표 현황"
-        subtitle={SUBTITLE_MAP[currentPath]}
-        categories={SERVICE_CATEGORIES}
-        currentPath={currentPath}
-        onNavigate={handleNavigate}
-      />
-      <main className="vt-container">
+      {eventId ? (
+        <PageHeader
+          title={null}
+          subtitle={null}
+          categories={SERVICE_CATEGORIES}
+          currentPath={currentPath}
+          onNavigate={handleNavigate}
+        />
+      ) : null}
+      <main className={`vt-container${eventId ? "" : " selector-mode"}`}>
         {eventId ? (
           <VoteContent onNavigate={handleNavigate} eventId={eventId} />
         ) : (

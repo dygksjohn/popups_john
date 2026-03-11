@@ -41,6 +41,7 @@ const styles = `
   }
   .wt-root *, .wt-root *::before, .wt-root *::after { box-sizing: border-box; font-family: inherit; }
   .wt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
+  .wt-container.selector-mode { padding-top: 104px; }
 
   .rt-live-badge {
     display: inline-flex; align-items: center; gap: 6px;
@@ -201,6 +202,7 @@ const styles = `
   @media (max-width: 1000px) { .wt-main-grid { grid-template-columns: 1fr; } }
   @media (max-width: 640px) {
     .wt-container { padding: 20px 16px 48px; }
+    .wt-container.selector-mode { padding-top: 88px; }
     .wt-stat-grid { grid-template-columns: 1fr 1fr; }
     .wt-zone-grid { grid-template-columns: 1fr; }
     .wt-live-title { font-size: 22px; }
@@ -1115,14 +1117,16 @@ export default function WaitingStatus({ onNavigate: onNavigateProp }) {
     <div className="wt-root">
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
-      <PageHeader
-        title="대기 현황"
-        subtitle={SUBTITLE_MAP[currentPath]}
-        categories={SERVICE_CATEGORIES}
-        currentPath={currentPath}
-        onNavigate={handleNavigate}
-      />
-      <main className="wt-container">
+      {eventId ? (
+        <PageHeader
+          title={null}
+          subtitle={null}
+          categories={SERVICE_CATEGORIES}
+          currentPath={currentPath}
+          onNavigate={handleNavigate}
+        />
+      ) : null}
+      <main className={`wt-container${eventId ? "" : " selector-mode"}`}>
         {eventId ? (
           <WaitingContent eventId={eventId} />
         ) : (

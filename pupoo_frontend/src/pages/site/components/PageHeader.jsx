@@ -58,23 +58,50 @@ export default function PageHeader({ title, subtitle, categories }) {
   const programMatch = location.pathname.match(
     /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/([^/?#]+))?/,
   );
-  const currentEventId = programMatch?.[1] || null;
+  const realtimeMatch = location.pathname.match(
+    /^\/realtime\/(?:dashboard|waitingstatus|checkinstatus|votestatus)(?:\/([^/?#]+))?/,
+  );
+  const currentProgramEventId = programMatch?.[1] || null;
+  const currentRealtimeEventId = realtimeMatch?.[1] || null;
 
   const isProgramTabPath = (path) =>
     /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/[^/?#]+)?$/.test(
       path,
     );
 
-  const hasEventIdInPath = (path) =>
+  const hasProgramEventIdInPath = (path) =>
     /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)\/[^/?#]+$/.test(
       path,
     );
 
+  const isRealtimeTabPath = (path) =>
+    /^\/realtime\/(?:dashboard|waitingstatus|checkinstatus|votestatus)(?:\/[^/?#]+)?$/.test(
+      path,
+    );
+
+  const hasRealtimeEventIdInPath = (path) =>
+    /^\/realtime\/(?:dashboard|waitingstatus|checkinstatus|votestatus)\/[^/?#]+$/.test(
+      path,
+    );
+
   const resolveTargetPath = (path) => {
-    if (!currentEventId) return path;
-    if (!isProgramTabPath(path)) return path;
-    if (hasEventIdInPath(path)) return path;
-    return `${path}/${currentEventId}`;
+    if (
+      currentProgramEventId &&
+      isProgramTabPath(path) &&
+      !hasProgramEventIdInPath(path)
+    ) {
+      return `${path}/${currentProgramEventId}`;
+    }
+
+    if (
+      currentRealtimeEventId &&
+      isRealtimeTabPath(path) &&
+      !hasRealtimeEventIdInPath(path)
+    ) {
+      return `${path}/${currentRealtimeEventId}`;
+    }
+
+    return path;
   };
 
   const filteredCategories = (categories || []).filter(
@@ -84,8 +111,8 @@ export default function PageHeader({ title, subtitle, categories }) {
   return (
     <div style={styles.pageHeader}>
       <div style={styles.inner}>
-        <h1 style={styles.title}>{title}</h1>
-        {subtitle && <p style={styles.subtitle}>{subtitle}</p>}
+        {title ? <h1 style={styles.title}>{title}</h1> : null}
+        {subtitle ? <p style={styles.subtitle}>{subtitle}</p> : null}
 
         {filteredCategories.length > 0 && (
           <div style={styles.tabs}>

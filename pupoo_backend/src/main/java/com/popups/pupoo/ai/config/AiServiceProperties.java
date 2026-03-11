@@ -11,6 +11,7 @@ public class AiServiceProperties {
     private String internalToken = "dev-internal-token";
     private long connectTimeoutMs = 500L;
     private long responseTimeoutMs = 1500L;
+    private long maxInMemorySizeBytes = 5L * 1024L * 1024L;
 
     public String getBaseUrl() {
         return baseUrl;
@@ -42,5 +43,13 @@ public class AiServiceProperties {
 
     public void setResponseTimeoutMs(long responseTimeoutMs) {
         this.responseTimeoutMs = responseTimeoutMs;
+    }
+
+    public long getMaxInMemorySizeBytes() {
+        return maxInMemorySizeBytes;
+    }
+
+    public void setMaxInMemorySizeBytes(long maxInMemorySizeBytes) {
+        this.maxInMemorySizeBytes = maxInMemorySizeBytes;
     }
 }

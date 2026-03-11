@@ -5,6 +5,7 @@ import com.popups.pupoo.common.dashboard.analytics.dto.AdminCongestionByHourResp
 import com.popups.pupoo.common.dashboard.analytics.dto.AdminEventPerformanceResponse;
 import com.popups.pupoo.common.dashboard.analytics.dto.AdminYearlyCompareResponse;
 import com.popups.pupoo.common.dashboard.analytics.persistence.AdminAnalyticsQueryRepository;
+import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.enums.RegistrationStatus;
 import com.popups.pupoo.event.persistence.EventRegistrationRepository;
 import com.popups.pupoo.event.persistence.EventRepository;
@@ -33,9 +34,20 @@ public class AdminAnalyticsQueryService {
     public List<AdminEventPerformanceResponse> eventPerformance(LocalDateTime fromAt, LocalDateTime toAt, Pageable pageable) {
         return eventRepository.search(null, null, fromAt, toAt, pageable)
                 .map(e -> {
+                    long applied = eventRegistrationRepository.countByEventIdAndStatus(e.getEventId(), RegistrationStatus.APPLIED);
                     long approved = eventRegistrationRepository.countByEventIdAndStatus(e.getEventId(), RegistrationStatus.APPROVED);
-                    long checkins = qrCheckinRepository.countByQrCode_Event_EventId(e.getEventId());
-                    return new AdminEventPerformanceResponse(e.getEventId(), e.getEventName(), approved, checkins);
+                    long active = applied + approved;
+                    // Planned events must not expose check-in progress.
+                    long checkins = e.getStatus() == EventStatus.PLANNED
+                            ? 0
+                            : qrCheckinRepository.countDistinctCheckinUsersByEventId(e.getEventId());
+                    return new AdminEventPerformanceResponse(
+                            e.getEventId(),
+                            e.getEventName(),
+                            active,
+                            approved,
+                            checkins
+                    );
                 })
                 .getContent();
     }

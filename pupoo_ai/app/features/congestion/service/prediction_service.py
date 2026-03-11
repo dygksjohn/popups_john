@@ -69,12 +69,13 @@ def _event_base_score(request: EventPredictionRequest) -> float:
     program_operation_rate = running_programs / total_programs
     wait_density_rate = min((request.totalWaitCount / max(running_programs, 1)) / 15.0, 1.5)
 
+    # Re-estimated from ai_event_congestion_timeseries (2026-03-11, constrained no-bias fit)
     unit_score = (
-        (entry_rate * 0.30)
-        + (wait_rate * 0.35)
-        + (wait_time_rate * 0.20)
-        + (wait_density_rate * 0.25)
-        - (program_operation_rate * 0.10)
+        (entry_rate * 0.1022)
+        + (wait_rate * 0.0000)
+        + (wait_time_rate * 0.0266)
+        + (wait_density_rate * 0.2616)
+        - (program_operation_rate * 0.0000)
     )
 
     return _clamp_score(max(0.0, min(1.0, unit_score)) * 100.0)
@@ -86,10 +87,11 @@ def _program_base_score(request: ProgramPredictionRequest) -> float:
     wait_rate = request.waitCount / total_apply
     wait_time_rate = min(request.waitMinutes / 15.0, 1.5)
 
+    # Re-estimated from ai_program_congestion_timeseries (2026-03-11, constrained no-bias fit)
     unit_score = (
-        (checkin_rate * 0.30)
-        + (wait_rate * 0.40)
-        + (wait_time_rate * 0.30)
+        (checkin_rate * 0.1417)
+        + (wait_rate * 0.4864)
+        + (wait_time_rate * 0.0157)
     )
     return _clamp_score(max(0.0, min(1.0, unit_score)) * 100.0)
 

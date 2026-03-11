@@ -14,6 +14,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 
@@ -35,9 +36,13 @@ public class AiInferenceClient {
         HttpClient httpClient = HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.toIntExact(properties.getConnectTimeoutMs()))
                 .responseTimeout(Duration.ofMillis(properties.getResponseTimeoutMs()));
+        ExchangeStrategies exchangeStrategies = ExchangeStrategies.builder()
+                .codecs(codecs -> codecs.defaultCodecs().maxInMemorySize(resolveMaxInMemorySize()))
+                .build();
         this.webClient = builder
                 .baseUrl(properties.getBaseUrl())
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .exchangeStrategies(exchangeStrategies)
                 .build();
     }
 
@@ -94,5 +99,13 @@ public class AiInferenceClient {
             }
         }
         return Optional.empty();
+    }
+
+    private int resolveMaxInMemorySize() {
+        long configured = properties.getMaxInMemorySizeBytes();
+        if (configured <= 0L) {
+            return 5 * 1024 * 1024;
+        }
+        return (int) Math.min(configured, Integer.MAX_VALUE);
     }
 }
