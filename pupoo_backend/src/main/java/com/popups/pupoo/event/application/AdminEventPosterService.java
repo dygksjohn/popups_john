@@ -5,6 +5,8 @@ import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.event.dto.AdminEventPosterAssetResponse;
 import com.popups.pupoo.event.dto.AdminEventPosterGenerateRequest;
+import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator;
+import com.popups.pupoo.storage.port.ObjectStoragePort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -29,7 +31,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -44,6 +45,7 @@ import java.util.stream.Stream;
 @Service
 public class AdminEventPosterService {
 
+    private static final String STORAGE_BUCKET_UNUSED = "local";
     private static final int POSTER_IMAGE_COUNT = 1;
     private static final String POSTER_IMAGE_SIZE = "1024x1792";
     private static final int POSTER_OUTPUT_WIDTH = 400;
@@ -73,18 +75,21 @@ public class AdminEventPosterService {
     );
 
     private final RestClient restClient;
-    private final Path eventUploadDir;
+    private final ObjectStoragePort objectStoragePort;
+    private final StorageKeyGenerator storageKeyGenerator;
     private final String apiKey;
     private final String model;
-    private final Object fileLock = new Object();
 
     public AdminEventPosterService(
             RestClient.Builder builder,
+            ObjectStoragePort objectStoragePort,
+            StorageKeyGenerator storageKeyGenerator,
             @Value("${openai.image.api-key:}") String configuredApiKey,
             @Value("${openai.image.model:}") String configuredModel,
-            @Value("${openai.image.base-url:https://api.openai.com}") String baseUrl,
-            @Value("${storage.base-path:./src/main/resources/uploads}") String storageBasePath
+            @Value("${openai.image.base-url:https://api.openai.com}") String baseUrl
     ) {
+        this.objectStoragePort = objectStoragePort;
+        this.storageKeyGenerator = storageKeyGenerator;
         this.apiKey = firstNonBlank(
                 configuredApiKey,
                 System.getenv("OPENAI_API_KEY"),
@@ -101,7 +106,6 @@ public class AdminEventPosterService {
             configuredBuilder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + this.apiKey);
         }
         this.restClient = configuredBuilder.build();
-        this.eventUploadDir = Paths.get(storageBasePath).toAbsolutePath().normalize().resolve("event");
     }
 
     public AdminEventPosterAssetResponse uploadPoster(MultipartFile file) {
@@ -379,48 +383,13 @@ public class AdminEventPosterService {
     }
 
     private AdminEventPosterAssetResponse storeImage(byte[] bytes, String extension) {
-        try {
-            Files.createDirectories(eventUploadDir);
-            String storedName;
-            synchronized (fileLock) {
-                storedName = nextStoredName(extension);
-                Files.write(
-                        eventUploadDir.resolve(storedName),
-                        bytes,
-                        StandardOpenOption.CREATE_NEW,
-                        StandardOpenOption.WRITE
-                );
-            }
-            return new AdminEventPosterAssetResponse("/uploads/event/" + storedName, storedName);
-        } catch (IOException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to store poster image");
-        }
-    }
-
-    private String nextStoredName(String extension) throws IOException {
-        long nextSequence;
-        try (Stream<Path> stream = Files.list(eventUploadDir)) {
-            nextSequence = stream
-                    .filter(Files::isRegularFile)
-                    .map(path -> extractSequence(path.getFileName().toString()))
-                    .filter(sequence -> sequence >= 0)
-                    .max(Long::compareTo)
-                    .orElse(0L) + 1;
-        }
-        return String.format(Locale.ROOT, "%013d.%s", nextSequence, extension);
-    }
-
-    private long extractSequence(String fileName) {
-        int dotIndex = fileName.indexOf('.');
-        String baseName = dotIndex >= 0 ? fileName.substring(0, dotIndex) : fileName;
-        if (!baseName.matches("\\d+")) {
-            return -1L;
-        }
-        try {
-            return Long.parseLong(baseName);
-        } catch (NumberFormatException e) {
-            return -1L;
-        }
+        String key = storageKeyGenerator.generateStandaloneKey("event", "poster." + extension);
+        String storedName = key.substring(key.lastIndexOf('/') + 1);
+        objectStoragePort.putObject(STORAGE_BUCKET_UNUSED, key, bytes, contentTypeForExtension(extension));
+        return new AdminEventPosterAssetResponse(
+                objectStoragePort.getPublicPath(STORAGE_BUCKET_UNUSED, key),
+                storedName
+        );
     }
 
     private String resolveExtension(String originalFilename, String contentType) {
@@ -448,6 +417,16 @@ public class AdminEventPosterService {
         return switch (extension) {
             case "jpg", "jpeg", "png", "gif", "webp" -> "jpeg".equals(extension) ? "jpg" : extension;
             default -> "png";
+        };
+    }
+
+    private String contentTypeForExtension(String extension) {
+        return switch (extension) {
+            case "jpg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            default -> "application/octet-stream";
         };
     }
 
