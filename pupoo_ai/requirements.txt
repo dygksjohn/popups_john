@@ -30,3 +30,7 @@ uvicorn[standard]==0.34.0
 chromadb==0.5.23
 tenacity==9.0.0
 python-dotenv==1.0.1
+# 조합 6: HateBERT 계열 (로컬 추론)
+transformers>=4.36.0
+torch>=2.0.0
+accelerate>=0.25.0
