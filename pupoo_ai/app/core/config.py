@@ -10,9 +10,11 @@ class Settings(BaseSettings):
     service_name: str = "pupoo-ai"
     internal_token: str = "dev-internal-token"
     log_level: str = "INFO"
+    anthropic_api_key: str = ""
 
     if SettingsConfigDict is not None:
         model_config = SettingsConfigDict(
+            env_file=".env",
             env_prefix="PUPOO_AI_",
             case_sensitive=False,
             extra="ignore",
