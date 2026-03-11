@@ -53,4 +53,19 @@ public class BannedWord {
             this.category = BannedWordCategory.OTHER;
         }
     }
+
+    /**
+     * 관리자 수정 시 필드 갱신 (null이 아닌 값만 반영, replacement는 null이면 미변경)
+     */
+    public void update(String bannedWord, BannedWordCategory category, String replacement) {
+        if (bannedWord != null && !bannedWord.isBlank()) {
+            this.bannedWord = bannedWord;
+        }
+        if (category != null) {
+            this.category = category;
+        }
+        if (replacement != null) {
+            this.replacement = replacement;
+        }
+    }
 }
