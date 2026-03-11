@@ -93,9 +93,9 @@ const styles = `
 const toAbsUrl = (url) => {
   if (!url) return null;
   if (url.startsWith("http")) return url;
-  const base = (
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
-  ).replace(/\/$/, "");
+  const base = String(import.meta.env.VITE_API_BASE_URL || "")
+    .trim()
+    .replace(/\/$/, "");
   return base + (url.startsWith("/") ? url : `/${url}`);
 };
 
