@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/deploy-ec2.yml"
+      - "pupoo_backend/**"
+      - "pupoo_frontend/**"
+      - "scripts/check-import-case.mjs"
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/deploy-ec2.yml"
+      - "pupoo_backend/**"
+      - "pupoo_frontend/**"
+      - "scripts/check-import-case.mjs"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: pupoo_frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: pupoo_frontend
+        run: npm ci
+
+      - name: Check frontend import casing
+        run: node ./scripts/check-import-case.mjs
+
+      - name: Build frontend
+        working-directory: pupoo_frontend
+        run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: frontend
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: pupoo_frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: pupoo_frontend
+        run: npm ci
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build backend
+        working-directory: pupoo_backend
+        run: |
+          chmod +x ./gradlew
+          ./gradlew build -x test
