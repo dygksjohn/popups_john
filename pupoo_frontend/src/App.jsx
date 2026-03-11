@@ -16,7 +16,7 @@ import PastEvents from "./pages/admin/past/PastEvents";
 import ZoneManage from "./pages/admin/zone/zoneManage";
 import ContestManage from "./pages/admin/contest/contestManage";
 import SessionManage from "./pages/admin/session/sessionManage";
-import Reviews from "./pages/admin/board/reviews";
+import Reviews from "./pages/admin/board/Reviews";
 import GalleryManage from "./pages/admin/gallery/Gallery";
 import ParticipantList from "./pages/admin/participant/ParticipantList";
 import PaymentManage from "./pages/admin/participant/PaymentManage";
@@ -32,7 +32,7 @@ import Home from "./pages/site/home/Home";
 import Login from "./pages/site/auth/Login";
 import FindPassword from "./pages/site/auth/FindPassword";
 import ResetPassword from "./pages/site/auth/ResetPassword";
-import Mypage from "./pages/site/auth/mypage";
+import Mypage from "./pages/site/auth/Mypage";
 import MypageQr from "./pages/site/auth/MypageQr";
 import MypageProfileEdit from "./pages/site/auth/MypageProfileEdit";
 import MypagePetEditor from "./pages/site/auth/MypagePetEditor";
@@ -115,7 +115,7 @@ import EventGallery from "./pages/site/gallery/eventgallery";
 
 /* guide */
 import Operation from "./pages/site/guide/Operation";
-import LocationPage from "./pages/site/guide/location";
+import LocationPage from "./pages/site/guide/Location";
 
 function ComingSoon() {
   return (
