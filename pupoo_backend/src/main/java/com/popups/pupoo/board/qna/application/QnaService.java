@@ -2,6 +2,8 @@
 package com.popups.pupoo.board.qna.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
+import com.popups.pupoo.board.bannedword.dto.BannedWordDetection;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
@@ -19,6 +21,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.time.LocalDateTime;
 
 @Service
@@ -42,7 +45,7 @@ public class QnaService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QNA 게시판(board_type=QNA)이 존재하지 않습니다."));
 
         // 금칙어 검증 (QnA 작성 포함)
-        bannedWordService.validate(qnaBoard.getBoardId(), request.getTitle(), request.getContent());
+        List<BannedWordDetection> detections = bannedWordService.validate(qnaBoard.getBoardId(), request.getTitle(), request.getContent());
 
         Post post = Post.builder()
                 .board(qnaBoard)
@@ -58,7 +61,11 @@ public class QnaService {
                 .commentEnabled(false)
                 .build();
 
-        return toResponse(qnaRepository.save(post));
+        Post saved = qnaRepository.save(post);
+        if (!detections.isEmpty()) {
+            bannedWordService.logDetections(qnaBoard.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, detections);
+        }
+        return toResponse(saved);
     }
 
     @Transactional
@@ -102,12 +109,15 @@ public class QnaService {
         }
 
         // 금칙어 검증 (QnA 수정 포함)
-        bannedWordService.validate(post.getBoard().getBoardId(), request.getTitle(), request.getContent());
+        List<BannedWordDetection> detections = bannedWordService.validate(post.getBoard().getBoardId(), request.getTitle(), request.getContent());
 
         post.updateTitleAndContent(request.getTitle(), request.getContent());
 
-        // 운영안정(v2): mutating + dirty checking 기반으로 updatedAt은 @PreUpdate에서 자동 반영된다.
-        return toResponse(qnaRepository.save(post));
+        Post saved = qnaRepository.save(post);
+        if (!detections.isEmpty()) {
+            bannedWordService.logDetections(post.getBoard().getBoardId(), post.getPostId(), BannedLogContentType.POST, userId, detections);
+        }
+        return toResponse(saved);
     }
 
     @Transactional
@@ -160,13 +170,16 @@ public class QnaService {
         String writerEmail = post.getUserId() != null
                 ? userRepository.findById(post.getUserId()).map(u -> u.getEmail()).orElse(null)
                 : null;
+        Long boardId = post.getBoard() != null ? post.getBoard().getBoardId() : null;
+        String maskedTitle = boardId != null ? bannedWordService.mask(boardId, post.getPostTitle()) : post.getPostTitle();
+        String maskedContent = boardId != null ? bannedWordService.mask(boardId, post.getContent()) : post.getContent();
         return QnaResponse.builder()
                 .qnaId(post.getPostId())
                 .boardId(post.getBoard().getBoardId())
                 .userId(post.getUserId())
                 .writerEmail(writerEmail)
-                .title(post.getPostTitle())
-                .content(post.getContent())
+                .title(maskedTitle)
+                .content(maskedContent)
                 .status(post.getAnsweredAt() == null ? QnaStatus.WAITING : QnaStatus.ANSWERED)
                 .answerContent(post.getAnswerContent())
                 .answeredAt(post.getAnsweredAt())
