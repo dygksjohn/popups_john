@@ -103,6 +103,28 @@ public class BannedWordService {
     }
 
     /**
+     * AI 모더레이션 결과 로그 기록 (금칙어 미검출이어도 단일 행으로 남김)
+     */
+    @Transactional
+    public void logAiResult(Long boardId, Long contentId, BannedLogContentType contentType, Long userId,
+                            Float aiScore, String ragReason) {
+        if (boardId == null || contentId == null) {
+            return;
+        }
+        if (aiScore == null && (ragReason == null || ragReason.isBlank())) {
+            return;
+        }
+        boardBannedLogRepository.save(BoardBannedLog.builder()
+                .boardId(boardId)
+                .contentId(contentId)
+                .contentType(contentType)
+                .userId(userId)
+                .aiScore(aiScore)
+                .ragReason(ragReason)
+                .build());
+    }
+
+    /**
      * 5단계: 노출 시점 마스킹. 정책이 MASK인 금지어만 replacement(또는 "***")로 치환.
      *
      * @param boardId 게시판 ID (null이면 치환 없이 원문 반환)

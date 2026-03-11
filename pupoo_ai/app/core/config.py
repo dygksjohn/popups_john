@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     internal_token: str = "dev-internal-token"
     log_level: str = "INFO"
 
+    # 조합 6: HateBERT + Redis
+    redis_url: str = "redis://localhost:6379/0"
+    moderation_threshold: float = 0.7  # 이 값 이상이면 REVIEW
+    hatebert_model: str = "GroNLP/hateBERT"  # 또는 unitary/toxic-bert 등
+
     if SettingsConfigDict is not None:
         model_config = SettingsConfigDict(
             env_prefix="PUPOO_AI_",

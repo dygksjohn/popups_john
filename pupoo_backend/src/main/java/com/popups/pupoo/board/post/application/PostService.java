@@ -1,6 +1,7 @@
 // file: src/main/java/com/popups/pupoo/board/post/application/PostService.java
 package com.popups.pupoo.board.post.application;
 
+import com.popups.pupoo.board.bannedword.application.AiModerationClient;
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.bannedword.dto.BannedWordDetection;
@@ -34,6 +35,7 @@ public class PostService {
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
     private final UserRepository userRepository;
+    private final AiModerationClient aiModerationClient;
 
     private Long resolveBoardId(Long boardId, BoardType boardType) {
         if (boardId != null) return boardId;
@@ -159,6 +161,17 @@ public class PostService {
         if (!detections.isEmpty()) {
             bannedWordService.logDetections(board.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, detections);
         }
+
+        // AI 모더레이션 호출 (제목+내용 기준)
+        aiModerationClient.moderate(req.getPostTitle() + "\n" + req.getContent())
+                .ifPresent(result -> bannedWordService.logAiResult(
+                        board.getBoardId(),
+                        saved.getPostId(),
+                        BannedLogContentType.POST,
+                        userId,
+                        result.getAiScore(),
+                        result.getReason()
+                ));
         return saved.getPostId();
     }
 
@@ -179,6 +192,17 @@ public class PostService {
         if (!detections.isEmpty()) {
             bannedWordService.logDetections(post.getBoard().getBoardId(), postId, BannedLogContentType.POST, userId, detections);
         }
+
+        // AI 모더레이션 호출 (제목+내용 기준)
+        aiModerationClient.moderate(req.getPostTitle() + "\n" + req.getContent())
+                .ifPresent(result -> bannedWordService.logAiResult(
+                        post.getBoard().getBoardId(),
+                        postId,
+                        BannedLogContentType.POST,
+                        userId,
+                        result.getAiScore(),
+                        result.getReason()
+                ));
     }
 
     @Transactional
