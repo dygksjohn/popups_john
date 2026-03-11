@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "./pages/site/auth/AuthProvider";
 import SiteLayout from "./layouts/SiteLayout";
-import ScrollToTop from "./ScrollToTop";
+import ScrollToTop from "./ScrollToTop.jsx";
 import { adminNoticeApi, getToken, clearToken } from "./api/noticeApi";
 
 /* admin */
