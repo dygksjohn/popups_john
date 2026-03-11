@@ -12,8 +12,9 @@ public interface BannedWordRepository extends JpaRepository<BannedWord, Long> {
 
     List<BannedWord> findAllByBoard_BoardIdOrderByBannedWordIdAsc(Long boardId);
 
+    /** 전체 금지어 모두 조회 */
     List<BannedWord> findAllByOrderByBoard_BoardIdAscBannedWordIdAsc();
-    
+
     /** 해당 게시판 전용 + 전역(board_id NULL) 금지어 모두 조회 */
     List<BannedWord> findByBoard_BoardIdOrBoardIsNullOrderByBannedWordIdAsc(Long boardId);
 
