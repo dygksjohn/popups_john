@@ -3,6 +3,7 @@ import pkgutil
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from pupoo_ai.app.core.config import settings
 from pupoo_ai.app.core.exceptions import register_exception_handlers
@@ -27,6 +28,12 @@ def create_app() -> FastAPI:
     app.add_middleware(TraceIdMiddleware)
     register_exception_handlers(app)
     include_registered_routers(app)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     return app
 
 
