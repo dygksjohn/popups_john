@@ -3,7 +3,6 @@ package com.popups.pupoo.board.review.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
-import com.popups.pupoo.board.bannedword.dto.BannedWordDetection;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
 import com.popups.pupoo.board.review.domain.enums.ReviewStatus;
@@ -40,9 +39,6 @@ public class ReviewService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "REVIEW 게시판(board_type=REVIEW)이 존재하지 않습니다."))
                 .getBoardId();
 
-        // 금칙어 검증 (리뷰 작성 포함)
-        List<BannedWordDetection> detections = bannedWordService.validate(reviewBoardId, request.getContent());
-
         String reviewTitle = deriveTitleFromContent(request.getContent());
 
         Review review = Review.builder()
@@ -58,9 +54,6 @@ public class ReviewService {
                 .reviewStatus(ReviewStatus.PUBLIC)
                 .build();
         Review saved = reviewRepository.save(review);
-        if (!detections.isEmpty()) {
-            bannedWordService.logDetections(reviewBoardId, saved.getReviewId(), BannedLogContentType.POST, userId, detections);
-        }
         return toResponse(saved);
     }
 
@@ -132,13 +125,6 @@ public class ReviewService {
             throw new SecurityException("수정 권한이 없습니다.");
         }
 
-        Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "REVIEW 게시판(board_type=REVIEW)이 존재하지 않습니다."))
-                .getBoardId();
-
-        // 금칙어 검증 (리뷰 수정 포함)
-        List<BannedWordDetection> detections = bannedWordService.validate(reviewBoardId, request.getContent());
-
         Review updated = Review.builder()
                 .reviewId(review.getReviewId())
                 .eventId(review.getEventId())
@@ -154,9 +140,6 @@ public class ReviewService {
                 .build();
 
         Review saved = reviewRepository.save(updated);
-        if (!detections.isEmpty()) {
-            bannedWordService.logDetections(reviewBoardId, saved.getReviewId(), BannedLogContentType.POST, userId, detections);
-        }
         return toResponse(saved);
     }
 
@@ -209,8 +192,6 @@ public class ReviewService {
         String eventName = eventRepository.findById(r.getEventId()).map(e -> e.getEventName()).orElse(null);
         String writerEmail = userRepository.findById(r.getUserId()).map(u -> u.getEmail()).orElse(null);
         Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW).map(b -> b.getBoardId()).orElse(null);
-        String maskedTitle = reviewBoardId != null ? bannedWordService.mask(reviewBoardId, r.getReviewTitle()) : r.getReviewTitle();
-        String maskedContent = reviewBoardId != null ? bannedWordService.mask(reviewBoardId, r.getContent()) : r.getContent();
-        return ReviewResponse.from(r, eventName, writerEmail, maskedTitle, maskedContent);
+        return ReviewResponse.from(r, eventName, writerEmail, r.getReviewTitle(), r.getContent());
     }
 }
