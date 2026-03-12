@@ -424,6 +424,12 @@ const styles = `
     display: flex;
     gap: 10px;
     align-items: center;
+    flex-wrap: wrap;
+  }
+  .rt-heat-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
   .rt-heat-legend-text {
     font-size: 11px;
@@ -583,16 +589,103 @@ const styles = `
   .rt-timeline-time { font-size: 11.5px; color: #9ca3af; min-width: 44px; padding-top: 1px; }
   .rt-timeline-text { font-size: 13px; color: #374151; line-height: 1.5; }
 
-  .rt-hour-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; }
-  .rt-hour-cell {
-    aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center;
-    justify-content: center; font-size: 9px; font-weight: 700;
-    cursor: default;
+  .rt-hourly-chart {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    align-items: stretch;
   }
-  .rt-hour-cell-label {
-    font-size: 9px;
-    color: #9ca3af;
+  .rt-hourly-y-axis {
+    display: grid;
+    grid-template-rows: repeat(5, 1fr);
+    align-items: center;
+    justify-items: end;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    min-height: 166px;
+    padding-top: 2px;
+  }
+  .rt-hourly-plot-wrap {
+    min-width: 0;
+  }
+  .rt-hourly-svg-wrap {
+    position: relative;
+    height: 166px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+    overflow: hidden;
+  }
+  .rt-hourly-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .rt-hourly-segment {
+    stroke-width: 2.2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .rt-hourly-segment.past {
+    stroke: #93c5fd;
+    opacity: 0.32;
+  }
+  .rt-hourly-segment.future {
+    stroke: #2563eb;
+    opacity: 0.9;
+  }
+  .rt-hourly-segment.mixed {
+    stroke: #3b82f6;
+    opacity: 0.82;
+  }
+  .rt-hourly-point {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .rt-hourly-point.past {
+    opacity: 0.35;
+  }
+  .rt-hourly-point.future {
+    opacity: 0.9;
+  }
+  .rt-hourly-point.current {
+    opacity: 1;
+  }
+  .rt-hourly-current-line {
+    stroke: #2563eb;
+    stroke-width: 0.9;
+    stroke-dasharray: 2 2;
+    opacity: 0.6;
+  }
+  .rt-hourly-x-axis {
+    margin-top: 6px;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(20px, 1fr);
+    gap: 6px;
+    align-items: center;
+  }
+  .rt-hourly-x-label {
     text-align: center;
+    font-size: 10px;
+    line-height: 1.1;
+    color: #94a3b8;
+    font-weight: 600;
+    min-height: 20px;
+  }
+  .rt-hourly-x-label.current {
+    color: #2563eb;
+    font-weight: 800;
+  }
+  .rt-calendar-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 700;
   }
 
   .rt-empty {
@@ -681,6 +774,7 @@ export const SUBTITLE_MAP = {
 };
 
 const FALLBACK_HOURS = Array.from({ length: 12 }, (_, index) => 10 + index);
+const FULL_DAY_HOURS = Array.from({ length: 24 }, (_, index) => index);
 const AI_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const STATUS_BADGE = {
@@ -853,6 +947,20 @@ const uniqueNormalizedHours = (hours) =>
   Array.from(new Set(hours.map((hour) => normalizeHour(hour)).filter(Number.isFinite))).sort(
     (a, b) => a - b,
   );
+
+const buildAroundHourAxis = (centerHour, radius = 6) =>
+  uniqueNormalizedHours(
+    Array.from({ length: radius * 2 + 1 }, (_, index) =>
+      normalizeHour(centerHour - radius + index),
+    ),
+  );
+
+const ensureDenseHourAxis = (baseHours, { isToday = false, minPoints = 8 } = {}) => {
+  const normalized = uniqueNormalizedHours(Array.isArray(baseHours) ? baseHours : []);
+  if (normalized.length >= minPoints) return normalized;
+  if (isToday) return buildAroundHourAxis(new Date().getHours(), 6);
+  return [...FULL_DAY_HOURS];
+};
 
 const buildHourAxis = ({ hourlyRows, timeline, startAt, endAt, preferRange = false }) => {
   if (preferRange) {
@@ -1121,37 +1229,139 @@ async function fetchAdminData(url, params, fallback) {
   }
 }
 
-function AnimatedHeatCell({ item, index }) {
-  const [visible, setVisible] = useState(false);
+function HourlyTrendChart({ points, activeDateKey, isTodayForecast }) {
+  const now = new Date();
+  const todayKey = toDateKey(now);
+  const currentHour = now.getHours();
+  const isTodayDate = isTodayForecast && activeDateKey === todayKey;
+  const safePoints = Array.isArray(points) ? points : [];
+  const yTicks = [100, 75, 50, 25, 0];
 
-  useEffect(() => {
-    const timer = setTimeout(() => setVisible(true), index * 60 + 200);
-    return () => clearTimeout(timer);
-  }, [index]);
+  if (safePoints.length === 0) {
+    return (
+      <div className="rt-prediction-empty">
+        시간대 혼잡도 데이터가 준비되면 그래프로 보여드릴게요.
+      </div>
+    );
+  }
+
+  const chartPoints = safePoints.map((point, index) => {
+    const x =
+      safePoints.length <= 1
+        ? 50
+        : (index / (safePoints.length - 1)) * 100;
+    const value = clamp(Number(point?.v) || 0, 0, 100);
+    const y = 100 - value;
+    const hour = Number(point?.h);
+    const isCurrent = isTodayDate && hour === currentHour;
+    const isPast = isTodayDate && hour < currentHour;
+    const phase = isCurrent ? "current" : isPast ? "past" : "future";
+    return {
+      ...point,
+      x,
+      y,
+      value,
+      hour,
+      phase,
+      isCurrent,
+    };
+  });
+
+  const segments = chartPoints.slice(0, -1).map((fromPoint, index) => {
+    const toPoint = chartPoints[index + 1];
+    const segmentPhase =
+      fromPoint.phase === "past" && toPoint.phase === "past"
+        ? "past"
+        : fromPoint.phase === "future" && toPoint.phase === "future"
+          ? "future"
+          : "mixed";
+    return {
+      key: `${index}-${fromPoint.hour}-${toPoint.hour}`,
+      fromPoint,
+      toPoint,
+      phase: segmentPhase,
+    };
+  });
+
+  const currentPoint = chartPoints.find((point) => point.isCurrent) || null;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 5,
-      }}
-    >
-      <div
-        className="rt-hour-cell"
-        style={{
-          background: visible ? getHeatColor(item.pct) : "#f1f3f5",
-          width: "100%",
-          color: visible ? getHeatTextColor(item.pct) : "#9ca3af",
-          transition: "background 0.5s ease, color 0.5s ease, transform 0.5s ease",
-          transform: visible ? "scale(1)" : "scale(0.8)",
-        }}
-        title={`${item.h}:00 / ${item.v}%`}
-      >
-        {visible && item.v > 0 ? item.v : ""}
+    <div className="rt-hourly-chart">
+      <div className="rt-hourly-y-axis">
+        {yTicks.map((tick) => (
+          <span key={`tick-${tick}`}>{tick}</span>
+        ))}
       </div>
-      <div className="rt-hour-cell-label">{item.h}:00</div>
+
+      <div className="rt-hourly-plot-wrap">
+        <div className="rt-hourly-svg-wrap">
+          <svg className="rt-hourly-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+            {yTicks.map((tick) => (
+              <line
+                key={`grid-${tick}`}
+                x1="0"
+                y1={100 - tick}
+                x2="100"
+                y2={100 - tick}
+                stroke="#e5e7eb"
+                strokeWidth="0.5"
+                strokeDasharray={tick === 0 ? "0" : "2 2"}
+              />
+            ))}
+
+            {currentPoint ? (
+              <line
+                className="rt-hourly-current-line"
+                x1={currentPoint.x}
+                y1="0"
+                x2={currentPoint.x}
+                y2="100"
+              />
+            ) : null}
+
+            {segments.map((segment) => (
+              <line
+                key={segment.key}
+                className={`rt-hourly-segment ${segment.phase}`}
+                x1={segment.fromPoint.x}
+                y1={segment.fromPoint.y}
+                x2={segment.toPoint.x}
+                y2={segment.toPoint.y}
+              />
+            ))}
+
+            {chartPoints.map((point, index) => (
+              <circle
+                key={`${point.h}-${index}`}
+                className={`rt-hourly-point ${point.phase}`}
+                cx={point.x}
+                cy={point.y}
+                r={point.isCurrent ? 2.2 : 1.65}
+                fill={point.isCurrent ? "#1d4ed8" : getHeatColor(point.value)}
+              />
+            ))}
+          </svg>
+        </div>
+
+        <div className="rt-hourly-x-axis">
+          {chartPoints.map((point, index) => {
+            const showHourLabel =
+              point.isCurrent ||
+              index === 0 ||
+              index === chartPoints.length - 1 ||
+              point.hour % 2 === 0;
+            return (
+              <div
+                key={`xlabel-${point.h}-${index}`}
+                className={`rt-hourly-x-label ${point.isCurrent ? "current" : ""}`}
+                title={`${String(point.h).padStart(2, "0")}:00 / ${point.value}%`}
+              >
+                {point.isCurrent ? "지금" : showHourLabel ? `${String(point.h).padStart(2, "0")}:00` : ""}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1415,24 +1625,31 @@ function DashboardContent({ eventId }) {
     setSelectedForecastDate(forecastDateOptions[0]);
   }, [eventStatus, forecastDateOptions, isOngoingEvent, selectedForecastDate]);
 
+  const activeForecastDateKey = useMemo(() => {
+    if (selectedForecastDate) return selectedForecastDate;
+    if (isOngoingEvent) return toDateKey(new Date());
+    return forecastDateOptions[0] ?? "";
+  }, [forecastDateOptions, isOngoingEvent, selectedForecastDate]);
+
+  const isTodayForecast = useMemo(
+    () => Boolean(activeForecastDateKey) && activeForecastDateKey === toDateKey(new Date()),
+    [activeForecastDateKey],
+  );
+
   const chartTimeline = useMemo(() => {
     const baseTimeline = Array.isArray(eventPrediction?.timeline)
       ? eventPrediction.timeline
       : [];
     if (baseTimeline.length === 0) return [];
+
     let timeline = baseTimeline;
-    if (selectedForecastDate) {
+    if (activeForecastDateKey) {
       timeline = baseTimeline.filter(
-        (point) => toDateKey(point?.time) === selectedForecastDate,
+        (point) => toDateKey(point?.time) === activeForecastDateKey,
       );
-    } else if (isOngoingEvent) {
-      const todayKey = toDateKey(new Date());
-      timeline = baseTimeline.filter((point) => toDateKey(point?.time) === todayKey);
     }
 
-    const todayKey = toDateKey(new Date());
-    const activeDateKey = selectedForecastDate || (isOngoingEvent ? todayKey : "");
-    if (isOngoingEvent && activeDateKey === todayKey) {
+    if (isOngoingEvent && isTodayForecast) {
       const minPredictionStart = getMinPredictionStart(5);
       if (minPredictionStart) {
         timeline = timeline.filter((point) => {
@@ -1443,62 +1660,81 @@ function DashboardContent({ eventId }) {
     }
 
     return timeline;
-  }, [eventPrediction?.timeline, isOngoingEvent, selectedForecastDate]);
+  }, [activeForecastDateKey, eventPrediction?.timeline, isOngoingEvent, isTodayForecast]);
 
   const hours = useMemo(() => {
-    const hourlyMap = new Map(
-      toArray(hourlyRows)
-        .map((row) => [
-          normalizeHour(Number(row?.hour ?? row?.h)),
-          congestionLevelToPercent(row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level),
-        ])
-        .filter(([hour]) => Number.isFinite(hour)),
-    );
-
-    const timelineMap = new Map();
+    const predictionMap = new Map();
     if (Array.isArray(chartTimeline)) {
       chartTimeline.forEach((point) => {
         const hour = toHour(point?.time);
         if (!Number.isFinite(hour)) return;
         const normalizedHour = normalizeHour(hour);
         const score = clamp(Math.round(Number(point?.score) || 0), 0, 100);
-        const previous = timelineMap.get(normalizedHour);
+        const previous = predictionMap.get(normalizedHour);
         if (previous == null || score > previous) {
-          timelineMap.set(normalizedHour, score);
+          predictionMap.set(normalizedHour, score);
         }
       });
     }
 
-    const todayKey = toDateKey(new Date());
-    const rangeDateKey =
-      selectedForecastDate ||
-      (isOngoingEvent ? todayKey : forecastDateOptions[0] ?? "");
+    const realtimeMap = new Map();
+    if (isTodayForecast) {
+      toArray(hourlyRows)
+        .map((row) => [
+          normalizeHour(Number(row?.hour ?? row?.h)),
+          congestionLevelToPercent(row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level),
+        ])
+        .filter(([hour]) => Number.isFinite(hour))
+        .forEach(([hour, value]) => {
+          const previous = realtimeMap.get(hour);
+          if (previous == null || value > previous) {
+            realtimeMap.set(hour, value);
+          }
+        });
+
+      measuredCongestions.forEach((row) => {
+        const hour = toHour(row?.measuredAt);
+        if (!Number.isFinite(hour)) return;
+        const normalizedHour = normalizeHour(hour);
+        const value = safePercent(row?.congestionPercent);
+        const previous = realtimeMap.get(normalizedHour);
+        if (previous == null || value > previous) {
+          realtimeMap.set(normalizedHour, value);
+        }
+      });
+    }
 
     let axisStart = eventDetail?.startAt ?? null;
     let axisEnd = eventDetail?.endAt ?? null;
-    if (isDateKeyInRange(rangeDateKey, eventDetail?.startAt, eventDetail?.endAt)) {
+    if (isDateKeyInRange(activeForecastDateKey, eventDetail?.startAt, eventDetail?.endAt)) {
       const operationRange = buildOperationRangeByDate(
         eventDetail?.startAt,
         eventDetail?.endAt,
-        rangeDateKey,
+        activeForecastDateKey,
       );
       axisStart = operationRange.startAt;
       axisEnd = operationRange.endAt;
     }
 
+    const axisHourlyRows = isTodayForecast ? hourlyRows : [];
     const hourAxis = buildHourAxis({
-      hourlyRows,
+      hourlyRows: axisHourlyRows,
       timeline: chartTimeline,
       startAt: axisStart,
       endAt: axisEnd,
       preferRange: Boolean(axisStart && axisEnd),
     });
 
-    return hourAxis.map((hour) => {
+    const denseHourAxis = ensureDenseHourAxis(hourAxis, {
+      isToday: isTodayForecast,
+      minPoints: 8,
+    });
+
+    return denseHourAxis.map((hour) => {
       const normalizedHour = normalizeHour(hour);
-      const value = isPlannedEvent
-        ? timelineMap.get(normalizedHour) ?? hourlyMap.get(normalizedHour) ?? 0
-        : hourlyMap.get(normalizedHour) ?? timelineMap.get(normalizedHour) ?? 0;
+      const value = isTodayForecast
+        ? realtimeMap.get(normalizedHour) ?? predictionMap.get(normalizedHour) ?? 0
+        : predictionMap.get(normalizedHour) ?? 0;
       return {
         h: String(normalizedHour).padStart(2, "0"),
         v: value,
@@ -1506,14 +1742,13 @@ function DashboardContent({ eventId }) {
       };
     });
   }, [
+    activeForecastDateKey,
     chartTimeline,
     eventDetail?.endAt,
     eventDetail?.startAt,
-    forecastDateOptions,
     hourlyRows,
-    isOngoingEvent,
-    isPlannedEvent,
-    selectedForecastDate,
+    isTodayForecast,
+    measuredCongestions,
   ]);
 
   const handleForecastDateChange = useCallback(
@@ -2017,14 +2252,18 @@ function DashboardContent({ eventId }) {
           <div className="rt-card-controls">
             <span className="rt-card-tag">시간대별 혼잡도</span>
             {forecastDateOptions.length > 0 ? (
-              <input
-                className="rt-date-input"
-                type="date"
-                value={selectedForecastDate}
-                min={forecastDateOptions[0]}
-                max={forecastDateOptions[forecastDateOptions.length - 1]}
-                onChange={handleForecastDateChange}
-              />
+              <div className="rt-calendar-control">
+                <CalendarDays size={13} />
+                <span>달력</span>
+                <input
+                  className="rt-date-input"
+                  type="date"
+                  value={selectedForecastDate || forecastDateOptions[0]}
+                  min={forecastDateOptions[0]}
+                  max={forecastDateOptions[forecastDateOptions.length - 1]}
+                  onChange={handleForecastDateChange}
+                />
+              </div>
             ) : null}
           </div>
         </div>
@@ -2121,30 +2360,28 @@ function DashboardContent({ eventId }) {
               <div className="rt-prediction-chart-head">
                 <span className="rt-prediction-chart-title">시간대별 혼잡도</span>
                 <span className="rt-prediction-chart-sub">
-                  {selectedForecastDate || "오늘"} 기준
+                  {selectedForecastDate || "오늘"} · {isTodayForecast ? "실시간 + AI 예측" : "AI 예측"}
                 </span>
               </div>
               <div className="rt-prediction-chart">
-                <div
-                  className="rt-hour-grid"
-                  style={{
-                    gridTemplateColumns: `repeat(${Math.max(hours.length, 1)}, 1fr)`,
-                  }}
-                >
-                  {hours.map((item, index) => (
-                    <AnimatedHeatCell key={`${item.h}-${index}`} item={item} index={index} />
-                  ))}
-                </div>
+                <HourlyTrendChart
+                  points={hours}
+                  activeDateKey={activeForecastDateKey}
+                  isTodayForecast={isTodayForecast}
+                />
                 <div className="rt-heat-legend">
-                  <span className="rt-heat-legend-text">낮음</span>
-                  {["#dbeafe", "#93c5fd", "#3b82f6", "#1d4ed8"].map((color) => (
-                    <div
-                      key={color}
-                      className="rt-heat-legend-swatch"
-                      style={{ background: color }}
-                    />
-                  ))}
-                  <span className="rt-heat-legend-text">높음</span>
+                  <span className="rt-heat-legend-item">
+                    <span className="rt-heat-legend-swatch" style={{ background: "#93c5fd", opacity: 0.38 }} />
+                    <span className="rt-heat-legend-text">과거</span>
+                  </span>
+                  <span className="rt-heat-legend-item">
+                    <span className="rt-heat-legend-swatch" style={{ background: "#1d4ed8" }} />
+                    <span className="rt-heat-legend-text">현재</span>
+                  </span>
+                  <span className="rt-heat-legend-item">
+                    <span className="rt-heat-legend-swatch" style={{ background: "#3b82f6", opacity: 0.9 }} />
+                    <span className="rt-heat-legend-text">미래</span>
+                  </span>
                 </div>
               </div>
             </div>
