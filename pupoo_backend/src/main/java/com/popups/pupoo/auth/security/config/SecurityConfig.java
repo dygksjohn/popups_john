@@ -28,6 +28,7 @@ public class SecurityConfig {
 
     private static final List<String> SPA_EXCLUDED_PREFIXES = List.of(
         "/api",
+        "/internal",
         "/actuator",
         "/swagger-ui",
         "/v3/api-docs",
@@ -169,6 +170,8 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/galleries").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
             .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
             .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+
+            .requestMatchers("/internal/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 
             .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 

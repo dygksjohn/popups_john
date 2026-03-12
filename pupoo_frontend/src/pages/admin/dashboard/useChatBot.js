@@ -1,29 +1,25 @@
 import { useState, useCallback, useRef } from "react";
-import { getToken } from "../../../api/noticeApi";
 import { buildRequestUrl } from "../../../shared/config/requestUrl";
 
 /* ============================================================
-   useChatBot — AI 로직 분리용 훅
-   ✅ AI 교체 포인트: getBotReply 함수만 수정하면 됩니다.
+   useChatBot - AI logic hook
    ============================================================ */
 
-// Vite proxy를 통해 /internal → AI 서버로 전달 (CORS 우회)
 const AI_BASE_URL = import.meta.env.VITE_AI_BASE_URL || "";
-const INTERNAL_TOKEN = "dev-internal-token";
+const TOKEN_KEY = "pupoo_admin_token";
 
-/**
- * 백엔드 POST /internal/chatbot/chat 호출
- * @param {Array}  history     - 이전 대화 이력 (useChatBot messages 배열)
- * @param {string} userMessage - 현재 사용자 메시지
- * @returns {Promise<string>}  - AI 응답 텍스트
- */
 async function getBotReply(history, userMessage) {
   const url = buildRequestUrl(AI_BASE_URL, "/internal/chatbot/chat");
   let res;
+
   try {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
     res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         message: userMessage,
         history: history.map((m) => ({
@@ -33,23 +29,21 @@ async function getBotReply(history, userMessage) {
       }),
     });
   } catch (fetchErr) {
-    throw new Error(`[연결 실패] ${url} → ${fetchErr.message}`);
+    throw new Error("AI ??? ??? ? ????. ??? ?? ??? ??? ???.");
   }
 
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`[${res.status}] ${text.slice(0, 200)}`);
+    throw new Error("AI ???? ??? ??????. ?? ? ?? ??? ???.");
   }
 
   try {
     const data = JSON.parse(text);
-    return data?.data?.reply || "응답을 받지 못했습니다.";
+    return data?.data?.reply || "??? ?? ?????.";
   } catch {
-    throw new Error(`[파싱 실패] ${text.slice(0, 200)}`);
+    throw new Error(`[?? ??] ${text.slice(0, 200)}`);
   }
 }
-
-/* ============================================================ */
 
 export function useChatBot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -57,7 +51,7 @@ export function useChatBot() {
     {
       id: 1,
       role: "bot",
-      text: "안녕하세요! 푸푸 도우미예요. 무엇이든 편하게 물어보세요! 😊",
+      text: "????. ??? ???????",
       ts: new Date(),
     },
   ]);
@@ -98,7 +92,7 @@ export function useChatBot() {
             role: "bot",
             text:
               err?.message ||
-              "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+              "???? ??? ??????. ?? ? ?? ??? ???.",
             ts: new Date(),
           },
         ]);
@@ -114,7 +108,7 @@ export function useChatBot() {
       {
         id: idRef.current++,
         role: "bot",
-        text: "대화가 초기화되었습니다. 무엇을 도와드릴까요?",
+        text: "??? ????????. ??? ???????",
         ts: new Date(),
       },
     ]);

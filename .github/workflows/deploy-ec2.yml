@@ -10,6 +10,7 @@ on:
       - "deploy/ec2/**"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
+      - "pupoo_ai/**"
       - "scripts/check-import-case.mjs"
   workflow_dispatch:
 
@@ -73,6 +74,9 @@ jobs:
           mkdir -p deploy_bundle
           cp pupoo_backend/build/libs/pupoo-backend.jar deploy_bundle/app.jar
           cp deploy/ec2/pupoo.service.tpl deploy_bundle/pupoo.service.tpl
+          cp deploy/ec2/pupoo-ai.service.tpl deploy_bundle/pupoo-ai.service.tpl
+          cp -r pupoo_ai deploy_bundle/pupoo_ai
+          cp pupoo_ai/requirements.txt deploy_bundle/requirements.txt
 
       - name: Upload deploy bundle
         uses: actions/upload-artifact@v4
@@ -102,12 +106,12 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT }}
-          source: "deploy_bundle/app.jar,deploy_bundle/pupoo.service.tpl"
+          source: "deploy_bundle/*"
           target: "/tmp/pupoo-deploy"
           strip_components: 1
           overwrite: true
 
-      - name: Install bundle and restart service
+      - name: Install bundle and restart services
         uses: appleboy/ssh-action@v1
         env:
           APP_DIR: ${{ secrets.EC2_APP_DIR }}
@@ -116,13 +120,15 @@ jobs:
           HEALTHCHECK_URL: ${{ vars.EC2_HEALTHCHECK_URL }}
           SERVICE_NAME: ${{ vars.EC2_SERVICE_NAME }}
           UPLOADS_DIR: ${{ secrets.EC2_UPLOADS_DIR }}
+          AI_DIR: ${{ secrets.EC2_AI_DIR }}
+          AI_ENV_FILE: ${{ secrets.AI_ENV_FILE }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT }}
           command_timeout: 20m
-          envs: APP_DIR,APP_ENV_FILE,APP_USER,HEALTHCHECK_URL,SERVICE_NAME,UPLOADS_DIR
+          envs: APP_DIR,APP_ENV_FILE,APP_USER,HEALTHCHECK_URL,SERVICE_NAME,UPLOADS_DIR,AI_DIR,AI_ENV_FILE
           script: |
             set -euo pipefail
 
@@ -132,7 +138,10 @@ jobs:
             UPLOADS_DIR="${UPLOADS_DIR:?UPLOADS_DIR is required}"
             APP_ENV_FILE="${APP_ENV_FILE:?APP_ENV_FILE is required}"
             HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://127.0.0.1:8080/api/health}"
+            AI_DIR="${AI_DIR:-/opt/pupoo-ai}"
+            AI_ENV_FILE="${AI_ENV_FILE:-}"
 
+            # ── Spring Boot 배포 ──
             sudo install -d -o "$APP_USER" -g "$APP_USER" "$APP_DIR"
             sudo install -d -o "$APP_USER" -g "$APP_USER" "$UPLOADS_DIR"
 
@@ -146,10 +155,50 @@ jobs:
               -e "s|__APP_USER__|$APP_USER|g" \
               /tmp/pupoo-deploy/pupoo.service.tpl | sudo tee "/etc/systemd/system/${SERVICE_NAME}.service" > /dev/null
 
+            # ── AI 서버 배포 ──
+            sudo install -d -o "$APP_USER" -g "$APP_USER" "$AI_DIR"
+            sudo cp -r /tmp/pupoo-deploy/pupoo_ai "$AI_DIR/"
+            sudo cp /tmp/pupoo-deploy/requirements.txt "$AI_DIR/"
+            sudo chown -R "$APP_USER:$APP_USER" "$AI_DIR"
+
+            # Python venv 생성 및 의존성 설치
+            if [ ! -d "$AI_DIR/venv" ]; then
+              sudo -u "$APP_USER" python3 -m venv "$AI_DIR/venv"
+            fi
+            sudo -u "$APP_USER" "$AI_DIR/venv/bin/pip" install --upgrade pip
+            sudo -u "$APP_USER" "$AI_DIR/venv/bin/pip" install -r "$AI_DIR/requirements.txt"
+
+            # AI .env 파일 설정
+            if [ -n "$AI_ENV_FILE" ]; then
+              printf '%s\n' "$AI_ENV_FILE" | sudo tee "$AI_DIR/.env" > /dev/null
+              sudo chown "$APP_USER:$APP_USER" "$AI_DIR/.env"
+              sudo chmod 600 "$AI_DIR/.env"
+            fi
+
+            sed \
+              -e "s|__AI_DIR__|$AI_DIR|g" \
+              -e "s|__APP_USER__|$APP_USER|g" \
+              /tmp/pupoo-deploy/pupoo-ai.service.tpl | sudo tee "/etc/systemd/system/pupoo-ai.service" > /dev/null
+
+            # ── 서비스 시작 ──
             sudo systemctl daemon-reload
-            sudo systemctl enable "$SERVICE_NAME"
+            sudo systemctl enable pupoo-ai "$SERVICE_NAME"
+            sudo systemctl restart pupoo-ai
             sudo systemctl restart "$SERVICE_NAME"
 
+            # AI 서버 헬스체크
+            for attempt in $(seq 1 10); do
+              if curl -fsS "http://127.0.0.1:8000/internal/health" > /dev/null 2>&1; then
+                echo "AI server is healthy"
+                break
+              fi
+              if [ "$attempt" -eq 10 ]; then
+                echo "WARNING: AI server health check failed (chatbot may not work)"
+              fi
+              sleep 3
+            done
+
+            # Spring Boot 헬스체크
             for attempt in $(seq 1 20); do
               if curl -fsS "$HEALTHCHECK_URL" > /dev/null; then
                 exit 0
