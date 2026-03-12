@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   CalendarDays,
@@ -10,8 +10,11 @@ import {
   ChevronRight,
   Sparkles,
   Search,
+  ChevronDown,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
+import EmptyState from "../components/EmptyState";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { boothApi } from "../../../app/http/boothApi";
@@ -57,40 +60,61 @@ const styles = `
     flex-wrap:wrap; margin-bottom:18px;
   }
   .ps-toolbar-left {
+    display:flex; align-items:center; gap:0;
+    background:#f3f4f6; border-radius:999px; height:46px;
+    min-width:0; flex:1 1 auto; max-width:560px;
+  }
+  .ps-dropdown { position:relative; flex:0 0 auto; }
+  .ps-dropdown-btn {
+    height:46px; padding:0 36px 0 16px; border-radius:999px 0 0 999px;
+    border:none; background:transparent; color:#9ca3af; font-size:13px; font-weight:500;
+    cursor:pointer; text-align:left; outline:none; font-family:inherit;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .ps-dropdown-arrow {
+    position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    color:#9ca3af; pointer-events:none; transition:transform .15s ease;
+  }
+  .ps-dropdown-arrow.open { transform:translateY(-50%) rotate(180deg); }
+  .ps-dropdown-divider {
+    width:1px; height:20px; background:#dbe2ea; flex-shrink:0;
+  }
+  .ps-dropdown-list {
+    position:absolute; top:calc(100% + 8px); left:0; min-width:280px;
+    background:#fff; border-radius:16px; padding:8px 0;
+    box-shadow:0 4px 24px rgba(0,0,0,.10); z-index:50;
+    max-height:280px; overflow-y:auto;
+  }
+  .ps-dropdown-item {
     display:flex; align-items:center; gap:10px;
-    min-width:0; flex:1 1 auto;
+    width:100%; padding:11px 16px; border:none; background:none;
+    color:#6b7280; font-size:13px; font-weight:500; cursor:pointer;
+    text-align:left; transition:background .1s ease; font-family:inherit;
   }
-  .ps-select {
-    width:240px; min-width:240px; height:42px; padding:0 14px; border-radius:10px;
-    border:1px solid #dbe2ea; background:#fff; color:#111827; font-size:13px;
-    flex:0 0 240px;
-  }
+  .ps-dropdown-item:hover { background:#f9fafb; }
+  .ps-dropdown-item.active { color:#111827; font-weight:600; }
+  .ps-dropdown-item .dd-icon { color:#9ca3af; flex-shrink:0; }
   .ps-search-wrap {
-    position:relative;
-    min-width:280px;
-    width:320px;
-    flex:0 0 320px;
+    position:relative; flex:1 1 auto; min-width:0;
   }
   .ps-search-input {
-    width:100%; height:42px; padding:0 14px 0 38px; border-radius:10px;
-    border:1px solid #dbe2ea; background:#fff; color:#111827; font-size:13px;
-    outline:none; transition:border-color .15s ease, box-shadow .15s ease;
+    width:100%; height:46px; padding:0 16px 0 40px; border-radius:0 999px 999px 0;
+    border:none; background:transparent; color:#111827; font-size:13px; font-weight:500;
+    outline:none;
   }
-  .ps-search-input:focus {
-    border-color:#1a4fd6;
-    box-shadow:0 0 0 3px rgba(26,79,214,.08);
-  }
+  .ps-search-input::placeholder { color:#9ca3af; }
   .ps-search-icon {
-    position:absolute; left:13px; top:50%; transform:translateY(-50%);
-    color:#94a3b8; pointer-events:none;
+    position:absolute; left:14px; top:50%; transform:translateY(-50%);
+    color:#9ca3af; pointer-events:none;
   }
-  .ps-filter { display:flex; gap:8px; flex-wrap:wrap; }
+  .ps-filter { display:inline-flex; background:#f3f4f6; border-radius:999px; padding:4px; gap:4px; }
   .ps-filter button {
-    border:1px solid #dbe2ea; background:#fff; color:#6b7280;
-    padding:8px 14px; border-radius:999px; font-size:12px; font-weight:700; cursor:pointer;
+    border:1px solid transparent; background:transparent; color:#9ca3af;
+    padding:8px 20px; border-radius:999px; font-size:13px; font-weight:600; cursor:pointer;
     transition:all .15s ease;
   }
-  .ps-filter button.active { background:#1a4fd6; border-color:#1a4fd6; color:#fff; }
+  .ps-filter button:hover { color:#374151; }
+  .ps-filter button.active { background:#1f2937; border-color:transparent; color:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.12); }
 
   .ps-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
   .ps-stat {
@@ -360,6 +384,14 @@ export default function ProgramStatus({ statusKey = "current" }) {
   const [error, setError] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [ddOpen, setDdOpen] = useState(false);
+  const ddRef = useRef(null);
+
+  useEffect(() => {
+    const onClick = (e) => { if (ddRef.current && !ddRef.current.contains(e.target)) setDdOpen(false); };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -606,19 +638,42 @@ export default function ProgramStatus({ statusKey = "current" }) {
       <main className="ps-wrap">
         <div className="ps-toolbar">
           <div className="ps-toolbar-left">
-            <select
-              className="ps-select"
-              value={Number.isFinite(safeEventId) ? String(safeEventId) : ""}
-              onChange={(event) => handleEventChange(event.target.value)}
-            >
-              <option value="">전체 행사</option>
-              {events.map((row) => (
-                <option key={row?.eventId} value={row?.eventId}>
-                  {row?.eventName ?? `행사 ${row?.eventId}`}
-                </option>
-              ))}
-            </select>
-
+            <div className="ps-dropdown" ref={ddRef}>
+              <button
+                className="ps-dropdown-btn"
+                onClick={() => setDdOpen((v) => !v)}
+                type="button"
+              >
+                {Number.isFinite(safeEventId)
+                  ? (events.find((r) => r?.eventId === safeEventId)?.eventName ?? `행사 ${safeEventId}`)
+                  : "전체 행사"}
+              </button>
+              <ChevronDown size={15} className={`ps-dropdown-arrow${ddOpen ? " open" : ""}`} />
+              {ddOpen && (
+                <div className="ps-dropdown-list">
+                  <button
+                    className={`ps-dropdown-item${!Number.isFinite(safeEventId) ? " active" : ""}`}
+                    onClick={() => { handleEventChange(""); setDdOpen(false); }}
+                    type="button"
+                  >
+                    <Search size={14} className="dd-icon" />
+                    전체 행사
+                  </button>
+                  {events.map((row) => (
+                    <button
+                      key={row?.eventId}
+                      className={`ps-dropdown-item${safeEventId === row?.eventId ? " active" : ""}`}
+                      onClick={() => { handleEventChange(String(row?.eventId)); setDdOpen(false); }}
+                      type="button"
+                    >
+                      <Search size={14} className="dd-icon" />
+                      {row?.eventName ?? `행사 ${row?.eventId}`}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="ps-dropdown-divider" />
             <div className="ps-search-wrap">
               <Search size={15} className="ps-search-icon" />
               <input
@@ -684,15 +739,9 @@ export default function ProgramStatus({ statusKey = "current" }) {
         </div>
 
         {loading ? (
-          <div className="ps-empty">
-            <strong>불러오는 중입니다</strong>
-            <span>프로그램 목록을 가져오고 있습니다.</span>
-          </div>
+          <PageLoading message="프로그램 목록을 불러오는 중입니다" />
         ) : error ? (
-          <div className="ps-empty">
-            <strong>불러오기에 실패했습니다</strong>
-            <span>{error}</span>
-          </div>
+          <EmptyState type="error" message="프로그램을 불러오지 못했습니다" description={error} />
         ) : filteredPrograms.length === 0 ? (
           <div className="ps-empty">
             <strong>조건에 맞는 프로그램이 없습니다</strong>

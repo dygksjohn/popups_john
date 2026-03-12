@@ -13,10 +13,15 @@ import {
   Loader2,
   Plus,
   Search,
+  ListFilter,
+  SlidersHorizontal,
   Upload,
   X,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
+import EmptyState from "../components/EmptyState";
+import CommunityPagination from "../community/shared/CommunityPagination";
 import { eventApi } from "../../../app/http/eventApi";
 import { galleryApi } from "../../../app/http/galleryApi";
 import { reportApi } from "../../../app/http/reportApi";
@@ -24,7 +29,6 @@ import { useAuth } from "../auth/AuthProvider";
 import { userApi } from "../../../app/http/userApi";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
-import sortIcon from "../../../assets/sort-icon.svg";
 import ReportModal from "../components/ReportModal";
 
 const PAGE_SIZE = 8;
@@ -357,6 +361,17 @@ function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, liked
     setIndex(0);
   }, [item?.galleryId]);
 
+  useEffect(() => {
+    if (!item) return;
+    const handleKey = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && item.imageUrls.length > 1) setIndex((p) => (p - 1 + item.imageUrls.length) % item.imageUrls.length);
+      if (e.key === "ArrowRight" && item.imageUrls.length > 1) setIndex((p) => (p + 1) % item.imageUrls.length);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [item, onClose]);
+
   if (!item) return null;
 
   const currentImage = item.imageUrls[index] || "";
@@ -364,57 +379,69 @@ function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, liked
   return (
     <>
       <div style={backdropStyle()} onClick={onClose} />
-      <div style={overlayStyle()}>
-        <div onClick={(event) => event.stopPropagation()} style={modalShellStyle("min(980px, 100%)")}>
-          <div style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0" }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 22, fontWeight: 900, color: "#0f172a", lineHeight: 1.3 }}>{item.title}</div>
-              <div style={{ marginTop: 6, display: "flex", gap: 12, flexWrap: "wrap", fontSize: 13, color: "#64748b" }}>
-                <span>{eventName}</span>
-                <span>{formatDate(item.createdAt)}</span>
-                <span>{item.viewCount} 조회</span>
-                <span>{item.likeCount} 좋아요</span>
+      <div style={overlayStyle()} onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} style={{ ...modalShellStyle("min(1060px, 100%)"), display: "flex", flexDirection: "row", overflow: "hidden" }}>
+          {/* Left: Image */}
+          <div style={{ flex: "0 0 600px", position: "relative", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 580 }}>
+            {currentImage ? (
+              <img src={currentImage} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "#94a3b8" }}>
+                <ImageOff size={48} />
+                <span style={{ fontSize: 14 }}>이미지가 없습니다.</span>
               </div>
-            </div>
-            <button type="button" onClick={onClose} style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid #dbe2ea", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-              <X size={16} color="#64748b" />
-            </button>
+            )}
+            {item.imageUrls.length > 1 && (
+              <>
+                <button type="button" onClick={() => setIndex((p) => (p - 1 + item.imageUrls.length) % item.imageUrls.length)} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 36, height: 36, borderRadius: 999, border: "none", background: "rgba(255,255,255,0.7)", color: "#374151", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", backdropFilter: "blur(4px)" }}><ChevronLeft size={18} /></button>
+                <button type="button" onClick={() => setIndex((p) => (p + 1) % item.imageUrls.length)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 36, height: 36, borderRadius: 999, border: "none", background: "rgba(255,255,255,0.7)", color: "#374151", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", backdropFilter: "blur(4px)" }}><ChevronRight size={18} /></button>
+                <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", fontSize: 12, color: "#fff", background: "rgba(0,0,0,0.45)", padding: "4px 12px", borderRadius: 999, fontWeight: 600 }}>{index + 1} / {item.imageUrls.length}</div>
+              </>
+            )}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(320px, 0.85fr)" }}>
-            <div style={{ minHeight: 540, background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-              {currentImage ? (
-                <img src={currentImage} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "contain", maxHeight: 620 }} />
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "#94a3b8" }}>
-                  <ImageOff size={42} />
-                  <span>이미지가 없습니다.</span>
-                </div>
-              )}
-              {item.imageUrls.length > 1 ? (
-                <>
-                  <button type="button" onClick={() => setIndex((prev) => (prev - 1 + item.imageUrls.length) % item.imageUrls.length)} style={{ position: "absolute", left: 18, top: "50%", transform: "translateY(-50%)", width: 40, height: 40, borderRadius: 999, border: "none", background: "rgba(255,255,255,0.18)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><ChevronLeft size={18} /></button>
-                  <button type="button" onClick={() => setIndex((prev) => (prev + 1) % item.imageUrls.length)} style={{ position: "absolute", right: 18, top: "50%", transform: "translateY(-50%)", width: 40, height: 40, borderRadius: 999, border: "none", background: "rgba(255,255,255,0.18)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><ChevronRight size={18} /></button>
-                </>
-              ) : null}
+
+          {/* Right: Info */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, maxHeight: "90vh", overflow: "auto" }}>
+            {/* Close button */}
+            <div style={{ display: "flex", justifyContent: "flex-end", padding: "16px 20px 0" }}>
+              <button type="button" onClick={onClose} style={{ width: 34, height: 34, borderRadius: 999, border: "none", background: "#f3f4f6", color: "#6b7280", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                <X size={16} />
+              </button>
             </div>
-            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
-              <div style={{ fontSize: 15, lineHeight: 1.8, color: "#334155", whiteSpace: "pre-wrap" }}>{item.description || "설명이 없습니다."}</div>
-              {item.imageUrls.length > 1 ? (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
-                  {item.imageUrls.map((imageUrl, imageIndex) => (
-                    <button key={`${imageUrl}-${imageIndex}`} type="button" onClick={() => setIndex(imageIndex)} style={{ border: imageIndex === index ? "2px solid #1d4ed8" : "1px solid #dbe2ea", borderRadius: 12, overflow: "hidden", background: "#fff", cursor: "pointer", padding: 0 }}>
-                      <img src={imageUrl} alt={`${item.title}-${imageIndex + 1}`} style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", display: "block" }} />
+
+            {/* Content */}
+            <div style={{ padding: "12px 28px 28px", flex: 1, display: "flex", flexDirection: "column" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#1d4ed8", marginBottom: 12 }}>{eventName}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", lineHeight: 1.35, marginBottom: 12 }}>{item.title}</div>
+              {item.description && <div style={{ fontSize: 14, lineHeight: 1.8, color: "#6b7280", whiteSpace: "pre-wrap", marginBottom: 20 }}>{item.description}</div>}
+
+              {/* Thumbnails */}
+              {item.imageUrls.length > 1 && (
+                <div style={{ display: "flex", gap: 8, marginBottom: 20, overflowX: "auto" }}>
+                  {item.imageUrls.map((url, i) => (
+                    <button key={`${url}-${i}`} type="button" onClick={() => setIndex(i)} style={{ width: 52, height: 52, borderRadius: 8, overflow: "hidden", border: i === index ? "2px solid #111827" : "2px solid transparent", opacity: i === index ? 1 : 0.45, cursor: "pointer", padding: 0, background: "none", transition: "opacity .15s", flexShrink: 0 }}>
+                      <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                     </button>
                   ))}
                 </div>
-              ) : null}
-              <div style={{ marginTop: "auto", display: "flex", flexWrap: "wrap", gap: 10 }}>
-                <button type="button" onClick={onToggleLike} style={{ height: 42, padding: "0 16px", borderRadius: 999, border: liked ? "1px solid #fecdd3" : "1px solid #dbe2ea", background: liked ? "#fff1f2" : "#fff", color: liked ? "#e11d48" : "#334155", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
-                  <Heart size={15} fill={liked ? "currentColor" : "none"} /> 좋아요 {item.likeCount}
-                </button>
-                <button type="button" onClick={onReport} style={{ height: 42, padding: "0 16px", borderRadius: 999, border: "1px solid #fecaca", background: "#fff5f5", color: "#b91c1c", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
-                  <AlertTriangle size={15} /> 신고하기
-                </button>
+              )}
+
+              {/* Footer: meta + actions */}
+              <div style={{ marginTop: "auto", paddingTop: 20, borderTop: "1px solid #f0f0f0" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                  <div style={{ display: "flex", gap: 16, fontSize: 13, color: "#9ca3af" }}>
+                    <span>{formatDate(item.createdAt)}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Eye size={13} /> {item.viewCount}</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" onClick={onToggleLike} style={{ height: 38, padding: "0 16px", borderRadius: 999, border: liked ? "1px solid #fecdd3" : "1px solid #e5e7eb", background: liked ? "#fff1f2" : "#fff", color: liked ? "#e11d48" : "#374151", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    <Heart size={15} fill={liked ? "currentColor" : "none"} /> 좋아요 {item.likeCount}
+                  </button>
+                  <button type="button" onClick={onReport} style={{ height: 38, padding: "0 16px", borderRadius: 999, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    <AlertTriangle size={14} /> 신고
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -436,6 +463,9 @@ export default function EventGallery() {
   const [error, setError] = useState("");
   const [sortOption, setSortOption] = useState("latest");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [eventDdOpen, setEventDdOpen] = useState(false);
+  const eventDdRef = useRef(null);
+  const sortDdRef = useRef(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [meUserId, setMeUserId] = useState(null);
@@ -509,6 +539,16 @@ export default function EventGallery() {
   const currentSortLabel =
     SORT_OPTIONS.find((item) => item.value === sortOption)?.label ||
     "최신순";
+  const currentEventLabel = selectedEventId ? (events.find((e) => String(e.eventId) === selectedEventId)?.eventName || "전체 행사") : "전체 행사";
+
+  useEffect(() => {
+    const h = (e) => {
+      if (eventDdRef.current && !eventDdRef.current.contains(e.target)) setEventDdOpen(false);
+      if (sortDdRef.current && !sortDdRef.current.contains(e.target)) setSortMenuOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
 
   const ensureAuthed = useCallback(() => {
     if (!isAuthed) {
@@ -650,7 +690,8 @@ export default function EventGallery() {
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)", fontFamily: "'Noto Sans KR', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Noto Sans KR', sans-serif" }}>
+      <style>{`.board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
       <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
       <main
         style={{
@@ -659,22 +700,109 @@ export default function EventGallery() {
           padding: "36px 0 64px",
         }}
       >
-        <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 22, boxShadow: "0 18px 40px rgba(15,23,42,0.06)", overflow: "hidden" }}>
-          <div style={{ padding: "26px 28px 18px", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <select value={selectedEventId} onChange={(event) => setSearchParams(event.target.value ? { eventId: event.target.value } : {})} style={{ minWidth: 240, height: 44, borderRadius: 12, border: "1px solid #cbd5e1", padding: "0 14px", fontSize: 14, color: "#0f172a", background: "#fff" }}><option value="">전체 행사</option>{events.map((event) => <option key={event.eventId} value={event.eventId}>{event.eventName}</option>)}</select>
-            <div style={{ position: "relative", flex: 1, minWidth: 220 }}><Search size={16} color="#94a3b8" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="제목, 설명, 행사명 검색" style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid #cbd5e1", padding: "0 14px 0 40px", fontSize: 14, color: "#0f172a" }} /></div>
-            <div style={{ position: "relative" }}><button type="button" onClick={() => setSortMenuOpen((prev) => !prev)} style={{ border: "1px solid #d1d5db", borderRadius: 8, background: "#fff", height: 38, padding: "0 12px", display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#334155", cursor: "pointer" }}><img src={sortIcon} alt="정렬 아이콘" width={14} height={14} />{currentSortLabel}</button>{sortMenuOpen ? <div style={{ position: "absolute", right: 0, top: 42, minWidth: 120, border: "1px solid #e2e8f0", borderRadius: 8, background: "#fff", boxShadow: "0 8px 20px rgba(15,23,42,0.12)", zIndex: 20, overflow: "hidden" }}>{SORT_OPTIONS.map((option) => <button key={option.value} type="button" onClick={() => { setSortOption(option.value); setSortMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f1f5f9", background: option.value === sortOption ? "#eff6ff" : "#fff", color: option.value === sortOption ? "#1D4ED8" : "#334155", padding: "9px 11px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{option.label}</button>)}</div> : null}</div>
-            {isAuthed ? <button type="button" onClick={() => { setWriteError(""); setWriteForm({ eventId: selectedEventId || "", title: "", description: "", files: [] }); setWriteOpen(true); }} style={{ marginLeft: "auto", height: 44, padding: "0 18px", borderRadius: 12, border: "none", background: "#1d4ed8", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 800, cursor: "pointer" }}><Plus size={16} /> 글쓰기</button> : null}
+        <section>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginBottom: 24 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: 999, height: 42 }}>
+              {/* event dropdown */}
+              <div style={{ position: "relative", flex: "0 0 auto" }} ref={eventDdRef}>
+                <button
+                  type="button"
+                  onClick={() => setEventDdOpen((v) => !v)}
+                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 280, display: "inline-flex", alignItems: "center", gap: 7 }}
+                >
+                  <ListFilter size={14} style={{ color: "#9ca3af" }} />
+                  {currentEventLabel}
+                </button>
+                <ChevronDown size={15} style={{ position: "absolute", right: 12, top: "50%", transform: eventDdOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)", color: "#9ca3af", pointerEvents: "none", transition: "transform .15s ease" }} />
+                {eventDdOpen && (
+                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, minWidth: 200, background: "#fff", borderRadius: 16, padding: "8px 0", boxShadow: "0 4px 24px rgba(0,0,0,.10)", zIndex: 50, maxHeight: 280, overflowY: "auto" }}>
+                    <button
+                      type="button"
+                      onClick={() => { setSearchParams({}); setEventDdOpen(false); }}
+                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", color: !selectedEventId ? "#111827" : "#6b7280", fontSize: 13, fontWeight: !selectedEventId ? 600 : 500, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                    >
+                      <Search size={14} style={{ color: "#9ca3af", flexShrink: 0 }} />
+                      전체 행사
+                    </button>
+                    {events.map((event) => (
+                      <button
+                        key={event.eventId}
+                        type="button"
+                        onClick={() => { setSearchParams({ eventId: String(event.eventId) }); setEventDdOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", color: selectedEventId === String(event.eventId) ? "#111827" : "#6b7280", fontSize: 13, fontWeight: selectedEventId === String(event.eventId) ? 600 : 500, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                      >
+                        <Search size={14} style={{ color: "#9ca3af", flexShrink: 0 }} />
+                        {event.eventName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+
+              {/* search input */}
+              <div style={{ position: "relative", flex: "1 1 auto", minWidth: 280 }}>
+                <Search size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", pointerEvents: "none" }} />
+                <input className="board-search-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="갤러리 제목 또는 행사명으로 검색" style={{ width: "100%", height: 42, border: "none", background: "transparent", padding: "0 14px 0 40px", fontSize: 13, fontWeight: 500, color: "#111827", outline: "none" }} />
+              </div>
+
+              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+
+              {/* sort button */}
+              <div style={{ position: "relative", flex: "0 0 auto" }} ref={sortDdRef}>
+                <button type="button" onClick={() => setSortMenuOpen((prev) => !prev)} style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", borderRadius: "0 999px 999px 0", minWidth: 110, display: "inline-flex", alignItems: "center", gap: 7 }}><SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />{currentSortLabel}</button>
+                <ChevronDown size={15} style={{ position: "absolute", right: 12, top: "50%", transform: sortMenuOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)", color: "#9ca3af", pointerEvents: "none", transition: "transform .15s ease" }} />
+                {sortMenuOpen && (
+                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, minWidth: 200, background: "#fff", borderRadius: 16, padding: "8px 0", boxShadow: "0 4px 24px rgba(0,0,0,.10)", zIndex: 50, maxHeight: 280, overflowY: "auto" }}>
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => { setSortOption(option.value); setSortMenuOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", color: sortOption === option.value ? "#111827" : "#6b7280", fontSize: 13, fontWeight: sortOption === option.value ? 600 : 500, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                      >
+                        <SlidersHorizontal size={14} style={{ color: "#9ca3af", flexShrink: 0 }} />
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {isAuthed ? <button type="button" onClick={() => { setWriteError(""); setWriteForm({ eventId: selectedEventId || "", title: "", description: "", files: [] }); setWriteOpen(true); }} style={{ height: 42, padding: "0 18px", borderRadius: 999, border: "none", background: "#1d4ed8", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 800, cursor: "pointer", flexShrink: 0 }}><Plus size={16} /> 글쓰기</button> : null}
           </div>
           {reportNotice ? (
-            <div style={{ padding: "16px 28px 0" }}>
+            <div style={{ padding: "16px 0 0" }}>
               <div style={{ padding: "12px 14px", borderRadius: 12, background: "#ecfdf5", border: "1px solid #bbf7d0", color: "#166534", fontSize: 13, fontWeight: 800 }}>
                 {reportNotice}
               </div>
             </div>
           ) : null}
-          <div style={{ padding: 28 }}>
-            {loading ? <div style={{ minHeight: 360, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "#64748b", fontSize: 14 }}><Loader2 size={18} className="animate-spin" /> 갤러리를 불러오는 중입니다.</div> : error ? <div style={{ minHeight: 360, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626", fontSize: 14 }}>{error}</div> : pagedGalleries.length === 0 ? <div style={{ minHeight: 360, display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 14 }}>조건에 맞는 갤러리가 없습니다.</div> : <><div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 xl:grid-cols-4">{pagedGalleries.map((gallery) => { const cover = gallery.imageUrls[0] || ""; const liked = !!likedMap[gallery.galleryId]; return <article key={gallery.galleryId} style={{ borderRadius: 20, overflow: "hidden", border: "1px solid #e2e8f0", background: "#fff", boxShadow: "0 12px 24px rgba(15,23,42,0.05)", display: "flex", flexDirection: "column" }}><button type="button" onClick={() => openViewer(gallery)} style={{ border: "none", padding: 0, background: "none", cursor: "pointer" }}><div style={{ aspectRatio: "4 / 3", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>{cover ? <img src={cover} alt={gallery.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <ImageOff size={30} color="#94a3b8" />}</div></button><div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12, flex: 1 }}><div><div style={{ fontSize: 12, fontWeight: 800, color: "#1d4ed8", marginBottom: 6 }}>{eventNameMap[String(gallery.eventId)] || `행사 ${gallery.eventId}`}</div><div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a", lineHeight: 1.35 }}>{gallery.title}</div><div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7, color: "#64748b", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{gallery.description || "설명이 없습니다."}</div></div><div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, paddingTop: 12, borderTop: "1px solid #eef2f7" }}><div style={{ display: "flex", gap: 12, fontSize: 12, color: "#64748b" }}><span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Calendar size={13} /> {formatDate(gallery.createdAt)}</span><span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Eye size={13} /> {gallery.viewCount}</span></div><button type="button" onClick={() => toggleLike(gallery)} style={{ border: "none", background: "none", color: liked ? "#e11d48" : "#64748b", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, cursor: "pointer" }}><Heart size={14} fill={liked ? "currentColor" : "none"} /> {gallery.likeCount}</button></div></div></article>; })}</div><div style={{ marginTop: 26, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}><button type="button" onClick={() => setPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage <= 1} style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid #dbe2ea", background: currentPage <= 1 ? "#f8fafc" : "#fff", color: currentPage <= 1 ? "#cbd5e1" : "#334155", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: currentPage <= 1 ? "not-allowed" : "pointer" }}><ChevronLeft size={16} /></button><span style={{ minWidth: 110, textAlign: "center", fontSize: 13, fontWeight: 800, color: "#475569" }}>{currentPage} / {totalPages}</span><button type="button" onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))} disabled={currentPage >= totalPages} style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid #dbe2ea", background: currentPage >= totalPages ? "#f8fafc" : "#fff", color: currentPage >= totalPages ? "#cbd5e1" : "#334155", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: currentPage >= totalPages ? "not-allowed" : "pointer" }}><ChevronRight size={16} /></button></div></>}
+          <div>
+            {loading ? <PageLoading message="갤러리를 불러오는 중입니다" /> : error ? <EmptyState type="error" message="갤러리를 불러오지 못했습니다" description={error} /> : pagedGalleries.length === 0 ? <EmptyState message="조건에 맞는 갤러리가 없습니다" description="행사나 검색어를 바꿔 다시 확인해 주세요" /> : <><div className="grid grid-cols-1 gap-[20px] sm:grid-cols-2 xl:grid-cols-4">{pagedGalleries.map((gallery) => { const cover = gallery.imageUrls[0] || ""; const liked = !!likedMap[gallery.galleryId]; const evName = eventNameMap[String(gallery.eventId)] || `행사 ${gallery.eventId}`; return <article key={gallery.galleryId} style={{ borderRadius: 16, overflow: "hidden", position: "relative", cursor: "pointer", aspectRatio: "3 / 4", background: "#1e293b" }} onClick={() => openViewer(gallery)}>
+  {cover ? <img src={cover} alt={gallery.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform .4s ease" }} onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.06)"} onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"} /> : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><ImageOff size={36} color="#cbd5e1" /></div>}
+  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.18) 40%, transparent 60%)", pointerEvents: "none" }} />
+  <div style={{ position: "absolute", top: 14, right: 14, padding: "5px 12px", borderRadius: 999, background: "rgba(255,255,255,0.18)", backdropFilter: "blur(6px)", fontSize: 11, fontWeight: 700, color: "#fff", maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{evName}</div>
+  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "20px 18px 18px" }}>
+    <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", lineHeight: 1.35, marginBottom: 6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{gallery.title}</div>
+    {gallery.description && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, marginBottom: 10, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{gallery.description}</div>}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", gap: 12, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Eye size={13} /> {gallery.viewCount}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Calendar size={13} /> {formatDate(gallery.createdAt)}</span>
+      </div>
+      <button type="button" onClick={(e) => { e.stopPropagation(); toggleLike(gallery); }} style={{ border: "none", background: "none", color: liked ? "#fb7185" : "rgba(255,255,255,0.6)", display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}><Heart size={14} fill={liked ? "currentColor" : "none"} /> {gallery.likeCount}</button>
+    </div>
+  </div>
+</article>; })}</div><CommunityPagination currentPage={currentPage} totalPages={totalPages} onChange={setPage} /></>}
           </div>
         </section>
       </main>
