@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
@@ -7,6 +7,7 @@ import CommunityPagination from "./shared/CommunityPagination";
 import {
   Search,
   Loader2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   X,
@@ -14,8 +15,8 @@ import {
   Plus,
   AlertTriangle,
   Paperclip,
+  SlidersHorizontal,
 } from "lucide-react";
-import sortIcon from "../../../assets/sort-icon.svg";
 import { postApi } from "../../../app/http/postApi";
 import { postReplyApi } from "../../../app/http/replyApi";
 import { tokenStore } from "../../../app/http/tokenStore";
@@ -539,6 +540,7 @@ export default function InfoBoard() {
   const [currentPath, setCurrentPath] = useState("/community/info");
   const [sortKey, setSortKey] = useState("recent");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const sortDdRef = useRef(null);
 
   const [allItems, setAllItems] = useState([]);
   const [commentCountMap, setCommentCountMap] = useState({});
@@ -834,6 +836,14 @@ export default function InfoBoard() {
   const currentSortLabel =
     SORT_OPTIONS.find((option) => option.key === sortKey)?.label || "최신순";
 
+  useEffect(() => {
+    const h = (e) => {
+      if (sortDdRef.current && !sortDdRef.current.contains(e.target)) setSortMenuOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
   return (
     <>
       <PageHeader
@@ -844,7 +854,7 @@ export default function InfoBoard() {
         onNavigate={setCurrentPath}
       />
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} .board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
       <main
         style={{
           width: "min(1350px, calc(100% - 50px))",
@@ -859,119 +869,80 @@ export default function InfoBoard() {
             alignItems: "center",
             justifyContent: "space-between",
             paddingBottom: "16px",
-            borderBottom: "1px solid #e0e0e0",
             marginBottom: "8px",
             gap: 8,
           }}
         >
           <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>총 {totalElements}개</span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <div style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => setSortMenuOpen((prev) => !prev)}
-                style={{
-                  border: "1px solid #d1d5db",
-                  borderRadius: 8,
-                  background: "#fff",
-                  height: 38,
-                  padding: "0 12px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#334155",
-                  cursor: "pointer",
-                }}
-              >
-                <img src={sortIcon} alt="정렬 아이콘" width={14} height={14} />
-                {currentSortLabel}
-              </button>
-              {sortMenuOpen ? (
-                <div
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: 999, height: 42 }}>
+              {/* sort button */}
+              <div style={{ position: "relative", flex: "0 0 auto" }} ref={sortDdRef}>
+                <button
+                  type="button"
+                  onClick={() => setSortMenuOpen((prev) => !prev)}
+                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 110, display: "inline-flex", alignItems: "center", gap: 7 }}
+                >
+                  <SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />
+                  {currentSortLabel}
+                </button>
+                <ChevronDown size={15} style={{ position: "absolute", right: 12, top: "50%", transform: sortMenuOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)", color: "#9ca3af", pointerEvents: "none", transition: "transform .15s ease" }} />
+                {sortMenuOpen && (
+                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, minWidth: 200, background: "#fff", borderRadius: 16, padding: "8px 0", boxShadow: "0 4px 24px rgba(0,0,0,.10)", zIndex: 50, maxHeight: 280, overflowY: "auto" }}>
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => { setSortKey(option.key); setSortMenuOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", color: sortKey === option.key ? "#111827" : "#6b7280", fontSize: 13, fontWeight: sortKey === option.key ? 600 : 500, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                      >
+                        <SlidersHorizontal size={14} style={{ color: "#9ca3af", flexShrink: 0 }} />
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+
+              {/* search input */}
+              <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
+                <Search
+                  size={16}
+                  strokeWidth={2}
                   style={{
                     position: "absolute",
-                    right: 0,
-                    top: 42,
-                    minWidth: 120,
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 8,
-                    background: "#fff",
-                    boxShadow: "0 8px 20px rgba(15,23,42,0.12)",
-                    zIndex: 20,
-                    overflow: "hidden",
+                    left: 14,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#9ca3af",
+                    pointerEvents: "none",
                   }}
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => {
-                        setSortKey(option.key);
-                        setSortMenuOpen(false);
-                      }}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "left",
-                        border: "none",
-                        borderBottom: "1px solid #f1f5f9",
-                        background: option.key === sortKey ? "#eff6ff" : "#fff",
-                        color: option.key === sortKey ? "#1D4ED8" : "#334155",
-                        padding: "9px 11px",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                border: "1px solid #ccc",
-                borderRadius: "6px",
-                overflow: "hidden",
-                background: "#fff",
-              }}
-            >
-              <input
-                type="text"
-                placeholder="제목/내용 검색"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  border: "none",
-                  outline: "none",
-                  padding: "8px 12px",
-                  fontSize: "14px",
-                  color: "#333",
-                  width: "240px",
-                  background: "transparent",
-                }}
-              />
-              <button
-                type="button"
-                style={{
-                  border: "none",
-                  background: "#fff",
-                  padding: "8px 12px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Search size={16} strokeWidth={2} color="#555" />
-              </button>
+                />
+                <input
+                  className="board-search-input"
+                  type="text"
+                  placeholder="정보게시판 글 검색"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    padding: "0 14px 0 40px",
+                    borderRadius: "0 999px 999px 0",
+                    height: 42,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "#111827",
+                    outline: "none",
+                    width: 280,
+                  }}
+                />
+              </div>
             </div>
 
             <button
@@ -982,7 +953,7 @@ export default function InfoBoard() {
                 alignItems: "center",
                 gap: 5,
                 padding: "8px 16px",
-                borderRadius: 6,
+                borderRadius: 999,
                 border: "none",
                 background: "#4a7cf7",
                 color: "#fff",
@@ -1008,48 +979,53 @@ export default function InfoBoard() {
         {!loading && !error && (
           <>
             <div>
-              {pagedItems.map((item) => (
-                <div
-                  key={item.postId}
-                  onClick={() => navigate(`/community/info/${item.postId}`)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "18px 6px",
-                    borderBottom: "1px solid #e8e8e8",
-                    cursor: "pointer",
-                    transition: "background 0.15s",
-                    gap: 10,
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f9f9f9")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <span style={{ ...badge.style, marginRight: 2 }}>{badge.text}</span>
-                  <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500 }}>
-                    {item.postTitle}
-                  </span>
-                  <span
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "12px 16px",
+                background: "#f9fafb",
+                borderTop: "2px solid #333",
+                borderBottom: "1px solid #e5e7eb",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#6b7280",
+              }}>
+                <span style={{ width: 60, textAlign: "center", flexShrink: 0 }}>번호</span>
+                <span style={{ flex: 1, textAlign: "center" }}>제목</span>
+                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
+                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
+              </div>
+              {pagedItems.map((item, index) => {
+                const rowNumber = totalElements - ((pageSafe - 1) * PAGE_SIZE) - index;
+                return (
+                  <div
+                    key={item.postId}
+                    onClick={() => navigate(`/community/info/${item.postId}`)}
                     style={{
-                      display: "inline-flex",
+                      display: "flex",
                       alignItems: "center",
-                      gap: 4,
-                      fontSize: 12,
-                      color: "#64748B",
-                      minWidth: 64,
-                      justifyContent: "flex-end",
+                      padding: "18px 16px",
+                      borderBottom: "1px solid #f0f0f0",
+                      cursor: "pointer",
+                      transition: "background 0.15s",
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f9f9f9")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    <MessageCircle size={13} />
-                    {commentCountMap[item.postId] ?? 0}
-                  </span>
-                  <span style={{ fontSize: "12px", color: "#94A3B8", minWidth: 60, textAlign: "right" }}>
-                    조회 {item.viewCount ?? 0}
-                  </span>
-                  <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", minWidth: 94, textAlign: "right" }}>
-                    {fmtDate(item.createdAt)}
-                  </span>
-                </div>
-              ))}
+                    <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>
+                    <span style={{ flex: 1, fontSize: 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.postTitle}
+                      {(commentCountMap[item.postId] ?? 0) > 0 && (
+                        <span style={{ fontSize: 12, color: "#9ca3af", marginLeft: 6 }}>({commentCountMap[item.postId]})</span>
+                      )}
+                    </span>
+                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>관리자</span>
+                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                      {fmtDate(item.createdAt)}
+                    </span>
+                  </div>
+                );
+              })}
 
               {pagedItems.length === 0 && (
                 <div style={{ textAlign: "center", padding: "60px 0", color: "#999", fontSize: "14px" }}>

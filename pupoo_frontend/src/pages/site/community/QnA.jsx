@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
@@ -15,9 +15,10 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  SlidersHorizontal,
+  ListFilter,
 } from "lucide-react";
 import { qnaApi, unwrap } from "../../../api/qnaApi";
-import sortIcon from "../../../assets/sort-icon.svg";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
@@ -377,6 +378,9 @@ export default function ServicePage() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState("recent");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [filterDdOpen, setFilterDdOpen] = useState(false);
+  const filterDdRef = useRef(null);
+  const sortDdRef = useRef(null);
   const [openReplies, setOpenReplies] = useState({});
 
   /* ???? API ???? ???? */
@@ -487,7 +491,16 @@ export default function ServicePage() {
     SORT_OPTIONS.find((option) => option.key === sortKey)?.label ||
     "최신순";
 
-  /* ?? ?깅줉 ?? */
+  useEffect(() => {
+    const h = (e) => {
+      if (filterDdRef.current && !filterDdRef.current.contains(e.target)) setFilterDdOpen(false);
+      if (sortDdRef.current && !sortDdRef.current.contains(e.target)) setSortMenuOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  /*?? ?깅줉 ?? */
   const handleCreate = async (form) => {
     setSaving(true);
     try {
@@ -560,7 +573,6 @@ export default function ServicePage() {
             alignItems: "center",
             justifyContent: "space-between",
             paddingBottom: "16px",
-            borderBottom: "1px solid #e0e0e0",
             marginBottom: "8px",
           }}
         >
@@ -568,159 +580,108 @@ export default function ServicePage() {
             총 {totalElements}건
           </span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <div style={{ position: "relative" }}>
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                style={{
-                  appearance: "none",
-                  WebkitAppearance: "none",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 8,
-                  height: 38,
-                  padding: "0 34px 0 12px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#334155",
-                  background: "#fff",
-                  cursor: "pointer",
-                  outline: "none",
-                  minWidth: 108,
-                }}
-              >
-                {FILTER_OPTIONS.map((opt) => (
-                  <option key={opt}>{opt}</option>
-                ))}
-              </select>
-              <span
-                style={{
-                  position: "absolute",
-                  right: "10px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  pointerEvents: "none",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <ChevronDown size={14} color="#64748b" />
-              </span>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: 999, height: 42 }}>
+              {/* status dropdown */}
+              <div style={{ position: "relative", flex: "0 0 auto" }} ref={filterDdRef}>
+                <button
+                  type="button"
+                  onClick={() => setFilterDdOpen((v) => !v)}
+                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 120, display: "inline-flex", alignItems: "center", gap: 7 }}
+                >
+                  <ListFilter size={14} style={{ color: "#9ca3af" }} />
+                  {filter}
+                </button>
+                <ChevronDown size={15} style={{ position: "absolute", right: 12, top: "50%", transform: filterDdOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)", color: "#9ca3af", pointerEvents: "none", transition: "transform .15s ease" }} />
+                {filterDdOpen && (
+                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, minWidth: 200, background: "#fff", borderRadius: 16, padding: "8px 0", boxShadow: "0 4px 24px rgba(0,0,0,.10)", zIndex: 50, maxHeight: 280, overflowY: "auto" }}>
+                    {FILTER_OPTIONS.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => { setFilter(opt); setFilterDdOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", color: filter === opt ? "#111827" : "#6b7280", fontSize: 13, fontWeight: filter === opt ? 600 : 500, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                      >
+                        <ListFilter size={14} style={{ color: "#9ca3af", flexShrink: 0 }} />
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            <div style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => setSortMenuOpen((prev) => !prev)}
-                style={{
-                  border: "1px solid #d1d5db",
-                  borderRadius: 8,
-                  background: "#fff",
-                  height: 38,
-                  padding: "0 12px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#334155",
-                  cursor: "pointer",
-                }}
-              >
-                <img src={sortIcon} alt="정렬 아이콘" width={14} height={14} />
-                {currentSortLabel}
-              </button>
-              {sortMenuOpen ? (
-                <div
+              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+
+              {/* sort button */}
+              <div style={{ position: "relative", flex: "0 0 auto" }} ref={sortDdRef}>
+                <button
+                  type="button"
+                  onClick={() => setSortMenuOpen((prev) => !prev)}
+                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 110, display: "inline-flex", alignItems: "center", gap: 7 }}
+                >
+                  <SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />
+                  {currentSortLabel}
+                </button>
+                <ChevronDown size={15} style={{ position: "absolute", right: 12, top: "50%", transform: sortMenuOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)", color: "#9ca3af", pointerEvents: "none", transition: "transform .15s ease" }} />
+                {sortMenuOpen && (
+                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, minWidth: 200, background: "#fff", borderRadius: 16, padding: "8px 0", boxShadow: "0 4px 24px rgba(0,0,0,.10)", zIndex: 50, maxHeight: 280, overflowY: "auto" }}>
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => { setSortKey(option.key); setSortMenuOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", color: sortKey === option.key ? "#111827" : "#6b7280", fontSize: 13, fontWeight: sortKey === option.key ? 600 : 500, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                      >
+                        <SlidersHorizontal size={14} style={{ color: "#9ca3af", flexShrink: 0 }} />
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+
+              {/* search input */}
+              <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
+                <Search
+                  size={16}
+                  strokeWidth={2}
                   style={{
                     position: "absolute",
-                    right: 0,
-                    top: 42,
-                    minWidth: 120,
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 8,
-                    background: "#fff",
-                    boxShadow: "0 8px 20px rgba(15,23,42,0.12)",
-                    zIndex: 20,
-                    overflow: "hidden",
+                    left: 14,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#9ca3af",
+                    pointerEvents: "none",
                   }}
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => {
-                        setSortKey(option.key);
-                        setSortMenuOpen(false);
-                      }}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "left",
-                        border: "none",
-                        borderBottom: "1px solid #f1f5f9",
-                        background: option.key === sortKey ? "#eff6ff" : "#fff",
-                        color: option.key === sortKey ? "#1D4ED8" : "#334155",
-                        padding: "9px 11px",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+                />
+                <input
+                  className="board-search-input"
+                  type="text"
+                  placeholder="질문 또는 답변 검색"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    padding: "0 14px 0 40px",
+                    borderRadius: "0 999px 999px 0",
+                    height: 42,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "#111827",
+                    outline: "none",
+                    width: 280,
+                  }}
+                />
+              </div>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                border: "1px solid #ccc",
-                borderRadius: "6px",
-                overflow: "hidden",
-                background: "#fff",
-              }}
-            >
-              <input
-                type="text"
-                placeholder="검색어를 입력해 주세요"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  border: "none",
-                  outline: "none",
-                  padding: "8px 12px",
-                  fontSize: "14px",
-                  color: "#333",
-                  width: "240px",
-                  background: "transparent",
-                }}
-              />
-              <button
-                style={{
-                  border: "none",
-                  background: "#fff",
-                  padding: "8px 12px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#f5f5f5")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "#fff")
-                }
-              >
-                <Search size={16} strokeWidth={2} color="#555" />
-              </button>
-            </div>
-
-            {/* 湲?곌린 踰꾪듉 */}
             <button
               onClick={() => navigate("/community/qna/write")}
               style={{
@@ -728,7 +689,7 @@ export default function ServicePage() {
                 alignItems: "center",
                 gap: 5,
                 padding: "8px 16px",
-                borderRadius: 6,
+                borderRadius: 999,
                 border: "none",
                 background: "#4a7cf7",
                 color: "#fff",
@@ -745,14 +706,17 @@ export default function ServicePage() {
                 (e.currentTarget.style.background = "#4a7cf7")
               }
             >
-              <Plus size={14} strokeWidth={2.5} /> 질문하기</button>
+              <Plus size={14} strokeWidth={2.5} /> 질문하기
+            </button>
           </div>
         </div>
 
+        {/* 濡쒕뵫 */}
         {loading && (
           <PageLoading message="질문 목록을 불러오는 중입니다" />
         )}
 
+        {/* ?먮윭 */}
         {!loading && error && (
           <EmptyState type="error" message="질문 목록을 불러오지 못했습니다" description={error} />
         )}
@@ -760,24 +724,40 @@ export default function ServicePage() {
         {/* 紐⑸줉 */}
         {!loading && !error && (
           <div>
-            {pagedItems.map((q) => {
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "12px 16px",
+              background: "#f9fafb",
+              borderTop: "2px solid #333",
+              borderBottom: "1px solid #e5e7eb",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#6b7280",
+            }}>
+              <span style={{ width: 60, textAlign: "center", flexShrink: 0 }}>번호</span>
+              <span style={{ flex: 1, textAlign: "center" }}>제목</span>
+              <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
+              <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
+            </div>
+            {pagedItems.map((q, index) => {
               const isClosed = hasAnswer(q);
               const statusLabel = isClosed ? "답변완료" : "미답변";
+              const rowNumber = totalElements - ((currentPage - 1) * PAGE_SIZE) - index;
 
               return (
                 <div
                   key={q.qnaId}
-                  style={{ borderBottom: "1px solid #e8e8e8" }}
+                  style={{ borderBottom: "1px solid #f0f0f0" }}
                 >
                   {/* 吏덈Ц ??*/}
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      padding: "18px 4px",
+                      padding: "18px 16px",
                       cursor: "pointer",
                       transition: "background 0.15s",
-                      gap: "0",
                     }}
                     onClick={() => navigate(`/community/qna/${q.qnaId}`)}
                     onMouseEnter={(e) =>
@@ -787,59 +767,52 @@ export default function ServicePage() {
                       (e.currentTarget.style.background = "transparent")
                     }
                   >
-                    <span
-                      style={{ ...getBoardBadge("QNA").style, marginRight: 12 }}
-                    >
-                      {getBoardBadge("QNA").text}
-                    </span>
+                    <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>
                     <span
                       style={{
                         flex: 1,
-                        fontSize: "15px",
-                        color: "#222",
-                        fontWeight: "400",
+                        fontSize: 15,
+                        color: "#111827",
+                        fontWeight: 500,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {q.title}
-                    </span>
-
-                    {/* ?곹깭 諭껋? */}
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: "600",
-                        color: isClosed ? "#4a7cf7" : "#999",
-                        border: `1px solid ${isClosed ? "#4a7cf7" : "#ccc"}`,
-                        borderRadius: "20px",
-                        padding: "2px 9px",
-                        marginRight: "12px",
-                        whiteSpace: "nowrap",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "3px",
-                      }}
-                    >
-                      {statusLabel}
                       <span
                         style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: isClosed ? "#4a7cf7" : "#999",
+                          border: `1px solid ${isClosed ? "#4a7cf7" : "#ccc"}`,
+                          borderRadius: 20,
+                          padding: "2px 9px",
+                          marginLeft: 8,
+                          whiteSpace: "nowrap",
                           display: "inline-flex",
-                          transition: "transform 0.2s ease",
-                          transform: openReplies[q.qnaId]
-                            ? "rotate(180deg)"
-                            : "rotate(0deg)",
+                          alignItems: "center",
+                          gap: 3,
+                          verticalAlign: "middle",
                         }}
                       >
-                        <ChevronDown size={11} strokeWidth={2.5} />
+                        {statusLabel}
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            transition: "transform 0.2s ease",
+                            transform: openReplies[q.qnaId]
+                              ? "rotate(180deg)"
+                              : "rotate(0deg)",
+                          }}
+                        >
+                          <ChevronDown size={11} strokeWidth={2.5} />
+                        </span>
                       </span>
                     </span>
 
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        color: "#999",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>관리자</span>
+                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
                       {fmtDate(q.createdAt)}
                     </span>
                   </div>
