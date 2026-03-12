@@ -1,5 +1,6 @@
 package com.popups.pupoo.common.dashboard.dto;
 
+import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.model.Event;
 import lombok.Builder;
@@ -29,6 +30,7 @@ public class DashboardEventResponse {
     private long   participants;
     private int    capacity;
     private String description;
+    private String imageUrl;
 
     public static DashboardEventResponse from(Event e, long participantCount) {
         String dateStr = e.getStartAt().format(FMT) + " ~ " + e.getEndAt().format(FMT);
@@ -45,6 +47,7 @@ public class DashboardEventResponse {
                 .participants(participantCount)
                 .capacity(500)  // event 테이블에 capacity 컬럼 없음 → 기본값
                 .description(e.getDescription() != null ? e.getDescription() : "")
+                .imageUrl(PublicUrlNormalizer.normalize(e.getImageUrl()))
                 .build();
     }
 

@@ -2,18 +2,23 @@
 package com.popups.pupoo.event.api;
 
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.event.application.AdminEventPosterService;
 import com.popups.pupoo.event.application.EventAdminService;
 import com.popups.pupoo.event.dto.AdminEventCreateRequest;
+import com.popups.pupoo.event.dto.AdminEventPosterAssetResponse;
+import com.popups.pupoo.event.dto.AdminEventPosterGenerateRequest;
 import com.popups.pupoo.event.dto.AdminEventUpdateRequest;
 import com.popups.pupoo.event.dto.EventResponse;
 
 import com.popups.pupoo.event.domain.enums.EventStatus;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-
-import org.springframework.web.bind.annotation.*;
 
 /**
  * 관리자용 행사 운영 API
@@ -29,9 +34,14 @@ import org.springframework.web.bind.annotation.*;
 public class AdminEventOperationController {
 
     private final EventAdminService eventAdminService;
+    private final AdminEventPosterService adminEventPosterService;
 
-    public AdminEventOperationController(EventAdminService eventAdminService) {
+    public AdminEventOperationController(
+            EventAdminService eventAdminService,
+            AdminEventPosterService adminEventPosterService
+    ) {
         this.eventAdminService = eventAdminService;
+        this.adminEventPosterService = adminEventPosterService;
     }
 
     /** 행사 등록(관리자) */
@@ -74,5 +84,19 @@ public class AdminEventOperationController {
             @RequestParam EventStatus status
     ) {
         return ApiResponse.success(eventAdminService.changeStatus(eventId, status));
+    }
+
+    @PostMapping("/poster/generate")
+    public ApiResponse<AdminEventPosterAssetResponse> generatePoster(
+            @Valid @RequestBody AdminEventPosterGenerateRequest request
+    ) {
+        return ApiResponse.success(adminEventPosterService.generatePoster(request));
+    }
+
+    @PostMapping(value = "/poster/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<AdminEventPosterAssetResponse> uploadPoster(
+            @RequestPart("file") MultipartFile file
+    ) {
+        return ApiResponse.success(adminEventPosterService.uploadPoster(file));
     }
 }

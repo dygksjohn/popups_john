@@ -133,24 +133,12 @@ export async function loadImageCache() {
 
 /** 이벤트 목록에 imageUrl 주입 (동기, 캐시 기반) */
 /* ── 이미지 없을 때 강아지 샘플 폴백 ── */
-const DOG_SAMPLES = [
-  "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1552053831-71594a27632d?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=200&h=200&fit=crop",
-  "https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=200&h=200&fit=crop",
-];
-const getDogFallback = (id) => DOG_SAMPLES[Math.abs(Number(id) || 0) % DOG_SAMPLES.length];
-
 export function injectEventImages(events) {
   return events.map((ev) => {
     const key = String(ev.eventId || ev.id);
     return {
       ...ev,
-      imageUrl: _cache[key] || ev.imageUrl || getDogFallback(key),
+      imageUrl: ev.imageUrl || _cache[key] || null,
     };
   });
 }

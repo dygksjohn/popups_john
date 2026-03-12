@@ -25,6 +25,7 @@ import {
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const styles = `
 .card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent;}
@@ -732,6 +733,7 @@ export default function SessionManage({ subTab = "all" }) {
       const list = res.data?.data || res.data || [];
       const mapped = injectEventImages(list).map((e) => ({
         ...e,
+        imageUrl: e.imageUrl ? toPublicAssetUrl(e.imageUrl) : null,
         status: resolveAdminStatus(
           e,
           calcStatus(

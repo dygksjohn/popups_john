@@ -109,7 +109,7 @@ function appendMeta(desc, galleryType, tags = []) {
    → 백엔드 baseURL 붙여서 실제 접근 가능한 URL로 변환 */
 const API_BASE = (
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
-  "http://localhost:8080"
+  ""
 ).replace(/\/+$/, "");
 
 function resolveImgUrl(url) {
@@ -887,7 +887,7 @@ function FormModal({
       const formData = new FormData();
       files.forEach((f) => formData.append("files", f));
       const token = getToken();
-      const baseURL = axiosInstance.defaults.baseURL || "http://localhost:8080";
+      const baseURL = axiosInstance.defaults.baseURL || "";
       const res = await fetch(`${baseURL}/api/admin/galleries/images/upload`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},

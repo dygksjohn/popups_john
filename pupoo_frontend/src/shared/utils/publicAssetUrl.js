@@ -1,4 +1,12 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/+$/, "");
+import {
+  buildAssetUrl,
+  getConfiguredAssetBaseUrl,
+} from "../config/requestUrl";
+
+const assetBaseUrl = getConfiguredAssetBaseUrl(
+  import.meta.env.VITE_ASSET_BASE_URL,
+  import.meta.env.VITE_API_BASE_URL,
+);
 
 export function toPublicAssetUrl(rawUrl) {
   if (!rawUrl) return "";
@@ -6,6 +14,10 @@ export function toPublicAssetUrl(rawUrl) {
   if (!raw) return "";
 
   if (/^https?:\/\//i.test(raw)) {
+    return raw;
+  }
+
+  if (/^(data|blob):/i.test(raw)) {
     return raw;
   }
 
@@ -48,5 +60,5 @@ export function toPublicAssetUrl(rawUrl) {
     normalized = `/${normalized}`;
   }
 
-  return `${API_BASE}${normalized}`;
+  return buildAssetUrl(assetBaseUrl, normalized);
 }

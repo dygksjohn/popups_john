@@ -2,19 +2,18 @@ import axios from "axios";
 import { attachInterceptors } from "./interceptors";
 
 export function createAxiosInstance() {
-  // ✅ 끝 슬래시 제거한 baseURL을 실제로 사용
-  const baseURL = (
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
-  ).replace(/\/+$/, "");
+  const baseURL = String(import.meta.env.VITE_API_BASE_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
 
   const instance = axios.create({
-    baseURL,
+    baseURL: baseURL || undefined,
     timeout: 10000,
     headers: { "Content-Type": "application/json" },
     withCredentials: true,
   });
 
-  console.log("🔥 axiosInstance baseURL =", instance.defaults.baseURL);
+  console.log("axiosInstance baseURL =", instance.defaults.baseURL);
 
   attachInterceptors(instance, {
     publicPathPrefixes: [

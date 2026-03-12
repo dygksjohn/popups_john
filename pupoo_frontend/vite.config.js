@@ -24,6 +24,10 @@ export default defineConfig({
         target: process.env.VITE_PROXY_TARGET || "http://localhost:8080",
         changeOrigin: true,
       },
+      "/internal": {
+        target: process.env.VITE_AI_BASE_URL || "http://localhost:8000",
+        changeOrigin: true,
+      },
     },
   },
 });
