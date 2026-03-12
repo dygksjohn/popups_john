@@ -2,10 +2,12 @@ package com.popups.pupoo.storage.infrastructure;
 
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.storage.config.StorageProperties;
 import com.popups.pupoo.storage.port.ObjectStoragePort;
+import com.popups.pupoo.storage.support.StorageKeyNormalizer;
+import com.popups.pupoo.storage.support.StorageUrlResolver;
 import jakarta.annotation.PreDestroy;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -25,39 +27,36 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import java.io.InputStream;
 
 @Service
-@ConditionalOnProperty(name = "storage.mode", havingValue = "S3")
+@ConditionalOnExpression("'${storage.mode:LOCAL}'.equalsIgnoreCase('S3')")
 public class S3ObjectStorageService implements ObjectStoragePort {
 
     private final S3Client s3Client;
     private final String bucket;
-    private final String publicBaseUrl;
-    private final String keyPrefix;
+    private final StorageKeyNormalizer storageKeyNormalizer;
+    private final StorageUrlResolver storageUrlResolver;
 
     public S3ObjectStorageService(
-            @Value("${storage.s3.bucket}") String bucket,
-            @Value("${storage.s3.region:${AWS_REGION:ap-northeast-2}}") String region,
-            @Value("${storage.public-base-url:}") String publicBaseUrl,
-            @Value("${storage.s3.key-prefix:uploads}") String keyPrefix,
-            @Value("${storage.s3.access-key-id:}") String accessKeyId,
-            @Value("${storage.s3.secret-access-key:}") String secretAccessKey,
-            @Value("${storage.s3.session-token:}") String sessionToken
+            StorageProperties storageProperties,
+            StorageKeyNormalizer storageKeyNormalizer,
+            StorageUrlResolver storageUrlResolver
     ) {
-        if (!StringUtils.hasText(bucket)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "storage.s3.bucket is required");
+        if (!StringUtils.hasText(storageProperties.getBucket())) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "storage.bucket is required");
         }
-        if (!StringUtils.hasText(region)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "storage.s3.region is required");
+        if (!StringUtils.hasText(storageProperties.getRegion())) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "storage.region is required");
         }
 
-        String normalizedBucket = bucket.trim();
-        String normalizedRegion = region.trim();
-
-        this.bucket = normalizedBucket;
-        this.keyPrefix = normalizeKeyPrefix(keyPrefix);
-        this.publicBaseUrl = normalizeBaseUrl(publicBaseUrl, normalizedBucket, normalizedRegion);
+        this.bucket = storageProperties.getBucket().trim();
+        this.storageKeyNormalizer = storageKeyNormalizer;
+        this.storageUrlResolver = storageUrlResolver;
         this.s3Client = S3Client.builder()
-                .region(Region.of(normalizedRegion))
-                .credentialsProvider(resolveCredentialsProvider(accessKeyId, secretAccessKey, sessionToken))
+                .region(Region.of(storageProperties.getRegion().trim()))
+                .credentialsProvider(resolveCredentialsProvider(
+                        storageProperties.getAccessKeyId(),
+                        storageProperties.getSecretAccessKey(),
+                        storageProperties.getSessionToken()
+                ))
                 .build();
     }
 
@@ -110,7 +109,7 @@ public class S3ObjectStorageService implements ObjectStoragePort {
 
     @Override
     public String getPublicPath(String bucketIgnored, String key) {
-        return publicBaseUrl + "/" + toStorageKey(key);
+        return storageUrlResolver.toPublicUrlFromKey(key);
     }
 
     @PreDestroy
@@ -122,38 +121,7 @@ public class S3ObjectStorageService implements ObjectStoragePort {
         if (!StringUtils.hasText(key)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "key is required");
         }
-        String normalizedKey = stripSlashes(key.trim());
-        return keyPrefix.isBlank() ? normalizedKey : keyPrefix + "/" + normalizedKey;
-    }
-
-    private static String normalizeBaseUrl(String publicBaseUrl, String bucket, String region) {
-        String value = publicBaseUrl;
-        if (!StringUtils.hasText(value)) {
-            value = "https://" + bucket + ".s3." + region + ".amazonaws.com";
-        }
-        String normalized = value.trim();
-        while (normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized;
-    }
-
-    private static String normalizeKeyPrefix(String keyPrefix) {
-        if (!StringUtils.hasText(keyPrefix)) {
-            return "";
-        }
-        return stripSlashes(keyPrefix.trim());
-    }
-
-    private static String stripSlashes(String value) {
-        String normalized = value.replace('\\', '/');
-        while (normalized.startsWith("/")) {
-            normalized = normalized.substring(1);
-        }
-        while (normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized;
+        return storageKeyNormalizer.ensureKeyPrefix(key);
     }
 
     private static String safeMessage(S3Exception e) {
@@ -174,7 +142,7 @@ public class S3ObjectStorageService implements ObjectStoragePort {
         if (hasAccessKey != hasSecretKey) {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
-                    "storage.s3.access-key-id and storage.s3.secret-access-key must be configured together"
+                    "storage.access-key-id and storage.secret-access-key must be configured together"
             );
         }
 

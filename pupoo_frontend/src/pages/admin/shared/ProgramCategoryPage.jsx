@@ -33,6 +33,7 @@ import {
   loadImageCache as loadProgramImageCache,
   injectProgramImages,
 } from "./programImageStore";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 /* ── 스타일 ── */
 const styles = `
@@ -842,7 +843,7 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
             }}
           >
             <img
-              src={item.imageUrl}
+              src={resolveImageUrl(item.imageUrl)}
               alt={item.name}
               style={{
                 width: "100%",
@@ -1367,7 +1368,7 @@ export default function ProgramCategoryPage({
                         }}
                       >
                         <img
-                          src={ev.imageUrl}
+                          src={resolveImageUrl(ev.imageUrl)}
                           alt=""
                           style={{
                             width: "100%",
@@ -1861,7 +1862,7 @@ export default function ProgramCategoryPage({
                           >
                             {r.imageUrl && (
                               <img
-                                src={r.imageUrl}
+                                src={resolveImageUrl(r.imageUrl)}
                                 alt=""
                                 style={{
                                   width: 36,

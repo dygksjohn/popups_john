@@ -6,9 +6,11 @@ import com.popups.pupoo.auth.dto.LoginRequest;
 import com.popups.pupoo.auth.dto.LoginResponse;
 import com.popups.pupoo.auth.dto.TokenResponse;
 import com.popups.pupoo.auth.persistence.RefreshTokenRepository;
+import com.popups.pupoo.auth.support.RefreshCookieRequestSupport;
 import com.popups.pupoo.auth.token.JwtProvider;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.user.domain.enums.RoleName;
 import com.popups.pupoo.user.application.UserService;
 import com.popups.pupoo.user.domain.enums.UserStatus;
 import com.popups.pupoo.user.domain.model.User;
@@ -234,11 +236,9 @@ public class AuthService {
      * - DELETED(탈퇴)는 "비활성"으로 간주하여 로그인/토큰발급을 차단한다.
      */
     private void validateUserStatusForAuth(User user) {
-        UserStatus status = user.getStatus();
-        if (status == null) {
-            throw new BusinessException(ErrorCode.USER_STATUS_INVALID);
-        }
+        normalizeLegacyAuthFields(user);
 
+        UserStatus status = user.getStatus();
         if (status == UserStatus.DELETED) {
             throw new BusinessException(ErrorCode.USER_INACTIVE);
         }
@@ -247,10 +247,27 @@ public class AuthService {
         }
     }
 
+    private void normalizeLegacyAuthFields(User user) {
+        boolean changed = false;
+
+        if (user.getStatus() == null) {
+            user.setStatus(UserStatus.ACTIVE);
+            changed = true;
+        }
+        if (user.getRoleName() == null) {
+            user.setRoleName(RoleName.USER);
+            changed = true;
+        }
+
+        if (changed) {
+            userRepository.save(user);
+        }
+    }
+
     private void setRefreshCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, token)
                 .httpOnly(true)
-                .secure(refreshCookieSecure)
+                .secure(RefreshCookieRequestSupport.shouldUseSecureAttribute(refreshCookieSecure))
                 .path(refreshCookiePath)
                 .sameSite("Lax")
                 .maxAge(refreshCookieMaxAgeSeconds)
@@ -262,7 +279,7 @@ public class AuthService {
     private void expireRefreshCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
                 .httpOnly(true)
-                .secure(refreshCookieSecure)
+                .secure(RefreshCookieRequestSupport.shouldUseSecureAttribute(refreshCookieSecure))
                 .path(refreshCookiePath)
                 .sameSite("Lax")
                 .maxAge(0)

@@ -1,16 +1,12 @@
 // file: src/main/java/com/popups/pupoo/event/dto/EventResponse.java
 package com.popups.pupoo.event.dto;
 
-import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.model.Event;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * ?ъ슜?먯슜 ?됱궗 ?묐떟 DTO (v2.5 湲곗?)
- */
 public class EventResponse {
 
     private Long eventId;
@@ -27,25 +23,24 @@ public class EventResponse {
     private Integer roundNo;
     private BigDecimal baseFee;
 
-    public static EventResponse from(Event e) {
-        EventResponse r = new EventResponse();
-        r.eventId = e.getEventId();
-        r.eventName = e.getEventName();
-        r.description = e.getDescription();
-        r.imageUrl = PublicUrlNormalizer.normalize(e.getImageUrl());
-        r.startAt = e.getStartAt();
-        r.endAt = e.getEndAt();
-        r.location = e.getLocation();
-        r.organizer = e.getOrganizer();
-        r.organizerPhone = e.getOrganizerPhone();
-        r.organizerEmail = e.getOrganizerEmail();
-        r.status = e.getStatus();
-        r.roundNo = e.getRoundNo();
-        r.baseFee = e.getBaseFee();
-        return r;
+    public static EventResponse from(Event event, String imageUrl) {
+        EventResponse response = new EventResponse();
+        response.eventId = event.getEventId();
+        response.eventName = event.getEventName();
+        response.description = event.getDescription();
+        response.imageUrl = imageUrl;
+        response.startAt = event.getStartAt();
+        response.endAt = event.getEndAt();
+        response.location = event.getLocation();
+        response.organizer = event.getOrganizer();
+        response.organizerPhone = event.getOrganizerPhone();
+        response.organizerEmail = event.getOrganizerEmail();
+        response.status = event.getStatus();
+        response.roundNo = event.getRoundNo();
+        response.baseFee = event.getBaseFee();
+        return response;
     }
 
-    // getter
     public Long getEventId() { return eventId; }
     public String getEventName() { return eventName; }
     public String getDescription() { return description; }

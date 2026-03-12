@@ -23,6 +23,7 @@ import com.popups.pupoo.auth.dto.SignupStartRequest;
 import com.popups.pupoo.auth.dto.SignupStartResponse;
 import com.popups.pupoo.auth.dto.SignupVerifyOtpRequest;
 import com.popups.pupoo.auth.dto.TokenResponse;
+import com.popups.pupoo.auth.support.RefreshCookieRequestSupport;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.common.exception.BusinessException;
@@ -119,7 +120,7 @@ public class AuthController {
      */
     @PostMapping("/oauth/kakao/exchange")
     public ApiResponse<KakaoExchangeResponse> kakaoExchange(@RequestBody KakaoExchangeRequest req) {
-        return ApiResponse.success(kakaoOAuthService.exchange(req.getCode()));
+        return ApiResponse.success(kakaoOAuthService.exchange(req.getCode(), req.getRedirectUri()));
     }
 
     /**
@@ -132,7 +133,7 @@ public class AuthController {
             @RequestBody KakaoOauthLoginRequest req,
             HttpServletResponse response
     ) {
-        return ApiResponse.success(kakaoOAuthService.login(req.getCode(), response));
+        return ApiResponse.success(kakaoOAuthService.login(req.getCode(), req.getRedirectUri(), response));
     }
 
     /**
@@ -241,7 +242,7 @@ public class AuthController {
     private void expireRefreshCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
                 .httpOnly(true)
-                .secure(refreshCookieSecure)
+                .secure(RefreshCookieRequestSupport.shouldUseSecureAttribute(refreshCookieSecure))
                 .sameSite("Lax")
                 .path(refreshCookiePath)
                 .maxAge(Duration.ZERO)

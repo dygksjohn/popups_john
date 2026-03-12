@@ -9,19 +9,14 @@ import com.popups.pupoo.program.speaker.domain.model.Speaker;
 import com.popups.pupoo.program.speaker.dto.SpeakerResponse;
 import com.popups.pupoo.program.speaker.persistence.ProgramSpeakerMappingRepository;
 import com.popups.pupoo.program.speaker.persistence.SpeakerRepository;
+import com.popups.pupoo.storage.support.StorageUrlResolver;
 import jakarta.persistence.EntityNotFoundException;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * ?곗궗 議고쉶 ?쒕퉬??
- *
- * DB(v1.0) 湲곗?
- * - speakers???낅┰ 由ъ냼??
- * - ?꾨줈洹몃옩蹂??곗궗 議고쉶??program_speakers 留ㅽ븨?쇰줈 泥섎━?쒕떎.
- */
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -30,23 +25,21 @@ public class SpeakerService {
     private final SpeakerRepository speakerRepository;
     private final ProgramRepository programRepository;
     private final ProgramSpeakerMappingRepository programSpeakerMappingRepository;
+    private final StorageUrlResolver storageUrlResolver;
 
-    /** 怨듦컻: ?곗궗 ?꾩껜 紐⑸줉 */
     public List<SpeakerResponse> getSpeakers() {
         return speakerRepository.findAllByOrderBySpeakerIdDesc()
                 .stream()
-                .map(SpeakerResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
-    /** 怨듦컻: ?곗궗 ?④굔 議고쉶 */
     public SpeakerResponse getSpeaker(Long speakerId) {
         Speaker speaker = speakerRepository.findById(speakerId)
                 .orElseThrow(() -> new EntityNotFoundException("SPEAKER_NOT_FOUND"));
-        return SpeakerResponse.from(speaker);
+        return toResponse(speaker);
     }
 
-    /** ?꾨줈洹몃옩 ?섏쐞: ?꾨줈洹몃옩???랁븳 ?곗궗 紐⑸줉 */
     public List<SpeakerResponse> getSpeakersByProgram(Long programId) {
         Program program = getProgram(programId);
         if (!supportsSpeaker(program)) {
@@ -67,10 +60,9 @@ public class SpeakerService {
         Speaker speaker = speakerRepository.findById(speakerId)
                 .orElseThrow(() -> new EntityNotFoundException("SPEAKER_NOT_FOUND"));
 
-        return List.of(SpeakerResponse.from(speaker));
+        return List.of(toResponse(speaker));
     }
 
-    /** ?꾨줈洹몃옩 ?섏쐞: ?꾨줈洹몃옩???랁븳 ?곗궗 ?④굔 */
     public SpeakerResponse getSpeakerByProgram(Long programId, Long speakerId) {
         Program program = getProgram(programId);
         if (!supportsSpeaker(program)) {
@@ -84,7 +76,7 @@ public class SpeakerService {
         Speaker speaker = speakerRepository.findById(speakerId)
                 .orElseThrow(() -> new EntityNotFoundException("SPEAKER_NOT_FOUND"));
 
-        return SpeakerResponse.from(speaker);
+        return toResponse(speaker);
     }
 
     private Program getProgram(Long programId) {
@@ -94,5 +86,9 @@ public class SpeakerService {
 
     private boolean supportsSpeaker(Program program) {
         return program.getCategory() == ProgramCategory.SESSION;
+    }
+
+    private SpeakerResponse toResponse(Speaker speaker) {
+        return SpeakerResponse.from(speaker, storageUrlResolver.toPublicUrl(speaker.getSpeakerImageUrl()));
     }
 }

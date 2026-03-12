@@ -1,6 +1,15 @@
+import axios from "axios";
 import { tokenStore } from "./tokenStore";
+import {
+  buildRequestUrl,
+  getConfiguredBaseUrl,
+} from "../../shared/config/requestUrl";
 
 const ADMIN_TOKEN_KEY = "pupoo_admin_token";
+const REFRESH_PATH = "/api/auth/refresh";
+const apiBaseUrl = getConfiguredBaseUrl(import.meta.env.VITE_API_BASE_URL);
+
+let refreshPromise = null;
 
 function normalizeUrlPath(url) {
   return String(url || "")
@@ -30,6 +39,10 @@ function hasAuthHeader(config) {
   );
 }
 
+function isAdminRequestPath(path) {
+  return path === "/api/admin" || path.startsWith("/api/admin/");
+}
+
 function getAdminAccessToken() {
   try {
     return localStorage.getItem(ADMIN_TOKEN_KEY);
@@ -38,9 +51,57 @@ function getAdminAccessToken() {
   }
 }
 
+function setAdminAccessToken(accessToken) {
+  try {
+    if (accessToken) {
+      localStorage.setItem(ADMIN_TOKEN_KEY, accessToken);
+    }
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function clearAllTokens() {
+  tokenStore.clear();
+  try {
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function extractAccessToken(payload) {
+  return payload?.data?.accessToken ?? payload?.accessToken ?? null;
+}
+
+async function requestTokenRefresh() {
+  const res = await axios.post(
+    buildRequestUrl(apiBaseUrl, REFRESH_PATH),
+    null,
+    { withCredentials: true },
+  );
+
+  const accessToken = extractAccessToken(res?.data);
+  if (!accessToken) {
+    throw new Error("refresh response missing accessToken");
+  }
+
+  return accessToken;
+}
+
+function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = requestTokenRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+}
+
 export function attachInterceptors(instance, options = {}) {
   instance.interceptors.request.use((config) => {
-    // FormData 전송 시 Content-Type을 제거해야 브라우저가 boundary를 넣은 multipart/form-data로 설정함.
+    // Let the browser add the multipart boundary for FormData requests.
     if (config.data && config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     }
@@ -54,9 +115,7 @@ export function attachInterceptors(instance, options = {}) {
     }
 
     const path = normalizeUrlPath(config?.url);
-    const isAdminRequest =
-      path === "/api/admin" || path.startsWith("/api/admin/");
-    const access = isAdminRequest
+    const access = isAdminRequestPath(path)
       ? getAdminAccessToken()
       : tokenStore.getAccess();
 
@@ -78,20 +137,36 @@ export function attachInterceptors(instance, options = {}) {
         return Promise.reject(err);
       }
 
-      const isAuth = shouldSkipAutoAuth(original, options);
-
-      if (status !== 401 || isAuth) {
+      const isPublicAuthRequest = shouldSkipAutoAuth(original, options);
+      if (status !== 401 || isPublicAuthRequest) {
         return Promise.reject(err);
       }
 
       if (original._retry) {
-        tokenStore.clear();
+        clearAllTokens();
         return Promise.reject(err);
       }
 
-      // ✅ (일단) refresh 로직 없으니 여기서 그냥 clear하고 로그인 유도
-      tokenStore.clear();
-      return Promise.reject(err);
+      original._retry = true;
+
+      try {
+        const accessToken = await refreshAccessToken();
+        const path = normalizeUrlPath(original?.url);
+
+        if (isAdminRequestPath(path)) {
+          setAdminAccessToken(accessToken);
+        } else {
+          tokenStore.setAccess(accessToken);
+        }
+
+        original.headers = original.headers || {};
+        original.headers.Authorization = `Bearer ${accessToken}`;
+
+        return instance(original);
+      } catch (refreshErr) {
+        clearAllTokens();
+        return Promise.reject(refreshErr);
+      }
     },
   );
 }

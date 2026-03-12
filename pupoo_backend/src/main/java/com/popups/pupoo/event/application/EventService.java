@@ -4,7 +4,6 @@ import com.popups.pupoo.board.review.domain.enums.ReviewStatus;
 import com.popups.pupoo.board.review.persistence.ReviewRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
-import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.enums.RegistrationStatus;
 import com.popups.pupoo.event.domain.model.Event;
@@ -13,6 +12,7 @@ import com.popups.pupoo.event.dto.EventResponse;
 import com.popups.pupoo.event.persistence.EventRegistrationRepository;
 import com.popups.pupoo.event.persistence.EventRepository;
 import com.popups.pupoo.program.persistence.ProgramRepository;
+import com.popups.pupoo.storage.support.StorageUrlResolver;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -32,17 +32,20 @@ public class EventService {
     private final ProgramRepository programRepository;
     private final EventRegistrationRepository eventRegistrationRepository;
     private final ReviewRepository reviewRepository;
+    private final StorageUrlResolver storageUrlResolver;
 
     public EventService(
             EventRepository eventRepository,
             ProgramRepository programRepository,
             EventRegistrationRepository eventRegistrationRepository,
-            ReviewRepository reviewRepository
+            ReviewRepository reviewRepository,
+            StorageUrlResolver storageUrlResolver
     ) {
         this.eventRepository = eventRepository;
         this.programRepository = programRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
         this.reviewRepository = reviewRepository;
+        this.storageUrlResolver = storageUrlResolver;
     }
 
     public Page<EventResponse> getEvents(
@@ -104,7 +107,7 @@ public class EventService {
     }
 
     private EventResponse toEventResponse(Event event, LocalDate today) {
-        EventResponse response = EventResponse.from(event);
+        EventResponse response = EventResponse.from(event, storageUrlResolver.toPublicUrl(event.getImageUrl()));
         response.setStatus(resolvePublicStatus(event, today));
         if (response.getImageUrl() == null) {
             response.setImageUrl(resolveEventThumbnail(event.getEventId()));
@@ -117,7 +120,7 @@ public class EventService {
             return null;
         }
         return programRepository.findFirstByEventIdAndImageUrlIsNotNullOrderByProgramIdAsc(eventId)
-                .map(program -> PublicUrlNormalizer.normalize(program.getImageUrl()))
+                .map(program -> storageUrlResolver.toPublicUrl(program.getImageUrl()))
                 .orElse(null);
     }
 

@@ -35,6 +35,10 @@ tasks.withType(ProcessResources).configureEach {
 	filteringCharset = 'UTF-8'
 }
 
+tasks.withType(JavaExec).configureEach {
+	jvmArgs '-Dfile.encoding=UTF-8'
+}
+
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
@@ -126,6 +130,7 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	jvmArgs '-Dfile.encoding=UTF-8'
 }
 
 tasks.register('installFrontendDependencies', Exec) {

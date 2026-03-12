@@ -26,6 +26,7 @@ import {
   ChevronRight,
   Mic2,
 } from "lucide-react";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 const styles = `
   .pg-root { background:#f8f9fc; min-height:100vh; }
@@ -316,7 +317,7 @@ function SessionList({ eventId }) {
                 <div className="pg-thumb">
                   {p.thumbnail ? (
                     <img
-                      src={p.thumbnail}
+                      src={resolveImageUrl(p.thumbnail)}
                       alt={p.title}
                       loading="lazy"
                       onError={(e) => {

@@ -23,9 +23,11 @@ public class GalleryImage {
     @JoinColumn(name = "gallery_id", nullable = false)
     private Gallery gallery;
 
+    // TODO(step-01-storage-policy): keep the legacy column name for now, but store a storage key instead of a full URL.
     @Column(name = "original_url", nullable = false, length = 500)
     private String originalUrl;
 
+    // TODO(step-01-storage-policy): thumbnails should also store storage keys when thumb generation is introduced.
     @Column(name = "thumb_url", length = 500)
     private String thumbUrl;
 

@@ -23,6 +23,7 @@ import {
   Users,
   Search,
 } from "lucide-react";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 const TYPE_LABEL = {
   BOOTH_EXPERIENCE: "체험",
@@ -314,7 +315,7 @@ export default function Experience() {
                   <div className="ex-thumb">
                     {b.thumbnail ? (
                       <img
-                        src={b.thumbnail}
+                        src={resolveImageUrl(b.thumbnail)}
                         alt={b.placeName}
                         loading="lazy"
                         onError={(e) => {
