@@ -7,6 +7,11 @@ import { authApi } from "./api/authApi";
 
 const AuthContext = createContext(null);
 
+const isUnauthorizedError = (error) => {
+  const status = Number(error?.response?.status);
+  return status === 401 || status === 403;
+};
+
 export function AuthProvider({ children }) {
   const [isAuthed, setIsAuthed] = useState(false);
   const [isBootstrapped, setIsBootstrapped] = useState(false);
@@ -37,8 +42,10 @@ export function AuthProvider({ children }) {
           tokenStore.clear();
           setIsAuthed(false);
         }
-      } catch {
-        tokenStore.clear();
+      } catch (error) {
+        if (isUnauthorizedError(error)) {
+          tokenStore.clear();
+        }
         setIsAuthed(false);
       } finally {
         setIsBootstrapped(true);

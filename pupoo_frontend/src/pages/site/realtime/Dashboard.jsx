@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import RealtimeEventSelector from "./RealtimeEventSelector";
 import {
-  Users,
-  CheckCircle2,
   TrendingUp,
   Radio,
   Activity,
@@ -14,7 +12,6 @@ import {
   CalendarDays,
 } from "lucide-react";
 import {
-  useCountUp,
   useRefresh,
   useStaggerIn,
   useAutoRefresh,
@@ -22,7 +19,13 @@ import {
 } from "./useRealtimeAnimations";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
+import { programApi } from "../../../app/http/programApi";
+import { aiApi } from "../../../app/http/aiApi";
 import { getToken } from "../../../api/noticeApi";
+import {
+  formatKoreanTime,
+  normalizePrediction,
+} from "./aiCongestionViewModel";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -35,12 +38,14 @@ const styles = `
   }
   .rt-root *, .rt-root *::before, .rt-root *::after { box-sizing: border-box; font-family: inherit; }
   .rt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
+  .rt-container.selector-mode { padding-top: 104px; }
+  .rt-page-shell { max-width: 1120px; margin: 0 auto; }
 
   .rt-live-badge {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca;
     border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444;
-    margin-bottom: 12px;
+    margin-bottom: 0;
   }
   .rt-live-badge.planned {
     background: #eff6ff;
@@ -68,19 +73,27 @@ const styles = `
 
   .rt-live-header {
     display: flex; align-items: flex-start; justify-content: space-between;
-    margin-bottom: 20px; gap: 16px;
+    margin-bottom: 16px; gap: 16px;
   }
   .rt-live-header-left {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 8px;
     min-width: 0;
+  }
+  .rt-live-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #6b7280;
   }
   .rt-event-name {
     font-size: 28px;
     font-weight: 900;
     color: #111827;
-    line-height: 1.1;
+    line-height: 1.05;
     letter-spacing: -0.03em;
   }
   .rt-event-meta {
@@ -114,6 +127,384 @@ const styles = `
   }
   .rt-refresh-btn:hover { border-color: #1a4fd6; color: #1a4fd6; background: #f5f8ff; }
   .rt-refresh-btn:active { transform: scale(0.93); }
+
+  .rt-hero {
+    border: 1px solid #dbe5f5;
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #60a5fa 100%);
+    color: #fff;
+  }
+  .rt-hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .rt-hero-main {
+    min-width: 0;
+  }
+  .rt-hero-title {
+    margin: 0;
+    font-size: 30px;
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+    font-weight: 900;
+  }
+  .rt-hero-meta {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.92);
+  }
+  .rt-hero-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .rt-status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    white-space: nowrap;
+  }
+  .rt-hero-summary {
+    margin-top: 12px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.96);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .rt-hero-note {
+    margin-top: 7px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.88);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .rt-user-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .rt-user-stat {
+    border: 1px solid #e6ebf2;
+    border-radius: 12px;
+    background: #fff;
+    padding: 14px 14px 13px;
+  }
+  .rt-user-stat-label {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 600;
+    margin-bottom: 7px;
+  }
+  .rt-user-stat-value {
+    font-size: 26px;
+    line-height: 1;
+    font-weight: 900;
+    color: #111827;
+    letter-spacing: -0.02em;
+  }
+  .rt-user-stat-unit {
+    margin-left: 3px;
+    font-size: 14px;
+    color: #4b5563;
+    font-weight: 700;
+  }
+  .rt-user-stat-sub {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.3;
+  }
+  .rt-user-stat-badge {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 800;
+    border: 1px solid #e5e7eb;
+  }
+  .rt-section-lead {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  .rt-visitor-note {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #4b5563;
+    line-height: 1.45;
+    font-weight: 600;
+  }
+  .rt-pet-hints {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .rt-chart-guide {
+    margin-top: 8px;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
+  .rt-prediction-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .rt-prediction-meta-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .rt-prediction-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .rt-prediction-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .rt-prediction-kpi {
+    border: 1px solid #e5e7eb;
+    border-radius: 11px;
+    background: #fff;
+    padding: 12px 12px 11px;
+  }
+  .rt-prediction-kpi-label {
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 700;
+  }
+  .rt-prediction-kpi-value {
+    margin-top: 7px;
+    font-size: 26px;
+    line-height: 1;
+    color: #111827;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+  .rt-prediction-kpi-unit {
+    margin-left: 3px;
+    font-size: 13px;
+    color: #4b5563;
+    font-weight: 700;
+  }
+  .rt-prediction-kpi-desc {
+    margin-top: 7px;
+    font-size: 12px;
+    color: #4b5563;
+    line-height: 1.35;
+    font-weight: 600;
+  }
+  .rt-prediction-kpi-badge {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 3px 9px;
+    font-size: 11px;
+    font-weight: 800;
+    border: 1px solid #e5e7eb;
+  }
+  .rt-prediction-bottom {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+    gap: 12px;
+    align-items: stretch;
+  }
+  .rt-prediction-chart-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 11px;
+    background: #f8fafc;
+    padding: 12px;
+  }
+  .rt-prediction-chart-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .rt-prediction-chart-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #111827;
+  }
+  .rt-prediction-chart-sub {
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 600;
+  }
+  .rt-prediction-chart {
+    min-width: 0;
+  }
+  .rt-prediction-near-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 11px;
+    background: #fff;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .rt-prediction-near-title {
+    font-size: 13px;
+    color: #111827;
+    font-weight: 800;
+  }
+  .rt-prediction-near-sub {
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  .rt-prediction-empty {
+    min-height: 74px;
+    border: 1px dashed #dbe2ea;
+    border-radius: 9px;
+    background: #fafcff;
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+  }
+  .rt-prediction-chip-list {
+    margin-top: 0;
+    gap: 6px;
+  }
+  .rt-chip-list {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .rt-chip {
+    border-radius: 999px;
+    border: 1px solid #dbe2ea;
+    background: #fff;
+    color: #374151;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .rt-heat-legend {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .rt-heat-legend-text {
+    font-size: 11px;
+    color: #9ca3af;
+  }
+  .rt-heat-legend-swatch {
+    width: 16px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  .rt-program-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .rt-program-card {
+    border: 1px solid #dfe8f5;
+    border-radius: 12px;
+    background: #fff;
+    padding: 14px;
+    box-shadow: 0 3px 12px rgba(17, 24, 39, 0.04);
+  }
+  .rt-program-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .rt-program-name {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.25;
+    color: #111827;
+    font-weight: 800;
+  }
+  .rt-program-time {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #6b7280;
+  }
+  .rt-program-metric-grid {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .rt-program-metric {
+    border: 1px solid #edf2f7;
+    background: #f8fafc;
+    border-radius: 9px;
+    padding: 7px 8px;
+  }
+  .rt-program-metric-label {
+    font-size: 11px;
+    color: #6b7280;
+  }
+  .rt-program-metric-value {
+    margin-top: 4px;
+    font-size: 15px;
+    color: #111827;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .rt-program-guide {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #1f2937;
+    font-weight: 700;
+  }
+  .rt-mini-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    border: 1px solid #e5e7eb;
+  }
 
   .rt-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
   .rt-stat-card {
@@ -151,6 +542,21 @@ const styles = `
     background: #eff4ff; display: flex; align-items: center; justify-content: center;
   }
   .rt-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
+  .rt-card-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .rt-date-input {
+    height: 28px;
+    border: 1px solid #dbe2ea;
+    border-radius: 7px;
+    padding: 0 8px;
+    font-size: 12px;
+    color: #374151;
+    background: #fff;
+  }
 
   .rt-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
@@ -161,6 +567,14 @@ const styles = `
   .rt-progress-label-val { color: #6b7280; text-align: right; }
   .rt-progress-track { height: 8px; background: #f1f3f5; border-radius: 100px; overflow: hidden; }
   .rt-progress-fill { height: 100%; border-radius: 100px; }
+
+  .rt-opinion-list { display: flex; flex-direction: column; gap: 8px; }
+  .rt-opinion-item { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-radius: 10px; border: 1px solid #eceef3; }
+  .rt-opinion-bar-wrap { flex: 1; }
+  .rt-opinion-label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+  .rt-opinion-track { height: 6px; background: #f1f3f6; border-radius: 100px; overflow: hidden; }
+  .rt-opinion-fill { height: 100%; border-radius: 100px; }
+  .rt-opinion-val { font-size: 14px; font-weight: 800; color: #1a1d24; min-width: 36px; text-align: right; }
 
   .rt-timeline { display: flex; flex-direction: column; gap: 0; }
   .rt-timeline-item { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px solid #f9fafb; }
@@ -210,14 +624,45 @@ const styles = `
       flex-direction: column;
       align-items: flex-start;
     }
+    .rt-hero-top {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .rt-user-stat-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .rt-prediction-kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .rt-prediction-bottom {
+      grid-template-columns: 1fr;
+    }
+    .rt-program-grid {
+      grid-template-columns: 1fr;
+    }
     .rt-stat-grid { grid-template-columns: repeat(2, 1fr); }
     .rt-two-col { grid-template-columns: 1fr; }
   }
   @media (max-width: 640px) {
     .rt-container { padding: 20px 16px 48px; }
+    .rt-container.selector-mode { padding-top: 88px; }
+    .rt-user-stat-grid {
+      grid-template-columns: 1fr;
+    }
+    .rt-program-metric-grid {
+      grid-template-columns: 1fr;
+    }
+    .rt-hero-title { font-size: 24px; }
     .rt-stat-grid { grid-template-columns: repeat(2, 1fr); }
     .rt-card { padding: 22px 18px; }
     .rt-event-name { font-size: 22px; }
+    .rt-prediction-kpi-grid {
+      grid-template-columns: 1fr;
+    }
+    .rt-prediction-kpi-value {
+      font-size: 23px;
+    }
+    .rt-date-input { width: 100%; min-width: 130px; }
   }
 `;
 
@@ -235,7 +680,8 @@ export const SUBTITLE_MAP = {
   "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 확인합니다",
 };
 
-const DEFAULT_HOURS = Array.from({ length: 12 }, (_, index) => 10 + index);
+const FALLBACK_HOURS = Array.from({ length: 12 }, (_, index) => 10 + index);
+const AI_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const STATUS_BADGE = {
   ONGOING: { className: "", label: "LIVE", showDot: true },
@@ -257,6 +703,241 @@ const toArray = (payload) =>
     : Array.isArray(payload)
       ? payload
       : [];
+
+const toValidDate = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const toHour = (value) => {
+  const date = toValidDate(value);
+  return date ? date.getHours() : null;
+};
+
+const normalizeHour = (value) => ((Number(value) % 24) + 24) % 24;
+
+const toDateKey = (value) => {
+  const date = toValidDate(value);
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const alignUpToFiveMinutes = (value) => {
+  const date = toValidDate(value);
+  if (!date) return null;
+  const aligned = new Date(date);
+  aligned.setSeconds(0, 0);
+  const remainder = aligned.getMinutes() % 5;
+  if (remainder !== 0) {
+    aligned.setMinutes(aligned.getMinutes() + (5 - remainder));
+  }
+  return aligned;
+};
+
+const getMinPredictionStart = (offsetMinutes = 5) => {
+  const base = new Date();
+  base.setMinutes(base.getMinutes() + offsetMinutes);
+  return alignUpToFiveMinutes(base);
+};
+
+const formatDateOptionLabel = (dateKey) => {
+  if (!dateKey) return "";
+  const date = toValidDate(`${dateKey}T00:00:00`);
+  if (!date) return dateKey;
+  return date.toLocaleDateString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+  });
+};
+
+const buildDateKeysFromRange = (startAt, endAt, maxDays = 60) => {
+  const startDate = toValidDate(startAt);
+  const endDate = toValidDate(endAt);
+  if (!startDate || !endDate || endDate < startDate) return [];
+
+  const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const limit = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+  const keys = [];
+
+  while (cursor <= limit && keys.length < maxDays) {
+    keys.push(toDateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return keys;
+};
+
+const isDateKeyInRange = (dateKey, startAt, endAt) => {
+  if (!dateKey) return false;
+  const clipped = clipRangeByDate(startAt, endAt, dateKey);
+  return Boolean(clipped.startAt && clipped.endAt);
+};
+
+const buildOperationRangeByDate = (startAt, endAt, dateKey) => {
+  if (!dateKey) {
+    return {
+      startAt: toValidDate(startAt),
+      endAt: toValidDate(endAt),
+    };
+  }
+
+  const clipped = clipRangeByDate(startAt, endAt, dateKey);
+  if (!clipped.startAt || !clipped.endAt) return { startAt: null, endAt: null };
+
+  const eventStart = toValidDate(startAt);
+  const eventEnd = toValidDate(endAt);
+  const baseDate = toValidDate(`${dateKey}T00:00:00`);
+  if (!eventStart || !eventEnd || !baseDate) {
+    return clipped;
+  }
+
+  const rangeStart = new Date(baseDate);
+  rangeStart.setHours(eventStart.getHours(), 0, 0, 0);
+
+  const rangeEnd = new Date(baseDate);
+  rangeEnd.setHours(eventEnd.getHours(), 59, 59, 999);
+
+  if (rangeEnd < rangeStart) {
+    return clipped;
+  }
+
+  return {
+    startAt: rangeStart,
+    endAt: rangeEnd,
+  };
+};
+
+const clipRangeByDate = (startAt, endAt, dateKey) => {
+  const startDate = toValidDate(startAt);
+  const endDate = toValidDate(endAt);
+  const baseDate = toValidDate(`${dateKey}T00:00:00`);
+  if (!startDate || !endDate || !baseDate || endDate < startDate) {
+    return { startAt: null, endAt: null };
+  }
+
+  const dayStart = new Date(baseDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(baseDate);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  if (endDate < dayStart || startDate > dayEnd) {
+    return { startAt: null, endAt: null };
+  }
+
+  const clippedStart = startDate > dayStart ? startDate : dayStart;
+  const clippedEnd = endDate < dayEnd ? endDate : dayEnd;
+  return { startAt: clippedStart, endAt: clippedEnd };
+};
+
+const buildHourRange = (startAt, endAt) => {
+  const startDate = toValidDate(startAt);
+  const endDate = toValidDate(endAt);
+  if (!startDate || !endDate || endDate < startDate) return [];
+
+  const sameDay = startDate.toDateString() === endDate.toDateString();
+  const startHour = startDate.getHours();
+  const endHour = sameDay ? endDate.getHours() : 23;
+  if (endHour < startHour) return [normalizeHour(startHour)];
+
+  return Array.from({ length: endHour - startHour + 1 }, (_, index) =>
+    normalizeHour(startHour + index),
+  );
+};
+
+const uniqueNormalizedHours = (hours) =>
+  Array.from(new Set(hours.map((hour) => normalizeHour(hour)).filter(Number.isFinite))).sort(
+    (a, b) => a - b,
+  );
+
+const buildHourAxis = ({ hourlyRows, timeline, startAt, endAt, preferRange = false }) => {
+  if (preferRange) {
+    const range = buildHourRange(startAt, endAt);
+    if (range.length > 0) return range;
+  }
+
+  const rowHours = uniqueNormalizedHours(
+    toArray(hourlyRows)
+      .map((row) => Number(row?.hour ?? row?.h))
+      .filter(Number.isFinite),
+  );
+  if (rowHours.length > 0) return rowHours;
+
+  const timelineHours = uniqueNormalizedHours(
+    Array.isArray(timeline)
+      ? timeline.map((point) => toHour(point?.time)).filter(Number.isFinite)
+      : [],
+  );
+  if (timelineHours.length > 0) return timelineHours;
+
+  const range = buildHourRange(startAt, endAt);
+  if (range.length > 0) return range;
+
+  return [...FALLBACK_HOURS];
+};
+
+const resolveAiDateKey = (eventDetail, preferredDateKey) => {
+  const dateOptions = buildDateKeysFromRange(eventDetail?.startAt, eventDetail?.endAt);
+  if (dateOptions.length === 0) {
+    return "";
+  }
+  if (preferredDateKey && dateOptions.includes(preferredDateKey)) {
+    return preferredDateKey;
+  }
+
+  const status = String(eventDetail?.status ?? "").toUpperCase();
+  const todayKey = toDateKey(new Date());
+  if (status === "ONGOING" && dateOptions.includes(todayKey)) {
+    return todayKey;
+  }
+  if (status === "ENDED") {
+    return dateOptions[dateOptions.length - 1];
+  }
+  return dateOptions[0];
+};
+
+const resolveAiRangeParams = (eventDetail, preferredDateKey) => {
+  const selectedDateKey = resolveAiDateKey(eventDetail, preferredDateKey);
+  if (selectedDateKey) {
+    const operationRange = buildOperationRangeByDate(
+      eventDetail?.startAt,
+      eventDetail?.endAt,
+      selectedDateKey,
+    );
+    if (operationRange.startAt && operationRange.endAt) {
+      let from = operationRange.startAt;
+      let to = operationRange.endAt;
+
+      const status = String(eventDetail?.status ?? "").toUpperCase();
+      const todayKey = toDateKey(new Date());
+      if (status === "ONGOING" && selectedDateKey === todayKey) {
+        const minPredictionStart = getMinPredictionStart(5);
+        if (minPredictionStart && minPredictionStart > from) {
+          from = minPredictionStart;
+        }
+      }
+      if (from > to) {
+        from = to;
+      }
+
+      return {
+        from,
+        to,
+      };
+    }
+  }
+
+  const fallbackStart = toValidDate(eventDetail?.startAt);
+  const fallbackEnd = toValidDate(eventDetail?.endAt);
+  if (fallbackStart && fallbackEnd && fallbackEnd >= fallbackStart) {
+    return { from: fallbackStart, to: fallbackEnd };
+  }
+  return {};
+};
 
 const formatDateRange = (startAt, endAt) => {
   const start = startAt ? new Date(startAt) : null;
@@ -322,12 +1003,113 @@ const getActivityColor = (pct) => {
   return "#9ca3af";
 };
 
+const safeNumber = (value, fallback = 0) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
 const safePercent = (value) => clamp(Math.round(Number(value) || 0), 0, 100);
 
-async function fetchAdminData(url, params, fallback) {
-  const token = getToken();
-  if (!token) return fallback;
+const resolveCongestionMeta = (value) => {
+  const pct = safePercent(value);
+  if (pct >= 80) {
+    return {
+      label: "매우 혼잡",
+      color: "#b91c1c",
+      bg: "#fef2f2",
+      border: "#fecaca",
+      sentence: "사람이 매우 몰린 상태입니다.",
+    };
+  }
+  if (pct >= 60) {
+    return {
+      label: "혼잡",
+      color: "#b45309",
+      bg: "#fff7ed",
+      border: "#fdba74",
+      sentence: "대기 시간이 길어질 수 있습니다.",
+    };
+  }
+  if (pct >= 30) {
+    return {
+      label: "보통",
+      color: "#1d4ed8",
+      bg: "#eff6ff",
+      border: "#bfdbfe",
+      sentence: "약간의 대기가 발생할 수 있습니다.",
+    };
+  }
+  return {
+    label: "여유",
+    color: "#047857",
+    bg: "#ecfdf5",
+    border: "#a7f3d0",
+    sentence: "비교적 빠르게 이용할 수 있습니다.",
+  };
+};
 
+const estimateWaitMinutes = (value) => {
+  const pct = safePercent(value);
+  if (pct >= 90) return 45;
+  if (pct >= 80) return 35;
+  if (pct >= 70) return 28;
+  if (pct >= 60) return 22;
+  if (pct >= 45) return 15;
+  if (pct >= 30) return 10;
+  if (pct >= 15) return 6;
+  if (pct > 0) return 3;
+  return 0;
+};
+
+const deriveCongestionPercentFromWait = (waitCount, waitMin) => {
+  const teams = Math.max(0, safeNumber(waitCount));
+  const minutes = Math.max(0, safeNumber(waitMin));
+  const score = Math.round(minutes * 2.2 + teams * 4);
+  return safePercent(score);
+};
+
+const getProgramGuideText = (congestionPercent) => {
+  const pct = safePercent(congestionPercent);
+  if (pct <= 30) return "지금 참여하기 좋아요";
+  if (pct <= 60) return "무난하게 이용 가능해요";
+  if (pct <= 80) return "조금 혼잡해요";
+  return "대기가 길 수 있어요";
+};
+
+const getCongestionSummaryText = (congestionPercent) => {
+  const pct = safePercent(congestionPercent);
+  if (pct <= 30) return "현재 여유로운 수준이에요";
+  if (pct <= 60) return "현재 보통 수준이에요";
+  if (pct <= 80) return "현재 혼잡한 편이에요";
+  return "현재 매우 혼잡해요";
+};
+
+const getWaitSummaryText = (waitMinutes) => {
+  const minutes = Math.max(0, safeNumber(waitMinutes));
+  if (minutes <= 0) return "지금 바로 참여할 수 있어요";
+  if (minutes <= 15) return "조금만 기다리면 참여할 수 있어요";
+  if (minutes <= 30) return "여유를 두고 이동하면 좋아요";
+  return "대기가 길 수 있어 잠시 후 방문을 추천해요";
+};
+
+const getVisitorMoodText = (visitors, isPlannedEvent) => {
+  if (isPlannedEvent) return "오픈 전 준비가 진행 중이에요";
+  const count = Math.max(0, safeNumber(visitors));
+  if (count >= 800) return "현장 분위기가 한창이에요";
+  if (count >= 400) return "많은 반려가족이 함께하고 있어요";
+  if (count >= 150) return "차분하게 둘러보기 좋은 분위기예요";
+  return "지금은 비교적 여유롭게 이동할 수 있어요";
+};
+
+const formatProgramTimeRange = (startAt, endAt) => {
+  const start = formatTime(startAt);
+  const end = formatTime(endAt);
+  if (start === "--:--" && end === "--:--") return "운영 시간 정보 없음";
+  if (start !== "--:--" && end !== "--:--") return `${start} ~ ${end}`;
+  return start !== "--:--" ? `${start} 시작` : `${end} 종료`;
+};
+
+async function fetchAdminData(url, params, fallback) {
   try {
     const response = await axiosInstance.get(url, {
       headers: authHeaders(),
@@ -337,66 +1119,6 @@ async function fetchAdminData(url, params, fallback) {
   } catch {
     return fallback;
   }
-}
-
-function AnimatedStatCard({ stat, index }) {
-  const count = useCountUp(stat.rawValue, 1200, index * 120);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setVisible(true), index * 100 + 50);
-    return () => clearTimeout(timer);
-  }, [index]);
-
-  return (
-    <div className={`rt-stat-card anim-pop ${visible ? "visible" : ""}`}>
-      <div className="rt-stat-icon" style={{ background: stat.iconBg }}>
-        {stat.icon}
-      </div>
-      <div className="rt-stat-label">{stat.label}</div>
-      <div className="rt-stat-value">
-        {count.toLocaleString()}
-        {stat.suffix ? <span className="rt-stat-suffix">{stat.suffix}</span> : null}
-      </div>
-      <div className="rt-stat-sub">
-        {stat.up === true ? <TrendingUp size={12} className="rt-stat-up" /> : null}
-        <span className={stat.up === true ? "rt-stat-up" : stat.up === false ? "rt-stat-down" : ""}>
-          {stat.sub}
-        </span>
-      </div>
-      <div className="rt-stat-bg" style={{ background: stat.barColor }} />
-    </div>
-  );
-}
-
-function AnimatedProgress({ item, index }) {
-  const safeTotal = Math.max(Number(item.total) || 0, 1);
-  const pct = item.total > 0 ? Math.round((item.val / safeTotal) * 100) : 0;
-  const [width, setWidth] = useState(0);
-  const animatedVal = useCountUp(item.val, 900, index * 150 + 400);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setWidth(pct), index * 150 + 400);
-    return () => clearTimeout(timer);
-  }, [pct, index]);
-
-  return (
-    <div className="rt-progress-wrap">
-      <div className="rt-progress-label">
-        <span className="rt-progress-label-name">{item.name}</span>
-        <span className="rt-progress-label-val">
-          {animatedVal.toLocaleString()} / {item.total.toLocaleString()}
-          {item.unit ?? "건"}
-        </span>
-      </div>
-      <div className="rt-progress-track">
-        <div
-          className="rt-progress-fill anim-progress-fill"
-          style={{ width: `${width}%`, background: item.color }}
-        />
-      </div>
-    </div>
-  );
 }
 
 function AnimatedHeatCell({ item, index }) {
@@ -434,6 +1156,42 @@ function AnimatedHeatCell({ item, index }) {
   );
 }
 
+function ProgramCrowdCard({ item }) {
+  return (
+    <div className="rt-program-card">
+      <div className="rt-program-card-head">
+        <h4 className="rt-program-name">{item.name}</h4>
+        <span
+          className="rt-mini-badge"
+          style={{
+            color: item.tone.color,
+            background: item.tone.bg,
+            borderColor: item.tone.border,
+          }}
+        >
+          {item.tone.label}
+        </span>
+      </div>
+      <div className="rt-program-time">운영 시간: {item.timeLabel}</div>
+      <div className="rt-program-metric-grid">
+        <div className="rt-program-metric">
+          <div className="rt-program-metric-label">현재 대기 팀 수</div>
+          <div className="rt-program-metric-value">{item.waitCount}팀</div>
+        </div>
+        <div className="rt-program-metric">
+          <div className="rt-program-metric-label">예상 대기시간</div>
+          <div className="rt-program-metric-value">{item.waitMin}분</div>
+        </div>
+        <div className="rt-program-metric">
+          <div className="rt-program-metric-label">혼잡도</div>
+          <div className="rt-program-metric-value">{item.congestionPercent}%</div>
+        </div>
+      </div>
+      <div className="rt-program-guide">{item.guideText}</div>
+    </div>
+  );
+}
+
 function DashboardContent({ eventId }) {
   const numericEventId = Number(eventId);
   const { tick } = useAutoRefresh(15000);
@@ -441,14 +1199,26 @@ function DashboardContent({ eventId }) {
   const [performance, setPerformance] = useState({ approved: 0, checkin: 0 });
   const [hourlyRows, setHourlyRows] = useState([]);
   const [congestionRows, setCongestionRows] = useState([]);
+  const [programRows, setProgramRows] = useState([]);
+  const [eventPrediction, setEventPrediction] = useState(null);
+  const [aiErrorMsg, setAiErrorMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [lastLoadedAt, setLastLoadedAt] = useState(new Date());
+  const aiPredictionRef = useRef(null);
+  const aiLoadedAtRef = useRef(0);
+  const aiRangeKeyRef = useRef("");
+  const [selectedForecastDate, setSelectedForecastDate] = useState("");
 
   const loadData = useCallback(async (options = {}) => {
-    const { preserveLoading = false } = options;
+    const { preserveLoading = false, forceAi = false } = options;
     if (!numericEventId || Number.isNaN(numericEventId)) {
       setErrorMsg("잘못된 행사 경로입니다.");
+      setEventPrediction(null);
+      setProgramRows([]);
+      aiPredictionRef.current = null;
+      aiLoadedAtRef.current = 0;
+      aiRangeKeyRef.current = "";
       setLoading(false);
       return;
     }
@@ -456,37 +1226,96 @@ function DashboardContent({ eventId }) {
     if (!preserveLoading) setLoading(true);
 
     try {
-      const [eventResponse, performanceRows, hourlyData, latestCongestions] = await Promise.all([
+      const [eventResponse, performanceRows, hourlyData, latestCongestions, programs] = await Promise.all([
         eventApi.getEventDetail(numericEventId),
         fetchAdminData("/api/admin/analytics/events", { page: 0, size: 200 }, []),
         fetchAdminData(`/api/admin/analytics/events/${numericEventId}/congestion-by-hour`, {}, []),
         fetchAdminData(`/api/admin/dashboard/realtime/events/${numericEventId}/congestions`, { limit: 200 }, []),
+        programApi.getAllProgramsByEvent({
+          eventId: numericEventId,
+          sort: "startAt,asc",
+          pageSize: 200,
+        }).catch(() => []),
       ]);
+
+      const basePrograms = Array.isArray(programs) ? programs : [];
+      const programDetails = await Promise.allSettled(
+        basePrograms.map((program) => programApi.getProgramDetail(program?.programId)),
+      );
+      const mergedPrograms = basePrograms.map((program, index) => {
+        const settled = programDetails[index];
+        if (settled?.status !== "fulfilled") return program;
+        const detail = unwrapData(settled.value, null);
+        if (!detail || typeof detail !== "object") return program;
+        return {
+          ...program,
+          ...detail,
+          experienceWait: detail?.experienceWait ?? program?.experienceWait ?? null,
+        };
+      });
 
       const detail = unwrapData(eventResponse, null);
       const matchedPerformance = toArray(performanceRows).find(
         (row) => Number(row.eventId) === numericEventId,
       );
+      const detailStatus = String(detail?.status ?? "").toUpperCase();
+      const rawCheckinCount = Number(matchedPerformance?.checkinCount) || 0;
 
       setEventDetail(detail);
       setPerformance({
-        approved: Number(matchedPerformance?.approvedRegistrationCount) || 0,
-        checkin: Number(matchedPerformance?.checkinCount) || 0,
+        approved:
+          Number(
+            matchedPerformance?.activeRegistrationCount ??
+            matchedPerformance?.approvedRegistrationCount,
+          ) || 0,
+        checkin: detailStatus === "PLANNED" ? 0 : rawCheckinCount,
       });
       setHourlyRows(toArray(hourlyData));
       setCongestionRows(toArray(latestCongestions));
+      setProgramRows(mergedPrograms);
       setErrorMsg("");
       setLastLoadedAt(new Date());
+
+      const aiRangeParams = resolveAiRangeParams(detail, selectedForecastDate);
+      const aiRangeKey = JSON.stringify({
+        from: aiRangeParams?.from || null,
+        to: aiRangeParams?.to || null,
+      });
+
+      const now = Date.now();
+      const shouldLoadAi =
+        forceAi ||
+        !aiPredictionRef.current ||
+        aiRangeKeyRef.current !== aiRangeKey ||
+        now - aiLoadedAtRef.current >= AI_REFRESH_INTERVAL_MS;
+
+      if (shouldLoadAi) {
+        try {
+          const aiResponse = await aiApi.predictEventCongestion(numericEventId, aiRangeParams);
+          const aiPayload = normalizePrediction(unwrapData(aiResponse, null));
+          aiPredictionRef.current = aiPayload;
+          aiLoadedAtRef.current = now;
+          aiRangeKeyRef.current = aiRangeKey;
+          setEventPrediction(aiPayload);
+          setAiErrorMsg("");
+        } catch (aiError) {
+          console.error("[Realtime Dashboard] ai predict failed:", aiError);
+          setAiErrorMsg("AI prediction is temporarily unavailable.");
+        }
+      } else {
+        setEventPrediction(aiPredictionRef.current);
+        setAiErrorMsg("");
+      }
     } catch (error) {
       console.error("[Realtime Dashboard] load failed:", error);
       setErrorMsg("실시간 운영 데이터를 불러오지 못했습니다.");
     } finally {
       if (!preserveLoading) setLoading(false);
     }
-  }, [numericEventId]);
+  }, [numericEventId, selectedForecastDate]);
 
   const { spinning, refresh } = useRefresh(() => {
-    loadData({ preserveLoading: true });
+    loadData({ preserveLoading: true, forceAi: true });
   }, 800);
 
   useEffect(() => {
@@ -511,11 +1340,6 @@ function DashboardContent({ eventId }) {
     [congestionRows],
   );
 
-  const checkinRate = useMemo(() => {
-    if (performance.approved <= 0) return 0;
-    return clamp(Math.round((performance.checkin / performance.approved) * 100), 0, 100);
-  }, [performance.approved, performance.checkin]);
-
   const averageCongestion = useMemo(() => {
     if (measuredCongestions.length === 0) return 0;
     const sum = measuredCongestions.reduce((acc, row) => acc + row.congestionPercent, 0);
@@ -527,59 +1351,420 @@ function DashboardContent({ eventId }) {
     [measuredCongestions],
   );
 
+  const hourlyAverageCongestion = useMemo(() => {
+    const samples = toArray(hourlyRows)
+      .map((row) =>
+        congestionLevelToPercent(
+          row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level,
+        ),
+      )
+      .filter((value) => Number.isFinite(value) && value > 0);
+
+    if (samples.length === 0) return 0;
+    const sum = samples.reduce((acc, value) => acc + value, 0);
+    return clamp(Math.round(sum / samples.length), 0, 100);
+  }, [hourlyRows]);
+
+  const eventStatus = String(eventDetail?.status ?? "").toUpperCase();
+  const isPlannedEvent =
+    eventStatus === "PLANNED" ||
+    eventStatus === "PENDING" ||
+    eventStatus === "UPCOMING";
+  const isEndedEvent = eventStatus === "ENDED";
+  const isOngoingEvent = eventStatus === "ONGOING";
+
+  const forecastDateOptions = useMemo(() => {
+    const rangeDates = buildDateKeysFromRange(eventDetail?.startAt, eventDetail?.endAt);
+    if (rangeDates.length > 0) return rangeDates;
+
+    const timelineDates = Array.isArray(eventPrediction?.timeline)
+      ? Array.from(
+          new Set(
+            eventPrediction.timeline
+              .map((point) => toDateKey(point?.time))
+              .filter(Boolean),
+          ),
+        ).sort((left, right) => left.localeCompare(right))
+      : [];
+    return timelineDates;
+  }, [eventDetail?.endAt, eventDetail?.startAt, eventPrediction?.timeline]);
+
+  useEffect(() => {
+    if (forecastDateOptions.length === 0) {
+      if (selectedForecastDate) {
+        setSelectedForecastDate("");
+      }
+      return;
+    }
+
+    if (selectedForecastDate && forecastDateOptions.includes(selectedForecastDate)) {
+      return;
+    }
+
+    const todayKey = toDateKey(new Date());
+    if (isOngoingEvent && forecastDateOptions.includes(todayKey)) {
+      setSelectedForecastDate(todayKey);
+      return;
+    }
+
+    if (eventStatus === "ENDED") {
+      setSelectedForecastDate(forecastDateOptions[forecastDateOptions.length - 1]);
+      return;
+    }
+
+    setSelectedForecastDate(forecastDateOptions[0]);
+  }, [eventStatus, forecastDateOptions, isOngoingEvent, selectedForecastDate]);
+
+  const chartTimeline = useMemo(() => {
+    const baseTimeline = Array.isArray(eventPrediction?.timeline)
+      ? eventPrediction.timeline
+      : [];
+    if (baseTimeline.length === 0) return [];
+    let timeline = baseTimeline;
+    if (selectedForecastDate) {
+      timeline = baseTimeline.filter(
+        (point) => toDateKey(point?.time) === selectedForecastDate,
+      );
+    } else if (isOngoingEvent) {
+      const todayKey = toDateKey(new Date());
+      timeline = baseTimeline.filter((point) => toDateKey(point?.time) === todayKey);
+    }
+
+    const todayKey = toDateKey(new Date());
+    const activeDateKey = selectedForecastDate || (isOngoingEvent ? todayKey : "");
+    if (isOngoingEvent && activeDateKey === todayKey) {
+      const minPredictionStart = getMinPredictionStart(5);
+      if (minPredictionStart) {
+        timeline = timeline.filter((point) => {
+          const pointTime = toValidDate(point?.time);
+          return pointTime ? pointTime >= minPredictionStart : false;
+        });
+      }
+    }
+
+    return timeline;
+  }, [eventPrediction?.timeline, isOngoingEvent, selectedForecastDate]);
+
   const hours = useMemo(() => {
     const hourlyMap = new Map(
-      hourlyRows.map((row) => [
-        Number(row.hour ?? row.h),
-        congestionLevelToPercent(row.avgCongestionLevel ?? row.avgCongestion ?? row.avg_level),
-      ]),
+      toArray(hourlyRows)
+        .map((row) => [
+          normalizeHour(Number(row?.hour ?? row?.h)),
+          congestionLevelToPercent(row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level),
+        ])
+        .filter(([hour]) => Number.isFinite(hour)),
     );
 
-    return DEFAULT_HOURS.map((hour) => {
-      const value = hourlyMap.get(hour) ?? 0;
+    const timelineMap = new Map();
+    if (Array.isArray(chartTimeline)) {
+      chartTimeline.forEach((point) => {
+        const hour = toHour(point?.time);
+        if (!Number.isFinite(hour)) return;
+        const normalizedHour = normalizeHour(hour);
+        const score = clamp(Math.round(Number(point?.score) || 0), 0, 100);
+        const previous = timelineMap.get(normalizedHour);
+        if (previous == null || score > previous) {
+          timelineMap.set(normalizedHour, score);
+        }
+      });
+    }
+
+    const todayKey = toDateKey(new Date());
+    const rangeDateKey =
+      selectedForecastDate ||
+      (isOngoingEvent ? todayKey : forecastDateOptions[0] ?? "");
+
+    let axisStart = eventDetail?.startAt ?? null;
+    let axisEnd = eventDetail?.endAt ?? null;
+    if (isDateKeyInRange(rangeDateKey, eventDetail?.startAt, eventDetail?.endAt)) {
+      const operationRange = buildOperationRangeByDate(
+        eventDetail?.startAt,
+        eventDetail?.endAt,
+        rangeDateKey,
+      );
+      axisStart = operationRange.startAt;
+      axisEnd = operationRange.endAt;
+    }
+
+    const hourAxis = buildHourAxis({
+      hourlyRows,
+      timeline: chartTimeline,
+      startAt: axisStart,
+      endAt: axisEnd,
+      preferRange: Boolean(axisStart && axisEnd),
+    });
+
+    return hourAxis.map((hour) => {
+      const normalizedHour = normalizeHour(hour);
+      const value = isPlannedEvent
+        ? timelineMap.get(normalizedHour) ?? hourlyMap.get(normalizedHour) ?? 0
+        : hourlyMap.get(normalizedHour) ?? timelineMap.get(normalizedHour) ?? 0;
       return {
-        h: String(hour),
+        h: String(normalizedHour).padStart(2, "0"),
         v: value,
         pct: value,
       };
     });
-  }, [hourlyRows]);
+  }, [
+    chartTimeline,
+    eventDetail?.endAt,
+    eventDetail?.startAt,
+    forecastDateOptions,
+    hourlyRows,
+    isOngoingEvent,
+    isPlannedEvent,
+    selectedForecastDate,
+  ]);
 
-  const progressData = useMemo(() => {
-    const totalBooths = congestionRows.length;
-    const trackedBooths = measuredCongestions.length;
+  const handleForecastDateChange = useCallback(
+    (event) => {
+      const nextDate = event.target.value;
+      if (!nextDate) {
+        setSelectedForecastDate("");
+        return;
+      }
+      if (
+        forecastDateOptions.length === 0 ||
+        forecastDateOptions.includes(nextDate)
+      ) {
+        setSelectedForecastDate(nextDate);
+      }
+    },
+    [forecastDateOptions],
+  );
 
-    return [
+  const programCongestionMap = useMemo(() => {
+    const map = new Map();
+    measuredCongestions.forEach((row) => {
+      const programId = Number(row?.programId);
+      if (!Number.isFinite(programId)) return;
+      const candidatePercent = safePercent(row?.congestionPercent);
+      const candidateMeasured = toValidDate(row?.measuredAt)?.getTime() ?? 0;
+      const previous = map.get(programId);
+      if (
+        !previous ||
+        candidateMeasured > previous.measuredAt ||
+        candidatePercent > previous.congestionPercent
+      ) {
+        map.set(programId, {
+          congestionPercent: candidatePercent,
+          measuredAt: candidateMeasured,
+        });
+      }
+    });
+    return map;
+  }, [measuredCongestions]);
+
+  const allProgramRows = useMemo(() => {
+    const now = Date.now();
+    return toArray(programRows)
+      .map((program) => {
+        const programId = Number(program?.programId);
+        if (!Number.isFinite(programId)) return null;
+
+        const startDate = toValidDate(program?.startAt);
+        const endDate = toValidDate(program?.endAt);
+        const isOperatingNow =
+          startDate && endDate
+            ? startDate.getTime() <= now && now <= endDate.getTime()
+            : true;
+
+        const waitCount = Math.max(0, safeNumber(program?.experienceWait?.waitCount));
+        const waitMin = Math.max(0, safeNumber(program?.experienceWait?.waitMin));
+        const hasWaitInfo = Boolean(program?.experienceWait);
+        const mappedCongestion = programCongestionMap.get(programId)?.congestionPercent;
+        const congestionPercent = safePercent(
+          mappedCongestion ?? deriveCongestionPercentFromWait(waitCount, waitMin),
+        );
+        const tone = resolveCongestionMeta(congestionPercent);
+
+        return {
+          key: `program-${programId}`,
+          programId,
+          name: program?.programTitle || `프로그램 ${programId}`,
+          timeLabel: formatProgramTimeRange(program?.startAt, program?.endAt),
+          waitCount,
+          waitMin,
+          congestionPercent,
+          guideText: getProgramGuideText(congestionPercent),
+          tone,
+          hasWaitInfo,
+          isOperatingNow,
+        };
+      })
+      .filter(Boolean);
+  }, [programCongestionMap, programRows]);
+
+  const programNameMap = useMemo(
+    () =>
+      new Map(
+        allProgramRows.map((program) => [program.programId, program.name]),
+      ),
+    [allProgramRows],
+  );
+
+  const operatingProgramRows = useMemo(
+    () =>
+      isEndedEvent
+        ? allProgramRows
+        : allProgramRows.filter((program) => program.isOperatingNow),
+    [allProgramRows, isEndedEvent],
+  );
+
+  const queueProgramRows = useMemo(
+    () => operatingProgramRows.filter((program) => program.hasWaitInfo),
+    [operatingProgramRows],
+  );
+
+  const lessCrowdedPrograms = useMemo(
+    () =>
+      [...queueProgramRows]
+        .sort(
+          (left, right) =>
+            left.waitCount - right.waitCount ||
+            left.waitMin - right.waitMin ||
+            left.congestionPercent - right.congestionPercent ||
+            String(left.name).localeCompare(String(right.name), "ko-KR"),
+        )
+        .slice(0, 8),
+    [queueProgramRows],
+  );
+
+  const popularPrograms = useMemo(
+    () =>
+      [...queueProgramRows]
+        .sort(
+          (left, right) =>
+            right.waitCount - left.waitCount ||
+            right.congestionPercent - left.congestionPercent ||
+            right.waitMin - left.waitMin ||
+            String(left.name).localeCompare(String(right.name), "ko-KR"),
+        )
+        .slice(0, 8),
+    [queueProgramRows],
+  );
+
+  const currentVisitors = isPlannedEvent ? 0 : performance.checkin;
+
+  const currentCongestion = useMemo(() => {
+    const aiAverage = Number(eventPrediction?.avgScore);
+    if (isPlannedEvent) {
+      return safePercent(aiAverage || 0);
+    }
+    if (measuredCongestions.length > 0) {
+      return safePercent(averageCongestion);
+    }
+    if (Number.isFinite(aiAverage) && aiAverage > 0) {
+      return safePercent(aiAverage);
+    }
+    if (hourlyAverageCongestion > 0) {
+      return hourlyAverageCongestion;
+    }
+    return safePercent(aiAverage || 0);
+  }, [
+    averageCongestion,
+    eventPrediction?.avgScore,
+    hourlyAverageCongestion,
+    isPlannedEvent,
+    measuredCongestions.length,
+  ]);
+
+  const currentTone = useMemo(
+    () => resolveCongestionMeta(currentCongestion),
+    [currentCongestion],
+  );
+
+  const expectedWaitMinutes = useMemo(() => {
+    const predictedWait = Number(eventPrediction?.waitMinutes);
+    if (Number.isFinite(predictedWait) && predictedWait >= 0) {
+      return Math.round(predictedWait);
+    }
+    return estimateWaitMinutes(currentCongestion);
+  }, [currentCongestion, eventPrediction?.waitMinutes]);
+
+  const congestionSummaryText = useMemo(
+    () => getCongestionSummaryText(currentCongestion),
+    [currentCongestion],
+  );
+  const waitSummaryText = useMemo(
+    () => getWaitSummaryText(expectedWaitMinutes),
+    [expectedWaitMinutes],
+  );
+  const visitorMoodText = useMemo(
+    () => getVisitorMoodText(currentVisitors, isPlannedEvent),
+    [currentVisitors, isPlannedEvent],
+  );
+
+  const userStats = useMemo(
+    () => [
       {
-        name: "체크인 완료",
-        val: performance.checkin,
-        total: performance.approved,
-        color: "#10b981",
-        unit: "명",
+        label: "현재 혼잡도",
+        value: currentCongestion,
+        unit: "%",
+        sub: congestionSummaryText,
+        badge: currentTone,
       },
       {
-        name: "미체크인",
-        val: Math.max(performance.approved - performance.checkin, 0),
-        total: performance.approved,
-        color: "#f59e0b",
-        unit: "명",
+        label: "예상 대기시간",
+        value: expectedWaitMinutes,
+        unit: "분",
+        sub: waitSummaryText,
       },
-      {
-        name: "실시간 부스 수집",
-        val: trackedBooths,
-        total: totalBooths,
-        color: "#1a4fd6",
-        unit: "개",
-      },
-      {
-        name: "주의 부스",
-        val: hotBoothCount,
-        total: totalBooths,
-        color: "#ef4444",
-        unit: "개",
-      },
-    ];
-  }, [congestionRows.length, hotBoothCount, measuredCongestions.length, performance.approved, performance.checkin]);
+    ],
+    [congestionSummaryText, currentCongestion, currentTone, expectedWaitMinutes, waitSummaryText],
+  );
+
+  const aiTimelinePreview = useMemo(
+    () => (Array.isArray(chartTimeline) ? chartTimeline.slice(0, 8) : []),
+    [chartTimeline],
+  );
+
+  const nextPeakPoint = useMemo(() => {
+    if (aiTimelinePreview.length === 0) return null;
+    return [...aiTimelinePreview].sort(
+      (left, right) => (Number(right?.score) || 0) - (Number(left?.score) || 0),
+    )[0];
+  }, [aiTimelinePreview]);
+
+  const aiCurrentScore = safePercent(eventPrediction?.avgScore ?? currentCongestion);
+  const aiCurrentTone = resolveCongestionMeta(aiCurrentScore);
+  const aiSoonScore = safePercent(nextPeakPoint?.score ?? eventPrediction?.peakScore ?? aiCurrentScore);
+  const aiSoonTone = resolveCongestionMeta(aiSoonScore);
+  const aiSoonWait = estimateWaitMinutes(aiSoonScore);
+
+  const chartGuideText = useMemo(() => {
+    if (eventPrediction && aiSoonScore >= aiCurrentScore + 10) {
+      return "지금보다 1시간 뒤 더 붐빌 수 있어요. 인기 프로그램은 조금 일찍 이동하는 것을 추천해요.";
+    }
+    if (eventPrediction && aiSoonScore <= aiCurrentScore - 10) {
+      return "조금 뒤에는 더 여유로워질 가능성이 있어요. 천천히 둘러보며 이동해도 좋아요.";
+    }
+    const afternoonBusy = hours.some((item) => {
+      const hour = Number(item?.h);
+      return Number.isFinite(hour) && hour >= 14 && hour <= 18 && safePercent(item?.v) >= 60;
+    });
+    if (afternoonBusy) {
+      return "오후 시간대 방문객이 늘어나는 경향이 있어요. 원하는 프로그램을 먼저 확인해 보세요.";
+    }
+    return "혼잡도가 낮은 시간대를 골라 이동하면 더 편하게 즐길 수 있어요.";
+  }, [aiCurrentScore, aiSoonScore, eventPrediction, hours]);
+
+  const petHintMessages = useMemo(() => {
+    const hints = [];
+    if (!isPlannedEvent && currentVisitors >= 300) {
+      hints.push("현재 많은 반려가족이 함께하고 있어요");
+    }
+    if (popularPrograms[0]?.congestionPercent >= 61 || expectedWaitMinutes >= 20) {
+      hints.push("인기 프로그램은 조금 일찍 이동하는 것을 추천해요");
+    }
+    if (currentCongestion <= 30) {
+      hints.push("지금은 비교적 여유롭게 둘러볼 수 있어요");
+    }
+    if (hints.length === 0) {
+      hints.push("반려가족 동선을 고려해 천천히 이동하면 더 편안해요");
+    }
+    return hints.slice(0, 3);
+  }, [currentCongestion, currentVisitors, expectedWaitMinutes, isPlannedEvent, popularPrograms]);
 
   const activities = useMemo(() => {
     const liveItems = [...measuredCongestions]
@@ -589,72 +1774,45 @@ function DashboardContent({ eventId }) {
         return rightTime - leftTime;
       })
       .slice(0, 6)
-      .map((row) => ({
-        time: formatTime(row.measuredAt),
-        text: `${row.placeName || "부스"} 혼잡도 ${row.congestionPercent}%가 반영되었습니다.`,
-        color: getActivityColor(row.congestionPercent),
-      }));
+      .map((row) => {
+        const programId = Number(row?.programId);
+        const programName = Number.isFinite(programId) ? programNameMap.get(programId) : null;
+        return {
+          time: formatTime(row.measuredAt),
+          text: `${programName || row.placeName || "현장 프로그램"} 혼잡도가 ${safePercent(row.congestionPercent)}%로 갱신되었습니다.`,
+          color: getActivityColor(safePercent(row.congestionPercent)),
+        };
+      });
 
     if (liveItems.length > 0) return liveItems;
 
     return congestionRows.slice(0, 6).map((row) => ({
       time: "--:--",
-      text: `${row.placeName || "부스"} 실시간 수집 대기 중입니다.`,
+      text: `${row.placeName || "현장 프로그램"}의 실시간 혼잡 데이터를 수집 중입니다.`,
       color: "#9ca3af",
     }));
-  }, [congestionRows, measuredCongestions]);
+  }, [congestionRows, measuredCongestions, programNameMap]);
 
   const timelineVisible = useStaggerIn(activities.length, 100);
 
-  const stats = useMemo(() => [
-    {
-      label: "승인 등록",
-      rawValue: performance.approved,
-      sub: "행사 등록 기준",
-      up: null,
-      icon: <Users size={18} color="#1a4fd6" />,
-      iconBg: "#eff4ff",
-      barColor: "#1a4fd6",
-    },
-    {
-      label: "체크인 완료",
-      rawValue: performance.checkin,
-      sub: performance.approved > 0 ? `체크인율 ${checkinRate}%` : "체크인 데이터 없음",
-      up: null,
-      icon: <CheckCircle2 size={18} color="#10b981" />,
-      iconBg: "#ecfdf5",
-      barColor: "#10b981",
-    },
-    {
-      label: "체크인율",
-      rawValue: checkinRate,
-      suffix: "%",
-      sub: `${performance.checkin.toLocaleString()}명 입장`,
-      up: null,
-      icon: <TrendingUp size={18} color="#8b5cf6" />,
-      iconBg: "#f5f3ff",
-      barColor: "#8b5cf6",
-    },
-    {
-      label: "평균 혼잡",
-      rawValue: averageCongestion,
-      suffix: "%",
-      sub: hotBoothCount > 0 ? `${hotBoothCount}개 부스 주의` : "안정적인 운영 상태",
-      up: null,
-      icon: <Radio size={18} color="#f59e0b" />,
-      iconBg: "#fffbeb",
-      barColor: "#f59e0b",
-    },
-  ], [averageCongestion, checkinRate, hotBoothCount, performance.approved, performance.checkin]);
-
   const badge = STATUS_BADGE[String(eventDetail?.status).toUpperCase()] || STATUS_BADGE.PLANNED;
+  const eventName = eventDetail?.eventName || "행사 정보 없음";
+  const heroSummary =
+    `${congestionSummaryText}. ${waitSummaryText}.`;
+  const heroVisitorSummary = `현재 방문객 ${currentVisitors.toLocaleString()}명 · ${visitorMoodText}`;
+  const soonPeakTimeLabel = nextPeakPoint?.time
+    ? `${formatKoreanTime(nextPeakPoint.time)} 무렵`
+    : "가까운 시간대";
+  const hasAnyPrograms = allProgramRows.length > 0;
+  const hasOperatingPrograms = operatingProgramRows.length > 0;
+  const hasQueuePrograms = queueProgramRows.length > 0;
 
   if (loading && !eventDetail) {
     return (
       <div className="rt-card">
         <div className="rt-empty">
-          <span className="rt-empty-strong">실시간 운영 데이터를 불러오는 중입니다</span>
-          선택한 행사 기준으로 최신 운영 현황을 연결하고 있습니다.
+          <span className="rt-empty-strong">행사 실시간 정보를 불러오는 중입니다</span>
+          현재 혼잡도와 대기시간을 계산하고 있습니다.
         </div>
       </div>
     );
@@ -662,105 +1820,188 @@ function DashboardContent({ eventId }) {
 
   return (
     <>
-      {errorMsg ? <div className="rt-error">{errorMsg}</div> : null}
+      <div className="rt-page-shell">
+        {errorMsg ? <div className="rt-error">{errorMsg}</div> : null}
 
-      <div className="rt-live-header">
-        <div className="rt-live-header-left">
-          <div className={`rt-live-badge ${badge.className}`}>
-            {badge.showDot ? <div className="rt-live-dot" /> : null}
-            {badge.label}
-          </div>
-          <div className="rt-event-name">{eventDetail?.eventName || "행사 정보 없음"}</div>
-          <div className="rt-event-meta">
-            <span className="rt-event-meta-item">
-              <CalendarDays size={13} />
-              {formatDateRange(eventDetail?.startAt, eventDetail?.endAt)}
-            </span>
-            <span className="rt-event-meta-item">
-              <MapPin size={13} />
-              {eventDetail?.location || "장소 정보 없음"}
-            </span>
-          </div>
-        </div>
-
-        <div className="rt-live-header-right">
-          <span className="rt-timestamp">
-            마지막 갱신: {formatTimestamp(lastLoadedAt)}
-          </span>
-          <button className="rt-refresh-btn" onClick={refresh} title="새로고침">
-            <RefreshCw
-              size={14}
-              style={{
-                animation: spinning
-                  ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)"
-                  : "none",
-              }}
-            />
-          </button>
-        </div>
-      </div>
-
-      <div className="rt-stat-grid">
-        {stats.map((stat, index) => (
-          <AnimatedStatCard key={stat.label} stat={stat} index={index} />
-        ))}
-      </div>
-
-      <div className="rt-two-col">
-        <div className="rt-card">
-          <div className="rt-card-header">
-            <div className="rt-card-title">
-              <div className="rt-card-title-icon">
-                <BarChart2 size={14} color="#1a4fd6" />
-              </div>
-              실시간 운영 추이
+        <div className="rt-live-header">
+          <div className="rt-live-header-left">
+            <div className={`rt-live-badge ${badge.className}`}>
+              {badge.showDot ? <div className="rt-live-dot" /> : null}
+              {badge.label}
             </div>
-            <span className="rt-card-tag">시간대별 혼잡</span>
           </div>
 
-          <div className="rt-hour-grid">
-            {hours.map((item, index) => (
-              <AnimatedHeatCell key={item.h} item={item} index={index} />
-            ))}
-          </div>
-
-          <div
-            style={{
-              marginTop: 16,
-              display: "flex",
-              gap: 12,
-              alignItems: "center",
-            }}
-          >
-            <span style={{ fontSize: 11, color: "#9ca3af" }}>낮음</span>
-            {["#dbeafe", "#93c5fd", "#3b82f6", "#1d4ed8"].map((color) => (
-              <div
-                key={color}
+          <div className="rt-live-header-right">
+            <span className="rt-timestamp">
+              마지막 갱신: {formatTimestamp(lastLoadedAt)}
+            </span>
+            <button className="rt-refresh-btn" onClick={refresh} title="새로고침">
+              <RefreshCw
+                size={14}
                 style={{
-                  width: 16,
-                  height: 10,
-                  background: color,
-                  borderRadius: 2,
+                  animation: spinning
+                    ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)"
+                    : "none",
                 }}
               />
-            ))}
-            <span style={{ fontSize: 11, color: "#9ca3af" }}>높음</span>
+            </button>
           </div>
         </div>
 
-        <div className="rt-card">
-          <div className="rt-card-header">
-            <div className="rt-card-title">
-              <div className="rt-card-title-icon">
-                <TrendingUp size={14} color="#1a4fd6" />
-              </div>
-              참가 현황 요약
+        <section className="rt-hero">
+        <div className="rt-hero-top">
+          <div className="rt-hero-main">
+            <h1 className="rt-hero-title">{eventName}</h1>
+            <div className="rt-hero-meta">
+              <span className="rt-hero-meta-item">
+                <CalendarDays size={13} />
+                {formatDateRange(eventDetail?.startAt, eventDetail?.endAt)}
+              </span>
+              <span className="rt-hero-meta-item">
+                <MapPin size={13} />
+                {eventDetail?.location || "장소 정보 없음"}
+              </span>
             </div>
-            <span className="rt-card-tag">실시간</span>
+            <div className="rt-hero-meta">
+              <span>현재 혼잡도 {currentCongestion}%</span>
+              <span>혼잡 상태 {currentTone.label}</span>
+              <span>예상 대기 {expectedWaitMinutes}분</span>
+            </div>
+            <div className="rt-hero-summary">{heroSummary}</div>
+            <div className="rt-hero-note">{heroVisitorSummary}</div>
           </div>
+          <div
+            className="rt-status-pill"
+            style={{
+              color: currentTone.color,
+              background: currentTone.bg,
+              borderColor: currentTone.border,
+            }}
+          >
+            {currentTone.label}
+          </div>
+        </div>
+      </section>
 
-          {progressData.map((item, index) => (
-            <AnimatedProgress key={item.name} item={item} index={index} />
+      <div className="rt-card">
+        <div className="rt-card-header">
+          <div className="rt-card-title">
+            <div className="rt-card-title-icon">
+              <Radio size={14} color="#10b981" />
+            </div>
+            {isEndedEvent
+              ? "종료 시점 비교적 여유로웠던 프로그램"
+              : "지금 바로 참여하기 좋은 프로그램"}
+          </div>
+          <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "대기 짧은 순"}</span>
+        </div>
+
+        {!hasAnyPrograms || !hasOperatingPrograms ? (
+          <div className="rt-empty">
+            <span className="rt-empty-strong">운영 중인 프로그램이 없습니다</span>
+            운영 시간이 시작되면 참여 가능한 프로그램이 표시됩니다.
+          </div>
+        ) : !hasQueuePrograms ? (
+          <div className="rt-empty">
+            <span className="rt-empty-strong">
+              {isEndedEvent ? "종료 시점 대기 정보가 없습니다" : "아직 집계된 대기 정보가 없습니다"}
+            </span>
+            {isEndedEvent
+              ? "행사 종료 이후에는 신규 대기 집계가 갱신되지 않습니다."
+              : "잠시 후 다시 확인해 주세요."}
+          </div>
+        ) : (
+          <div className="rt-program-grid">
+            {lessCrowdedPrograms.map((item) => (
+              <ProgramCrowdCard key={`low-${item.key}`} item={item} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rt-card">
+        <div className="rt-card-header">
+          <div className="rt-card-title">
+            <div className="rt-card-title-icon">
+              <TrendingUp size={14} color="#dc2626" />
+            </div>
+            {isEndedEvent ? "종료 시점 인기 / 혼잡 프로그램" : "현재 인기 / 혼잡 프로그램"}
+          </div>
+          <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "대기/혼잡 높은 순"}</span>
+        </div>
+
+        {!hasAnyPrograms || !hasOperatingPrograms ? (
+          <div className="rt-empty">
+            <span className="rt-empty-strong">운영 중인 프로그램이 없습니다</span>
+            운영 시간이 시작되면 인기 프로그램 정보가 표시됩니다.
+          </div>
+        ) : !hasQueuePrograms ? (
+          <div className="rt-empty">
+            <span className="rt-empty-strong">
+              {isEndedEvent ? "종료 시점 대기 정보가 없습니다" : "아직 집계된 대기 정보가 없습니다"}
+            </span>
+            {isEndedEvent
+              ? "행사 종료 이후에는 신규 대기 집계가 갱신되지 않습니다."
+              : "대기 정보가 수집되면 인기 프로그램을 보여드릴게요."}
+          </div>
+        ) : (
+          <div className="rt-program-grid">
+            {popularPrograms.map((item) => (
+              <ProgramCrowdCard key={`hot-${item.key}`} item={item} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rt-card">
+        <div className="rt-card-header">
+          <div className="rt-card-title">
+            <div className="rt-card-title-icon">
+              <Activity size={14} color="#0f766e" />
+            </div>
+            지금 행사장 분위기
+          </div>
+          <span className="rt-card-tag">실시간 안내</span>
+        </div>
+
+        <div className="rt-section-lead">
+          큰 숫자보다 중요한 건 지금 체감이에요. 현재 상태를 짧게 확인하고 바로 이동해 보세요.
+        </div>
+
+        <div className="rt-user-stat-grid">
+          {userStats.map((item) => (
+            <div key={item.label} className="rt-user-stat">
+              <div className="rt-user-stat-label">{item.label}</div>
+              <div className="rt-user-stat-value">
+                {Number(item.value).toLocaleString()}
+                <span className="rt-user-stat-unit">{item.unit}</span>
+              </div>
+              <div className="rt-user-stat-sub">{item.sub}</div>
+              {item.badge ? (
+                <span
+                  className="rt-user-stat-badge"
+                  style={{
+                    color: item.badge.color,
+                    background: item.badge.bg,
+                    borderColor: item.badge.border,
+                  }}
+                >
+                  {item.badge.label}
+                </span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        <div className="rt-visitor-note">
+          {heroVisitorSummary}
+        </div>
+
+        <div className="rt-pet-hints">
+          {petHintMessages.map((hint) => (
+            <span key={hint} className="rt-chip">
+              {hint}
+            </span>
           ))}
         </div>
       </div>
@@ -769,18 +2010,208 @@ function DashboardContent({ eventId }) {
         <div className="rt-card-header">
           <div className="rt-card-title">
             <div className="rt-card-title-icon">
+              <BarChart2 size={14} color="#1a4fd6" />
+            </div>
+            지금 행사장은 얼마나 붐빌까요?
+          </div>
+          <div className="rt-card-controls">
+            <span className="rt-card-tag">시간대별 혼잡도</span>
+            {forecastDateOptions.length > 0 ? (
+              <input
+                className="rt-date-input"
+                type="date"
+                value={selectedForecastDate}
+                min={forecastDateOptions[0]}
+                max={forecastDateOptions[forecastDateOptions.length - 1]}
+                onChange={handleForecastDateChange}
+              />
+            ) : null}
+          </div>
+        </div>
+
+        <div className="rt-section-lead">
+          상태 요약과 시간대 흐름을 함께 확인하고, 덜 붐비는 시간대를 빠르게 선택해 보세요.
+        </div>
+
+        <div className="rt-prediction-section">
+          <div className="rt-prediction-meta-strip">
+            <span className="rt-prediction-meta-pill">
+              예측 기준: {formatKoreanTime(eventPrediction?.baseTime) || "-"}
+            </span>
+            <span className="rt-prediction-meta-pill">
+              신뢰도:{" "}
+              {eventPrediction
+                ? `${Math.round(safeNumber(eventPrediction.confidence, 0) * 100)}%`
+                : "집계 중"}
+            </span>
+            <span className="rt-prediction-meta-pill">
+              {eventPrediction
+                ? eventPrediction.fallbackUsed
+                  ? "보정 예측 적용"
+                  : "AI 예측 반영"
+                : "AI 예측 준비 중"}
+            </span>
+          </div>
+
+          <div className="rt-prediction-kpi-grid">
+            <div className="rt-prediction-kpi">
+              <div className="rt-prediction-kpi-label">현재 혼잡도</div>
+              <div className="rt-prediction-kpi-value">
+                {aiCurrentScore}
+                <span className="rt-prediction-kpi-unit">%</span>
+              </div>
+              <div className="rt-prediction-kpi-desc">{aiCurrentTone.sentence}</div>
+              <span
+                className="rt-prediction-kpi-badge"
+                style={{
+                  color: aiCurrentTone.color,
+                  background: aiCurrentTone.bg,
+                  borderColor: aiCurrentTone.border,
+                }}
+              >
+                {aiCurrentTone.label}
+              </span>
+            </div>
+
+            <div className="rt-prediction-kpi">
+              <div className="rt-prediction-kpi-label">예상 대기시간</div>
+              <div className="rt-prediction-kpi-value">
+                {expectedWaitMinutes}
+                <span className="rt-prediction-kpi-unit">분</span>
+              </div>
+              <div className="rt-prediction-kpi-desc">{waitSummaryText}</div>
+              <span
+                className="rt-prediction-kpi-badge"
+                style={{
+                  color: aiCurrentTone.color,
+                  background: aiCurrentTone.bg,
+                  borderColor: aiCurrentTone.border,
+                }}
+              >
+                {aiCurrentTone.label} 구간
+              </span>
+            </div>
+
+            <div className="rt-prediction-kpi">
+              <div className="rt-prediction-kpi-label">곧 예상되는 변화</div>
+              <div className="rt-prediction-kpi-value">
+                {aiSoonScore}
+                <span className="rt-prediction-kpi-unit">%</span>
+              </div>
+              <div className="rt-prediction-kpi-desc">
+                {eventPrediction
+                  ? `${soonPeakTimeLabel}에는 ${aiSoonTone.label} 예상 · 약 ${aiSoonWait}분`
+                  : "예측 데이터가 준비되면 다음 혼잡 변화를 안내해 드려요."}
+              </div>
+              <span
+                className="rt-prediction-kpi-badge"
+                style={{
+                  color: aiSoonTone.color,
+                  background: aiSoonTone.bg,
+                  borderColor: aiSoonTone.border,
+                }}
+              >
+                {eventPrediction ? aiSoonTone.label : "집계 중"}
+              </span>
+            </div>
+          </div>
+
+          <div className="rt-prediction-bottom">
+            <div className="rt-prediction-chart-card">
+              <div className="rt-prediction-chart-head">
+                <span className="rt-prediction-chart-title">시간대별 혼잡도</span>
+                <span className="rt-prediction-chart-sub">
+                  {selectedForecastDate || "오늘"} 기준
+                </span>
+              </div>
+              <div className="rt-prediction-chart">
+                <div
+                  className="rt-hour-grid"
+                  style={{
+                    gridTemplateColumns: `repeat(${Math.max(hours.length, 1)}, 1fr)`,
+                  }}
+                >
+                  {hours.map((item, index) => (
+                    <AnimatedHeatCell key={`${item.h}-${index}`} item={item} index={index} />
+                  ))}
+                </div>
+                <div className="rt-heat-legend">
+                  <span className="rt-heat-legend-text">낮음</span>
+                  {["#dbeafe", "#93c5fd", "#3b82f6", "#1d4ed8"].map((color) => (
+                    <div
+                      key={color}
+                      className="rt-heat-legend-swatch"
+                      style={{ background: color }}
+                    />
+                  ))}
+                  <span className="rt-heat-legend-text">높음</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rt-prediction-near-card">
+              <div className="rt-prediction-near-title">가까운 시간대 예측</div>
+              <div className="rt-prediction-near-sub">
+                현재 상태에서 곧 어떻게 변할지 시간 순서로 확인하세요.
+              </div>
+              {aiTimelinePreview.length > 0 ? (
+                <>
+                  <div className="rt-chip-list rt-prediction-chip-list">
+                    {aiTimelinePreview.slice(0, 6).map((point) => (
+                      <span
+                        key={`${point.time}-${point.score}`}
+                        className="rt-chip"
+                        style={{
+                          borderColor: point.tone.border,
+                          background: point.tone.bg,
+                          color: point.tone.color,
+                        }}
+                      >
+                        {formatKoreanTime(point.time)} {Math.round(point.score)}%
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="rt-prediction-empty">
+                  예측 데이터가 준비되면 가까운 시간대 흐름을 안내해 드릴게요.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="rt-chart-guide">{chartGuideText}</div>
+
+        {aiErrorMsg ? (
+          <div style={{ marginTop: 12, fontSize: 12, color: "#b91c1c" }}>{aiErrorMsg}</div>
+        ) : null}
+      </div>
+
+      <div className="rt-card">
+        <div className="rt-card-header">
+          <div className="rt-card-title">
+            <div className="rt-card-title-icon">
               <Activity size={14} color="#1a4fd6" />
             </div>
-            최근 운영 반영
+            현장 참고 알림
           </div>
           <span className="rt-card-tag">자동 갱신</span>
+        </div>
+
+        <div className="rt-chip-list" style={{ marginTop: 0, marginBottom: 12 }}>
+          <span className="rt-chip">실시간 수집 {measuredCongestions.length}개 지점</span>
+          <span className="rt-chip">혼잡 주의 지점 {hotBoothCount}개</span>
+          <span className="rt-chip">
+            프로그램 데이터 {hasQueuePrograms ? "대기 정보 반영 중" : "집계 대기 중"}
+          </span>
         </div>
 
         <div className="rt-timeline">
           {activities.length === 0 ? (
             <div className="rt-empty">
-              <span className="rt-empty-strong">실시간 반영 데이터가 없습니다</span>
-              혼잡도 또는 체크인 데이터가 들어오면 여기에 표시됩니다.
+              <span className="rt-empty-strong">실시간 참고 정보가 아직 없습니다</span>
+              곧 최신 혼잡 반영 내역이 표시됩니다.
             </div>
           ) : (
             activities.map((activity, index) => (
@@ -798,6 +2229,7 @@ function DashboardContent({ eventId }) {
             ))
           )}
         </div>
+      </div>
       </div>
     </>
   );
@@ -828,14 +2260,17 @@ export default function Dashboard() {
     <div className="rt-root">
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
-      <PageHeader
-        title="통합 현황"
-        subtitle={SUBTITLE_MAP[currentPath]}
-        categories={SERVICE_CATEGORIES}
-        currentPath={currentPath}
-        onNavigate={handleNavigate}
-      />
-      <main className="rt-container">
+      {eventId ? (
+        <PageHeader
+          title={null}
+          subtitle={null}
+          categories={SERVICE_CATEGORIES}
+          stickyCategories
+          currentPath={currentPath}
+          onNavigate={handleNavigate}
+        />
+      ) : null}
+      <main className={`rt-container${eventId ? "" : " selector-mode"}`}>
         {eventId ? (
           <DashboardContent eventId={eventId} />
         ) : (

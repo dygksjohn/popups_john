@@ -35,6 +35,7 @@ export function createAxiosInstance() {
       "/api/faqs",
       "/api/events",
       "/api/programs",
+      "/api/ai",
       "/api/program-applies/programs/",
       "/api/speakers",
       "/api/booths",
