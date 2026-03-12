@@ -2,6 +2,8 @@
 package com.popups.pupoo.board.review.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
+import com.popups.pupoo.board.bannedword.dto.BannedWordDetection;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
 import com.popups.pupoo.board.review.domain.enums.ReviewStatus;
@@ -18,6 +20,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.time.LocalDateTime;
 
 @Service
@@ -38,7 +41,7 @@ public class ReviewService {
                 .getBoardId();
 
         // 금칙어 검증 (리뷰 작성 포함)
-        bannedWordService.validate(reviewBoardId, request.getContent());
+        List<BannedWordDetection> detections = bannedWordService.validate(reviewBoardId, request.getContent());
 
         String reviewTitle = deriveTitleFromContent(request.getContent());
 
@@ -54,7 +57,11 @@ public class ReviewService {
                 .deleted(false)
                 .reviewStatus(ReviewStatus.PUBLIC)
                 .build();
-        return toResponse(reviewRepository.save(review));
+        Review saved = reviewRepository.save(review);
+        if (!detections.isEmpty()) {
+            bannedWordService.logDetections(reviewBoardId, saved.getReviewId(), BannedLogContentType.POST, userId, detections);
+        }
+        return toResponse(saved);
     }
 
     @Transactional
@@ -130,7 +137,7 @@ public class ReviewService {
                 .getBoardId();
 
         // 금칙어 검증 (리뷰 수정 포함)
-        bannedWordService.validate(reviewBoardId, request.getContent());
+        List<BannedWordDetection> detections = bannedWordService.validate(reviewBoardId, request.getContent());
 
         Review updated = Review.builder()
                 .reviewId(review.getReviewId())
@@ -146,7 +153,11 @@ public class ReviewService {
                 .reviewStatus(review.getReviewStatus())
                 .build();
 
-        return toResponse(reviewRepository.save(updated));
+        Review saved = reviewRepository.save(updated);
+        if (!detections.isEmpty()) {
+            bannedWordService.logDetections(reviewBoardId, saved.getReviewId(), BannedLogContentType.POST, userId, detections);
+        }
+        return toResponse(saved);
     }
 
     @Transactional
@@ -197,6 +208,9 @@ public class ReviewService {
     private ReviewResponse toResponse(Review r) {
         String eventName = eventRepository.findById(r.getEventId()).map(e -> e.getEventName()).orElse(null);
         String writerEmail = userRepository.findById(r.getUserId()).map(u -> u.getEmail()).orElse(null);
-        return ReviewResponse.from(r, eventName, writerEmail);
+        Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW).map(b -> b.getBoardId()).orElse(null);
+        String maskedTitle = reviewBoardId != null ? bannedWordService.mask(reviewBoardId, r.getReviewTitle()) : r.getReviewTitle();
+        String maskedContent = reviewBoardId != null ? bannedWordService.mask(reviewBoardId, r.getContent()) : r.getContent();
+        return ReviewResponse.from(r, eventName, writerEmail, maskedTitle, maskedContent);
     }
 }
