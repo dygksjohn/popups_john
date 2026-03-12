@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import {
   Archive,
   Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Download,
   ImageOff,
   MapPin,
@@ -12,9 +15,11 @@ import {
   Users,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
+import EmptyState from "../components/EmptyState";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
-import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 import { extractEventYear, normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 
 const SERVICE_CATEGORIES = [
@@ -87,10 +92,13 @@ function mapEvent(raw) {
     id: Number(raw?.eventId),
     title: normalizeEventTitle(raw?.eventName || raw?.title, raw),
     description: raw?.description || "",
+    startAt: raw?.startAt || null,
+    endAt: raw?.endAt || null,
     dateLabel: fmtRange(raw?.startAt, raw?.endAt),
     year: extractEventYear(raw),
+    month: raw?.startAt ? String(new Date(raw.startAt).getMonth() + 1) : null,
     location: raw?.location || "장소 미정",
-    image: raw?.imageUrl ? toPublicAssetUrl(raw.imageUrl) : "",
+    image: resolveImageUrl(raw?.imageUrl),
     participants,
     capacity,
     participationRate,
@@ -103,88 +111,226 @@ function mapEvent(raw) {
 function downloadResultImage(event) {
   if (!event) return;
 
+  const W = 1200;
+  const H = 720;
   const canvas = document.createElement("canvas");
-  canvas.width = 1480;
-  canvas.height = 980;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  ctx.fillStyle = "#f8fafc";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  /* ── helpers ── */
+  const roundRect = (x, y, w, h, r) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  };
+  const drawDonut = (cx, cy, r, strokeW, percent, trackColor, fillColor) => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = trackColor;
+    ctx.lineWidth = strokeW;
+    ctx.lineCap = "round";
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * percent) / 100);
+    ctx.strokeStyle = fillColor;
+    ctx.lineWidth = strokeW;
+    ctx.lineCap = "round";
+    ctx.stroke();
+  };
+  const drawStar = (cx, cy, size, fillRatio, emptyColor, fillColor) => {
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const angle = (Math.PI / 2) * -1 + (Math.PI / 5) * i;
+      const r = i % 2 === 0 ? size : size * 0.4;
+      pts.push([cx + Math.cos(angle) * r, cy + Math.sin(angle) * r]);
+    }
+    const starPath = () => { ctx.beginPath(); pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)); ctx.closePath(); };
+    starPath(); ctx.fillStyle = emptyColor; ctx.fill();
+    if (fillRatio > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(cx - size, cy - size, size * 2 * fillRatio, size * 2);
+      ctx.clip();
+      starPath(); ctx.fillStyle = fillColor; ctx.fill();
+      ctx.restore();
+    }
+  };
 
-  const headerGradient = ctx.createLinearGradient(0, 0, canvas.width, 260);
-  headerGradient.addColorStop(0, "#0f172a");
-  headerGradient.addColorStop(1, "#1d4ed8");
-  ctx.fillStyle = headerGradient;
-  ctx.fillRect(54, 54, 1372, 220);
+  /* ── background ── */
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(0, 0, W, H);
+
+  /* ── header bar ── */
+  const hdrH = 130;
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, "#0f172a");
+  grad.addColorStop(1, "#1e40af");
+  ctx.fillStyle = grad;
+  roundRect(0, 0, W, hdrH, 0);
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(255,255,255,0.08)";
+  ctx.fillRect(0, hdrH - 1, W, 1);
+
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "600 14px sans-serif";
+  ctx.fillText("종료 행사 결과 리포트", 48, 42);
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "700 26px sans-serif";
-  ctx.fillText("종료 행사 결과 리포트", 96, 116);
-  ctx.font = "800 50px sans-serif";
-  ctx.fillText(event.title, 96, 186, 980);
-  ctx.font = "500 20px sans-serif";
-  ctx.fillText(`${event.dateLabel} | ${event.location}`, 96, 226, 1060);
+  ctx.font = "800 32px sans-serif";
+  ctx.fillText(event.title, 48, 82, W - 96);
 
-  const cards = [
-    ["참가자수", `${event.participants.toLocaleString()}명`, "#2563eb"],
-    ["참가율", `${event.participationRate}%`, "#10b981"],
-    ["별점", `${event.ratingText} / 5.0`, "#f59e0b"],
-    ["후기 수", `${event.reviewCount.toLocaleString()}건`, "#7c3aed"],
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.font = "500 15px sans-serif";
+  ctx.fillText(`${event.dateLabel}  ·  ${event.location}`, 48, 112, W - 96);
+
+  /* ── 4 metric cards ── */
+  const metrics = [
+    { label: "참가자", value: `${event.participants.toLocaleString()}명`, sub: `/ ${event.capacity.toLocaleString()}`, color: "#2563eb", bg: "#eff6ff" },
+    { label: "참가율", value: `${event.participationRate}%`, sub: "", color: "#10b981", bg: "#ecfdf5" },
+    { label: "별점", value: `${event.ratingText}`, sub: "/ 5.0", color: "#f59e0b", bg: "#fffbeb" },
+    { label: "후기", value: `${event.reviewCount.toLocaleString()}건`, sub: "", color: "#7c3aed", bg: "#f5f3ff" },
   ];
+  const cardY = hdrH + 28;
+  const cardW = (W - 48 * 2 - 16 * 3) / 4;
+  const cardH = 100;
 
-  cards.forEach(([label, value, color], index) => {
-    const x = 72 + index * 334;
+  metrics.forEach((m, i) => {
+    const x = 48 + i * (cardW + 16);
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(x, 320, 300, 156);
-    ctx.strokeStyle = "#dbe4f0";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, 320, 300, 156);
-    ctx.fillStyle = color;
-    ctx.fillRect(x, 320, 300, 12);
+    roundRect(x, cardY, cardW, cardH, 16);
+    ctx.fill();
+    ctx.strokeStyle = "#e2e8f0";
+    ctx.lineWidth = 1;
+    roundRect(x, cardY, cardW, cardH, 16);
+    ctx.stroke();
+
+    /* color dot */
+    ctx.beginPath();
+    ctx.arc(x + 20, cardY + 28, 5, 0, Math.PI * 2);
+    ctx.fillStyle = m.color;
+    ctx.fill();
+
     ctx.fillStyle = "#64748b";
-    ctx.font = "700 20px sans-serif";
-    ctx.fillText(label, x + 20, 380);
-    ctx.fillStyle = "#0f172a";
-    ctx.font = "800 36px sans-serif";
-    ctx.fillText(value, x + 20, 434, 250);
+    ctx.font = "700 13px sans-serif";
+    ctx.fillText(m.label, x + 32, cardY + 33);
+
+    ctx.fillStyle = m.color;
+    ctx.font = "900 30px sans-serif";
+    ctx.fillText(m.value, x + 20, cardY + 76);
+
+    if (m.sub) {
+      const vw = ctx.measureText(m.value).width;
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "600 15px sans-serif";
+      ctx.fillText(m.sub, x + 24 + vw, cardY + 76);
+    }
   });
 
-  const gaugeRows = [
-    {
-      label: "참가자수",
-      percent: event.capacity > 0 ? clamp((event.participants / event.capacity) * 100) : 0,
-      value: `${event.participants.toLocaleString()} / ${event.capacity.toLocaleString()}명`,
-      color: "#2563eb",
-    },
-    {
-      label: "참가율",
-      percent: clamp(event.participationRate),
-      value: `${event.participationRate}%`,
-      color: "#10b981",
-    },
-    {
-      label: "별점",
-      percent: clamp((event.rating / 5) * 100),
-      value: `${event.ratingText} / 5.0`,
-      color: "#f59e0b",
-    },
-  ];
+  /* ── bottom section: 3 visual charts ── */
+  const btmY = cardY + cardH + 24;
+  const btmH = H - btmY - 28;
+  const colW = (W - 48 * 2 - 16 * 2) / 3;
 
-  gaugeRows.forEach((row, index) => {
-    const top = 574 + index * 104;
-    ctx.fillStyle = "#0f172a";
-    ctx.font = "700 24px sans-serif";
-    ctx.fillText(row.label, 92, top);
-    ctx.fillStyle = "#e5e7eb";
-    ctx.fillRect(92, top + 22, 1080, 24);
-    ctx.fillStyle = row.color;
-    ctx.fillRect(92, top + 22, 1080 * (row.percent / 100), 24);
-    ctx.fillStyle = "#334155";
-    ctx.font = "600 20px sans-serif";
-    ctx.fillText(row.value, 1200, top + 42, 180);
-  });
+  /* --- 참가자 달성률 donut --- */
+  const d1x = 48;
+  ctx.fillStyle = "#ffffff";
+  roundRect(d1x, btmY, colW, btmH, 16);
+  ctx.fill();
+  ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 1;
+  roundRect(d1x, btmY, colW, btmH, 16); ctx.stroke();
 
+  ctx.fillStyle = "#334155"; ctx.font = "800 14px sans-serif";
+  ctx.fillText("참가자 달성률", d1x + 20, btmY + 30);
+
+  const pct1 = event.capacity > 0 ? clamp((event.participants / event.capacity) * 100) : 0;
+  const donutCx1 = d1x + colW / 2;
+  const donutCy1 = btmY + btmH / 2 + 8;
+  const donutR1 = Math.min(colW, btmH) * 0.28;
+  drawDonut(donutCx1, donutCy1, donutR1, 14, pct1, "#e8f4fd", "#2563eb");
+
+  ctx.fillStyle = "#2563eb"; ctx.font = "900 32px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText(`${Math.round(pct1)}%`, donutCx1, donutCy1 + 12);
+  ctx.textAlign = "left";
+
+  ctx.fillStyle = "#64748b"; ctx.font = "600 13px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText(`${event.participants.toLocaleString()} / ${event.capacity.toLocaleString()}명`, donutCx1, btmY + btmH - 20);
+  ctx.textAlign = "left";
+
+  /* --- 별점 stars --- */
+  const d2x = 48 + colW + 16;
+  ctx.fillStyle = "#ffffff";
+  roundRect(d2x, btmY, colW, btmH, 16); ctx.fill();
+  ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 1;
+  roundRect(d2x, btmY, colW, btmH, 16); ctx.stroke();
+
+  ctx.fillStyle = "#334155"; ctx.font = "800 14px sans-serif";
+  ctx.fillText("별점", d2x + 20, btmY + 30);
+
+  const starCy = btmY + btmH / 2;
+  const starSize = 20;
+  const starGap = 48;
+  const starsStartX = d2x + colW / 2 - (4 * starGap) / 2;
+  for (let i = 0; i < 5; i++) {
+    const fill = Math.min(1, Math.max(0, event.rating - i));
+    drawStar(starsStartX + i * starGap, starCy - 8, starSize, fill, "#e5e7eb", "#f59e0b");
+  }
+
+  ctx.fillStyle = "#f59e0b"; ctx.font = "900 32px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText(event.ratingText, d2x + colW / 2, starCy + 48);
+  ctx.fillStyle = "#94a3b8"; ctx.font = "600 16px sans-serif";
+  ctx.fillText("/ 5.0", d2x + colW / 2 + ctx.measureText(event.ratingText).width / 2 + 38, starCy + 48);
+  ctx.textAlign = "left";
+
+  /* --- 참가율 gauge --- */
+  const d3x = 48 + (colW + 16) * 2;
+  ctx.fillStyle = "#ffffff";
+  roundRect(d3x, btmY, colW, btmH, 16); ctx.fill();
+  ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 1;
+  roundRect(d3x, btmY, colW, btmH, 16); ctx.stroke();
+
+  ctx.fillStyle = "#334155"; ctx.font = "800 14px sans-serif";
+  ctx.fillText("참가율", d3x + 20, btmY + 30);
+
+  const gaugeCx = d3x + colW / 2;
+  const gaugeCy = btmY + btmH / 2 + 20;
+  const gaugeR = Math.min(colW, btmH) * 0.3;
+  const gaugeAngle = (clamp(event.participationRate) / 100) * Math.PI;
+
+  ctx.beginPath();
+  ctx.arc(gaugeCx, gaugeCy, gaugeR, Math.PI, 0);
+  ctx.strokeStyle = "#f1f5f9"; ctx.lineWidth = 14; ctx.lineCap = "round"; ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(gaugeCx, gaugeCy, gaugeR, Math.PI, Math.PI + gaugeAngle);
+  ctx.strokeStyle = "#10b981"; ctx.lineWidth = 14; ctx.lineCap = "round"; ctx.stroke();
+
+  ctx.fillStyle = "#10b981"; ctx.font = "900 32px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText(`${event.participationRate}%`, gaugeCx, gaugeCy + 4);
+
+  ctx.fillStyle = "#94a3b8"; ctx.font = "600 12px sans-serif";
+  ctx.textAlign = "left"; ctx.fillText("0%", gaugeCx - gaugeR - 4, gaugeCy + 22);
+  ctx.textAlign = "right"; ctx.fillText("100%", gaugeCx + gaugeR + 4, gaugeCy + 22);
+  ctx.textAlign = "left";
+
+  /* ── watermark ── */
+  ctx.fillStyle = "#cbd5e1";
+  ctx.font = "600 11px sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText("POPUPS", W - 28, H - 14);
+  ctx.textAlign = "left";
+
+  /* ── download ── */
   canvas.toBlob((blob) => {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
@@ -194,6 +340,239 @@ function downloadResultImage(event) {
     link.click();
     URL.revokeObjectURL(url);
   }, "image/png");
+}
+
+/* ── Animated value hook (resets to 0 on change) ── */
+function useAnimatedValue(target, duration = 1800) {
+  const [value, setValue] = useState(0);
+  const rafRef = useRef(null);
+  const prevTarget = useRef(target);
+
+  useEffect(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const from = prevTarget.current !== target ? 0 : value;
+    prevTarget.current = target;
+    if (target === 0) { setValue(0); return; }
+    const startTime = performance.now();
+
+    const tick = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(from + (target - from) * eased);
+      if (progress < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [target]);
+
+  return value;
+}
+
+/* ── SVG Donut Chart (rounded, animated) ── */
+function DonutChart({ percent, color, label, valueLabel, helper }) {
+  const animatedPercent = useAnimatedValue(clamp(percent));
+  const size = 150;
+  const stroke = 16;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (animatedPercent / 100) * circumference;
+
+  return (
+    <div style={{ border: "1px solid #e2e8f0", borderRadius: 22, background: "#fff", padding: 22, display: "grid", gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#334155" }}>{label}</div>
+          <div style={{ marginTop: 4, fontSize: 12, color: "#94a3b8" }}>{helper}</div>
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{valueLabel}</div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", position: "relative" }}>
+        <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f1f5f9" strokeWidth={stroke} />
+          <circle
+            cx={size / 2} cy={size / 2} r={radius}
+            fill="none" stroke={color} strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+          />
+        </svg>
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <div style={{ fontSize: 28, fontWeight: 900, color, lineHeight: 1 }}>
+            {Math.round(animatedPercent)}%
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Infographic Cards ── */
+
+/* 참가율: 반원 게이지 (오렌지) */
+function RateGaugeCard({ rate, avgRate }) {
+  const animatedRate = useAnimatedValue(clamp(rate));
+  const angle = (animatedRate / 100) * 180;
+  return (
+    <div style={{ border: "1px solid #e2e8f0", borderRadius: 22, background: "#fff", padding: 24, display: "flex", flexDirection: "column", gap: 0, justifyContent: "space-between", height: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>참가율</div>
+        <div style={{ fontSize: 12, color: "#94a3b8" }}>평균 {avgRate.toFixed(1)}%</div>
+      </div>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "relative", width: 180, height: 115 }}>
+          <svg width={180} height={100} viewBox="0 0 180 100">
+            <path d="M 10 95 A 80 80 0 0 1 170 95" fill="none" stroke="#f1f5f9" strokeWidth={14} strokeLinecap="round" />
+            <path d="M 10 95 A 80 80 0 0 1 170 95" fill="none" stroke="#f97316" strokeWidth={14} strokeLinecap="round"
+              strokeDasharray={`${(angle / 180) * 251.2} 251.2`}
+            />
+          </svg>
+          <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#f97316", lineHeight: 1 }}>{Math.round(animatedRate)}%</div>
+          </div>
+          <span style={{ position: "absolute", bottom: 0, left: 4, fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>0%</span>
+          <span style={{ position: "absolute", bottom: 0, right: 4, fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>100%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* 별점: 5개 별 채우기 */
+function StarRatingCard({ rating, avgRating }) {
+  const animatedRating = useAnimatedValue(rating);
+  const fullStars = Math.floor(animatedRating);
+  const partialFill = animatedRating - fullStars;
+
+  return (
+    <div style={{ border: "1px solid #e2e8f0", borderRadius: 22, background: "#fff", padding: 24, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
+      <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>별점</div>
+        <div style={{ fontSize: 12, color: "#94a3b8" }}>평균 {avgRating.toFixed(1)}</div>
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
+        <div style={{ display: "flex", gap: 6 }}>
+          {[0, 1, 2, 3, 4].map((i) => {
+            const fill = i < fullStars ? 1 : i === fullStars ? partialFill : 0;
+            return (
+              <div key={i} style={{ position: "relative", width: 36, height: 36 }}>
+                <svg width={36} height={36} viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#e5e7eb" />
+                </svg>
+                <div style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${fill * 100}%` }}>
+                  <svg width={36} height={36} viewBox="0 0 24 24" style={{ minWidth: 36 }}>
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#f59e0b" />
+                  </svg>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 36, fontWeight: 900, color: "#f59e0b", lineHeight: 1 }}>
+          {animatedRating.toFixed(1)}
+          <span style={{ fontSize: 16, color: "#64748b", fontWeight: 600 }}> / 5.0</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* 참가자: 도넛 링 안에 사람 아이콘 */
+function ParticipantsCard({ participants, capacity, avgParticipants }) {
+  const animatedCount = useAnimatedValue(participants);
+  const fillRatio = capacity > 0 ? clamp((participants / capacity) * 100) : 0;
+  const animatedRatio = useAnimatedValue(fillRatio);
+  const pc = "#0ea5e9";
+  const size = 130;
+  const stroke = 14;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (animatedRatio / 100) * circumference;
+
+  return (
+    <div style={{ border: "1px solid #e2e8f0", borderRadius: 22, background: "#fff", padding: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+      <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>참가자</div>
+        <div style={{ fontSize: 12, color: "#94a3b8" }}>평균 {Math.round(avgParticipants).toLocaleString()}명</div>
+      </div>
+      <div style={{ position: "relative", width: size, height: size }}>
+        <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e8f4fd" strokeWidth={stroke} />
+          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={pc} strokeWidth={stroke}
+            strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} />
+        </svg>
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Users size={32} color={pc} />
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+        <span style={{ fontSize: 36, fontWeight: 900, color: pc, lineHeight: 1 }}>{Math.round(animatedCount).toLocaleString()}</span>
+        <span style={{ fontSize: 14, color: "#64748b", fontWeight: 600 }}>/ {capacity.toLocaleString()}명</span>
+      </div>
+      <div style={{ fontSize: 13, color: "#64748b", fontWeight: 700 }}>
+        달성률 <span style={{ color: pc, fontSize: 16, fontWeight: 900 }}>{Math.round(animatedRatio)}%</span>
+      </div>
+    </div>
+  );
+}
+
+/* 후기: 말풍선 5개 채우기 인포그래픽 */
+function ReviewsCard({ reviewCount, avgReviewCount }) {
+  const animatedCount = useAnimatedValue(reviewCount);
+  const maxVal = Math.max(reviewCount, avgReviewCount, 1);
+  const ratio = clamp((reviewCount / maxVal) * 100);
+  const animatedRatio = useAnimatedValue(ratio);
+  const totalBubbles = 5;
+  const filledBubbles = (animatedRatio / 100) * totalBubbles;
+  const rc = "#7c3aed";
+  const bubbleSizes = [28, 34, 40, 34, 28];
+  const bubbleOffsets = [12, 2, -6, 2, 12];
+
+  return (
+    <div style={{ border: "1px solid #e2e8f0", borderRadius: 22, background: "#fff", padding: 24, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
+      <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>후기</div>
+        <div style={{ fontSize: 12, color: "#94a3b8" }}>평균 {Math.round(avgReviewCount).toLocaleString()}건</div>
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 80, padding: "0 8px" }}>
+        {bubbleSizes.map((size, i) => {
+          const fill = i < Math.floor(filledBubbles) ? 1 : i < filledBubbles ? filledBubbles - Math.floor(filledBubbles) : 0;
+          return (
+            <div key={i} style={{ position: "relative", width: size, height: size, marginBottom: bubbleOffsets[i] }}>
+              <svg width={size} height={size} viewBox="0 0 40 40">
+                <path d="M4 4h32a4 4 0 014 4v20a4 4 0 01-4 4H18l-8 8v-8H4a4 4 0 01-4-4V8a4 4 0 014-4z" fill="#f1f0f9" />
+              </svg>
+              <div style={{ position: "absolute", inset: 0, overflow: "hidden", opacity: fill }}>
+                <svg width={size} height={size} viewBox="0 0 40 40">
+                  <path d="M4 4h32a4 4 0 014 4v20a4 4 0 01-4 4H18l-8 8v-8H4a4 4 0 01-4-4V8a4 4 0 014-4z" fill={rc} />
+                </svg>
+              </div>
+              {fill > 0.5 && (
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingBottom: size * 0.15 }}>
+                  <svg width={size * 0.38} height={size * 0.38} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 36, fontWeight: 900, color: rc, lineHeight: 1 }}>
+        {Math.round(animatedCount).toLocaleString()}
+        <span style={{ fontSize: 16, color: "#64748b", fontWeight: 600 }}>건</span>
+      </div>
+      <div style={{ textAlign: "center", fontSize: 12, color: "#64748b" }}>
+        평균 대비 <span style={{ fontWeight: 800, color: rc }}>{Math.round(animatedRatio)}%</span>
+      </div>
+      </div>
+    </div>
+  );
 }
 
 function StatsCard({ icon, label, value, bg }) {
@@ -210,84 +589,80 @@ function StatsCard({ icon, label, value, bg }) {
   );
 }
 
-function GaugeCard({ label, valueLabel, percent, color, helper }) {
-  const safePercent = clamp(percent);
-  return (
-    <div style={{ border: "1px solid #e2e8f0", borderRadius: 22, background: "#fff", padding: 22, display: "grid", gap: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#334155" }}>{label}</div>
-          <div style={{ marginTop: 4, fontSize: 12, color: "#94a3b8" }}>{helper}</div>
-        </div>
-        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{valueLabel}</div>
-      </div>
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <div
-          style={{
-            width: 168,
-            height: 168,
-            borderRadius: "50%",
-            background: `conic-gradient(${color} 0deg ${safePercent * 3.6}deg, #e5e7eb ${safePercent * 3.6}deg 360deg)`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.6)",
-          }}
-        >
-          <div
-            style={{
-              width: 122,
-              height: 122,
-              borderRadius: "50%",
-              background: "#fff",
-              border: "1px solid #e2e8f0",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#0f172a",
-            }}
-          >
-            <div style={{ fontSize: 32, fontWeight: 900, lineHeight: 1 }}>{Math.round(safePercent)}</div>
-            <div style={{ marginTop: 4, fontSize: 12, color: "#64748b", fontWeight: 700 }}>%</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+const MONTH_LABELS = ["전체","1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
 
-function ComparisonRow({ label, selectedValue, averageValue, color, format }) {
-  const maxValue = Math.max(selectedValue, averageValue, 1);
-  const selectedWidth = `${(selectedValue / maxValue) * 100}%`;
-  const averageWidth = `${(averageValue / maxValue) * 100}%`;
+function MonthDropdown({ month, setMonth }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const label = month === "all" ? "" : MONTH_LABELS[Number(month)];
+  const hasValue = month !== "all";
 
   return (
-    <div style={{ display: "grid", gap: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-        <span style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{label}</span>
-        <span style={{ fontSize: 13, color: "#64748b" }}>선택 행사 / 전체 평균</span>
-      </div>
-      <div style={{ display: "grid", gap: 10 }}>
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
-            <span style={{ color: "#334155", fontWeight: 800 }}>선택 행사</span>
-            <span style={{ color: "#334155" }}>{format(selectedValue)}</span>
-          </div>
-          <div style={{ height: 10, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
-            <div style={{ width: selectedWidth, height: "100%", borderRadius: 999, background: color }} />
-          </div>
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%", height: 52, padding: "0 16px",
+          borderRadius: 14,
+          border: open ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+          background: "#fff", cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 10,
+          transition: "border-color 0.25s, box-shadow 0.25s",
+          boxShadow: open ? "0 0 0 3px rgba(37,99,235,0.1)" : "none",
+          position: "relative",
+        }}
+      >
+        <Calendar size={16} color={open ? "#2563eb" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
+        <span style={{
+          position: "absolute", left: 42, top: open || hasValue ? 6 : "50%",
+          transform: open || hasValue ? "none" : "translateY(-50%)",
+          fontSize: open || hasValue ? 10 : 13,
+          color: open ? "#2563eb" : "#94a3b8",
+          fontWeight: 600, transition: "all 0.2s", pointerEvents: "none",
+        }}>월 선택</span>
+        <span style={{
+          flex: 1, textAlign: "left",
+          fontSize: 15, fontWeight: 800, color: "#0f172a",
+          marginTop: hasValue ? 8 : 0,
+          opacity: hasValue ? 1 : 0, transition: "opacity 0.2s",
+        }}>{label}</span>
+        <ChevronDown size={16} color={open ? "#2563eb" : "#94a3b8"}
+          style={{ transition: "transform 0.25s, color 0.25s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+        />
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
+          background: "#fff", borderRadius: 14, border: "1.5px solid #e2e8f0",
+          boxShadow: "0 12px 32px rgba(15,23,42,0.12)",
+          zIndex: 50, padding: "6px",
+          maxHeight: 260, overflowY: "auto",
+        }}>
+          {MONTH_LABELS.map((ml, idx) => {
+            const val = idx === 0 ? "all" : String(idx);
+            return (
+              <button key={val} type="button"
+                onClick={() => { setMonth(val); setOpen(false); }}
+                style={{
+                  width: "100%", padding: "10px 14px",
+                  borderRadius: 10, border: "none",
+                  background: month === val ? "#eff6ff" : "transparent",
+                  color: month === val ? "#2563eb" : "#334155",
+                  fontSize: 14, fontWeight: month === val ? 800 : 600,
+                  cursor: "pointer", textAlign: "left",
+                  transition: "background 0.15s",
+                }}
+              >{ml}</button>
+            );
+          })}
         </div>
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
-            <span style={{ color: "#64748b", fontWeight: 800 }}>전체 평균</span>
-            <span style={{ color: "#64748b" }}>{format(averageValue)}</span>
-          </div>
-          <div style={{ height: 10, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
-            <div style={{ width: averageWidth, height: "100%", borderRadius: 999, background: "#94a3b8" }} />
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -298,11 +673,17 @@ export default function Closed() {
   const [events, setEvents] = useState([]);
   const [query, setQuery] = useState("");
   const [year, setYear] = useState("all");
+  const [month, setMonth] = useState("all");
   const [selectedId, setSelectedId] = useState(null);
   const [programMap, setProgramMap] = useState({});
   const [programLoadingId, setProgramLoadingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [downloading, setDownloading] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(5);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [yearOpen, setYearOpen] = useState(false);
+  const yearDropRef = useRef(null);
 
   useEffect(() => {
     let mounted = true;
@@ -329,6 +710,16 @@ export default function Closed() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (yearDropRef.current && !yearDropRef.current.contains(e.target)) {
+        setYearOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const years = useMemo(
     () => ["all", ...Array.from(new Set(events.map((event) => event.year).filter(Boolean))).sort((a, b) => Number(b) - Number(a))],
     [events],
@@ -341,11 +732,14 @@ export default function Closed() {
         !keyword ||
         event.title.toLowerCase().includes(keyword) ||
         event.location.toLowerCase().includes(keyword);
-      return matchesKeyword && (year === "all" || event.year === year);
+      const matchesYear = year === "all" || event.year === year;
+      const matchesMonth = month === "all" || event.month === month;
+      return matchesKeyword && matchesYear && matchesMonth;
     });
-  }, [events, query, year]);
+  }, [events, query, year, month]);
 
   useEffect(() => {
+    setVisibleCount(5);
     if (!filtered.length) {
       setSelectedId(null);
       return;
@@ -415,6 +809,15 @@ export default function Closed() {
     }, { total: 0 });
   }, [selectedPrograms]);
 
+  const handleDownload = useCallback(() => {
+    if (!selected || downloading) return;
+    setDownloading(true);
+    setTimeout(() => {
+      downloadResultImage(selected);
+      setTimeout(() => setDownloading(false), 600);
+    }, 400);
+  }, [selected, downloading]);
+
   const handleSelectEvent = useCallback((eventId, scrollToTop = false) => {
     setSelectedId(eventId);
     if (scrollToTop) {
@@ -440,35 +843,134 @@ export default function Closed() {
 
       <main
         style={{
-          width: "min(1350px, calc(100% - 50px))",
+          width: "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
           padding: "32px 0 72px",
         }}
       >
-        {loading ? <div style={{ padding: "100px 24px", textAlign: "center", color: "#64748b" }}>종료 행사 결과를 불러오는 중입니다.</div> : null}
-        {!loading && error ? <div style={{ padding: "100px 24px", textAlign: "center", color: "#dc2626" }}>{error}</div> : null}
+        {loading ? <PageLoading /> : null}
+        {!loading && error ? <EmptyState type="error" message="종료 행사를 불러오지 못했습니다" description={error} /> : null}
         {!loading && !error ? (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14, marginBottom: 22 }}>
-              <StatsCard icon={<Archive size={20} color="#6b7280" />} label="종료 행사 수" value={`${filtered.length}개`} bg="#f3f4f6" />
-              <StatsCard icon={<Users size={20} color="#2563eb" />} label="총 참가자수" value={`${totalParticipants.toLocaleString()}명`} bg="#eff6ff" />
-              <StatsCard icon={<Calendar size={20} color="#10b981" />} label="평균 참가율" value={`${Math.round(avgRate)}%`} bg="#ecfdf5" />
-              <StatsCard icon={<Star size={20} color="#f59e0b" />} label={<span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Star size={14} color="#f59e0b" fill="#f59e0b" /> 평균 별점</span>} value={avgRating.toFixed(1)} bg="#fffbeb" />
-            </div>
-
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 18 }}>
-              <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
-                <Search size={15} color="#94a3b8" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
-                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="행사명 또는 장소 검색" style={{ width: "100%", height: 42, borderRadius: 10, border: "1px solid #cbd5e1", padding: "0 14px 0 38px", fontSize: 14, color: "#0f172a", background: "#fff" }} />
-              </div>
-              {years.map((value) => (
-                <button key={value} type="button" onClick={() => setYear(value)} style={{ height: 42, padding: "0 14px", borderRadius: 999, border: year === value ? "1px solid #1d4ed8" : "1px solid #dbe2ea", background: year === value ? "#eff6ff" : "#fff", color: year === value ? "#1d4ed8" : "#475569", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                  {value === "all" ? "전체 연도" : `${value}년`}
+            <div style={{ display: "flex", gap: 12, alignItems: "stretch", marginBottom: 18 }}>
+              {/* 연도 선택 드롭다운 */}
+              <div ref={yearDropRef} style={{ position: "relative", minWidth: 180 }}>
+                <button
+                  type="button"
+                  onClick={() => setYearOpen((v) => !v)}
+                  style={{
+                    width: "100%", height: 52, padding: "0 16px",
+                    borderRadius: 14,
+                    border: yearOpen ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+                    background: "#fff", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 10,
+                    transition: "border-color 0.25s, box-shadow 0.25s",
+                    boxShadow: yearOpen ? "0 0 0 3px rgba(37,99,235,0.1)" : "none",
+                    position: "relative",
+                  }}
+                >
+                  <Calendar size={16} color={yearOpen ? "#2563eb" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
+                  <span style={{
+                    position: "absolute", left: 42, top: yearOpen || year !== "all" ? 6 : "50%",
+                    transform: yearOpen || year !== "all" ? "none" : "translateY(-50%)",
+                    fontSize: yearOpen || year !== "all" ? 10 : 13,
+                    color: yearOpen ? "#2563eb" : "#94a3b8",
+                    fontWeight: 600, transition: "all 0.2s",
+                    pointerEvents: "none",
+                  }}>연도 선택</span>
+                  <span style={{
+                    flex: 1, textAlign: "left",
+                    fontSize: 15, fontWeight: 800, color: "#0f172a",
+                    marginTop: year !== "all" ? 8 : 0,
+                    opacity: year !== "all" ? 1 : 0,
+                    transition: "opacity 0.2s",
+                  }}>
+                    {year === "all" ? "" : `${year}년`}
+                  </span>
+                  <ChevronDown
+                    size={16} color={yearOpen ? "#2563eb" : "#94a3b8"}
+                    style={{
+                      transition: "transform 0.25s, color 0.25s",
+                      transform: yearOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    }}
+                  />
                 </button>
-              ))}
-              <button type="button" onClick={() => downloadResultImage(selected)} disabled={!selected} style={{ height: 42, padding: "0 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800, cursor: !selected ? "not-allowed" : "pointer", opacity: !selected ? 0.6 : 1 }}>
-                <Download size={14} /> 결과 이미지 다운로드
-              </button>
+                {yearOpen && (
+                  <div style={{
+                    position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
+                    background: "#fff", borderRadius: 14,
+                    border: "1.5px solid #e2e8f0",
+                    boxShadow: "0 12px 32px rgba(15,23,42,0.12)",
+                    zIndex: 50, padding: "6px",
+                    maxHeight: 260, overflowY: "auto",
+                  }}>
+                    {years.map((value) => (
+                      <button
+                        key={value} type="button"
+                        onClick={() => { setYear(value); setMonth("all"); setYearOpen(false); }}
+                        style={{
+                          width: "100%", padding: "10px 14px",
+                          borderRadius: 10, border: "none",
+                          background: year === value ? "#eff6ff" : "transparent",
+                          color: year === value ? "#2563eb" : "#334155",
+                          fontSize: 14, fontWeight: year === value ? 800 : 600,
+                          cursor: "pointer", textAlign: "left",
+                          transition: "background 0.15s",
+                        }}
+                      >
+                        {value === "all" ? "전체 연도" : `${value}년`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 월 선택 드롭다운 - 연도 선택 시에만 */}
+              {year !== "all" && (
+                <div style={{ position: "relative", minWidth: 140 }}>
+                  <MonthDropdown month={month} setMonth={setMonth} />
+                </div>
+              )}
+
+              {/* 검색창 */}
+              <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
+                <Search
+                  size={16}
+                  color={searchFocused ? "#2563eb" : "#94a3b8"}
+                  style={{
+                    position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
+                    transition: "color 0.25s", zIndex: 1,
+                  }}
+                />
+                <span style={{
+                  position: "absolute", left: 42,
+                  top: searchFocused || query ? 6 : "50%",
+                  transform: searchFocused || query ? "none" : "translateY(-50%)",
+                  fontSize: searchFocused || query ? 10 : 13,
+                  color: searchFocused ? "#2563eb" : "#94a3b8",
+                  fontWeight: 600,
+                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  pointerEvents: "none", zIndex: 1,
+                  background: "#fff", padding: "0 4px",
+                }}>행사 검색</span>
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                  style={{
+                    width: "100%", height: 52,
+                    borderRadius: 14,
+                    border: searchFocused ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+                    padding: query || searchFocused ? "14px 16px 0 42px" : "0 16px 0 42px",
+                    fontSize: 15, fontWeight: 700, color: "#0f172a",
+                    background: "#fff", outline: "none",
+                    transition: "border-color 0.25s, box-shadow 0.25s, padding 0.2s",
+                    boxShadow: searchFocused ? "0 0 0 3px rgba(37,99,235,0.1)" : "none",
+                    fontFamily: "inherit",
+                  }}
+                />
+              </div>
             </div>
 
             {selected ? (
@@ -476,7 +978,7 @@ export default function Closed() {
                 <section ref={topSectionRef} style={{ display: "grid", gridTemplateColumns: "minmax(320px, 0.82fr) minmax(0, 1.18fr)", gap: 18, marginBottom: 18 }}>
                   <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, overflow: "hidden", boxShadow: "0 18px 36px rgba(15,23,42,0.05)", minHeight: 420 }}>
                     {selected.image ? (
-                      <img src={selected.image} alt={selected.title} style={{ width: "100%", height: "100%", minHeight: 420, objectFit: "cover", display: "block" }} />
+                      <img src={resolveImageUrl(selected.image)} alt={selected.title} style={{ width: "100%", height: "100%", minHeight: 420, objectFit: "cover", display: "block" }} />
                     ) : (
                       <div style={{ minHeight: 420, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, color: "#94a3b8", background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)" }}>
                         <ImageOff size={36} />
@@ -487,8 +989,36 @@ export default function Closed() {
 
                   <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, overflow: "hidden", boxShadow: "0 18px 36px rgba(15,23,42,0.05)" }}>
                     <div style={{ padding: "26px 28px", borderBottom: "1px solid #eef2f7", background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)" }}>
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 999, background: "#eff6ff", color: "#1d4ed8", fontSize: 12, fontWeight: 800 }}>
-                        <Archive size={12} /> 선택된 종료 행사
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 999, background: "#eff6ff", color: "#1d4ed8", fontSize: 12, fontWeight: 800 }}>
+                          <Archive size={12} /> 선택된 종료 행사
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleDownload}
+                          disabled={downloading}
+                          style={{
+                            height: 38, padding: "0 16px", borderRadius: 12,
+                            border: "none",
+                            background: downloading ? "#94a3b8" : "linear-gradient(135deg, #0f172a, #334155)",
+                            color: "#fff",
+                            display: "inline-flex", alignItems: "center", gap: 8,
+                            fontSize: 13, fontWeight: 700, cursor: downloading ? "default" : "pointer",
+                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                            transform: downloading ? "scale(0.95)" : "scale(1)",
+                            opacity: downloading ? 0.8 : 1,
+                            boxShadow: downloading ? "none" : "0 4px 12px rgba(15,23,42,0.15)",
+                          }}
+                        >
+                          <Download
+                            size={14}
+                            style={{
+                              transition: "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                              transform: downloading ? "translateY(3px)" : "translateY(0)",
+                            }}
+                          />
+                          {downloading ? "다운로드 중..." : "결과 이미지"}
+                        </button>
                       </div>
                       <h2 style={{ margin: "14px 0 10px", fontSize: 34, lineHeight: 1.2, fontWeight: 900, color: "#0f172a" }}>{selected.title}</h2>
                       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", color: "#64748b", fontSize: 13 }}>
@@ -592,25 +1122,15 @@ export default function Closed() {
                   </div>
                 </section>
 
-                <section style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                  <GaugeCard label="참가자수 달성률" valueLabel={`${selected.participants.toLocaleString()} / ${selected.capacity.toLocaleString()}명`} percent={selectedParticipantPercent} color={METRIC_COLORS.participants} helper="행사 정원 대비 참가자수" />
-                  <GaugeCard label="참가율" valueLabel={`${selected.participationRate}%`} percent={selected.participationRate} color={METRIC_COLORS.rate} helper="행사 운영 결과 참여 비율" />
-                  <GaugeCard label="별점" valueLabel={`${selected.ratingText} / 5.0`} percent={(selected.rating / 5) * 100} color={METRIC_COLORS.rating} helper="후기 기준 평균 만족도" />
+                <section style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, marginBottom: 16 }}>
+                  <DonutChart label="참가자수 달성률" valueLabel={`${selected.participants.toLocaleString()} / ${selected.capacity.toLocaleString()}명`} percent={selectedParticipantPercent} color={METRIC_COLORS.participants} helper="행사 정원 대비 참가자수" />
+                  <RateGaugeCard rate={selected.participationRate} avgRate={avgRate} />
+                  <ParticipantsCard participants={selected.participants} capacity={selected.capacity} avgParticipants={filtered.length ? totalParticipants / filtered.length : 0} />
                 </section>
 
-                <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, padding: 24, marginBottom: 18, boxShadow: "0 18px 36px rgba(15,23,42,0.05)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 18 }}>
-                    <div>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: "#0f172a" }}>{selected.title} 결과 비교</div>
-                      <div style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>선택한 행사와 전체 종료 행사 평균을 비교합니다.</div>
-                    </div>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-                    <ComparisonRow label="참가율" selectedValue={selected.participationRate} averageValue={avgRate} color={METRIC_COLORS.rate} format={(value) => `${value.toFixed(1)}%`} />
-                    <ComparisonRow label="별점" selectedValue={selected.rating} averageValue={avgRating} color={METRIC_COLORS.rating} format={(value) => `${value.toFixed(1)} / 5.0`} />
-                    <ComparisonRow label="참가자수" selectedValue={selected.participants} averageValue={filtered.length ? totalParticipants / filtered.length : 0} color={METRIC_COLORS.participants} format={(value) => `${Math.round(value).toLocaleString()}명`} />
-                    <ComparisonRow label="후기 수" selectedValue={selected.reviewCount} averageValue={avgReviewCount} color="#7c3aed" format={(value) => `${Math.round(value).toLocaleString()}건`} />
-                  </div>
+                <section style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                  <StarRatingCard rating={selected.rating} avgRating={avgRating} />
+                  <ReviewsCard reviewCount={selected.reviewCount} avgReviewCount={avgReviewCount} />
                 </section>
               </>
             ) : null}
@@ -621,27 +1141,107 @@ export default function Closed() {
                 <div style={{ fontSize: 12, color: "#94a3b8" }}>{filtered.length}개 행사</div>
               </div>
               {filtered.length === 0 ? (
-                <div style={{ padding: "80px 24px", textAlign: "center", color: "#94a3b8" }}>조건에 맞는 종료 행사가 없습니다.</div>
+                <EmptyState message={query ? `"${query}" 검색 결과가 없습니다` : "조건에 맞는 종료 행사가 없습니다"} description={query ? "다른 검색어로 다시 시도해 보세요" : "연도 또는 월 필터를 변경해 보세요"} />
               ) : (
-                <div style={{ display: "grid", gap: 0 }}>
-                  {filtered.map((event) => {
-                    const active = event.id === selected?.id;
-                    return (
-                      <div key={event.id} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.2fr) 140px 110px 110px 130px", alignItems: "center", gap: 12, padding: "16px 24px", borderTop: "1px solid #f1f5f9", background: active ? "#eff6ff" : "#fff" }}>
-                        <button type="button" onClick={() => handleSelectEvent(event.id, true)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer", display: "grid", gap: 6 }}>
-                          <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>{event.title}</div>
-                          <div style={{ fontSize: 12, color: "#64748b" }}>{event.dateLabel} · {event.location}</div>
-                        </button>
-                        <div style={{ fontSize: 13, color: "#334155", fontWeight: 700 }}>{event.participants.toLocaleString()}명</div>
-                        <div style={{ fontSize: 13, color: "#334155", fontWeight: 700 }}>{event.participationRate}%</div>
-                        <div style={{ fontSize: 13, color: "#334155", fontWeight: 700 }}>{event.ratingText}</div>
-                        <button type="button" onClick={() => handleSelectEvent(event.id, true)} style={{ justifySelf: "end", height: 38, padding: "0 14px", borderRadius: 10, border: active ? "1px solid #1d4ed8" : "1px solid #dbe2ea", background: active ? "#dbeafe" : "#fff", color: active ? "#1d4ed8" : "#334155", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
-                          결과 보기
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                <>
+                  <div style={{ display: "grid", gap: 0 }}>
+                    {filtered.slice(0, visibleCount).map((event) => {
+                      const active = event.id === selected?.id;
+                      return (
+                        <div key={event.id} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 170px 110px 140px 110px", alignItems: "center", gap: 16, padding: "16px 24px", borderTop: "1px solid #f1f5f9", background: active ? "#eff6ff" : "#fff" }}>
+                          <button type="button" onClick={() => handleSelectEvent(event.id, true)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer", display: "grid", gap: 6 }}>
+                            <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>{event.title}</div>
+                            <div style={{ fontSize: 12, color: "#64748b" }}>{event.dateLabel} · {event.location}</div>
+                          </button>
+                          <div style={{ display: "grid", gap: 4 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                              <Users size={13} color="#2563eb" />
+                              <span style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{event.participants.toLocaleString()}명</span>
+                              <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>/ {event.capacity.toLocaleString()}</span>
+                            </div>
+                            <div style={{ width: "100%", height: 4, borderRadius: 2, background: "#e5e7eb", overflow: "hidden" }}>
+                              <div style={{ height: "100%", borderRadius: 2, background: "#2563eb", width: `${event.capacity > 0 ? clamp((event.participants / event.capacity) * 100) : 0}%`, transition: "width 0.3s" }} />
+                            </div>
+                          </div>
+                          {(() => {
+                            const r = event.participationRate;
+                            const rateColor = r >= 70 ? "#10b981" : r >= 40 ? "#f59e0b" : "#ef4444";
+                            const ratePercent = clamp(r);
+                            const miniR = 10;
+                            const miniC = 2 * Math.PI * miniR;
+                            const miniOff = miniC - (ratePercent / 100) * miniC;
+                            return (
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <svg width={26} height={26} style={{ transform: "rotate(-90deg)" }}>
+                                  <circle cx={13} cy={13} r={miniR} fill="none" stroke="#e5e7eb" strokeWidth={3} />
+                                  <circle cx={13} cy={13} r={miniR} fill="none" stroke={rateColor} strokeWidth={3} strokeLinecap="round" strokeDasharray={miniC} strokeDashoffset={miniOff} />
+                                </svg>
+                                <span style={{ fontSize: 13, fontWeight: 800, color: rateColor }}>{r}%</span>
+                              </div>
+                            );
+                          })()}
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            {[0, 1, 2, 3, 4].map((i) => {
+                              const fill = Math.min(1, Math.max(0, event.rating - i));
+                              return (
+                                <div key={i} style={{ position: "relative", width: 14, height: 14 }}>
+                                  <svg width={14} height={14} viewBox="0 0 24 24">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#e5e7eb" />
+                                  </svg>
+                                  <div style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${fill * 100}%` }}>
+                                    <svg width={14} height={14} viewBox="0 0 24 24" style={{ minWidth: 14 }}>
+                                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#f59e0b" />
+                                    </svg>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            <span style={{ fontSize: 12, color: "#64748b", fontWeight: 700, marginLeft: 2 }}>{event.ratingText}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectEvent(event.id, true)}
+                            style={{
+                              justifySelf: "end", height: 36, padding: "0 14px", borderRadius: 999,
+                              border: "none",
+                              background: active ? "#2563eb" : "#f1f5f9",
+                              color: active ? "#fff" : "#475569",
+                              fontSize: 12, fontWeight: 800, cursor: "pointer",
+                              display: "inline-flex", alignItems: "center", gap: 5,
+                              transition: "all 0.2s",
+                            }}
+                            onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "#e0e7ff"; e.currentTarget.style.color = "#2563eb"; } }}
+                            onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = "#f1f5f9"; e.currentTarget.style.color = "#475569"; } }}
+                          >
+                            {active ? <ChevronRight size={13} /> : null}
+                            {active ? "선택됨" : "결과 보기"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {visibleCount < filtered.length && (
+                    <div style={{ padding: "16px 24px", borderTop: "1px solid #f1f5f9" }}>
+                      <button
+                        type="button"
+                        onClick={() => setVisibleCount((v) => v + 5)}
+                        style={{
+                          width: "100%", height: 44, borderRadius: 12,
+                          border: "1.5px solid #e2e8f0", background: "#f8fafc",
+                          color: "#475569", fontSize: 14, fontWeight: 700,
+                          cursor: "pointer", display: "flex", alignItems: "center",
+                          justifyContent: "center", gap: 8,
+                          transition: "all 0.2s",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.borderColor = "#2563eb"; e.currentTarget.style.color = "#2563eb"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#475569"; }}
+                      >
+                        <ChevronDown size={16} />
+                        더보기 ({Math.min(5, filtered.length - visibleCount)}개)
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </section>
           </>

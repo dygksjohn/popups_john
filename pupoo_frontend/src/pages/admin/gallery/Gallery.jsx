@@ -26,6 +26,11 @@ import { Pill } from "../shared/Components";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 import { eventApi } from "../../../app/http/eventApi";
+import {
+  buildRequestUrl,
+  getConfiguredBaseUrl,
+} from "../../../shared/config/requestUrl";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 /* ══════════════════════════════════════════
    인라인 API
@@ -104,19 +109,16 @@ function appendMeta(desc, galleryType, tags = []) {
   return `${desc || ""}<!--meta:${JSON.stringify(meta)}-->`;
 }
 
-/* ── 이미지 URL 해석 ──
-   DB에 "/uploads/gallery/xxx.jpg" 형태로 저장됨
-   → 백엔드 baseURL 붙여서 실제 접근 가능한 URL로 변환 */
-const API_BASE = (
+/* ── image URL handling ──
+   TODO(cloud-native-step-01): remove legacy relative /uploads responses once
+   backend rollout finishes and every gallery response exposes a stable URL. */
+const API_BASE = getConfiguredBaseUrl(
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
-  "http://localhost:8080"
-).replace(/\/+$/, "");
+    "",
+);
 
 function resolveImgUrl(url) {
-  if (!url) return null;
-  if (url.startsWith("http")) return url;
-  if (url.startsWith("/")) return API_BASE + url;
-  return url;
+  return resolveImageUrl(url);
 }
 
 /* ── 이미지 헬퍼 ── */
@@ -360,10 +362,9 @@ const inputStyle = {
   fontFamily: ds.ff,
   color: ds.ink,
   outline: "none",
-                  background: ds.bg,
+  background: ds.bg,
   boxSizing: "border-box",
   transition: "border-color .15s, box-shadow .15s",
-  background: ds.bg,
 };
 const inputFocus = (e) => {
   e.target.style.borderColor = ds.brand;
@@ -888,8 +889,7 @@ function FormModal({
       const formData = new FormData();
       files.forEach((f) => formData.append("files", f));
       const token = getToken();
-      const baseURL = axiosInstance.defaults.baseURL || "http://localhost:8080";
-      const res = await fetch(`${baseURL}/api/admin/galleries/images/upload`, {
+      const res = await fetch(buildRequestUrl(API_BASE, "/api/admin/galleries/images/upload"), {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,

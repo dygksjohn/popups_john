@@ -6,6 +6,7 @@ import {
   MapPin,
   Users,
 } from "lucide-react";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -392,7 +393,7 @@ export default function EventSelectPage({ events = [], basePath }) {
                     {thumbnail ? (
                       <img
                         className="ev-card-thumb-img"
-                        src={thumbnail}
+                        src={resolveImageUrl(thumbnail)}
                         alt={event?.name || "행사 이미지"}
                         onError={(e) => {
                           e.currentTarget.style.display = "none";

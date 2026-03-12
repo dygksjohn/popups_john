@@ -39,7 +39,7 @@ public class EmailVerificationService {
             EmailVerificationTokenRepository tokenRepository,
             NotificationSender notificationSender,
             @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
-            @Value("${verification.email.base-url:http://localhost:8080}") String baseUrl,
+            @Value("${verification.email.base-url:http://3.38.233.224:8080}") String baseUrl,
             @Value("${verification.email.ttl-hours:24}") int tokenTtlHours,
             @Value("${verification.request.cooldown-seconds:60}") int requestCooldownSeconds,
             @Value("${verification.dev.expose:true}") boolean exposeDevToken

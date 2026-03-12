@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Mail, Phone } from "lucide-react";
 import { programApi } from "../../../app/http/programApi";
-import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 const AVATAR_COLORS = ["#1a4fd6", "#059669", "#d97706", "#dc2626", "#7c3aed"];
 
@@ -172,7 +172,10 @@ export default function SpeakerDetail() {
     };
   }, [speakerId, programId]);
 
-  const speakerImageUrl = useMemo(() => toPublicAssetUrl(speaker?.speakerImageUrl), [speaker?.speakerImageUrl]);
+  const speakerImageUrl = useMemo(
+    () => resolveImageUrl(speaker?.speakerImageUrl),
+    [speaker?.speakerImageUrl],
+  );
   const initial = String(speaker?.speakerName || "연").trim().charAt(0) || "연";
 
   if (loading) {

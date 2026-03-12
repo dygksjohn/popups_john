@@ -1,5 +1,16 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Home } from "lucide-react";
+
+const SECTION_LABELS = {
+  event: "행사",
+  program: "프로그램",
+  community: "커뮤니티",
+  realtime: "실시간 현황",
+  guide: "이용 안내",
+  gallery: "갤러리",
+  registration: "참가 신청",
+};
 
 const styles = {
   pageHeader: {
@@ -17,6 +28,12 @@ const styles = {
     width: "min(1350px, calc(100% - 50px))",
     margin: "0 auto",
   },
+  topRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 16,
+  },
   title: {
     fontSize: 22,
     fontWeight: 800,
@@ -28,6 +45,32 @@ const styles = {
     color: "#6b7280",
     fontWeight: 400,
     margin: "0 0 20px",
+    lineHeight: 1.6,
+  },
+  breadcrumb: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 12.5,
+    color: "#b0b5bd",
+    fontWeight: 400,
+    whiteSpace: "nowrap",
+    paddingTop: 6,
+    flexShrink: 0,
+  },
+  breadcrumbSep: {
+    color: "#d1d5db",
+    fontSize: 10,
+  },
+  breadcrumbCurrent: {
+    color: "#6b7280",
+    fontWeight: 600,
+  },
+  searchArea: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "8px 0 14px",
   },
   tabs: {
     display: "flex",
@@ -60,12 +103,14 @@ export default function PageHeader({
   title,
   subtitle,
   categories,
+  children,
   stickyCategories = false,
 }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const hiddenPaths = new Set(["/event/preregister"]);
+
   const programMatch = location.pathname.match(
     /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/([^/?#]+))?/,
   );
@@ -79,7 +124,6 @@ export default function PageHeader({
     /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/[^/?#]+)?$/.test(
       path,
     );
-
   const hasProgramEventIdInPath = (path) =>
     /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)\/[^/?#]+$/.test(
       path,
@@ -89,7 +133,6 @@ export default function PageHeader({
     /^\/realtime\/(?:dashboard|waitingstatus|checkinstatus|votestatus)(?:\/[^/?#]+)?$/.test(
       path,
     );
-
   const hasRealtimeEventIdInPath = (path) =>
     /^\/realtime\/(?:dashboard|waitingstatus|checkinstatus|votestatus)\/[^/?#]+$/.test(
       path,
@@ -119,6 +162,12 @@ export default function PageHeader({
     (cat) => !hiddenPaths.has(cat.path),
   );
 
+  const pathSegments = location.pathname.split("/").filter(Boolean);
+  const sectionLabel = SECTION_LABELS[pathSegments[0] || ""];
+  const breadcrumbItems = sectionLabel
+    ? ["홈", sectionLabel, title]
+    : ["홈", title];
+
   const pageHeaderStyle = stickyCategories
     ? { ...styles.pageHeader, ...styles.pageHeaderSticky }
     : styles.pageHeader;
@@ -126,10 +175,38 @@ export default function PageHeader({
   return (
     <div style={pageHeaderStyle}>
       <div style={styles.inner}>
-        {title ? <h1 style={styles.title}>{title}</h1> : null}
-        {subtitle ? <p style={styles.subtitle}>{subtitle}</p> : null}
+        <div style={styles.topRow}>
+          <div>
+            {title ? <h1 style={styles.title}>{title}</h1> : null}
+            {subtitle ? <p style={styles.subtitle}>{subtitle}</p> : null}
+          </div>
+          {title ? (
+            <div style={styles.breadcrumb}>
+              <Home size={12} style={{ color: "#b0b5bd" }} />
+              {breadcrumbItems.map((item, i) => (
+                <span
+                  key={`${item}-${i}`}
+                  style={{ display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  {i > 0 ? <span style={styles.breadcrumbSep}>{">"}</span> : null}
+                  <span
+                    style={
+                      i === breadcrumbItems.length - 1
+                        ? styles.breadcrumbCurrent
+                        : undefined
+                    }
+                  >
+                    {item}
+                  </span>
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
 
-        {filteredCategories.length > 0 && (
+        {children ? <div style={styles.searchArea}>{children}</div> : null}
+
+        {filteredCategories.length > 0 ? (
           <div style={styles.tabs}>
             {filteredCategories.map((cat, i) => {
               const targetPath = resolveTargetPath(cat.path);
@@ -159,7 +236,7 @@ export default function PageHeader({
               );
             })}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

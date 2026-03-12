@@ -17,6 +17,10 @@ import {
 import { programApi } from "../../../app/http/programApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { authApi } from "../auth/api/authApi";
+import {
+  createImageFallbackHandler,
+  resolveImageUrl,
+} from "../../../shared/utils/publicAssetUrl";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -89,15 +93,6 @@ const styles = `
     .cd-candidate-grid { grid-template-columns: 1fr; }
   }
 `;
-
-const toAbsUrl = (url) => {
-  if (!url) return null;
-  if (url.startsWith("http")) return url;
-  const base = (
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
-  ).replace(/\/$/, "");
-  return base + (url.startsWith("/") ? url : `/${url}`);
-};
 
 function formatTimeRange(startAt, endAt) {
   const pick = (value) => {
@@ -324,17 +319,11 @@ export default function ContestDetailPage() {
                 {rows.map((row) => (
                   <div key={row.id} className="cd-candidate-card">
                     <div className="cd-candidate-thumb">
-                      {row.imageUrl ? (
-                        <img
-                          src={toAbsUrl(row.imageUrl)}
-                          alt={row.name}
-                          onError={(event) => {
-                            event.target.style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <PawPrint size={30} color="#9ca3af" />
-                      )}
+                      <img
+                        src={resolveImageUrl(row.imageUrl)}
+                        alt={row.name}
+                        onError={createImageFallbackHandler()}
+                      />
                     </div>
 
                     <div className="cd-candidate-body">

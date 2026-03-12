@@ -1,4 +1,6 @@
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
+import EmptyState from "../components/EmptyState";
 import EventDetailModal from "./EventDetailModal";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -6,6 +8,7 @@ import { eventApi } from "../../../app/http/eventApi";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 import {
   MapPin,
   Clock,
@@ -61,117 +64,88 @@ const styles = `
   .up-nav-btn:hover { background: #f3f4f6; color: #111827; }
   .up-nav-btn.active { background: #1a4fd6; color: #fff; font-weight: 600; }
 
-  .up-container { width: min(1350px, calc(100% - 50px)); margin: 0 auto; padding: 32px 0 64px; }
+  .up-container { width: min(1400px, calc(100% - 40px)); margin: 0 auto; padding: 32px 0 64px; }
 
-  .up-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 100px; font-size: 11px; font-weight: 700; color: #2563eb; margin-bottom: 20px; }
-  .up-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #2563eb; animation: up-pulse 1.4s ease-in-out infinite; }
+  .up-status-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 52px; padding: 0 20px;
+    background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px;
+    font-size: 14px; font-weight: 700; color: #111827;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .up-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #2563eb; animation: up-pulse 1.4s ease-in-out infinite; }
+  .up-status-count { color: #2563eb; font-weight: 800; }
   @keyframes up-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 
-  .up-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
-  .up-stat-card {
-    background: #fff; border: 1px solid #e9ecef; border-radius: 13px;
-    padding: 20px 22px; display: flex; align-items: center; gap: 14px;
-  }
-  .up-stat-icon { width: 44px; height: 44px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .up-stat-label { font-size: 12px; color: #6b7280; font-weight: 500; }
-  .up-stat-value { font-size: 22px; font-weight: 800; color: #111827; }
-
-  .up-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
-  .up-search-wrap { position: relative; flex: 1; min-width: 200px; }
-  .up-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
-  .up-search {
-    width: 100%; height: 40px; padding: 0 13px 0 36px;
-    border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13.5px;
-    color: #111827; outline: none; font-family: inherit; background: #fff;
-    transition: border-color 0.15s;
-  }
-  .up-search:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
   .up-filter-btn {
-    height: 40px; padding: 0 14px; border: 1px solid #e2e8f0; border-radius: 8px;
-    background: #fff; font-size: 13px; font-weight: 500; color: #374151;
+    height: 52px; padding: 0 18px; border: 1.5px solid #e2e8f0; border-radius: 14px;
+    background: #fff; font-size: 13.5px; font-weight: 600; color: #374151;
     cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: inherit;
     transition: all 0.15s; white-space: nowrap;
   }
-  .up-filter-btn:hover { border-color: #1a4fd6; color: #1a4fd6; }
-  .up-filter-btn.active { border-color: #1a4fd6; background: #f5f8ff; color: #1a4fd6; }
+  .up-filter-btn:hover { border-color: #2563eb; color: #2563eb; }
+  .up-filter-btn.active { border-color: #2563eb; background: #eff6ff; color: #2563eb; font-weight: 700; }
 
-  /* Timeline-style list */
-  .up-list { display: flex; flex-direction: column; gap: 12px; }
+  /* Card grid */
+  .up-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
   .up-event-card {
-    background: #fff; border: 1px solid #e9ecef; border-radius: 14px;
-    padding: 20px 24px; display: flex; align-items: flex-start; gap: 20px;
-    transition: box-shadow 0.2s, transform 0.15s; cursor: pointer;
+    background: #fff; border: 1px solid #e9ecef; border-radius: 16px;
+    overflow: hidden; display: flex;
+    transition: box-shadow 0.25s, transform 0.25s; cursor: pointer;
   }
-  .up-event-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.07); transform: translateY(-1px); }
-  .up-date-box {
-    flex-shrink: 0; width: 60px; text-align: center;
-    background: #f5f8ff; border-radius: 10px; padding: 10px 8px;
-    border: 1px solid #e0e9ff;
-  }
+  .up-event-card:hover { box-shadow: 0 12px 36px rgba(0,0,0,0.08); transform: translateY(-2px); }
+
   .up-thumb {
-    width: 96px;
-    height: 72px;
-    border-radius: 10px;
-    overflow: hidden;
-    background: #eef2ff;
-    border: 1px solid #dbe3ff;
-    flex-shrink: 0;
-    position: relative;
+    width: 180px; flex-shrink: 0;
+    overflow: hidden; background: #eef2ff; position: relative;
   }
-  .up-thumb img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
+  .up-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s; }
+  .up-event-card:hover .up-thumb img { transform: scale(1.03); }
   .up-thumb-fallback {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
+    width: 100%; height: 100%; min-height: 200px;
+    display: flex; align-items: center; justify-content: center; font-size: 36px;
     background: linear-gradient(135deg, #1a4fd6 0%, #6366f1 100%);
   }
-  .up-date-month { font-size: 10px; font-weight: 600; color: #1a4fd6; text-transform: uppercase; }
-  .up-date-day { font-size: 24px; font-weight: 800; color: #111827; line-height: 1.1; }
-  .up-date-dow { font-size: 10px; color: #9ca3af; font-weight: 500; }
-  .up-event-main { flex: 1; min-width: 0; }
-  .up-event-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
-  .up-event-category {
-    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
-  }
   .up-d-badge {
-    font-size: 11px; font-weight: 700; color: #fff;
-    padding: 2px 8px; border-radius: 4px; background: #ef4444;
+    position: absolute; top: 12px; right: 12px;
+    font-size: 12px; font-weight: 800; color: #fff;
+    padding: 4px 10px; border-radius: 8px;
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    box-shadow: 0 2px 8px rgba(239,68,68,0.3);
   }
-  .up-event-title { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 8px; }
-  .up-event-meta { display: flex; gap: 16px; flex-wrap: wrap; }
-  .up-event-meta-item { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: #6b7280; }
-  .up-event-right { display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; align-self: flex-start; gap: 8px; flex-shrink: 0; }
-  .up-participants { font-size: 12px; color: #6b7280; text-align: right; }
-  .up-participants strong { display: block; font-size: 15px; font-weight: 700; color: #111827; }
+
+  .up-event-body { flex: 1; padding: 20px 22px; display: flex; flex-direction: column; min-width: 0; }
+  .up-event-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .up-event-category { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+  .up-event-title { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 10px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .up-event-meta { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .up-event-meta-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #6b7280; }
+  .up-event-footer { margin-top: auto; display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #f1f3f5; gap: 8px; }
+  .up-participants { font-size: 12px; color: #6b7280; }
+  .up-participants strong { font-size: 14px; font-weight: 800; color: #111827; }
+  .up-action-row { display: flex; align-items: center; gap: 6px; }
   .up-alarm-btn {
-    height: 32px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    height: 34px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
     cursor: pointer; display: flex; align-items: center; gap: 5px; font-family: inherit;
     transition: all 0.15s;
   }
   .up-alarm-btn.off { border: 1px solid #e2e8f0; background: #fff; color: #374151; }
-  .up-alarm-btn.off:hover { border-color: #1a4fd6; color: #1a4fd6; }
-  .up-alarm-btn.on { border: 1px solid #1a4fd6; background: #eff4ff; color: #1a4fd6; }
-  .up-action-row { display: flex; align-items: center; gap: 6px; }
+  .up-alarm-btn.off:hover { border-color: #2563eb; color: #2563eb; }
+  .up-alarm-btn.on { border: 1px solid #2563eb; background: #eff6ff; color: #2563eb; }
   .up-pre-btn {
-    height: 32px; padding: 0 12px; border-radius: 8px; border: none;
-    font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+    height: 34px; padding: 0 14px; border-radius: 8px; border: none;
+    font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit;
     background: #1a4fd6; color: #fff; transition: all 0.15s;
   }
   .up-pre-btn:hover { background: #1640b8; }
   .up-pre-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-  @media (max-width: 700px) {
-    .up-stat-grid { grid-template-columns: repeat(3, 1fr); }
-    .up-event-card { flex-wrap: wrap; }
-    .up-event-right { flex-direction: column; align-items: flex-end; width: 100%; }
+  @media (max-width: 900px) {
+    .up-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .up-event-card { flex-direction: column; }
+    .up-thumb { width: 100%; height: 180px; }
   }
 `;
 
@@ -292,6 +266,7 @@ export default function Upcoming() {
   const navigate = useNavigate();
   const location = useLocation();
   const [query, setQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
   const [filter, setFilter] = useState("all");
   const [alarms, setAlarms] = useState({});
   const [currentPath, setCurrentPath] = useState("/event/upcoming");
@@ -422,43 +397,73 @@ export default function Upcoming() {
 
       <main className="up-container">
         {loading ? (
-          <div className="up-live-badge">Loading...</div>
+          <PageLoading />
         ) : error ? (
-          <div className="up-live-badge">{error}</div>
+          <EmptyState type="error" message="행사를 불러오지 못했습니다" description={error} />
         ) : (
-          <div className="up-live-badge">
-            <div className="up-live-dot" />
-            UPCOMING · {events.length}개 행사 예정
-          </div>
-        )}
-
-        <div className="up-toolbar">
-          <div className="up-search-wrap">
-            <Search size={15} className="up-search-icon" />
-            <input
-              className="up-search"
-              placeholder="행사명, 카테고리 검색"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          {categories.map((c) => (
-            <button
-              key={c}
-              className={`up-filter-btn${filter === c ? " active" : ""}`}
-              onClick={() => setFilter(c)}
-            >
-              <>
+          <>
+          {/* 검색 바 + 상태 칩 */}
+          <div style={{ display: "flex", gap: 12, alignItems: "stretch", marginBottom: 18, flexWrap: "wrap" }}>
+            <div className="up-status-chip">
+              <div className="up-status-dot" />
+              예정 <span className="up-status-count">{events.length}</span>
+            </div>
+            <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
+              <Search
+                size={16}
+                color={searchFocused ? "#2563eb" : "#94a3b8"}
+                style={{
+                  position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
+                  transition: "color 0.25s", zIndex: 1,
+                }}
+              />
+              <span style={{
+                position: "absolute", left: 42,
+                top: searchFocused || query ? 6 : "50%",
+                transform: searchFocused || query ? "none" : "translateY(-50%)",
+                fontSize: searchFocused || query ? 10 : 13,
+                color: searchFocused ? "#2563eb" : "#94a3b8",
+                fontWeight: 600,
+                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                pointerEvents: "none", zIndex: 1,
+                background: "#fff", padding: "0 4px",
+              }}>행사 검색</span>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                style={{
+                  width: "100%", height: 52,
+                  borderRadius: 14,
+                  border: searchFocused ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+                  padding: query || searchFocused ? "14px 16px 0 42px" : "0 16px 0 42px",
+                  fontSize: 15, fontWeight: 700, color: "#0f172a",
+                  background: "#fff", outline: "none",
+                  transition: "border-color 0.25s, box-shadow 0.25s, padding 0.2s",
+                  boxShadow: searchFocused ? "0 0 0 3px rgba(37,99,235,0.1)" : "none",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+            {categories.map((c) => (
+              <button
+                key={c}
+                className={`up-filter-btn${filter === c ? " active" : ""}`}
+                onClick={() => setFilter(filter === c ? "all" : c)}
+              >
                 <Tag size={11} /> {c}
-              </>
-            </button>
-          ))}
-        </div>
+              </button>
+            ))}
+          </div>
 
-        <div className="up-list">
-          {filtered.length === 0 && !loading && !error ? (
-            <div style={{ fontSize: 13, color: "#6b7280" }}>
-              예정된 행사가 없습니다.
+        <div className="up-grid">
+          {filtered.length === 0 ? (
+            <div style={{ gridColumn: "1 / -1" }}>
+              <EmptyState
+                message={query ? `"${query}" 검색 결과가 없습니다` : "예정된 행사가 없습니다"}
+                description={query ? "다른 검색어로 다시 시도해 보세요" : "현재 예정된 행사가 등록되지 않았습니다"}
+              />
             </div>
           ) : null}
           {filtered.map((ev) => {
@@ -473,15 +478,10 @@ export default function Upcoming() {
                 className="up-event-card"
                 onClick={() => setSelectedEvent(ev)}
               >
-                <div className="up-date-box">
-                  <div className="up-date-month">{ev.month}</div>
-                  <div className="up-date-day">{ev.day}</div>
-                  <div className="up-date-dow">{ev.dow}요일</div>
-                </div>
                 <div className="up-thumb">
                   {ev.image ? (
                     <img
-                      src={ev.image}
+                      src={resolveImageUrl(ev.image)}
                       alt={ev.title}
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
@@ -493,8 +493,9 @@ export default function Upcoming() {
                   <div className="up-thumb-fallback" style={{ display: ev.image ? "none" : "flex" }}>
                     {ev.fallback}
                   </div>
+                  <span className="up-d-badge">D-{ev.dday}</span>
                 </div>
-                <div className="up-event-main">
+                <div className="up-event-body">
                   <div className="up-event-top">
                     <span
                       className="up-event-category"
@@ -502,7 +503,6 @@ export default function Upcoming() {
                     >
                       {ev.category}
                     </span>
-                    <span className="up-d-badge">D-{ev.dday}</span>
                   </div>
                   <div className="up-event-title">{ev.title}</div>
                   <div className="up-event-meta">
@@ -512,39 +512,40 @@ export default function Upcoming() {
                     </div>
                     <div className="up-event-meta-item">
                       <Clock size={12} />
-                      {ev.time}
+                      {ev.date} · {ev.time}
                     </div>
                   </div>
-                </div>
-                <div className="up-event-right">
-                  <div className="up-participants">
-                    <strong>{Number(ev.registered || 0).toLocaleString()}명</strong>
-                    사전 등록 인원 / {Number(ev.capacity || 0).toLocaleString()}명
-                  </div>
-                  <div className="up-action-row">
-                    <button
-                      className={`up-alarm-btn ${isOn ? "on" : "off"}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAlarms((a) => ({ ...a, [ev.id]: !a[ev.id] }));
-                      }}
-                    >
-                      {isOn ? <BellRing size={12} /> : <Bell size={12} />}
-                      {isOn ? "알림 설정됨" : "알림 설정"}
-                    </button>
-                    <button
-                      className="up-pre-btn"
-                      onClick={(e) => handlePreApply(ev, e)}
-                      disabled={submittingId === ev.id}
-                    >
-                      {submittingId === ev.id ? "처리중" : "사전신청"}
-                    </button>
+                  <div className="up-event-footer">
+                    <div className="up-participants">
+                      사전 등록 <strong>{Number(ev.registered || 0).toLocaleString()}</strong> / {Number(ev.capacity || 0).toLocaleString()}명
+                    </div>
+                    <div className="up-action-row">
+                      <button
+                        className={`up-alarm-btn ${isOn ? "on" : "off"}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAlarms((a) => ({ ...a, [ev.id]: !a[ev.id] }));
+                        }}
+                      >
+                        {isOn ? <BellRing size={12} /> : <Bell size={12} />}
+                        {isOn ? "알림 ON" : "알림"}
+                      </button>
+                      <button
+                        className="up-pre-btn"
+                        onClick={(e) => handlePreApply(ev, e)}
+                        disabled={submittingId === ev.id}
+                      >
+                        {submittingId === ev.id ? "처리중" : "사전신청"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
+          </>
+        )}
       </main>
 
       {selectedEvent && (

@@ -19,6 +19,7 @@ public class StoredFile {
     @Column(name = "original_name", nullable = false, length = 255)
     private String originalName;
 
+    // TODO(step-01-storage-policy): keep the legacy column name for now, but store the full storage key instead of only a file name.
     @Column(name = "stored_name", nullable = false, length = 255, unique = true)
     private String storedName;
 

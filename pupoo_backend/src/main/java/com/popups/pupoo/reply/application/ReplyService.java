@@ -2,6 +2,8 @@
 package com.popups.pupoo.reply.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
+import com.popups.pupoo.board.bannedword.dto.BannedWordDetection;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
 import com.popups.pupoo.board.post.domain.model.Post;
@@ -23,6 +25,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.time.LocalDateTime;
 
 @Service
@@ -68,11 +71,15 @@ public class ReplyService {
         }
 
         // 금칙어 검증 (댓글 작성 포함)
-        validateBannedWordsForReplyTarget(request.getTargetType(), request.getTargetId(), request.getContent());
+        List<BannedWordDetection> detections = validateBannedWordsForReplyTarget(request.getTargetType(), request.getTargetId(), request.getContent());
 
         LocalDateTime now = LocalDateTime.now();
 
         if (request.getTargetType() == ReplyTargetType.POST) {
+            Post post = postRepository.findByPostIdAndDeletedFalse(request.getTargetId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글이 존재하지 않습니다."));
+            Long boardId = post.getBoard() != null ? post.getBoard().getBoardId() : null;
+
             PostComment saved = postCommentRepository.save(PostComment.builder()
                     .postId(request.getTargetId())
                     .userId(userId)
@@ -82,10 +89,17 @@ public class ReplyService {
                     .deleted(false)
                     .build());
 
-            return toResponse(saved, ReplyTargetType.POST, request.getTargetId());
+            if (boardId != null && !detections.isEmpty()) {
+                bannedWordService.logDetections(boardId, saved.getCommentId(), BannedLogContentType.COMMENT, userId, detections);
+            }
+            return toResponse(saved, ReplyTargetType.POST, request.getTargetId(), boardId);
         }
 
         if (request.getTargetType() == ReplyTargetType.REVIEW) {
+            Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "REVIEW 게시판이 존재하지 않습니다."))
+                    .getBoardId();
+
             ReviewComment saved = reviewCommentRepository.save(ReviewComment.builder()
                     .reviewId(request.getTargetId())
                     .userId(userId)
@@ -95,7 +109,10 @@ public class ReplyService {
                     .deleted(false)
                     .build());
 
-            return toResponse(saved, ReplyTargetType.REVIEW, request.getTargetId());
+            if (!detections.isEmpty()) {
+                bannedWordService.logDetections(reviewBoardId, saved.getCommentId(), BannedLogContentType.COMMENT, userId, detections);
+            }
+            return toResponse(saved, ReplyTargetType.REVIEW, request.getTargetId(), reviewBoardId);
         }
 
         throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 댓글 대상 타입입니다.");
@@ -127,15 +144,19 @@ public class ReplyService {
         targetValidator.validatePublicReadable(targetType, targetId);
 
         if (targetType == ReplyTargetType.POST) {
+            Long boardId = postRepository.findByPostIdAndDeletedFalse(targetId)
+                    .map(p -> p.getBoard() != null ? p.getBoard().getBoardId() : null)
+                    .orElse(null);
             return postCommentRepository
                     .findAllByPostIdAndDeletedFalseOrderByCreatedAtDesc(targetId, PageRequest.of(page, size))
-                    .map(c -> toResponse(c, ReplyTargetType.POST, targetId));
+                    .map(c -> toResponse(c, ReplyTargetType.POST, targetId, boardId));
         }
 
         if (targetType == ReplyTargetType.REVIEW) {
+            Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW).map(b -> b.getBoardId()).orElse(null);
             return reviewCommentRepository
                     .findAllByReviewIdAndDeletedFalseOrderByCreatedAtDesc(targetId, PageRequest.of(page, size))
-                    .map(c -> toResponse(c, ReplyTargetType.REVIEW, targetId));
+                    .map(c -> toResponse(c, ReplyTargetType.REVIEW, targetId, reviewBoardId));
         }
 
         throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 댓글 대상 타입입니다.");
@@ -152,28 +173,36 @@ public class ReplyService {
             PostComment comment = postCommentRepository.findByCommentIdAndDeletedFalse(replyId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "댓글이 존재하지 않습니다."));
 
-            validateBannedWordsForReplyTarget(ReplyTargetType.POST, comment.getPostId(), request.getContent());
+            List<BannedWordDetection> detections = validateBannedWordsForReplyTarget(ReplyTargetType.POST, comment.getPostId(), request.getContent());
 
             if (!comment.getUserId().equals(userId)) {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다.");
             }
 
             PostComment saved = postCommentRepository.save(comment.updateContent(request.getContent(), now));
-            return toResponse(saved, ReplyTargetType.POST, comment.getPostId());
+            Long boardId = postRepository.findByPostIdAndDeletedFalse(comment.getPostId()).map(p -> p.getBoard() != null ? p.getBoard().getBoardId() : null).orElse(null);
+            if (boardId != null && !detections.isEmpty()) {
+                bannedWordService.logDetections(boardId, saved.getCommentId(), BannedLogContentType.COMMENT, userId, detections);
+            }
+            return toResponse(saved, ReplyTargetType.POST, comment.getPostId(), boardId);
         }
 
         if (targetType == ReplyTargetType.REVIEW) {
             ReviewComment comment = reviewCommentRepository.findByCommentIdAndDeletedFalse(replyId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "댓글이 존재하지 않습니다."));
 
-            validateBannedWordsForReplyTarget(ReplyTargetType.REVIEW, comment.getReviewId(), request.getContent());
+            List<BannedWordDetection> detections = validateBannedWordsForReplyTarget(ReplyTargetType.REVIEW, comment.getReviewId(), request.getContent());
 
             if (!comment.getUserId().equals(userId)) {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다.");
             }
 
             ReviewComment saved = reviewCommentRepository.save(comment.updateContent(request.getContent(), now));
-            return toResponse(saved, ReplyTargetType.REVIEW, comment.getReviewId());
+            Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW).map(b -> b.getBoardId()).orElse(null);
+            if (reviewBoardId != null && !detections.isEmpty()) {
+                bannedWordService.logDetections(reviewBoardId, saved.getCommentId(), BannedLogContentType.COMMENT, userId, detections);
+            }
+            return toResponse(saved, ReplyTargetType.REVIEW, comment.getReviewId(), reviewBoardId);
         }
 
         throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 댓글 대상 타입입니다.");
@@ -210,28 +239,30 @@ public class ReplyService {
         throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 댓글 대상 타입입니다.");
     }
 
-    private ReplyResponse toResponse(PostComment c, ReplyTargetType type, Long targetId) {
+    private ReplyResponse toResponse(PostComment c, ReplyTargetType type, Long targetId, Long boardId) {
+        String content = boardId != null ? bannedWordService.mask(boardId, c.getContent()) : c.getContent();
         return ReplyResponse.builder()
                 .replyId(c.getCommentId())
                 .targetType(type)
                 .targetId(targetId)
                 .userId(c.getUserId())
                 .writerEmail(getWriterEmail(c.getUserId()))
-                .content(c.getContent())
+                .content(content)
                 .status(c.isDeleted() ? ReplyStatus.DELETED : ReplyStatus.ACTIVE)
                 .createdAt(c.getCreatedAt())
                 .updatedAt(c.getUpdatedAt())
                 .build();
     }
 
-    private ReplyResponse toResponse(ReviewComment c, ReplyTargetType type, Long targetId) {
+    private ReplyResponse toResponse(ReviewComment c, ReplyTargetType type, Long targetId, Long boardId) {
+        String content = boardId != null ? bannedWordService.mask(boardId, c.getContent()) : c.getContent();
         return ReplyResponse.builder()
                 .replyId(c.getCommentId())
                 .targetType(type)
                 .targetId(targetId)
                 .userId(c.getUserId())
                 .writerEmail(getWriterEmail(c.getUserId()))
-                .content(c.getContent())
+                .content(content)
                 .status(c.isDeleted() ? ReplyStatus.DELETED : ReplyStatus.ACTIVE)
                 .createdAt(c.getCreatedAt())
                 .updatedAt(c.getUpdatedAt())
@@ -252,26 +283,27 @@ public class ReplyService {
     }
 
     /**
-     * 댓글 대상별로 게시판을 식별하여 금칙어 검증을 수행한다.
+     * 댓글 대상별로 게시판을 식별하여 금칙어 검증 (정책 연동, BLOCK 시 예외).
      * - POST 댓글: post.board_id 기준
      * - REVIEW 댓글: boards(board_type=REVIEW) 기준
      */
-    private void validateBannedWordsForReplyTarget(ReplyTargetType targetType, Long targetId, String content) {
-        if (content == null) return;
+    private List<BannedWordDetection> validateBannedWordsForReplyTarget(ReplyTargetType targetType, Long targetId, String content) {
+        if (content == null) return List.of();
 
         if (targetType == ReplyTargetType.POST) {
             Post post = postRepository.findByPostIdAndDeletedFalse(targetId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글이 존재하지 않습니다."));
-            bannedWordService.validate(post.getBoard().getBoardId(), content);
-            return;
+            Long boardId = post.getBoard() != null ? post.getBoard().getBoardId() : null;
+            return boardId != null ? bannedWordService.validate(boardId, content) : List.of();
         }
 
         if (targetType == ReplyTargetType.REVIEW) {
             Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW)
                     .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "REVIEW 게시판(board_type=REVIEW)이 존재하지 않습니다."))
                     .getBoardId();
-            bannedWordService.validate(reviewBoardId, content);
-            return;
+            return bannedWordService.validate(reviewBoardId, content);
         }
+
+        return List.of();
     }
 }

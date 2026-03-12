@@ -12,6 +12,7 @@ import { petApi } from "../../../app/http/petApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { authApi } from "../auth/api/authApi";
+import { resolveImageUrl, toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 import {
   loadImageCache as loadProgramImageCache,
   getProgramImageMap,
@@ -630,7 +631,7 @@ function VoteConfirmModal({ candidate, onConfirm, onCancel }) {
         <div className="ct-modal-img-wrap">
           <img
             className="ct-modal-img"
-            src={candidate.image}
+            src={resolveImageUrl(candidate.image)}
             alt={candidate.name}
           />
           <button className="ct-modal-close" onClick={onCancel}>
@@ -683,7 +684,7 @@ function CandidateCard({
       style={{ animationDelay: `${(rank - 1) * 0.07}s` }}
     >
       <div className="ct-candidate-img-wrap">
-        <img src={candidate.image} alt={candidate.name} loading="lazy" />
+        <img src={resolveImageUrl(candidate.image)} alt={candidate.name} loading="lazy" />
         <div className="ct-candidate-img-overlay" />
         <div className={"ct-candidate-rank-badge " + rankClass}>{rank}</div>
         {isMyVote ? (
@@ -758,7 +759,7 @@ function RankingItem({ candidate, rank, maxVotes }) {
     <div className={"ct-ranking-item" + (rank <= 3 ? " top" : "")}>
       <div className={"ct-ranking-rank " + rankClass}>{rank}</div>
       <div className="ct-ranking-avatar">
-        <img src={candidate.image} alt={candidate.name} />
+        <img src={resolveImageUrl(candidate.image)} alt={candidate.name} />
       </div>
       <div className="ct-ranking-info">
         <div className="ct-ranking-name">{candidate.name}</div>
@@ -1197,7 +1198,8 @@ function ContestContent({ eventId }) {
 
     setApplySubmittingId(petModalContestId);
     try {
-      // 이미지가 있으면 서버에 먼저 업로드 후 URL 획득
+      // TODO(cloud-native-step-01): fold this two-step handoff into a
+      // backend-owned file reference flow.
       let uploadedImageUrl = null;
       if (applyImageFile) {
         try {
@@ -1216,15 +1218,7 @@ function ContestContent({ eventId }) {
           const rawPath =
             upRes?.data?.data?.publicPath ?? upRes?.data?.publicPath ?? null;
           if (rawPath) {
-            if (rawPath.startsWith("http")) {
-              uploadedImageUrl = rawPath;
-            } else {
-              const apiBase = (
-                import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
-              ).replace(/\/$/, "");
-              uploadedImageUrl =
-                apiBase + (rawPath.startsWith("/") ? rawPath : "/" + rawPath);
-            }
+            uploadedImageUrl = toPublicAssetUrl(rawPath) || rawPath;
           }
           console.log("📁 이미지 업로드 성공:", uploadedImageUrl);
         } catch (uploadErr) {
@@ -1436,7 +1430,7 @@ function ContestContent({ eventId }) {
                   <div className="ct-contest-thumb">
                     {c.thumbnail ? (
                       <img
-                        src={c.thumbnail}
+                        src={resolveImageUrl(c.thumbnail)}
                         alt={c.name}
                         loading="lazy"
                         onError={(e) => {
@@ -2025,7 +2019,7 @@ export default function Contest() {
                   <div className="cl-thumb">
                     {c.thumbnail ? (
                       <img
-                        src={c.thumbnail}
+                        src={resolveImageUrl(c.thumbnail)}
                         alt={c.name}
                         loading="lazy"
                         onError={(e) => {

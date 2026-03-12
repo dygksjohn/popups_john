@@ -1,15 +1,6 @@
 // file: src/main/java/com/popups/pupoo/gallery/application/GalleryService.java
 package com.popups.pupoo.gallery.application;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.gallery.domain.enums.GalleryStatus;
 import com.popups.pupoo.gallery.domain.model.Gallery;
 import com.popups.pupoo.gallery.domain.model.GalleryImage;
@@ -19,8 +10,15 @@ import com.popups.pupoo.gallery.dto.GalleryResponse;
 import com.popups.pupoo.gallery.persistence.GalleryImageRepository;
 import com.popups.pupoo.gallery.persistence.GalleryLikeRepository;
 import com.popups.pupoo.gallery.persistence.GalleryRepository;
-
+import com.popups.pupoo.storage.support.StorageUrlResolver;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -30,104 +28,40 @@ public class GalleryService {
     private final GalleryRepository galleryRepository;
     private final GalleryImageRepository galleryImageRepository;
     private final GalleryLikeRepository galleryLikeRepository;
+    private final StorageUrlResolver storageUrlResolver;
 
-    @Transactional(readOnly = false)
+    @Transactional
     public GalleryResponse get(Long galleryId) {
-        Gallery g = galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
+        Gallery gallery = galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
                 .orElseThrow(() -> new IllegalArgumentException("갤러리가 존재하지 않습니다."));
 
-        Gallery updated = galleryRepository.save(g.toBuilder()
-                .viewCount(g.getViewCount() == null ? 1 : g.getViewCount() + 1)
+        Gallery updated = galleryRepository.save(gallery.toBuilder()
+                .viewCount(gallery.getViewCount() == null ? 1 : gallery.getViewCount() + 1)
                 .updatedAt(LocalDateTime.now())
                 .build());
 
-        List<String> urls = PublicUrlNormalizer.normalizeAll(
-                galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(galleryId)
-                        .stream()
-                        .map(GalleryImage::getOriginalUrl)
-                        .toList()
-        );
-
-        long likeCount = galleryLikeRepository.countByGallery_GalleryId(galleryId);
-
-        return GalleryResponse.builder()
-                .galleryId(updated.getGalleryId())
-                .eventId(updated.getEventId())
-                .userId(updated.getUserId())
-                .title(updated.getGalleryTitle())
-                .description(updated.getDescription())
-                .viewCount(updated.getViewCount())
-                .likeCount(likeCount)
-                .thumbnailImageId(updated.getThumbnailImageId())
-                .status(updated.getGalleryStatus())
-                .imageUrls(urls)
-                .createdAt(updated.getCreatedAt())
-                .updatedAt(updated.getUpdatedAt())
-                .build();
+        return toResponse(updated);
     }
 
     public Page<GalleryResponse> list(int page, int size) {
         return galleryRepository.findByGalleryStatus(GalleryStatus.PUBLIC, PageRequest.of(page, size))
-                .map(g -> {
-                    List<String> urls = PublicUrlNormalizer.normalizeAll(
-                            galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
-                                    .stream()
-                                    .map(GalleryImage::getOriginalUrl)
-                                    .toList()
-                    );
-                    long likeCount = galleryLikeRepository.countByGallery_GalleryId(g.getGalleryId());
-                    return GalleryResponse.builder()
-                            .galleryId(g.getGalleryId())
-                            .eventId(g.getEventId())
-                            .userId(g.getUserId())
-                            .title(g.getGalleryTitle())
-                            .description(g.getDescription())
-                            .viewCount(g.getViewCount())
-                            .likeCount(likeCount)
-                            .thumbnailImageId(g.getThumbnailImageId())
-                            .status(g.getGalleryStatus())
-                            .imageUrls(urls)
-                            .createdAt(g.getCreatedAt())
-                            .updatedAt(g.getUpdatedAt())
-                            .build();
-                });
+                .map(this::toResponse);
     }
 
     public Page<GalleryResponse> listByEventId(Long eventId, int page, int size) {
         return galleryRepository.findByEventIdAndGalleryStatus(eventId, GalleryStatus.PUBLIC, PageRequest.of(page, size))
-                .map(g -> {
-                    List<String> urls = PublicUrlNormalizer.normalizeAll(
-                            galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(g.getGalleryId())
-                                    .stream()
-                                    .map(GalleryImage::getOriginalUrl)
-                                    .toList()
-                    );
-                    long likeCount = galleryLikeRepository.countByGallery_GalleryId(g.getGalleryId());
-                    return GalleryResponse.builder()
-                            .galleryId(g.getGalleryId())
-                            .eventId(g.getEventId())
-                            .userId(g.getUserId())
-                            .title(g.getGalleryTitle())
-                            .description(g.getDescription())
-                            .viewCount(g.getViewCount())
-                            .likeCount(likeCount)
-                            .thumbnailImageId(g.getThumbnailImageId())
-                            .status(g.getGalleryStatus())
-                            .imageUrls(urls)
-                            .createdAt(g.getCreatedAt())
-                            .updatedAt(g.getUpdatedAt())
-                            .build();
-                });
-        }
+                .map(this::toResponse);
+    }
+
     @Transactional
     public GalleryLikeResponse like(Long userId, Long galleryId) {
-        Gallery g = galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
+        Gallery gallery = galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
                 .orElseThrow(() -> new IllegalArgumentException("갤러리가 존재하지 않습니다."));
 
         GalleryLike like = galleryLikeRepository.findByGallery_GalleryIdAndUserId(galleryId, userId)
                 .orElseGet(() -> galleryLikeRepository.save(
                         GalleryLike.builder()
-                                .gallery(g)
+                                .gallery(gallery)
                                 .userId(userId)
                                 .createdAt(LocalDateTime.now())
                                 .build()
@@ -139,10 +73,36 @@ public class GalleryService {
                 .createdAt(like.getCreatedAt())
                 .build();
     }
+
     @Transactional
     public void unlike(Long userId, Long galleryId) {
         galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
                 .orElseThrow(() -> new IllegalArgumentException("갤러리가 존재하지 않습니다."));
         galleryLikeRepository.deleteByGallery_GalleryIdAndUserId(galleryId, userId);
+    }
+
+    private GalleryResponse toResponse(Gallery gallery) {
+        List<String> imageUrls = storageUrlResolver.toPublicUrls(
+                galleryImageRepository.findAllByGallery_GalleryIdOrderByImageOrderAsc(gallery.getGalleryId())
+                        .stream()
+                        .map(GalleryImage::getOriginalUrl)
+                        .toList()
+        );
+        long likeCount = galleryLikeRepository.countByGallery_GalleryId(gallery.getGalleryId());
+
+        return GalleryResponse.builder()
+                .galleryId(gallery.getGalleryId())
+                .eventId(gallery.getEventId())
+                .userId(gallery.getUserId())
+                .title(gallery.getGalleryTitle())
+                .description(gallery.getDescription())
+                .viewCount(gallery.getViewCount())
+                .likeCount(likeCount)
+                .thumbnailImageId(gallery.getThumbnailImageId())
+                .status(gallery.getGalleryStatus())
+                .imageUrls(imageUrls)
+                .createdAt(gallery.getCreatedAt())
+                .updatedAt(gallery.getUpdatedAt())
+                .build();
     }
 }

@@ -11,6 +11,9 @@ import com.popups.pupoo.storage.dto.UploadResponse;
 import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator;
 import com.popups.pupoo.storage.persistence.StoredFileRepository;
 import com.popups.pupoo.storage.port.ObjectStoragePort;
+import com.popups.pupoo.storage.support.StorageKeyNormalizer;
+import com.popups.pupoo.storage.support.StorageUrlResolver;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,25 +21,44 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
+@Slf4j
 @Service
 public class StorageService {
 
     private static final String LOCAL_BUCKET_UNUSED = "local";
+    private static final int MAX_GALLERY_IMAGE_UPLOAD_COUNT = 10;
+    private static final Set<String> ALLOWED_GALLERY_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/gif",
+            "image/webp"
+    );
+    private static final long MAX_GALLERY_IMAGE_SIZE = 10L * 1024 * 1024;
 
     private final ObjectStoragePort objectStoragePort;
     private final StorageKeyGenerator keyGenerator;
     private final StoredFileRepository storedFileRepository;
     private final SecurityUtil securityUtil;
+    private final StorageKeyNormalizer storageKeyNormalizer;
+    private final StorageUrlResolver storageUrlResolver;
 
     public StorageService(ObjectStoragePort objectStoragePort,
                           StorageKeyGenerator keyGenerator,
                           StoredFileRepository storedFileRepository,
-                          SecurityUtil securityUtil) {
+                          SecurityUtil securityUtil,
+                          StorageKeyNormalizer storageKeyNormalizer,
+                          StorageUrlResolver storageUrlResolver) {
         this.objectStoragePort = objectStoragePort;
         this.keyGenerator = keyGenerator;
         this.storedFileRepository = storedFileRepository;
         this.securityUtil = securityUtil;
+        this.storageKeyNormalizer = storageKeyNormalizer;
+        this.storageUrlResolver = storageUrlResolver;
     }
 
     /**
@@ -45,38 +67,46 @@ public class StorageService {
      */
     @Transactional
     public UploadResponse uploadForFilesTable(MultipartFile file, UploadRequest request) {
-        request.validateForFilesTable();
-
-        if (file == null || file.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file is required");
-        }
-
-        StorageKeyGenerator.UploadTargetType type = request.parsedTargetType();
-        if (type == StorageKeyGenerator.UploadTargetType.NOTICE && !securityUtil.isAdmin()) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "notice file upload is admin-only");
-        }
-
-        Long uploaderId = securityUtil.currentUserId();
-        Long contentId = request.getContentId();
-        String originalName = safeOriginalName(file.getOriginalFilename());
-
-        String key = keyGenerator.generateKey(type, contentId, originalName);
-        String storedName = key.substring(key.lastIndexOf('/') + 1);
-
         try {
-            objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
-        } catch (IOException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload bytes: " + e.getMessage());
+            request.validateForFilesTable();
+
+            if (file == null || file.isEmpty()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file is required");
+            }
+
+            StorageKeyGenerator.UploadTargetType type = request.parsedTargetType();
+            if (type == StorageKeyGenerator.UploadTargetType.NOTICE && !securityUtil.isAdmin()) {
+                throw new BusinessException(ErrorCode.FORBIDDEN, "notice file upload is admin-only");
+            }
+
+            Long uploaderId = securityUtil.currentUserId();
+            Long contentId = request.getContentId();
+            String originalName = safeOriginalName(file.getOriginalFilename());
+
+            String key = keyGenerator.generateKey(type, contentId, originalName);
+            String storedName = keyGenerator.extractFileName(key);
+
+            try {
+                objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
+            } catch (IOException e) {
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload bytes: " + e.getMessage());
+            }
+
+            StoredFile storedFile = (type == StorageKeyGenerator.UploadTargetType.POST)
+                    ? StoredFile.forPost(originalName, key, uploaderId, contentId)
+                    : StoredFile.forNotice(originalName, key, uploaderId, contentId);
+
+            StoredFile saved = storedFileRepository.save(storedFile);
+            String publicPath = storageUrlResolver.toPublicUrlFromKey(key);
+
+            return UploadResponse.of(saved.getFileId(), saved.getOriginalName(), storedName, publicPath);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("File upload error: {}", e.getMessage(), e);
+            String msg = e.getMessage() != null && !e.getMessage().isBlank() ? e.getMessage() : e.getClass().getSimpleName();
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "File upload failed: " + msg);
         }
-
-        StoredFile storedFile = (type == StorageKeyGenerator.UploadTargetType.POST)
-                ? StoredFile.forPost(originalName, storedName, uploaderId, contentId)
-                : StoredFile.forNotice(originalName, storedName, uploaderId, contentId);
-
-        StoredFile saved = storedFileRepository.save(storedFile);
-        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
-
-        return UploadResponse.of(saved.getFileId(), saved.getOriginalName(), saved.getStoredName(), publicPath);
     }
 
     /**
@@ -91,7 +121,7 @@ public class StorageService {
         Long userId = securityUtil.currentUserId();
         String originalName = safeOriginalName(file.getOriginalFilename());
         String key = keyGenerator.generateKeyForGalleryTemp(userId, originalName);
-        String storedName = key.substring(key.lastIndexOf('/') + 1);
+        String storedName = keyGenerator.extractFileName(key);
 
         try {
             objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
@@ -99,8 +129,29 @@ public class StorageService {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload bytes: " + e.getMessage());
         }
 
-        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
+        String publicPath = storageUrlResolver.toPublicUrlFromKey(key);
         return UploadResponse.of(0L, originalName, storedName, publicPath);
+    }
+
+    /**
+     * Admin gallery uploads return public URLs immediately, but URL assembly stays in the service layer.
+     */
+    public List<String> uploadGalleryImagesForAdmin(List<MultipartFile> files) {
+        validateGalleryUploadBatch(files);
+
+        List<String> publicUrls = new ArrayList<>(files.size());
+        for (MultipartFile file : files) {
+            validateGalleryImageFile(file);
+            String originalName = safeOriginalName(file.getOriginalFilename());
+            String key = keyGenerator.generateStandaloneKey("gallery", originalName);
+            try {
+                objectStoragePort.putObject(LOCAL_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
+            } catch (IOException e) {
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload file: " + e.getMessage());
+            }
+            publicUrls.add(storageUrlResolver.toPublicUrlFromKey(key));
+        }
+        return publicUrls;
     }
 
     @Transactional(readOnly = true)
@@ -109,7 +160,7 @@ public class StorageService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file not found"));
 
         String key = toKey(f);
-        String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
+        String publicPath = storageUrlResolver.toPublicUrlFromKey(key);
         return FileResponse.of(f.getFileId(), f.getOriginalName(), publicPath);
     }
 
@@ -121,7 +172,7 @@ public class StorageService {
         return storedFileRepository.findByPostIdAndDeletedAtIsNull(postId)
                 .map(f -> {
                     String key = toKey(f);
-                    String publicPath = objectStoragePort.getPublicPath(LOCAL_BUCKET_UNUSED, key);
+                    String publicPath = storageUrlResolver.toPublicUrlFromKey(key);
                     return FileResponse.of(f.getFileId(), f.getOriginalName(), publicPath);
                 })
                 .orElse(null);
@@ -188,6 +239,10 @@ public class StorageService {
     }
 
     private String toKey(StoredFile f) {
+        String normalizedStoredValue = storageKeyNormalizer.extractStorageKey(f.getStoredName());
+        if (normalizedStoredValue != null) {
+            return normalizedStoredValue;
+        }
         if (f.getPostId() != null) {
             return keyGenerator.buildKey(StorageKeyGenerator.UploadTargetType.POST, f.getPostId(), f.getStoredName());
         }
@@ -207,5 +262,27 @@ public class StorageService {
         int idx = Math.max(idx1, idx2);
 
         return (idx >= 0) ? originalFilename.substring(idx + 1) : originalFilename;
+    }
+
+    private void validateGalleryUploadBatch(List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "File is required.");
+        }
+        if (files.size() > MAX_GALLERY_IMAGE_UPLOAD_COUNT) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Up to 10 files can be uploaded.");
+        }
+    }
+
+    private void validateGalleryImageFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Empty file is not allowed.");
+        }
+        if (file.getSize() > MAX_GALLERY_IMAGE_SIZE) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "File size must be 10MB or less.");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_GALLERY_CONTENT_TYPES.contains(contentType.toLowerCase())) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Only jpg, png, gif, webp are allowed.");
+        }
     }
 }

@@ -1,20 +1,25 @@
 import axios from "axios";
 import { attachInterceptors } from "./interceptors";
+import {
+  buildRequestUrl,
+  getConfiguredBaseUrl,
+} from "../../shared/config/requestUrl";
 
 export function createAxiosInstance() {
-  // ✅ 끝 슬래시 제거한 baseURL을 실제로 사용
-  const baseURL = (
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
-  ).replace(/\/+$/, "");
+  const baseURL = getConfiguredBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
   const instance = axios.create({
-    baseURL,
     timeout: 10000,
     headers: { "Content-Type": "application/json" },
     withCredentials: true,
   });
 
-  console.log("🔥 axiosInstance baseURL =", instance.defaults.baseURL);
+  instance.interceptors.request.use((config) => {
+    config.url = buildRequestUrl(baseURL, config.url);
+    return config;
+  });
+
+  console.log("axiosInstance request base =", baseURL || "(same-origin)");
 
   attachInterceptors(instance, {
     publicPathPrefixes: [

@@ -81,6 +81,25 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
                                        @Param("keyword") String keyword,
                                        Pageable pageable);
 
+    /**
+     * 공지 목록: 고정(is_pinned=1)은 항상 포함, 비고정(is_pinned=0)만 scope/keyword 필터 적용.
+     * scope는 대소문자 무시 비교. 정렬은 Service에서 Pageable로 전달 (pinned desc + sort).
+     */
+    @Query("""
+        select n from Notice n
+        where n.status = :status
+          and (n.pinned = true or (
+            n.pinned = false
+            and (:scope is null or LOWER(n.scope) = LOWER(:scope))
+            and ((:keyword is null or :keyword = '') or (n.noticeTitle like concat('%', :keyword, '%') or n.content like concat('%', :keyword, '%')))
+          ))
+        """)
+    Page<Notice> findPublishedPinnedFirstFilterNonPinnedOnly(
+            @Param("status") NoticeStatus status,
+            @Param("scope") String scope,
+            @Param("keyword") String keyword,
+            Pageable pageable);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update Notice n

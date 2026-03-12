@@ -21,6 +21,7 @@ import {
   loadImageCache as loadProgramImageCache,
   injectProgramImages,
 } from "../../admin/shared/programImageStore";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 const styles = `
   .pg-root { background:#f8f9fc; min-height:100vh; }
@@ -481,7 +482,7 @@ export default function Schedule() {
                     <div className="pg-thumb">
                       {p.thumbnail ? (
                         <img
-                          src={p.thumbnail}
+                          src={resolveImageUrl(p.thumbnail)}
                           alt={p.title}
                           loading="lazy"
                           onError={(e) => {

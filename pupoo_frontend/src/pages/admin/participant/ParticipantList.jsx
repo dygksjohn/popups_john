@@ -48,6 +48,7 @@ import DATA from "../shared/data";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 import { sortAdminEventsByOperationalPriority } from "../shared/adminStatus";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 /* ── 스타일 ── */
 const styles = `
@@ -873,7 +874,7 @@ export default function ParticipantList({ subTab = "list" }) {
                           onClick={() => setEventFilter(t.id)}
                           style={{
                             padding: "8px 18px",
-                            border: "none",
+                            border: `1px solid ${on ? ds.brand : ds.line}`,
                             cursor: "pointer",
                             borderRadius: 22,
                             fontSize: 13,
@@ -885,7 +886,6 @@ export default function ParticipantList({ subTab = "list" }) {
                             alignItems: "center",
                             gap: 6,
                             fontFamily: ds.ff,
-                            border: `1px solid ${on ? ds.brand : ds.line}`,
                           }}
                         >
                           {t.label}
@@ -984,7 +984,7 @@ export default function ParticipantList({ subTab = "list" }) {
                             {hasImg ? (
                               <div style={{ position: "absolute", inset: 0 }}>
                                 <img
-                                  src={ev.imageUrl}
+                                  src={resolveImageUrl(ev.imageUrl)}
                                   alt=""
                                   style={{
                                     width: "100%",

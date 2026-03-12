@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronRight, Clock3, MapPin } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
+import EmptyState from "../components/EmptyState";
 import { eventApi } from "../../../app/http/eventApi";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 
@@ -12,305 +14,223 @@ const EVENT_CATEGORIES = [
   { label: "행사 일정 안내", path: "/event/eventschedule" },
 ];
 
-const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
-const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEKDAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+const MINI_WD = ["월", "화", "수", "목", "금", "토", "일"];
 const STATUS_META = {
-  ONGOING: { label: "진행 중", bar: "#14b8a6", soft: "#ccfbf1", text: "#0f766e" },
-  UPCOMING: { label: "예정", bar: "#3b82f6", soft: "#dbeafe", text: "#1d4ed8" },
-  ENDED: { label: "종료", bar: "#94a3b8", soft: "#e5e7eb", text: "#475569" },
+  ONGOING: { label: "진행 중", color: "#22c55e", soft: "#f0fdf4" },
+  UPCOMING: { label: "예정", color: "#3b82f6", soft: "#eff6ff" },
+  ENDED: { label: "종료", color: "#9ca3af", soft: "#f9fafb" },
 };
-const ACTIVE_PALETTE = [
-  { bar: "#93c5fd", soft: "#dbeafe", text: "#1e3a8a" },
-  { bar: "#99f6e4", soft: "#ccfbf1", text: "#115e59" },
-  { bar: "#fdba74", soft: "#ffedd5", text: "#9a3412" },
-  { bar: "#fda4af", soft: "#fee2e2", text: "#9f1239" },
-  { bar: "#c4b5fd", soft: "#ede9fe", text: "#5b21b6" },
-  { bar: "#f9a8d4", soft: "#fce7f3", text: "#9d174d" },
-  { bar: "#86efac", soft: "#dcfce7", text: "#166534" },
-  { bar: "#fde68a", soft: "#fef3c7", text: "#92400e" },
-];
 
 const styles = `
-  .event-month-root {
-    min-height: 100vh;
-    background:
-      radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 24%),
-      linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  .es-root { min-height: 100vh; background: #fafafa; }
+  .es-wrap {
+    width: min(1400px, calc(100% - 40px));
+    margin: 0 auto; padding: 28px 0 72px;
+    font-family: "Noto Sans KR", -apple-system, sans-serif;
   }
-  .event-month-wrap {
-    width: min(1380px, calc(100% - 44px));
-    margin: 0 auto;
-    padding: 34px 0 72px;
-    font-family: "Noto Sans KR", sans-serif;
+  .es-layout {
+    display: grid; grid-template-columns: 1fr 300px;
+    gap: 24px; align-items: start;
   }
-  .event-month-toolbar {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 18px;
+
+  /* ── Calendar Card ── */
+  .es-cal-card {
+    background: #fff; border: 1px solid #e8e8e8;
+    border-radius: 16px; overflow: hidden;
   }
-  .event-month-copy {
-    display: grid;
-    gap: 6px;
+  .es-cal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 28px;
   }
-  .event-month-copy strong {
-    font-size: 28px;
-    line-height: 1.2;
-    color: #0f172a;
-    font-weight: 900;
+  .es-cal-header-left { display: flex; align-items: center; gap: 6px; }
+  .es-cal-title {
+    font-size: 20px; font-weight: 700; color: #111827;
+    letter-spacing: -0.3px; min-width: 160px; text-align: center;
   }
-  .event-month-copy span {
-    font-size: 13px;
-    line-height: 1.6;
-    color: #64748b;
+  .es-cal-nav {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid #e5e7eb; background: #fff; color: #6b7280;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
   }
-  .event-month-select-wrap {
-    position: relative;
-    min-width: 180px;
+  .es-cal-nav:hover { background: #f9fafb; border-color: #d1d5db; color: #374151; }
+  .es-cal-today-btn {
+    padding: 6px 16px; border-radius: 8px; border: 1px solid #e5e7eb;
+    background: #fff; color: #6b7280; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; font-family: inherit; margin-left: 8px;
   }
-  .event-month-select {
-    width: 100%;
-    height: 42px;
-    border-radius: 14px;
-    border: 1px solid #cbd5e1;
-    background: rgba(255, 255, 255, 0.92);
-    color: #0f172a;
-    font-size: 14px;
-    font-weight: 800;
-    padding: 0 40px 0 14px;
-    appearance: none;
-    cursor: pointer;
+  .es-cal-today-btn:hover { background: #f9fafb; color: #374151; }
+  .es-cal-legend {
+    display: flex; align-items: center; gap: 20px;
+    padding: 0 28px 16px; border-bottom: 1px solid #f0f0f0;
   }
-  .event-month-select-icon {
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%) rotate(90deg);
-    color: #64748b;
-    pointer-events: none;
+  .es-cal-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #6b7280; }
+  .es-cal-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ── Calendar Grid ── */
+  .es-cal-grid-wrap { overflow-x: auto; }
+  .es-cal-grid { min-width: 700px; }
+  .es-cal-weekdays {
+    display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+    border-bottom: 1px solid #e8e8e8;
   }
-  .event-month-card {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(203, 213, 225, 0.92);
-    border-radius: 28px;
-    box-shadow: 0 26px 60px rgba(15, 23, 42, 0.06);
-    overflow: hidden;
+  .es-cal-weekday {
+    padding: 12px 0; font-size: 12px; color: #9ca3af;
+    font-weight: 600; text-align: center; letter-spacing: 0.5px;
   }
-  .event-month-head {
-    padding: 24px 26px 18px;
-    border-bottom: 1px solid #e2e8f0;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
+  .es-cal-weekday:last-child { color: #f87171; }
+  .es-cal-weekday:nth-child(6) { color: #60a5fa; }
+  .es-cal-week-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .es-cal-day {
+    border-right: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6;
+    padding: 8px 10px 10px; background: #fff; min-height: 120px;
+    cursor: default; transition: background 0.12s;
   }
-  .event-month-head strong {
-    font-size: 30px;
-    line-height: 1.1;
-    color: #0f172a;
-    font-weight: 900;
+  .es-cal-day:nth-child(7) { border-right: none; }
+  .es-cal-day:hover { background: #fafbfc; }
+  .es-cal-day.outside { background: #fafafa; }
+  .es-cal-day.outside .es-cal-day-num { color: #d4d4d8; }
+  .es-cal-day-num {
+    font-size: 13px; font-weight: 600; color: #52525b;
+    margin-bottom: 5px; width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center; border-radius: 50%;
   }
-  .event-month-head span {
-    margin-top: 6px;
-    font-size: 13px;
-    color: #64748b;
-    line-height: 1.6;
+  .es-cal-day:nth-child(7) .es-cal-day-num { color: #f87171; }
+  .es-cal-day:nth-child(6) .es-cal-day-num { color: #60a5fa; }
+  .es-cal-day.outside:nth-child(7) .es-cal-day-num,
+  .es-cal-day.outside:nth-child(6) .es-cal-day-num { color: #d4d4d8; }
+  .es-cal-day.today .es-cal-day-num { background: #3b82f6; color: #fff !important; font-weight: 700; }
+  .es-cell-events { display: flex; flex-direction: column; gap: 2px; }
+  .es-cell-evt {
+    display: flex; align-items: center; gap: 5px; padding: 2.5px 5px;
+    border-radius: 4px; cursor: pointer; transition: background 0.12s;
+    border: none; background: transparent; width: 100%; text-align: left; font-family: inherit;
   }
-  .event-month-count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 92px;
-    height: 38px;
-    padding: 0 14px;
-    border-radius: 999px;
-    background: #eff6ff;
-    color: #2563eb;
-    font-size: 13px;
-    font-weight: 900;
+  .es-cell-evt:hover { background: #f3f4f6; }
+  .es-cell-evt-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .es-cell-evt-name {
+    font-size: 11px; font-weight: 600; color: #374151;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4;
   }
-  .event-month-grid-wrap {
-    padding: 20px 24px 0;
-    overflow-x: auto;
+  .es-cell-more { font-size: 10px; color: #a1a1aa; font-weight: 600; padding: 1px 5px; }
+
+  /* ═══ Sidebar ═══ */
+  .es-sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ── Search ── */
+  .es-search-card {
+    background: #fff; border: 1px solid #e8e8e8; border-radius: 14px;
+    padding: 4px; display: flex; align-items: center; gap: 8px;
   }
-  .event-month-grid {
-    min-width: 930px;
+  .es-search-inner {
+    flex: 1; display: flex; align-items: center; gap: 8px;
+    background: #f3f4f6; border-radius: 10px; padding: 0 12px; height: 40px;
+    transition: all 0.2s;
   }
-  .event-month-weekdays,
-  .event-month-day-grid {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 10px;
-  }
-  .event-month-weekdays {
-    margin-bottom: 8px;
-  }
-  .event-month-weekday {
-    padding: 0 8px 8px;
-    font-size: 12px;
-    color: #64748b;
-    font-weight: 800;
-  }
-  .event-month-week {
-    margin-bottom: 14px;
-  }
-  .event-month-day {
-    min-height: 76px;
-    border-radius: 18px;
-    border: 1px solid #dbe5f1;
-    background: #f8fbff;
-    padding: 10px 10px 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .event-month-day.outside {
-    background: #f8fafc;
-    color: #94a3b8;
-    opacity: 0.72;
-  }
-  .event-month-day.today {
-    border-color: #60a5fa;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
-  }
-  .event-month-day-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  .event-month-day-number {
-    font-size: 20px;
-    color: #0f172a;
-    font-weight: 900;
-  }
-  .event-month-day-marker {
-    min-width: 22px;
-    height: 22px;
-    padding: 0 6px;
-    border-radius: 999px;
-    background: #eff6ff;
-    color: #2563eb;
-    font-size: 11px;
-    font-weight: 900;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .event-month-bars {
-    position: relative;
-  }
-  .event-month-bar {
-    position: absolute;
-    height: 36px;
-    border: none;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 12px;
-    color: #0f172a;
-    font-size: 12px;
-    font-weight: 900;
-    cursor: pointer;
-    overflow: hidden;
-    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.10);
-  }
-  .event-month-bar-text {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .event-month-list {
-    padding: 0 24px 24px;
-    display: grid;
-    gap: 12px;
-  }
-  .event-month-list-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 16px 18px;
-    border-radius: 18px;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-  }
-  .event-month-list-main {
+  .es-search-inner:focus-within { background: #fff; box-shadow: 0 0 0 2px #3b82f6; }
+  .es-search-input {
+    flex: 1; border: none; outline: none; background: transparent;
+    font-size: 13.5px; font-weight: 400; color: #111827; font-family: inherit;
     min-width: 0;
-    display: grid;
-    gap: 8px;
   }
-  .event-month-list-top {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+  .es-search-input::placeholder { color: #b0b5bd; }
+  .es-search-clear {
+    width: 20px; height: 20px; border-radius: 50%; border: none;
+    background: #d1d5db; color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    transition: background 0.12s;
   }
-  .event-month-badge {
-    display: inline-flex;
-    align-items: center;
-    height: 26px;
-    padding: 0 10px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 900;
-    flex-shrink: 0;
+  .es-search-clear:hover { background: #9ca3af; }
+
+  /* ── Mini Calendar ── */
+  .es-mini {
+    background: #fff; border: 1px solid #e8e8e8; border-radius: 14px; padding: 16px;
   }
-  .event-month-list-title {
-    color: #0f172a;
-    font-size: 15px;
-    font-weight: 900;
-    line-height: 1.45;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .es-mini-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
   }
-  .event-month-list-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    color: #64748b;
-    font-size: 12px;
+  .es-mini-title { font-size: 14px; font-weight: 700; color: #111827; }
+  .es-mini-navs { display: flex; gap: 2px; }
+  .es-mini-nav {
+    width: 26px; height: 26px; border-radius: 6px; border: none;
+    background: transparent; color: #9ca3af; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.12s;
   }
-  .event-month-list-meta span {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
+  .es-mini-nav:hover { background: #f3f4f6; color: #374151; }
+  .es-mini-wds { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
+  .es-mini-wd {
+    text-align: center; font-size: 11px; font-weight: 600; color: #b0b5bd; padding: 3px 0;
   }
-  .event-month-link {
-    height: 38px;
-    padding: 0 14px;
-    border-radius: 12px;
-    border: 1px solid #cbd5e1;
-    background: #fff;
-    color: #0f172a;
-    font-size: 13px;
-    font-weight: 800;
-    cursor: pointer;
+  .es-mini-wd:nth-child(6) { color: #93c5fd; }
+  .es-mini-wd:last-child { color: #fca5a5; }
+  .es-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+  .es-mini-day {
+    text-align: center; font-size: 12px; font-weight: 500; color: #52525b;
+    padding: 5px 0; border-radius: 8px; cursor: pointer;
+    transition: all 0.1s; border: none; background: transparent; font-family: inherit;
   }
-  .event-month-empty {
-    padding: 24px;
-    color: #64748b;
-    font-size: 14px;
-    line-height: 1.7;
+  .es-mini-day:hover { background: #f3f4f6; }
+  .es-mini-day.out { color: #d4d4d8; }
+  .es-mini-day.today { background: #3b82f6; color: #fff; font-weight: 700; }
+  .es-mini-day.sel { background: #eff6ff; color: #3b82f6; font-weight: 700; }
+  .es-mini-day.has-evt { font-weight: 700; color: #111827; position: relative; }
+  .es-mini-day.has-evt::after {
+    content: ""; display: block; width: 4px; height: 4px;
+    border-radius: 50%; background: #3b82f6; margin: 1px auto 0;
+  }
+  .es-mini-day.today.has-evt::after { background: #fff; }
+
+  /* ── Event List ── */
+  .es-list-card {
+    background: #fff; border: 1px solid #e8e8e8; border-radius: 14px; padding: 16px;
+  }
+  .es-list-title {
+    font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .es-list-count {
+    font-size: 12px; font-weight: 600; color: #9ca3af;
+  }
+  .es-list-scroll {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 400px; overflow-y: auto;
+  }
+  .es-list-scroll::-webkit-scrollbar { width: 3px; }
+  .es-list-scroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
+  .es-list-item {
+    display: flex; align-items: stretch; gap: 10px;
+    padding: 10px 12px; border-radius: 10px; background: #fafafa;
+    cursor: pointer; transition: all 0.15s; border: 1px solid transparent;
+  }
+  .es-list-item:hover { background: #f3f4f6; border-color: #e5e7eb; }
+  .es-list-bar { width: 3px; border-radius: 2px; flex-shrink: 0; }
+  .es-list-body { flex: 1; min-width: 0; }
+  .es-list-name {
+    font-size: 13px; font-weight: 700; color: #111827;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
+  }
+  .es-list-meta {
+    font-size: 11px; color: #9ca3af; font-weight: 500;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .es-list-empty {
+    font-size: 12.5px; color: #d1d5db; text-align: center; padding: 20px 0;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 1024px) {
+    .es-layout { grid-template-columns: 1fr; }
+    .es-sidebar { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .es-list-card { grid-column: 1 / -1; }
   }
   @media (max-width: 720px) {
-    .event-month-wrap {
-      width: min(100%, calc(100% - 24px));
-      padding: 22px 0 54px;
-    }
-    .event-month-copy strong,
-    .event-month-head strong {
-      font-size: 22px;
-    }
-    .event-month-list-item {
-      align-items: flex-start;
-      flex-direction: column;
-    }
+    .es-wrap { width: min(100%, calc(100% - 20px)); padding: 16px 0 48px; }
+    .es-cal-header { flex-wrap: wrap; gap: 10px; padding: 16px 20px; }
+    .es-cal-legend { padding: 0 20px 14px; }
+    .es-cal-day { min-height: 84px; padding: 5px 5px 6px; }
+    .es-cell-evt-name { font-size: 10px; }
+    .es-sidebar { grid-template-columns: 1fr; }
   }
 `;
 
@@ -319,146 +239,49 @@ function toDate(value) {
   const date = new Date(String(value));
   return Number.isNaN(date.getTime()) ? null : date;
 }
-
-function startOfDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return startOfDay(r); }
+function startOfWeekMon(d) { const b = startOfDay(d); const w = b.getDay(); return addDays(b, -(w === 0 ? 6 : w - 1)); }
+function sameDay(a, b) { return a && b && startOfDay(a).getTime() === startOfDay(b).getTime(); }
+function formatMonthKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
+function formatMonthLabel(m) { return `${m.getFullYear()}년 ${m.getMonth() + 1}월`; }
+function formatShortRange(s, e) {
+  const a = toDate(s), b = toDate(e) || a;
+  if (!a) return "일정 미정";
+  const x = `${a.getMonth()+1}/${a.getDate()}`;
+  if (!b || sameDay(a, b)) return x;
+  return `${x} - ${b.getMonth()+1}/${b.getDate()}`;
 }
-
-function addDays(date, amount) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + amount);
-  return startOfDay(next);
-}
-
-function startOfWeek(date) {
-  const base = startOfDay(date);
-  return addDays(base, -base.getDay());
-}
-
-function sameDay(left, right) {
-  if (!left || !right) return false;
-  return startOfDay(left).getTime() === startOfDay(right).getTime();
-}
-
-function daysBetween(start, end) {
-  return Math.round((startOfDay(end).getTime() - startOfDay(start).getTime()) / DAY_MS);
-}
-
-function formatMonthKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function formatMonthLabel(monthStart) {
-  return `${monthStart.getFullYear()}년 ${monthStart.getMonth() + 1}월`;
-}
-
-function formatRange(startAt, endAt) {
-  const start = toDate(startAt);
-  const end = toDate(endAt) || start;
-  if (!start) return "일정 미정";
-
-  const startText = `${start.getFullYear()}.${String(start.getMonth() + 1).padStart(2, "0")}.${String(start.getDate()).padStart(2, "0")}`;
-  if (!end || sameDay(start, end)) return startText;
-  const endText = `${end.getFullYear()}.${String(end.getMonth() + 1).padStart(2, "0")}.${String(end.getDate()).padStart(2, "0")}`;
-  return `${startText} - ${endText}`;
-}
-
 function toStatus(status, startAt, endAt) {
-  const normalized = String(status || "").toUpperCase();
-  if (normalized === "OPEN" || normalized === "ONGOING" || normalized === "CURRENT") return "ONGOING";
-  if (normalized === "UPCOMING" || normalized === "SCHEDULED") return "UPCOMING";
-  if (normalized === "CLOSED" || normalized === "ENDED") return "ENDED";
-
-  const today = startOfDay(new Date()).getTime();
-  const start = startOfDay(toDate(startAt) || new Date()).getTime();
-  const end = startOfDay(toDate(endAt) || toDate(startAt) || new Date()).getTime();
-  if (start <= today && end >= today) return "ONGOING";
-  if (start > today) return "UPCOMING";
+  const n = String(status || "").toUpperCase();
+  if (["OPEN","ONGOING","CURRENT"].includes(n)) return "ONGOING";
+  if (["UPCOMING","SCHEDULED"].includes(n)) return "UPCOMING";
+  if (["CLOSED","ENDED"].includes(n)) return "ENDED";
+  const t = startOfDay(new Date()).getTime();
+  const s = startOfDay(toDate(startAt) || new Date()).getTime();
+  const e = startOfDay(toDate(endAt) || toDate(startAt) || new Date()).getTime();
+  if (s <= t && e >= t) return "ONGOING";
+  if (s > t) return "UPCOMING";
   return "ENDED";
 }
-
-function hashSeed(value) {
-  const text = String(value || "");
-  let hash = 0;
-  for (let index = 0; index < text.length; index += 1) {
-    hash = (hash * 31 + text.charCodeAt(index)) >>> 0;
-  }
-  return hash;
-}
-
-function resolveEventAccent(eventId, statusLabel, title) {
-  const statusMeta = STATUS_META[statusLabel] || STATUS_META.UPCOMING;
-  if (statusLabel === "ENDED") return statusMeta;
-  const palette = ACTIVE_PALETTE[hashSeed(`${eventId || 0}:${title || ""}`) % ACTIVE_PALETTE.length];
-  return {
-    label: statusMeta.label,
-    bar: palette.bar,
-    soft: palette.soft,
-    text: palette.text,
-  };
-}
-
-function buildMonthOptions(events, currentMonthKey) {
-  const monthKeys = new Set([currentMonthKey]);
-
-  events.forEach((event) => {
-    let cursor = new Date(event.startDate.getFullYear(), event.startDate.getMonth(), 1);
-    const endMonth = new Date(event.endDate.getFullYear(), event.endDate.getMonth(), 1);
-    while (cursor.getTime() <= endMonth.getTime()) {
-      monthKeys.add(formatMonthKey(cursor));
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-    }
-  });
-
-  return Array.from(monthKeys).sort((left, right) => right.localeCompare(left));
-}
-
-function buildMonthModel(events, monthKey) {
-  const [year, month] = String(monthKey).split("-").map(Number);
-  const monthStart = new Date(year, month - 1, 1);
-  const monthEnd = new Date(year, month, 0);
-  const gridStart = startOfWeek(monthStart);
-  const gridEnd = addDays(startOfWeek(monthEnd), 6);
-  const monthEvents = events
-    .filter((event) => event.startDate.getTime() <= monthEnd.getTime() && event.endDate.getTime() >= monthStart.getTime())
-    .sort((left, right) => left.startDate.getTime() - right.startDate.getTime());
-
+function buildMonthGrid(events, monthKey) {
+  const [y, m] = String(monthKey).split("-").map(Number);
+  const ms = new Date(y, m - 1, 1), me = new Date(y, m, 0);
+  const gs = startOfWeekMon(ms), ge = addDays(startOfWeekMon(me), 6);
+  const evts = events
+    .filter((e) => e.startDate.getTime() <= me.getTime() && e.endDate.getTime() >= ms.getTime())
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
   const weeks = [];
-  for (let cursor = gridStart; cursor.getTime() <= gridEnd.getTime(); cursor = addDays(cursor, 7)) {
-    const days = Array.from({ length: 7 }, (_, index) => addDays(cursor, index));
-    const weekStart = days[0];
-    const weekEnd = days[6];
-    const visibleEvents = monthEvents.filter(
-      (event) => event.startDate.getTime() <= weekEnd.getTime() && event.endDate.getTime() >= weekStart.getTime(),
-    );
-    const laneLastEnds = [];
-    const segments = visibleEvents.map((event) => {
-      const visibleStart = new Date(Math.max(event.startDate.getTime(), weekStart.getTime(), monthStart.getTime()));
-      const visibleEnd = new Date(Math.min(event.endDate.getTime(), weekEnd.getTime(), monthEnd.getTime()));
-      const startCol = daysBetween(weekStart, visibleStart);
-      const endCol = daysBetween(weekStart, visibleEnd);
-      let lane = laneLastEnds.findIndex((lastEnd) => lastEnd < startCol);
-      if (lane === -1) lane = laneLastEnds.length;
-      laneLastEnds[lane] = endCol;
-      return {
-        ...event,
-        startCol,
-        span: endCol - startCol + 1,
-        lane,
-        startsHere: sameDay(visibleStart, event.startDate),
-        endsHere: sameDay(visibleEnd, event.endDate),
-      };
-    });
-
-    weeks.push({
-      key: cursor.toISOString(),
-      days,
-      segments,
-      laneCount: segments.length ? Math.max(...segments.map((segment) => segment.lane)) + 1 : 0,
-    });
-  }
-
-  return { monthStart, monthEvents, weeks };
+  for (let c = gs; c.getTime() <= ge.getTime(); c = addDays(c, 7))
+    weeks.push({ key: c.toISOString(), days: Array.from({ length: 7 }, (_, i) => addDays(c, i)) });
+  return { monthStart: ms, monthEnd: me, monthEvents: evts, weeks };
+}
+function buildMiniDays(year, month) {
+  const ms = new Date(year, month, 1), me = new Date(year, month + 1, 0);
+  const gs = startOfWeekMon(ms), ge = addDays(startOfWeekMon(me), 6);
+  const days = [];
+  for (let c = gs; c.getTime() <= ge.getTime(); c = addDays(c, 1)) days.push(c);
+  return { days, monthStart: ms, monthEnd: me };
 }
 
 export default function EventSchedule() {
@@ -466,64 +289,96 @@ export default function EventSchedule() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
   const currentMonthKey = formatMonthKey(new Date());
   const [selectedMonthKey, setSelectedMonthKey] = useState(currentMonthKey);
+  const [miniYear, setMiniYear] = useState(() => new Date().getFullYear());
+  const [miniMonth, setMiniMonth] = useState(() => new Date().getMonth());
 
   useEffect(() => {
     let mounted = true;
-
     const load = async () => {
-      setLoading(true);
-      setError("");
+      setLoading(true); setError("");
       try {
         const res = await eventApi.getEvents({ page: 0, size: 200, sort: "startAt,asc" });
         if (!mounted) return;
-
         const rows = Array.isArray(res?.data?.data?.content) ? res.data.data.content : [];
-        const mapped = rows
-          .map((row) => {
-            const startDate = startOfDay(toDate(row?.startAt) || new Date());
-            const rawEnd = toDate(row?.endAt) || toDate(row?.startAt) || new Date();
-            const endDate = startOfDay(rawEnd);
-            const statusLabel = toStatus(row?.status, row?.startAt, row?.endAt);
-            return {
-              eventId: row?.eventId,
-              eventName: normalizeEventTitle(row?.eventName, row),
-              location: row?.location || "장소 미정",
-              organizer: row?.organizer || "주최 정보 없음",
-              description: row?.description || "",
-              startAt: row?.startAt || null,
-              endAt: row?.endAt || row?.startAt || null,
-              startDate,
-              endDate: endDate.getTime() >= startDate.getTime() ? endDate : startDate,
-              statusLabel,
-              accent: resolveEventAccent(row?.eventId, statusLabel, row?.eventName),
-            };
-          })
-          .sort((left, right) => left.startDate.getTime() - right.startDate.getTime());
-
+        const mapped = rows.map((row) => {
+          const startDate = startOfDay(toDate(row?.startAt) || new Date());
+          const rawEnd = toDate(row?.endAt) || toDate(row?.startAt) || new Date();
+          const endDate = startOfDay(rawEnd);
+          const statusLabel = toStatus(row?.status, row?.startAt, row?.endAt);
+          return {
+            eventId: row?.eventId,
+            eventName: normalizeEventTitle(row?.eventName, row),
+            location: row?.location || "장소 미정",
+            startAt: row?.startAt || null,
+            endAt: row?.endAt || row?.startAt || null,
+            startDate,
+            endDate: endDate.getTime() >= startDate.getTime() ? endDate : startDate,
+            statusLabel,
+          };
+        }).sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
         setEvents(mapped);
       } catch (err) {
         if (!mounted) return;
-        setEvents([]);
-        setError(err?.response?.data?.message || err?.message || "행사 일정을 불러오지 못했습니다.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
+        setEvents([]); setError(err?.response?.data?.message || err?.message || "행사 일정을 불러오지 못했습니다.");
+      } finally { if (mounted) setLoading(false); }
     };
-
     load();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
-  const monthOptions = useMemo(() => buildMonthOptions(events, currentMonthKey), [currentMonthKey, events]);
-  const monthModel = useMemo(() => buildMonthModel(events, selectedMonthKey), [events, selectedMonthKey]);
+  const monthModel = useMemo(() => buildMonthGrid(events, selectedMonthKey), [events, selectedMonthKey]);
   const today = startOfDay(new Date());
 
+  const navigateMonth = (delta) => {
+    const [y, m] = selectedMonthKey.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    setSelectedMonthKey(formatMonthKey(d));
+  };
+
+  const filteredMonthEvents = useMemo(() => {
+    const kw = query.trim().toLowerCase();
+    if (!kw) return monthModel.monthEvents;
+    return monthModel.monthEvents.filter((e) => e.eventName.toLowerCase().includes(kw) || e.location.toLowerCase().includes(kw));
+  }, [monthModel, query]);
+
+  const groupedEvents = useMemo(() => {
+    const g = { ONGOING: [], UPCOMING: [], ENDED: [] };
+    filteredMonthEvents.forEach((e) => { if (g[e.statusLabel]) g[e.statusLabel].push(e); });
+    return g;
+  }, [filteredMonthEvents]);
+
+  const getEventsForDay = (day) => {
+    const t = day.getTime();
+    return filteredMonthEvents.filter((e) => e.startDate.getTime() <= t && e.endDate.getTime() >= t);
+  };
+
+  // Mini calendar
+  const miniModel = useMemo(() => buildMiniDays(miniYear, miniMonth), [miniYear, miniMonth]);
+  const miniHasEvent = (day) => {
+    const t = day.getTime();
+    return events.some((e) => e.startDate.getTime() <= t && e.endDate.getTime() >= t);
+  };
+  const navigateMini = (delta) => {
+    const d = new Date(miniYear, miniMonth + delta, 1);
+    setMiniYear(d.getFullYear()); setMiniMonth(d.getMonth());
+  };
+  const onMiniDayClick = (day) => {
+    const key = formatMonthKey(day);
+    setSelectedMonthKey(key);
+    setMiniYear(day.getFullYear()); setMiniMonth(day.getMonth());
+  };
+
+  // Sync mini when main navigates
+  useEffect(() => {
+    const [y, m] = selectedMonthKey.split("-").map(Number);
+    setMiniYear(y); setMiniMonth(m - 1);
+  }, [selectedMonthKey]);
+
   return (
-    <div className="event-month-root">
+    <div className="es-root">
       <style>{styles}</style>
       <PageHeader
         title="행사 일정 안내"
@@ -531,139 +386,136 @@ export default function EventSchedule() {
         categories={EVENT_CATEGORIES}
       />
 
-      <main className="event-month-wrap">
-        <section className="event-month-toolbar">
-          <div className="event-month-copy">
-            <strong>월별 행사 일정표</strong>
-          </div>
-
-          <div className="event-month-select-wrap">
-            <select
-              className="event-month-select"
-              value={selectedMonthKey}
-              onChange={(event) => setSelectedMonthKey(event.target.value)}
-            >
-              {monthOptions.map((monthKey) => (
-                <option key={monthKey} value={monthKey}>
-                  {monthKey}
-                </option>
-              ))}
-            </select>
-            <ChevronRight size={16} className="event-month-select-icon" />
-          </div>
-        </section>
-
-        <section className="event-month-card">
-          <div className="event-month-head">
-            <div>
-              <strong>{formatMonthLabel(monthModel.monthStart)}</strong>
+      <main className="es-wrap">
+        <div className="es-layout">
+          {/* ── Main Calendar ── */}
+          <section className="es-cal-card">
+            <div className="es-cal-header">
+              <div className="es-cal-header-left">
+                <button type="button" className="es-cal-nav" onClick={() => navigateMonth(-1)}><ChevronLeft size={16} /></button>
+                <span className="es-cal-title">{formatMonthLabel(monthModel.monthStart)}</span>
+                <button type="button" className="es-cal-nav" onClick={() => navigateMonth(1)}><ChevronRight size={16} /></button>
+                <button type="button" className="es-cal-today-btn" onClick={() => setSelectedMonthKey(currentMonthKey)}>오늘</button>
+              </div>
+              <div className="es-cal-legend" style={{ padding: 0, border: "none" }}>
+                {Object.entries(STATUS_META).map(([k, m]) => (
+                  <span key={k} className="es-cal-legend-item">
+                    <span className="es-cal-legend-dot" style={{ background: m.color }} />{m.label}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="event-month-count">{monthModel.monthEvents.length}개 일정</div>
-          </div>
 
-          {loading ? (
-            <div className="event-month-empty">행사 일정을 불러오는 중입니다.</div>
-          ) : error ? (
-            <div className="event-month-empty">{error}</div>
-          ) : (
-            <>
-              <div className="event-month-grid-wrap">
-                <div className="event-month-grid">
-                  <div className="event-month-weekdays">
-                    {WEEKDAY_LABELS.map((label) => (
-                      <div key={label} className="event-month-weekday">{label}</div>
-                    ))}
+            {loading ? <PageLoading /> : error ? <EmptyState type="error" message="일정을 불러오지 못했습니다" description={error} /> : (
+              <div className="es-cal-grid-wrap">
+                <div className="es-cal-grid">
+                  <div className="es-cal-weekdays">
+                    {WEEKDAY_LABELS.map((l) => <div key={l} className="es-cal-weekday">{l}</div>)}
                   </div>
-
                   {monthModel.weeks.map((week) => (
-                    <div key={week.key} className="event-month-week">
-                      <div className="event-month-day-grid">
-                        {week.days.map((day) => {
-                          const outside = day.getMonth() !== monthModel.monthStart.getMonth();
-                          const markerCount = monthModel.monthEvents.filter(
-                            (eventItem) => sameDay(day, eventItem.startDate) || sameDay(day, eventItem.endDate),
-                          ).length;
-                          return (
-                            <div
-                              key={day.toISOString()}
-                              className={`event-month-day${outside ? " outside" : ""}${sameDay(day, today) ? " today" : ""}`}
-                            >
-                              <div className="event-month-day-top">
-                                <span className="event-month-day-number">{day.getDate()}</span>
-                                {markerCount ? <span className="event-month-day-marker">{markerCount}</span> : null}
+                    <div key={week.key} className="es-cal-week-row">
+                      {week.days.map((day) => {
+                        const outside = day.getMonth() !== monthModel.monthStart.getMonth();
+                        const dayEvents = outside ? [] : getEventsForDay(day);
+                        return (
+                          <div key={day.toISOString()} className={`es-cal-day${outside ? " outside" : ""}${sameDay(day, today) ? " today" : ""}`}>
+                            <div className="es-cal-day-num">{day.getDate()}</div>
+                            {dayEvents.length > 0 && (
+                              <div className="es-cell-events">
+                                {dayEvents.slice(0, 3).map((evt) => (
+                                  <button key={evt.eventId} type="button" className="es-cell-evt" title={evt.eventName} onClick={() => navigate(`/program/all/${evt.eventId}`)}>
+                                    <span className="es-cell-evt-dot" style={{ background: (STATUS_META[evt.statusLabel] || STATUS_META.UPCOMING).color }} />
+                                    <span className="es-cell-evt-name">{evt.eventName}</span>
+                                  </button>
+                                ))}
+                                {dayEvents.length > 3 && <span className="es-cell-more">+{dayEvents.length - 3}개 더</span>}
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="event-month-bars" style={{ height: `${Math.max(week.laneCount, 1) * 40}px` }}>
-                        {week.segments.map((segment) => {
-                          const meta = segment.accent || STATUS_META[segment.statusLabel] || STATUS_META.UPCOMING;
-                          return (
-                            <button
-                              key={`${segment.eventId}-${segment.lane}-${week.key}`}
-                              type="button"
-                              className="event-month-bar"
-                              title={`${segment.eventName} (${formatRange(segment.startAt, segment.endAt)})`}
-                              onClick={() => navigate(`/program/all/${segment.eventId}`)}
-                              style={{
-                                left: `calc(${(segment.startCol / 7) * 100}% + 4px)`,
-                                width: `calc(${(segment.span / 7) * 100}% - 8px)`,
-                                top: `${segment.lane * 40}px`,
-                                background: meta.bar,
-                                color: meta.text,
-                                borderRadius: `${segment.startsHere ? 12 : 4}px ${segment.endsHere ? 12 : 4}px ${segment.endsHere ? 12 : 4}px ${segment.startsHere ? 12 : 4}px`,
-                              }}
-                            >
-                              {!segment.startsHere ? <span>...</span> : null}
-                              <span className="event-month-bar-text">{segment.eventName}</span>
-                              {!segment.endsHere ? <span>...</span> : null}
-                            </button>
-                          );
-                        })}
-                      </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
               </div>
+            )}
+          </section>
 
-              {monthModel.monthEvents.length === 0 ? (
-                <div className="event-month-empty">선택한 월에는 등록된 행사가 없습니다.</div>
-              ) : (
-                <div className="event-month-list">
-                  {monthModel.monthEvents.map((eventItem) => {
-                    const meta = eventItem.accent || STATUS_META[eventItem.statusLabel] || STATUS_META.UPCOMING;
+          {/* ── Sidebar ── */}
+          <aside className="es-sidebar">
+            {/* Search */}
+            <div className="es-search-card">
+              <div className="es-search-inner">
+                <Search size={14} color="#b0b5bd" style={{ flexShrink: 0 }} />
+                <input className="es-search-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="행사명, 장소 검색" />
+                {query && <button type="button" className="es-search-clear" onClick={() => setQuery("")}><X size={10} /></button>}
+              </div>
+            </div>
+
+            {/* Mini Calendar */}
+            <div className="es-mini">
+              <div className="es-mini-head">
+                <span className="es-mini-title">{miniYear}년 {miniMonth + 1}월</span>
+                <div className="es-mini-navs">
+                  <button type="button" className="es-mini-nav" onClick={() => navigateMini(-1)}><ChevronLeft size={14} /></button>
+                  <button type="button" className="es-mini-nav" onClick={() => navigateMini(1)}><ChevronRight size={14} /></button>
+                </div>
+              </div>
+              <div className="es-mini-wds">
+                {MINI_WD.map((w) => <div key={w} className="es-mini-wd">{w}</div>)}
+              </div>
+              <div className="es-mini-grid">
+                {miniModel.days.map((day) => {
+                  const out = day.getMonth() !== miniMonth;
+                  const isToday = sameDay(day, today);
+                  const isSel = !isToday && formatMonthKey(day) === selectedMonthKey && day.getMonth() === miniMonth;
+                  const hasEvt = !out && miniHasEvent(day);
+                  return (
+                    <button
+                      key={day.toISOString()} type="button"
+                      className={`es-mini-day${out ? " out" : ""}${isToday ? " today" : ""}${isSel ? " sel" : ""}${hasEvt ? " has-evt" : ""}`}
+                      onClick={() => onMiniDayClick(day)}
+                    >
+                      {day.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Event List */}
+            <div className="es-list-card">
+              <div className="es-list-title">
+                {formatMonthLabel(monthModel.monthStart)} 일정
+                <span className="es-list-count">{filteredMonthEvents.length}건</span>
+              </div>
+              <div className="es-list-scroll">
+                {filteredMonthEvents.length === 0 ? (
+                  <div className="es-list-empty">{query ? `"${query}" 검색 결과 없음` : "등록된 일정이 없습니다"}</div>
+                ) : (
+                  filteredMonthEvents.map((evt) => {
+                    const meta = STATUS_META[evt.statusLabel] || STATUS_META.UPCOMING;
                     return (
-                      <div key={eventItem.eventId} className="event-month-list-item">
-                        <div className="event-month-list-main">
-                          <div className="event-month-list-top">
-                            <span className="event-month-badge" style={{ background: meta.soft, color: meta.text }}>
-                              {meta.label}
-                            </span>
-                            <div className="event-month-list-title">{eventItem.eventName}</div>
-                          </div>
-                          <div className="event-month-list-meta">
-                            <span><CalendarDays size={13} />{formatRange(eventItem.startAt, eventItem.endAt)}</span>
-                            <span><MapPin size={13} />{eventItem.location}</span>
-                            <span><Clock3 size={13} />{eventItem.description || eventItem.organizer}</span>
+                      <div key={evt.eventId} className="es-list-item" onClick={() => navigate(`/program/all/${evt.eventId}`)}>
+                        <div className="es-list-bar" style={{ background: meta.color }} />
+                        <div className="es-list-body">
+                          <div className="es-list-name">{evt.eventName}</div>
+                          <div className="es-list-meta">
+                            <CalendarDays size={11} />
+                            {formatShortRange(evt.startAt, evt.endAt)}
+                            {evt.location !== "장소 미정" && (
+                              <><MapPin size={11} style={{ marginLeft: 4 }} />{evt.location}</>
+                            )}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          className="event-month-link"
-                          onClick={() => navigate(`/program/all/${eventItem.eventId}`)}
-                        >
-                          관련 프로그램 이동
-                        </button>
                       </div>
                     );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-        </section>
+                  })
+                )}
+              </div>
+            </div>
+          </aside>
+        </div>
       </main>
     </div>
   );
