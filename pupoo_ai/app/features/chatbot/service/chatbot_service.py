@@ -10,7 +10,14 @@ logger = get_logger(__name__)
 
 MODEL = "us.amazon.nova-lite-v1:0"
 
-_client = boto3.client("bedrock-runtime", region_name="us-east-1")
+_client = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = boto3.client("bedrock-runtime", region_name="us-east-1")
+    return _client
 
 
 async def chat(request: ChatRequest) -> str:
@@ -31,7 +38,7 @@ async def chat(request: ChatRequest) -> str:
         },
     })
 
-    response = _client.invoke_model(
+    response = _get_client().invoke_model(
         modelId=MODEL,
         body=body,
         contentType="application/json",

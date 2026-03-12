@@ -146,14 +146,18 @@ function DogCharacter({ onClick }) {
   // 가끔 혼자 말풍선 띄우기 (걷는 중에)
   useEffect(() => {
     const msgs = [
-      "심심한데 얘기할까요? 🐾",
-      "오늘 행사 잘 되고 있어요?",
-      "뭐든 물어봐도 돼요~!",
-      "제가 도와줄 수 있어요 💡",
-      "같이 일하면 더 빠르죠! ⚡",
-      "혹시 궁금한 거 없어요?",
-      "저 AI인데.. 꽤 똑똑해요 🤖",
-      "클릭하면 대화할 수 있어요!",
+      "안녕! 나는 누리야~ 🐾",
+      "누리가 도와줄까요? 멍! 🐶",
+      "심심한데 얘기할까요? 왈왈!",
+      "오늘 행사는 잘 되고 있어요~?",
+      "뭐든 물어봐도 돼요! 누리가 척척! ✨",
+      "누리한테 맡겨주세요~ 💪",
+      "같이 일하면 더 빠르죠! 헤헤 ⚡",
+      "혹시 궁금한 거 없어요~? 🐕",
+      "클릭하면 누리랑 대화할 수 있어요!",
+      "누리 여기 있어요~ 불러주세요! 🙋",
+      "행사 관리? 누리가 최고라구요! 🏆",
+      "멍멍! 오늘도 힘내세요~! 💛",
     ];
     const tick = () => {
       if (!hovered) {
@@ -182,7 +186,7 @@ function DogCharacter({ onClick }) {
     // 말풍선
     clearTimeout(bubbleTimerRef.current);
     setBubbleAnim("bubblePop");
-    setBubble("나랑 얘기해요! 💬");
+    setBubble("누리랑 얘기해요! 💬");
   };
 
   const handleMouseLeave = () => {
@@ -399,12 +403,12 @@ function Welcome({ onSelect }) {
     { icon: "\uD83D\uDCB3", label: "결제 현황 알려줘", sub: "매출 및 결제 내역" },
   ];
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px 16px", overflow: "auto", background: "#B2C7D9" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px 16px", overflow: "auto", background: "#fff" }}>
       <div style={{ animation: "softBounce 2.5s ease-in-out infinite" }}>
         <BotAvatar size={56} />
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: "#1F2937", marginTop: 14, letterSpacing: -0.5 }}>무엇을 도와드릴까요?</div>
-      <div style={{ fontSize: 13, color: "#9CA3AF", marginTop: 4, textAlign: "center", lineHeight: 1.5 }}>무엇이든 편하게 물어보세요</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: "#1F2937", marginTop: 14, letterSpacing: -0.5 }}>안녕하세요! 누리예요~ 🐶</div>
+      <div style={{ fontSize: 13, color: "#9CA3AF", marginTop: 4, textAlign: "center", lineHeight: 1.5 }}>뭐든 편하게 물어봐요! 누리가 척척 도와줄게요~</div>
       <div style={{ width: "100%", marginTop: 20, display: "flex", flexDirection: "column", gap: 8 }}>
         {items.map((it) => (
           <button key={it.label} onClick={() => onSelect(it.label)}
@@ -548,7 +552,7 @@ export default function AdminChatBot() {
             <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
               <MiniDogLottie size={40} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>푸푸 도우미</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>멍비서 누리</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
                   <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#A7F3D0", boxShadow: "0 0 6px rgba(167,243,208,0.6)" }} />
                   <span style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>응답 가능</span>
