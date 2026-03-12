@@ -29,19 +29,19 @@ async function getBotReply(history, userMessage) {
       }),
     });
   } catch (fetchErr) {
-    throw new Error("AI ??? ??? ? ????. ??? ?? ??? ??? ???.");
+    throw new Error("AI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해 주세요.");
   }
 
   const text = await res.text();
   if (!res.ok) {
-    throw new Error("AI ???? ??? ??????. ?? ? ?? ??? ???.");
+    throw new Error("AI 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
   }
 
   try {
     const data = JSON.parse(text);
-    return data?.data?.reply || "??? ?? ?????.";
+    return data?.data?.reply || "응답을 받지 못했습니다.";
   } catch {
-    throw new Error(`[?? ??] ${text.slice(0, 200)}`);
+    throw new Error(`[파싱 실패] ${text.slice(0, 200)}`);
   }
 }
 
@@ -51,7 +51,7 @@ export function useChatBot() {
     {
       id: 1,
       role: "bot",
-      text: "????. ??? ???????",
+      text: "반가워요. 무엇을 도와드릴까요?",
       ts: new Date(),
     },
   ]);
@@ -92,7 +92,7 @@ export function useChatBot() {
             role: "bot",
             text:
               err?.message ||
-              "???? ??? ??????. ?? ? ?? ??? ???.",
+              "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
             ts: new Date(),
           },
         ]);
@@ -108,7 +108,7 @@ export function useChatBot() {
       {
         id: idRef.current++,
         role: "bot",
-        text: "??? ????????. ??? ???????",
+        text: "대화가 초기화되었습니다. 무엇을 도와드릴까요?",
         ts: new Date(),
       },
     ]);

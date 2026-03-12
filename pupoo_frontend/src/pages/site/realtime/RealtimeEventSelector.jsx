@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Radio,
-  ChevronRight,
   Signal,
   CalendarDays,
   MapPin,
@@ -10,8 +10,10 @@ import {
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
+import { aiApi } from "../../../app/http/aiApi";
 import { getToken } from "../../../api/noticeApi";
 import { sortAdminEventsByOperationalPriority } from "../../admin/shared/adminStatus";
+import { normalizePrediction } from "./aiCongestionViewModel";
 
 const STATUS_CONFIG = {
   live: {
@@ -21,24 +23,31 @@ const STATUS_CONFIG = {
     border: "#fecaca",
   },
   upcoming: {
-    label: "예정",
+    label: "\uC608\uC815",
     color: "#2563eb",
     bg: "#eff6ff",
     border: "#bfdbfe",
   },
   ended: {
-    label: "종료",
+    label: "\uC885\uB8CC",
     color: "#6b7280",
     bg: "#f3f4f6",
     border: "#e5e7eb",
   },
   cancelled: {
-    label: "취소",
+    label: "\uCDE8\uC18C",
     color: "#b91c1c",
     bg: "#fef2f2",
     border: "#fecaca",
   },
 };
+
+const EVENT_VIEW_BUTTONS = [
+  { key: "dashboard", label: "\uD1B5\uD569 \uD604\uD669", path: "/realtime/dashboard" },
+  { key: "waiting", label: "\uB300\uAE30 \uD604\uD669", path: "/realtime/waitingstatus" },
+  { key: "checkin", label: "\uCCB4\uD06C\uC778 \uD604\uD669", path: "/realtime/checkinstatus" },
+  { key: "vote", label: "\uD22C\uD45C \uD604\uD669", path: "/realtime/votestatus" },
+];
 
 const selectorStyles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -110,9 +119,17 @@ const selectorStyles = `
   }
   .rte-filters {
     display: flex;
-    gap: 6px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     margin-bottom: 16px;
     flex-wrap: wrap;
+  }
+  .rte-filter-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-width: 0;
   }
   .rte-filter-tab {
     padding: 6px 14px;
@@ -155,7 +172,7 @@ const selectorStyles = `
     border-radius: 14px;
     padding: 20px 24px;
     display: grid;
-    grid-template-columns: auto 1fr auto auto;
+    grid-template-columns: 74px minmax(220px, 1fr) 240px minmax(320px, 420px);
     align-items: center;
     gap: 20px;
     cursor: pointer;
@@ -198,6 +215,7 @@ const selectorStyles = `
   .rte-status-badge {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
     padding: 4px 10px;
     border-radius: 100px;
@@ -205,6 +223,7 @@ const selectorStyles = `
     font-weight: 700;
     white-space: nowrap;
     border: 1px solid;
+    min-width: 54px;
   }
   .rte-live-pulse {
     width: 6px; height: 6px;
@@ -228,7 +247,8 @@ const selectorStyles = `
   }
   .rte-event-meta {
     display: flex;
-    gap: 14px;
+    column-gap: 14px;
+    row-gap: 4px;
     align-items: center;
     flex-wrap: wrap;
   }
@@ -239,14 +259,43 @@ const selectorStyles = `
     font-size: 12px;
     color: #9ca3af;
   }
+  .rte-event-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+  .rte-event-action-btn {
+    height: 34px;
+    border-radius: 9px;
+    border: 1px solid #dbe2ea;
+    background: #fff;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 0 10px;
+    white-space: nowrap;
+  }
+  .rte-event-action-btn:hover {
+    border-color: #94a3b8;
+    color: #1e293b;
+    background: #f8fafc;
+  }
+  .rte-event-action-btn.active {
+    background: #1e293b;
+    border-color: #1e293b;
+    color: #fff;
+  }
   .rte-metrics {
     display: flex;
-    gap: 20px;
+    gap: 12px;
     align-items: center;
   }
   .rte-metric {
     text-align: center;
-    min-width: 64px;
+    min-width: 56px;
   }
   .rte-metric-value {
     font-size: 18px;
@@ -265,23 +314,6 @@ const selectorStyles = `
     width: 1px;
     height: 28px;
     background: #f1f3f5;
-  }
-  .rte-arrow {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    background: #f8f9fc;
-    display: flex; align-items: center; justify-content: center;
-    color: #c4c9d4;
-    transition: all 0.2s;
-    flex-shrink: 0;
-  }
-  .rte-event-row:hover .rte-arrow {
-    background: #1e293b;
-    color: #fff;
-    transform: translateX(2px);
-  }
-  .rte-event-row.live-row:hover .rte-arrow {
-    background: #ef4444;
   }
   .rte-empty {
     text-align: center;
@@ -302,13 +334,19 @@ const selectorStyles = `
   }
   @media (max-width: 900px) {
     .rte-event-row {
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: auto 1fr;
       gap: 14px;
+    }
+    .rte-event-actions {
+      grid-column: 1 / -1;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .rte-metrics { display: none; }
   }
   @media (max-width: 640px) {
     .rte-topbar { flex-direction: column; align-items: flex-start; }
+    .rte-filters { flex-direction: column; align-items: stretch; }
+    .rte-filter-tabs { width: 100%; }
     .rte-search-wrap { width: 100%; }
     .rte-event-row { padding: 16px 18px; }
   }
@@ -328,6 +366,120 @@ const toArray = (payload) =>
       ? payload
       : [];
 
+const toValidDate = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const toDateKey = (value) => {
+  const date = toValidDate(value);
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const buildDateKeysFromRange = (startAt, endAt, maxDays = 60) => {
+  const startDate = toValidDate(startAt);
+  const endDate = toValidDate(endAt);
+  if (!startDate || !endDate || endDate < startDate) return [];
+
+  const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const limit = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+  const keys = [];
+
+  while (cursor <= limit && keys.length < maxDays) {
+    keys.push(toDateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return keys;
+};
+
+const clipRangeByDate = (startAt, endAt, dateKey) => {
+  const startDate = toValidDate(startAt);
+  const endDate = toValidDate(endAt);
+  const baseDate = toValidDate(`${dateKey}T00:00:00`);
+  if (!startDate || !endDate || !baseDate || endDate < startDate) {
+    return { startAt: null, endAt: null };
+  }
+
+  const dayStart = new Date(baseDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(baseDate);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  if (endDate < dayStart || startDate > dayEnd) {
+    return { startAt: null, endAt: null };
+  }
+
+  const clippedStart = startDate > dayStart ? startDate : dayStart;
+  const clippedEnd = endDate < dayEnd ? endDate : dayEnd;
+  return { startAt: clippedStart, endAt: clippedEnd };
+};
+
+const buildOperationRangeByDate = (startAt, endAt, dateKey) => {
+  const clipped = clipRangeByDate(startAt, endAt, dateKey);
+  if (!clipped.startAt || !clipped.endAt) return { startAt: null, endAt: null };
+
+  const eventStart = toValidDate(startAt);
+  const eventEnd = toValidDate(endAt);
+  const baseDate = toValidDate(`${dateKey}T00:00:00`);
+  if (!eventStart || !eventEnd || !baseDate) {
+    return clipped;
+  }
+
+  const rangeStart = new Date(baseDate);
+  rangeStart.setHours(eventStart.getHours(), 0, 0, 0);
+
+  const rangeEnd = new Date(baseDate);
+  rangeEnd.setHours(eventEnd.getHours(), 59, 59, 999);
+
+  if (rangeEnd < rangeStart) {
+    return clipped;
+  }
+
+  return {
+    startAt: rangeStart,
+    endAt: rangeEnd,
+  };
+};
+
+const resolveEventAiRangeParams = (event, status) => {
+  const dateOptions = buildDateKeysFromRange(event?.startAt, event?.endAt);
+  if (dateOptions.length === 0) {
+    return {};
+  }
+
+  const todayKey = toDateKey(new Date());
+  const selectedDateKey = (() => {
+    if (status === "active" && dateOptions.includes(todayKey)) {
+      return todayKey;
+    }
+    if (status === "ended") {
+      return dateOptions[dateOptions.length - 1];
+    }
+    return dateOptions[0];
+  })();
+
+  const operationRange = buildOperationRangeByDate(
+    event?.startAt,
+    event?.endAt,
+    selectedDateKey,
+  );
+
+  if (!operationRange.startAt || !operationRange.endAt) {
+    return {};
+  }
+
+  return {
+    from: operationRange.startAt,
+    to: operationRange.endAt,
+  };
+};
+
 const congestionLevelToPercent = (value) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) return 0;
@@ -340,7 +492,7 @@ const formatDateRange = (startAt, endAt) => {
   const validStart = start && !Number.isNaN(start.getTime()) ? start : null;
   const validEnd = end && !Number.isNaN(end.getTime()) ? end : null;
 
-  if (!validStart && !validEnd) return "일정 정보 없음";
+  if (!validStart && !validEnd) return "\uC77C\uC815 \uC815\uBCF4 \uC5C6\uC74C";
   if (validStart && validEnd) {
     return `${validStart.getFullYear()}.${String(validStart.getMonth() + 1).padStart(2, "0")}.${String(validStart.getDate()).padStart(2, "0")} ~ ${validEnd.getFullYear()}.${String(validEnd.getMonth() + 1).padStart(2, "0")}.${String(validEnd.getDate()).padStart(2, "0")}`;
   }
@@ -363,10 +515,12 @@ const toSelectorStatus = (status) => {
   return "upcoming";
 };
 
-async function fetchAdminData(url, params, fallback) {
-  const token = getToken();
-  if (!token) return fallback;
+const FILTER_VALUES = new Set(["all", "live", "upcoming", "ended"]);
 
+const normalizeFilterValue = (value) =>
+  FILTER_VALUES.has(String(value)) ? String(value) : "all";
+
+async function fetchAdminData(url, params, fallback) {
   try {
     const response = await axiosInstance.get(url, {
       headers: authHeaders(),
@@ -379,10 +533,47 @@ async function fetchAdminData(url, params, fallback) {
 }
 
 export default function RealtimeEventSelector({ onSelectEvent, pageTitle, programCategory }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState(() =>
+    normalizeFilterValue(searchParams.get("status")),
+  );
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const currentRealtimePath = useMemo(() => {
+    const pathname = String(location.pathname || "");
+    if (pathname.startsWith("/realtime/dashboard")) return "/realtime/dashboard";
+    if (pathname.startsWith("/realtime/waitingstatus")) return "/realtime/waitingstatus";
+    if (pathname.startsWith("/realtime/checkinstatus")) return "/realtime/checkinstatus";
+    if (pathname.startsWith("/realtime/votestatus")) return "/realtime/votestatus";
+    return "";
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const nextFilter = normalizeFilterValue(searchParams.get("status"));
+    setFilter((prev) => (prev === nextFilter ? prev : nextFilter));
+  }, [searchParams]);
+
+  const handleFilterChange = (nextFilter) => {
+    const normalized = normalizeFilterValue(nextFilter);
+    setFilter(normalized);
+
+    const nextParams = new URLSearchParams(searchParams);
+    if (normalized === "all") {
+      nextParams.delete("status");
+    } else {
+      nextParams.set("status", normalized);
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleSelectEventView = (eventId, targetPath, event) => {
+    event.stopPropagation();
+    navigate(`${targetPath}/${eventId}`);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -434,24 +625,71 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
           ? sortedEvents.filter((event) => eventAvailabilityMap.get(Number(event.eventId)))
           : sortedEvents;
 
-        const liveEvents = visibleEvents
-          .filter((event) => String(event.status).toLowerCase() === "active")
-          .slice(0, 12);
+        const congestionTargets = visibleEvents.filter((event) => {
+          const status = String(event.status).toLowerCase();
+          return status === "active" || status === "pending" || status === "ended";
+        });
 
         const congestionEntries = await Promise.all(
-          liveEvents.map(async (event) => {
-            const payload = await fetchAdminData(
-              `/api/admin/dashboard/realtime/events/${event.eventId}/congestions`,
-              { limit: 60 },
-              [],
-            );
-            const values = toArray(payload)
-              .map((row) => congestionLevelToPercent(row.congestionLevel))
-              .filter((value) => Number.isFinite(value) && value > 0);
-            const average = values.length
-              ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
-              : null;
-            return [Number(event.eventId), average];
+          congestionTargets.map(async (event) => {
+            const eventId = Number(event.eventId);
+            const status = String(event.status).toLowerCase();
+
+            if (status === "active") {
+              const payload = await fetchAdminData(
+                `/api/admin/dashboard/realtime/events/${event.eventId}/congestions`,
+                { limit: 60 },
+                [],
+              );
+              const values = toArray(payload)
+                .map((row) => congestionLevelToPercent(row.congestionLevel))
+                .filter((value) => Number.isFinite(value) && value > 0);
+              const average = values.length
+                ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+                : null;
+
+              if (average != null) {
+                return [eventId, average];
+              }
+            }
+
+            if (status === "ended") {
+              const hourlyPayload = await fetchAdminData(
+                `/api/admin/analytics/events/${event.eventId}/congestion-by-hour`,
+                {},
+                [],
+              );
+              const hourlyValues = toArray(hourlyPayload)
+                .map((row) =>
+                  congestionLevelToPercent(
+                    row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level,
+                  ),
+                )
+                .filter((value) => Number.isFinite(value) && value > 0);
+              const hourlyAverage = hourlyValues.length
+                ? Math.round(
+                    hourlyValues.reduce((sum, value) => sum + value, 0) /
+                      hourlyValues.length,
+                  )
+                : null;
+
+              if (hourlyAverage != null) {
+                return [eventId, hourlyAverage];
+              }
+            }
+
+            // For active/pending/ended events: realtime/hourly fallback (or primary for pending) with AI prediction.
+            try {
+              const aiRangeParams = resolveEventAiRangeParams(event, status);
+              const aiResponse = await aiApi.predictEventCongestion(eventId, aiRangeParams);
+              const aiPrediction = normalizePrediction(unwrapData(aiResponse, null));
+              const aiAverage = aiPrediction
+                ? Math.round(Number(aiPrediction.avgScore) || 0)
+                : null;
+              return [eventId, Number.isFinite(aiAverage) ? aiAverage : null];
+            } catch {
+              return [eventId, null];
+            }
           }),
         );
 
@@ -462,19 +700,32 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
         setEvents(
           visibleEvents.map((event, index) => {
             const rawStatus = String(rawEvents.find((row) => Number(row.eventId) === Number(event.eventId))?.status ?? event.status).toUpperCase();
+            const selectorStatus = toSelectorStatus(rawStatus);
             const performance = performanceMap.get(Number(event.eventId));
-            const registrations = Number(performance?.approvedRegistrationCount) || 0;
-            const checkedIn = Number(performance?.checkinCount) || 0;
+            const registrations =
+              Number(
+                performance?.activeRegistrationCount ??
+                performance?.approvedRegistrationCount,
+              ) || 0;
+            const checkedInRaw = Number(performance?.checkinCount) || 0;
+            const checkedIn = rawStatus === "PLANNED" ? 0 : checkedInRaw;
+            const measuredCongestion = congestionMap.get(Number(event.eventId));
+            const congestion =
+              measuredCongestion != null
+                ? measuredCongestion
+                : selectorStatus === "ended"
+                  ? 0
+                  : null;
             return {
               id: event.eventId,
               name: event.eventName,
               date: formatDateRange(event.startAt, event.endAt),
-              location: event.location || "장소 정보 없음",
+              location: event.location || "\uC7A5\uC18C \uC815\uBCF4 \uC5C6\uC74C",
               rawStatus,
-              status: toSelectorStatus(rawStatus),
+              status: selectorStatus,
               registrations,
               checkedIn,
-              congestion: congestionMap.get(Number(event.eventId)),
+              congestion,
               delay: index * 60,
             };
           }),
@@ -527,41 +778,42 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
             </div>
             <div>
               <div className="rte-topbar-title">
-                모니터링할 행사를 선택하세요
+                {"\uBAA8\uB2C8\uD130\uB9C1\uD560 \uD589\uC0AC\uB97C \uC120\uD0DD\uD558\uC138\uC694"}
               </div>
               <div className="rte-topbar-desc">
-                {pageTitle} 화면으로 이동합니다
+                {pageTitle} {"\uD654\uBA74\uC73C\uB85C \uC774\uB3D9\uD569\uB2C8\uB2E4"}
               </div>
             </div>
+          </div>        </div>
+
+        <div className="rte-filters">
+          <div className="rte-filter-tabs">
+            {[
+              { key: "all", label: "\uC804\uCCB4" },
+              { key: "live", label: "\uC9C4\uD589\uC911" },
+              { key: "upcoming", label: "\uC608\uC815" },
+              { key: "ended", label: "\uC885\uB8CC" },
+            ].map((item) => (
+              <button
+                key={item.key}
+                className={`rte-filter-tab ${filter === item.key ? "active" : ""}`}
+                onClick={() => handleFilterChange(item.key)}
+              >
+                {item.label}
+                <span className="rte-filter-count">{counts[item.key]}</span>
+              </button>
+            ))}
           </div>
           <div className="rte-search-wrap">
             <Search size={14} className="rte-search-icon" />
             <input
               className="rte-search-input"
               type="text"
-              placeholder="행사명 또는 장소 검색..."
+              placeholder={"\uD589\uC0AC\uBA85 \uB610\uB294 \uC7A5\uC18C \uAC80\uC0C9..."}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-        </div>
-
-        <div className="rte-filters">
-          {[
-            { key: "all", label: "전체" },
-            { key: "live", label: "진행중" },
-            { key: "upcoming", label: "예정" },
-            { key: "ended", label: "종료" },
-          ].map((item) => (
-            <button
-              key={item.key}
-              className={`rte-filter-tab ${filter === item.key ? "active" : ""}`}
-              onClick={() => setFilter(item.key)}
-            >
-              {item.label}
-              <span className="rte-filter-count">{counts[item.key]}</span>
-            </button>
-          ))}
         </div>
 
         <div className="rte-event-list">
@@ -570,16 +822,16 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
               <div className="rte-empty-icon">
                 <Radio size={20} color="#9ca3af" />
               </div>
-              <div className="rte-empty-text">행사 목록을 불러오는 중입니다</div>
-              <div className="rte-empty-sub">실제 행사 데이터를 연결하고 있습니다</div>
+              <div className="rte-empty-text">{"\uD589\uC0AC \uBAA9\uB85D\uC744 \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4"}</div>
+              <div className="rte-empty-sub">{"\uC2E4\uC81C \uD589\uC0AC \uB370\uC774\uD130\uB97C \uC5F0\uACB0\uD558\uACE0 \uC788\uC2B5\uB2C8\uB2E4"}</div>
             </div>
           ) : filtered.length === 0 ? (
             <div className="rte-empty">
               <div className="rte-empty-icon">
                 <Search size={20} color="#9ca3af" />
               </div>
-              <div className="rte-empty-text">검색 결과가 없습니다</div>
-              <div className="rte-empty-sub">다른 검색어나 필터를 시도해보세요</div>
+              <div className="rte-empty-text">{"\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4"}</div>
+              <div className="rte-empty-sub">{"\uB2E4\uB978 \uAC80\uC0C9\uC5B4\uB098 \uD544\uD130\uB97C \uC2DC\uB3C4\uD574\uBCF4\uC138\uC694"}</div>
             </div>
           ) : (
             filtered.map((event) => {
@@ -589,7 +841,7 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
                   key={event.id}
                   className={`rte-event-row ${event.status === "live" ? "live-row" : ""}`}
                   style={{ animationDelay: `${event.delay}ms` }}
-                  onClick={() => onSelectEvent(event.id)}
+                  onClick={() => onSelectEvent?.(event.id)}
                 >
                   <div
                     className="rte-status-badge"
@@ -622,7 +874,7 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
                       <div className="rte-metric-value">
                         {event.registrations.toLocaleString()}
                       </div>
-                      <div className="rte-metric-label">승인 등록</div>
+                      <div className="rte-metric-label">{"\uC0AC\uC804\uB4F1\uB85D"}</div>
                     </div>
                     <div className="rte-metric-divider" />
                     <div className="rte-metric">
@@ -632,9 +884,9 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
                           color: event.checkedIn > 0 ? "#10b981" : "#d1d5db",
                         }}
                       >
-                        {event.checkedIn.toLocaleString()}
+                        {event.status === "upcoming" ? "-" : event.checkedIn.toLocaleString()}
                       </div>
-                      <div className="rte-metric-label">체크인</div>
+                      <div className="rte-metric-label">{"\uCCB4\uD06C\uC778"}</div>
                     </div>
                     <div className="rte-metric-divider" />
                     <div className="rte-metric">
@@ -646,12 +898,29 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
                       >
                         {event.congestion != null ? `${event.congestion}%` : "-"}
                       </div>
-                      <div className="rte-metric-label">평균 혼잡</div>
+                      <div className="rte-metric-label">
+                        {event.rawStatus === "PLANNED" ||
+                        event.status === "upcoming" ||
+                        event.status === "pending"
+                          ? "\uC608\uC0C1 \uD63C\uC7A1"
+                          : "\uD3C9\uADE0 \uD63C\uC7A1"}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="rte-arrow">
-                    <ChevronRight size={16} />
+                  <div className="rte-event-actions">
+                    {EVENT_VIEW_BUTTONS.map((view) => (
+                      <button
+                        key={`${event.id}-${view.key}`}
+                        type="button"
+                        className={`rte-event-action-btn${currentRealtimePath === view.path ? " active" : ""}`}
+                        onClick={(clickEvent) =>
+                          handleSelectEventView(event.id, view.path, clickEvent)
+                        }
+                      >
+                        {view.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               );
@@ -662,3 +931,4 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
     </>
   );
 }
+
