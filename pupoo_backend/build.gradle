@@ -54,6 +54,7 @@ def frontendDistDir = file("${frontendDir}/dist")
 def generatedFrontendResourcesDir = file("${buildDir}/generated-resources/frontend")
 def excludedEmbeddedResourcePatterns = ['uploads/**']
 def npmCommand = OperatingSystem.current().isWindows() ? 'npm.cmd' : 'npm'
+def skipFrontendBuild = ((findProperty('skipFrontendBuild') ?: System.getenv('SKIP_FRONTEND_BUILD') ?: 'false') as String).toBoolean()
 
 dependencies {
 
@@ -66,6 +67,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	implementation 'org.springframework.boot:spring-boot-starter-aop'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
 	/* =========================
 	 * JWT (JJWT 0.11.5)
@@ -131,7 +133,7 @@ tasks.register('installFrontendDependencies', Exec) {
 	description = 'Install frontend dependencies for the integrated workspace build.'
 	doNotTrackState('node_modules is managed by npm and may contain unreadable transient paths on Windows.')
 	onlyIf {
-		frontendPackageJson.exists() && !frontendViteRuntime.exists()
+		!skipFrontendBuild && frontendPackageJson.exists() && !frontendViteRuntime.exists()
 	}
 	workingDir(frontendDir)
 	commandLine(npmCommand, 'install')
@@ -146,7 +148,7 @@ tasks.register('buildFrontend', Exec) {
 	description = 'Build the React frontend and prepare static assets for Spring Boot.'
 	dependsOn('installFrontendDependencies')
 	onlyIf {
-		frontendPackageJson.exists()
+		!skipFrontendBuild && frontendPackageJson.exists()
 	}
 	workingDir(frontendDir)
 	commandLine(npmCommand, 'run', 'build')
@@ -168,7 +170,7 @@ tasks.register('syncFrontendAssets', Sync) {
 	description = 'Copy the built React assets into Spring Boot static resources.'
 	dependsOn('buildFrontend')
 	onlyIf {
-		frontendDistDir.exists()
+		!skipFrontendBuild && frontendDistDir.exists()
 	}
 	from(frontendDistDir)
 	into(generatedFrontendResourcesDir)

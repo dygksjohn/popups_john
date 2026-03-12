@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     internal_token: str = "dev-internal-token"
     log_level: str = "INFO"
     anthropic_api_key: str = ""
+    aws_region: str = "us-east-1"
+    bedrock_model_id: str = "us.amazon.nova-lite-v1:0"
 
     if SettingsConfigDict is not None:
         model_config = SettingsConfigDict(

@@ -1,6 +1,12 @@
-const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "")
-  .trim()
-  .replace(/\/+$/, "");
+import {
+  buildAssetUrl,
+  getConfiguredAssetBaseUrl,
+} from "../config/requestUrl";
+
+const assetBaseUrl = getConfiguredAssetBaseUrl(
+  import.meta.env.VITE_ASSET_BASE_URL,
+  import.meta.env.VITE_API_BASE_URL,
+);
 
 export function toPublicAssetUrl(rawUrl) {
   if (!rawUrl) return "";
@@ -54,5 +60,5 @@ export function toPublicAssetUrl(rawUrl) {
     normalized = `/${normalized}`;
   }
 
-  return `${API_BASE}${normalized}`;
+  return buildAssetUrl(assetBaseUrl, normalized);
 }
