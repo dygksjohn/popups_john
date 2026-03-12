@@ -237,7 +237,10 @@ function DogCharacter({ onClick }) {
             padding: "7px 14px",
             borderRadius: 14,
             boxShadow: "0 4px 16px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)",
-            whiteSpace: "nowrap",
+            maxWidth: 180,
+            textAlign: "center",
+            wordBreak: "keep-all",
+            lineHeight: 1.4,
           }}>
             {bubble}
           </div>
@@ -310,7 +313,7 @@ function DogCharacter({ onClick }) {
           fontFamily: ds.ff,
           letterSpacing: -0.2,
         }}>
-          AI 채팅
+          AI 멍비서
         </span>
       </div>
     </div>
