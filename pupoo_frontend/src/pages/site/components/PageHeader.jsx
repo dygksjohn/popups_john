@@ -7,6 +7,12 @@ const styles = {
     borderBottom: "1px solid #e9ecef",
     paddingTop: 100,
   },
+  pageHeaderSticky: {
+    position: "sticky",
+    top: 70,
+    zIndex: 1200,
+    paddingTop: 0,
+  },
   inner: {
     width: "min(1350px, calc(100% - 50px))",
     margin: "0 auto",
@@ -50,7 +56,12 @@ const styles = {
   },
 };
 
-export default function PageHeader({ title, subtitle, categories }) {
+export default function PageHeader({
+  title,
+  subtitle,
+  categories,
+  stickyCategories = false,
+}) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -108,8 +119,12 @@ export default function PageHeader({ title, subtitle, categories }) {
     (cat) => !hiddenPaths.has(cat.path),
   );
 
+  const pageHeaderStyle = stickyCategories
+    ? { ...styles.pageHeader, ...styles.pageHeaderSticky }
+    : styles.pageHeader;
+
   return (
-    <div style={styles.pageHeader}>
+    <div style={pageHeaderStyle}>
       <div style={styles.inner}>
         {title ? <h1 style={styles.title}>{title}</h1> : null}
         {subtitle ? <p style={styles.subtitle}>{subtitle}</p> : null}

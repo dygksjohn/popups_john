@@ -3,6 +3,36 @@ import { tokenStore } from "../../../app/http/tokenStore";
 import { authApi } from "./api/authApi";
 
 const AuthContext = createContext(null);
+const AUTH_SESSION_HINT_KEY = "pupoo_auth_session_hint";
+
+const hasSessionHint = () => {
+  try {
+    return localStorage.getItem(AUTH_SESSION_HINT_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+const setSessionHint = () => {
+  try {
+    localStorage.setItem(AUTH_SESSION_HINT_KEY, "1");
+  } catch {
+    // no-op
+  }
+};
+
+const clearSessionHint = () => {
+  try {
+    localStorage.removeItem(AUTH_SESSION_HINT_KEY);
+  } catch {
+    // no-op
+  }
+};
+
+const isUnauthorizedError = (error) => {
+  const status = Number(error?.response?.status);
+  return status === 401 || status === 403;
+};
 
 export function AuthProvider({ children }) {
   const [isAuthed, setIsAuthed] = useState(false);
@@ -18,20 +48,30 @@ export function AuthProvider({ children }) {
       try {
         const access = tokenStore.getAccess();
         if (access) {
+          setSessionHint();
           setIsAuthed(true);
           return;
         }
 
         // refresh_token은 HttpOnly 쿠키이므로 withCredentials 기반으로 서버에 복구 요청
+        if (!hasSessionHint()) {
+          setIsAuthed(false);
+          return;
+        }
+
         const res = await authApi.refresh(); 
         // res가 { accessToken } 형태라고 가정 (프로젝트 실제 응답에 맞춰 조정)
         if (res?.accessToken) {
           tokenStore.setAccess(res.accessToken);
+          setSessionHint();
           setIsAuthed(true);
         } else {
           setIsAuthed(false);
         }
-      } catch {
+      } catch (error) {
+        if (isUnauthorizedError(error)) {
+          clearSessionHint();
+        }
         setIsAuthed(false);
       } finally {
         setIsBootstrapped(true);
@@ -62,10 +102,14 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const login = () => setIsAuthed(true);
+  const login = () => {
+    setSessionHint();
+    setIsAuthed(true);
+  };
 
   const logoutLocal = () => {
     tokenStore.clear();
+    clearSessionHint();
     setIsAuthed(false);
   };
 
@@ -74,6 +118,7 @@ export function AuthProvider({ children }) {
       await authApi.logout();
     } finally {
       tokenStore.clear();
+      clearSessionHint();
       setIsAuthed(false);
     }
   };

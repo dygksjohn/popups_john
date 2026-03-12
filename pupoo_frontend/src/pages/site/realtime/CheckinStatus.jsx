@@ -2,27 +2,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import RealtimeEventSelector from "./RealtimeEventSelector";
+import { RefreshCw } from "lucide-react";
 import {
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Search,
-  UserCheck,
-  Users,
-  ScanLine,
-  RefreshCw,
-  ListFilter,
-} from "lucide-react";
-import {
-  useCountUp,
   useRefresh,
-  useStaggerIn,
   useAutoRefresh,
   SHARED_ANIM_STYLES,
 } from "./useRealtimeAnimations";
 import { axiosInstance } from "../../../app/http/axiosInstance";
+import { tokenStore } from "../../../app/http/tokenStore";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
+import MyCheckinStatusCard from "../../../components/checkin/MyCheckinStatusCard";
+import ProgramCheckinProgressCard from "../../../components/checkin/ProgramCheckinProgressCard";
+import MyProgramList from "../../../components/checkin/MyProgramList";
 
 export const SERVICE_CATEGORIES = [
   { label: "통합 현황", path: "/realtime/dashboard" },
@@ -51,12 +43,13 @@ const styles = `
 
   .ck-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
   .ck-container.selector-mode { padding-top: 104px; }
+  .ck-page-shell { max-width: 1120px; margin: 0 auto; }
 
   .rt-live-badge {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca;
     border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444;
-    margin-bottom: 20px;
+    margin-bottom: 0;
   }
   .rt-live-dot {
     width: 7px;
@@ -72,17 +65,24 @@ const styles = `
 
   .ck-live-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     gap: 12px;
   }
-  .ck-live-meta {
+  .ck-live-header-left {
+    min-width: 0;
     display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .ck-live-meta {
+    display: none;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 600;
     color: #6b7280;
   }
   .ck-live-header-right {
@@ -90,11 +90,37 @@ const styles = `
     align-items: center;
     gap: 12px;
   }
+  .ck-refresh-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #6b7280;
+    transition: all 0.15s;
+  }
+  .ck-refresh-btn:hover {
+    border-color: #1a4fd6;
+    color: #1a4fd6;
+    background: #f5f8ff;
+  }
   .ck-timestamp {
     font-size: 12px;
     color: #9ca3af;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
+  }
+
+  .checkin-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: none;
+    margin: 0;
   }
 
   .ck-stat-grid {
@@ -135,8 +161,13 @@ const styles = `
     background: #fff;
     border: 1px solid #e9ecef;
     border-radius: 13px;
-    padding: 24px 28px;
-    margin-bottom: 16px;
+    padding: 22px 22px 20px;
+    margin-bottom: 0;
+  }
+  .ck-live-count {
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 600;
   }
   .ck-card-header {
     display: flex;
@@ -165,162 +196,167 @@ const styles = `
     justify-content: center;
   }
 
-  .ck-ring-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 0 16px;
-    gap: 28px;
-  }
-  .ck-ring-legend {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .ck-ring-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #374151;
-  }
-  .ck-ring-legend-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .ck-ring-legend-val {
-    font-weight: 700;
+  .my-checkin-card { border-color: #dbe5f5; background: #fff; }
+  .ck-my-status-title {
+    font-size: 30px;
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.02em;
     color: #111827;
-    margin-left: 4px;
   }
-
-  .ck-prog-list {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .ck-prog-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 6px;
-    gap: 8px;
-  }
-  .ck-prog-name {
-    font-size: 13px;
+  .ck-my-status-desc {
+    margin-top: 6px;
+    font-size: 14px;
+    line-height: 1.4;
     font-weight: 600;
-    color: #374151;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .ck-prog-val {
-    font-size: 12px;
     color: #6b7280;
-    white-space: nowrap;
   }
-  .ck-prog-track {
-    height: 7px;
-    background: #f1f3f5;
-    border-radius: 100px;
-    overflow: hidden;
-  }
-  .ck-prog-fill { height: 100%; border-radius: 100px; }
-
-  .ck-toolbar {
-    display: flex;
+  .ck-my-checkin-grid {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
-    align-items: center;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
   }
-  .ck-search-wrap {
-    position: relative;
-    flex: 1;
-    min-width: 220px;
+  .ck-my-checkin-item {
+    border: 1px solid #e9eef5;
+    border-radius: 10px;
+    background: #fafcff;
+    padding: 11px 12px;
   }
-  .ck-search-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #9ca3af;
-  }
-  .ck-search {
-    width: 100%;
-    height: 40px;
-    padding: 0 13px 0 36px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 13.5px;
-    color: #111827;
-    outline: none;
-    background: #fff;
-    transition: border-color 0.15s;
-  }
-  .ck-search:focus {
-    border-color: #1a4fd6;
-    box-shadow: 0 0 0 3px rgba(26,79,214,0.08);
-  }
-  .ck-filter-btn {
-    height: 40px;
-    padding: 0 16px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    background: #fff;
-    font-size: 13px;
-    font-weight: 500;
-    color: #374151;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: border-color 0.15s;
-  }
-  .ck-filter-btn:hover {
-    border-color: #1a4fd6;
-    color: #1a4fd6;
-  }
-  .ck-filter-btn.active {
-    border-color: #1a4fd6;
-    background: #f5f8ff;
-    color: #1a4fd6;
-  }
-
-  .ck-table-wrap { overflow-x: auto; }
-  .ck-table { width: 100%; border-collapse: collapse; }
-  .ck-table thead tr { background: #f9fafb; }
-  .ck-table th {
-    padding: 11px 16px;
+  .ck-my-checkin-label {
     font-size: 12px;
     font-weight: 600;
     color: #6b7280;
-    text-align: left;
-    border-bottom: 1px solid #e9ecef;
-    white-space: nowrap;
   }
-  .ck-table td {
-    padding: 14px 16px;
-    font-size: 13px;
-    color: #374151;
-    border-bottom: 1px solid #f1f3f5;
+  .ck-my-checkin-value {
+    margin-top: 5px;
+    font-size: 15px;
+    line-height: 1.2;
+    color: #111827;
+    font-weight: 800;
   }
-  .ck-table tbody tr:hover { background: #fafbff; }
-  .ck-table tbody tr:last-child td { border-bottom: none; }
-
-  .ck-badge {
+  .ck-status-chip {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 10px;
-    border-radius: 100px;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    padding: 4px 10px;
     font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .ck-status-chip-done { color: #166534; background: #ecfdf3; border-color: #bbf7d0; }
+  .ck-status-chip-wait { color: #9a3412; background: #fff7ed; border-color: #fdba74; }
+  .ck-status-chip-pending { color: #4b5563; background: #f3f4f6; border-color: #d1d5db; }
+  .ck-status-chip-cancel { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+
+  .ck-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ck-progress-item {
+    border: 1px solid #e9eef5;
+    border-radius: 11px;
+    background: #fafcff;
+    padding: 12px;
+  }
+  .ck-progress-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: start;
+  }
+  .ck-progress-name {
+    font-size: 14px;
+    color: #111827;
+    font-weight: 800;
+    line-height: 1.3;
+  }
+  .ck-progress-time {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #6b7280;
+  }
+  .ck-progress-right {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+  }
+  .ck-progress-val {
+    font-size: 12px;
+    color: #374151;
+    font-weight: 700;
+  }
+  .ck-progress-track {
+    margin-top: 10px;
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: #e5e7eb;
+    overflow: hidden;
+  }
+  .ck-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: #1a4fd6;
+    transition: width 0.5s ease;
+  }
+  .ck-progress-meta {
+    margin-top: 7px;
+    font-size: 11px;
+    color: #6b7280;
     font-weight: 600;
   }
-  .ck-badge.done { background: #ecfdf5; color: #059669; }
-  .ck-badge.wait { background: #fff7ed; color: #d97706; }
-  .ck-badge.no { background: #fef2f2; color: #dc2626; }
+
+  .ck-my-program-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ck-my-program-item {
+    border: 1px solid #e9eef5;
+    border-radius: 11px;
+    background: #fff;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+  .ck-my-program-title {
+    font-size: 14px;
+    line-height: 1.3;
+    color: #111827;
+    font-weight: 800;
+  }
+  .ck-my-program-time {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #6b7280;
+  }
+  .ck-my-program-meta {
+    margin-top: 7px;
+    font-size: 12px;
+    color: #374151;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  .ck-my-program-right {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+  }
+  .ck-my-program-checkin {
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 600;
+  }
 
   .ck-ticket-chip {
     display: inline-block;
@@ -335,10 +371,10 @@ const styles = `
     vertical-align: middle;
   }
 
-  .ck-error {
-    color: #b91c1c;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+  .ck-notice {
+    color: #9a3412;
+    background: #fffbeb;
+    border: 1px solid #fed7aa;
     border-radius: 10px;
     padding: 12px 14px;
     margin-bottom: 16px;
@@ -353,42 +389,27 @@ const styles = `
     font-size: 13.5px;
   }
 
-  .ck-table tbody tr {
-    opacity: 0;
-    transform: translateY(8px);
-    animation: ck-row-in 0.35s cubic-bezier(0.16,1,0.3,1) forwards;
-  }
-  @keyframes ck-row-in {
-    to { opacity: 1; transform: translateY(0); }
-  }
-
   @media (max-width: 900px) {
-    .ck-stat-grid { grid-template-columns: repeat(2, 1fr); }
-    .ck-two-col { grid-template-columns: 1fr; }
+    .ck-my-checkin-grid { grid-template-columns: 1fr; }
+    .ck-my-program-item { grid-template-columns: 1fr; }
+    .ck-my-program-right {
+      align-items: flex-start;
+      text-align: left;
+    }
+    .ck-progress-top { grid-template-columns: 1fr; }
+    .ck-progress-right {
+      align-items: flex-start;
+      text-align: left;
+    }
   }
   @media (max-width: 640px) {
     .ck-container { padding: 20px 16px 48px; }
     .ck-container.selector-mode { padding-top: 88px; }
-    .ck-stat-grid { grid-template-columns: 1fr 1fr; }
     .ck-card { padding: 20px 16px; }
     .ck-card-header { flex-wrap: wrap; gap: 8px; }
+    .ck-my-status-title { font-size: 24px; }
   }
 `;
-
-const STATUS_BADGE = {
-  done: { label: "완료", icon: <CheckCircle2 size={11} />, cls: "done" },
-  wait: { label: "대기", icon: <Clock size={11} />, cls: "wait" },
-  no: { label: "취소", icon: <XCircle size={11} />, cls: "no" },
-};
-
-const TICKET_COLOR_PALETTE = [
-  { bg: "#eff4ff", color: "#1a4fd6", bar: "#1a4fd6" },
-  { bg: "#f5f3ff", color: "#7c3aed", bar: "#8b5cf6" },
-  { bg: "#ecfdf5", color: "#059669", bar: "#10b981" },
-  { bg: "#fff7ed", color: "#c2410c", bar: "#f59e0b" },
-  { bg: "#fef2f2", color: "#b91c1c", bar: "#ef4444" },
-  { bg: "#eff6ff", color: "#1e40af", bar: "#3b82f6" },
-];
 
 const unwrapData = (response, fallback) => response?.data?.data ?? response?.data ?? fallback;
 
@@ -418,6 +439,45 @@ const getAdminAccessToken = () => {
   }
 };
 
+const getUserAccessToken = () => {
+  try {
+    return tokenStore.getAccess();
+  } catch {
+    return null;
+  }
+};
+
+const parseJwtPayload = (token) => {
+  if (!token || typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+
+  try {
+    const payloadBase64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const paddedBase64 = payloadBase64.padEnd(
+      payloadBase64.length + ((4 - (payloadBase64.length % 4)) % 4),
+      "=",
+    );
+    const payloadJson = atob(paddedBase64);
+    return JSON.parse(payloadJson);
+  } catch {
+    return null;
+  }
+};
+
+const isExpiredAccessToken = (token) => {
+  const payload = parseJwtPayload(token);
+  const exp = Number(payload?.exp);
+  if (!Number.isFinite(exp)) return false;
+  return exp * 1000 <= Date.now() + 1000;
+};
+
+const hasUsableUserAccessToken = () => {
+  const accessToken = getUserAccessToken();
+  if (!accessToken) return false;
+  return !isExpiredAccessToken(accessToken);
+};
+
 const formatTimestamp = (value) => {
   const date = toValidDate(value);
   if (!date) return "--:--:--";
@@ -442,8 +502,30 @@ const formatTime = (value) => {
 const normalizeApplyState = (apply) => {
   const status = String(apply?.status ?? "").toUpperCase();
   if (apply?.checkedInAt || status === "CHECKED_IN") return "done";
-  if (status === "CANCELLED" || status === "REJECTED") return "no";
+  if (status === "CANCELLED" || status === "REJECTED" || status === "CANCELED") return "no";
   return "wait";
+};
+
+const MY_STATUS = {
+  WAITING: "WAITING",
+  CHECKED_IN: "CHECKED_IN",
+  NOT_STARTED: "NOT_STARTED",
+  CANCELED: "CANCELED",
+  PENDING: "PENDING",
+};
+
+const resolveMyProgramStatus = (apply, program) => {
+  const status = String(apply?.status ?? "").toUpperCase();
+  if (apply?.checkedInAt || status === "CHECKED_IN") return MY_STATUS.CHECKED_IN;
+  if (status === "CANCELLED" || status === "REJECTED" || status === "CANCELED") {
+    return MY_STATUS.CANCELED;
+  }
+
+  const now = Date.now();
+  const startAt = toValidDate(program?.startAt)?.getTime() ?? null;
+  if (startAt && now < startAt) return MY_STATUS.NOT_STARTED;
+
+  return MY_STATUS.WAITING;
 };
 
 const buildDisplayName = (apply) => {
@@ -458,7 +540,15 @@ const buildDisplayName = (apply) => {
   return "참가자";
 };
 
-const buildRows = (programs, programApplies) => {
+const formatProgramTimeRange = (startAt, endAt) => {
+  const start = formatTime(startAt);
+  const end = formatTime(endAt);
+  if (start === "-" && end === "-") return "운영 시간 정보 없음";
+  if (start !== "-" && end !== "-") return `${start} ~ ${end}`;
+  return start !== "-" ? `${start} 시작` : `${end} 종료`;
+};
+
+const buildMyPrograms = (programs, programApplies) => {
   const programById = new Map(
     programs.map((program) => [Number(program?.programId), program]),
   );
@@ -466,27 +556,138 @@ const buildRows = (programs, programApplies) => {
   return programApplies
     .map((apply) => {
       const program = programById.get(Number(apply?.programId));
-      const status = normalizeApplyState(apply);
+      const status = resolveMyProgramStatus(apply, program);
       const checkedInAt = apply?.checkedInAt ?? null;
       const createdAt = apply?.createdAt ?? null;
+      const startAt = program?.startAt ?? null;
+      const endAt = program?.endAt ?? null;
 
       return {
-        key: apply?.programApplyId ?? `${apply?.programId}-${apply?.ticketNo ?? "-"}`,
-        requestNo: apply?.ticketNo || `PA-${apply?.programApplyId ?? "-"}`,
-        name: buildDisplayName(apply),
-        ticket: program?.name || `프로그램 ${apply?.programId ?? "-"}`,
-        gate: program?.category || "-",
-        time: formatTime(checkedInAt),
+        programApplyId: apply?.programApplyId ?? null,
+        programId: Number(apply?.programId),
+        programName:
+          program?.programTitle || program?.name || `프로그램 ${apply?.programId ?? "-"}`,
+        time: formatProgramTimeRange(startAt, endAt),
         status,
+        requestNo: apply?.ticketNo || `PA-${apply?.programApplyId ?? "-"}`,
+        participantName: buildDisplayName(apply),
+        checkedInTimeText: formatTime(checkedInAt),
         checkedInAt,
         createdAt,
+        startAt,
       };
     })
     .sort((left, right) => {
-      const leftTime = toValidDate(left.checkedInAt ?? left.createdAt)?.getTime() ?? 0;
-      const rightTime = toValidDate(right.checkedInAt ?? right.createdAt)?.getTime() ?? 0;
-      return rightTime - leftTime;
+      const statusPriority = {
+        [MY_STATUS.WAITING]: 0,
+        [MY_STATUS.NOT_STARTED]: 1,
+        [MY_STATUS.CHECKED_IN]: 2,
+        [MY_STATUS.CANCELED]: 3,
+      };
+      const leftPriority = statusPriority[left.status] ?? 3;
+      const rightPriority = statusPriority[right.status] ?? 3;
+      if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+
+      const leftStart = toValidDate(left.startAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const rightStart = toValidDate(right.startAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      if (leftStart !== rightStart) return leftStart - rightStart;
+
+      const leftCreated = toValidDate(left.createdAt)?.getTime() ?? 0;
+      const rightCreated = toValidDate(right.createdAt)?.getTime() ?? 0;
+      if (leftCreated !== rightCreated) return rightCreated - leftCreated;
+
+      return String(left.programName).localeCompare(String(right.programName), "ko-KR");
     });
+};
+
+const estimateCheckinTime = (position) => {
+  if (!Number.isFinite(position) || position <= 0) return "집계 중";
+
+  const estimated = new Date(Date.now() + Math.max(position - 1, 0) * 2 * 60 * 1000);
+  return formatTime(estimated);
+};
+
+const buildProgramCheckinStats = (programApplies, myPrograms) => {
+  const checkedIn = programApplies.filter((apply) => normalizeApplyState(apply) === "done").length;
+  const waitingApplies = programApplies.filter((apply) => normalizeApplyState(apply) === "wait");
+  const waiting = waitingApplies.length;
+  const totalApply = programApplies.length;
+
+  const waitingQueue = waitingApplies
+    .map((apply) => ({
+      programApplyId: apply?.programApplyId ?? null,
+      createdAtMs: toValidDate(apply?.createdAt)?.getTime() ?? 0,
+    }))
+    .sort((left, right) => {
+      if (left.createdAtMs !== right.createdAtMs) return left.createdAtMs - right.createdAtMs;
+      return Number(left.programApplyId ?? 0) - Number(right.programApplyId ?? 0);
+    });
+
+  const myWaitingApplyIds = myPrograms
+    .filter((item) => item.status === MY_STATUS.WAITING)
+    .map((item) => Number(item.programApplyId))
+    .filter(Number.isFinite);
+
+  let myPosition = null;
+  myWaitingApplyIds.forEach((applyId) => {
+    const queueIndex = waitingQueue.findIndex(
+      (queueItem) => Number(queueItem.programApplyId) === applyId,
+    );
+    if (queueIndex >= 0) {
+      const position = queueIndex + 1;
+      myPosition = myPosition == null ? position : Math.min(myPosition, position);
+    }
+  });
+
+  return {
+    totalApply,
+    checkedIn,
+    waiting,
+    myPosition,
+    estimatedCheckinTime: estimateCheckinTime(myPosition),
+  };
+};
+
+const pickPrimaryProgram = (myPrograms) => {
+  if (!myPrograms.length) return null;
+  return (
+    myPrograms.find((item) => item.status === MY_STATUS.WAITING) ||
+    myPrograms.find((item) => item.status === MY_STATUS.NOT_STARTED) ||
+    myPrograms.find((item) => item.status === MY_STATUS.CHECKED_IN) ||
+    myPrograms[0]
+  );
+};
+
+const buildMyCheckin = (primaryProgram, stats) => {
+  if (!primaryProgram) return null;
+
+  const isWaiting = primaryProgram.status === MY_STATUS.WAITING;
+  const myPosition = isWaiting ? Number(stats?.myPosition ?? 0) : 0;
+  const waitingCount = isWaiting ? Math.max(myPosition - 1, 0) : 0;
+  const estimatedCheckinTime = isWaiting
+    ? stats?.estimatedCheckinTime || "집계 중"
+    : primaryProgram.status === MY_STATUS.CHECKED_IN
+      ? primaryProgram.checkedInTimeText
+      : "-";
+
+  return {
+    programName: primaryProgram.programName,
+    programTime: primaryProgram.time,
+    status: primaryProgram.status,
+    myPosition,
+    waitingCount,
+    estimatedCheckinTime,
+  };
+};
+
+const buildProgramCheckinStatus = (primaryProgram, stats) => {
+  if (!primaryProgram) return null;
+  return {
+    programName: primaryProgram.programName,
+    totalApply: Number(stats?.totalApply ?? 0),
+    checkedIn: Number(stats?.checkedIn ?? 0),
+    waiting: Number(stats?.waiting ?? 0),
+  };
 };
 
 async function fetchAllProgramApplies(programId, pageSize = 200, maxPages = 100) {
@@ -548,6 +749,29 @@ async function fetchAllProgramApplies(programId, pageSize = 200, maxPages = 100)
   }
 }
 
+async function fetchAllMyProgramApplies(pageSize = 200, maxPages = 100) {
+  const rows = [];
+  let page = 0;
+  let isLast = false;
+
+  while (!isLast && page < maxPages) {
+    const response = await programApi.getMyProgramApplies({
+      page,
+      size: pageSize,
+      sort: "createdAt,desc",
+    });
+
+    const payload = unwrapData(response, {});
+    rows.push(...toArray(payload));
+
+    const totalPages = Number(payload?.totalPages ?? 1);
+    isLast = Boolean(payload?.last) || page + 1 >= totalPages;
+    page += 1;
+  }
+
+  return rows;
+}
+
 async function fetchProgramsByEvent(eventId) {
   if (!getAdminAccessToken()) {
     return programApi.getAllProgramsByEvent({
@@ -574,170 +798,25 @@ async function fetchProgramsByEvent(eventId) {
   }
 }
 
-function AnimStatCard({ label, rawValue, icon, bg, index }) {
-  const count = useCountUp(rawValue, 1000, index * 120);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setVisible(true), index * 100 + 50);
-    return () => clearTimeout(timer);
-  }, [index]);
-
-  return (
-    <div className={`ck-stat-card anim-pop ${visible ? "visible" : ""}`}>
-      <div className="ck-stat-icon" style={{ background: bg }}>
-        {icon}
-      </div>
-      <div>
-        <div className="ck-stat-label">{label}</div>
-        <div className="ck-stat-value">{count.toLocaleString()}명</div>
-      </div>
-    </div>
-  );
-}
-
-function AnimTicketProgress({ item, index }) {
-  const [width, setWidth] = useState(0);
-  const pct = item.total > 0 ? Math.round((item.done / item.total) * 100) : 0;
-  const animatedDone = useCountUp(item.done, 800, index * 120 + 400);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setWidth(pct), index * 140 + 400);
-    return () => clearTimeout(timer);
-  }, [index, pct]);
-
-  return (
-    <div className="ck-prog-item">
-      <div className="ck-prog-header">
-        <span className="ck-prog-name">{item.name}</span>
-        <span className="ck-prog-val">
-          {animatedDone.toLocaleString()}/{item.total.toLocaleString()}
-        </span>
-      </div>
-      <div className="ck-prog-track">
-        <div
-          className="ck-prog-fill anim-progress-fill"
-          style={{ width: `${width}%`, background: item.color }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function AnimatedDonut({ doneCount, waitCount, noCount, total }) {
-  const radius = 54;
-  const cx = 70;
-  const cy = 70;
-  const circumference = 2 * Math.PI * radius;
-  const safeTotal = Math.max(total, 1);
-  const [animProgress, setAnimProgress] = useState(0);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setAnimProgress(1), 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const donePct = doneCount / safeTotal;
-  const waitPct = waitCount / safeTotal;
-  const noPct = noCount / safeTotal;
-
-  const doneLen = circumference * donePct * animProgress;
-  const waitLen = circumference * waitPct * animProgress;
-  const noLen = circumference * noPct * animProgress;
-
-  const doneDisplay = useCountUp(doneCount, 900, 200);
-  const waitDisplay = useCountUp(waitCount, 900, 260);
-  const noDisplay = useCountUp(noCount, 900, 320);
-  const rateDisplay = useCountUp(Math.round(donePct * 100), 1000, 180);
-
-  return (
-    <div className="ck-ring-wrap">
-      <svg width="140" height="140" viewBox="0 0 140 140">
-        <circle cx={cx} cy={cy} r={radius} fill="none" stroke="#f1f3f5" strokeWidth="14" />
-
-        <circle
-          cx={cx}
-          cy={cy}
-          r={radius}
-          fill="none"
-          stroke="#ef4444"
-          strokeWidth="14"
-          strokeDasharray={`${noLen} ${circumference - noLen}`}
-          strokeDashoffset={-(doneLen + waitLen)}
-          transform={`rotate(-90 ${cx} ${cy})`}
-          strokeLinecap="round"
-        />
-        <circle
-          cx={cx}
-          cy={cy}
-          r={radius}
-          fill="none"
-          stroke="#f59e0b"
-          strokeWidth="14"
-          strokeDasharray={`${waitLen} ${circumference - waitLen}`}
-          strokeDashoffset={-doneLen}
-          transform={`rotate(-90 ${cx} ${cy})`}
-          strokeLinecap="round"
-        />
-        <circle
-          cx={cx}
-          cy={cy}
-          r={radius}
-          fill="none"
-          stroke="#10b981"
-          strokeWidth="14"
-          strokeDasharray={`${doneLen} ${circumference - doneLen}`}
-          strokeDashoffset={0}
-          transform={`rotate(-90 ${cx} ${cy})`}
-          strokeLinecap="round"
-        />
-
-        <text x={cx} y={cy - 6} textAnchor="middle" fontSize="20" fontWeight="800" fill="#111827">
-          {rateDisplay}%
-        </text>
-        <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="#9ca3af">
-          체크인율
-        </text>
-      </svg>
-
-      <div className="ck-ring-legend">
-        <div className="ck-ring-legend-item">
-          <div className="ck-ring-legend-dot" style={{ background: "#10b981" }} />
-          완료
-          <span className="ck-ring-legend-val">{doneDisplay.toLocaleString()}명</span>
-        </div>
-        <div className="ck-ring-legend-item">
-          <div className="ck-ring-legend-dot" style={{ background: "#f59e0b" }} />
-          대기
-          <span className="ck-ring-legend-val">{waitDisplay.toLocaleString()}명</span>
-        </div>
-        <div className="ck-ring-legend-item">
-          <div className="ck-ring-legend-dot" style={{ background: "#ef4444" }} />
-          취소
-          <span className="ck-ring-legend-val">{noDisplay.toLocaleString()}명</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function CheckinContent({ eventId }) {
   const numericEventId = Number(eventId);
   const { tick } = useAutoRefresh(15000);
 
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [eventDetail, setEventDetail] = useState(null);
-  const [checkinRows, setCheckinRows] = useState([]);
+  const [myPrograms, setMyPrograms] = useState([]);
+  const [myCheckin, setMyCheckin] = useState(null);
+  const [programCheckinStatus, setProgramCheckinStatus] = useState(null);
   const [lastLoadedAt, setLastLoadedAt] = useState(new Date());
 
   const loadData = useCallback(
     async ({ preserveLoading = false } = {}) => {
       if (!numericEventId || Number.isNaN(numericEventId)) {
         setErrorMsg("잘못된 행사 경로입니다.");
-        setCheckinRows([]);
+        setMyPrograms([]);
+        setMyCheckin(null);
+        setProgramCheckinStatus(null);
         setLoading(false);
         return;
       }
@@ -745,25 +824,78 @@ function CheckinContent({ eventId }) {
       if (!preserveLoading) setLoading(true);
 
       try {
-        const [eventResponse, programs] = await Promise.all([
+        const [eventResponse, programsResponse] = await Promise.all([
           eventApi.getEventDetail(numericEventId),
           fetchProgramsByEvent(numericEventId),
         ]);
+        let myProgramApplies = [];
+        let myProgramNotice = "";
+        if (!hasUsableUserAccessToken()) {
+          myProgramNotice = "로그인하면 내 체크인 상태를 바로 확인할 수 있습니다.";
+        } else {
+          try {
+            myProgramApplies = await fetchAllMyProgramApplies();
+          } catch (myProgramError) {
+            if (isUnauthorizedError(myProgramError)) {
+              myProgramNotice = "로그인하면 내 체크인 상태를 바로 확인할 수 있습니다.";
+            } else {
+              myProgramNotice = "내 체크인 데이터를 일부 불러오지 못했습니다.";
+            }
+          }
+        }
 
         const eventPayload = unwrapData(eventResponse, null);
-
-        const applyGroups = await Promise.all(
-          programs.map((program) => fetchAllProgramApplies(program?.programId)),
+        const programs = toArray(programsResponse);
+        const eventProgramIds = new Set(
+          programs.map((program) => Number(program?.programId)).filter(Number.isFinite),
         );
-        const allProgramApplies = applyGroups.flat();
+        const filteredMyApplies = toArray(myProgramApplies).filter((apply) =>
+          eventProgramIds.has(Number(apply?.programId)),
+        );
+
+        const nextMyPrograms = buildMyPrograms(programs, filteredMyApplies);
+        const myProgramMap = new Map();
+        nextMyPrograms.forEach((programItem) => {
+          const key = Number(programItem.programId);
+          if (!Number.isFinite(key)) return;
+          if (!myProgramMap.has(key)) myProgramMap.set(key, []);
+          myProgramMap.get(key).push(programItem);
+        });
+
+        const programStatsEntries = await Promise.all(
+          [...myProgramMap.keys()].map(async (programId) => {
+            const myProgramsInProgram = myProgramMap.get(programId) || [];
+            const programApplies = await fetchAllProgramApplies(programId);
+            const stats = buildProgramCheckinStats(programApplies, myProgramsInProgram);
+            return [programId, stats];
+          }),
+        );
+
+        const programStatsMap = new Map(programStatsEntries);
+        const primaryProgram = pickPrimaryProgram(nextMyPrograms);
+        const primaryStats = primaryProgram
+          ? programStatsMap.get(Number(primaryProgram.programId))
+          : null;
+        const nextMyCheckin = buildMyCheckin(primaryProgram, primaryStats);
+        const nextProgramCheckinStatus = buildProgramCheckinStatus(primaryProgram, primaryStats);
 
         setEventDetail(eventPayload);
-        setCheckinRows(buildRows(programs, allProgramApplies));
-        setErrorMsg("");
+        setMyPrograms(nextMyPrograms);
+        setMyCheckin(nextMyCheckin);
+        setProgramCheckinStatus(nextProgramCheckinStatus);
+        setErrorMsg(myProgramNotice);
         setLastLoadedAt(new Date());
       } catch (error) {
         console.error("[Realtime Checkin] load failed:", error);
-        setErrorMsg("체크인 데이터를 불러오지 못했습니다.");
+        setMyPrograms([]);
+        setMyCheckin(null);
+        setProgramCheckinStatus(null);
+        setEventDetail(null);
+        if (isUnauthorizedError(error)) {
+          setErrorMsg("체크인 정보를 불러오려면 로그인 상태를 확인해 주세요.");
+        } else {
+          setErrorMsg("체크인 데이터를 불러오지 못했습니다.");
+        }
       } finally {
         if (!preserveLoading) setLoading(false);
       }
@@ -785,103 +917,6 @@ function CheckinContent({ eventId }) {
     }
   }, [tick, loadData, loading]);
 
-  const ticketToneByName = useMemo(() => {
-    const toneMap = new Map();
-    let colorIndex = 0;
-
-    checkinRows.forEach((row) => {
-      if (!toneMap.has(row.ticket)) {
-        toneMap.set(row.ticket, TICKET_COLOR_PALETTE[colorIndex % TICKET_COLOR_PALETTE.length]);
-        colorIndex += 1;
-      }
-    });
-
-    return toneMap;
-  }, [checkinRows]);
-
-  const filteredRows = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    return checkinRows.filter((row) => {
-      const filterMatched = filter === "all" || row.status === filter;
-      if (!filterMatched) return false;
-
-      if (!normalizedQuery) return true;
-
-      const target = `${row.requestNo} ${row.name} ${row.ticket} ${row.gate}`.toLowerCase();
-      return target.includes(normalizedQuery);
-    });
-  }, [checkinRows, filter, query]);
-
-  const visibleRows = useStaggerIn(filteredRows.length, 30);
-
-  const doneCount = useMemo(
-    () => checkinRows.filter((row) => row.status === "done").length,
-    [checkinRows],
-  );
-  const waitCount = useMemo(
-    () => checkinRows.filter((row) => row.status === "wait").length,
-    [checkinRows],
-  );
-  const noCount = useMemo(
-    () => checkinRows.filter((row) => row.status === "no").length,
-    [checkinRows],
-  );
-  const totalCount = checkinRows.length;
-
-  const ticketStats = useMemo(() => {
-    const grouped = new Map();
-
-    checkinRows.forEach((row) => {
-      const existing = grouped.get(row.ticket) ?? {
-        name: row.ticket,
-        done: 0,
-        total: 0,
-      };
-      existing.total += 1;
-      if (row.status === "done") existing.done += 1;
-      grouped.set(row.ticket, existing);
-    });
-
-    return Array.from(grouped.values())
-      .sort((left, right) => right.total - left.total)
-      .slice(0, 6)
-      .map((item) => ({
-        ...item,
-        color: ticketToneByName.get(item.name)?.bar || "#1a4fd6",
-      }));
-  }, [checkinRows, ticketToneByName]);
-
-  const stats = useMemo(
-    () => [
-      {
-        label: "전체 신청",
-        rawValue: totalCount,
-        icon: <Users size={20} color="#1a4fd6" />,
-        bg: "#eff4ff",
-      },
-      {
-        label: "체크인 완료",
-        rawValue: doneCount,
-        icon: <CheckCircle2 size={20} color="#10b981" />,
-        bg: "#ecfdf5",
-      },
-      {
-        label: "체크인 대기",
-        rawValue: waitCount,
-        icon: <Clock size={20} color="#f59e0b" />,
-        bg: "#fffbeb",
-      },
-      {
-        label: "취소/거절",
-        rawValue: noCount,
-        icon: <XCircle size={20} color="#ef4444" />,
-        bg: "#fef2f2",
-      },
-    ],
-    [doneCount, noCount, totalCount, waitCount],
-  );
-
   if (loading && !eventDetail) {
     return (
       <div className="ck-card">
@@ -892,195 +927,37 @@ function CheckinContent({ eventId }) {
 
   return (
     <>
-      {errorMsg ? <div className="ck-error">{errorMsg}</div> : null}
-
-      <div className="ck-live-header">
-        <div>
-          <div className="rt-live-badge anim-glow">
-            <div className="rt-live-dot" />
-            LIVE
-          </div>
-          <div className="ck-live-meta">
-            <span>{eventDetail?.eventName || "행사 정보 없음"}</span>
-            <span>·</span>
-            <span>실시간 체크인</span>
-          </div>
-        </div>
-
-        <div className="ck-live-header-right">
-          <span className="ck-timestamp">마지막 갱신: {formatTimestamp(lastLoadedAt)}</span>
-          <button
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 8,
-              border: "1px solid #e2e8f0",
-              background: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: "#6b7280",
-              transition: "all 0.15s",
-            }}
-            onClick={refresh}
-            title="새로고침"
-          >
-            <RefreshCw
-              size={14}
-              style={{
-                animation: spinning ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)" : "none",
-              }}
-            />
-          </button>
-        </div>
-      </div>
-
-      <div className="ck-stat-grid">
-        {stats.map((stat, index) => (
-          <AnimStatCard key={stat.label} {...stat} index={index} />
-        ))}
-      </div>
-
-      <div className="ck-two-col">
-        <div className="ck-card" style={{ padding: "24px" }}>
-          <div className="ck-card-header">
-            <div className="ck-card-title">
-              <div className="ck-card-title-icon">
-                <UserCheck size={14} color="#1a4fd6" />
-              </div>
-              체크인 비율
+      <div className="ck-page-shell">
+        <div className="ck-live-header">
+          <div className="ck-live-header-left">
+            <div className="rt-live-badge anim-glow">
+              <div className="rt-live-dot" />
+              LIVE
             </div>
           </div>
 
-          <AnimatedDonut
-            doneCount={doneCount}
-            waitCount={waitCount}
-            noCount={noCount}
-            total={totalCount}
-          />
-
-          <div style={{ borderTop: "1px solid #f1f3f5", paddingTop: 16 }}>
-            <div
-              style={{
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: "#374151",
-                marginBottom: 12,
-              }}
-            >
-              프로그램별 체크인
-            </div>
-            <div className="ck-prog-list">
-              {ticketStats.length === 0 ? (
-                <div className="ck-empty" style={{ padding: "16px 0" }}>
-                  프로그램 체크인 데이터가 없습니다.
-                </div>
-              ) : (
-                ticketStats.map((item, index) => (
-                  <AnimTicketProgress key={item.name} item={item} index={index} />
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="ck-card" style={{ padding: "24px" }}>
-          <div className="ck-card-header">
-            <div className="ck-card-title">
-              <div className="ck-card-title-icon">
-                <ScanLine size={14} color="#1a4fd6" />
-              </div>
-              체크인 목록
-            </div>
-            <span style={{ fontSize: 12, color: "#9ca3af" }}>
-              총 {filteredRows.length.toLocaleString()}건
-            </span>
-          </div>
-
-          <div className="ck-toolbar">
-            <div className="ck-search-wrap">
-              <Search size={15} className="ck-search-icon" />
-              <input
-                className="ck-search"
-                placeholder="이름/신청번호/프로그램 검색"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
+          <div className="ck-live-header-right">
+            <span className="ck-timestamp">마지막 갱신: {formatTimestamp(lastLoadedAt)}</span>
+            <button className="ck-refresh-btn" onClick={refresh} title="새로고침">
+              <RefreshCw
+                size={14}
+                style={{
+                  animation: spinning ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)" : "none",
+                }}
               />
-            </div>
-            {[
-              { key: "all", label: "전체" },
-              { key: "done", label: "완료" },
-              { key: "wait", label: "대기" },
-              { key: "no", label: "취소" },
-            ].map((item) => (
-              <button
-                key={item.key}
-                className={`ck-filter-btn${filter === item.key ? " active" : ""}`}
-                onClick={() => setFilter(item.key)}
-              >
-                <ListFilter size={13} />
-                {item.label}
-              </button>
-            ))}
+            </button>
           </div>
+        </div>
 
-          <div className="ck-table-wrap">
-            <table className="ck-table">
-              <thead>
-                <tr>
-                  <th>신청번호</th>
-                  <th>참가자</th>
-                  <th>프로그램</th>
-                  <th>구분</th>
-                  <th>체크인 시각</th>
-                  <th>상태</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="ck-empty">
-                      표시할 체크인 데이터가 없습니다.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRows.map((row, index) => {
-                    const badge = STATUS_BADGE[row.status] ?? STATUS_BADGE.wait;
-                    const tone =
-                      ticketToneByName.get(row.ticket) ?? {
-                        bg: "#eff4ff",
-                        color: "#1a4fd6",
-                      };
+        {errorMsg ? <div className="ck-notice">{errorMsg}</div> : null}
 
-                    return (
-                      <tr
-                        key={row.key}
-                        className={`anim-slide-right ${visibleRows.includes(index) ? "visible" : ""}`}
-                        style={{ animationDelay: `${index * 20}ms` }}
-                      >
-                        <td style={{ color: "#9ca3af", fontSize: 12 }}>{row.requestNo}</td>
-                        <td style={{ fontWeight: 600, color: "#111827" }}>{row.name}</td>
-                        <td>
-                          <span className="ck-ticket-chip" style={{ background: tone.bg, color: tone.color }}>
-                            {row.ticket}
-                          </span>
-                        </td>
-                        <td style={{ color: "#6b7280" }}>{row.gate}</td>
-                        <td style={{ color: "#6b7280" }}>{row.time}</td>
-                        <td>
-                          <span className={`ck-badge ${badge.cls}`}>
-                            {badge.icon}
-                            {badge.label}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+        <div className="checkin-page">
+          <MyCheckinStatusCard myCheckin={myCheckin} />
+          <ProgramCheckinProgressCard
+            programCheckinStatus={programCheckinStatus}
+            loading={loading}
+          />
+          <MyProgramList myPrograms={myPrograms} loading={loading} />
         </div>
       </div>
     </>
@@ -1120,6 +997,7 @@ export default function CheckinStatus() {
           title={null}
           subtitle={null}
           categories={SERVICE_CATEGORIES}
+          stickyCategories
           currentPath={currentPath}
           onNavigate={handleNavigate}
         />

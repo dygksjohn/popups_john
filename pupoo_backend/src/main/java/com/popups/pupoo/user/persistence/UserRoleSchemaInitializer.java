@@ -22,8 +22,25 @@ public class UserRoleSchemaInitializer {
 
     @PostConstruct
     void ensureSuperAdminRoleSupport() {
+        if (!hasUsersTable()) {
+            log.warn("users table not found; skipping SUPER_ADMIN schema migration and bootstrap");
+            return;
+        }
         ensureRoleNameEnum();
         ensureDefaultSuperAdminAccount();
+    }
+
+    private boolean hasUsersTable() {
+        Integer tableCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'users'
+                """,
+                Integer.class
+        );
+        return tableCount != null && tableCount > 0;
     }
 
     private void ensureRoleNameEnum() {

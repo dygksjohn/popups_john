@@ -454,10 +454,15 @@ const resolveEventAiRangeParams = (event, status) => {
   }
 
   const todayKey = toDateKey(new Date());
-  const selectedDateKey =
-    status === "active" && dateOptions.includes(todayKey)
-      ? todayKey
-      : dateOptions[0];
+  const selectedDateKey = (() => {
+    if (status === "active" && dateOptions.includes(todayKey)) {
+      return todayKey;
+    }
+    if (status === "ended") {
+      return dateOptions[dateOptions.length - 1];
+    }
+    return dateOptions[0];
+  })();
 
   const operationRange = buildOperationRangeByDate(
     event?.startAt,
@@ -622,7 +627,7 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
 
         const congestionTargets = visibleEvents.filter((event) => {
           const status = String(event.status).toLowerCase();
-          return status === "active" || status === "pending";
+          return status === "active" || status === "pending" || status === "ended";
         });
 
         const congestionEntries = await Promise.all(
@@ -648,7 +653,32 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
               }
             }
 
-            // For active/pending events: fallback (or primary for pending) with AI prediction.
+            if (status === "ended") {
+              const hourlyPayload = await fetchAdminData(
+                `/api/admin/analytics/events/${event.eventId}/congestion-by-hour`,
+                {},
+                [],
+              );
+              const hourlyValues = toArray(hourlyPayload)
+                .map((row) =>
+                  congestionLevelToPercent(
+                    row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level,
+                  ),
+                )
+                .filter((value) => Number.isFinite(value) && value > 0);
+              const hourlyAverage = hourlyValues.length
+                ? Math.round(
+                    hourlyValues.reduce((sum, value) => sum + value, 0) /
+                      hourlyValues.length,
+                  )
+                : null;
+
+              if (hourlyAverage != null) {
+                return [eventId, hourlyAverage];
+              }
+            }
+
+            // For active/pending/ended events: realtime/hourly fallback (or primary for pending) with AI prediction.
             try {
               const aiRangeParams = resolveEventAiRangeParams(event, status);
               const aiResponse = await aiApi.predictEventCongestion(eventId, aiRangeParams);
@@ -670,6 +700,7 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
         setEvents(
           visibleEvents.map((event, index) => {
             const rawStatus = String(rawEvents.find((row) => Number(row.eventId) === Number(event.eventId))?.status ?? event.status).toUpperCase();
+            const selectorStatus = toSelectorStatus(rawStatus);
             const performance = performanceMap.get(Number(event.eventId));
             const registrations =
               Number(
@@ -678,16 +709,23 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
               ) || 0;
             const checkedInRaw = Number(performance?.checkinCount) || 0;
             const checkedIn = rawStatus === "PLANNED" ? 0 : checkedInRaw;
+            const measuredCongestion = congestionMap.get(Number(event.eventId));
+            const congestion =
+              measuredCongestion != null
+                ? measuredCongestion
+                : selectorStatus === "ended"
+                  ? 0
+                  : null;
             return {
               id: event.eventId,
               name: event.eventName,
               date: formatDateRange(event.startAt, event.endAt),
               location: event.location || "\uC7A5\uC18C \uC815\uBCF4 \uC5C6\uC74C",
               rawStatus,
-              status: toSelectorStatus(rawStatus),
+              status: selectorStatus,
               registrations,
               checkedIn,
-              congestion: congestionMap.get(Number(event.eventId)),
+              congestion,
               delay: index * 60,
             };
           }),
