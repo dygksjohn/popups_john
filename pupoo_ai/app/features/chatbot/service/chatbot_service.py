@@ -2,15 +2,15 @@ import json
 
 import boto3
 
+from pupoo_ai.app.core.config import settings
 from pupoo_ai.app.core.logger import get_logger
 from pupoo_ai.app.features.chatbot.dto.request import ChatRequest
 from pupoo_ai.app.features.chatbot.prompts.system import SYSTEM_PROMPT
 
 logger = get_logger(__name__)
 
-MODEL = "us.amazon.nova-lite-v1:0"
-
-_client = boto3.client("bedrock-runtime", region_name="us-east-1")
+def get_bedrock_client():
+    return boto3.client("bedrock-runtime", region_name=settings.aws_region)
 
 
 async def chat(request: ChatRequest) -> str:
@@ -31,8 +31,8 @@ async def chat(request: ChatRequest) -> str:
         },
     })
 
-    response = _client.invoke_model(
-        modelId=MODEL,
+    response = get_bedrock_client().invoke_model(
+        modelId=settings.bedrock_model_id,
         body=body,
         contentType="application/json",
         accept="application/json",

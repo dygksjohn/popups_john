@@ -96,7 +96,7 @@ public class SecurityConfig {
 
             .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
-            .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+            .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
             .requestMatchers("/swagger-ui/**").permitAll()
             .requestMatchers("/v3/api-docs/**").permitAll()
             .requestMatchers("/error").permitAll()

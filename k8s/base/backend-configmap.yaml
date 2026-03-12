@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pupoo-backend-config
+  namespace: pupoo
+data:
+  SPRING_PROFILES_ACTIVE: "prod"
+  SERVER_PORT: "8080"
+  STORAGE_MODE: "S3"
+  STORAGE_S3_REGION: "ap-northeast-2"
+  STORAGE_S3_KEY_PREFIX: "uploads"
+  STORAGE_PUBLIC_BASE_URL: "https://cdn.pupoo.com"
+  SPRING_DATASOURCE_URL: "jdbc:mysql://pupoo-rds.cluster-xxxxxxxx.ap-northeast-2.rds.amazonaws.com:3306/pupoodb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
+  APP_CORS_ALLOWED_ORIGIN_PATTERNS: "https://app.pupoo.com,https://admin.pupoo.com"
