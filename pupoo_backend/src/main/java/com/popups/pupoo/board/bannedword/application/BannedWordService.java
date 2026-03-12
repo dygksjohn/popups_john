@@ -17,11 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -102,64 +99,4 @@ public class BannedWordService {
         }
     }
 
-    /**
-     * AI 모더레이션 결과 로그 기록 (금칙어 미검출이어도 단일 행으로 남김)
-     */
-    @Transactional
-    public void logAiResult(Long boardId, Long contentId, BannedLogContentType contentType, Long userId,
-                            Float aiScore, String ragReason) {
-        if (boardId == null || contentId == null) {
-            return;
-        }
-        if (aiScore == null && (ragReason == null || ragReason.isBlank())) {
-            return;
-        }
-        boardBannedLogRepository.save(BoardBannedLog.builder()
-                .boardId(boardId)
-                .contentId(contentId)
-                .contentType(contentType)
-                .userId(userId)
-                .aiScore(aiScore)
-                .ragReason(ragReason)
-                .build());
-    }
-
-    /**
-     * 5단계: 노출 시점 마스킹. 정책이 MASK인 금지어만 replacement(또는 "***")로 치환.
-     *
-     * @param boardId 게시판 ID (null이면 치환 없이 원문 반환)
-     * @param text    원문 (null이면 null 반환)
-     */
-    @Transactional(readOnly = true)
-    public String mask(Long boardId, String text) {
-        if (text == null || boardId == null) return text;
-        if (text.isBlank()) return text;
-
-        List<BannedWord> words = bannedWordRepository.findByBoard_BoardIdOrBoardIsNullOrderByBannedWordIdAsc(boardId);
-        if (words.isEmpty()) return text;
-
-        Map<BannedWordCategory, FilterAction> policyByCategory = boardFilterPolicyRepository
-                .findAllByBoard_BoardIdOrderByCategory(boardId)
-                .stream()
-                .collect(Collectors.toMap(BoardFilterPolicy::getCategory, BoardFilterPolicy::getFilterAction, (a, b) -> a));
-
-        List<BannedWord> maskWords = words.stream()
-                .filter(w -> {
-                    BannedWordCategory cat = w.getCategory() != null ? w.getCategory() : BannedWordCategory.OTHER;
-                    return policyByCategory.getOrDefault(cat, FilterAction.BLOCK) == FilterAction.MASK;
-                })
-                .sorted(Comparator.comparingInt((BannedWord w) -> (w.getBannedWord() != null ? w.getBannedWord().length() : 0)).reversed())
-                .toList();
-
-        String result = text;
-        for (BannedWord w : maskWords) {
-            String word = w.getBannedWord() == null ? "" : w.getBannedWord().trim();
-            if (word.isBlank()) continue;
-            String replacement = (w.getReplacement() != null && !w.getReplacement().isBlank()) ? w.getReplacement() : "***";
-            result = Pattern.compile(Pattern.quote(word), Pattern.CASE_INSENSITIVE)
-                    .matcher(result)
-                    .replaceAll(Matcher.quoteReplacement(replacement));
-        }
-        return result;
-    }
 }

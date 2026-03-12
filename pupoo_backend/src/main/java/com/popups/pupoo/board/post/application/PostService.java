@@ -1,10 +1,8 @@
 // file: src/main/java/com/popups/pupoo/board/post/application/PostService.java
 package com.popups.pupoo.board.post.application;
 
-import com.popups.pupoo.board.bannedword.application.AiModerationClient;
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
-import com.popups.pupoo.board.bannedword.dto.BannedWordDetection;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.domain.model.Board;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
@@ -35,7 +33,6 @@ public class PostService {
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
     private final UserRepository userRepository;
-    private final AiModerationClient aiModerationClient;
 
     private Long resolveBoardId(Long boardId, BoardType boardType) {
         if (boardId != null) return boardId;
@@ -126,10 +123,7 @@ public class PostService {
     }
 
     private PostResponse toResponse(Post post) {
-        Long boardId = post.getBoard() != null ? post.getBoard().getBoardId() : null;
-        String maskedTitle = boardId != null ? bannedWordService.mask(boardId, post.getPostTitle()) : post.getPostTitle();
-        String maskedContent = boardId != null ? bannedWordService.mask(boardId, post.getContent()) : post.getContent();
-        return PostResponse.from(post, getWriterEmail(post.getUserId()), maskedTitle, maskedContent);
+        return PostResponse.from(post, getWriterEmail(post.getUserId()), post.getPostTitle(), post.getContent());
     }
 
     @Transactional
@@ -142,8 +136,6 @@ public class PostService {
 
         Board board = boardRepository.findById(req.getBoardId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Board not found"));
-
-        List<BannedWordDetection> detections = bannedWordService.validate(board.getBoardId(), req.getPostTitle(), req.getContent());
 
         Post post = Post.builder()
                 .board(board)
@@ -158,20 +150,6 @@ public class PostService {
                 .build();
 
         Post saved = postRepository.save(post);
-        if (!detections.isEmpty()) {
-            bannedWordService.logDetections(board.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, detections);
-        }
-
-        // AI 모더레이션 호출 (제목+내용 기준)
-        aiModerationClient.moderate(req.getPostTitle() + "\n" + req.getContent())
-                .ifPresent(result -> bannedWordService.logAiResult(
-                        board.getBoardId(),
-                        saved.getPostId(),
-                        BannedLogContentType.POST,
-                        userId,
-                        result.getAiScore(),
-                        result.getReason()
-                ));
         return saved.getPostId();
     }
 
@@ -186,23 +164,7 @@ public class PostService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content is required");
         }
 
-        List<BannedWordDetection> detections = bannedWordService.validate(post.getBoard().getBoardId(), req.getPostTitle(), req.getContent());
-
         post.updateTitleAndContent(req.getPostTitle(), req.getContent());
-        if (!detections.isEmpty()) {
-            bannedWordService.logDetections(post.getBoard().getBoardId(), postId, BannedLogContentType.POST, userId, detections);
-        }
-
-        // AI 모더레이션 호출 (제목+내용 기준)
-        aiModerationClient.moderate(req.getPostTitle() + "\n" + req.getContent())
-                .ifPresent(result -> bannedWordService.logAiResult(
-                        post.getBoard().getBoardId(),
-                        postId,
-                        BannedLogContentType.POST,
-                        userId,
-                        result.getAiScore(),
-                        result.getReason()
-                ));
     }
 
     @Transactional
