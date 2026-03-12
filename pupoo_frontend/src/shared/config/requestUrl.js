@@ -49,6 +49,8 @@ export function buildRequestUrl(rawBaseUrl = "", rawUrl = "") {
 }
 
 export function buildAssetUrl(rawBaseUrl = "", rawUrl = "") {
+  void rawBaseUrl;
+
   if (!rawUrl) return "";
 
   const url = String(rawUrl).trim();
@@ -56,15 +58,5 @@ export function buildAssetUrl(rawBaseUrl = "", rawUrl = "") {
     return url;
   }
 
-  const normalizedUrl = normalizeLeadingSlash(url);
-  const runtimeAssetBaseUrl =
-    typeof import.meta !== "undefined"
-      ? import.meta.env?.VITE_ASSET_BASE_URL
-      : "";
-  const baseUrl = getConfiguredAssetBaseUrl(runtimeAssetBaseUrl, rawBaseUrl);
-  if (!baseUrl || !ABSOLUTE_URL_RE.test(baseUrl)) {
-    return normalizedUrl;
-  }
-
-  return `${new URL(baseUrl).origin}${normalizedUrl}`;
+  return url.startsWith("/") ? normalizeLeadingSlash(url) : "";
 }

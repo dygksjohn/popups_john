@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { getToken } from "../../../api/noticeApi";
+import { buildRequestUrl } from "../../../shared/config/requestUrl";
 
 /* ============================================================
    useChatBot — AI 로직 분리용 훅
@@ -7,7 +8,7 @@ import { getToken } from "../../../api/noticeApi";
    ============================================================ */
 
 // Vite proxy를 통해 /internal → AI 서버로 전달 (CORS 우회)
-const AI_BASE_URL = "";
+const AI_BASE_URL = import.meta.env.VITE_AI_BASE_URL || "";
 const INTERNAL_TOKEN = "dev-internal-token";
 
 /**
@@ -17,7 +18,7 @@ const INTERNAL_TOKEN = "dev-internal-token";
  * @returns {Promise<string>}  - AI 응답 텍스트
  */
 async function getBotReply(history, userMessage) {
-  const url = `${AI_BASE_URL}/internal/chatbot/chat`;
+  const url = buildRequestUrl(AI_BASE_URL, "/internal/chatbot/chat");
   let res;
   try {
     res = await fetch(url, {

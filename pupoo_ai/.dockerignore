@@ -4,3 +4,10 @@ __pycache__
 .pytest_cache
 .venv
 .env
+.git
+.gitignore
+.vscode
+tests
+artifacts
+data
+run_server.bat

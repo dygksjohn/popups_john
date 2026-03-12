@@ -1,7 +1,6 @@
 // file: src/main/java/com/popups/pupoo/program/speaker/dto/SpeakerResponse.java
 package com.popups.pupoo.program.speaker.dto;
 
-import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.program.speaker.domain.model.Speaker;
 import lombok.Builder;
 import lombok.Getter;
@@ -17,14 +16,14 @@ public class SpeakerResponse {
     private String speakerPhone;
     private String speakerImageUrl;
 
-    public static SpeakerResponse from(Speaker s) {
+    public static SpeakerResponse from(Speaker speaker, String speakerImageUrl) {
         return SpeakerResponse.builder()
-                .speakerId(s.getSpeakerId())
-                .speakerName(s.getSpeakerName())
-                .speakerBio(s.getSpeakerBio())
-                .speakerEmail(s.getSpeakerEmail())
-                .speakerPhone(s.getSpeakerPhone())
-                .speakerImageUrl(PublicUrlNormalizer.normalize(s.getSpeakerImageUrl()))
+                .speakerId(speaker.getSpeakerId())
+                .speakerName(speaker.getSpeakerName())
+                .speakerBio(speaker.getSpeakerBio())
+                .speakerEmail(speaker.getSpeakerEmail())
+                .speakerPhone(speaker.getSpeakerPhone())
+                .speakerImageUrl(speakerImageUrl)
                 .build();
     }
 }

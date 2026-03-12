@@ -19,7 +19,7 @@ import PageLoading from "../components/PageLoading";
 import EmptyState from "../components/EmptyState";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
-import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 import { extractEventYear, normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 
 const SERVICE_CATEGORIES = [
@@ -98,7 +98,7 @@ function mapEvent(raw) {
     year: extractEventYear(raw),
     month: raw?.startAt ? String(new Date(raw.startAt).getMonth() + 1) : null,
     location: raw?.location || "장소 미정",
-    image: raw?.imageUrl ? toPublicAssetUrl(raw.imageUrl) : "",
+    image: resolveImageUrl(raw?.imageUrl),
     participants,
     capacity,
     participationRate,
@@ -978,7 +978,7 @@ export default function Closed() {
                 <section ref={topSectionRef} style={{ display: "grid", gridTemplateColumns: "minmax(320px, 0.82fr) minmax(0, 1.18fr)", gap: 18, marginBottom: 18 }}>
                   <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, overflow: "hidden", boxShadow: "0 18px 36px rgba(15,23,42,0.05)", minHeight: 420 }}>
                     {selected.image ? (
-                      <img src={selected.image} alt={selected.title} style={{ width: "100%", height: "100%", minHeight: 420, objectFit: "cover", display: "block" }} />
+                      <img src={resolveImageUrl(selected.image)} alt={selected.title} style={{ width: "100%", height: "100%", minHeight: 420, objectFit: "cover", display: "block" }} />
                     ) : (
                       <div style={{ minHeight: 420, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, color: "#94a3b8", background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)" }}>
                         <ImageOff size={36} />
