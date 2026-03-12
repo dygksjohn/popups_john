@@ -6,9 +6,11 @@ on:
       - main
     paths:
       - ".github/workflows/deploy-ec2.yml"
+      - ".github/workflows/ci.yml"
       - "deploy/ec2/**"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
+      - "scripts/check-import-case.mjs"
   workflow_dispatch:
 
 concurrency:
@@ -16,8 +18,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
 
@@ -38,6 +41,24 @@ jobs:
           cache: npm
           cache-dependency-path: pupoo_frontend/package-lock.json
 
+      - name: Install frontend dependencies
+        working-directory: pupoo_frontend
+        run: npm ci
+
+      - name: Install lightningcss Linux binary
+        if: runner.os == 'Linux'
+        working-directory: pupoo_frontend
+        run: |
+          LIGHTNINGCSS_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/lightningcss'].version")
+          npm install --no-save "lightningcss-linux-x64-gnu@${LIGHTNINGCSS_VERSION}"
+
+      - name: Check frontend import casing
+        run: node ./scripts/check-import-case.mjs
+
+      - name: Build frontend
+        working-directory: pupoo_frontend
+        run: npm run build
+
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
@@ -53,12 +74,26 @@ jobs:
           cp pupoo_backend/build/libs/pupoo-backend.jar deploy_bundle/app.jar
           cp deploy/ec2/pupoo.service.tpl deploy_bundle/pupoo.service.tpl
 
-      - name: Upload build artifact
+      - name: Upload deploy bundle
         uses: actions/upload-artifact@v4
         with:
-          name: pupoo-backend-jar
-          path: deploy_bundle/app.jar
+          name: deploy-bundle
+          path: deploy_bundle/
           if-no-files-found: error
+
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: verify
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download deploy bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: deploy-bundle
+          path: deploy_bundle
 
       - name: Copy bundle to EC2
         uses: appleboy/scp-action@v1
@@ -78,6 +113,7 @@ jobs:
           APP_DIR: ${{ secrets.EC2_APP_DIR }}
           APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
           APP_USER: ${{ secrets.EC2_APP_USER }}
+          HEALTHCHECK_URL: ${{ vars.EC2_HEALTHCHECK_URL }}
           SERVICE_NAME: ${{ vars.EC2_SERVICE_NAME }}
           UPLOADS_DIR: ${{ secrets.EC2_UPLOADS_DIR }}
         with:
@@ -86,7 +122,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT }}
           command_timeout: 20m
-          envs: APP_DIR,APP_ENV_FILE,APP_USER,SERVICE_NAME,UPLOADS_DIR
+          envs: APP_DIR,APP_ENV_FILE,APP_USER,HEALTHCHECK_URL,SERVICE_NAME,UPLOADS_DIR
           script: |
             set -euo pipefail
 
@@ -95,6 +131,7 @@ jobs:
             APP_USER="${APP_USER:?APP_USER is required}"
             UPLOADS_DIR="${UPLOADS_DIR:?UPLOADS_DIR is required}"
             APP_ENV_FILE="${APP_ENV_FILE:?APP_ENV_FILE is required}"
+            HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://127.0.0.1:8080/api/health}"
 
             sudo install -d -o "$APP_USER" -g "$APP_USER" "$APP_DIR"
             sudo install -d -o "$APP_USER" -g "$APP_USER" "$UPLOADS_DIR"
@@ -114,7 +151,7 @@ jobs:
             sudo systemctl restart "$SERVICE_NAME"
 
             for attempt in $(seq 1 20); do
-              if curl -fsS http://127.0.0.1:8080/api/health > /dev/null; then
+              if curl -fsS "$HEALTHCHECK_URL" > /dev/null; then
                 exit 0
               fi
               sleep 3

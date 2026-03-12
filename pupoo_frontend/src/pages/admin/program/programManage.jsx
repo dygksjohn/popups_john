@@ -33,6 +33,7 @@ import {
 } from "../shared/programImageStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const normalizeAdminProgramCategory = (program) => {
   const raw = String(
@@ -1072,6 +1073,7 @@ export default function ProgramManage({ subTab = "all" }) {
       const list = res.data?.data || res.data || [];
       const mapped = injectEventImages(list).map((e) => ({
         ...e,
+        imageUrl: e.imageUrl ? toPublicAssetUrl(e.imageUrl) : null,
         status: resolveAdminStatus(
           e,
           calcStatus(

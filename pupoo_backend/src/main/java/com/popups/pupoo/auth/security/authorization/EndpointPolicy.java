@@ -50,7 +50,7 @@ public class EndpointPolicy {
             Pattern.compile("^/api/booths(?:/\\d+)?$"),
 
             // 운영/문서
-            Pattern.compile("^/actuator/health$"),
+            Pattern.compile("^/actuator/health(?:/.*)?$"),
             Pattern.compile("^/swagger-ui(?:/.*)?$"),
             Pattern.compile("^/v3/api-docs(?:/.*)?$"),
             Pattern.compile("^/api/ping$")

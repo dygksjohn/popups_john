@@ -4,36 +4,34 @@ import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.storage.application.StorageService;
+import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator;
 import com.popups.pupoo.storage.dto.UploadResponse;
+import com.popups.pupoo.storage.port.ObjectStoragePort;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
 public class GalleryImageUploadController {
 
+    private static final String STORAGE_BUCKET_UNUSED = "local";
     private static final Set<String> ALLOWED_TYPES = Set.of(
             "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"
     );
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
 
     private final StorageService storageService;
-
-    @Value("${storage.base-path:./uploads}")
-    private String basePath;
+    private final ObjectStoragePort objectStoragePort;
+    private final StorageKeyGenerator storageKeyGenerator;
 
     @PostMapping("/api/admin/galleries/images/upload")
     public ApiResponse<Map<String, List<String>>> uploadAdmin(
@@ -46,24 +44,16 @@ public class GalleryImageUploadController {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Up to 10 files can be uploaded.");
         }
 
-        Path dir = resolveGalleryUploadDir();
-        try {
-            Files.createDirectories(dir);
-        } catch (Exception e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to create upload directory: " + e.getMessage());
-        }
-
         List<String> urls = new ArrayList<>();
         for (MultipartFile file : files) {
             validateFile(file);
-            String ext = extractExt(file.getOriginalFilename());
-            String storedName = UUID.randomUUID().toString().replace("-", "") + ext;
             try {
-                Files.write(dir.resolve(storedName), file.getBytes());
-            } catch (Exception e) {
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to write upload file: " + e.getMessage());
+                String key = storageKeyGenerator.generateStandaloneKey("gallery", file.getOriginalFilename());
+                objectStoragePort.putObject(STORAGE_BUCKET_UNUSED, key, file.getBytes(), file.getContentType());
+                urls.add(objectStoragePort.getPublicPath(STORAGE_BUCKET_UNUSED, key));
+            } catch (IOException e) {
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to read upload file: " + e.getMessage());
             }
-            urls.add("/uploads/gallery/" + storedName);
         }
         return ApiResponse.success(Map.of("urls", urls));
     }
@@ -83,22 +73,6 @@ public class GalleryImageUploadController {
         String ct = file.getContentType();
         if (ct == null || !ALLOWED_TYPES.contains(ct.toLowerCase())) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Only jpg, png, gif, webp are allowed.");
-        }
-    }
-
-    private String extractExt(String filename) {
-        if (filename == null) {
-            return "";
-        }
-        int idx = filename.lastIndexOf('.');
-        return (idx >= 0) ? filename.substring(idx).toLowerCase() : "";
-    }
-
-    private Path resolveGalleryUploadDir() {
-        try {
-            return Paths.get(basePath).toAbsolutePath().normalize().resolve("gallery");
-        } catch (Exception ignored) {
-            return Paths.get(".").toAbsolutePath().normalize().resolve("uploads").resolve("gallery");
         }
     }
 }

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pupoo-ai-config
+  namespace: pupoo
+data:
+  PUPOO_AI_SERVICE_NAME: "pupoo-ai"
+  PUPOO_AI_LOG_LEVEL: "INFO"
+  PUPOO_AI_AWS_REGION: "us-east-1"
+  PUPOO_AI_BEDROCK_MODEL_ID: "us.amazon.nova-lite-v1:0"

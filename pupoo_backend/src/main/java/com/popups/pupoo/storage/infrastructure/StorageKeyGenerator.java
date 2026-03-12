@@ -30,6 +30,20 @@ public class StorageKeyGenerator {
         return folder + "/" + storedName;
     }
 
+    public String generateStandaloneKey(String folder, String originalFilename) {
+        String normalizedFolder = normalizeFolder(folder);
+        String storedName = FileNameUtil.generateStoredName(originalFilename);
+        return normalizedFolder + "/" + storedName;
+    }
+
+    public String buildStandaloneKey(String folder, String storedName) {
+        String normalizedFolder = normalizeFolder(folder);
+        if (storedName == null || storedName.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "storedName is required");
+        }
+        return normalizedFolder + "/" + storedName;
+    }
+
     public String resolveFolder(UploadTargetType type, Long contentId) {
         if (type == null || contentId == null || contentId <= 0) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "Invalid upload target or contentId");
@@ -53,5 +67,23 @@ public class StorageKeyGenerator {
         }
         String storedName = FileNameUtil.generateStoredName(originalFilename);
         return "gallery/temp/" + userId + "/" + storedName;
+    }
+
+    private String normalizeFolder(String folder) {
+        if (folder == null || folder.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "folder is required");
+        }
+
+        String normalized = folder.trim().replace('\\', '/');
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        if (normalized.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "folder is required");
+        }
+        return normalized;
     }
 }
