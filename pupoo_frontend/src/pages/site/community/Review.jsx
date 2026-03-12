@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CommunityPagination from "./shared/CommunityPagination";
 import {
   Search,
+  ListFilter,
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -10,9 +11,11 @@ import {
   Star,
   MessageCircle,
   ChevronDown,
+  SlidersHorizontal,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import sortIcon from "../../../assets/sort-icon.svg";
+import PageLoading from "../components/PageLoading";
+import EmptyState from "../components/EmptyState";
 import { reviewApi } from "../../../app/http/reviewApi";
 import { eventApi } from "../../../app/http/eventApi";
 import { reviewReplyApi } from "../../../app/http/replyApi";
@@ -70,6 +73,9 @@ export default function Review() {
   const [ratingFilter, setRatingFilter] = useState("ALL");
   const [sortOption, setSortOption] = useState("latest");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [ratingDdOpen, setRatingDdOpen] = useState(false);
+  const ratingDdRef = useRef(null);
+  const sortDdRef = useRef(null);
   const [items, setItems] = useState([]);
   const [commentCountMap, setCommentCountMap] = useState({});
   const [eventNameMap, setEventNameMap] = useState({});
@@ -199,6 +205,16 @@ export default function Review() {
   }, [currentPage, sortedFilteredItems]);
 
   const currentSortLabel = SORT_OPTIONS.find((option) => option.value === sortOption)?.label || "최신순";
+  const currentRatingLabel = RATING_OPTIONS.find((option) => option.value === ratingFilter)?.label || "별점 전체";
+
+  useEffect(() => {
+    const h = (e) => {
+      if (ratingDdRef.current && !ratingDdRef.current.contains(e.target)) setRatingDdOpen(false);
+      if (sortDdRef.current && !sortDdRef.current.contains(e.target)) setSortMenuOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
 
   const handleWrite = () => {
     if (!tokenStore.getAccess()) {
@@ -217,6 +233,7 @@ export default function Review() {
         currentPath="/community/review"
         onNavigate={(path) => navigate(path)}
       />
+      <style>{`.board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
 
       <main
         style={{
@@ -232,159 +249,112 @@ export default function Review() {
             alignItems: "center",
             justifyContent: "space-between",
             paddingBottom: "16px",
-            borderBottom: "1px solid #e0e0e0",
             marginBottom: "8px",
             gap: 8,
           }}
         >
           <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>총 {sortedFilteredItems.length}개</span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <div style={{ position: "relative" }}>
-              <select
-                value={ratingFilter}
-                onChange={(event) => setRatingFilter(event.target.value)}
-                style={{
-                  appearance: "none",
-                  WebkitAppearance: "none",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 8,
-                  background: "#fff",
-                  height: 38,
-                  padding: "0 34px 0 12px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#334155",
-                  cursor: "pointer",
-                  minWidth: 108,
-                }}
-              >
-                {RATING_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <span
-                style={{
-                  position: "absolute",
-                  right: 10,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  pointerEvents: "none",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <ChevronDown size={14} color="#666" />
-              </span>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: 999, height: 42 }}>
+              {/* rating dropdown */}
+              <div style={{ position: "relative", flex: "0 0 auto" }} ref={ratingDdRef}>
+                <button
+                  type="button"
+                  onClick={() => setRatingDdOpen((v) => !v)}
+                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 120, display: "inline-flex", alignItems: "center", gap: 7 }}
+                >
+                  <ListFilter size={14} style={{ color: "#9ca3af" }} />
+                  {currentRatingLabel}
+                </button>
+                <ChevronDown size={15} style={{ position: "absolute", right: 12, top: "50%", transform: ratingDdOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)", color: "#9ca3af", pointerEvents: "none", transition: "transform .15s ease" }} />
+                {ratingDdOpen && (
+                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, minWidth: 200, background: "#fff", borderRadius: 16, padding: "8px 0", boxShadow: "0 4px 24px rgba(0,0,0,.10)", zIndex: 50, maxHeight: 280, overflowY: "auto" }}>
+                    {RATING_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => { setRatingFilter(option.value); setRatingDdOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", color: ratingFilter === option.value ? "#111827" : "#6b7280", fontSize: 13, fontWeight: ratingFilter === option.value ? 600 : 500, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                      >
+                        <ListFilter size={14} style={{ color: "#9ca3af", flexShrink: 0 }} />
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            <div style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => setSortMenuOpen((prev) => !prev)}
-                style={{
-                  border: "1px solid #d1d5db",
-                  borderRadius: 8,
-                  background: "#fff",
-                  height: 38,
-                  padding: "0 12px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#334155",
-                  cursor: "pointer",
-                }}
-              >
-                <img src={sortIcon} alt="정렬 아이콘" width={14} height={14} />
-                {currentSortLabel}
-              </button>
-              {sortMenuOpen ? (
-                <div
+              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+
+              {/* sort button */}
+              <div style={{ position: "relative", flex: "0 0 auto" }} ref={sortDdRef}>
+                <button
+                  type="button"
+                  onClick={() => setSortMenuOpen((prev) => !prev)}
+                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 110, display: "inline-flex", alignItems: "center", gap: 7 }}
+                >
+                  <SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />
+                  {currentSortLabel}
+                </button>
+                <ChevronDown size={15} style={{ position: "absolute", right: 12, top: "50%", transform: sortMenuOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)", color: "#9ca3af", pointerEvents: "none", transition: "transform .15s ease" }} />
+                {sortMenuOpen && (
+                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, minWidth: 200, background: "#fff", borderRadius: 16, padding: "8px 0", boxShadow: "0 4px 24px rgba(0,0,0,.10)", zIndex: 50, maxHeight: 280, overflowY: "auto" }}>
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => { setSortOption(option.value); setSortMenuOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", color: sortOption === option.value ? "#111827" : "#6b7280", fontSize: 13, fontWeight: sortOption === option.value ? 600 : 500, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                      >
+                        <SlidersHorizontal size={14} style={{ color: "#9ca3af", flexShrink: 0 }} />
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+
+              {/* search input */}
+              <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
+                <Search
+                  size={16}
+                  strokeWidth={2}
                   style={{
                     position: "absolute",
-                    right: 0,
-                    top: 42,
-                    minWidth: 120,
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 8,
-                    background: "#fff",
-                    boxShadow: "0 8px 20px rgba(15,23,42,0.12)",
-                    zIndex: 20,
-                    overflow: "hidden",
+                    left: 14,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#9ca3af",
+                    pointerEvents: "none",
                   }}
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        setSortOption(option.value);
-                        setSortMenuOpen(false);
-                      }}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "left",
-                        border: "none",
-                        borderBottom: "1px solid #f1f5f9",
-                        background: option.value === sortOption ? "#eff6ff" : "#fff",
-                        color: option.value === sortOption ? "#1D4ED8" : "#334155",
-                        padding: "9px 11px",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                border: "1px solid #ccc",
-                borderRadius: "6px",
-                overflow: "hidden",
-                background: "#fff",
-              }}
-            >
-              <input
-                type="text"
-                placeholder="제목/행사명/내용 검색"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                style={{
-                  border: "none",
-                  outline: "none",
-                  padding: "8px 12px",
-                  fontSize: "14px",
-                  color: "#333",
-                  width: "240px",
-                  background: "transparent",
-                }}
-              />
-              <button
-                type="button"
-                style={{
-                  border: "none",
-                  background: "#fff",
-                  padding: "8px 12px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Search size={16} strokeWidth={2} color="#555" />
-              </button>
+                />
+                <input
+                  className="board-search-input"
+                  type="text"
+                  placeholder="후기 또는 행사명 검색"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    padding: "0 14px 0 40px",
+                    borderRadius: "0 999px 999px 0",
+                    height: 42,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "#111827",
+                    outline: "none",
+                    width: 280,
+                  }}
+                />
+              </div>
             </div>
 
             <button
@@ -395,7 +365,7 @@ export default function Review() {
                 alignItems: "center",
                 gap: 5,
                 padding: "8px 16px",
-                borderRadius: 6,
+                borderRadius: 999,
                 border: "none",
                 background: "#4a7cf7",
                 color: "#fff",
@@ -411,47 +381,36 @@ export default function Review() {
         </div>
 
         {loading && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "80px 0",
-            }}
-          >
-            <Loader2 size={28} color="#999" style={{ animation: "spin 1s linear infinite" }} />
-            <div style={{ marginTop: 12, fontSize: "14px", color: "#999" }}>후기를 불러오고 있습니다.</div>
-          </div>
+          <PageLoading message="후기를 불러오는 중입니다" />
         )}
 
         {!loading && error && (
-          <div style={{ textAlign: "center", padding: "80px 0" }}>
-            <div style={{ fontSize: "14px", color: "#999", marginBottom: 12 }}>{error}</div>
-            <button
-              type="button"
-              onClick={loadReviews}
-              style={{
-                padding: "8px 20px",
-                borderRadius: "6px",
-                border: "1px solid #ccc",
-                background: "#fff",
-                fontSize: "14px",
-                cursor: "pointer",
-                color: "#333",
-              }}
-            >
-              다시 시도
-            </button>
-          </div>
+          <EmptyState type="error" message="후기를 불러오지 못했습니다" description={error} />
         )}
 
         {!loading && !error && (
           <>
             <div>
-              {pagedItems.map((item) => {
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "12px 16px",
+                background: "#f9fafb",
+                borderTop: "2px solid #333",
+                borderBottom: "1px solid #e5e7eb",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#6b7280",
+              }}>
+                <span style={{ width: 60, textAlign: "center", flexShrink: 0 }}>번호</span>
+                <span style={{ flex: 1, textAlign: "center" }}>제목</span>
+                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>별점</span>
+                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
+              </div>
+              {pagedItems.map((item, index) => {
                 const commentCount = Number(commentCountMap[item.reviewId] || 0);
                 const eventLabel = eventNameMap[item.eventId] || item.eventName || `행사 ${item.eventId}`;
+                const rowNumber = sortedFilteredItems.length - ((currentPage - 1) * PAGE_SIZE) - index;
                 return (
                   <div
                     key={item.reviewId}
@@ -459,11 +418,10 @@ export default function Review() {
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      padding: "18px 6px",
-                      borderBottom: "1px solid #e8e8e8",
+                      padding: "18px 16px",
+                      borderBottom: "1px solid #f0f0f0",
                       cursor: "pointer",
                       transition: "background 0.15s",
-                      gap: 10,
                     }}
                     onMouseEnter={(event) => {
                       event.currentTarget.style.background = "#f9f9f9";
@@ -472,32 +430,15 @@ export default function Review() {
                       event.currentTarget.style.background = "transparent";
                     }}
                   >
-                    <span style={{ ...badge.style, marginRight: 2 }}>{badge.text}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>[{eventLabel}]</span>
-                    <span style={{ flex: 1, fontSize: "15px", color: "#222", fontWeight: 500 }}>
+                    <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>
+                    <span style={{ flex: 1, fontSize: 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginRight: 6 }}>[{eventLabel}]</span>
                       {item.reviewTitle || "행사 후기"}
                     </span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 2, minWidth: 96, justifyContent: "center" }}>
+                    <span style={{ width: 100, textAlign: "center", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
                       {renderStars(item.rating || 0, 13)}
                     </span>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontSize: 12,
-                        color: "#64748B",
-                        minWidth: 64,
-                        justifyContent: "flex-end",
-                      }}
-                    >
-                      <MessageCircle size={13} />
-                      {commentCount}
-                    </span>
-                    <span style={{ fontSize: "12px", color: "#94A3B8", minWidth: 60, textAlign: "right" }}>
-                      조회 {item.viewCount ?? 0}
-                    </span>
-                    <span style={{ fontSize: "13px", color: "#999", whiteSpace: "nowrap", minWidth: 94, textAlign: "right" }}>
+                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
                       {fmtDate(item.createdAt)}
                     </span>
                   </div>

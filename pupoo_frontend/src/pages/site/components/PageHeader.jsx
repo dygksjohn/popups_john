@@ -1,56 +1,103 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Home } from "lucide-react";
+
+const SECTION_LABELS = {
+  event: "행사",
+  program: "프로그램",
+  community: "커뮤니티",
+  realtime: "실시간 현황",
+  guide: "이용 안내",
+  gallery: "갤러리",
+  registration: "참가 신청",
+};
 
 const styles = {
   pageHeader: {
     backgroundColor: "#fff",
-    borderBottom: "1px solid #e9ecef",
     paddingTop: 100,
   },
   inner: {
-    width: "min(1350px, calc(100% - 50px))",
+    width: "min(1400px, calc(100% - 40px))",
     margin: "0 auto",
   },
+  topRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 16,
+  },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: 800,
     color: "#111827",
-    margin: "0 0 4px",
+    margin: 0,
+    letterSpacing: "-0.3px",
+    lineHeight: 1.3,
+  },
+  breadcrumb: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 12.5,
+    color: "#b0b5bd",
+    fontWeight: 400,
+    whiteSpace: "nowrap",
+    paddingTop: 6,
+    flexShrink: 0,
+  },
+  breadcrumbSep: {
+    color: "#d1d5db",
+    fontSize: 10,
+  },
+  breadcrumbCurrent: {
+    color: "#6b7280",
+    fontWeight: 600,
   },
   subtitle: {
-    fontSize: 13.5,
+    fontSize: 14,
     color: "#6b7280",
     fontWeight: 400,
-    margin: "0 0 20px",
+    margin: "8px 0 0",
+    lineHeight: 1.6,
+  },
+  searchArea: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "30px 0 0",
   },
   tabs: {
     display: "flex",
     gap: 0,
+    marginTop: 24,
   },
   tabBase: {
-    padding: "10px 20px",
-    fontSize: 13.5,
+    flex: 1,
+    padding: "13px 8px",
+    fontSize: 14,
     fontWeight: 600,
-    background: "none",
+    background: "#f3f4f6",
     border: "none",
     cursor: "pointer",
-    borderBottom: "2.5px solid transparent",
     transition: "all 0.15s",
     fontFamily: "inherit",
-  },
-  tabDefault: {
     color: "#6b7280",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+    borderRadius: 0,
   },
   tabActive: {
-    color: "#1a4fd6",
-    borderBottomColor: "#1a4fd6",
+    color: "#fff",
+    background: "#1a4fd6",
+    borderRadius: 8,
   },
   tabHover: {
     color: "#1a4fd6",
   },
 };
 
-export default function PageHeader({ title, subtitle, categories }) {
+export default function PageHeader({ title, subtitle, categories, children }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,14 +108,10 @@ export default function PageHeader({ title, subtitle, categories }) {
   const currentEventId = programMatch?.[1] || null;
 
   const isProgramTabPath = (path) =>
-    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/[^/?#]+)?$/.test(
-      path,
-    );
+    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/[^/?#]+)?$/.test(path);
 
   const hasEventIdInPath = (path) =>
-    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)\/[^/?#]+$/.test(
-      path,
-    );
+    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)\/[^/?#]+$/.test(path);
 
   const resolveTargetPath = (path) => {
     if (!currentEventId) return path;
@@ -81,12 +124,38 @@ export default function PageHeader({ title, subtitle, categories }) {
     (cat) => !hiddenPaths.has(cat.path),
   );
 
+  // Auto breadcrumb from URL
+  const pathSegments = location.pathname.split("/").filter(Boolean);
+  const section = pathSegments[0] || "";
+  const sectionLabel = SECTION_LABELS[section];
+  const breadcrumbItems = sectionLabel ? ["홈", sectionLabel, title] : ["홈", title];
+
   return (
     <div style={styles.pageHeader}>
       <div style={styles.inner}>
-        <h1 style={styles.title}>{title}</h1>
-        {subtitle && <p style={styles.subtitle}>{subtitle}</p>}
+        {/* Title + Breadcrumb */}
+        <div style={styles.topRow}>
+          <div>
+            <h1 style={styles.title}>{title}</h1>
+            {subtitle && <p style={styles.subtitle}>{subtitle}</p>}
+          </div>
+          <div style={styles.breadcrumb}>
+            <Home size={12} style={{ color: "#b0b5bd" }} />
+            {breadcrumbItems.map((item, i) => (
+              <span key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {i > 0 && <span style={styles.breadcrumbSep}>{">"}</span>}
+                <span style={i === breadcrumbItems.length - 1 ? styles.breadcrumbCurrent : undefined}>
+                  {item}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
 
+        {/* Optional Search Area */}
+        {children && <div style={styles.searchArea}>{children}</div>}
+
+        {/* Tabs */}
         {filteredCategories.length > 0 && (
           <div style={styles.tabs}>
             {filteredCategories.map((cat, i) => {
@@ -99,8 +168,6 @@ export default function PageHeader({ title, subtitle, categories }) {
                 btnStyle = { ...btnStyle, ...styles.tabActive };
               } else if (isHovered) {
                 btnStyle = { ...btnStyle, ...styles.tabHover };
-              } else {
-                btnStyle = { ...btnStyle, ...styles.tabDefault };
               }
 
               return (
