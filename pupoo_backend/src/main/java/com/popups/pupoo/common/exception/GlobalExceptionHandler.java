@@ -7,7 +7,9 @@ import com.popups.pupoo.common.api.FieldErrorItem;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -35,7 +37,9 @@ public class GlobalExceptionHandler {
             msg = ec.getMessage();
         }
         ErrorResponse body = new ErrorResponse(ec.getCode(), msg, ec.getStatus().value(), request.getRequestURI());
-        return ResponseEntity.status(ec.getStatus()).body(ApiResponse.fail(body));
+        return ResponseEntity.status(ec.getStatus())
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .body(ApiResponse.fail(body));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -58,7 +62,9 @@ public class GlobalExceptionHandler {
                         .map(err -> new FieldErrorItem(err.getField(), err.getDefaultMessage()))
                         .toList()
         );
-        return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getStatus()).body(ApiResponse.fail(body));
+        return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getStatus())
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .body(ApiResponse.fail(body));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -171,12 +177,16 @@ public class GlobalExceptionHandler {
                 ErrorCode.INTERNAL_ERROR.getStatus().value(),
                 request.getRequestURI()
         );
-        return ResponseEntity.status(ErrorCode.INTERNAL_ERROR.getStatus()).body(ApiResponse.fail(body));
+        return ResponseEntity.status(ErrorCode.INTERNAL_ERROR.getStatus())
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .body(ApiResponse.fail(body));
     }
 
     private ResponseEntity<ApiResponse<Void>> build(HttpServletRequest request, ErrorCode ec, HttpStatus status, String msg) {
         ErrorResponse body = new ErrorResponse(ec.getCode(), msg, status.value(), request.getRequestURI());
-        return ResponseEntity.status(status).body(ApiResponse.fail(body));
+        return ResponseEntity.status(status)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .body(ApiResponse.fail(body));
     }
 
     private String rootMessage(Throwable t) {

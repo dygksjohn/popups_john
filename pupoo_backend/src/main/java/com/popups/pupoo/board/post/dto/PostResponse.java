@@ -29,13 +29,18 @@ public class PostResponse {
     }
 
     public static PostResponse from(Post post, String writerEmail) {
+        return from(post, writerEmail, null, null);
+    }
+
+    /** 마스킹된 제목·내용으로 응답 (5단계 노출 시점 마스킹) */
+    public static PostResponse from(Post post, String writerEmail, String maskedTitle, String maskedContent) {
         PostResponse r = new PostResponse();
         r.postId = post.getPostId();
         r.boardId = post.getBoard().getBoardId();
         r.userId = post.getUserId();
         r.writerEmail = writerEmail;
-        r.postTitle = post.getPostTitle();
-        r.content = post.getContent();
+        r.postTitle = maskedTitle != null ? maskedTitle : post.getPostTitle();
+        r.content = maskedContent != null ? maskedContent : post.getContent();
         r.status = post.getStatus();
         r.viewCount = post.getViewCount();
         r.deleted = post.isDeleted();

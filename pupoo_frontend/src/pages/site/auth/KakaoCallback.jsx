@@ -44,6 +44,9 @@ export default function KakaoCallback() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
+  const redirectUri =
+    import.meta.env.VITE_KAKAO_REDIRECT_URI ||
+    `${window.location.origin}/auth/kakao/callback`;
   const resolvePostLoginRedirect = () => {
     const target = sessionStorage.getItem("post_login_redirect") || "/";
     return target.startsWith("/auth/") ? "/" : target;
@@ -84,7 +87,7 @@ export default function KakaoCallback() {
       sessionStorage.removeItem("kakao_nickname");
 
       try {
-        const data = await authApi.kakaoLogin({ code });
+        const data = await authApi.kakaoLogin({ code, redirectUri });
         console.log("KAKAO RESPONSE", data);
 
         if (!data || typeof data.newUser !== "boolean") {

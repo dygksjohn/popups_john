@@ -29,18 +29,20 @@ export const authApi = {
 /* 공지사항 API (사용자) */
 export const noticeApi = {
   /**
-   * GET /api/notices - 공지 목록 조회 (페이지/검색)
+   * GET /api/notices - 공지 목록 조회 (페이지/검색/정렬)
    * @param {number} uiPage - 1-based 페이지
    * @param {number} size - 페이지 크기
-   * @param {string} [searchType] - TITLE | CONTENT | TITLE_CONTENT | WRITER
-   * @param {string} [keyword] - 검색어
+   * @param {string} [searchType] - TITLE_CONTENT 등
+   * @param {string} [keyword] - 검색어 (제목/내용, 비고정 공지에만 필터 적용)
+   * @param {string} [scope] - all | ALL(전체공지) | EVENT(행사공지) (비고정 공지에만 필터 적용)
+   * @param {string} [sort] - recent | views | oldest (고정/비고정 각각 적용)
    */
-  list: (uiPage = 1, size = 10, searchType, keyword, scope, pinned) => {
+  list: (uiPage = 1, size = 10, searchType, keyword, scope, sort) => {
     const params = { page: uiPage - 1, size };
     if (searchType != null && searchType !== "") params.searchType = searchType;
     if (keyword != null && keyword !== "") params.keyword = keyword;
-    if (scope != null && scope !== "") params.scope = scope;
-    if (pinned != null) params.pinned = pinned;
+    if (scope != null && scope !== "" && scope !== "all") params.scope = scope;
+    if (sort != null && sort !== "") params.sort = sort;
     return axiosInstance.get("/api/notices", { params });
   },
   get: (noticeId) => axiosInstance.get(`/api/notices/${noticeId}`),

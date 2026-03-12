@@ -22,6 +22,7 @@ import DATA from "../shared/data";
 import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 const authHeaders = () => {
   const t = getToken();
@@ -114,7 +115,10 @@ export default function PastEvents() {
         );
         const list = res.data?.data || res.data || [];
         if (list.length > 0) {
-          const withImages = injectEventImages(list);
+          const withImages = injectEventImages(list).map((item) => ({
+            ...item,
+            imageUrl: resolveImageUrl(item.imageUrl),
+          }));
           setEvents(withImages);
           setSelectedId(withImages[0].id || withImages[0].eventId);
         } else {
@@ -346,7 +350,7 @@ export default function PastEvents() {
                     <td style={{ padding: "12px 14px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         {r.imageUrl ? (
-                          <img src={r.imageUrl} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", border: `1px solid ${ds.line}`, flexShrink: 0 }} />
+                          <img src={resolveImageUrl(r.imageUrl)} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", border: `1px solid ${ds.line}`, flexShrink: 0 }} />
                         ) : (
                           <div style={{ width: 36, height: 36, borderRadius: 8, background: `${rankColors[Math.min(idx, 3)]}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                             <span style={{ fontSize: 12, fontWeight: 800, color: rankColors[Math.min(idx, 3)] }}>{idx + 1}</span>
@@ -396,7 +400,7 @@ export default function PastEvents() {
           >
             {/* 이미지 헤더 or 그라데이션 */}
             <div style={{ height: 100, position: "relative", background: ev.imageUrl ? "#000" : ds.brand }}>
-              {ev.imageUrl && <img src={ev.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.7 }} />}
+              {ev.imageUrl && <img src={resolveImageUrl(ev.imageUrl)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.7 }} />}
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.5) 100%)" }} />
               <div style={{ position: "absolute", bottom: 12, left: 16, right: 16, zIndex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.3)" }}>{ev.name}</div>

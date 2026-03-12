@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 function buildPageItems(currentPage, totalPages) {
   if (totalPages <= 7) {
@@ -37,12 +38,6 @@ export default function CommunityPagination({
   totalPages = 1,
   onChange,
 }) {
-  const [inputValue, setInputValue] = useState(String(currentPage || 1));
-
-  useEffect(() => {
-    setInputValue(String(currentPage || 1));
-  }, [currentPage]);
-
   const pageItems = useMemo(
     () => buildPageItems(currentPage, totalPages),
     [currentPage, totalPages],
@@ -52,13 +47,8 @@ export default function CommunityPagination({
 
   const moveToPage = (nextPage) => {
     const parsed = Number(nextPage);
-    if (!Number.isFinite(parsed)) {
-      setInputValue(String(currentPage || 1));
-      return;
-    }
-
+    if (!Number.isFinite(parsed)) return;
     const safePage = Math.min(totalPages, Math.max(1, Math.floor(parsed)));
-    setInputValue(String(safePage));
     if (safePage !== currentPage && typeof onChange === "function") {
       onChange(safePage);
     }
@@ -70,94 +60,96 @@ export default function CommunityPagination({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 18,
-        flexWrap: "nowrap",
+        gap: 6,
         marginTop: 36,
       }}
     >
-      <div
+      <button
+        type="button"
+        onClick={() => moveToPage(currentPage - 1)}
+        disabled={currentPage <= 1}
         style={{
-          display: "flex",
+          width: 36,
+          height: 36,
+          borderRadius: "50%",
+          border: "none",
+          background: "transparent",
+          color: currentPage <= 1 ? "#d1d5db" : "#6b7280",
+          display: "inline-flex",
           alignItems: "center",
-          gap: 10,
           justifyContent: "center",
+          cursor: currentPage <= 1 ? "default" : "pointer",
+          padding: 0,
         }}
       >
-        {pageItems.map((item, index) =>
-          item === "..." ? (
-            <span
-              key={`ellipsis-${index}`}
-              style={{
-                minWidth: 18,
-                textAlign: "center",
-                fontSize: 15,
-                color: "#64748B",
-              }}
-            >
-              ...
-            </span>
-          ) : (
-            <button
-              key={item}
-              type="button"
-              onClick={() => moveToPage(item)}
-              style={{
-                minWidth: 18,
-                padding: 0,
-                border: "none",
-                background: "transparent",
-                color: "#111827",
-                fontSize: 15,
-                fontWeight: item === currentPage ? 800 : 400,
-                cursor: "pointer",
-              }}
-            >
-              {item}
-            </button>
-          ),
-        )}
+        <ChevronLeft size={18} />
+      </button>
 
-        <input
-          type="text"
-          inputMode="numeric"
-          value={inputValue}
-          onChange={(event) =>
-            setInputValue(event.target.value.replace(/[^0-9]/g, ""))
-          }
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              moveToPage(inputValue);
-            }
-          }}
-          style={{
-            width: 44,
-            height: 32,
-            border: "1px solid #CBD5E1",
-            borderRadius: 6,
-            textAlign: "center",
-            fontSize: 14,
-            color: "#475569",
-            outline: "none",
-          }}
-        />
-        <span style={{ fontSize: 14, color: "#64748B" }}>/ {totalPages}</span>
-        <button
-          type="button"
-          onClick={() => moveToPage(inputValue)}
-          style={{
-            padding: 0,
-            border: "none",
-            background: "transparent",
-            color: "#111827",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          이동
-        </button>
-      </div>
+      {pageItems.map((item, index) =>
+        item === "..." ? (
+          <span
+            key={`ellipsis-${index}`}
+            style={{
+              width: 36,
+              height: 36,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 14,
+              color: "#9ca3af",
+              userSelect: "none",
+            }}
+          >
+            ...
+          </span>
+        ) : (
+          <button
+            key={item}
+            type="button"
+            onClick={() => moveToPage(item)}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              border: "none",
+              background: item === currentPage ? "#1f2937" : "transparent",
+              color: item === currentPage ? "#fff" : "#6b7280",
+              fontSize: 14,
+              fontWeight: item === currentPage ? 700 : 500,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              fontFamily: "inherit",
+              transition: "all 0.15s ease",
+            }}
+          >
+            {item}
+          </button>
+        ),
+      )}
+
+      <button
+        type="button"
+        onClick={() => moveToPage(currentPage + 1)}
+        disabled={currentPage >= totalPages}
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: "50%",
+          border: "none",
+          background: "transparent",
+          color: currentPage >= totalPages ? "#d1d5db" : "#6b7280",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: currentPage >= totalPages ? "default" : "pointer",
+          padding: 0,
+        }}
+      >
+        <ChevronRight size={18} />
+      </button>
     </div>
   );
 }

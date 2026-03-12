@@ -1,52 +1,41 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/+$/, "");
+const ABSOLUTE_URL_RE = /^https?:\/\//i;
+const SPECIAL_URL_RE = /^(data|blob):/i;
+
+export const DEFAULT_IMAGE_FALLBACK_URL = "/logo_gray.png";
 
 export function toPublicAssetUrl(rawUrl) {
   if (!rawUrl) return "";
   const raw = String(rawUrl).trim();
   if (!raw) return "";
 
-  if (/^https?:\/\//i.test(raw)) {
+  if (ABSOLUTE_URL_RE.test(raw)) {
     return raw;
   }
 
-  let normalized = raw.replace(/\\/g, "/");
-  const lower = normalized.toLowerCase();
-  const uploadsMarkerIndex = lower.indexOf("/uploads/");
-  const resourcesUploadsMarkerIndex = lower.indexOf("/resources/uploads/");
-  const mainResourcesUploadsMarkerIndex = lower.indexOf(
-    "/main/resources/uploads/",
-  );
-  const srcMainResourcesUploadsMarkerIndex = lower.indexOf(
-    "/src/main/resources/uploads/",
-  );
-
-  if (uploadsMarkerIndex >= 0) {
-    normalized = normalized.substring(uploadsMarkerIndex);
-  } else if (srcMainResourcesUploadsMarkerIndex >= 0) {
-    normalized = normalized.substring(
-      srcMainResourcesUploadsMarkerIndex + "/src/main/resources".length,
-    );
-  } else if (mainResourcesUploadsMarkerIndex >= 0) {
-    normalized = normalized.substring(
-      mainResourcesUploadsMarkerIndex + "/main/resources".length,
-    );
-  } else if (resourcesUploadsMarkerIndex >= 0) {
-    normalized = normalized.substring(
-      resourcesUploadsMarkerIndex + "/resources".length,
-    );
-  } else if (lower.startsWith("src/main/resources/uploads/")) {
-    normalized = `/${normalized.substring("src/main/resources/".length)}`;
-  } else if (lower.startsWith("main/resources/uploads/")) {
-    normalized = `/${normalized.substring("main/resources/".length)}`;
-  } else if (lower.startsWith("resources/uploads/")) {
-    normalized = `/${normalized.substring("resources/".length)}`;
-  } else if (lower.startsWith("uploads/")) {
-    normalized = `/${normalized}`;
-  } else if (lower.startsWith("static/")) {
-    normalized = `/${normalized}`;
-  } else if (!normalized.startsWith("/")) {
-    normalized = `/${normalized}`;
+  if (SPECIAL_URL_RE.test(raw)) {
+    return raw;
   }
 
-  return `${API_BASE}${normalized}`;
+  return raw.startsWith("/") ? raw : "";
+}
+
+export function resolveImageUrl(
+  rawUrl,
+  fallbackUrl = DEFAULT_IMAGE_FALLBACK_URL,
+) {
+  return toPublicAssetUrl(rawUrl) || toPublicAssetUrl(fallbackUrl) || fallbackUrl;
+}
+
+export function createImageFallbackHandler(
+  fallbackUrl = DEFAULT_IMAGE_FALLBACK_URL,
+) {
+  const resolvedFallback = resolveImageUrl(fallbackUrl, DEFAULT_IMAGE_FALLBACK_URL);
+
+  return (event) => {
+    const target = event?.currentTarget || event?.target;
+    if (!target) return;
+    if (target.dataset.fallbackApplied === "true") return;
+    target.dataset.fallbackApplied = "true";
+    target.src = resolvedFallback;
+  };
 }

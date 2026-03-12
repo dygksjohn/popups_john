@@ -1,4 +1,5 @@
 ﻿import { useState, useCallback, useEffect } from "react";
+import AdminChatBot from "./AdminChatBot";
 import {
   AlertTriangle,
   Home,
@@ -20,10 +21,7 @@ import {
   Mic,
 } from "lucide-react";
 import ds from "../shared/designTokens";
-import {
-  countAdminStatuses,
-  resolveAdminStatus,
-} from "../shared/adminStatus";
+import { countAdminStatuses, resolveAdminStatus } from "../shared/adminStatus";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken, clearToken } from "../../../api/noticeApi";
 import HomeDashboard from "./HomeDashboard";
@@ -250,7 +248,11 @@ function TodayGreeting() {
   const now = new Date();
   const h = now.getHours();
   const greeting =
-    h < 12 ? "좋은 아침입니다" : h < 17 ? "좋은 오후입니다" : "수고 많으셨습니다";
+    h < 12
+      ? "좋은 아침입니다"
+      : h < 17
+        ? "좋은 오후입니다"
+        : "수고 많으셨습니다";
   const days = ["일", "월", "화", "수", "목", "금", "토"];
   const formatted = `${now.getFullYear()}. ${now.getMonth() + 1}. ${now.getDate()} (${days[now.getDay()]})`;
   const timeStr = `${String(h).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
@@ -271,9 +273,13 @@ function TodayGreeting() {
         <span style={{ fontSize: 12.5, fontWeight: 600, color: ds.ink3 }}>
           {formatted}
         </span>
-        <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 500 }}>{timeStr}</span>
+        <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 500 }}>
+          {timeStr}
+        </span>
       </div>
-      <span style={{ fontSize: 12.5, color: ds.ink4, fontWeight: 500 }}>{greeting}</span>
+      <span style={{ fontSize: 12.5, color: ds.ink4, fontWeight: 500 }}>
+        {greeting}
+      </span>
     </div>
   );
 }
@@ -774,9 +780,7 @@ export default function Dashboard() {
           {renderPage()}
         </div>
       </main>
+      <AdminChatBot />
     </div>
   );
 }
-
-
-

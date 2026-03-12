@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Paperclip } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { boardApi } from "../../../app/http/boardApi";
 import { fileApi } from "../../../app/http/fileApi";
 import { postApi } from "../../../app/http/postApi";
 import { tokenStore } from "../../../app/http/tokenStore";
-import CommunityRichTextEditor from "./shared/CommunityRichTextEditor";
+import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 import CommunityWriteLayout from "./shared/CommunityWriteLayout";
 
@@ -122,7 +122,7 @@ export default function CommunityBoardWritePage({
         postTitle: title.trim(),
         content,
       });
-      const createdPostId = Number(created?.postId);
+      const createdPostId = Number(created?.postId ?? created);
       if (file && createdPostId) {
         await fileApi.upload(file, "POST", createdPostId);
       }
@@ -211,32 +211,36 @@ export default function CommunityBoardWritePage({
 
             <label style={{ display: "grid", gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>내용</span>
-              <CommunityRichTextEditor
+              <CommunityContentTextarea
                 value={content}
                 onChange={setContent}
-                placeholder="내용을 입력해 주세요. 이미지는 본문에 바로 삽입할 수 있습니다."
+                placeholder="내용을 입력해 주세요."
                 height={340}
               />
             </label>
 
-            <label style={{ display: "grid", gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>첨부 파일</span>
+            <label
+              style={{
+                display: "block",
+                cursor: "pointer",
+                border: "1px solid #e2e8f0",
+                borderRadius: 14,
+                padding: "18px 20px",
+                background: "#f8fafc",
+              }}
+            >
               <input
                 type="file"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                style={{
-                  width: "100%",
-                  padding: "11px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 14,
-                  color: "#334155",
-                  background: "#fff",
-                }}
+                style={{ position: "absolute", width: 0, height: 0, opacity: 0, overflow: "hidden" }}
               />
-              <span style={{ fontSize: 12, color: "#64748b" }}>
-                {file ? `선택한 파일: ${file.name}` : "첨부 파일은 선택 사항입니다."}
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 15, fontWeight: 800, color: "#0f172a" }}>
+                <Paperclip size={16} />
+                첨부파일
+              </div>
+              <div style={{ fontSize: 13, color: "#94a3b8" }}>
+                {file ? `선택한 파일: ${file.name}` : "클릭하여 파일을 선택하세요. (선택 사항)"}
+              </div>
             </label>
           </div>
         )}

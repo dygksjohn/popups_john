@@ -1,9 +1,12 @@
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
+import EmptyState from "../components/EmptyState";
 import EventDetailModal from "./EventDetailModal";
 import { useEffect, useState } from "react";
 import { eventApi } from "../../../app/http/eventApi";
 import { loadImageCache, injectEventImages } from "../../admin/shared/eventImageStore";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 import {
   MapPin,
   Calendar,
@@ -49,10 +52,17 @@ const styles = `
   .ev-nav-btn:hover { background: #f3f4f6; color: #111827; }
   .ev-nav-btn.active { background: #1a4fd6; color: #fff; font-weight: 600; }
 
-  .ev-container { width: min(1350px, calc(100% - 50px)); margin: 0 auto; padding: 32px 0 64px; }
+  .ev-container { width: min(1400px, calc(100% - 40px)); margin: 0 auto; padding: 32px 0 64px; }
 
-  .ev-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca; border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444; margin-bottom: 20px; }
-  .ev-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; animation: ev-pulse 1.4s ease-in-out infinite; }
+  .ev-live-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 52px; padding: 0 20px;
+    background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px;
+    font-size: 14px; font-weight: 700; color: #111827;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .ev-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; animation: ev-pulse 1.4s ease-in-out infinite; }
+  .ev-live-count { color: #ef4444; font-weight: 800; }
   @keyframes ev-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 
   .ev-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
@@ -68,36 +78,40 @@ const styles = `
   .ev-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
 
   .ev-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
-  .ev-search-wrap { position: relative; flex: 1; }
-  .ev-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
-  .ev-search { width: 100%; height: 40px; padding: 0 13px 0 36px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13.5px; color: #111827; outline: none; font-family: inherit; background: #fff; transition: border-color 0.15s; }
-  .ev-search:focus { border-color: #1a4fd6; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
 
-  .ev-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .ev-event-card { background: #fff; border: 1px solid #e9ecef; border-radius: 14px; overflow: hidden; transition: box-shadow 0.2s, transform 0.2s; cursor: pointer; }
-  .ev-event-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.08); transform: translateY(-2px); }
 
-  .ev-card-thumb { height: 160px; position: relative; overflow: hidden; }
-  .ev-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; }
-  .ev-event-card:hover .ev-card-thumb img { transform: scale(1.05); }
-  .ev-card-thumb-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.45) 100%); }
-  .ev-card-thumb-label { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.55); color: #fff; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; backdrop-filter: blur(4px); }
-  .ev-card-thumb-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 48px; }
+  .ev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .ev-event-card {
+    background: #fff; border: 1px solid #e9ecef; border-radius: 16px;
+    overflow: hidden; transition: box-shadow 0.25s, transform 0.25s; cursor: pointer;
+    display: flex; flex-direction: column;
+  }
+  .ev-event-card:hover { box-shadow: 0 12px 36px rgba(0,0,0,0.1); transform: translateY(-3px); }
 
-  .ev-event-card-body { padding: 18px 20px 20px; }
-  .ev-event-category { font-size: 11px; font-weight: 600; color: #1a4fd6; margin-bottom: 6px; }
-  .ev-event-title { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 10px; line-height: 1.4; }
-  .ev-event-meta { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-  .ev-event-meta-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #6b7280; }
-  .ev-event-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #f1f3f5; }
-  .ev-progress-wrap { flex: 1; margin-right: 14px; }
-  .ev-progress-label { display: flex; justify-content: space-between; font-size: 11px; color: #9ca3af; margin-bottom: 4px; }
-  .ev-progress-track { height: 5px; background: #f1f3f5; border-radius: 100px; overflow: hidden; }
-  .ev-progress-fill { height: 100%; border-radius: 100px; background: #1a4fd6; }
-  .ev-card-btn { height: 32px; padding: 0 14px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; font-size: 12px; font-weight: 600; color: #374151; cursor: pointer; display: flex; align-items: center; gap: 4px; font-family: inherit; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
+  .ev-card-thumb { position: relative; overflow: hidden; background: #f1f5f9; }
+  .ev-card-thumb img { width: 100%; display: block; transition: transform 0.4s ease; }
+  .ev-event-card:hover .ev-card-thumb img { transform: scale(1.03); }
+  .ev-card-thumb-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.35) 100%); pointer-events: none; }
+  .ev-card-thumb-label { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 5px; background: rgba(239,68,68,0.9); color: #fff; padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: 700; backdrop-filter: blur(4px); }
+  .ev-card-thumb-fallback { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 48px; }
+
+  .ev-event-card-body { padding: 16px 18px 18px; flex: 1; display: flex; flex-direction: column; }
+  .ev-event-category { font-size: 11px; font-weight: 700; color: #1a4fd6; margin-bottom: 6px; letter-spacing: 0.3px; }
+  .ev-event-title { font-size: 14.5px; font-weight: 700; color: #111827; margin-bottom: 10px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .ev-event-meta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+  .ev-event-meta-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7280; }
+  .ev-event-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #f1f3f5; }
+  .ev-progress-wrap { margin-bottom: 10px; }
+  .ev-progress-label { display: flex; justify-content: space-between; font-size: 11px; color: #9ca3af; margin-bottom: 5px; }
+  .ev-progress-track { height: 6px; background: #f1f3f5; border-radius: 100px; overflow: hidden; }
+  .ev-progress-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, #1a4fd6, #6366f1); transition: width 0.6s ease; }
+  .ev-card-btn { width: 100%; height: 36px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; font-size: 13px; font-weight: 700; color: #374151; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; font-family: inherit; transition: all 0.15s; }
   .ev-card-btn:hover { background: #1a4fd6; color: #fff; border-color: #1a4fd6; }
 
-  @media (max-width: 700px) {
+  @media (max-width: 1024px) {
+    .ev-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
     .ev-grid { grid-template-columns: 1fr; }
     .ev-card { padding: 20px 16px; }
   }
@@ -177,7 +191,7 @@ function EventThumb({ ev }) {
     <div className="ev-card-thumb">
       {ev.image ? (
         <img
-          src={ev.image}
+          src={resolveImageUrl(ev.image)}
           alt={ev.title}
           onError={(e) => {
             e.currentTarget.style.display = "none";
@@ -197,8 +211,8 @@ function EventThumb({ ev }) {
       </div>
       <div className="ev-card-thumb-overlay" />
       <div className="ev-card-thumb-label">
-        <Zap size={10} />
-        진행 중
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", animation: "ev-pulse 1.4s ease-in-out infinite" }} />
+        LIVE
       </div>
     </div>
   );
@@ -206,6 +220,7 @@ function EventThumb({ ev }) {
 
 export default function Current() {
   const [query, setQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
   const [currentPath, setCurrentPath] = useState("/event/current");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [events, setEvents] = useState([]);
@@ -273,49 +288,70 @@ export default function Current() {
 
       <main className="ev-container">
         {loading ? (
-          <div className="ev-live-badge">Loading...</div>
+          <PageLoading />
         ) : error ? (
-          <div className="ev-live-badge">{error}</div>
+          <EmptyState type="error" message="행사를 불러오지 못했습니다" description={error} />
         ) : (
-          <div className="ev-live-badge">
-            <div className="ev-live-dot" />
-            LIVE · {events.length}개 행사 진행 중
-          </div>
-        )}
-
-        <div className="ev-card">
-          <div className="ev-card-header">
-            <div className="ev-card-title">
-              <div className="ev-card-title-icon">
-                <Calendar size={14} color="#f59e0b" />
-              </div>
-              진행 중인 행사
+          <>
+          {/* 검색 바 + 상태 칩 */}
+          <div style={{ display: "flex", gap: 12, alignItems: "stretch", marginBottom: 18 }}>
+            <div className="ev-live-chip">
+              <div className="ev-live-dot" />
+              진행 중 <span className="ev-live-count">{events.length}</span>
             </div>
-            <span className="ev-card-tag">{filtered.length}개 행사</span>
-          </div>
-
-          <div className="ev-toolbar">
-            <div className="ev-search-wrap">
-              <Search size={15} className="ev-search-icon" />
+            <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
+              <Search
+                size={16}
+                color={searchFocused ? "#2563eb" : "#94a3b8"}
+                style={{
+                  position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
+                  transition: "color 0.25s", zIndex: 1,
+                }}
+              />
+              <span style={{
+                position: "absolute", left: 42,
+                top: searchFocused || query ? 6 : "50%",
+                transform: searchFocused || query ? "none" : "translateY(-50%)",
+                fontSize: searchFocused || query ? 10 : 13,
+                color: searchFocused ? "#2563eb" : "#94a3b8",
+                fontWeight: 600,
+                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                pointerEvents: "none", zIndex: 1,
+                background: "#fff", padding: "0 4px",
+              }}>행사 검색</span>
               <input
-                className="ev-search"
-                placeholder="행사명, 카테고리, 장소 검색"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                style={{
+                  width: "100%", height: 52,
+                  borderRadius: 14,
+                  border: searchFocused ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+                  padding: query || searchFocused ? "14px 16px 0 42px" : "0 16px 0 42px",
+                  fontSize: 15, fontWeight: 700, color: "#0f172a",
+                  background: "#fff", outline: "none",
+                  transition: "border-color 0.25s, box-shadow 0.25s, padding 0.2s",
+                  boxShadow: searchFocused ? "0 0 0 3px rgba(37,99,235,0.1)" : "none",
+                  fontFamily: "inherit",
+                }}
               />
             </div>
           </div>
 
           <div className="ev-grid">
-            {filtered.length === 0 && !loading && !error ? (
-              <div style={{ fontSize: 13, color: "#6b7280" }}>
-                진행 중인 행사가 없습니다.
+            {filtered.length === 0 ? (
+              <div style={{ gridColumn: "1 / -1" }}>
+                <EmptyState
+                  message={query ? `"${query}" 검색 결과가 없습니다` : "진행 중인 행사가 없습니다"}
+                  description={query ? "다른 검색어로 다시 시도해 보세요" : "현재 진행 중인 행사가 등록되지 않았습니다"}
+                />
               </div>
             ) : null}
             {filtered.map((ev) => {
               const safeCapacity = ev.capacity && ev.capacity > 0 ? ev.capacity : 1;
               const safeParticipants = ev.participants ?? 0;
-              const pct = Math.round((safeParticipants / safeCapacity) * 100);
+              const pct = Math.min(100, Math.round((safeParticipants / safeCapacity) * 100));
               return (
                 <div
                   key={ev.id}
@@ -339,8 +375,8 @@ export default function Current() {
                     <div className="ev-event-footer">
                       <div className="ev-progress-wrap">
                         <div className="ev-progress-label">
-                          <span>참가자 {ev.participants.toLocaleString()}명</span>
-                          <span>{pct}%</span>
+                          <span>참가자 {ev.participants.toLocaleString()}명 / {ev.capacity.toLocaleString()}명</span>
+                          <span style={{ fontWeight: 700, color: pct >= 80 ? "#ef4444" : "#1a4fd6" }}>{pct}%</span>
                         </div>
                         <div className="ev-progress-track">
                           <div
@@ -356,7 +392,7 @@ export default function Current() {
                           setSelectedEvent(ev);
                         }}
                       >
-                        상세 <ChevronRight size={12} />
+                        상세보기 <ChevronRight size={13} />
                       </button>
                     </div>
                   </div>
@@ -364,7 +400,8 @@ export default function Current() {
               );
             })}
           </div>
-        </div>
+          </>
+        )}
       </main>
 
       {/* Detail Modal */}
