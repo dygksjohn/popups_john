@@ -12,6 +12,8 @@ import {
   Search,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
+import EmptyState from "../components/EmptyState";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { boothApi } from "../../../app/http/boothApi";
@@ -684,15 +686,9 @@ export default function ProgramStatus({ statusKey = "current" }) {
         </div>
 
         {loading ? (
-          <div className="ps-empty">
-            <strong>불러오는 중입니다</strong>
-            <span>프로그램 목록을 가져오고 있습니다.</span>
-          </div>
+          <PageLoading message="프로그램 목록을 불러오는 중입니다" />
         ) : error ? (
-          <div className="ps-empty">
-            <strong>불러오기에 실패했습니다</strong>
-            <span>{error}</span>
-          </div>
+          <EmptyState type="error" message="프로그램을 불러오지 못했습니다" description={error} />
         ) : filteredPrograms.length === 0 ? (
           <div className="ps-empty">
             <strong>조건에 맞는 프로그램이 없습니다</strong>

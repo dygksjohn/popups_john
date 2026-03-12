@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
+import EmptyState from "../components/EmptyState";
 import CommunityPagination from "./shared/CommunityPagination";
 import {
   ChevronDown,
@@ -747,66 +749,12 @@ export default function ServicePage() {
           </div>
         </div>
 
-        {/* 濡쒕뵫 */}
         {loading && (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "60px 0",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <Loader2
-              size={28}
-              color="#999"
-              style={{ animation: "spin 1s linear infinite" }}
-            />
-            <span style={{ fontSize: 13, color: "#999" }}>불러오는 중...</span>
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-          </div>
+          <PageLoading message="질문 목록을 불러오는 중입니다" />
         )}
 
-        {/* ?먮윭 */}
         {!loading && error && (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <AlertTriangle
-              size={36}
-              color="#F59E0B"
-              style={{
-                marginBottom: 12,
-                display: "block",
-                margin: "0 auto 12px",
-              }}
-            />
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#666",
-                marginBottom: 8,
-              }}
-            >
-              {error}
-            </div>
-            <button
-              onClick={fetchList}
-              style={{
-                padding: "8px 20px",
-                borderRadius: 8,
-                border: "1px solid #ddd",
-                background: "#fff",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                color: "#666",
-              }}
-            >
-              다시 시도
-            </button>
-          </div>
+          <EmptyState type="error" message="질문 목록을 불러오지 못했습니다" description={error} />
         )}
 
         {/* 紐⑸줉 */}

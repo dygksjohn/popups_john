@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
+import EmptyState from "../components/EmptyState";
 import CommunityPagination from "./shared/CommunityPagination";
 import sortIcon from "../../../assets/sort-icon.svg";
 import { noticeApi, unwrap } from "../../../api/noticeApi";
@@ -276,39 +278,11 @@ export default function Notice() {
         </div>
 
         {loading && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "80px 0",
-            }}
-          >
-            <Loader2 size={28} color="#999" style={{ animation: "spin 1s linear infinite" }} />
-            <div style={{ marginTop: 12, fontSize: "14px", color: "#999" }}>공지사항을 불러오고 있습니다.</div>
-          </div>
+          <PageLoading message="공지사항을 불러오는 중입니다" />
         )}
 
         {!loading && error && (
-          <div style={{ textAlign: "center", padding: "80px 0" }}>
-            <div style={{ fontSize: "14px", color: "#999", marginBottom: 12 }}>{error}</div>
-            <button
-              type="button"
-              onClick={() => fetchNotices(page)}
-              style={{
-                padding: "8px 20px",
-                borderRadius: "6px",
-                border: "1px solid #ccc",
-                background: "#fff",
-                fontSize: "14px",
-                cursor: "pointer",
-                color: "#333",
-              }}
-            >
-              다시 시도
-            </button>
-          </div>
+          <EmptyState type="error" message="공지사항을 불러오지 못했습니다" description={error} />
         )}
 
         {!loading && !error && (
