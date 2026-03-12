@@ -36,4 +36,17 @@ public class ExperienceWait {
 
     @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime updatedAt;
+
+    public static ExperienceWait create(Long programId, int waitCount, int waitMin) {
+        return ExperienceWait.builder()
+                .programId(programId)
+                .waitCount(Math.max(waitCount, 0))
+                .waitMin(Math.max(waitMin, 0))
+                .build();
+    }
+
+    public void applySnapshot(int waitCount, int waitMin) {
+        this.waitCount = Math.max(waitCount, 0);
+        this.waitMin = Math.max(waitMin, 0);
+    }
 }

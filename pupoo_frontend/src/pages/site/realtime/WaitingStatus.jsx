@@ -163,6 +163,17 @@ const styles = `
   .wt-chart-label { text-align: center; font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .wt-support-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .wt-support-grid-promoted { margin-top: 0; }
+  .wt-booth-priority-note {
+    margin: 0 0 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #dbeafe;
+    background: #eff6ff;
+    color: #1e40af;
+    font-size: 13px;
+    font-weight: 700;
+  }
   .wt-zone-list { display: flex; flex-direction: column; gap: 10px; }
   .wt-zone-item { border: 1px solid #edf0f5; border-radius: 10px; background: #fafcff; padding: 10px 11px; }
   .wt-zone-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; font-weight: 700; color: #1f2937; }
@@ -258,6 +269,19 @@ function formatTimeRange(startAt, endAt) {
   const end = formatTimeValue(endAt);
   if (start && end) return `${start} ~ ${end}`;
   return start || end || "운영 시간 정보 없음";
+}
+
+function toDateOrNull(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isProgramOperatingNow(startAt, endAt, now = new Date()) {
+  const start = toDateOrNull(startAt);
+  const end = toDateOrNull(endAt);
+  if (!start || !end) return true;
+  return start <= now && now < end;
 }
 
 function getCongestionStatus(waitCount, waitMin) {
@@ -375,6 +399,8 @@ function mapProgramWait(detail) {
     id: `program-${detail.programId}`,
     programId: detail.programId,
     programTitle: detail.programTitle || `프로그램 ${detail.programId}`,
+    startAt: detail.startAt || null,
+    endAt: detail.endAt || null,
     timeText: formatTimeRange(detail.startAt, detail.endAt),
     waitCount,
     waitMin,
@@ -478,7 +504,7 @@ function WaitingContent({ eventId }) {
           }),
         ]);
 
-        const programs = toArray(unwrapData(programListResponse, {}));
+        const programs = toArray(programListResponse);
 
         const [boothDetails, programDetails] = await Promise.all([
           Promise.allSettled(
@@ -498,12 +524,15 @@ function WaitingContent({ eventId }) {
           .filter(Boolean)
           .sort(compareBoothRows);
 
+        const now = new Date();
         const nextProgramRows = programDetails
-          .map((result) =>
-            result.status === "fulfilled"
-              ? mapProgramWait(unwrapData(result.value, null))
-              : null,
-          )
+          .map((result) => {
+            if (result.status !== "fulfilled") return null;
+            const detail = unwrapData(result.value, null);
+            if (!detail) return null;
+            if (!isProgramOperatingNow(detail.startAt, detail.endAt, now)) return null;
+            return mapProgramWait(detail);
+          })
           .filter(Boolean)
           .sort(compareProgramRows);
 
@@ -554,15 +583,15 @@ function WaitingContent({ eventId }) {
 
   const summary = useMemo(() => {
     const operatingProgramCount = sortedProgramRows.length;
-    const waitingProgramRows = measuredProgramRows.filter(
-      (row) => safeNumber(row.waitCount) > 0 || safeNumber(row.waitMin) > 0,
+    const waitingProgramRows = sortedProgramRows.filter(
+      (row) => toNumberOrNull(row.waitMin) !== null && safeNumber(row.waitMin) > 0,
     );
     const waitingProgramCount = waitingProgramRows.length;
-    const immediateProgramRows = measuredProgramRows.filter(
-      (row) => safeNumber(row.waitCount) === 0 && safeNumber(row.waitMin) === 0,
+    const immediateProgramRows = sortedProgramRows.filter(
+      (row) => toNumberOrNull(row.waitMin) === 0,
     );
     const immediateProgramCount = immediateProgramRows.length;
-    const busiestProgram = waitingProgramRows[0] ?? measuredProgramRows[0] ?? null;
+    const busiestProgram = waitingProgramRows[0] ?? sortedProgramRows[0] ?? null;
     const maxWaitMin = waitingProgramRows.length
       ? Math.max(...waitingProgramRows.map((row) => safeNumber(row.waitMin)))
       : 0;
@@ -731,6 +760,7 @@ function WaitingContent({ eventId }) {
 
   const isProgramEmpty = !loading && sortedProgramRows.length === 0;
   const isBoothEmpty = !loading && sortedBoothRows.length === 0;
+  const shouldPromoteBooth = isProgramEmpty && !loading;
 
   return (
     <>
@@ -792,6 +822,13 @@ function WaitingContent({ eventId }) {
         ))}
       </div>
 
+      {shouldPromoteBooth ? (
+        <div className="wt-booth-priority-note">
+          현재 운영 중인 프로그램이 없어 부스 대기 정보를 먼저 안내합니다.
+        </div>
+      ) : null}
+
+      {!shouldPromoteBooth ? (
       <div className="wt-card">
         <div className="wt-card-header">
           <h3 className="wt-card-title">
@@ -842,7 +879,9 @@ function WaitingContent({ eventId }) {
           </div>
         )}
       </div>
+      ) : null}
 
+      {!shouldPromoteBooth ? (
       <div className="wt-card">
         <div className="wt-card-header">
           <h3 className="wt-card-title">
@@ -890,8 +929,9 @@ function WaitingContent({ eventId }) {
           </div>
         )}
       </div>
+      ) : null}
 
-      <div className="wt-support-grid">
+      <div className={`wt-support-grid${shouldPromoteBooth ? " wt-support-grid-promoted" : ""}`}>
         <div className="wt-card">
           <div className="wt-card-header">
             <h3 className="wt-card-title">
