@@ -9,6 +9,6 @@ data:
   STORAGE_MODE: "S3"
   STORAGE_S3_REGION: "ap-northeast-2"
   STORAGE_S3_KEY_PREFIX: "uploads"
-  STORAGE_PUBLIC_BASE_URL: "https://cdn.pupoo.com"
+  APP_STORAGE_CDN_BASE_URL: "https://cdn.pupoo.site"
   SPRING_DATASOURCE_URL: "jdbc:mysql://pupoo-rds.cluster-xxxxxxxx.ap-northeast-2.rds.amazonaws.com:3306/pupoodb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
-  APP_CORS_ALLOWED_ORIGIN_PATTERNS: "https://app.pupoo.com,https://admin.pupoo.com"
+  APP_CORS_ALLOWED_ORIGIN_PATTERNS: "https://app.pupoo.com,https://admin.pupoo.com,https://pupoo.site,https://www.pupoo.site"

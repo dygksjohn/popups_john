@@ -6,6 +6,7 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getEventImage } from "../../admin/shared/eventImageStore";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 import {
   X,
   MapPin,
@@ -1281,7 +1282,10 @@ export default function EventDetailModal({ event, onClose }) {
           <div className="evm-poster-panel">
             <img
               className="evm-poster-img"
-            src={event.image || getEventImage(modalEventId) || detail?.imageUrl || getDogImage(modalEventId)}
+            src={resolveImageUrl(
+              event.image || getEventImage(modalEventId) || detail?.imageUrl,
+              getDogImage(modalEventId),
+            )}
               alt={event.title}
               onError={(e) => { e.target.onerror = null; e.target.src = getDogImage(modalEventId ?? 0); }}
             />
