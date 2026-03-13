@@ -99,4 +99,27 @@ public class BannedWordService {
         }
     }
 
+    /**
+     * AI 모더레이션 판정 결과 로그 (REVIEW/BLOCK 시 호출)
+     */
+    @Transactional
+    public void logAiModeration(Long boardId, Long contentId, BannedLogContentType contentType, Long userId,
+                                ModerationResult result) {
+        if (result == null || boardId == null || contentId == null) return;
+        if (!result.isReview() && !result.isBlock()) return;
+        FilterAction action = result.isBlock() ? FilterAction.BLOCK : FilterAction.REVIEW;
+        String reason = result.getReason();
+        if (reason != null && reason.length() > 2000) reason = reason.substring(0, 2000);
+        boardBannedLogRepository.save(BoardBannedLog.builder()
+                .boardId(boardId)
+                .contentId(contentId)
+                .contentType(contentType)
+                .userId(userId)
+                .detectedWord("AI")
+                .filterActionTaken(action)
+                .aiScore(result.getAiScore())
+                .ragReason(reason)
+                .build());
+    }
+
 }

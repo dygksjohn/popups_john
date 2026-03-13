@@ -2,7 +2,10 @@
 package com.popups.pupoo.board.post.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.application.ModerationClient;
+import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
+import com.popups.pupoo.board.bannedword.dto.BannedWordDetection;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.domain.model.Board;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
@@ -32,6 +35,7 @@ public class PostService {
     private final PostRepository postRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final ModerationClient moderationClient;
     private final UserRepository userRepository;
 
     private Long resolveBoardId(Long boardId, BoardType boardType) {
@@ -137,6 +141,15 @@ public class PostService {
         Board board = boardRepository.findById(req.getBoardId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Board not found"));
 
+        List<BannedWordDetection> level1Detections = bannedWordService.validate(req.getBoardId(), req.getPostTitle(), req.getContent());
+
+        String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
+        ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), req.getBoardId(), "POST");
+        if (modResult != null && modResult.isBlock()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    modResult.getReason() != null ? modResult.getReason() : "게시글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+        }
+
         Post post = Post.builder()
                 .board(board)
                 .userId(userId)
@@ -150,6 +163,12 @@ public class PostService {
                 .build();
 
         Post saved = postRepository.save(post);
+        if (!level1Detections.isEmpty()) {
+            bannedWordService.logDetections(req.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, level1Detections);
+        }
+        if (modResult != null && modResult.isReview()) {
+            bannedWordService.logAiModeration(req.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, modResult);
+        }
         return saved.getPostId();
     }
 
@@ -164,7 +183,18 @@ public class PostService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content is required");
         }
 
+        bannedWordService.validate(post.getBoard().getBoardId(), req.getPostTitle(), req.getContent());
+        String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
+        ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), post.getBoard().getBoardId(), "POST");
+        if (modResult != null && modResult.isBlock()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    modResult.getReason() != null ? modResult.getReason() : "게시글 내용이 정책에 위반될 수 있어 수정할 수 없습니다.");
+        }
+
         post.updateTitleAndContent(req.getPostTitle(), req.getContent());
+        if (modResult != null && modResult.isReview()) {
+            bannedWordService.logAiModeration(post.getBoard().getBoardId(), postId, BannedLogContentType.POST, userId, modResult);
+        }
     }
 
     @Transactional

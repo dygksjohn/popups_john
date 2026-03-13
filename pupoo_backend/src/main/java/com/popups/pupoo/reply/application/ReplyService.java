@@ -2,6 +2,8 @@
 package com.popups.pupoo.reply.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.application.ModerationClient;
+import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
@@ -37,6 +39,7 @@ public class ReplyService {
     private final PostRepository postRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final ModerationClient moderationClient;
     private final UserRepository userRepository;
 
     public ReplyService(PostCommentRepository postCommentRepository,
@@ -45,6 +48,7 @@ public class ReplyService {
                         PostRepository postRepository,
                         BoardRepository boardRepository,
                         BannedWordService bannedWordService,
+                        ModerationClient moderationClient,
                         UserRepository userRepository) {
         this.postCommentRepository = postCommentRepository;
         this.reviewCommentRepository = reviewCommentRepository;
@@ -52,6 +56,7 @@ public class ReplyService {
         this.postRepository = postRepository;
         this.boardRepository = boardRepository;
         this.bannedWordService = bannedWordService;
+        this.moderationClient = moderationClient;
         this.userRepository = userRepository;
     }
 
@@ -67,6 +72,26 @@ public class ReplyService {
         // 댓글 정책: FAQ 및 댓글 비활성 게시글은 댓글 생성 불가
         if (request.getTargetType() == ReplyTargetType.POST) {
             validateReplyAllowedForPost(request.getTargetId());
+        }
+
+        Long boardIdForModeration;
+        if (request.getTargetType() == ReplyTargetType.POST) {
+            Post post = postRepository.findByPostIdAndDeletedFalse(request.getTargetId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글이 존재하지 않습니다."));
+            boardIdForModeration = post.getBoard() != null ? post.getBoard().getBoardId() : null;
+        } else if (request.getTargetType() == ReplyTargetType.REVIEW) {
+            boardIdForModeration = boardRepository.findByBoardType(BoardType.REVIEW)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "REVIEW 게시판이 존재하지 않습니다."))
+                    .getBoardId();
+        } else {
+            boardIdForModeration = null;
+        }
+
+        bannedWordService.validate(boardIdForModeration, request.getContent());
+        ModerationResult modResult = moderationClient.moderate(request.getContent() != null ? request.getContent() : "", boardIdForModeration, "COMMENT");
+        if (modResult != null && modResult.isBlock()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    modResult.getReason() != null ? modResult.getReason() : "댓글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -85,6 +110,9 @@ public class ReplyService {
                     .deleted(false)
                     .build());
 
+            if (modResult != null && modResult.isReview()) {
+                bannedWordService.logAiModeration(boardId, saved.getCommentId(), BannedLogContentType.COMMENT, userId, modResult);
+            }
             return toResponse(saved, ReplyTargetType.POST, request.getTargetId(), boardId);
         }
 
@@ -102,6 +130,9 @@ public class ReplyService {
                     .deleted(false)
                     .build());
 
+            if (modResult != null && modResult.isReview()) {
+                bannedWordService.logAiModeration(reviewBoardId, saved.getCommentId(), BannedLogContentType.COMMENT, userId, modResult);
+            }
             return toResponse(saved, ReplyTargetType.REVIEW, request.getTargetId(), reviewBoardId);
         }
 

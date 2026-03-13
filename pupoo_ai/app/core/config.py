@@ -14,10 +14,22 @@ class Settings(BaseSettings):
     aws_region: str = "us-east-1"
     bedrock_model_id: str = "us.amazon.nova-lite-v1:0"
 
-    # 조합 6: HateBERT + Redis
-    redis_url: str = "redis://localhost:6379/0"
-    moderation_threshold: float = 0.7  # 이 값 이상이면 REVIEW
-    hatebert_model: str = "GroNLP/hateBERT"  # 또는 unitary/toxic-bert 등
+    # watsonx.ai 설정 (RAG용)
+    watsonx_api_key: str = ""
+    watsonx_url: str = ""
+    watsonx_project_id: str = ""
+    watsonx_region: str = ""
+    watsonx_llm_id: str = ""
+    watsonx_embedding_model_id: str = ""
+    watsonx_embedding_dim: int = 1024
+
+    # Milvus 설정 (셀프호스팅 Vector DB). Windows에서 localhost가 IPv6로 연결될 수 있어 127.0.0.1 권장
+    milvus_host: str = "127.0.0.1"
+    milvus_port: int = 19530
+    milvus_tls: bool = False
+    milvus_username: str | None = None
+    milvus_password: str | None = None
+    milvus_collection: str = "policy_vectors"
 
     if SettingsConfigDict is not None:
         model_config = SettingsConfigDict(

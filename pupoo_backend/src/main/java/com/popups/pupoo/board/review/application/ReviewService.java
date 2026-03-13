@@ -2,6 +2,8 @@
 package com.popups.pupoo.board.review.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.application.ModerationClient;
+import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
@@ -30,6 +32,7 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final ModerationClient moderationClient;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
 
@@ -38,6 +41,13 @@ public class ReviewService {
         Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "REVIEW 게시판(board_type=REVIEW)이 존재하지 않습니다."))
                 .getBoardId();
+
+        bannedWordService.validate(reviewBoardId, request.getContent());
+        ModerationResult modResult = moderationClient.moderate(request.getContent() != null ? request.getContent() : "", reviewBoardId, "POST");
+        if (modResult != null && modResult.isBlock()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    modResult.getReason() != null ? modResult.getReason() : "후기 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+        }
 
         String reviewTitle = deriveTitleFromContent(request.getContent());
 
@@ -54,6 +64,9 @@ public class ReviewService {
                 .reviewStatus(ReviewStatus.PUBLIC)
                 .build();
         Review saved = reviewRepository.save(review);
+        if (modResult != null && modResult.isReview()) {
+            bannedWordService.logAiModeration(reviewBoardId, saved.getReviewId(), BannedLogContentType.POST, userId, modResult);
+        }
         return toResponse(saved);
     }
 

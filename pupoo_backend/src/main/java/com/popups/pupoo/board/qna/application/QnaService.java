@@ -2,6 +2,8 @@
 package com.popups.pupoo.board.qna.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.application.ModerationClient;
+import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
@@ -31,6 +33,7 @@ public class QnaService {
     private final QnaRepository qnaRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final ModerationClient moderationClient;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
 
@@ -42,6 +45,14 @@ public class QnaService {
 
         Board qnaBoard = boardRepository.findByBoardType(BoardType.QNA)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QNA 게시판(board_type=QNA)이 존재하지 않습니다."));
+
+        bannedWordService.validate(qnaBoard.getBoardId(), request.getTitle(), request.getContent());
+        String textToModerate = (request.getTitle() != null ? request.getTitle() : "") + " " + (request.getContent() != null ? request.getContent() : "");
+        ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), qnaBoard.getBoardId(), "POST");
+        if (modResult != null && modResult.isBlock()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    modResult.getReason() != null ? modResult.getReason() : "QnA 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+        }
 
         Post post = Post.builder()
                 .board(qnaBoard)
@@ -58,6 +69,9 @@ public class QnaService {
                 .build();
 
         Post saved = qnaRepository.save(post);
+        if (modResult != null && modResult.isReview()) {
+            bannedWordService.logAiModeration(qnaBoard.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, modResult);
+        }
         return toResponse(saved);
     }
 

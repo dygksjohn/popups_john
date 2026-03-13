@@ -1,4 +1,4 @@
 """
 금지어 필터링(모더레이션) AI 기능.
-- Level 2 (AI 스코어링), Level 3 (RAG 문맥 분석) 등 기술 조합 구현 위치.
+- 등록 시점 Level 3 RAG(watsonx.ai + Milvus + LangChain) 구현.
 """
