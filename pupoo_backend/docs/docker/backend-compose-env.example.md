@@ -33,7 +33,7 @@ AUTH_REFRESH_COOKIE_HTTP_ONLY=true
 AUTH_REFRESH_COOKIE_SAME_SITE=Lax
 AUTH_REFRESH_COOKIE_PATH=/api/auth
 
-APP_CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:5173,http://localhost:8080
+APP_CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:5173,http://localhost:8080,https://pupoo.site,https://www.pupoo.site
 ```
 
 ## Storage SSOT
@@ -89,7 +89,7 @@ STORAGE_SESSION_TOKEN=
 ```env
 KAKAO_OAUTH_CLIENT_ID=
 KAKAO_OAUTH_CLIENT_SECRET=
-KAKAO_OAUTH_REDIRECT_URI=http://localhost:8080/auth/kakao/callback
+KAKAO_OAUTH_REDIRECT_URI=https://www.pupoo.site/auth/kakao/callback
 
 KAKAOPAY_BASE_URL=https://open-api.kakaopay.com
 KAKAOPAY_SECRET_KEY=
