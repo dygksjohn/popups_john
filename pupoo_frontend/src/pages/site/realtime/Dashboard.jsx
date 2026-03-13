@@ -1941,6 +1941,10 @@ function DashboardContent({ eventId }) {
     if (!activeForecastDateKey) return false;
     return activeForecastDateKey < toDateKey(new Date());
   }, [activeForecastDateKey]);
+  const isFutureForecast = useMemo(() => {
+    if (!activeForecastDateKey) return false;
+    return activeForecastDateKey > toDateKey(new Date());
+  }, [activeForecastDateKey]);
 
   const chartTimeline = useMemo(() => {
     const baseTimeline = Array.isArray(eventPrediction?.timeline)
@@ -2444,7 +2448,27 @@ function DashboardContent({ eventId }) {
     )[0];
   }, [aiTimelinePreview]);
 
-  const aiCurrentScore = safePercent(currentCongestion);
+  const aiCurrentScore = useMemo(() => {
+    if (isTodayForecast && !isPlannedEvent) {
+      return safePercent(currentCongestion);
+    }
+
+    const timelineScores = calibratedTimeline
+      .map((point) => safePercent(point?.score))
+      .filter(Number.isFinite);
+    if (timelineScores.length > 0) {
+      const sum = timelineScores.reduce((acc, score) => acc + score, 0);
+      return safePercent(Math.round(sum / timelineScores.length));
+    }
+
+    return safePercent(eventPrediction?.avgScore ?? currentCongestion);
+  }, [
+    calibratedTimeline,
+    currentCongestion,
+    eventPrediction?.avgScore,
+    isPlannedEvent,
+    isTodayForecast,
+  ]);
   const aiCurrentTone = resolveCongestionMeta(aiCurrentScore);
   const aiSoonScore = safePercent(
     nextPeakPoint?.score ?? (isTodayForecast ? aiCurrentScore : eventPrediction?.peakScore) ?? aiCurrentScore,
@@ -2712,7 +2736,9 @@ function DashboardContent({ eventId }) {
         <div className="rt-prediction-section">
           <div className="rt-prediction-kpi-grid">
             <div className="rt-prediction-kpi">
-              <div className="rt-prediction-kpi-label">현재 혼잡도</div>
+              <div className="rt-prediction-kpi-label">
+                {isFutureForecast ? "예상 혼잡도" : "현재 혼잡도"}
+              </div>
               <div className="rt-prediction-kpi-value">
                 {aiCurrentScore}
                 <span className="rt-prediction-kpi-unit">%</span>
