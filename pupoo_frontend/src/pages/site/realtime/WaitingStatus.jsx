@@ -92,9 +92,27 @@ const styles = `
   .wt-summary-sub { margin-top: 6px; font-size: 11px; line-height: 1.35; color: #6b7280; font-weight: 600; }
 
   .wt-card { border: 1px solid #e9ecef; border-radius: 13px; background: #fff; padding: 22px 22px 20px; margin-bottom: 14px; }
+  .wt-card-congestion {
+    display: flex;
+    flex-direction: column;
+  }
   .wt-card-header {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
     margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #f1f3f5;
+  }
+  .wt-card-header-congestion {
+    justify-content: flex-start;
+  }
+  .wt-card-header-congestion .wt-card-actions {
+    justify-content: space-between;
+    margin-left: 0;
+    width: 100%;
+  }
+  .wt-congestion-scroll {
+    max-height: clamp(300px, 54vh, 560px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
   }
   .wt-card-title { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: #111827; }
   .wt-card-title-icon {
@@ -102,6 +120,71 @@ const styles = `
     display: inline-flex; align-items: center; justify-content: center;
   }
   .wt-card-tag { font-size: 11px; font-weight: 700; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
+  .wt-card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .wt-toggle-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background: #f8fafc;
+  }
+  .wt-toggle-btn {
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .wt-toggle-btn.active {
+    color: #1d4ed8;
+    background: #eff6ff;
+  }
+  .wt-toggle-btn:hover {
+    color: #1f2937;
+    background: #f1f5f9;
+  }
+  .wt-sort-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding: 3px;
+    border: 1px solid #dbe3f0;
+    border-radius: 999px;
+    background: #ffffff;
+  }
+  .wt-sort-btn {
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .wt-sort-btn.active {
+    color: #1d4ed8;
+    background: #eff6ff;
+  }
+  .wt-sort-btn:hover {
+    color: #1f2937;
+    background: #f1f5f9;
+  }
   .wt-empty-state {
     min-height: 136px; border: 1px dashed #dbe3f0; border-radius: 10px; background: #fafcff;
     color: #6b7280; font-size: 13px; line-height: 1.5; text-align: center; padding: 20px;
@@ -210,6 +293,10 @@ const styles = `
     .wt-program-card-main { grid-template-columns: 1fr; }
     .wt-program-right { text-align: left; display: flex; align-items: center; gap: 8px; }
     .wt-program-wait-min { margin-top: 0; font-size: 18px; }
+    .wt-congestion-scroll { max-height: clamp(260px, 50vh, 420px); }
+    .wt-sort-group {
+      margin-left: 0;
+    }
   }
 `;
 
@@ -477,6 +564,8 @@ function WaitingContent({ eventId }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [flashKey, setFlashKey] = useState(0);
   const [lastLoadedAt, setLastLoadedAt] = useState(new Date());
+  const [congestionView, setCongestionView] = useState("program");
+  const [congestionSortOrder, setCongestionSortOrder] = useState("busy");
 
   const loadData = useCallback(
     async (options = {}) => {
@@ -575,6 +664,37 @@ function WaitingContent({ eventId }) {
     () => [...boothWaitingRows].sort(compareBoothRows),
     [boothWaitingRows],
   );
+  const orderedProgramRows = useMemo(
+    () =>
+      congestionSortOrder === "relaxed"
+        ? [...sortedProgramRows].reverse()
+        : sortedProgramRows,
+    [congestionSortOrder, sortedProgramRows],
+  );
+  const orderedBoothRows = useMemo(
+    () =>
+      congestionSortOrder === "relaxed"
+        ? [...sortedBoothRows].reverse()
+        : sortedBoothRows,
+    [congestionSortOrder, sortedBoothRows],
+  );
+  useEffect(() => {
+    if (
+      congestionView === "program" &&
+      sortedProgramRows.length === 0 &&
+      sortedBoothRows.length > 0
+    ) {
+      setCongestionView("booth");
+      return;
+    }
+    if (
+      congestionView === "booth" &&
+      sortedBoothRows.length === 0 &&
+      sortedProgramRows.length > 0
+    ) {
+      setCongestionView("program");
+    }
+  }, [congestionView, sortedBoothRows.length, sortedProgramRows.length]);
   const measuredProgramRows = useMemo(
     () =>
       sortedProgramRows.filter((row) => row.waitCount !== null && row.waitMin !== null),
@@ -612,7 +732,7 @@ function WaitingContent({ eventId }) {
         bg: "#ecfeff",
       },
       {
-        label: "가장 혼잡한 프로그램",
+        label: "가장 인기있는 프로그램",
         rawValue: null,
         textValue:
           waitingProgramCount > 0
@@ -708,9 +828,9 @@ function WaitingContent({ eventId }) {
     [zoneDistribution],
   );
 
-  const programVisible = useStaggerIn(sortedProgramRows.length, 60);
-  const boothVisible = useStaggerIn(sortedBoothRows.length, 40);
-  const visibleBoothRows = useMemo(() => sortedBoothRows.slice(0, 12), [sortedBoothRows]);
+  const programVisible = useStaggerIn(orderedProgramRows.length, 60);
+  const boothVisible = useStaggerIn(orderedBoothRows.length, 40);
+  const visibleBoothRows = useMemo(() => orderedBoothRows.slice(0, 12), [orderedBoothRows]);
 
   const lastLoadedLabel = lastLoadedAt.toLocaleTimeString("ko-KR", {
     hour: "2-digit",
@@ -736,7 +856,7 @@ function WaitingContent({ eventId }) {
       ? { tone: "relaxed", label: "여유" }
       : { tone: "pending", label: "집계 중" };
   const heroLabel = heroProgram
-    ? "현재 가장 혼잡한 프로그램"
+    ? "현재 가장 인기있는 프로그램"
     : summary.immediateProgramCount > 0
       ? "지금 바로 참여하기 좋은 프로그램"
       : "프로그램 대기 정보";
@@ -760,7 +880,25 @@ function WaitingContent({ eventId }) {
 
   const isProgramEmpty = !loading && sortedProgramRows.length === 0;
   const isBoothEmpty = !loading && sortedBoothRows.length === 0;
+  const isZoneEmpty = !loading && zoneDistribution.length === 0;
   const shouldPromoteBooth = isProgramEmpty && !loading;
+  const isProgramCongestionView = congestionView === "program";
+  const isBoothCongestionView = congestionView === "booth";
+  const isZoneCongestionView = congestionView === "zone";
+  const isCongestionLoading =
+    loading &&
+    (isProgramCongestionView
+      ? orderedProgramRows.length === 0
+      : isBoothCongestionView
+        ? orderedBoothRows.length === 0
+        : zoneDistribution.length === 0);
+  const isCongestionEmpty = !loading && (
+    isProgramCongestionView
+      ? isProgramEmpty
+      : isBoothCongestionView
+        ? isBoothEmpty
+        : isZoneEmpty
+  );
 
   return (
     <>
@@ -828,25 +966,124 @@ function WaitingContent({ eventId }) {
         </div>
       ) : null}
 
-      {!shouldPromoteBooth ? (
-      <div className="wt-card">
-        <div className="wt-card-header">
-          <h3 className="wt-card-title">
-            <span className="wt-card-title-icon">
-              <Users size={14} color="#1d4ed8" />
-            </span>
-            프로그램 혼잡도
-          </h3>
-          <span className="wt-card-tag">실시간 집계</span>
+      <div className="wt-card wt-card-congestion">
+        <div className="wt-card-header wt-card-header-congestion">
+          <div className="wt-card-actions">
+            <div className="wt-toggle-group">
+              <button
+                type="button"
+                className={`wt-toggle-btn ${isProgramCongestionView ? "active" : ""}`}
+                onClick={() => setCongestionView("program")}
+              >
+                체험 프로그램
+              </button>
+              <button
+                type="button"
+                className={`wt-toggle-btn ${isBoothCongestionView ? "active" : ""}`}
+                onClick={() => setCongestionView("booth")}
+              >
+                운영중인 부스
+              </button>
+              <button
+                type="button"
+                className={`wt-toggle-btn ${isZoneCongestionView ? "active" : ""}`}
+                onClick={() => setCongestionView("zone")}
+              >
+                붐비는 구역
+              </button>
+            </div>
+            {!isZoneCongestionView ? (
+              <div className="wt-sort-group" role="group" aria-label="혼잡도 정렬">
+                <button
+                  type="button"
+                  className={`wt-sort-btn ${congestionSortOrder === "busy" ? "active" : ""}`}
+                  onClick={() => setCongestionSortOrder("busy")}
+                >
+                  인기 체험
+                </button>
+                <button
+                  type="button"
+                  className={`wt-sort-btn ${congestionSortOrder === "relaxed" ? "active" : ""}`}
+                  onClick={() => setCongestionSortOrder("relaxed")}
+                >
+                  바로 참여 가능 체험
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
-        {loading && sortedProgramRows.length === 0 ? (
+        <div className="wt-congestion-scroll">
+        {isBoothCongestionView ? (
+          isCongestionLoading ? (
+            <div className="wt-empty-state">부스 혼잡도 데이터를 불러오는 중입니다.</div>
+          ) : isCongestionEmpty ? (
+            <div className="wt-empty-state">현재 집계된 부스 혼잡도 정보가 없습니다.</div>
+          ) : (
+            <div className="wt-booth-list">
+              {visibleBoothRows.map((row, index) => (
+                <div
+                  key={row.id}
+                  className={`wt-booth-item anim-slide-right ${boothVisible.includes(index) ? "visible" : ""}`}
+                >
+                  <div>
+                    <h4 className="wt-booth-title">{row.boothTitle}</h4>
+                    <div className="wt-booth-meta">
+                      {row.zoneLabel} · {row.subText}
+                    </div>
+                  </div>
+                  <div className="wt-booth-right">
+                    <span className={`wt-badge wt-badge-${row.congestionTone}`}>
+                      {row.congestionLabel}
+                    </span>
+                    <div className="wt-booth-wait">
+                      {getWaitMinuteDisplay(row.waitMin, row.waitCount)}
+                    </div>
+                    <div className="wt-chart-label">
+                      {formatKoreanTime(row.updatedAt) || "집계 중"}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : isZoneCongestionView ? (
+          isCongestionLoading ? (
+            <div className="wt-empty-state">구역별 대기 데이터를 불러오는 중입니다.</div>
+          ) : isCongestionEmpty ? (
+            <div className="wt-empty-state">현재 집계된 구역별 대기 정보가 없습니다.</div>
+          ) : (
+            <div className="wt-zone-list">
+              {zoneDistribution.map((item) => (
+                <div key={item.zoneLabel} className="wt-zone-item">
+                  <div className="wt-zone-head">
+                    <span>{item.zoneLabel}</span>
+                    <span>대기 {item.waitTeamTotal}팀</span>
+                  </div>
+                  <div className="wt-zone-track">
+                    <div
+                      className="wt-zone-fill"
+                      style={{
+                        width: `${Math.round(
+                          (safeNumber(item.waitTeamTotal) / zoneMaxWaitTeam) * 100,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="wt-zone-meta">
+                    부스 {item.boothCount}개 · 평균 예상 대기 {item.averageWaitMin}분
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : loading && orderedProgramRows.length === 0 ? (
           <div className="wt-empty-state">프로그램 대기 현황을 불러오는 중입니다.</div>
         ) : isProgramEmpty ? (
           <div className="wt-empty-state">현재 집계된 프로그램 대기 정보가 없습니다.</div>
         ) : (
           <div className="wt-program-list">
-            {sortedProgramRows.map((row, index) => (
+            {orderedProgramRows.map((row, index) => (
               <div
                 key={row.id}
                 className={`wt-program-card wt-tone-${row.congestionTone} anim-slide-right ${programVisible.includes(index) ? "visible" : ""}`}
@@ -878,10 +1115,10 @@ function WaitingContent({ eventId }) {
             ))}
           </div>
         )}
+        </div>
       </div>
-      ) : null}
 
-      {!shouldPromoteBooth ? (
+      {false ? (
       <div className="wt-card">
         <div className="wt-card-header">
           <h3 className="wt-card-title">
@@ -931,6 +1168,7 @@ function WaitingContent({ eventId }) {
       </div>
       ) : null}
 
+      {false ? (
       <div className={`wt-support-grid${shouldPromoteBooth ? " wt-support-grid-promoted" : ""}`}>
         <div className="wt-card">
           <div className="wt-card-header">
@@ -1017,6 +1255,7 @@ function WaitingContent({ eventId }) {
           )}
         </div>
       </div>
+      ) : null}
       </div>
     </>
   );
