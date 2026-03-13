@@ -49,8 +49,6 @@ export function buildRequestUrl(rawBaseUrl = "", rawUrl = "") {
 }
 
 export function buildAssetUrl(rawBaseUrl = "", rawUrl = "") {
-  void rawBaseUrl;
-
   if (!rawUrl) return "";
 
   const url = String(rawUrl).trim();
@@ -58,5 +56,12 @@ export function buildAssetUrl(rawBaseUrl = "", rawUrl = "") {
     return url;
   }
 
-  return url.startsWith("/") ? normalizeLeadingSlash(url) : "";
+  const normalizedUrl = normalizeLeadingSlash(url);
+  const baseUrl = getConfiguredBaseUrl(rawBaseUrl);
+
+  if (!baseUrl) {
+    return normalizedUrl;
+  }
+
+  return `${baseUrl}${normalizedUrl}`;
 }

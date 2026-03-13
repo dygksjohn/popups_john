@@ -9,6 +9,7 @@ import {
   Search,
   ChevronDown,
 } from "lucide-react";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 /* ─────────────────────────────────────────────
    STYLES
@@ -535,7 +536,7 @@ const FullscreenViewer = ({ card, startIndex, onClose }) => {
             <img
               key={imgKey}
               className="es-modal-img"
-              src={images[index]}
+              src={resolveImageUrl(images[index])}
               alt={`이미지 ${index + 1}`}
             />
             {total > 1 && (
@@ -603,7 +604,7 @@ const GalleryCard = ({ card, onEnlarge }) => {
           </div>
         ) : (
           <img
-            src={card.images[0]}
+            src={resolveImageUrl(card.images[0])}
             alt={card.title}
             onError={() => setImgError(true)}
           />
