@@ -130,6 +130,13 @@ class PolicyVectorStore:
         """
         쿼리 벡터 리스트에 대해 상위 top_k 검색 결과를 반환.
         """
+        # 검색 전에 컬렉션이 메모리에 로드되어 있는지 보장
+        try:
+            self._client.load_collection(collection_name=POLICY_COLLECTION_NAME)
+        except Exception:
+            # 로드 실패 시에도 search에서 한 번 더 에러를 던지므로 여기서는 조용히 넘어간다.
+            pass
+
         results = self._client.search(
             collection_name=POLICY_COLLECTION_NAME,
             data=list(query_embeddings),
