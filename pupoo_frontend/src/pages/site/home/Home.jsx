@@ -590,8 +590,8 @@ function NoticeSection() {
 export default function Home() {
   const heroVideos = [
     "/1.mov",
-    "http://kgj.dothome.co.kr/pupoo/2.mov",
-    "http://kgj.dothome.co.kr/pupoo/3.mp4",
+    "/2.mov",
+    "/3.mp4",
   ];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [fade, setFade] = useState(true);
