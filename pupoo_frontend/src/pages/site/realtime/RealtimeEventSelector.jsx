@@ -11,8 +11,6 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { aiApi } from "../../../app/http/aiApi";
-import { getToken } from "../../../api/noticeApi";
-import { sortAdminEventsByOperationalPriority } from "../../admin/shared/adminStatus";
 import { normalizePrediction } from "./aiCongestionViewModel";
 
 const STATUS_CONFIG = {
@@ -247,10 +245,9 @@ const selectorStyles = `
   }
   .rte-event-meta {
     display: flex;
-    column-gap: 14px;
-    row-gap: 4px;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
   .rte-meta-item {
     display: flex;
@@ -352,11 +349,6 @@ const selectorStyles = `
   }
 `;
 
-const authHeaders = () => {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
 const unwrapData = (response, fallback) => response?.data?.data ?? response?.data ?? fallback;
 
 const toArray = (payload) =>
@@ -420,6 +412,16 @@ const clipRangeByDate = (startAt, endAt, dateKey) => {
   return { startAt: clippedStart, endAt: clippedEnd };
 };
 
+const hasExplicitTimeRange = (startDate, endDate) => {
+  if (!startDate || !endDate) return false;
+  const isMidnight = (value) =>
+    value.getHours() === 0 &&
+    value.getMinutes() === 0 &&
+    value.getSeconds() === 0 &&
+    value.getMilliseconds() === 0;
+  return !(isMidnight(startDate) && isMidnight(endDate));
+};
+
 const buildOperationRangeByDate = (startAt, endAt, dateKey) => {
   const clipped = clipRangeByDate(startAt, endAt, dateKey);
   if (!clipped.startAt || !clipped.endAt) return { startAt: null, endAt: null };
@@ -428,6 +430,9 @@ const buildOperationRangeByDate = (startAt, endAt, dateKey) => {
   const eventEnd = toValidDate(endAt);
   const baseDate = toValidDate(`${dateKey}T00:00:00`);
   if (!eventStart || !eventEnd || !baseDate) {
+    return clipped;
+  }
+  if (!hasExplicitTimeRange(eventStart, eventEnd)) {
     return clipped;
   }
 
@@ -515,6 +520,67 @@ const toSelectorStatus = (status) => {
   return "upcoming";
 };
 
+const SELECTOR_STATUS_ORDER = {
+  live: 0,
+  upcoming: 1,
+  ended: 2,
+  cancelled: 2,
+};
+
+const toSortDate = (value) => {
+  const parsed = toValidDate(value);
+  return parsed ? parsed.getTime() : null;
+};
+
+const compareNullableTime = (left, right, direction = "asc") => {
+  if (left != null && right != null) {
+    return direction === "asc" ? left - right : right - left;
+  }
+  if (left != null || right != null) {
+    return left != null ? -1 : 1;
+  }
+  return 0;
+};
+
+const toSortId = (value) => {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric;
+  return Number(String(value ?? "").replace(/\D/g, "")) || 0;
+};
+
+const compareRealtimeEventsByPriority = (left, right) => {
+  const leftRank = SELECTOR_STATUS_ORDER[left?.selectorStatus] ?? 99;
+  const rightRank = SELECTOR_STATUS_ORDER[right?.selectorStatus] ?? 99;
+  if (leftRank !== rightRank) return leftRank - rightRank;
+
+  const leftStart = toSortDate(left?.startAt);
+  const rightStart = toSortDate(right?.startAt);
+  const leftEnd = toSortDate(left?.endAt);
+  const rightEnd = toSortDate(right?.endAt);
+
+  if (leftRank === 0) {
+    const endCompare = compareNullableTime(leftEnd, rightEnd, "asc");
+    if (endCompare !== 0) return endCompare;
+    const startCompare = compareNullableTime(leftStart, rightStart, "asc");
+    if (startCompare !== 0) return startCompare;
+  } else if (leftRank === 1) {
+    const startCompare = compareNullableTime(leftStart, rightStart, "asc");
+    if (startCompare !== 0) return startCompare;
+    const endCompare = compareNullableTime(leftEnd, rightEnd, "asc");
+    if (endCompare !== 0) return endCompare;
+  } else if (leftRank === 2) {
+    const endCompare = compareNullableTime(leftEnd, rightEnd, "desc");
+    if (endCompare !== 0) return endCompare;
+    const startCompare = compareNullableTime(leftStart, rightStart, "desc");
+    if (startCompare !== 0) return startCompare;
+  }
+
+  return toSortId(right?.eventId ?? right?.id) - toSortId(left?.eventId ?? left?.id);
+};
+
+const sortRealtimeEventsByPriority = (events = []) =>
+  [...(Array.isArray(events) ? events : [])].sort(compareRealtimeEventsByPriority);
+
 const FILTER_VALUES = new Set(["all", "live", "upcoming", "ended"]);
 
 const normalizeFilterValue = (value) =>
@@ -523,7 +589,6 @@ const normalizeFilterValue = (value) =>
 async function fetchAdminData(url, params, fallback) {
   try {
     const response = await axiosInstance.get(url, {
-      headers: authHeaders(),
       params,
     });
     return unwrapData(response, fallback);
@@ -592,11 +657,16 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
           toArray(performanceRows).map((row) => [Number(row.eventId), row]),
         );
 
-        const sortedEvents = sortAdminEventsByOperationalPriority(
-          rawEvents.map((event) => ({
-            ...event,
-            status: toAdminStatus(event.status),
-          })),
+        const sortedEvents = sortRealtimeEventsByPriority(
+          rawEvents.map((event) => {
+            const rawStatus = String(event?.status ?? "").toUpperCase();
+            return {
+              ...event,
+              rawStatus,
+              status: toAdminStatus(rawStatus),
+              selectorStatus: toSelectorStatus(rawStatus),
+            };
+          }),
         );
 
         const eventAvailabilityMap = programCategory
@@ -699,8 +769,8 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
 
         setEvents(
           visibleEvents.map((event, index) => {
-            const rawStatus = String(rawEvents.find((row) => Number(row.eventId) === Number(event.eventId))?.status ?? event.status).toUpperCase();
-            const selectorStatus = toSelectorStatus(rawStatus);
+            const rawStatus = String(event.rawStatus ?? event.status ?? "").toUpperCase();
+            const selectorStatus = event.selectorStatus || toSelectorStatus(rawStatus);
             const performance = performanceMap.get(Number(event.eventId));
             const registrations =
               Number(
