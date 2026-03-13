@@ -12,7 +12,15 @@ class StorageUrlResolverTest {
         StorageUrlResolver resolver = createResolver();
 
         assertThat(resolver.toPublicUrlFromKey("uploads/event/a.jpg"))
-                .isEqualTo("https://cdn.pupoo.com/uploads/event/a.jpg");
+                .isEqualTo("https://cdn.pupoo.site/uploads/event/a.jpg");
+    }
+
+    @Test
+    void normalizesLeadingSlashWithoutDuplicatingUploadsPrefix() {
+        StorageUrlResolver resolver = createResolver();
+
+        assertThat(resolver.toPublicUrlFromKey("/uploads/event/a.jpg"))
+                .isEqualTo("https://cdn.pupoo.site/uploads/event/a.jpg");
     }
 
     @Test
@@ -38,7 +46,7 @@ class StorageUrlResolverTest {
         StorageProperties storageProperties = new StorageProperties();
         storageProperties.setKeyPrefix("uploads");
         storageProperties.setPublicBaseUrl("http://localhost:8080");
-        storageProperties.setCdnBaseUrl("https://cdn.pupoo.com");
+        storageProperties.setCdnBaseUrl("https://cdn.pupoo.site");
 
         StorageKeyNormalizer normalizer = new StorageKeyNormalizer(storageProperties);
         return new StorageUrlResolver(storageProperties, normalizer);
