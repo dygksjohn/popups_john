@@ -1,3 +1,6 @@
+# Scope note:
+# - This workflow remains the shared CI pipeline for develop/main validation only.
+# - It does not replace the dedicated kwoo/kuber deployment workflow in .github/workflows/deploy.yml.
 name: CI
 
 on:

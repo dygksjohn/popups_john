@@ -1,3 +1,7 @@
+# Scope note:
+# - This legacy workflow remains the main-branch EC2 bundle deployment pipeline.
+# - It is intentionally kept in place for backward compatibility.
+# - The separate kwoo/kuber branch pipeline lives in .github/workflows/deploy.yml.
 name: Deploy To EC2
 
 on:
