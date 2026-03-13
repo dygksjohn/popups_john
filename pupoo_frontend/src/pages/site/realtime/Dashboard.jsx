@@ -144,6 +144,7 @@ const styles = `
   }
   .rt-hero-main {
     min-width: 0;
+    flex: 1 1 auto;
   }
   .rt-hero-title {
     margin: 0;
@@ -165,19 +166,6 @@ const styles = `
     align-items: center;
     gap: 5px;
   }
-  .rt-status-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    background: rgba(255, 255, 255, 0.18);
-    color: #fff;
-    white-space: nowrap;
-  }
   .rt-hero-summary {
     margin-top: 12px;
     font-size: 14px;
@@ -191,6 +179,53 @@ const styles = `
     color: rgba(255, 255, 255, 0.88);
     font-weight: 600;
     line-height: 1.35;
+  }
+  .rt-hero-kpi-grid {
+    margin-top: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    width: min(640px, 100%);
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .rt-hero-kpi {
+    border: 1px solid rgba(191, 219, 254, 0.45);
+    border-radius: 12px;
+    background: rgba(147, 197, 253, 0.2);
+    backdrop-filter: blur(1px);
+    padding: 10px 12px;
+  }
+  .rt-hero-kpi-label {
+    font-size: 11px;
+    color: rgba(239, 246, 255, 0.92);
+    font-weight: 700;
+  }
+  .rt-hero-kpi-value {
+    margin-top: 6px;
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: -0.02em;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+  .rt-hero-kpi-value.text {
+    font-size: 24px;
+  }
+  .rt-hero-kpi-unit {
+    font-size: 13px;
+    color: rgba(239, 246, 255, 0.95);
+    font-weight: 700;
+  }
+  .rt-hero-kpi-sub {
+    margin-top: 6px;
+    font-size: 11px;
+    color: rgba(239, 246, 255, 0.88);
+    line-height: 1.35;
+    font-weight: 600;
   }
 
   .rt-user-stat-grid {
@@ -445,6 +480,22 @@ const styles = `
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+  }
+  .rt-program-grid-top3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .rt-program-grid-top3 .rt-program-card {
+    padding: 12px;
+  }
+  .rt-program-grid-top3 .rt-program-name {
+    font-size: 14px;
+  }
+  .rt-program-grid-top3 .rt-program-metric {
+    padding: 6px 7px;
+  }
+  .rt-program-grid-top3 .rt-program-metric-value {
+    font-size: 14px;
   }
   .rt-program-card {
     border: 1px solid #dfe8f5;
@@ -721,6 +772,12 @@ const styles = `
       flex-direction: column;
       align-items: flex-start;
     }
+    .rt-hero-kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+      margin-left: 0;
+      margin-top: 14px;
+    }
     .rt-user-stat-grid {
       grid-template-columns: 1fr 1fr;
     }
@@ -739,6 +796,18 @@ const styles = `
   @media (max-width: 640px) {
     .rt-container { padding: 20px 16px 48px; }
     .rt-container.selector-mode { padding-top: 88px; }
+    .rt-hero-kpi-grid {
+      grid-template-columns: 1fr;
+      width: 100%;
+      margin-left: 0;
+      margin-top: 14px;
+    }
+    .rt-hero-kpi-value {
+      font-size: 25px;
+    }
+    .rt-hero-kpi-value.text {
+      font-size: 22px;
+    }
     .rt-user-stat-grid {
       grid-template-columns: 1fr;
     }
@@ -1223,9 +1292,15 @@ async function fetchAdminData(url, params, fallback) {
       headers: authHeaders(),
       params,
     });
-    return unwrapData(response, fallback);
+    return {
+      data: unwrapData(response, fallback),
+      hasError: false,
+    };
   } catch {
-    return fallback;
+    return {
+      data: fallback,
+      hasError: true,
+    };
   }
 }
 
@@ -1366,20 +1441,23 @@ function HourlyTrendChart({ points, activeDateKey, isTodayForecast }) {
   );
 }
 
-function ProgramCrowdCard({ item }) {
+function ProgramCrowdCard({ item, badgeText = "", badgeStyle = null }) {
+  const resolvedBadgeText = badgeText || item.tone.label;
+  const resolvedBadgeStyle = badgeStyle || {
+    color: item.tone.color,
+    background: item.tone.bg,
+    borderColor: item.tone.border,
+  };
+
   return (
     <div className="rt-program-card">
       <div className="rt-program-card-head">
         <h4 className="rt-program-name">{item.name}</h4>
         <span
           className="rt-mini-badge"
-          style={{
-            color: item.tone.color,
-            background: item.tone.bg,
-            borderColor: item.tone.border,
-          }}
+          style={resolvedBadgeStyle}
         >
-          {item.tone.label}
+          {resolvedBadgeText}
         </span>
       </div>
       <div className="rt-program-time">운영 시간: {item.timeLabel}</div>
@@ -1436,7 +1514,7 @@ function DashboardContent({ eventId }) {
     if (!preserveLoading) setLoading(true);
 
     try {
-      const [eventResponse, performanceRows, hourlyData, latestCongestions, programs] = await Promise.all([
+      const [eventResponse, performanceResult, hourlyResult, congestionResult, programsResult] = await Promise.all([
         eventApi.getEventDetail(numericEventId),
         fetchAdminData("/api/admin/analytics/events", { page: 0, size: 200 }, []),
         fetchAdminData(`/api/admin/analytics/events/${numericEventId}/congestion-by-hour`, {}, []),
@@ -1445,10 +1523,27 @@ function DashboardContent({ eventId }) {
           eventId: numericEventId,
           sort: "startAt,asc",
           pageSize: 200,
-        }).catch(() => []),
+        })
+          .then((data) => ({
+            data,
+            hasError: false,
+          }))
+          .catch(() => ({
+            data: [],
+            hasError: true,
+          })),
       ]);
 
-      const basePrograms = Array.isArray(programs) ? programs : [];
+      const performanceRows = toArray(performanceResult?.data);
+      const hourlyData = toArray(hourlyResult?.data);
+      const latestCongestions = toArray(congestionResult?.data);
+      const basePrograms = Array.isArray(programsResult?.data) ? programsResult.data : [];
+      const hasOperationalLoadError =
+        Boolean(performanceResult?.hasError) ||
+        Boolean(hourlyResult?.hasError) ||
+        Boolean(congestionResult?.hasError) ||
+        Boolean(programsResult?.hasError);
+
       const programDetails = await Promise.allSettled(
         basePrograms.map((program) => programApi.getProgramDetail(program?.programId)),
       );
@@ -1480,10 +1575,12 @@ function DashboardContent({ eventId }) {
           ) || 0,
         checkin: detailStatus === "PLANNED" ? 0 : rawCheckinCount,
       });
-      setHourlyRows(toArray(hourlyData));
-      setCongestionRows(toArray(latestCongestions));
+      setHourlyRows(hourlyData);
+      setCongestionRows(latestCongestions);
       setProgramRows(mergedPrograms);
-      setErrorMsg("");
+      setErrorMsg(
+        hasOperationalLoadError ? "실시간 운영 데이터를 불러오지 못했습니다." : "",
+      );
       setLastLoadedAt(new Date());
 
       const aiRangeParams = resolveAiRangeParams(detail, selectedForecastDate);
@@ -1851,33 +1948,46 @@ function DashboardContent({ eventId }) {
     [operatingProgramRows],
   );
 
-  const lessCrowdedPrograms = useMemo(
+  const popularTopPrograms = useMemo(
     () =>
       [...queueProgramRows]
         .sort(
           (left, right) =>
-            left.waitCount - right.waitCount ||
-            left.waitMin - right.waitMin ||
-            left.congestionPercent - right.congestionPercent ||
+            right.congestionPercent - left.congestionPercent ||
+            right.waitMin - left.waitMin ||
+            right.waitCount - left.waitCount ||
             String(left.name).localeCompare(String(right.name), "ko-KR"),
         )
-        .slice(0, 8),
+        .slice(0, 3),
     [queueProgramRows],
   );
 
-  const popularPrograms = useMemo(
-    () =>
-      [...queueProgramRows]
-        .sort(
-          (left, right) =>
-            right.waitCount - left.waitCount ||
-            right.congestionPercent - left.congestionPercent ||
-            right.waitMin - left.waitMin ||
-            String(left.name).localeCompare(String(right.name), "ko-KR"),
-        )
-        .slice(0, 8),
-    [queueProgramRows],
+  const popularTopProgramIds = useMemo(
+    () => new Set(popularTopPrograms.map((program) => program.programId)),
+    [popularTopPrograms],
   );
+
+  const readyPrograms = useMemo(() => {
+    const candidates = queueProgramRows
+      .filter((program) => !popularTopProgramIds.has(program.programId))
+      .sort(
+        (left, right) =>
+          left.waitMin - right.waitMin ||
+          left.waitCount - right.waitCount ||
+          left.congestionPercent - right.congestionPercent ||
+          String(left.name).localeCompare(String(right.name), "ko-KR"),
+      );
+
+    const shortWaitCandidates = candidates.filter(
+      (program) => program.waitMin <= 15 || program.waitCount <= 2,
+    );
+
+    if (shortWaitCandidates.length > 0) {
+      return shortWaitCandidates.slice(0, 8);
+    }
+
+    return candidates.slice(0, 8);
+  }, [popularTopProgramIds, queueProgramRows]);
 
   const currentVisitors = isPlannedEvent ? 0 : performance.checkin;
 
@@ -1930,20 +2040,26 @@ function DashboardContent({ eventId }) {
     [currentVisitors, isPlannedEvent],
   );
 
-  const userStats = useMemo(
+  const heroStats = useMemo(
     () => [
       {
         label: "현재 혼잡도",
         value: currentCongestion,
         unit: "%",
         sub: congestionSummaryText,
-        badge: currentTone,
       },
       {
         label: "예상 대기시간",
         value: expectedWaitMinutes,
         unit: "분",
         sub: waitSummaryText,
+      },
+      {
+        label: "혼잡 상태",
+        value: currentTone.label,
+        unit: "",
+        sub: currentTone.sentence,
+        textOnly: true,
       },
     ],
     [congestionSummaryText, currentCongestion, currentTone, expectedWaitMinutes, waitSummaryText],
@@ -1984,23 +2100,6 @@ function DashboardContent({ eventId }) {
     return "혼잡도가 낮은 시간대를 골라 이동하면 더 편하게 즐길 수 있어요.";
   }, [aiCurrentScore, aiSoonScore, eventPrediction, hours]);
 
-  const petHintMessages = useMemo(() => {
-    const hints = [];
-    if (!isPlannedEvent && currentVisitors >= 300) {
-      hints.push("현재 많은 반려가족이 함께하고 있어요");
-    }
-    if (popularPrograms[0]?.congestionPercent >= 61 || expectedWaitMinutes >= 20) {
-      hints.push("인기 프로그램은 조금 일찍 이동하는 것을 추천해요");
-    }
-    if (currentCongestion <= 30) {
-      hints.push("지금은 비교적 여유롭게 둘러볼 수 있어요");
-    }
-    if (hints.length === 0) {
-      hints.push("반려가족 동선을 고려해 천천히 이동하면 더 편안해요");
-    }
-    return hints.slice(0, 3);
-  }, [currentCongestion, currentVisitors, expectedWaitMinutes, isPlannedEvent, popularPrograms]);
-
   const activities = useMemo(() => {
     const liveItems = [...measuredCongestions]
       .sort((left, right) => {
@@ -2032,8 +2131,6 @@ function DashboardContent({ eventId }) {
 
   const badge = STATUS_BADGE[String(eventDetail?.status).toUpperCase()] || STATUS_BADGE.PLANNED;
   const eventName = eventDetail?.eventName || "행사 정보 없음";
-  const heroSummary =
-    `${congestionSummaryText}. ${waitSummaryText}.`;
   const heroVisitorSummary = `현재 방문객 ${currentVisitors.toLocaleString()}명 · ${visitorMoodText}`;
   const soonPeakTimeLabel = nextPeakPoint?.time
     ? `${formatKoreanTime(nextPeakPoint.time)} 무렵`
@@ -2056,8 +2153,6 @@ function DashboardContent({ eventId }) {
   return (
     <>
       <div className="rt-page-shell">
-        {errorMsg ? <div className="rt-error">{errorMsg}</div> : null}
-
         <div className="rt-live-header">
           <div className="rt-live-header-left">
             <div className={`rt-live-badge ${badge.className}`}>
@@ -2083,6 +2178,8 @@ function DashboardContent({ eventId }) {
           </div>
         </div>
 
+        {errorMsg ? <div className="rt-error">{errorMsg}</div> : null}
+
         <section className="rt-hero">
         <div className="rt-hero-top">
           <div className="rt-hero-main">
@@ -2097,23 +2194,19 @@ function DashboardContent({ eventId }) {
                 {eventDetail?.location || "장소 정보 없음"}
               </span>
             </div>
-            <div className="rt-hero-meta">
-              <span>현재 혼잡도 {currentCongestion}%</span>
-              <span>혼잡 상태 {currentTone.label}</span>
-              <span>예상 대기 {expectedWaitMinutes}분</span>
-            </div>
-            <div className="rt-hero-summary">{heroSummary}</div>
             <div className="rt-hero-note">{heroVisitorSummary}</div>
           </div>
-          <div
-            className="rt-status-pill"
-            style={{
-              color: currentTone.color,
-              background: currentTone.bg,
-              borderColor: currentTone.border,
-            }}
-          >
-            {currentTone.label}
+          <div className="rt-hero-kpi-grid">
+            {heroStats.map((item) => (
+              <div key={item.label} className="rt-hero-kpi">
+                <div className="rt-hero-kpi-label">{item.label}</div>
+                <div className={`rt-hero-kpi-value${item.textOnly ? " text" : ""}`}>
+                  {item.value}
+                  {item.unit ? <span className="rt-hero-kpi-unit">{item.unit}</span> : null}
+                </div>
+                <div className="rt-hero-kpi-sub">{item.sub}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -2122,11 +2215,45 @@ function DashboardContent({ eventId }) {
         <div className="rt-card-header">
           <div className="rt-card-title">
             <div className="rt-card-title-icon">
-              <Radio size={14} color="#10b981" />
+              <TrendingUp size={14} color="#dc2626" />
             </div>
             {isEndedEvent
-              ? "종료 시점 비교적 여유로웠던 프로그램"
-              : "지금 바로 참여하기 좋은 프로그램"}
+              ? "종료 시점 인기 프로그램 TOP3"
+              : "인기 프로그램 TOP3"}
+          </div>
+          <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "지금 사람들이 몰리는 프로그램"}</span>
+        </div>
+
+        {!hasAnyPrograms || !hasOperatingPrograms ? (
+          <div className="rt-empty">
+            <span className="rt-empty-strong">운영 중인 프로그램이 없습니다</span>
+            운영 시간이 시작되면 인기 프로그램 정보가 표시됩니다.
+          </div>
+        ) : !hasQueuePrograms ? (
+          <div className="rt-empty">
+            <span className="rt-empty-strong">
+              {isEndedEvent ? "종료 시점 대기 정보가 없습니다" : "아직 집계된 대기 정보가 없습니다"}
+            </span>
+            {isEndedEvent
+              ? "행사 종료 이후에는 신규 대기 집계가 갱신되지 않습니다."
+              : "대기 정보가 수집되면 인기 프로그램을 보여드릴게요."}
+          </div>
+        ) : (
+          <div className="rt-program-grid rt-program-grid-top3">
+            {popularTopPrograms.map((item) => (
+              <ProgramCrowdCard key={`top3-${item.key}`} item={item} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rt-card">
+        <div className="rt-card-header">
+          <div className="rt-card-title">
+            <div className="rt-card-title-icon">
+              <Radio size={14} color="#10b981" />
+            </div>
+            {isEndedEvent ? "종료 시점 바로 참여 프로그램" : "바로 참여 프로그램"}
           </div>
           <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "대기 짧은 순"}</span>
         </div>
@@ -2145,100 +2272,27 @@ function DashboardContent({ eventId }) {
               ? "행사 종료 이후에는 신규 대기 집계가 갱신되지 않습니다."
               : "잠시 후 다시 확인해 주세요."}
           </div>
-        ) : (
-          <div className="rt-program-grid">
-            {lessCrowdedPrograms.map((item) => (
-              <ProgramCrowdCard key={`low-${item.key}`} item={item} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="rt-card">
-        <div className="rt-card-header">
-          <div className="rt-card-title">
-            <div className="rt-card-title-icon">
-              <TrendingUp size={14} color="#dc2626" />
-            </div>
-            {isEndedEvent ? "종료 시점 인기 / 혼잡 프로그램" : "현재 인기 / 혼잡 프로그램"}
-          </div>
-          <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "대기/혼잡 높은 순"}</span>
-        </div>
-
-        {!hasAnyPrograms || !hasOperatingPrograms ? (
+        ) : readyPrograms.length === 0 ? (
           <div className="rt-empty">
-            <span className="rt-empty-strong">운영 중인 프로그램이 없습니다</span>
-            운영 시간이 시작되면 인기 프로그램 정보가 표시됩니다.
-          </div>
-        ) : !hasQueuePrograms ? (
-          <div className="rt-empty">
-            <span className="rt-empty-strong">
-              {isEndedEvent ? "종료 시점 대기 정보가 없습니다" : "아직 집계된 대기 정보가 없습니다"}
-            </span>
-            {isEndedEvent
-              ? "행사 종료 이후에는 신규 대기 집계가 갱신되지 않습니다."
-              : "대기 정보가 수집되면 인기 프로그램을 보여드릴게요."}
+            <span className="rt-empty-strong">바로 참여 가능한 프로그램이 없습니다</span>
+            현재는 인기 프로그램 쪽으로 방문이 몰리고 있어요.
           </div>
         ) : (
           <div className="rt-program-grid">
-            {popularPrograms.map((item) => (
-              <ProgramCrowdCard key={`hot-${item.key}`} item={item} />
+            {readyPrograms.map((item) => (
+              <ProgramCrowdCard
+                key={`ready-${item.key}`}
+                item={item}
+                badgeText="바로 참여 가능"
+                badgeStyle={{
+                  color: "#047857",
+                  background: "#ecfdf5",
+                  borderColor: "#a7f3d0",
+                }}
+              />
             ))}
           </div>
         )}
-      </div>
-
-      <div className="rt-card">
-        <div className="rt-card-header">
-          <div className="rt-card-title">
-            <div className="rt-card-title-icon">
-              <Activity size={14} color="#0f766e" />
-            </div>
-            지금 행사장 분위기
-          </div>
-          <span className="rt-card-tag">실시간 안내</span>
-        </div>
-
-        <div className="rt-section-lead">
-          큰 숫자보다 중요한 건 지금 체감이에요. 현재 상태를 짧게 확인하고 바로 이동해 보세요.
-        </div>
-
-        <div className="rt-user-stat-grid">
-          {userStats.map((item) => (
-            <div key={item.label} className="rt-user-stat">
-              <div className="rt-user-stat-label">{item.label}</div>
-              <div className="rt-user-stat-value">
-                {Number(item.value).toLocaleString()}
-                <span className="rt-user-stat-unit">{item.unit}</span>
-              </div>
-              <div className="rt-user-stat-sub">{item.sub}</div>
-              {item.badge ? (
-                <span
-                  className="rt-user-stat-badge"
-                  style={{
-                    color: item.badge.color,
-                    background: item.badge.bg,
-                    borderColor: item.badge.border,
-                  }}
-                >
-                  {item.badge.label}
-                </span>
-              ) : null}
-            </div>
-          ))}
-        </div>
-
-        <div className="rt-visitor-note">
-          {heroVisitorSummary}
-        </div>
-
-        <div className="rt-pet-hints">
-          {petHintMessages.map((hint) => (
-            <span key={hint} className="rt-chip">
-              {hint}
-            </span>
-          ))}
-        </div>
       </div>
 
       <div className="rt-card">
