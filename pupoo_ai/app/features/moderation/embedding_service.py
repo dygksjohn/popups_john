@@ -42,8 +42,41 @@ class StubEmbeddingService:
         return vectors
 
 
-def get_embedding_service() -> Union[WatsonxEmbeddingService, StubEmbeddingService]:
-    """watsonx 설정이 있으면 WatsonxEmbeddingService, 없으면 StubEmbeddingService 반환."""
+class BgeM3EmbeddingService:
+    """
+    BGE-M3 임베딩 백엔드.
+    - 로컬에서 BAAI/bge-m3 모델을 사용해 1024차원 임베딩을 생성한다.
+    - sentence-transformers 기반 구현을 사용한다.
+    """
+
+    def __init__(self) -> None:
+        from sentence_transformers import SentenceTransformer
+
+        self._model = SentenceTransformer("BAAI/bge-m3")
+        self._dim = 1024
+
+    @property
+    def dim(self) -> int:
+        return self._dim
+
+    def embed_texts(self, texts: Iterable[str]) -> List[List[float]]:
+        text_list = list(texts)
+        if not text_list:
+            return []
+        emb = self._model.encode(text_list, batch_size=32, convert_to_numpy=True)
+        return [vec.tolist() for vec in emb]
+
+
+def get_embedding_service() -> Union[WatsonxEmbeddingService, BgeM3EmbeddingService, StubEmbeddingService]:
+    """
+    임베딩 서비스 선택 우선순위:
+    1) settings.embedding_backend == "bge-m3" -> BGE-M3
+    2) watsonx 설정이 존재 -> watsonx 임베딩
+    3) 그 외 -> Stub (개발/테스트용)
+    """
+    backend = getattr(settings, "embedding_backend", "").lower()
+    if backend == "bge-m3":
+        return BgeM3EmbeddingService()
     if is_watsonx_configured():
         return WatsonxEmbeddingService()
     return StubEmbeddingService(dim=128)

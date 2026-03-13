@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     watsonx_embedding_model_id: str = ""
     watsonx_embedding_dim: int = 1024
 
+    # 임베딩 백엔드 선택: ""(자동) | bge-m3
+    embedding_backend: str = ""
+
     # Milvus 설정 (셀프호스팅 Vector DB). Windows에서 localhost가 IPv6로 연결될 수 있어 127.0.0.1 권장
     milvus_host: str = "127.0.0.1"
     milvus_port: int = 19530
