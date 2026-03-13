@@ -640,7 +640,13 @@ export default function Home() {
           </div>
           <div className="flex justify-between items-center mt-3 text-white text-sm">
             <span>{String(currentVideoIndex + 1).padStart(2, "0")} / {String(heroVideos.length).padStart(2, "0")}</span>
-            <button type="button" onClick={togglePlay}>{isPlaying ? "일시정지" : "재생"}</button>
+            <button type="button" onClick={togglePlay} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/20 transition">
+              {isPlaying ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z" /></svg>
+              )}
+            </button>
           </div>
         </div>
       </section>

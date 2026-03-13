@@ -147,7 +147,7 @@ export default function PupooBrandIdentity() {
 
         /* ✅ margin-top:70 조건 = wrap padding-top으로 유지 */
         .wrap{
-          max-width: 1200px;
+          max-width: 1400px;
           margin: 0 auto;
           padding: 70px 24px 120px;
         }

@@ -71,8 +71,8 @@ function backdropStyle() {
     position: "fixed",
     inset: 0,
     zIndex: 5000,
-    background: "rgba(15,23,42,0.48)",
-    backdropFilter: "blur(5px)",
+    background: "rgba(0,0,0,0.75)",
+    backdropFilter: "blur(6px)",
   };
 }
 
@@ -143,6 +143,14 @@ function GalleryWriteModal({
   const [dragOver, setDragOver] = useState(false);
   const [dragIndex, setDragIndex] = useState(null);
   const [dropIndex, setDropIndex] = useState(null);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
 
   const previewUrls = useMemo(() => {
     prevUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -361,6 +369,14 @@ function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, liked
     setIndex(0);
   }, [item?.galleryId]);
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (!item) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [item]);
+
   useEffect(() => {
     if (!item) return;
     const handleKey = (e) => {
@@ -382,7 +398,7 @@ function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, liked
       <div style={overlayStyle()} onClick={onClose}>
         <div onClick={(e) => e.stopPropagation()} style={{ ...modalShellStyle("min(1060px, 100%)"), display: "flex", flexDirection: "row", overflow: "hidden" }}>
           {/* Left: Image */}
-          <div style={{ flex: "0 0 600px", position: "relative", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 580 }}>
+          <div style={{ flex: "0 0 600px", position: "relative", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", height: 620, overflow: "hidden" }}>
             {currentImage ? (
               <img src={currentImage} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             ) : (
@@ -562,7 +578,6 @@ export default function EventGallery() {
     if (!gallery?.galleryId) return;
     if (syncUrl) {
       const next = new URLSearchParams(searchParams);
-      if (gallery.eventId != null) next.set("eventId", String(gallery.eventId));
       next.set("galleryId", String(gallery.galleryId));
       setSearchParams(next);
     }
@@ -695,7 +710,7 @@ export default function EventGallery() {
       <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
       <main
         style={{
-          width: "min(1350px, calc(100% - 50px))",
+          width: "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
           padding: "36px 0 64px",
         }}

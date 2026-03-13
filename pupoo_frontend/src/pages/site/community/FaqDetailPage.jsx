@@ -59,8 +59,8 @@ export default function FaqDetailPage() {
       content={error ? `<p>${error}</p>` : item?.content || "<p>내용이 없습니다.</p>"}
       extraContent={
         !loading && item?.answerContent ? (
-          <div style={{ marginTop: 28, padding: "18px 20px", borderRadius: 14, background: "#faf5ff", borderLeft: "4px solid #9333ea" }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#9333ea", marginBottom: 8 }}>답변</div>
+          <div style={{ marginTop: 32, padding: "20px 24px", borderRadius: 0, background: "#fafafa", borderLeft: "3px solid #111827" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>답변</div>
             <div style={{ fontSize: 14, color: "#334155", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
               {item.answerContent}
             </div>

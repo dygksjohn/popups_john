@@ -10,6 +10,7 @@ const SECTION_LABELS = {
   guide: "이용 안내",
   gallery: "갤러리",
   registration: "참가 신청",
+  payment: "참가 신청",
 };
 
 const styles = {
@@ -97,7 +98,7 @@ const styles = {
   },
 };
 
-export default function PageHeader({ title, subtitle, categories, children }) {
+export default function PageHeader({ title, subtitle, categories, currentPath, breadcrumbTitle, onTabClick, children }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -125,10 +126,12 @@ export default function PageHeader({ title, subtitle, categories, children }) {
   );
 
   // Auto breadcrumb from URL
+  const activePath = currentPath || location.pathname;
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const section = pathSegments[0] || "";
   const sectionLabel = SECTION_LABELS[section];
-  const breadcrumbItems = sectionLabel ? ["홈", sectionLabel, title] : ["홈", title];
+  const lastCrumb = breadcrumbTitle || title;
+  const breadcrumbItems = sectionLabel ? ["홈", sectionLabel, lastCrumb] : ["홈", lastCrumb];
 
   return (
     <div style={styles.pageHeader}>
@@ -160,7 +163,7 @@ export default function PageHeader({ title, subtitle, categories, children }) {
           <div style={styles.tabs}>
             {filteredCategories.map((cat, i) => {
               const targetPath = resolveTargetPath(cat.path);
-              const isActive = location.pathname === targetPath;
+              const isActive = activePath === targetPath;
               const isHovered = hoveredIdx === i;
 
               let btnStyle = { ...styles.tabBase };
@@ -174,7 +177,7 @@ export default function PageHeader({ title, subtitle, categories, children }) {
                 <button
                   key={cat.path}
                   style={btnStyle}
-                  onClick={() => navigate(targetPath)}
+                  onClick={() => onTabClick ? onTabClick(targetPath) : navigate(targetPath)}
                   onMouseEnter={() => setHoveredIdx(i)}
                   onMouseLeave={() => setHoveredIdx(null)}
                   aria-current={isActive ? "page" : undefined}

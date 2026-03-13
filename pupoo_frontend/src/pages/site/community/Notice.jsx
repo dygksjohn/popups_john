@@ -11,6 +11,7 @@ import {
   getBoardBadge,
   getNoticeScopeBadge,
 } from "./communityConfig";
+import BadgeTag from "./shared/BadgeTag";
 
 const PAGE_SIZE = 10;
 
@@ -111,7 +112,7 @@ export default function Notice() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
       <main
         style={{
-          width: "min(1350px, calc(100% - 50px))",
+          width: "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
           padding: "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
@@ -291,27 +292,28 @@ export default function Notice() {
                     <span style={{ width: 60, textAlign: "center", fontSize: 14, color: notice.pinned ? "#dc2626" : "#9ca3af", fontWeight: notice.pinned ? 700 : 400, flexShrink: 0 }}>
                       {notice.pinned ? "공지" : rowNumber}
                     </span>
-                    <span style={{ flex: 1, fontSize: 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      <span
+                    <span style={{ flex: 1, fontSize: 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center" }}>
+                      <BadgeTag
+                        icon={scopeBadge.icon}
+                        label={scopeBadge.compactLabel}
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
+                          gap: 4,
                           minWidth: 40,
-                          padding: "2px 8px",
+                          padding: "4px 10px",
                           borderRadius: 999,
                           border: `1px solid ${scopeBadge.borderColor}`,
                           background: scopeBadge.background,
                           color: scopeBadge.color,
-                          fontSize: 11,
-                          fontWeight: 800,
+                          fontSize: 12,
+                          fontWeight: 600,
                           lineHeight: 1,
                           marginRight: 6,
                           verticalAlign: "middle",
                         }}
-                      >
-                        {scopeBadge.compactLabel}
-                      </span>
+                      />
                       {notice.pinned ? <span style={{ fontSize: 12, marginRight: 4 }}>📌</span> : null}
                       {notice.title}
                     </span>
