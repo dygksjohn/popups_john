@@ -1669,10 +1669,15 @@ function DashboardContent({ eventId }) {
   const aiPredictionRef = useRef(null);
   const aiLoadedAtRef = useRef(0);
   const aiRangeKeyRef = useRef("");
+  const loadRequestIdRef = useRef(0);
+  const lastAutoRefreshTickRef = useRef(tick);
   const [selectedForecastDate, setSelectedForecastDate] = useState("");
 
   const loadData = useCallback(async (options = {}) => {
     const { preserveLoading = false, forceAi = false } = options;
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+
     if (!numericEventId || Number.isNaN(numericEventId)) {
       setErrorMsg("잘못된 행사 경로입니다.");
       setEventPrediction(null);
@@ -1707,6 +1712,8 @@ function DashboardContent({ eventId }) {
           })),
       ]);
 
+      if (requestId !== loadRequestIdRef.current) return;
+
       const performanceRows = toArray(performanceResult?.data);
       const hourlyData = toArray(hourlyResult?.data);
       const latestCongestions = toArray(congestionResult?.data);
@@ -1732,6 +1739,8 @@ function DashboardContent({ eventId }) {
         };
       });
 
+      if (requestId !== loadRequestIdRef.current) return;
+
       const detail = unwrapData(eventResponse, null);
       const matchedPerformance = toArray(performanceRows).find(
         (row) => Number(row.eventId) === numericEventId,
@@ -1748,9 +1757,15 @@ function DashboardContent({ eventId }) {
           ) || 0,
         checkin: detailStatus === "PLANNED" ? 0 : rawCheckinCount,
       });
-      setHourlyRows(hourlyData);
-      setCongestionRows(latestCongestions);
-      setProgramRows(mergedPrograms);
+      setHourlyRows((prev) =>
+        hourlyResult?.hasError && prev.length > 0 ? prev : hourlyData,
+      );
+      setCongestionRows((prev) =>
+        congestionResult?.hasError && prev.length > 0 ? prev : latestCongestions,
+      );
+      setProgramRows((prev) =>
+        programsResult?.hasError && prev.length > 0 ? prev : mergedPrograms,
+      );
       setErrorMsg(
         hasOperationalLoadError ? "실시간 운영 데이터를 불러오지 못했습니다." : "",
       );
@@ -1772,6 +1787,7 @@ function DashboardContent({ eventId }) {
       if (shouldLoadAi) {
         try {
           const aiResponse = await aiApi.predictEventCongestion(numericEventId, aiRangeParams);
+          if (requestId !== loadRequestIdRef.current) return;
           const aiPayload = normalizePrediction(unwrapData(aiResponse, null));
           aiPredictionRef.current = aiPayload;
           aiLoadedAtRef.current = now;
@@ -1779,18 +1795,21 @@ function DashboardContent({ eventId }) {
           setEventPrediction(aiPayload);
           setAiErrorMsg("");
         } catch (aiError) {
+          if (requestId !== loadRequestIdRef.current) return;
           console.error("[Realtime Dashboard] ai predict failed:", aiError);
           setAiErrorMsg("AI prediction is temporarily unavailable.");
         }
       } else {
+        if (requestId !== loadRequestIdRef.current) return;
         setEventPrediction(aiPredictionRef.current);
         setAiErrorMsg("");
       }
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current) return;
       console.error("[Realtime Dashboard] load failed:", error);
       setErrorMsg("실시간 운영 데이터를 불러오지 못했습니다.");
     } finally {
-      if (!preserveLoading) setLoading(false);
+      if (requestId === loadRequestIdRef.current && !preserveLoading) setLoading(false);
     }
   }, [numericEventId, selectedForecastDate]);
 
@@ -1804,6 +1823,8 @@ function DashboardContent({ eventId }) {
 
   useEffect(() => {
     if (!loading) {
+      if (lastAutoRefreshTickRef.current === tick) return;
+      lastAutoRefreshTickRef.current = tick;
       loadData({ preserveLoading: true });
     }
   }, [tick, loadData, loading]);
@@ -1853,6 +1874,29 @@ function DashboardContent({ eventId }) {
   const isEndedEvent = eventStatus === "ENDED";
   const isOngoingEvent = eventStatus === "ONGOING";
 
+  const resolvedCurrentCongestion = useMemo(() => {
+    const aiAverage = Number(eventPrediction?.avgScore);
+    if (isPlannedEvent) {
+      return safePercent(aiAverage || 0);
+    }
+    if (measuredCongestions.length > 0) {
+      return safePercent(averageCongestion);
+    }
+    if (Number.isFinite(aiAverage) && aiAverage > 0) {
+      return safePercent(aiAverage);
+    }
+    if (hourlyAverageCongestion > 0) {
+      return hourlyAverageCongestion;
+    }
+    return safePercent(aiAverage || 0);
+  }, [
+    averageCongestion,
+    eventPrediction?.avgScore,
+    hourlyAverageCongestion,
+    isPlannedEvent,
+    measuredCongestions.length,
+  ]);
+
   const forecastDateOptions = useMemo(() => {
     const rangeDates = buildDateKeysFromRange(eventDetail?.startAt, eventDetail?.endAt);
     if (rangeDates.length > 0) return rangeDates;
@@ -1869,37 +1913,25 @@ function DashboardContent({ eventId }) {
     return timelineDates;
   }, [eventDetail?.endAt, eventDetail?.startAt, eventPrediction?.timeline]);
 
-  useEffect(() => {
-    if (forecastDateOptions.length === 0) {
-      if (selectedForecastDate) {
-        setSelectedForecastDate("");
-      }
-      return;
-    }
-
+  const activeForecastDateKey = useMemo(() => {
     if (selectedForecastDate && forecastDateOptions.includes(selectedForecastDate)) {
-      return;
+      return selectedForecastDate;
     }
-
-    const todayKey = toDateKey(new Date());
-    if (isOngoingEvent && forecastDateOptions.includes(todayKey)) {
-      setSelectedForecastDate(todayKey);
-      return;
+    if (isOngoingEvent) {
+      const todayKey = toDateKey(new Date());
+      if (forecastDateOptions.includes(todayKey)) return todayKey;
     }
-
-    if (eventStatus === "ENDED") {
-      setSelectedForecastDate(forecastDateOptions[forecastDateOptions.length - 1]);
-      return;
+    if (eventStatus === "ENDED" && forecastDateOptions.length > 0) {
+      return forecastDateOptions[forecastDateOptions.length - 1];
     }
-
-    setSelectedForecastDate(forecastDateOptions[0]);
+    return forecastDateOptions[0] ?? "";
   }, [eventStatus, forecastDateOptions, isOngoingEvent, selectedForecastDate]);
 
-  const activeForecastDateKey = useMemo(() => {
-    if (selectedForecastDate) return selectedForecastDate;
-    if (isOngoingEvent) return toDateKey(new Date());
-    return forecastDateOptions[0] ?? "";
-  }, [forecastDateOptions, isOngoingEvent, selectedForecastDate]);
+  useEffect(() => {
+    if (!selectedForecastDate) return;
+    if (forecastDateOptions.includes(selectedForecastDate)) return;
+    setSelectedForecastDate("");
+  }, [forecastDateOptions, selectedForecastDate]);
 
   const isTodayForecast = useMemo(
     () => Boolean(activeForecastDateKey) && activeForecastDateKey === toDateKey(new Date()),
@@ -1952,17 +1984,17 @@ function DashboardContent({ eventId }) {
     }
 
     const actualMap = new Map();
-    const upsertActual = (hour, value) => {
+    const measuredHourBuckets = new Map();
+    const pushMeasuredActual = (hour, value) => {
       if (value == null || value === "") return;
       const normalizedHour = normalizeHour(hour);
-      const rawValue = Number(value);
-      if (!Number.isFinite(rawValue)) return;
-      const normalizedValue = clamp(Math.round(rawValue), 0, 100);
-      if (!Number.isFinite(normalizedHour) || !Number.isFinite(normalizedValue)) return;
-      const previous = actualMap.get(normalizedHour);
-      if (previous == null || normalizedValue > previous) {
-        actualMap.set(normalizedHour, normalizedValue);
-      }
+      const numericValue = Number(value);
+      if (!Number.isFinite(normalizedHour) || !Number.isFinite(numericValue)) return;
+
+      const bucket = measuredHourBuckets.get(normalizedHour) || { sum: 0, count: 0 };
+      bucket.sum += numericValue;
+      bucket.count += 1;
+      measuredHourBuckets.set(normalizedHour, bucket);
     };
 
     const measuredRowsForDate = measuredCongestions.filter((row) => {
@@ -1974,8 +2006,18 @@ function DashboardContent({ eventId }) {
       measuredRowsForDate.forEach((row) => {
         const hour = toHour(row?.measuredAt);
         if (!Number.isFinite(hour)) return;
-        upsertActual(hour, row?.congestionPercent);
+        pushMeasuredActual(hour, row?.congestionPercent);
       });
+    }
+
+    measuredHourBuckets.forEach((bucket, hour) => {
+      if (!bucket || bucket.count <= 0) return;
+      actualMap.set(hour, clamp(Math.round(bucket.sum / bucket.count), 0, 100));
+    });
+
+    const nowHour = normalizeHour(new Date().getHours());
+    if (isTodayForecast) {
+      actualMap.set(nowHour, safePercent(resolvedCurrentCongestion));
     }
 
     if (isTodayForecast || (isPastForecast && actualMap.size === 0)) {
@@ -1986,7 +2028,9 @@ function DashboardContent({ eventId }) {
         ])
         .filter(([hour]) => Number.isFinite(hour))
         .forEach(([hour, value]) => {
-          upsertActual(hour, value);
+          if (!actualMap.has(hour)) {
+            actualMap.set(hour, clamp(Math.round(Number(value) || 0), 0, 100));
+          }
         });
     }
 
@@ -2012,8 +2056,6 @@ function DashboardContent({ eventId }) {
       endAt: axisEnd,
       preferRange: Boolean(axisStart && axisEnd),
     });
-
-    const nowHour = normalizeHour(new Date().getHours());
     const displayHourAxis = uniqueNormalizedHours(hourAxis);
 
     const baseRows = displayHourAxis.map((hour) => {
@@ -2122,6 +2164,7 @@ function DashboardContent({ eventId }) {
     isPastForecast,
     isTodayForecast,
     measuredCongestions,
+    resolvedCurrentCongestion,
   ]);
 
   const handleForecastDateChange = useCallback(
@@ -2267,28 +2310,7 @@ function DashboardContent({ eventId }) {
 
   const currentVisitors = isPlannedEvent ? 0 : performance.checkin;
 
-  const currentCongestion = useMemo(() => {
-    const aiAverage = Number(eventPrediction?.avgScore);
-    if (isPlannedEvent) {
-      return safePercent(aiAverage || 0);
-    }
-    if (measuredCongestions.length > 0) {
-      return safePercent(averageCongestion);
-    }
-    if (Number.isFinite(aiAverage) && aiAverage > 0) {
-      return safePercent(aiAverage);
-    }
-    if (hourlyAverageCongestion > 0) {
-      return hourlyAverageCongestion;
-    }
-    return safePercent(aiAverage || 0);
-  }, [
-    averageCongestion,
-    eventPrediction?.avgScore,
-    hourlyAverageCongestion,
-    isPlannedEvent,
-    measuredCongestions.length,
-  ]);
+  const currentCongestion = resolvedCurrentCongestion;
 
   const currentTone = useMemo(
     () => resolveCongestionMeta(currentCongestion),
@@ -2341,9 +2363,78 @@ function DashboardContent({ eventId }) {
     [congestionSummaryText, currentCongestion, currentTone, expectedWaitMinutes, waitSummaryText],
   );
 
+  const calibratedTimeline = useMemo(() => {
+    const source = Array.isArray(chartTimeline) ? chartTimeline : [];
+    if (source.length === 0) return [];
+
+    const withTone = (point, score) => {
+      const normalizedScore = safePercent(score);
+      const meta = resolveCongestionMeta(normalizedScore);
+      return {
+        ...point,
+        score: normalizedScore,
+        label: meta.label,
+        tone: {
+          color: meta.color,
+          bg: meta.bg,
+          border: meta.border,
+        },
+      };
+    };
+
+    if (!isTodayForecast) {
+      return source.map((point) => withTone(point, point?.score));
+    }
+
+    const nowHour = normalizeHour(new Date().getHours());
+    const latestActualRow = [...hours]
+      .filter((row) => Number.isFinite(row?.actual) && Number(row?.h) <= nowHour)
+      .sort((left, right) => Number(left.h) - Number(right.h))
+      .pop();
+
+    if (!latestActualRow || !Number.isFinite(latestActualRow.actual)) {
+      return source.map((point) => withTone(point, point?.score));
+    }
+
+    const latestActualHour = Number(latestActualRow.h);
+    const anchorCandidate =
+      source
+        .map((point) => ({
+          point,
+          hour: toHour(point?.time),
+          score: safePercent(point?.score),
+        }))
+        .filter((candidate) => Number.isFinite(candidate.hour))
+        .filter((candidate) => candidate.hour >= latestActualHour)
+        .sort((left, right) => left.hour - right.hour)[0] ||
+      source
+        .map((point) => ({
+          point,
+          hour: toHour(point?.time),
+          score: safePercent(point?.score),
+        }))
+        .filter((candidate) => Number.isFinite(candidate.hour) && Number.isFinite(candidate.score))
+        .sort((left, right) => left.hour - right.hour)[0] ||
+      null;
+
+    const predictionOffset =
+      anchorCandidate && Number.isFinite(anchorCandidate.score)
+        ? latestActualRow.actual - anchorCandidate.score
+        : 0;
+
+    return source.map((point) => {
+      const pointHour = toHour(point?.time);
+      const baseScore = safePercent(point?.score);
+      if (!Number.isFinite(pointHour) || pointHour < latestActualHour) {
+        return withTone(point, baseScore);
+      }
+      return withTone(point, clamp(Math.round(baseScore + predictionOffset), 0, 100));
+    });
+  }, [chartTimeline, hours, isTodayForecast]);
+
   const aiTimelinePreview = useMemo(
-    () => (Array.isArray(chartTimeline) ? chartTimeline.slice(0, 8) : []),
-    [chartTimeline],
+    () => calibratedTimeline.slice(0, 8),
+    [calibratedTimeline],
   );
 
   const nextPeakPoint = useMemo(() => {
@@ -2353,9 +2444,11 @@ function DashboardContent({ eventId }) {
     )[0];
   }, [aiTimelinePreview]);
 
-  const aiCurrentScore = safePercent(eventPrediction?.avgScore ?? currentCongestion);
+  const aiCurrentScore = safePercent(currentCongestion);
   const aiCurrentTone = resolveCongestionMeta(aiCurrentScore);
-  const aiSoonScore = safePercent(nextPeakPoint?.score ?? eventPrediction?.peakScore ?? aiCurrentScore);
+  const aiSoonScore = safePercent(
+    nextPeakPoint?.score ?? (isTodayForecast ? aiCurrentScore : eventPrediction?.peakScore) ?? aiCurrentScore,
+  );
   const aiSoonTone = resolveCongestionMeta(aiSoonScore);
   const aiSoonWait = estimateWaitMinutes(aiSoonScore);
 
@@ -2606,7 +2699,7 @@ function DashboardContent({ eventId }) {
                 <input
                   className="rt-date-input"
                   type="date"
-                  value={selectedForecastDate || forecastDateOptions[0]}
+                  value={activeForecastDateKey || forecastDateOptions[0]}
                   min={forecastDateOptions[0]}
                   max={forecastDateOptions[forecastDateOptions.length - 1]}
                   onChange={handleForecastDateChange}
