@@ -2,6 +2,7 @@
 # - This legacy workflow remains the main-branch EC2 bundle deployment pipeline.
 # - It is intentionally kept in place for backward compatibility.
 # - The separate kwoo/kuber branch pipeline lives in .github/workflows/deploy.yml.
+# - Redeploy marker: 2026-03-13 backend/ai refresh.
 name: Deploy To EC2
 
 on:
