@@ -1,0 +1,151 @@
+# Scope note:
+# - This workflow is dedicated to deployment from the kwoo/kuber branch.
+# - It keeps frontend and backend deployment responsibilities separate to reduce rollout ambiguity.
+# - It does not modify DB schema or upload storage layout; runtime upload handling must continue to follow EC2_UPLOADS_DIR and existing service configuration.
+name: Deploy Kwoo Kuber
+
+on:
+  push:
+    branches:
+      - kwoo/kuber
+    paths:
+      - ".github/workflows/deploy.yml"
+      - "pupoo_backend/**"
+      - "pupoo_frontend/**"
+      - "deploy/ec2/**"
+      - "scripts/check-import-case.mjs"
+
+concurrency:
+  group: deploy-kwoo-kuber-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      # Purpose: pull the exact branch revision being deployed; policy-safe because it does not mutate repository state.
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # Purpose: align the frontend build runtime with the requested Node 20 baseline; policy-safe because it only provisions the runner toolchain.
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: pupoo_frontend/package-lock.json
+
+      # Purpose: install locked frontend dependencies before build; policy-safe because dependency resolution is constrained by package-lock.json.
+      - name: Install frontend dependencies
+        working-directory: pupoo_frontend
+        run: npm ci
+
+      # Purpose: keep Linux runner compatibility for Vite CSS compilation; policy-safe because it only installs the exact locked lightningcss binary for the current runner.
+      - name: Install lightningcss Linux binary
+        if: runner.os == 'Linux'
+        working-directory: pupoo_frontend
+        run: |
+          LIGHTNINGCSS_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/lightningcss'].version")
+          npm install --no-save "lightningcss-linux-x64-gnu@${LIGHTNINGCSS_VERSION}"
+
+      # Purpose: enforce case-safe imports before deployment; policy-safe because it validates source paths without changing app behavior or schema.
+      - name: Check frontend import casing
+        run: node ./scripts/check-import-case.mjs
+
+      # Purpose: build production frontend assets for S3/CloudFront delivery; policy-safe because it changes only static build artifacts and not DB or backend contracts.
+      - name: Build frontend
+        working-directory: pupoo_frontend
+        run: npm run build
+
+      # Purpose: obtain AWS credentials via OIDC for S3/CloudFront deployment; policy-safe because it avoids long-lived static credentials in repository code.
+      - name: Configure AWS credentials for frontend deploy
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Purpose: publish the built frontend bundle to the approved S3 bucket; policy-safe because it only syncs static assets and does not touch backend uploads or DB state.
+      - name: Sync frontend assets to S3
+        run: aws s3 sync pupoo_frontend/dist/ "s3://${{ vars.FRONTEND_S3_BUCKET }}" --delete
+
+      # Purpose: invalidate frontend CDN cache after upload; policy-safe because it refreshes edge cache only and does not change application data.
+      - name: Invalidate CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id "${{ vars.FRONTEND_CF_DISTRIBUTION_ID }}" --paths "/*"
+
+  backend-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: frontend-deploy
+    permissions:
+      contents: read
+
+    steps:
+      # Purpose: pull the exact backend source revision that matches the frontend rollout; policy-safe because it is read-only repository access.
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # Purpose: provision the requested Temurin 21 JDK for backend build reproducibility; policy-safe because it only sets runner toolchain state.
+      - name: Set up Temurin JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # Purpose: enable Gradle dependency/build caching to keep deployment latency stable; policy-safe because cache use does not alter application semantics.
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      # Purpose: build the backend with the requested clean build command; policy-safe because this pipeline must not perform DB migrations or schema mutation and build output stays within the runner workspace.
+      - name: Build backend with Gradle
+        working-directory: pupoo_backend
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean build
+
+      # Purpose: resolve the deployable Spring Boot JAR while excluding plain jars; policy-safe because it only identifies the packaged artifact and leaves runtime upload directories untouched.
+      - name: Locate packaged backend JAR
+        id: backend_jar
+        run: |
+          JAR_PATH=$(find pupoo_backend/build/libs -maxdepth 1 -type f -name "*.jar" ! -name "*plain.jar" | head -n 1)
+          if [ -z "$JAR_PATH" ]; then
+            echo "Deployable JAR not found" >&2
+            exit 1
+          fi
+          echo "jar_path=$JAR_PATH" >> "$GITHUB_OUTPUT"
+
+      # Purpose: copy the packaged JAR to the approved EC2 deploy path; policy-safe because it updates only the application binary and does not write into EC2_UPLOADS_DIR-managed user content.
+      - name: Copy backend JAR to EC2
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT }}
+          source: "${{ steps.backend_jar.outputs.jar_path }}"
+          target: "${{ secrets.BACKEND_DEPLOY_PATH }}"
+          strip_components: 3
+          overwrite: true
+
+      # Purpose: move the uploaded JAR into place and restart the approved systemd unit; policy-safe because it restarts only the configured backend service and explicitly avoids DB schema changes and upload-directory mutation.
+      - name: Restart backend service on EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT }}
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            DEPLOY_PATH="${{ secrets.BACKEND_DEPLOY_PATH }}"
+            SERVICE_NAME="${{ secrets.BACKEND_SERVICE_NAME }}"
+            FILE_NAME="$(basename "${{ steps.backend_jar.outputs.jar_path }}")"
+            sudo install -d "$DEPLOY_PATH"
+            sudo mv "$DEPLOY_PATH/$FILE_NAME" "$DEPLOY_PATH/app.jar"
+            sudo systemctl restart "$SERVICE_NAME"
+            sudo systemctl is-active "$SERVICE_NAME"
