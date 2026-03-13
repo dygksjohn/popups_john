@@ -13,6 +13,10 @@ import {
   useRefresh,
 } from "./useRealtimeAnimations";
 import { programApi } from "../../../app/http/programApi";
+import {
+  createImageFallbackHandler,
+  resolveImageUrl,
+} from "../../../shared/utils/publicAssetUrl";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -177,13 +181,6 @@ const PET_FALLBACK = [
 
 function fallbackPetImage(id) {
   return PET_FALLBACK[Math.abs(Number(id) || 0) % PET_FALLBACK.length];
-}
-
-function toAbsUrl(url) {
-  if (!url) return null;
-  if (/^https?:\/\//i.test(url)) return url;
-  const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
-  return `${base}${url}`;
 }
 
 function parseDate(value) {
@@ -670,11 +667,14 @@ function VoteContent({ eventId, onNavigate }) {
               <div className="vt-detail-media">
                 {selectedCandidate.imageUrl ? (
                   <img
-                    src={toAbsUrl(selectedCandidate.imageUrl)}
+                    src={resolveImageUrl(
+                      selectedCandidate.imageUrl,
+                      fallbackPetImage(selectedCandidate.applyId),
+                    )}
                     alt={selectedCandidate.name}
-                    onError={(event) => {
-                      event.currentTarget.src = fallbackPetImage(selectedCandidate.applyId);
-                    }}
+                    onError={createImageFallbackHandler(
+                      fallbackPetImage(selectedCandidate.applyId),
+                    )}
                   />
                 ) : (
                   <div className="vt-detail-placeholder">후보 이미지가 없습니다</div>

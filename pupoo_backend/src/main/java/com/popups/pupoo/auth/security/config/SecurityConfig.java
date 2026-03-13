@@ -28,6 +28,7 @@ public class SecurityConfig {
 
     private static final List<String> SPA_EXCLUDED_PREFIXES = List.of(
         "/api",
+        "/internal",
         "/actuator",
         "/swagger-ui",
         "/v3/api-docs",
@@ -137,9 +138,6 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/files/by-post/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/files/*/download").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/users/check-nickname").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/admin/analytics/events").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/admin/analytics/events/*/congestion-by-hour").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/admin/dashboard/realtime/**").permitAll()
             .requestMatchers("/uploads/**").permitAll()
             .requestMatchers("/static/**").permitAll()
             .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
@@ -173,6 +171,8 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/galleries").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
             .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
             .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+
+            .requestMatchers("/internal/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 
             .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 
