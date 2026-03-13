@@ -11,7 +11,6 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { aiApi } from "../../../app/http/aiApi";
-import { getToken } from "../../../api/noticeApi";
 import { sortAdminEventsByOperationalPriority } from "../../admin/shared/adminStatus";
 import { normalizePrediction } from "./aiCongestionViewModel";
 
@@ -352,11 +351,6 @@ const selectorStyles = `
   }
 `;
 
-const authHeaders = () => {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
 const unwrapData = (response, fallback) => response?.data?.data ?? response?.data ?? fallback;
 
 const toArray = (payload) =>
@@ -420,6 +414,16 @@ const clipRangeByDate = (startAt, endAt, dateKey) => {
   return { startAt: clippedStart, endAt: clippedEnd };
 };
 
+const hasExplicitTimeRange = (startDate, endDate) => {
+  if (!startDate || !endDate) return false;
+  const isMidnight = (value) =>
+    value.getHours() === 0 &&
+    value.getMinutes() === 0 &&
+    value.getSeconds() === 0 &&
+    value.getMilliseconds() === 0;
+  return !(isMidnight(startDate) && isMidnight(endDate));
+};
+
 const buildOperationRangeByDate = (startAt, endAt, dateKey) => {
   const clipped = clipRangeByDate(startAt, endAt, dateKey);
   if (!clipped.startAt || !clipped.endAt) return { startAt: null, endAt: null };
@@ -428,6 +432,9 @@ const buildOperationRangeByDate = (startAt, endAt, dateKey) => {
   const eventEnd = toValidDate(endAt);
   const baseDate = toValidDate(`${dateKey}T00:00:00`);
   if (!eventStart || !eventEnd || !baseDate) {
+    return clipped;
+  }
+  if (!hasExplicitTimeRange(eventStart, eventEnd)) {
     return clipped;
   }
 
@@ -523,7 +530,6 @@ const normalizeFilterValue = (value) =>
 async function fetchAdminData(url, params, fallback) {
   try {
     const response = await axiosInstance.get(url, {
-      headers: authHeaders(),
       params,
     });
     return unwrapData(response, fallback);
