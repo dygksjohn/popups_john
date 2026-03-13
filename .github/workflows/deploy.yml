@@ -2,6 +2,7 @@
 # - This workflow is dedicated to deployment from the main branch.
 # - It keeps frontend and backend deployment responsibilities separate to reduce rollout ambiguity.
 # - It does not modify DB schema or upload storage layout; runtime upload handling must continue to follow EC2_UPLOADS_DIR and existing service configuration.
+# - Redeploy marker: 2026-03-13 frontend/backend refresh.
 name: Deploy Main
 
 on:
