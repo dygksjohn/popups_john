@@ -70,3 +70,8 @@ kubectl apply -k k8s/base
 
 Create `pupoo-backend-secret` and `pupoo-ai-secret` separately before running the deploy workflow.
 The `*.example.yaml` files are examples only and are intentionally not applied by `kustomize`.
+
+Current example coverage:
+
+- `pupoo-backend-secret`: datasource credentials, auth salts/secrets, AI internal tokens, OpenAI config, Kakao OAuth, KakaoPay
+- `pupoo-ai-secret`: `PUPOO_AI_INTERNAL_TOKEN`, `OPENAI_API_KEY`
