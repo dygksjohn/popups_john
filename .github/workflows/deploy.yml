@@ -33,6 +33,9 @@ jobs:
       VITE_AI_BASE_URL: ${{ vars.VITE_AI_BASE_URL || '/ai' }}
       VITE_CDN_BASE_URL: ${{ vars.VITE_CDN_BASE_URL || 'https://cdn.pupoo.site' }}
       VITE_ASSET_BASE_URL: ${{ vars.VITE_ASSET_BASE_URL || 'https://cdn.pupoo.site' }}
+      VITE_KAKAO_REST_KEY: ${{ vars.VITE_KAKAO_REST_KEY }}
+      VITE_KAKAO_REDIRECT_URI: ${{ vars.VITE_KAKAO_REDIRECT_URI }}
+      VITE_KAKAO_MAP_KEY: ${{ vars.VITE_KAKAO_MAP_KEY || 'b338ac0a2a4b79c4fdffe57afe4591c4' }}
 
     steps:
       - name: Checkout repository
