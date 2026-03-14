@@ -7,9 +7,10 @@ The current production workflow is `.github/workflows/deploy.yml` (`Deploy Main`
 ### Recommended production env values
 
 ```env
-VITE_API_BASE_URL=https://api.pupoo.com/api
-VITE_AI_BASE_URL=https://api.pupoo.com/internal
-VITE_ASSET_BASE_URL=https://cdn.pupoo.com
+VITE_API_BASE_URL=https://api.pupoo.site
+VITE_AI_BASE_URL=/ai
+VITE_CDN_BASE_URL=https://cdn.pupoo.site
+VITE_ASSET_BASE_URL=https://cdn.pupoo.site
 ```
 
 ### Basic release flow
