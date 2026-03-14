@@ -6,6 +6,8 @@ metadata:
 data:
   SPRING_PROFILES_ACTIVE: "prod"
   SERVER_PORT: "8080"
+  AI_SERVICE_BASE_URL: "http://pupoo-ai:80"
+  AI_MODERATION_BASE_URL: "http://pupoo-ai:80"
   STORAGE_MODE: "S3"
   STORAGE_S3_REGION: "ap-northeast-2"
   STORAGE_S3_KEY_PREFIX: "uploads"

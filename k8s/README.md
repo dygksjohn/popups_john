@@ -1,6 +1,9 @@
 ## Pupoo EKS Base
 
-This directory contains a minimal EKS base layout for the target production shape:
+This directory is the production deployment entrypoint for the current Pupoo stack.
+The active GitHub Actions workflow is `.github/workflows/deploy.yml` (`Deploy Main`).
+
+Production shape:
 
 - `frontend`: S3 + CloudFront
 - `backend`: EKS Deployment + Service + ALB Ingress
@@ -9,6 +12,20 @@ This directory contains a minimal EKS base layout for the target production shap
 - `file`: S3
 - `cache`: Redis / ElastiCache
 - `monitoring`: CloudWatch + Grafana
+
+### Deploy flow
+
+`Deploy Main` handles the full production release path:
+
+1. Build frontend assets
+2. Sync frontend assets to S3
+3. Invalidate CloudFront
+4. Build backend and AI images
+5. Push images to ECR
+6. Apply `k8s/base`
+7. Roll out backend and AI deployments
+
+For frontend-only environment notes, see `docs/frontend_s3_cloudfront_deploy.md`.
 
 ### Important note
 

@@ -112,18 +112,10 @@ public class AiCongestionAggregationService {
                                 (left, right) -> left
                         ));
 
-        Map<Long, AiEventCongestionTimeseries> existingMap =
-                aiEventCongestionTimeseriesRepository.findByTimestampMinuteAndEventIdIn(bucket, eventIds).stream()
-                        .collect(Collectors.toMap(
-                                AiEventCongestionTimeseries::getEventId,
-                                Function.identity(),
-                                (left, right) -> left
-                        ));
-
         byte hourOfDay = (byte) bucket.getHour();
         byte dayOfWeek = (byte) bucket.getDayOfWeek().getValue();
 
-        List<AiEventCongestionTimeseries> upserts = new ArrayList<>(targets.size());
+        List<AiEventCongestionTimeseries> snapshots = new ArrayList<>(targets.size());
         for (AiCongestionAggregationQueryRepository.EventTargetRow target : targets) {
             int progressMinute = calculateProgressMinute(target.startAt(), bucket);
             if (progressMinute < 0) {
@@ -153,14 +145,10 @@ public class AiCongestionAggregationService {
                     policyMap.get(eventId)
             );
 
-            AiEventCongestionTimeseries entity = existingMap.get(eventId);
-            if (entity == null) {
-                entity = AiEventCongestionTimeseries.builder()
-                        .eventId(eventId)
-                        .timestampMinute(bucket)
-                        .build();
-            }
-
+            AiEventCongestionTimeseries entity = AiEventCongestionTimeseries.builder()
+                    .eventId(eventId)
+                    .timestampMinute(bucket)
+                    .build();
             entity.applySnapshot(
                     checkins,
                     checkouts,
@@ -173,13 +161,13 @@ public class AiCongestionAggregationService {
                     dayOfWeek,
                     congestionScore
             );
-            upserts.add(entity);
+            snapshots.add(entity);
         }
 
-        if (!upserts.isEmpty()) {
-            aiEventCongestionTimeseriesRepository.saveAll(upserts);
+        if (!snapshots.isEmpty()) {
+            snapshots.forEach(this::upsertEventSnapshot);
         }
-        return upserts.size();
+        return snapshots.size();
     }
 
     @Transactional
@@ -220,18 +208,10 @@ public class AiCongestionAggregationService {
                                 (left, right) -> left
                         ));
 
-        Map<Long, AiProgramCongestionTimeseries> existingMap =
-                aiProgramCongestionTimeseriesRepository.findByTimestampMinuteAndProgramIdIn(bucket, programIds).stream()
-                        .collect(Collectors.toMap(
-                                AiProgramCongestionTimeseries::getProgramId,
-                                Function.identity(),
-                                (left, right) -> left
-                        ));
-
         byte hourOfDay = (byte) bucket.getHour();
         byte dayOfWeek = (byte) bucket.getDayOfWeek().getValue();
 
-        List<AiProgramCongestionTimeseries> upserts = new ArrayList<>(targets.size());
+        List<AiProgramCongestionTimeseries> snapshots = new ArrayList<>(targets.size());
         for (AiCongestionAggregationQueryRepository.ProgramTargetRow target : targets) {
             int progressMinute = calculateProgressMinute(target.startAt(), bucket);
             if (progressMinute < 0) {
@@ -262,15 +242,11 @@ public class AiCongestionAggregationService {
                     target.capacity()
             );
 
-            AiProgramCongestionTimeseries entity = existingMap.get(programId);
-            if (entity == null) {
-                entity = AiProgramCongestionTimeseries.builder()
-                        .eventId(target.eventId())
-                        .programId(programId)
-                        .timestampMinute(bucket)
-                        .build();
-            }
-
+            AiProgramCongestionTimeseries entity = AiProgramCongestionTimeseries.builder()
+                    .eventId(target.eventId())
+                    .programId(programId)
+                    .timestampMinute(bucket)
+                    .build();
             entity.applySnapshot(
                     checkins,
                     checkouts,
@@ -282,13 +258,13 @@ public class AiCongestionAggregationService {
                     dayOfWeek,
                     congestionScore
             );
-            upserts.add(entity);
+            snapshots.add(entity);
         }
 
-        if (!upserts.isEmpty()) {
-            aiProgramCongestionTimeseriesRepository.saveAll(upserts);
+        if (!snapshots.isEmpty()) {
+            snapshots.forEach(this::upsertProgramSnapshot);
         }
-        return upserts.size();
+        return snapshots.size();
     }
 
     public AiCongestionBackfillResponse backfillEventRange(LocalDateTime from, LocalDateTime to) {
@@ -474,6 +450,40 @@ public class AiCongestionAggregationService {
     private BigDecimal clampScore(double score) {
         double clamped = Math.max(0.0, Math.min(100.0, score));
         return BigDecimal.valueOf(clamped).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void upsertEventSnapshot(AiEventCongestionTimeseries snapshot) {
+        aiEventCongestionTimeseriesRepository.upsertSnapshot(
+                snapshot.getEventId(),
+                snapshot.getTimestampMinute(),
+                snapshot.getCheckins1m(),
+                snapshot.getCheckouts1m(),
+                snapshot.getActiveApplyCount(),
+                snapshot.getTotalWaitCount(),
+                snapshot.getAvgWaitMin(),
+                snapshot.getRunningProgramCount(),
+                snapshot.getProgressMinute(),
+                snapshot.getHourOfDay(),
+                snapshot.getDayOfWeek(),
+                snapshot.getCongestionScore()
+        );
+    }
+
+    private void upsertProgramSnapshot(AiProgramCongestionTimeseries snapshot) {
+        aiProgramCongestionTimeseriesRepository.upsertSnapshot(
+                snapshot.getEventId(),
+                snapshot.getProgramId(),
+                snapshot.getTimestampMinute(),
+                snapshot.getCheckins1m(),
+                snapshot.getCheckouts1m(),
+                snapshot.getActiveApplyCount(),
+                snapshot.getWaitCount(),
+                snapshot.getWaitMin(),
+                snapshot.getProgressMinute(),
+                snapshot.getHourOfDay(),
+                snapshot.getDayOfWeek(),
+                snapshot.getCongestionScore()
+        );
     }
 
     private record Range(LocalDateTime from, LocalDateTime to) {
