@@ -102,6 +102,7 @@ dependencies {
 	 * AWS S3
 	 * ========================= */
 	implementation 'software.amazon.awssdk:s3:2.25.21'
+	implementation 'software.amazon.awssdk:sts:2.25.21'
 
 	/* =========================
 	 * QR Code
