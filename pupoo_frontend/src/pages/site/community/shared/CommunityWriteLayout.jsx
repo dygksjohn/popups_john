@@ -2,10 +2,11 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "../communityConfig";
+import BadgeTag from "./BadgeTag";
 
 const styles = {
   main: {
-    width: "min(1350px, calc(100% - 50px))",
+    width: "min(1400px, calc(100% - 40px))",
     margin: "0 auto",
     padding: "40px 0 64px",
     fontFamily: "'Noto Sans KR', sans-serif",
@@ -91,7 +92,7 @@ export default function CommunityWriteLayout({
 
         <article style={styles.card}>
           <header style={styles.head}>
-            <span style={badge.style}>{badge.text}</span>
+            <BadgeTag badge={badge} />
             <h1 style={styles.title}>{formTitle}</h1>
             {formDescription ? <p style={styles.description}>{formDescription}</p> : null}
           </header>

@@ -1,17 +1,33 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { tokenStore } from "../../../app/http/tokenStore";
+import { eventApi } from "../../../app/http/eventApi";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
+import PageHeader from "../components/PageHeader";
+import {
+  CreditCard,
+  Landmark,
+  Lock,
+  MapPin,
+  CalendarDays,
+  Check,
+} from "lucide-react";
 
-const paymentMethods = [
-  { label: "카카오페이", value: "KAKAOPAY", enabled: true },
-  { label: "카드 (준비중)", value: "CARD", enabled: false },
-  { label: "계좌이체 (준비중)", value: "BANK", enabled: false },
-];
+
+const DOG_FALLBACK =
+  "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=400&fit=crop";
 
 function normalizeAmount(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+}
+
+function fmtDate(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export default function Checkout() {
@@ -21,6 +37,7 @@ export default function Checkout() {
   const [method, setMethod] = useState("KAKAOPAY");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [eventDetail, setEventDetail] = useState(null);
 
   const state = location.state || {};
   const eventId = useMemo(() => {
@@ -41,6 +58,19 @@ export default function Checkout() {
   const returnUrl = useMemo(() => {
     return searchParams.get("returnUrl") ?? state.returnUrl ?? "/";
   }, [searchParams, state.returnUrl]);
+
+  useEffect(() => {
+    if (!eventId) return;
+    let cancelled = false;
+    eventApi.getEventDetail(eventId).then((res) => {
+      if (!cancelled) setEventDetail(res.data.data ?? res.data);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [eventId]);
+
+  const eventImage = eventDetail?.imageUrl
+    ? toPublicAssetUrl(eventDetail.imageUrl)
+    : DOG_FALLBACK;
 
   const handlePay = async () => {
     if (!tokenStore.getAccess()) {
@@ -91,103 +121,269 @@ export default function Checkout() {
   };
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 20px" }}>
-      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>
-        결제하기
-      </div>
-      <div style={{ color: "#6b7280", marginBottom: 24 }}>
-        {title}
-      </div>
+    <div style={{ fontFamily: "'Noto Sans KR', sans-serif" }}>
+      <style>{`
+        .ck *{box-sizing:border-box}
+        .ck-method{transition:all .15s ease}
+        .ck-method:hover:not(:disabled){border-color:#ccc}
+        .ck-method.active{border-color:#FEE500!important;background:#fffef5}
+        .ck-pay{transition:opacity .15s,transform .08s}
+        .ck-pay:active:not(:disabled){transform:scale(.99)}
+        @media(max-width:800px){
+          .ck-card{flex-direction:column!important}
+          .ck-left{min-height:240px!important}
+        }
+      `}</style>
 
-      <div
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 24,
-          background: "#fafafa",
-        }}
-      >
-        <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
-          결제 금액
-        </div>
-        <div style={{ fontSize: 20, fontWeight: 800 }}>
-          {amount.toLocaleString()}원
-        </div>
-      </div>
+      <PageHeader
+        title="결제하기"
+        subtitle="행사 참가비를 결제해 주세요."
+        breadcrumbTitle="결제하기"
+      />
 
-      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
-        결제 수단
-      </div>
-      <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
-        {paymentMethods.map((m) => (
-          <button
-            key={m.value}
-            onClick={() => m.enabled && setMethod(m.value)}
-            disabled={!m.enabled}
+      {/* Center card */}
+      <div style={{
+        maxWidth: 1100, margin: "0 auto",
+        padding: "40px 24px 80px",
+      }}>
+        {/* Single card — left image, right payment */}
+        <div
+          className="ck-card"
+          style={{
+            display: "flex",
+            background: "#fff",
+            borderRadius: 20,
+            overflow: "hidden",
+            boxShadow: "0 0 0 1px rgba(0,0,0,.06), 0 6px 30px rgba(0,0,0,.05)",
+          }}
+        >
+          {/* ─── LEFT: full-height image + overlay info ─── */}
+          <div
+            className="ck-left"
             style={{
-              flex: 1,
-              height: 48,
-              borderRadius: 10,
-              border:
-                method === m.value
-                  ? "2px solid #1a4fd6"
-                  : "1px solid #e5e7eb",
-              background: method === m.value ? "#eff4ff" : "#fff",
-              fontWeight: 700,
-              cursor: m.enabled ? "pointer" : "not-allowed",
-              opacity: m.enabled ? 1 : 0.5,
+              flex: "0 0 52%",
+              position: "relative",
+              minHeight: 580,
+              background: "#e5e7eb",
+              overflow: "hidden",
             }}
           >
-            {m.label}
-          </button>
-        ))}
-      </div>
+            <img
+              src={eventImage}
+              alt={title}
+              onError={(e) => { e.target.onerror = null; e.target.src = DOG_FALLBACK; }}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+            {/* gradient overlay at bottom */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                padding: "80px 28px 28px",
+                background: "linear-gradient(transparent, rgba(0,0,0,.65))",
+                color: "#fff",
+              }}
+            >
+              <h2 style={{ fontSize: 19, fontWeight: 700, margin: 0, lineHeight: 1.45 }}>
+                {title}
+              </h2>
+              {eventDetail?.description && (
+                <p style={{
+                  fontSize: 13, margin: "8px 0 0", lineHeight: 1.6,
+                  color: "rgba(255,255,255,.78)",
+                  display: "-webkit-box", WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical", overflow: "hidden",
+                }}>
+                  {eventDetail.description}
+                </p>
+              )}
+              {(eventDetail?.startAt || eventDetail?.location) && (
+                <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: "6px 16px", fontSize: 12, color: "rgba(255,255,255,.6)" }}>
+                  {eventDetail.startAt && (
+                    <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <CalendarDays size={12} />
+                      {fmtDate(eventDetail.startAt)}{eventDetail.endAt ? ` ~ ${fmtDate(eventDetail.endAt)}` : ""}
+                    </span>
+                  )}
+                  {eventDetail.location && (
+                    <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <MapPin size={12} />
+                      {eventDetail.location}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
-      {error && (
-        <div style={{ color: "#b91c1c", marginBottom: 12 }}>{error}</div>
-      )}
+          {/* ─── RIGHT: Payment ─── */}
+          <div style={{ flex: 1, padding: "36px 36px 32px", display: "flex", flexDirection: "column" }}>
+            {/* Payment method label */}
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: 1, textTransform: "uppercase", marginBottom: 18 }}>
+              Payment Method
+            </div>
 
-      {error && (
-        <div style={{ marginBottom: 16 }}>
-          <a href="/registration/paymenthistory" style={{ color: "#1a4fd6" }}>
-            결제 내역으로 이동
-          </a>
+            {/* Kakao Pay */}
+            <button
+              type="button"
+              className={`ck-method${method === "KAKAOPAY" ? " active" : ""}`}
+              onClick={() => setMethod("KAKAOPAY")}
+              style={{
+                display: "flex", alignItems: "center", gap: 14,
+                width: "100%", padding: "15px 18px",
+                borderRadius: 12,
+                border: method === "KAKAOPAY" ? "1.5px solid #FEE500" : "1.5px solid #eee",
+                background: method === "KAKAOPAY" ? "#fffef5" : "#fff",
+                cursor: "pointer", marginBottom: 10,
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: "#FEE500",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 4C7.03 4 3 7.13 3 11c0 2.45 1.62 4.6 4.06 5.85l-1.03 3.76c-.09.32.27.57.54.38l4.37-2.93c.35.03.7.04 1.06.04 4.97 0 9-3.13 9-7s-4.03-7-9-7z" fill="#3C1E1E"/>
+                </svg>
+              </div>
+              <div style={{ flex: 1, textAlign: "left" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#222" }}>카카오페이</div>
+                <div style={{ fontSize: 11.5, color: "#aaa", marginTop: 1 }}>간편결제</div>
+              </div>
+              <div style={{
+                width: 20, height: 20, borderRadius: "50%",
+                background: method === "KAKAOPAY" ? "#FEE500" : "transparent",
+                border: method === "KAKAOPAY" ? "none" : "1.5px solid #d4d4d4",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                {method === "KAKAOPAY" && <Check size={12} strokeWidth={3} style={{ color: "#3C1E1E" }} />}
+              </div>
+            </button>
+
+            {/* Card — disabled */}
+            <button
+              type="button" disabled
+              className="ck-method"
+              style={{
+                display: "flex", alignItems: "center", gap: 14,
+                width: "100%", padding: "15px 18px",
+                borderRadius: 12, border: "1.5px solid #f5f5f5",
+                background: "#fafafa", cursor: "not-allowed", marginBottom: 10,
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10, background: "#f0f0f0",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <CreditCard size={20} style={{ color: "#ccc" }} />
+              </div>
+              <div style={{ flex: 1, textAlign: "left" }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#c4c4c4" }}>신용/체크카드</div>
+                <div style={{ fontSize: 11.5, color: "#ddd", marginTop: 1 }}>준비중</div>
+              </div>
+              <Lock size={14} style={{ color: "#ddd", flexShrink: 0 }} />
+            </button>
+
+            {/* Bank — disabled */}
+            <button
+              type="button" disabled
+              className="ck-method"
+              style={{
+                display: "flex", alignItems: "center", gap: 14,
+                width: "100%", padding: "15px 18px",
+                borderRadius: 12, border: "1.5px solid #f5f5f5",
+                background: "#fafafa", cursor: "not-allowed", marginBottom: 0,
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10, background: "#f0f0f0",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <Landmark size={20} style={{ color: "#ccc" }} />
+              </div>
+              <div style={{ flex: 1, textAlign: "left" }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#c4c4c4" }}>계좌이체</div>
+                <div style={{ fontSize: 11.5, color: "#ddd", marginTop: 1 }}>준비중</div>
+              </div>
+              <Lock size={14} style={{ color: "#ddd", flexShrink: 0 }} />
+            </button>
+
+            {/* Spacer pushes total + button to bottom */}
+            <div style={{ flex: 1, minHeight: 32 }} />
+
+            {/* Divider */}
+            <div style={{ borderTop: "1px solid #f0f0f0", margin: "0 0 20px" }} />
+
+            {/* Total */}
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "baseline",
+              marginBottom: 20,
+            }}>
+              <span style={{ fontSize: 14, fontWeight: 500, color: "#888" }}>총 결제금액</span>
+              <span style={{ fontSize: 28, fontWeight: 900, color: "#111", letterSpacing: -0.5 }}>
+                {amount.toLocaleString()}
+                <span style={{ fontSize: 15, fontWeight: 600, marginLeft: 1 }}>원</span>
+              </span>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div style={{
+                background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10,
+                padding: "10px 14px", fontSize: 13, color: "#b91c1c", fontWeight: 500,
+                marginBottom: 14, lineHeight: 1.6,
+              }}>
+                {error}
+                {error.includes("결제 내역") && (
+                  <a href="/registration/paymenthistory"
+                    style={{ display: "block", color: "#1d4ed8", fontWeight: 600, fontSize: 13, marginTop: 4 }}>
+                    결제 내역 확인 &rarr;
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* CTA */}
+            <button
+              type="button"
+              className="ck-pay"
+              onClick={handlePay}
+              disabled={loading}
+              style={{
+                width: "100%", height: 52, borderRadius: 14,
+                border: "none",
+                background: method === "KAKAOPAY" ? "#FEE500" : "#111",
+                color: method === "KAKAOPAY" ? "#3C1E1E" : "#fff",
+                fontSize: 15, fontWeight: 800,
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.6 : 1,
+                fontFamily: "'Noto Sans KR', sans-serif",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+              }}
+            >
+              {loading ? "결제 준비 중..." : method === "KAKAOPAY" ? (
+                <>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 4C7.03 4 3 7.13 3 11c0 2.45 1.62 4.6 4.06 5.85l-1.03 3.76c-.09.32.27.57.54.38l4.37-2.93c.35.03.7.04 1.06.04 4.97 0 9-3.13 9-7s-4.03-7-9-7z" fill="#3C1E1E"/>
+                  </svg>
+                  카카오페이로 결제하기
+                </>
+              ) : "결제하기"}
+            </button>
+
+            <p style={{ textAlign: "center", margin: "10px 0 0", fontSize: 11, color: "#bbb" }}>
+              결제 시 카카오페이 결제창으로 이동합니다
+            </p>
+          </div>
         </div>
-      )}
-
-      <div style={{ display: "flex", gap: 10 }}>
-        <button
-          onClick={() => navigate(returnUrl)}
-          style={{
-            height: 46,
-            padding: "0 18px",
-            borderRadius: 10,
-            border: "1px solid #e5e7eb",
-            background: "#fff",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
-          뒤로
-        </button>
-        <button
-          onClick={handlePay}
-          disabled={loading}
-          style={{
-            flex: 1,
-            height: 46,
-            borderRadius: 10,
-            border: "none",
-            background: "#1a4fd6",
-            color: "#fff",
-            fontWeight: 800,
-            cursor: "pointer",
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? "결제 준비 중..." : "결제하기"}
-        </button>
       </div>
     </div>
   );

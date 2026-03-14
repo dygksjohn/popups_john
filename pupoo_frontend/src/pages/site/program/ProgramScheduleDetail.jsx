@@ -272,7 +272,7 @@ const styles = {
 
   /* 제목 섹션 */
   titleSection: {
-    maxWidth: '1200px',
+    maxWidth: '1400px',
     margin: '0 auto',
     padding: '28px 24px 0',
   },
@@ -309,7 +309,7 @@ const styles = {
 
   /* 레이아웃 */
   layout: {
-    maxWidth: '1200px',
+    maxWidth: '1400px',
     margin: '24px auto 0',
     padding: '0 24px',
     display: 'grid',
