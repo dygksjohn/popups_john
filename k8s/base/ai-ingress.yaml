@@ -1,17 +1,17 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: pupoo-public
+  name: pupoo-ai-public
   namespace: pupoo
   annotations:
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/group.name: pupoo-public
-    alb.ingress.kubernetes.io/group.order: "10"
+    alb.ingress.kubernetes.io/group.order: "20"
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:593797021262:certificate/d58bc288-7491-4463-919c-abf2ecf7f6a5
-    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
+    alb.ingress.kubernetes.io/healthcheck-path: /ready
     alb.ingress.kubernetes.io/success-codes: "200"
     external-dns.alpha.kubernetes.io/hostname: api.pupoo.site
 spec:
@@ -20,10 +20,12 @@ spec:
     - host: api.pupoo.site
       http:
         paths:
-          - path: /api
+          # Temporary public AI path for the current admin chatbot frontend.
+          # Long term, this should move behind the backend or another auth gateway.
+          - path: /ai
             pathType: Prefix
             backend:
               service:
-                name: pupoo-backend
+                name: pupoo-ai
                 port:
                   number: 80

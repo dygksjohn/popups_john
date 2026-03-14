@@ -29,6 +29,13 @@ Optional arguments:
 - `PUPOO_AI_SERVICE_NAME` (default: `pupoo-ai`)
 - `PUPOO_AI_INTERNAL_TOKEN` (default: `dev-internal-token`)
 - `PUPOO_AI_LOG_LEVEL` (default: `INFO`)
+- `PUPOO_AI_DB_URL` (optional, `mysql://user:password@host:3306/database`)
+- `PUPOO_AI_DB_HOST` (optional)
+- `PUPOO_AI_DB_PORT` (default: `3306`)
+- `PUPOO_AI_DB_USER` (optional)
+- `PUPOO_AI_DB_PASSWORD` (optional)
+- `PUPOO_AI_DB_NAME` (optional)
+- `PUPOO_AI_DB_SSL_CA` (optional, RDS CA bundle path)
 - `PUPOO_AI_TRAIN_DB_URL` (optional, fallback to `SPRING_DATASOURCE_URL`)
 - `PUPOO_AI_TRAIN_DB_USER` (optional)
 - `PUPOO_AI_TRAIN_DB_PASSWORD` (optional)
@@ -43,3 +50,9 @@ Optional arguments:
 - `POST /internal/congestion/programs/recommendations`
 
 All internal endpoints require `X-Internal-Token`.
+
+## Readiness Check
+
+- `GET /ready`
+
+If RDS environment variables are configured, the readiness endpoint also verifies the MySQL connection and returns `503` when the database is unreachable.
