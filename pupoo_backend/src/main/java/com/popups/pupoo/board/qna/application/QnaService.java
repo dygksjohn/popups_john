@@ -46,12 +46,14 @@ public class QnaService {
         Board qnaBoard = boardRepository.findByBoardType(BoardType.QNA)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QNA 게시판(board_type=QNA)이 존재하지 않습니다."));
 
-        bannedWordService.validate(qnaBoard.getBoardId(), request.getTitle(), request.getContent());
-        String textToModerate = (request.getTitle() != null ? request.getTitle() : "") + " " + (request.getContent() != null ? request.getContent() : "");
-        ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), qnaBoard.getBoardId(), "POST");
-        if (modResult != null && modResult.isBlock()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                    modResult.getReason() != null ? modResult.getReason() : "QnA 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+        ModerationResult modResult = null;
+        if (!bannedWordService.shouldSkipModeration(userId)) {
+            String textToModerate = (request.getTitle() != null ? request.getTitle() : "") + " " + (request.getContent() != null ? request.getContent() : "");
+            modResult = moderationClient.moderate(textToModerate.trim(), qnaBoard.getBoardId(), "POST");
+            if (modResult != null && modResult.isBlock()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        modResult.getReason() != null ? modResult.getReason() : "QnA 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+            }
         }
 
         Post post = Post.builder()

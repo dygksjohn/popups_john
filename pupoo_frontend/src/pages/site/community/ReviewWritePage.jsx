@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { eventApi } from "../../../app/http/eventApi";
 import { reviewApi } from "../../../app/http/reviewApi";
@@ -8,6 +8,8 @@ import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 import CommunityWriteLayout from "./shared/CommunityWriteLayout";
+
+const DRAFT_KEY_REVIEW = "draft_community_review";
 
 function ErrorBox({ message }) {
   if (!message) return null;
@@ -33,11 +35,60 @@ function ErrorBox({ message }) {
   );
 }
 
+function InProgressBox() {
+  return (
+    <div
+      style={{
+        marginBottom: 18,
+        background: "#EFF6FF",
+        border: "1px solid #BFDBFE",
+        borderRadius: 10,
+        padding: "12px 14px",
+        fontSize: 13,
+        color: "#1E40AF",
+        fontWeight: 700,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+      }}
+    >
+      <Loader2 size={14} style={{ flexShrink: 0, animation: "spin 1s linear infinite" }} />
+      등록 중입니다. 기다려 주세요.
+    </div>
+  );
+}
+
+function SuccessBox({ message }) {
+  if (!message) return null;
+  return (
+    <div
+      style={{
+        marginBottom: 18,
+        background: "#F0FDF4",
+        border: "1px solid #BBF7D0",
+        borderRadius: 10,
+        padding: "12px 14px",
+        fontSize: 13,
+        color: "#166534",
+        fontWeight: 700,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+      }}
+    >
+      <CheckCircle size={14} />
+      {message}
+    </div>
+  );
+}
+
 export default function ReviewWritePage() {
   const navigate = useNavigate();
+  const isMountedRef = useRef(true);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     eventId: "",
@@ -45,6 +96,13 @@ export default function ReviewWritePage() {
     title: "",
     content: "",
   });
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -111,8 +169,19 @@ export default function ReviewWritePage() {
       return;
     }
 
+    try {
+      localStorage.setItem(DRAFT_KEY_REVIEW, JSON.stringify({
+        eventId: form.eventId,
+        rating: form.rating,
+        title: String(form.title || "").trim(),
+        content: form.content,
+      }));
+    } catch (_) {}
+
     setSaving(true);
     setError("");
+    setSuccessMessage("");
+
     try {
       const created = await reviewApi.create({
         eventId: Number(form.eventId),
@@ -120,16 +189,26 @@ export default function ReviewWritePage() {
         reviewTitle: String(form.title || "").trim(),
         content: form.content,
       });
-      const createdReviewId = Number(created?.reviewId);
-      navigate(createdReviewId ? `/community/review/${createdReviewId}` : "/community/review");
+
+      if (!isMountedRef.current) return;
+
+      try {
+        localStorage.removeItem(DRAFT_KEY_REVIEW);
+      } catch (_) {}
+
+      setSuccessMessage("등록 완료");
+      setTimeout(() => {
+        if (!isMountedRef.current) return;
+        navigate("/community/review");
+      }, 1500);
     } catch (err) {
       console.error("[ReviewWritePage] create failed:", err);
+      if (!isMountedRef.current) return;
       if (err?.response?.status === 401) {
         navigate("/auth/login", { state: { from: "/community/review/write" } });
         return;
       }
-      setError(err?.response?.data?.message || "후기 등록에 실패했습니다.");
-    } finally {
+      setError(err?.response?.data?.message || err?.response?.data?.error?.message || "후기 등록에 실패했습니다.");
       setSaving(false);
     }
   };
@@ -184,18 +263,29 @@ export default function ReviewWritePage() {
       }
     >
       <form id="community-review-write-form" onSubmit={handleSubmit}>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         <ErrorBox message={error} />
+        {saving && !successMessage ? <InProgressBox /> : null}
+        <SuccessBox message={successMessage} />
 
         {loading ? (
           <div style={{ fontSize: 14, color: "#64748b" }}>행사 목록을 불러오는 중입니다.</div>
         ) : (
-          <div style={{ display: "grid", gap: 18 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 18,
+              pointerEvents: saving ? "none" : undefined,
+              opacity: saving ? 0.75 : 1,
+            }}
+          >
             <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 14 }}>
               <label style={{ display: "grid", gap: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>행사 선택</span>
                 <select
                   value={form.eventId}
                   onChange={(event) => handleChange("eventId", event.target.value)}
+                  disabled={saving}
                   style={{
                     height: 46,
                     borderRadius: 10,
@@ -203,7 +293,7 @@ export default function ReviewWritePage() {
                     padding: "0 14px",
                     fontSize: 14,
                     color: "#0f172a",
-                    background: "#fff",
+                    background: saving ? "#f1f5f9" : "#fff",
                   }}
                 >
                   <option value="">행사를 선택해 주세요</option>
@@ -220,6 +310,7 @@ export default function ReviewWritePage() {
                 <select
                   value={form.rating}
                   onChange={(event) => handleChange("rating", event.target.value)}
+                  disabled={saving}
                   style={{
                     height: 46,
                     borderRadius: 10,
@@ -227,7 +318,7 @@ export default function ReviewWritePage() {
                     padding: "0 14px",
                     fontSize: 14,
                     color: "#0f172a",
-                    background: "#fff",
+                    background: saving ? "#f1f5f9" : "#fff",
                   }}
                 >
                   {[5, 4, 3, 2, 1].map((value) => (
@@ -245,6 +336,8 @@ export default function ReviewWritePage() {
                 value={form.title}
                 onChange={(event) => handleChange("title", event.target.value)}
                 placeholder="후기 제목을 입력해 주세요"
+                disabled={saving}
+                readOnly={saving}
                 style={{
                   height: 46,
                   borderRadius: 10,
@@ -252,7 +345,7 @@ export default function ReviewWritePage() {
                   padding: "0 14px",
                   fontSize: 14,
                   color: "#0f172a",
-                  background: "#fff",
+                  background: saving ? "#f1f5f9" : "#fff",
                 }}
               />
             </label>

@@ -12,6 +12,8 @@ import com.popups.pupoo.board.bannedword.persistence.BoardBannedLogRepository;
 import com.popups.pupoo.board.bannedword.persistence.BoardFilterPolicyRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.user.domain.enums.RoleName;
+import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,9 +38,22 @@ public class BannedWordService {
     private final BannedWordRepository bannedWordRepository;
     private final BoardFilterPolicyRepository boardFilterPolicyRepository;
     private final BoardBannedLogRepository boardBannedLogRepository;
+    private final UserRepository userRepository;
+
+    /**
+     * 관리자(ADMIN, SUPER_ADMIN)는 금지어 필터(AI 모더레이션) 대상에서 제외한다.
+     */
+    @Transactional(readOnly = true)
+    public boolean shouldSkipModeration(Long userId) {
+        if (userId == null) return false;
+        return userRepository.findById(userId)
+                .map(u -> u.getRoleName() == RoleName.ADMIN || u.getRoleName() == RoleName.SUPER_ADMIN)
+                .orElse(false);
+    }
 
     /**
      * 게시판 단위 금칙어 검증 (정책 반영)
+     * @deprecated 필터링 판단에는 사용하지 않음. 관리자 금지어 관리·참고용으로만 유지.
      *
      * @param boardId 게시판 ID
      * @param texts   검증할 텍스트(제목/내용 등)
