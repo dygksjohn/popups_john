@@ -21,11 +21,13 @@ import com.popups.pupoo.common.search.SearchType;
 import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -52,7 +54,9 @@ public class PostService {
         if (boardId == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId is required");
         }
-        return postRepository.search(boardId, keyword, status, pageable).map(this::toResponse);
+        Page<Post> page = postRepository.search(boardId, keyword, status, pageable);
+        List<PostResponse> content = page.getContent().stream().map(this::toResponse).toList();
+        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, String keyword, Pageable pageable) {
@@ -61,7 +65,9 @@ public class PostService {
 
     public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, String keyword, Pageable pageable) {
         Long resolvedBoardId = resolveBoardId(boardId, boardType);
-        return postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
+        Page<Post> page = postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+        List<PostResponse> content = page.getContent().stream().map(this::toResponse).toList();
+        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, SearchType searchType, String keyword, Pageable pageable) {
@@ -70,16 +76,19 @@ public class PostService {
 
     public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, SearchType searchType, String keyword, Pageable pageable) {
         Long resolvedBoardId = resolveBoardId(boardId, boardType);
+        SearchType effectiveType = (searchType != null) ? searchType : SearchType.TITLE_CONTENT;
 
-        return switch (searchType) {
-            case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
-            case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
+        Page<Post> page = switch (effectiveType) {
+            case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+            case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
             case WRITER -> {
                 Long writerId = parseLongOrNull(keyword);
-                yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable).map(this::toResponse);
+                yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable);
             }
-            case TITLE_CONTENT -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
+            default -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
         };
+        List<PostResponse> content = page.getContent().stream().map(this::toResponse).toList();
+        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
     private static Long parseLongOrNull(String keyword) {

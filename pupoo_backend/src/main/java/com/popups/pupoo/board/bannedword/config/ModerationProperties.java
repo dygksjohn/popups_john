@@ -11,6 +11,6 @@ public class ModerationProperties {
 
     private String baseUrl = "http://localhost:8000";
     private String internalToken = "dev-internal-token";
-    private int timeoutSeconds = 10;
+    private int timeoutSeconds = 20;
     private boolean enabled = true;
 }

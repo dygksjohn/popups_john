@@ -13,6 +13,7 @@ import com.popups.pupoo.board.bannedword.persistence.BoardFilterPolicyRepository
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
  * - board_filter_policy에 따라 BLOCK(저장 거부) / MASK·PASS(저장 허용, 로그 기록).
  * - 정책 미존재 시 해당 카테고리는 BLOCK.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BannedWordService {
@@ -100,7 +102,7 @@ public class BannedWordService {
     }
 
     /**
-     * AI 모더레이션 판정 결과 로그 (REVIEW/BLOCK 시 호출)
+     * Log AI moderation result (REVIEW/BLOCK). On save failure (e.g. missing ai_score/rag_reason columns), does not fail the request.
      */
     @Transactional
     public void logAiModeration(Long boardId, Long contentId, BannedLogContentType contentType, Long userId,
@@ -110,16 +112,20 @@ public class BannedWordService {
         FilterAction action = result.isBlock() ? FilterAction.BLOCK : FilterAction.REVIEW;
         String reason = result.getReason();
         if (reason != null && reason.length() > 2000) reason = reason.substring(0, 2000);
-        boardBannedLogRepository.save(BoardBannedLog.builder()
-                .boardId(boardId)
-                .contentId(contentId)
-                .contentType(contentType)
-                .userId(userId)
-                .detectedWord("AI")
-                .filterActionTaken(action)
-                .aiScore(result.getAiScore())
-                .ragReason(reason)
-                .build());
+        try {
+            boardBannedLogRepository.save(BoardBannedLog.builder()
+                    .boardId(boardId)
+                    .contentId(contentId)
+                    .contentType(contentType)
+                    .userId(userId)
+                    .detectedWord("AI")
+                    .filterActionTaken(action)
+                    .aiScore(result.getAiScore())
+                    .ragReason(reason)
+                    .build());
+        } catch (Exception e) {
+            log.warn("AI moderation log save failed (boardId={}, contentId={}). Ensure board_banned_logs has ai_score, rag_reason columns. Error: {}", boardId, contentId, e.getMessage());
+        }
     }
 
 }
