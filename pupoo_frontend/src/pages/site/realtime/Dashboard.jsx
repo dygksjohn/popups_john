@@ -21,7 +21,6 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { aiApi } from "../../../app/http/aiApi";
-import { getToken } from "../../../api/noticeApi";
 import {
   formatKoreanTime,
   normalizePrediction,
@@ -908,11 +907,6 @@ const STATUS_BADGE = {
   CANCELLED: { className: "cancelled", label: "취소", showDot: false },
 };
 
-const authHeaders = () => {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
 const unwrapData = (response, fallback) => response?.data?.data ?? response?.data ?? fallback;
 
 const toArray = (payload) =>
@@ -1349,7 +1343,6 @@ const formatProgramTimeRange = (startAt, endAt) => {
 async function fetchAdminData(url, params, fallback) {
   try {
     const response = await axiosInstance.get(url, {
-      headers: authHeaders(),
       params,
     });
     return {

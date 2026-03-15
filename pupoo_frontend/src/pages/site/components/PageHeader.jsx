@@ -186,9 +186,10 @@ export default function PageHeader({
     }
     if (onNavigate) {
       onNavigate(targetPath);
-      return;
     }
-    navigate(targetPath);
+    if (location.pathname !== targetPath) {
+      navigate(targetPath);
+    }
   };
 
   return (
