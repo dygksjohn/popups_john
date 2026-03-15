@@ -24,10 +24,12 @@ async def moderate(body: ModerateRequest) -> ModerateResponse:
     - RAG 파이프라인(watsonx.ai + Milvus) 기반 검색 결과를 바탕으로
       PASS / REVIEW 액션과 근거(reason)를 반환한다.
     """
-    action, ai_score, reason, stack = moderate_with_rag(body.text)
+    action, ai_score, reason, stack, flagged_phrases, inferred_phrases = moderate_with_rag(body.text)
     return ModerateResponse(
         action=action,
         ai_score=ai_score,
         reason=reason,
         stack=stack,
+        flagged_phrases=flagged_phrases,
+        inferred_phrases=inferred_phrases,
     )

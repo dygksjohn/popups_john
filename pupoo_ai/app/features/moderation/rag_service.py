@@ -71,22 +71,22 @@ def retrieve_policies(query: str, top_k: int = 5) -> List[dict]:
     return docs
 
 
-def moderate_with_rag(text: str) -> tuple[str, float | None, str | None, str]:
+def moderate_with_rag(text: str) -> tuple[str, float | None, str | None, str, list[str] | None, list[str] | None]:
     """
-    RAG 기반 모더레이션: 정책 검색 후 watsonx LLM으로 판정·사유 생성.
+    RAG 기반 모더레이션: 정책 검색 후 watsonx LLM으로 판정·사유·문제 문구(원문·유추) 생성.
     - watsonx 미설정 시: 검색 결과 유무로 PASS/REVIEW만 반환(스텁).
     """
     docs = retrieve_policies(text, top_k=5)
 
     if is_watsonx_configured():
-        action, reason = moderate_with_llm(text, docs)
-        return action, None, reason, "rag_watsonx"
+        action, ai_score, reason, flagged_phrases, inferred_phrases = moderate_with_llm(text, docs)
+        return action, ai_score, reason, "rag_watsonx", flagged_phrases, inferred_phrases
 
     if not docs:
-        return "PASS", 0.0, None, "rag_milvus_stub"
+        return "PASS", 0.0, None, "rag_milvus_stub", None, None
     reasons = []
     for d in docs:
         snippet = d["chunk_text"][:200].replace("\n", " ")
         reasons.append(f"[{d['policy_id']}] {snippet}")
-    return "REVIEW", None, "\n".join(reasons), "rag_milvus_stub"
+    return "REVIEW", None, "\n".join(reasons), "rag_milvus_stub", None, None
 

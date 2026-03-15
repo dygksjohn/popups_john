@@ -42,11 +42,13 @@ public class ReviewService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "REVIEW 게시판(board_type=REVIEW)이 존재하지 않습니다."))
                 .getBoardId();
 
-        bannedWordService.validate(reviewBoardId, request.getContent());
-        ModerationResult modResult = moderationClient.moderate(request.getContent() != null ? request.getContent() : "", reviewBoardId, "POST");
-        if (modResult != null && modResult.isBlock()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                    modResult.getReason() != null ? modResult.getReason() : "후기 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+        ModerationResult modResult = null;
+        if (!bannedWordService.shouldSkipModeration(userId)) {
+            modResult = moderationClient.moderate(request.getContent() != null ? request.getContent() : "", reviewBoardId, "POST");
+            if (modResult != null && modResult.isBlock()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        modResult.getReason() != null ? modResult.getReason() : "후기 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+            }
         }
 
         String reviewTitle = deriveTitleFromContent(request.getContent());
