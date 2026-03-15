@@ -226,7 +226,12 @@ export default function QRCheckin() {
 
     const fetchRegistrations = async () => {
       if (!tokenStore.getAccess()) {
-        navigate("/auth/login");
+        const goLogin = window.confirm("로그인이 필요한 서비스입니다.\n로그인 페이지로 이동하시겠습니까?");
+        if (goLogin) {
+          navigate("/auth/login", { state: { from: location.pathname + location.search } });
+        } else {
+          navigate(-1);
+        }
         return;
       }
 

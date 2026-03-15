@@ -1,12 +1,6 @@
 // file: src/main/java/com/popups/pupoo/program/speaker/application/SpeakerAdminService.java
 package com.popups.pupoo.program.speaker.application;
 
-import java.time.LocalDateTime;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.program.domain.enums.ProgramCategory;
@@ -19,9 +13,14 @@ import com.popups.pupoo.program.speaker.dto.SpeakerResponse;
 import com.popups.pupoo.program.speaker.dto.SpeakerUpdateRequest;
 import com.popups.pupoo.program.speaker.persistence.ProgramSpeakerMappingRepository;
 import com.popups.pupoo.program.speaker.persistence.SpeakerRepository;
-
+import com.popups.pupoo.storage.support.StorageKeyNormalizer;
+import com.popups.pupoo.storage.support.StorageUrlResolver;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -31,49 +30,48 @@ public class SpeakerAdminService {
     private final SpeakerRepository speakerRepository;
     private final ProgramRepository programRepository;
     private final ProgramSpeakerMappingRepository programSpeakerMappingRepository;
+    private final StorageKeyNormalizer storageKeyNormalizer;
+    private final StorageUrlResolver storageUrlResolver;
 
-    public SpeakerResponse createSpeaker(SpeakerCreateRequest req) {
-
+    public SpeakerResponse createSpeaker(SpeakerCreateRequest request) {
         Speaker speaker = Speaker.builder()
-                .speakerName(req.speakerName)
-                .speakerBio(req.speakerBio)
-                .speakerEmail(req.speakerEmail)
-                .speakerPhone(req.speakerPhone)
-                .speakerImageUrl(PublicUrlNormalizer.normalize(req.speakerImageUrl))
+                .speakerName(request.speakerName)
+                .speakerBio(request.speakerBio)
+                .speakerEmail(request.speakerEmail)
+                .speakerPhone(request.speakerPhone)
+                .speakerImageUrl(storageKeyNormalizer.normalizeToKey(request.speakerImageUrl))
                 .build();
 
         Speaker saved = speakerRepository.save(speaker);
 
-        if (req.programId != null) {
-            Program targetProgram = programRepository.findById(req.programId)
+        if (request.programId != null) {
+            Program targetProgram = programRepository.findById(request.programId)
                     .orElseThrow(() -> new EntityNotFoundException("PROGRAM_NOT_FOUND"));
-
             assignSpeakerToProgram(saved.getSpeakerId(), targetProgram);
         }
 
-        return SpeakerResponse.from(saved);
+        return toResponse(saved);
     }
 
-    public SpeakerResponse updateSpeaker(Long speakerId, SpeakerUpdateRequest req) {
+    public SpeakerResponse updateSpeaker(Long speakerId, SpeakerUpdateRequest request) {
         Speaker speaker = speakerRepository.findById(speakerId)
                 .orElseThrow(() -> new EntityNotFoundException("SPEAKER_NOT_FOUND"));
 
         speaker.update(
-                req.speakerName,
-                req.speakerBio,
-                req.speakerEmail,
-                req.speakerPhone,
-                PublicUrlNormalizer.normalize(req.speakerImageUrl)
+                request.speakerName,
+                request.speakerBio,
+                request.speakerEmail,
+                request.speakerPhone,
+                storageKeyNormalizer.normalizeToKey(request.speakerImageUrl)
         );
 
-        if (req.programId != null) {
-            Program targetProgram = programRepository.findById(req.programId)
+        if (request.programId != null) {
+            Program targetProgram = programRepository.findById(request.programId)
                     .orElseThrow(() -> new EntityNotFoundException("PROGRAM_NOT_FOUND"));
-
             assignSpeakerToProgram(speakerId, targetProgram);
         }
 
-        return SpeakerResponse.from(speaker);
+        return toResponse(speaker);
     }
 
     public void deleteSpeaker(Long speakerId) {
@@ -112,7 +110,6 @@ public class SpeakerAdminService {
 
         validateSessionSpeakerSchedule(speakerId, targetProgram);
 
-        // One program has exactly one speaker.
         programSpeakerMappingRepository.deleteByProgramIdAndSpeakerIdNot(
                 targetProgram.getProgramId(),
                 speakerId
@@ -126,5 +123,9 @@ public class SpeakerAdminService {
                     ProgramSpeakerMapping.of(targetProgram.getProgramId(), speakerId)
             );
         }
+    }
+
+    private SpeakerResponse toResponse(Speaker speaker) {
+        return SpeakerResponse.from(speaker, storageUrlResolver.toPublicUrl(speaker.getSpeakerImageUrl()));
     }
 }

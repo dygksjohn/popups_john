@@ -7,6 +7,7 @@ import com.popups.pupoo.event.dto.AdminEventPosterAssetResponse;
 import com.popups.pupoo.event.dto.AdminEventPosterGenerateRequest;
 import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator;
 import com.popups.pupoo.storage.port.ObjectStoragePort;
+import com.popups.pupoo.storage.support.StorageUrlResolver;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -77,6 +78,7 @@ public class AdminEventPosterService {
     private final RestClient restClient;
     private final ObjectStoragePort objectStoragePort;
     private final StorageKeyGenerator storageKeyGenerator;
+    private final StorageUrlResolver storageUrlResolver;
     private final String apiKey;
     private final String model;
 
@@ -84,12 +86,14 @@ public class AdminEventPosterService {
             RestClient.Builder builder,
             ObjectStoragePort objectStoragePort,
             StorageKeyGenerator storageKeyGenerator,
+            StorageUrlResolver storageUrlResolver,
             @Value("${openai.image.api-key:}") String configuredApiKey,
             @Value("${openai.image.model:}") String configuredModel,
             @Value("${openai.image.base-url:https://api.openai.com}") String baseUrl
     ) {
         this.objectStoragePort = objectStoragePort;
         this.storageKeyGenerator = storageKeyGenerator;
+        this.storageUrlResolver = storageUrlResolver;
         this.apiKey = firstNonBlank(
                 configuredApiKey,
                 System.getenv("OPENAI_API_KEY"),
@@ -387,7 +391,7 @@ public class AdminEventPosterService {
         String storedName = key.substring(key.lastIndexOf('/') + 1);
         objectStoragePort.putObject(STORAGE_BUCKET_UNUSED, key, bytes, contentTypeForExtension(extension));
         return new AdminEventPosterAssetResponse(
-                objectStoragePort.getPublicPath(STORAGE_BUCKET_UNUSED, key),
+                storageUrlResolver.toPublicUrlFromKey(key),
                 storedName
         );
     }

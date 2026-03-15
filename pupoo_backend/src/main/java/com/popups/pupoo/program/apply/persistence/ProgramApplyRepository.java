@@ -53,6 +53,9 @@ public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long
             Collection<ApplyStatus> statuses
     );
 
+    long countByProgramIdAndStatusIn(Long programId, Collection<ApplyStatus> statuses);
+    long countByProgramIdAndCheckedInAtIsNotNull(Long programId);
+
     /**
      *  환불 COMPLETED 시 자동 취소용(행사 기준):
      * 해당 event_id에 속한 program들 중, user의 활성 신청(APPLIED/WAITING/APPROVED)을 전부 락으로 잡고 가져오기

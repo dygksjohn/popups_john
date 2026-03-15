@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { eventApi } from "../../../app/http/eventApi";
 import { loadImageCache, injectEventImages } from "../../admin/shared/eventImageStore";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 import {
   MapPin,
   Calendar,
@@ -190,7 +191,7 @@ function EventThumb({ ev }) {
     <div className="ev-card-thumb">
       {ev.image ? (
         <img
-          src={ev.image}
+          src={resolveImageUrl(ev.image)}
           alt={ev.title}
           onError={(e) => {
             e.currentTarget.style.display = "none";

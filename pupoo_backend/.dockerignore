@@ -4,3 +4,10 @@ uploads
 src/main/resources/uploads
 application-prod-secrets.properties
 .env
+.git
+.idea
+.metadata
+.settings
+bin
+bootrun.log
+docs

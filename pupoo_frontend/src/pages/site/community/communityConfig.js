@@ -11,68 +11,85 @@ const BADGE_BASE_STYLE = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "3px 10px",
+  gap: 5,
+  padding: "5px 14px",
   borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 700,
+  fontSize: 13,
+  fontWeight: 600,
   lineHeight: 1,
   flexShrink: 0,
+  letterSpacing: -0.1,
 };
 
 export const BOARD_BADGES = {
   NOTICE: {
     text: "공지",
-    color: "#DC2626",
-    background: "#FEE2E2",
+    icon: "Megaphone",
+    color: "#b91c1c",
+    background: "#fef2f2",
+    border: "#fecaca",
   },
   FREEBOARD: {
     text: "자유",
-    color: "#2563EB",
-    background: "#DBEAFE",
+    icon: "MessageCircle",
+    color: "#2563eb",
+    background: "#eff6ff",
+    border: "#bfdbfe",
   },
   REVIEW: {
     text: "후기",
-    color: "#16A34A",
-    background: "#DCFCE7",
+    icon: "Star",
+    color: "#d97706",
+    background: "#fffbeb",
+    border: "#fde68a",
   },
   QNA: {
-    text: "QNA",
-    color: "#D97706",
-    background: "#FEF3C7",
+    text: "Q&A",
+    icon: "HelpCircle",
+    color: "#7c3aed",
+    background: "#f5f3ff",
+    border: "#ddd6fe",
   },
   FAQ: {
     text: "FAQ",
-    color: "#9333EA",
-    background: "#F3E8FF",
+    icon: "BookOpen",
+    color: "#9333ea",
+    background: "#faf5ff",
+    border: "#e9d5ff",
   },
   INFO: {
     text: "정보",
-    color: "#0369A1",
-    background: "#E0F2FE",
+    icon: "Lightbulb",
+    color: "#0891b2",
+    background: "#ecfeff",
+    border: "#a5f3fc",
   },
 };
 
 export const NOTICE_SCOPE_BADGES = {
   ALL: {
-    label: "전체 공지",
+    label: "전체",
     compactLabel: "전체",
-    color: "#1d4ed8",
+    icon: "Globe",
+    color: "#2563eb",
     background: "#eff6ff",
     borderColor: "#bfdbfe",
   },
   GLOBAL: {
-    label: "전체 공지",
+    label: "전체",
     compactLabel: "전체",
-    color: "#1d4ed8",
+    icon: "Globe",
+    color: "#2563eb",
     background: "#eff6ff",
     borderColor: "#bfdbfe",
   },
   EVENT: {
-    label: "행사 공지",
+    label: "행사",
     compactLabel: "행사",
-    color: "#b45309",
-    background: "#fff7ed",
-    borderColor: "#fdba74",
+    icon: "PartyPopper",
+    color: "#d97706",
+    background: "#fffbeb",
+    borderColor: "#fde68a",
   },
 };
 
@@ -80,10 +97,12 @@ export function getBoardBadge(type) {
   const badge = BOARD_BADGES[type] || BOARD_BADGES.INFO;
   return {
     text: badge.text,
+    icon: badge.icon,
     style: {
       ...BADGE_BASE_STYLE,
       color: badge.color,
       background: badge.background,
+      border: `1px solid ${badge.border}`,
     },
   };
 }

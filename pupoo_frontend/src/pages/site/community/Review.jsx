@@ -237,7 +237,7 @@ export default function Review() {
 
       <main
         style={{
-          width: "min(1350px, calc(100% - 50px))",
+          width: "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
           padding: "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",

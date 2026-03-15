@@ -6,6 +6,7 @@ import com.popups.pupoo.auth.domain.enums.OtpSessionStatus;
 import com.popups.pupoo.auth.domain.enums.SignupType;
 import com.popups.pupoo.auth.domain.model.RefreshToken;
 import com.popups.pupoo.auth.domain.model.SignupSession;
+import com.popups.pupoo.auth.support.RefreshCookieRequestSupport;
 import com.popups.pupoo.auth.dto.*;
 import com.popups.pupoo.auth.persistence.RefreshTokenRepository;
 import com.popups.pupoo.auth.persistence.SignupSessionRepository;
@@ -451,7 +452,7 @@ public class SignupSessionService {
     private void setRefreshCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, token)
                 .httpOnly(true)
-                .secure(refreshCookieSecure)
+                .secure(RefreshCookieRequestSupport.shouldUseSecureAttribute(refreshCookieSecure))
                 .path("/api/auth")
                 .sameSite("Lax")
                 .maxAge(refreshCookieMaxAgeSeconds)

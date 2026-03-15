@@ -22,12 +22,19 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Configuration
 public class SecurityConfig {
 
+    private static final List<String> REQUIRED_CORS_ALLOWED_ORIGIN_PATTERNS = List.of(
+        "https://pupoo.site",
+        "https://www.pupoo.site"
+    );
+
     private static final List<String> SPA_EXCLUDED_PREFIXES = List.of(
         "/api",
+        "/internal",
         "/actuator",
         "/swagger-ui",
         "/v3/api-docs",
@@ -46,9 +53,13 @@ public class SecurityConfig {
     ) {
         this.jwtProvider = jwtProvider;
         this.objectMapper = objectMapper;
-        this.corsAllowedOriginPatterns = Arrays.stream(corsAllowedOriginPatterns.split(","))
-            .map(String::trim)
-            .filter(pattern -> !pattern.isBlank())
+        this.corsAllowedOriginPatterns = Stream.concat(
+                REQUIRED_CORS_ALLOWED_ORIGIN_PATTERNS.stream(),
+                Arrays.stream(corsAllowedOriginPatterns.split(","))
+                    .map(String::trim)
+                    .filter(pattern -> !pattern.isBlank())
+            )
+            .distinct()
             .toList();
     }
 
@@ -119,6 +130,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/programs/*/speakers").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/programs/*/speakers/*").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/programs/*/votes/result").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/ai/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/program-applies/programs/*/candidates").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/speakers").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/speakers/*").permitAll()
@@ -169,6 +181,8 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/galleries").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
             .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
             .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
+
+            .requestMatchers("/internal/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 
             .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 

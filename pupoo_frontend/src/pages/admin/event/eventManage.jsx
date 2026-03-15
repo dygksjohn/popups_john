@@ -31,7 +31,10 @@ import {
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { getToken } from "../../../api/noticeApi";
-import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
+import {
+  resolveImageUrl,
+  toPublicAssetUrl,
+} from "../../../shared/utils/publicAssetUrl";
 
 /* ═══════════════════════════════════════════
    전역 스타일
@@ -1333,7 +1336,7 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
             }}
           >
             <img
-              src={toPublicAssetUrl(item.imageUrl)}
+              src={resolveImageUrl(item.imageUrl)}
               alt={item.name}
               style={{
                 width: "100%",
@@ -2242,7 +2245,7 @@ export default function EventManage({ subTab = "all" }) {
                         >
                           {r.imageUrl && (
                             <img
-                              src={toPublicAssetUrl(r.imageUrl)}
+                              src={resolveImageUrl(r.imageUrl)}
                               alt=""
                               style={{
                                 width: 36,

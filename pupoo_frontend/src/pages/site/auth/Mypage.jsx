@@ -8,222 +8,378 @@ import {
 import { reviewApi } from "../../../app/http/reviewApi";
 import { eventApi } from "../../../app/http/eventApi";
 import { interestApi } from "../../../app/http/interestApi";
+import {
+  BellOff, PawPrint, QrCode, CalendarDays, Star, CheckCircle2, Circle,
+  PartyPopper, Presentation, Compass, Store, Trophy, Megaphone,
+  Cookie, Bath, Scissors, Puzzle, Shirt, HeartPulse,
+  GraduationCap, Footprints, Pill, Watch, MoreHorizontal,
+} from "lucide-react";
 
 const styles = `
   .mp-root {
     box-sizing: border-box;
     font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #f5f7fb;
+    background: #f7f8fa;
     min-height: 100vh;
-    color: #0f172a;
+    color: #1a1a1a;
   }
   .mp-root *, .mp-root *::before, .mp-root *::after {
     box-sizing: border-box;
     font-family: inherit;
   }
   .mp-container {
-    width: min(1350px, calc(100% - 50px));
+    width: min(1400px, calc(100% - 40px));
     margin: 0 auto;
-    padding: 108px 0 64px;
+    padding: 100px 0 64px;
   }
-  .mp-header {
-    margin-bottom: 18px;
-  }
-  .mp-title {
-    margin: 0;
-    font-size: 26px;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-  }
-  .mp-subtitle {
-    margin: 8px 0 0;
-    font-size: 14px;
-    color: #64748b;
-  }
-  .mp-tabs {
-    margin-top: 18px;
+  .mp-layout {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 28px;
+    align-items: flex-start;
   }
-  .mp-tab {
-    border: 1px solid #dbe2ef;
-    border-radius: 999px;
+  /* ── Sidebar ── */
+  .mp-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 100px;
+  }
+  .mp-sidebar-card {
     background: #fff;
-    color: #334155;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 7px 14px;
-    cursor: pointer;
+    border: none;
+    border-radius: 16px;
+    padding: 28px 22px 22px;
+    box-shadow: 0 1px 8px rgba(0,0,0,.04);
   }
-  .mp-tab.active {
-    background: #1d4ed8;
-    border-color: #1d4ed8;
-    color: #fff;
-  }
-  .mp-tab-badge {
-    margin-left: 6px;
-    background: #ef4444;
-    color: #fff;
-    border-radius: 999px;
-    padding: 1px 6px;
-    font-size: 11px;
-    font-weight: 700;
-  }
-  .mp-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-  }
-  .mp-profile {
+  .mp-sidebar-top {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 22px;
-  }
-  .mp-profile-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-width: 0;
+    text-align: center;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 16px;
   }
   .mp-avatar {
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    background: linear-gradient(135deg, #5b9bf7, #7eb8ff);
     color: #fff;
     font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
+    font-size: 24px;
     flex-shrink: 0;
+    margin-bottom: 12px;
   }
   .mp-name {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 800;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 260px;
+    color: #1a1a1a;
+    margin-bottom: 3px;
   }
   .mp-email {
-    margin-top: 4px;
-    color: #64748b;
-    font-size: 13px;
+    color: #aaa;
+    font-size: 12px;
+    margin-bottom: 8px;
+    word-break: break-all;
   }
   .mp-joined {
-    margin-top: 6px;
-    font-size: 12px;
-    color: #475569;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
+    font-size: 11px;
+    color: #888;
+    background: #f3f4f6;
     border-radius: 999px;
     display: inline-flex;
-    padding: 4px 10px;
+    padding: 3px 10px;
+    font-weight: 500;
   }
-  .mp-actions {
+  .mp-sidebar-stats {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 16px;
   }
-  .mp-btn {
-    border-radius: 10px;
-    border: 1px solid #dbe2ef;
-    padding: 10px 14px;
+  .mp-sidebar-stat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .mp-sidebar-stat-label {
     font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
+    color: #999;
+    font-weight: 500;
   }
-  .mp-btn.primary {
-    border-color: #1d4ed8;
-    background: #1d4ed8;
+  .mp-sidebar-stat-value {
+    font-size: 13px;
+    font-weight: 800;
+    color: #1a1a1a;
+  }
+  .mp-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 16px;
+  }
+  .mp-sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: none;
+    background: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: #888;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: background 0.12s, color 0.12s;
+  }
+  .mp-sidebar-nav-item:hover {
+    background: #f5f6f8;
+    color: #555;
+  }
+  .mp-sidebar-nav-item.active {
+    background: #eef4ff;
+    color: #5b9bf7;
+    font-weight: 700;
+  }
+  .mp-sidebar-nav-arrow {
+    font-size: 12px; color: #ccc; transition: color .12s;
+  }
+  .mp-sidebar-nav-item.active .mp-sidebar-nav-arrow { color: #5b9bf7; }
+  .mp-sidebar-nav-item:hover .mp-sidebar-nav-arrow { color: #999; }
+  .mp-sidebar-nav-badge {
+    background: #ef4444;
+    color: #fff;
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
+    margin-right: 4px;
+  }
+  .mp-sidebar-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mp-sidebar-btn {
+    width: 100%;
+    padding: 10px 0;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: background .15s;
+  }
+  .mp-sidebar-btn.primary {
+    border: none;
+    background: #5b9bf7;
     color: #fff;
   }
-  .mp-btn.ghost {
+  .mp-sidebar-btn.primary:hover { background: #4a8de6; }
+  .mp-sidebar-btn.ghost {
+    border: 1px solid #e8eaed;
     background: #fff;
-    color: #334155;
+    color: #666;
   }
-  .mp-grid4 {
-    margin-top: 14px;
+  .mp-sidebar-btn.ghost:hover { background: #f5f6f8; }
+  /* ── Main ── */
+  .mp-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .mp-page-title {
+    margin: 0 0 4px;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #1a1a1a;
+  }
+  .mp-page-subtitle {
+    margin: 0 0 24px;
+    font-size: 13px;
+    color: #bbb;
+  }
+  .mp-card {
+    background: #fff;
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 1px 8px rgba(0,0,0,.04);
+    display: flex; flex-direction: column;
+  }
+  .mp-stat-row {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin-bottom: 20px;
   }
-  .mp-stat {
-    padding: 16px;
+  .mp-stat-row .mp-stat-cell {
+    padding: 22px 16px;
+    text-align: center;
+    position: relative;
   }
-  .mp-stat-label {
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 600;
+  .mp-stat-row .mp-stat-cell:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 24%;
+    height: 52%;
+    width: 1px;
+    background: #eee;
   }
   .mp-stat-value {
-    margin-top: 8px;
-    font-size: 30px;
+    font-size: 28px;
     line-height: 1;
     font-weight: 800;
     letter-spacing: -0.03em;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+  }
+  .mp-stat-label {
+    color: #bbb;
+    font-size: 12px;
+    font-weight: 500;
   }
   .mp-stat-unit {
-    margin-left: 4px;
-    color: #64748b;
-    font-size: 14px;
+    margin-left: 2px;
+    color: #bbb;
+    font-size: 13px;
     font-weight: 600;
   }
-  .mp-grid2 {
-    margin-top: 14px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
   .mp-section {
-    padding: 16px;
+    margin-bottom: 0;
   }
   .mp-section-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 14px;
   }
   .mp-section-title {
     margin: 0;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 800;
+    color: #1a1a1a;
   }
   .mp-count {
     font-size: 12px;
-    color: #475569;
-    background: #f1f5f9;
-    border-radius: 999px;
-    padding: 4px 10px;
-    border: 1px solid #e2e8f0;
+    color: #bbb;
+    font-weight: 500;
   }
+  .mp-more-link {
+    font-size: 12px; color: #5b9bf7; font-weight: 600;
+    cursor: pointer; border: none; background: none; padding: 0;
+    transition: color .12s;
+  }
+  .mp-more-link:hover { color: #4a8de6; }
+  .mp-section-inner {
+    padding: 20px;
+    display: flex; flex-direction: column; flex: 1;
+  }
+  .mp-grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  /* ── Mini Calendar ── */
+  .mp-cal-nav {
+    background: none; border: 1px solid #e5e7eb; border-radius: 6px;
+    width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: #666; cursor: pointer; transition: background .12s;
+  }
+  .mp-cal-nav:hover { background: #f3f4f6; }
+  .mp-cal-today {
+    background: none; border: 1px solid #e5e7eb; border-radius: 6px;
+    padding: 2px 10px; font-size: 12px; font-weight: 600; color: #555;
+    cursor: pointer; transition: background .12s;
+  }
+  .mp-cal-today:hover { background: #f3f4f6; }
+  .mp-cal { margin-top: 12px; }
+  .mp-cal-header {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    text-align: center; font-size: 12px; font-weight: 600; color: #999;
+    margin-bottom: 4px;
+  }
+  .mp-cal-dow { padding: 4px 0; }
+  .mp-cal-body {
+    display: grid; grid-template-columns: repeat(7, 1fr); text-align: center;
+  }
+  .mp-cal-cell {
+    padding: 6px 0; font-size: 13px; color: #444; border-radius: 8px;
+    cursor: pointer; transition: background .12s; position: relative;
+  }
+  .mp-cal-cell.empty { cursor: default; }
+  .mp-cal-cell:not(.empty):hover { background: #f3f4f6; }
+  .mp-cal-cell.today { font-weight: 800; color: #5b9bf7; }
+  .mp-cal-cell.selected { background: #5b9bf7; color: #fff; font-weight: 700; }
+  .mp-cal-cell.selected:hover { background: #4a8de6; }
+  .mp-cal-cell.has-event::after {
+    content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%; background: #5b9bf7;
+  }
+  .mp-cal-cell.selected.has-event::after { background: #fff; }
+  .mp-cal-events {
+    margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 10px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .mp-cal-event-item {
+    display: flex; align-items: center; gap: 10px; font-size: 12.5px;
+    padding: 6px 0;
+  }
+  .mp-cal-event-item + .mp-cal-event-item {
+    border-top: 1px solid #f3f3f3;
+  }
+  .mp-cal-event-time {
+    color: #5b9bf7; font-size: 12px; font-weight: 700; flex-shrink: 0;
+    min-width: 38px;
+  }
+  .mp-cal-event-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
+  .mp-cal-event-name { font-weight: 600; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mp-cal-event-loc { font-size: 11px; color: #aaa; flex-shrink: 0; }
+  .mp-cal-event-status {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+    background: #eef4ff; color: #5b9bf7; flex-shrink: 0;
+  }
+
   .mp-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+    flex: 1;
+    min-height: 120px;
   }
   .mp-item {
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    padding: 12px;
-    background: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 20px 22px;
+    background: #f4f6f8;
+    transition: transform 0.15s, box-shadow 0.15s;
   }
   .mp-item.clickable {
     cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s;
   }
   .mp-item.clickable:hover {
-    border-color: #bfdbfe;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
   }
+  .mp-item.mp-item-main {
+    background: linear-gradient(135deg, #5b9bf7 0%, #7eb8ff 100%);
+    color: #fff;
+  }
+  .mp-item.mp-item-main .mp-item-title { color: #fff; font-size: 16px; }
+  .mp-item.mp-item-main .mp-item-meta { color: rgba(255,255,255,0.75); }
+  .mp-item.mp-item-main .mp-badge { background: rgba(255,255,255,0.25); color: #fff; border-color: transparent; }
   .mp-item-top {
     display: flex;
     align-items: center;
@@ -231,64 +387,59 @@ const styles = `
     gap: 8px;
   }
   .mp-item-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #111827;
+    font-size: 15px;
+    font-weight: 800;
+    color: #1a1a1a;
+    line-height: 1.4;
   }
   .mp-item-meta {
-    margin-top: 6px;
-    font-size: 12px;
-    color: #6b7280;
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: #999;
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    line-height: 1.5;
   }
   .mp-badge {
-    padding: 3px 9px;
-    border-radius: 999px;
+    padding: 4px 10px;
+    border-radius: 6px;
     font-size: 11px;
     font-weight: 700;
-    border: 1px solid transparent;
+    border: none;
+    letter-spacing: -0.2px;
   }
   .mp-badge.applied {
-    background: #eff6ff;
-    color: #1d4ed8;
-    border-color: #bfdbfe;
+    background: #dbeafe;
+    color: #1e40af;
   }
   .mp-badge.approved {
-    background: #ecfdf3;
-    color: #047857;
-    border-color: #a7f3d0;
+    background: #d1fae5;
+    color: #065f46;
   }
   .mp-badge.cancelled {
-    background: #fef2f2;
-    color: #b91c1c;
-    border-color: #fecaca;
+    background: #fee2e2;
+    color: #991b1b;
   }
   .mp-badge.rejected {
-    background: #f8fafc;
-    color: #475569;
-    border-color: #e2e8f0;
+    background: #f1f5f9;
+    color: #64748b;
   }
   .mp-badge.refund-requested {
-    background: #fff7ed;
-    color: #c2410c;
-    border-color: #fdba74;
+    background: #ffedd5;
+    color: #9a3412;
   }
   .mp-badge.refund-approved {
-    background: #eff6ff;
-    color: #1d4ed8;
-    border-color: #bfdbfe;
+    background: #dbeafe;
+    color: #1e40af;
   }
   .mp-badge.refund-rejected {
-    background: #fef2f2;
-    color: #b91c1c;
-    border-color: #fecaca;
+    background: #fee2e2;
+    color: #991b1b;
   }
   .mp-badge.refunded {
     background: #f1f5f9;
-    color: #475569;
-    border-color: #cbd5e1;
+    color: #64748b;
   }
   .mp-noti-title {
     font-size: 13px;
@@ -302,21 +453,20 @@ const styles = `
     gap: 10px;
   }
   .mp-noti-delete {
-    border: 1px solid #e2e8f0;
-    background: #fff;
-    color: #64748b;
-    border-radius: 999px;
+    border: none;
+    background: #f3f4f6;
+    color: #9ca3af;
+    border-radius: 6px;
     padding: 4px 10px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
     flex-shrink: 0;
-    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    transition: background 0.15s, color 0.15s;
   }
   .mp-noti-delete:hover:not(:disabled) {
-    border-color: #fca5a5;
-    background: #fef2f2;
-    color: #b91c1c;
+    background: #fee2e2;
+    color: #dc2626;
   }
   .mp-noti-delete:disabled {
     opacity: 0.55;
@@ -325,43 +475,87 @@ const styles = `
   .mp-noti-content {
     margin-top: 4px;
     font-size: 12px;
-    color: #64748b;
+    color: #9ca3af;
     line-height: 1.45;
     white-space: pre-wrap;
   }
   .mp-noti-time {
     margin-top: 6px;
     font-size: 11px;
-    color: #94a3b8;
+    color: #cbd5e1;
   }
+
+  /* ── Subscription card grid ── */
+  .mp-sub-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .mp-sub-card {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 22px 10px 16px; border-radius: 14px;
+    border: 1.5px solid #e8e8e8; background: #fff;
+    cursor: pointer; transition: all .25s ease;
+    text-align: center; position: relative; gap: 8px;
+  }
+  .mp-sub-card:hover { border-color: #c0c0c0; transform: translateY(-1px); }
+  .mp-sub-card.active {
+    background: #eef4ff; border-color: #5b9bf7;
+  }
+  .mp-sub-card.active:hover { border-color: #4a8de6; }
+  .mp-sub-card:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+  .mp-sub-card-icon {
+    color: #bbb; transition: all .25s ease;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mp-sub-card.active .mp-sub-card-icon {
+    color: #5b9bf7;
+  }
+  .mp-sub-card-label {
+    font-size: 14px; font-weight: 300; color: #bbb;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    transition: color .2s; max-width: 100%;
+  }
+  .mp-sub-card.active .mp-sub-card-label { color: #2a2a2a; font-weight: 700; }
+  .mp-sub-card-check {
+    position: absolute; top: 8px; right: 8px;
+    color: #d0d0d0; transition: all .25s ease;
+  }
+  .mp-sub-card.active .mp-sub-card-check {
+    color: #5b9bf7;
+  }
+
   .mp-subscription-controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
   }
   .mp-channel-btn {
-    border: 1px solid #d1d5db;
-    border-radius: 999px;
-    background: #fff;
-    color: #6b7280;
+    border: none;
+    border-radius: 8px;
+    background: #f3f4f6;
+    color: #aaa;
     font-size: 11px;
-    font-weight: 500;
+    font-weight: 600;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 84px;
-    padding: 5px 10px;
+    padding: 6px 12px;
     cursor: pointer;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+    transition: background .15s, color .15s;
   }
   .mp-channel-btn.active {
-    color: #111827;
-    font-weight: 800;
-    border-color: #9ca3af;
+    color: #fff;
+    background: #5b9bf7;
+    font-weight: 700;
+  }
+  .mp-channel-btn:not(.active):hover {
+    background: #e8eaed;
   }
   .mp-channel-btn:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
   }
   .mp-subscription-head {
@@ -379,36 +573,67 @@ const styles = `
   .mp-subscription-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
     justify-content: flex-end;
   }
   .mp-subscription-btn {
     border: none;
-    background: transparent;
-    color: #111827;
+    background: #dbeafe;
+    color: #1e40af;
     font-size: 12px;
     font-weight: 700;
-    padding: 0;
+    padding: 5px 12px;
+    border-radius: 6px;
     cursor: pointer;
     white-space: nowrap;
+    transition: background .15s;
   }
+  .mp-subscription-btn:hover { background: #bfdbfe; }
   .mp-subscription-btn.warn {
-    color: #111827;
+    background: #fee2e2;
+    color: #dc2626;
   }
+  .mp-subscription-btn.warn:hover { background: #fecaca; }
   .mp-subscription-btn:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
   }
-  .mp-empty {
-    padding: 20px 12px;
-    text-align: center;
-    color: #94a3b8;
+  .mp-btn {
+    border-radius: 8px;
+    border: none;
+    padding: 8px 14px;
     font-size: 13px;
-    border: 1px dashed #dbe2ef;
-    border-radius: 10px;
-    background: #fafcff;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, transform .1s;
   }
+  .mp-btn:active { transform: scale(0.97); }
+  .mp-btn.primary {
+    background: #5b9bf7;
+    color: #fff;
+  }
+  .mp-btn.primary:hover { background: #4a8de6; }
+  .mp-btn.ghost {
+    background: #f3f4f6;
+    color: #555;
+  }
+  .mp-btn.ghost:hover { background: #e8eaed; }
+  .mp-empty {
+    padding: 36px 12px 32px;
+    text-align: center;
+    color: #bbb;
+    font-size: 13px;
+    border-radius: 12px;
+    background: #f9fafb;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; flex: 1;
+  }
+  .mp-empty-icon {
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mp-empty-icon svg { color: #bbb; }
   .mp-danger {
     margin: 10px 0;
     color: #b91c1c;
@@ -504,18 +729,21 @@ const styles = `
   }
 
   @media (max-width: 900px) {
-    .mp-grid4 {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    .mp-layout {
+      flex-direction: column;
+    }
+    .mp-sidebar {
+      width: 100%;
+      position: static;
+    }
+    .mp-stat-row {
+      grid-template-columns: repeat(2, 1fr);
     }
     .mp-grid2 {
       grid-template-columns: 1fr;
     }
-    .mp-profile {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .mp-actions {
-      justify-content: flex-start;
+    .mp-sub-grid {
+      grid-template-columns: repeat(3, 1fr);
     }
   }
 `;
@@ -573,6 +801,26 @@ const INTEREST_NAME_LABEL = {
   SUPPLEMENTS: "영양제",
   ACCESSORIES: "액세서리",
   OTHERS: "기타",
+};
+
+const INTEREST_ICON = {
+  EVENT: PartyPopper,
+  SESSION: Presentation,
+  EXPERIENCE: Compass,
+  BOOTH: Store,
+  CONTEST: Trophy,
+  NOTICE: Megaphone,
+  SNACK: Cookie,
+  BATH_SUPPLIES: Bath,
+  GROOMING: Scissors,
+  TOY: Puzzle,
+  CLOTHING: Shirt,
+  HEALTH: HeartPulse,
+  TRAINING: GraduationCap,
+  WALK: Footprints,
+  SUPPLEMENTS: Pill,
+  ACCESSORIES: Watch,
+  OTHERS: MoreHorizontal,
 };
 
 const SUBSCRIPTION_CHANNEL_OPTIONS = [
@@ -693,6 +941,12 @@ export default function MyPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Calendar state
+  const now = new Date();
+  const [calYear, setCalYear] = useState(now.getFullYear());
+  const [calMonth, setCalMonth] = useState(now.getMonth());
+  const [calSelected, setCalSelected] = useState(now.getDate());
 
   const [profile, setProfile] = useState(null);
   const [pets, setPets] = useState([]);
@@ -931,6 +1185,52 @@ export default function MyPage() {
     });
   }, [eventMap, refundMap, registrations]);
 
+  // Calendar events derived from registrations (real DB data)
+  const calEvents = useMemo(() => {
+    const events = [];
+    registrations.forEach((item) => {
+      const detail = eventMap[String(item?.eventId)] || {};
+      const status = String(item?.status || "").toUpperCase();
+      const startAt = detail?.startAt;
+      const endAt = detail?.endAt;
+      if (!startAt) return;
+
+      // Add event start date
+      const d = new Date(startAt);
+      if (Number.isNaN(d.getTime())) return;
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      const hh = String(d.getHours()).padStart(2,"0");
+      const mm = String(d.getMinutes()).padStart(2,"0");
+      const evName = item?.eventName || detail?.eventName || "행사";
+      const statusLabel = status === "APPROVED" ? "승인" : status === "APPLIED" ? "신청" : status === "CANCELLED" ? "취소" : "";
+      events.push({
+        date: dateStr,
+        name: evName,
+        time: `${hh}:${mm}`,
+        status: statusLabel,
+        location: detail?.location || "",
+      });
+
+      // If multi-day event, add end date too
+      if (endAt) {
+        const d2 = new Date(endAt);
+        if (!Number.isNaN(d2.getTime())) {
+          const dateStr2 = `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,"0")}-${String(d2.getDate()).padStart(2,"0")}`;
+          if (dateStr2 !== dateStr) {
+            events.push({
+              date: dateStr2,
+              name: `${evName} (마감)`,
+              time: `${String(d2.getHours()).padStart(2,"0")}:${String(d2.getMinutes()).padStart(2,"0")}`,
+              status: statusLabel,
+              location: detail?.location || "",
+            });
+          }
+        }
+      }
+    });
+    return events;
+  }, [registrations, eventMap]);
+
   const participationRows = useMemo(() => {
     return participations.map((item) => {
       const detail = eventMap[String(item?.eventId)] || {};
@@ -1122,13 +1422,13 @@ export default function MyPage() {
     ],
   );
 
-  const renderRegistrationItem = (item, clickable = false) => {
+  const renderRegistrationItem = (item, clickable = false, isMain = false) => {
     const detail = eventMap[String(item?.eventId)] || {};
     const { badgeStatus, label } = resolveRegistrationStatus(item, refundMap);
 
     return (
       <div
-        className={`mp-item${clickable ? " clickable" : ""}`}
+        className={`mp-item${clickable ? " clickable" : ""}${isMain ? " mp-item-main" : ""}`}
         key={`${item?.applyId}-${item?.eventId}`}
         onClick={clickable ? () => moveToEventPage(item?.eventId) : undefined}
       >
@@ -1177,327 +1477,363 @@ export default function MyPage() {
       <style>{styles}</style>
 
       <main className="mp-container">
-        <div className="mp-header">
-          <h1 className="mp-title">마이페이지</h1>
-          <p className="mp-subtitle">신청, 참여, 후기, 알림 정보를 실제 DB 데이터 기준으로 보여줍니다.</p>
-          <div className="mp-tabs">
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                className={`mp-tab${activeTab === tab.key ? " active" : ""}`}
-                onClick={() => setActiveTab(tab.key)}
-              >
-                {tab.label}
-                {tab.key === "notifications" && unreadCount > 0 ? (
-                  <span className="mp-tab-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>
-                ) : null}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {error ? <div className="mp-danger">{error}</div> : null}
-
-        {activeTab === "overview" ? (
-          <>
-            <section className="mp-card mp-profile">
-              <div className="mp-profile-left">
+        <div className="mp-layout">
+          {/* ── Sidebar ── */}
+          <aside className="mp-sidebar">
+            <div className="mp-sidebar-card">
+              <div className="mp-sidebar-top">
                 <div className="mp-avatar">{toInitial(profile?.nickname, profile?.email)}</div>
-                <div>
-                  <div className="mp-name">{profile?.nickname || "회원"}</div>
-                  <div className="mp-email">{profile?.email || "-"}</div>
-                  <div className="mp-joined">가입일 {fmtDate(profile?.createdAt)}</div>
+                <div className="mp-name">{profile?.nickname || "회원"}</div>
+                <div className="mp-email">{profile?.email || "-"}</div>
+                <div className="mp-joined">가입일 {fmtDate(profile?.createdAt)}</div>
+              </div>
+
+              <div className="mp-sidebar-stats">
+                <div className="mp-sidebar-stat">
+                  <span className="mp-sidebar-stat-label">신청 행사</span>
+                  <span className="mp-sidebar-stat-value">{loading ? "-" : statRequested}</span>
+                </div>
+                <div className="mp-sidebar-stat">
+                  <span className="mp-sidebar-stat-label">참여 완료</span>
+                  <span className="mp-sidebar-stat-value">{loading ? "-" : statCompleted}</span>
+                </div>
+                <div className="mp-sidebar-stat">
+                  <span className="mp-sidebar-stat-label">작성 후기</span>
+                  <span className="mp-sidebar-stat-value">{loading ? "-" : reviewCount}</span>
+                </div>
+                <div className="mp-sidebar-stat">
+                  <span className="mp-sidebar-stat-label">QR 체크인</span>
+                  <span className="mp-sidebar-stat-value">{loading ? "-" : statQrUsed}</span>
                 </div>
               </div>
-              <div className="mp-actions">
+
+              <div className="mp-sidebar-nav">
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    className={`mp-sidebar-nav-item${activeTab === tab.key ? " active" : ""}`}
+                    onClick={() => setActiveTab(tab.key)}
+                  >
+                    <span>{tab.label}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      {tab.key === "notifications" && unreadCount > 0 ? (
+                        <span className="mp-sidebar-nav-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                      ) : null}
+                      <span className="mp-sidebar-nav-arrow">›</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="mp-sidebar-actions">
                 <button
                   type="button"
-                  className="mp-btn primary"
+                  className="mp-sidebar-btn primary"
                   onClick={() => navigate("/mypage/profile")}
                 >
                   회원정보 수정
                 </button>
-                <button type="button" className="mp-btn ghost" onClick={openQrCheckin}>
-                  QR 코드
+                <button type="button" className="mp-sidebar-btn ghost" onClick={openQrCheckin}>
+                  QR 체크인
                 </button>
               </div>
-            </section>
+            </div>
+          </aside>
 
-            <section className="mp-grid4">
-              <div className="mp-card mp-stat">
-                <div className="mp-stat-label">신청 행사</div>
-                <div className="mp-stat-value">
-                  {loading ? "-" : statRequested}
-                  <span className="mp-stat-unit">건</span>
-                </div>
-              </div>
-              <div className="mp-card mp-stat">
-                <div className="mp-stat-label">참여 완료</div>
-                <div className="mp-stat-value">
-                  {loading ? "-" : statCompleted}
-                  <span className="mp-stat-unit">건</span>
-                </div>
-              </div>
-              <div className="mp-card mp-stat">
-                <div className="mp-stat-label">작성 후기</div>
-                <div className="mp-stat-value">
-                  {loading ? "-" : reviewCount}
-                  <span className="mp-stat-unit">건</span>
-                </div>
-              </div>
-              <div className="mp-card mp-stat">
-                <div className="mp-stat-label">QR 사용(체크인)</div>
-                <div className="mp-stat-value">
-                  {loading ? "-" : statQrUsed}
-                  <span className="mp-stat-unit">회</span>
-                </div>
-              </div>
-            </section>
+          {/* ── Main ── */}
+          <div className="mp-main">
+            <h1 className="mp-page-title">마이페이지</h1>
+            <p className="mp-page-subtitle">나의 활동을 한눈에 확인하세요</p>
 
-            <section className="mp-grid2">
-              <div className="mp-card mp-section">
-                <div className="mp-section-head">
-                  <h3 className="mp-section-title">최근 신청 행사</h3>
-                  <span className="mp-count">최신 3건</span>
-                </div>
-                <div className="mp-list">
-                  {recentRegistrations.length === 0 ? (
-                    <div className="mp-empty">신청한 행사가 없습니다.</div>
-                  ) : (
-                    recentRegistrations.map((item) => renderRegistrationItem(item, true))
-                  )}
-                </div>
-              </div>
+            {error ? <div className="mp-danger">{error}</div> : null}
 
-              <div className="mp-card mp-section">
-                <div className="mp-section-head">
-                  <h3 className="mp-section-title">최근 알림</h3>
-                  <span className="mp-count">총 {notifications.length}건</span>
+            {activeTab === "overview" ? (
+              <>
+                {/* Stats row */}
+                <div className="mp-card mp-stat-row">
+                  <div className="mp-stat-cell">
+                    <div className="mp-stat-value">{loading ? "-" : statRequested}</div>
+                    <div className="mp-stat-label">신청 행사</div>
+                  </div>
+                  <div className="mp-stat-cell">
+                    <div className="mp-stat-value">{loading ? "-" : statCompleted}</div>
+                    <div className="mp-stat-label">참여 완료</div>
+                  </div>
+                  <div className="mp-stat-cell">
+                    <div className="mp-stat-value">{loading ? "-" : reviewCount}</div>
+                    <div className="mp-stat-label">작성 후기</div>
+                  </div>
+                  <div className="mp-stat-cell">
+                    <div className="mp-stat-value">{loading ? "-" : statQrUsed}</div>
+                    <div className="mp-stat-label">QR 체크인</div>
+                  </div>
                 </div>
-                <div className="mp-list">
-                  {notifications.slice(0, 4).length === 0 ? (
-                    <div className="mp-empty">수신한 알림이 없습니다.</div>
-                  ) : (
-                    notifications
-                      .slice(0, 4)
-                      .map((noti) => renderNotificationItem(noti))
-                  )}
-                </div>
-              </div>
-            </section>
 
-            <section className="mp-card mp-section" style={{ marginTop: 14 }}>
-              <div className="mp-section-head">
-                <h3 className="mp-section-title">반려동물 관리</h3>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className="mp-count">총 {pets.length}마리</span>
-                  <button
-                    type="button"
-                    className="mp-btn primary"
-                    style={{ padding: "7px 12px", fontSize: 12, borderRadius: 8 }}
-                    onClick={() => navigate("/mypage/pets/new")}
-                  >
-                    반려동물 등록
-                  </button>
-                </div>
-              </div>
-              <div className="mp-list">
-                {pets.length === 0 ? (
-                  <div className="mp-empty">등록된 반려동물이 없습니다.</div>
-                ) : (
-                  pets.map((pet) => (
-                    <div className="mp-item" key={`pet-${pet?.petId}`}>
-                      <div className="mp-item-top">
-                        <div className="mp-item-title">{pet?.petName || "이름 없음"}</div>
-                        <button
-                          type="button"
-                          className="mp-btn ghost"
-                          style={{ padding: "6px 10px", fontSize: 12, borderRadius: 8 }}
-                          onClick={() => navigate(`/mypage/pets/${pet?.petId}/edit`)}
-                        >
-                          수정
-                        </button>
+                {/* 2x2 Grid: 최근 신청 행사 / 나의 일정 / 최근 알림 / 반려동물 */}
+                <div className="mp-grid2">
+                  {/* 최근 신청 행사 */}
+                  <div className="mp-card mp-section">
+                    <div className="mp-section-inner">
+                      <div className="mp-section-head">
+                        <h3 className="mp-section-title">최근 신청 행사</h3>
+                        <button type="button" className="mp-more-link" onClick={() => setActiveTab("events")}>더보기 ›</button>
                       </div>
-                      <div className="mp-item-meta">
-                        <span>종류 {formatPetBreed(pet?.petBreed)}</span>
-                        <span>나이 {pet?.petAge ?? "-"}</span>
-                        <span>체형 {formatPetWeight(pet?.petWeight)}</span>
+                      <div className="mp-list">
+                        {recentRegistrations.length === 0 ? (
+                          <div className="mp-empty">
+                            <div className="mp-empty-icon"><CalendarDays size={26} strokeWidth={1.5} /></div>
+                            <span>신청한 행사가 없습니다</span>
+                          </div>
+                        ) : (
+                          recentRegistrations.map((item, idx) => renderRegistrationItem(item, true, idx === 0))
+                        )}
                       </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
-
-            <section className="mp-grid2" style={{ marginTop: 14 }}>
-              <div className="mp-card mp-section">
-                <div className="mp-section-head">
-                  <h3 className="mp-section-title">구독 관리</h3>
-                  <span className="mp-count">활성 {activeSubscriptions.length}건</span>
-                </div>
-                {subscriptionError ? (
-                  <div className="mp-danger">{subscriptionError}</div>
-                ) : null}
-                <div className="mp-list">
-                  {activeSubscriptions.length === 0 ? (
-                    <div className="mp-empty">활성 구독이 없습니다.</div>
-                  ) : (
-                    activeSubscriptions.map((row) => {
-                      const interestId = Number(row?.interestId);
-                      const saving = !!subscriptionSavingMap[interestId];
-                      const channelOptions = getChannelOptions(interestId, row);
-                      return (
-                        <div
-                          className="mp-item"
-                          key={`sub-active-${row?.subscriptionId || interestId}`}
-                        >
-                          <div className="mp-subscription-head">
-                            <div className="mp-subscription-meta">
-                              <div className="mp-item-title">
-                                {interestLabel(row?.interestName)}
-                              </div>
-                            </div>
-                            <div className="mp-subscription-actions">
-                              <div className="mp-subscription-controls">
-                                {SUBSCRIPTION_CHANNEL_OPTIONS.map((channel) => (
-                                  <button
-                                    key={`${interestId}-${channel.key}`}
-                                    type="button"
-                                    className={`mp-channel-btn ${
-                                      channelOptions[channel.key] ? "active" : ""
-                                    }`}
-                                    onClick={() =>
-                                      handleToggleSubscriptionChannel(
-                                        row,
-                                        channel.key,
-                                      )
-                                    }
-                                    disabled={saving}
-                                  >
-                                    {channel.label}{" "}
-                                    {channelOptions[channel.key] ? "ON" : "OFF"}
-                                  </button>
-                                ))}
-                              </div>
-                              <button
-                                type="button"
-                                className="mp-subscription-btn warn"
-                                onClick={() => handleUnsubscribeInterest(interestId)}
-                                disabled={saving}
-                              >
-                                {saving ? "처리 중..." : "구독 해지"}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              <div className="mp-card mp-section">
-                <div className="mp-section-head">
-                  <h3 className="mp-section-title">빠른 구독 추가</h3>
-                  <span className="mp-count">가능 {availableInterests.length}건</span>
-                </div>
-                <div className="mp-list">
-                  {availableInterests.length === 0 ? (
-                    <div className="mp-empty">추가로 구독 가능한 항목이 없습니다.</div>
-                  ) : (
-                    availableInterests.slice(0, 12).map((row) => {
-                      const interestId = Number(row?.interestId);
-                      const saving = !!subscriptionSavingMap[interestId];
-                      return (
-                        <div className="mp-item" key={`sub-available-${interestId}`}>
-                          <div className="mp-subscription-head">
-                            <div className="mp-subscription-meta">
-                              <div className="mp-item-title">
-                                {interestLabel(row?.interestName)}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="mp-subscription-btn"
-                              onClick={() => handleSubscribeInterest(interestId, row)}
-                              disabled={saving}
-                            >
-                              {saving ? "처리 중..." : "구독하기"}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </section>
-          </>
-        ) : null}
-
-        {activeTab === "events" ? (
-          <section className="mp-card mp-section">
-            <div className="mp-section-head">
-              <h3 className="mp-section-title">신청 행사 목록</h3>
-              <span className="mp-count">총 {registrations.length}건</span>
-            </div>
-            <div className="mp-list">
-              {registrations.length === 0 ? (
-                <div className="mp-empty">신청 이력이 없습니다.</div>
-              ) : (
-                registrations.map((item) => renderRegistrationItem(item))
-              )}
-            </div>
-          </section>
-        ) : null}
-
-        {activeTab === "history" ? (
-          <section className="mp-card mp-section">
-            <div className="mp-section-head">
-              <h3 className="mp-section-title">참여 완료 이력</h3>
-              <span className="mp-count">총 {participationRows.length}건</span>
-            </div>
-            <div className="mp-list">
-              {participationRows.length === 0 ? (
-                <div className="mp-empty">QR 체크인 기반 참여 이력이 없습니다.</div>
-              ) : (
-                participationRows.map((row) => (
-                  <div className="mp-item" key={`history-${row.eventId}`}>
-                    <div className="mp-item-top">
-                      <div className="mp-item-title">{row.eventName}</div>
-                      <span className="mp-badge approved">참여 완료</span>
-                    </div>
-                    <div className="mp-item-meta">
-                      <span>{row.location}</span>
-                      <span>방문 {row.totalVisits}회</span>
-                      <span>부스 {row.boothCount}개</span>
-                      <span>최근 방문 {fmtDateTime(row.lastVisitedAt)}</span>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </section>
-        ) : null}
 
-        {activeTab === "notifications" ? (
-          <section className="mp-card mp-section">
-            <div className="mp-section-head">
-              <h3 className="mp-section-title">수신 알림 목록</h3>
-              <span className="mp-count">총 {notifications.length}건</span>
-            </div>
-            <div className="mp-list">
-              {notifications.length === 0 ? (
-                <div className="mp-empty">수신한 알림이 없습니다.</div>
-              ) : (
-                notifications.map((noti) =>
-                  renderNotificationItem(noti, true),
-                )
-              )}
-            </div>
-          </section>
-        ) : null}
+                  {/* 나의 일정 */}
+                  <div className="mp-card mp-section">
+                    <div className="mp-section-inner">
+                      <div className="mp-section-head">
+                        <h3 className="mp-section-title">{calYear}년 {calMonth + 1}월 나의 일정</h3>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <button type="button" className="mp-cal-nav" onClick={() => { const d = new Date(calYear, calMonth - 1, 1); setCalYear(d.getFullYear()); setCalMonth(d.getMonth()); }}>‹</button>
+                          <button type="button" className="mp-cal-today" onClick={() => { const t = new Date(); setCalYear(t.getFullYear()); setCalMonth(t.getMonth()); setCalSelected(t.getDate()); }}>오늘</button>
+                          <button type="button" className="mp-cal-nav" onClick={() => { const d = new Date(calYear, calMonth + 1, 1); setCalYear(d.getFullYear()); setCalMonth(d.getMonth()); }}>›</button>
+                        </div>
+                      </div>
+                      <div className="mp-cal">
+                        <div className="mp-cal-header">
+                          {["월","화","수","목","금","토","일"].map(d => <div key={d} className="mp-cal-dow">{d}</div>)}
+                        </div>
+                        <div className="mp-cal-body">
+                          {(() => {
+                            const first = new Date(calYear, calMonth, 1);
+                            const lastDate = new Date(calYear, calMonth + 1, 0).getDate();
+                            const startDay = (first.getDay() + 6) % 7;
+                            const cells = [];
+                            for (let i = 0; i < startDay; i++) cells.push(<div key={`e-${i}`} className="mp-cal-cell empty" />);
+                            for (let d = 1; d <= lastDate; d++) {
+                              const dateStr = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+                              const hasEvent = calEvents.some(ev => ev.date === dateStr);
+                              const isToday = d === new Date().getDate() && calMonth === new Date().getMonth() && calYear === new Date().getFullYear();
+                              const isSel = d === calSelected;
+                              cells.push(
+                                <div key={d} className={`mp-cal-cell${isToday ? " today" : ""}${isSel ? " selected" : ""}${hasEvent ? " has-event" : ""}`} onClick={() => setCalSelected(d)}>
+                                  {d}
+                                </div>
+                              );
+                            }
+                            return cells;
+                          })()}
+                        </div>
+                      </div>
+                      <div className="mp-cal-events">
+                        {(() => {
+                          const dateStr = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(calSelected).padStart(2,"0")}`;
+                          const dayEvents = calEvents.filter(ev => ev.date === dateStr);
+                          if (dayEvents.length === 0) return (
+                            <div style={{ padding: "10px 0", textAlign: "center", fontSize: 12, color: "#ccc" }}>선택한 날짜에 일정이 없습니다</div>
+                          );
+                          return dayEvents.map((ev, i) => (
+                            <div key={i} className="mp-cal-event-item">
+                              <span className="mp-cal-event-time">{ev.time}</span>
+                              <div className="mp-cal-event-info">
+                                <span className="mp-cal-event-name">{ev.name}</span>
+                                {ev.location && <span className="mp-cal-event-loc">{ev.location}</span>}
+                              </div>
+                              {ev.status && <span className="mp-cal-event-status">{ev.status}</span>}
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 최근 알림 */}
+                  <div className="mp-card mp-section">
+                    <div className="mp-section-inner">
+                      <div className="mp-section-head">
+                        <h3 className="mp-section-title">최근 알림</h3>
+                        <button type="button" className="mp-more-link" onClick={() => setActiveTab("notifications")}>더보기 ›</button>
+                      </div>
+                      <div className="mp-list">
+                        {notifications.slice(0, 4).length === 0 ? (
+                          <div className="mp-empty">
+                            <div className="mp-empty-icon"><BellOff size={26} strokeWidth={1.5} /></div>
+                            <span>수신한 알림이 없습니다</span>
+                          </div>
+                        ) : (
+                          notifications
+                            .slice(0, 4)
+                            .map((noti) => renderNotificationItem(noti))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 반려동물 관리 */}
+                  <div className="mp-card mp-section">
+                    <div className="mp-section-inner">
+                      <div className="mp-section-head">
+                        <h3 className="mp-section-title">반려동물</h3>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span className="mp-count">{pets.length}마리</span>
+                          <button type="button" className="mp-btn primary" style={{ padding: "5px 10px", fontSize: 11, borderRadius: 6 }} onClick={() => navigate("/mypage/pets/new")}>+ 등록</button>
+                        </div>
+                      </div>
+                      <div className="mp-list">
+                        {pets.length === 0 ? (
+                          <div className="mp-empty">
+                            <div className="mp-empty-icon"><PawPrint size={26} strokeWidth={1.5} /></div>
+                            <span>등록된 반려동물이 없습니다</span>
+                          </div>
+                        ) : (
+                          pets.slice(0, 3).map((pet) => (
+                            <div className="mp-item" key={`pet-${pet?.petId}`} style={{ padding: "14px 16px" }}>
+                              <div className="mp-item-top">
+                                <div className="mp-item-title" style={{ fontSize: 14 }}>{pet?.petName || "이름 없음"}</div>
+                                <button type="button" className="mp-btn ghost" style={{ padding: "4px 8px", fontSize: 11, borderRadius: 6 }} onClick={() => navigate(`/mypage/pets/${pet?.petId}/edit`)}>수정</button>
+                              </div>
+                              <div className="mp-item-meta" style={{ fontSize: 11.5 }}>
+                                <span>{formatPetBreed(pet?.petBreed)}</span>
+                                <span>{pet?.petAge ?? "-"}살</span>
+                                <span>{formatPetWeight(pet?.petWeight)}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 관심 구독 */}
+                {interests.length > 0 && (
+                  <div className="mp-card" style={{ marginBottom: 20 }}>
+                    <div className="mp-section-inner">
+                      <div className="mp-section-head">
+                        <h3 className="mp-section-title">관심 구독</h3>
+                        <span className="mp-count">{activeSubscriptions.length}개 구독 중</span>
+                      </div>
+                      <div className="mp-sub-grid">
+                        {interests.filter(r => r?.isActive !== false).map((row) => {
+                          const interestId = Number(row?.interestId);
+                          const isSubscribed = activeSubscriptionMap.has(interestId);
+                          const saving = !!subscriptionSavingMap[interestId];
+                          return (
+                            <button
+                              key={interestId}
+                              type="button"
+                              className={`mp-sub-card${isSubscribed ? " active" : ""}`}
+                              disabled={saving}
+                              onClick={() => isSubscribed ? handleUnsubscribeInterest(interestId) : handleSubscribeInterest(interestId, row)}
+                            >
+                              <span className="mp-sub-card-check">
+                                {isSubscribed
+                                  ? <CheckCircle2 size={18} strokeWidth={2.2} />
+                                  : <Circle size={18} strokeWidth={1.5} />}
+                              </span>
+                              <span className="mp-sub-card-icon">
+                                {(() => {
+                                  const IconComp = INTEREST_ICON[String(row?.interestName || "").toUpperCase()] || Star;
+                                  return <IconComp size={38} strokeWidth={1.5} />;
+                                })()}
+                              </span>
+                              <span className="mp-sub-card-label">
+                                {interestLabel(row?.interestName)}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              </>
+            ) : null}
+
+            {activeTab === "events" ? (
+              <div className="mp-card mp-section">
+                <div className="mp-section-inner">
+                  <div className="mp-section-head">
+                    <h3 className="mp-section-title">신청 행사 목록</h3>
+                    <span className="mp-count">총 {registrations.length}건</span>
+                  </div>
+                  <div className="mp-list">
+                    {registrations.length === 0 ? (
+                      <div className="mp-empty">
+                        <div className="mp-empty-icon"><CalendarDays size={26} strokeWidth={1.5} /></div>
+                        <span>신청 이력이 없습니다</span>
+                      </div>
+                    ) : (
+                      registrations.map((item) => renderRegistrationItem(item))
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {activeTab === "history" ? (
+              <div className="mp-card mp-section">
+                <div className="mp-section-inner">
+                  <div className="mp-section-head">
+                    <h3 className="mp-section-title">참여 완료 이력</h3>
+                    <span className="mp-count">총 {participationRows.length}건</span>
+                  </div>
+                  <div className="mp-list">
+                    {participationRows.length === 0 ? (
+                      <div className="mp-empty">
+                        <div className="mp-empty-icon"><QrCode size={26} strokeWidth={1.5} /></div>
+                        <span>참여 이력이 없습니다</span>
+                      </div>
+                    ) : (
+                      participationRows.map((row) => (
+                        <div className="mp-item" key={`history-${row.eventId}`}>
+                          <div className="mp-item-top">
+                            <div className="mp-item-title">{row.eventName}</div>
+                            <span className="mp-badge approved">참여 완료</span>
+                          </div>
+                          <div className="mp-item-meta">
+                            <span>{row.location}</span>
+                            <span>방문 {row.totalVisits}회</span>
+                            <span>부스 {row.boothCount}개</span>
+                            <span>최근 방문 {fmtDateTime(row.lastVisitedAt)}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {activeTab === "notifications" ? (
+              <div className="mp-card mp-section">
+                <div className="mp-section-inner">
+                  <div className="mp-section-head">
+                    <h3 className="mp-section-title">수신 알림 목록</h3>
+                    <span className="mp-count">총 {notifications.length}건</span>
+                  </div>
+                  <div className="mp-list">
+                    {notifications.length === 0 ? (
+                      <div className="mp-empty">
+                        <div className="mp-empty-icon"><BellOff size={26} strokeWidth={1.5} /></div>
+                        <span>수신한 알림이 없습니다</span>
+                      </div>
+                    ) : (
+                      notifications.map((noti) =>
+                        renderNotificationItem(noti, true),
+                      )
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </main>
 
     </div>

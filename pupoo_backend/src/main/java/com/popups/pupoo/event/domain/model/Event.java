@@ -47,6 +47,7 @@ public class Event {
     @Column(name = "location", length = 255)
     private String location;
 
+    // TODO(step-01-storage-policy): keep the legacy column name for now, but store a storage key instead of a full URL.
     @Column(name = "image_url")
     private String imageUrl;
 

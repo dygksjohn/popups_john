@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
-import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 import {
   getProgramImage,
   loadImageCache as loadProgramImageCache,
@@ -411,9 +411,9 @@ export default function SessionDetail() {
   const catColor = { bg: catMeta.bg, color: catMeta.color };
   const showSpeakerSection = normalizedCategory === "SESSION";
   const st = statusInfo(program);
-  const heroImg = getProgramImage(programId) || program?.imageUrl || null;
-  const hasImg = !!heroImg && !imgFailed;
-  const speakerImageUrl = toPublicAssetUrl(speaker?.speakerImageUrl);
+  const heroImg = resolveImageUrl(getProgramImage(programId) || program?.imageUrl);
+  const hasImg = Boolean(program) && !imgFailed;
+  const speakerImageUrl = resolveImageUrl(speaker?.speakerImageUrl);
 
   const goSpeaker = () => {
     if (!speaker?.speakerId) return;
@@ -681,7 +681,7 @@ export default function SessionDetail() {
                 {eventInfo.imageUrl ? (
                   <img
                     className="sd-event-thumb"
-                    src={eventInfo.imageUrl}
+                    src={resolveImageUrl(eventInfo.imageUrl)}
                     alt=""
                   />
                 ) : (

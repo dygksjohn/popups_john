@@ -23,14 +23,10 @@ import {
   Info,
 } from "lucide-react";
 import ds, { statusMap } from "../shared/designTokens";
-const toAbsUrl = (url) => {
-  if (!url) return null;
-  if (url.startsWith("http")) return url;
-  const base = String(import.meta.env.VITE_API_BASE_URL || "")
-    .trim()
-    .replace(/\/$/, "");
-  return base + url;
-};
+import {
+  resolveImageUrl,
+  toPublicAssetUrl,
+} from "../../../shared/utils/publicAssetUrl";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 import {
@@ -1088,7 +1084,7 @@ function ParticipantCard({
       >
         {p.imageUrl ? (
           <img
-            src={toAbsUrl(p.imageUrl)}
+            src={resolveImageUrl(p.imageUrl)}
             alt={p.petName}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
             onError={(e) => {
@@ -2001,7 +1997,7 @@ export default function ContestManage({
                   {hasImg ? (
                     <div style={{ position: "absolute", inset: 0 }}>
                       <img
-                        src={ev.imageUrl}
+                        src={resolveImageUrl(ev.imageUrl)}
                         alt=""
                         style={{
                           width: "100%",
@@ -2106,7 +2102,7 @@ export default function ContestManage({
                           }}
                         >
                           <img
-                            src={ev.imageUrl}
+                            src={resolveImageUrl(ev.imageUrl)}
                             alt=""
                             style={{
                               width: "100%",
@@ -2620,21 +2616,21 @@ export default function ContestManage({
                 marginBottom: 18,
                 position: "relative",
                 overflow: "hidden",
-                background: selectedContest.imageUrl
-                  ? `url(${selectedContest.imageUrl}) center/cover no-repeat`
+                background: toPublicAssetUrl(selectedContest.imageUrl)
+                  ? `url(${toPublicAssetUrl(selectedContest.imageUrl)}) center/cover no-repeat`
                   : selectedContest.status === "active"
                     ? "linear-gradient(135deg, #052e16 0%, #14532d 60%, #166534 100%)"
                     : selectedContest.status === "ended"
                       ? "linear-gradient(135deg, #111827 0%, #1f2937 100%)"
                       : "linear-gradient(135deg, #0f172a 0%, #1e2d45 60%, #162032 100%)",
-                border: selectedContest.imageUrl
+                border: toPublicAssetUrl(selectedContest.imageUrl)
                   ? "none"
                   : "1px solid rgba(255,255,255,0.08)",
                 minHeight: 110,
               }}
             >
               {/* 이미지 위에 어두운 오버레이 */}
-              {selectedContest.imageUrl && (
+              {toPublicAssetUrl(selectedContest.imageUrl) && (
                 <div
                   style={{
                     position: "absolute",
@@ -2646,7 +2642,7 @@ export default function ContestManage({
                 />
               )}
               {/* 이미지 없을 때 장식 원 */}
-              {!selectedContest.imageUrl && (
+              {!toPublicAssetUrl(selectedContest.imageUrl) && (
                 <div
                   style={{
                     position: "absolute",

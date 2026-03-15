@@ -24,6 +24,7 @@ import { boardApi } from "../../../app/http/boardApi";
 import { fileApi } from "../../../app/http/fileApi";
 import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
+import BadgeTag from "./shared/BadgeTag";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 
@@ -356,7 +357,7 @@ function DetailModal({
           }}
         >
           <div style={{ flex: 1, paddingRight: 16 }}>
-            <span style={badge.style}>{badge.text}</span>
+            <BadgeTag badge={badge} />
             <h2
               style={{
                 fontSize: 20,
@@ -857,7 +858,7 @@ export default function FreeBoard() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
       <main
         style={{
-          width: "min(1350px, calc(100% - 50px))",
+          width: "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
           padding: "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
@@ -1003,7 +1004,7 @@ export default function FreeBoard() {
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      padding: "15px 16px",
+                      padding: "18px 16px",
                       borderBottom: "1px solid #f0f0f0",
                       cursor: "pointer",
                       transition: "background 0.15s",
@@ -1011,14 +1012,14 @@ export default function FreeBoard() {
                     onMouseEnter={(e) => (e.currentTarget.style.background = "#f9f9f9")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    <span style={{ width: 60, textAlign: "center", fontSize: 13, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>
-                    <span style={{ flex: 1, fontSize: 14, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>
+                    <span style={{ flex: 1, fontSize: 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {item.postTitle}
                       {(commentCountMap[item.postId] ?? 0) > 0 && (
-                        <span style={{ fontSize: 12, color: "#9ca3af", marginLeft: 6 }}>({commentCountMap[item.postId]})</span>
+                        <span style={{ fontSize: 13, color: "#9ca3af", marginLeft: 6 }}>({commentCountMap[item.postId]})</span>
                       )}
                     </span>
-                    <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
                       {fmtDate(item.createdAt)}
                     </span>
                   </div>

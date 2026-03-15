@@ -25,7 +25,10 @@ import {
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
-import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
+import {
+  resolveImageUrl,
+  toPublicAssetUrl,
+} from "../../../shared/utils/publicAssetUrl";
 
 const styles = `
 .card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent;}
@@ -1075,7 +1078,7 @@ const handleDeleteAll = async () => {
                             {hasImg ? (
                               <div style={{ position: "absolute", inset: 0 }}>
                                 <img
-                                  src={ev.imageUrl}
+                                  src={resolveImageUrl(ev.imageUrl)}
                                   alt=""
                                   style={{
                                     width: "100%",
@@ -1184,7 +1187,7 @@ const handleDeleteAll = async () => {
                                     }}
                                   >
                                     <img
-                                      src={ev.imageUrl}
+                                      src={resolveImageUrl(ev.imageUrl)}
                                       alt=""
                                       style={{
                                         width: "100%",
@@ -1612,7 +1615,7 @@ const handleDeleteAll = async () => {
                           >
                             {r.imageUrl && (
                               <img
-                                src={r.imageUrl}
+                                src={resolveImageUrl(r.imageUrl)}
                                 alt=""
                                 style={{
                                   width: 36,

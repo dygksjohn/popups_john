@@ -9,8 +9,6 @@ resources:
   - ai-serviceaccount.yaml
   - backend-configmap.yaml
   - ai-configmap.yaml
-  - backend-secret.example.yaml
-  - ai-secret.example.yaml
   - backend-deployment.yaml
   - backend-service.yaml
   - backend-hpa.yaml
@@ -18,3 +16,4 @@ resources:
   - ai-service.yaml
   - ai-hpa.yaml
   - ingress.yaml
+  - ai-ingress.yaml

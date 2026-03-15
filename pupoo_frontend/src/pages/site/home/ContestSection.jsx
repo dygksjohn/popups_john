@@ -13,6 +13,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { programApi } from "../../../app/http/programApi";
+import {
+  createImageFallbackHandler,
+  resolveImageUrl,
+} from "../../../shared/utils/publicAssetUrl";
 
 /* ─── 상수 ─── */
 const DOG_FALLBACK = [
@@ -23,14 +27,6 @@ const DOG_FALLBACK = [
 ];
 const fallbackImg = (id) =>
   DOG_FALLBACK[Math.abs(Number(id) || 0) % DOG_FALLBACK.length];
-const toAbsUrl = (url) => {
-  if (!url) return null;
-  if (url.startsWith("http")) return url;
-  const base = String(import.meta.env.VITE_API_BASE_URL || "")
-    .trim()
-    .replace(/\/$/, "");
-  return base + url;
-};
 
 /* ─── 단계 판별 ─── */
 function getPhase(startAt, endAt) {
@@ -207,14 +203,9 @@ function CandidateCard({
         }}
       >
         <img
-          src={
-            toAbsUrl(candidate.imageUrl) ||
-            fallbackImg(candidate.programApplyId)
-          }
+          src={resolveImageUrl(candidate.imageUrl, fallbackImg(candidate.programApplyId))}
           alt={candidate.petName}
-          onError={(e) => {
-            e.target.src = fallbackImg(candidate.programApplyId);
-          }}
+          onError={createImageFallbackHandler(fallbackImg(candidate.programApplyId))}
           style={{
             position: "absolute",
             inset: 0,
@@ -592,7 +583,7 @@ export default function ContestSection() {
             }}
           >
             <div
-              style={{ maxWidth: 1200, margin: "0 auto", padding: "0 25px" }}
+              style={{ maxWidth: 1400, margin: "0 auto", padding: "0 20px" }}
             >
               {/* ── 헤더 ── */}
               <div
@@ -932,16 +923,14 @@ export default function ContestSection() {
                       }}
                     >
                       <img
-                        src={winner.imageUrl}
+                        src={resolveImageUrl(winner.imageUrl, fallbackImg(winner.programApplyId))}
                         alt={winner.petName}
                         style={{
                           width: "100%",
                           height: "100%",
                           objectFit: "cover",
                         }}
-                        onError={(e) => {
-                          e.target.src = fallbackImg(winner.programApplyId);
-                        }}
+                        onError={createImageFallbackHandler(fallbackImg(winner.programApplyId))}
                       />
                     </div>
                   )}

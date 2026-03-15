@@ -10,4 +10,5 @@ import lombok.Setter;
 @NoArgsConstructor
 public class KakaoExchangeRequest {
     private String code;
+    private String redirectUri;
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, MessageCircle, Paperclip } from "lucide-react";
+import { AlertTriangle, Flag, MessageCircle, Paperclip } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { postApi } from "../../../app/http/postApi";
 import { postReplyApi } from "../../../app/http/replyApi";
@@ -17,14 +17,14 @@ function fmtDate(value) {
 }
 
 const sectionStyle = {
-  padding: "0 32px 32px",
+  padding: 0,
+  paddingBottom: 32,
 };
 
 const blockStyle = {
-  border: "1px solid #e2e8f0",
-  borderRadius: 14,
-  padding: "18px 20px",
-  background: "#f8fafc",
+  borderTop: "1px solid #e5e7eb",
+  padding: "28px 0",
+  background: "transparent",
 };
 
 export default function CommunityPostDetailPage({
@@ -343,13 +343,15 @@ export default function CommunityPostDetailPage({
                 rows={4}
                 style={{
                   width: "100%",
-                  borderRadius: 12,
-                  border: "1px solid #cbd5e1",
-                  padding: 12,
+                  borderRadius: 8,
+                  border: "1px solid #d1d5db",
+                  padding: "12px 14px",
                   resize: "vertical",
                   fontSize: 14,
                   lineHeight: 1.6,
                   fontFamily: "'Noto Sans KR', sans-serif",
+                  outline: "none",
+                  transition: "border-color .15s",
                 }}
               />
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
@@ -358,13 +360,13 @@ export default function CommunityPostDetailPage({
                   onClick={submitReply}
                   disabled={replySubmitting}
                   style={{
-                    border: "none",
-                    borderRadius: 10,
-                    background: "#1d4ed8",
+                    border: "1px solid #111827",
+                    borderRadius: 6,
+                    background: "#111827",
                     color: "#fff",
-                    padding: "10px 16px",
+                    padding: "10px 20px",
                     fontSize: 13,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: replySubmitting ? "not-allowed" : "pointer",
                     opacity: replySubmitting ? 0.6 : 1,
                   }}
@@ -382,7 +384,7 @@ export default function CommunityPostDetailPage({
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 {replies.map((reply) => (
-                  <div id={`reply-${reply.replyId}`} key={reply.replyId} style={{ borderRadius: 12, background: "#fff", border: "1px solid #e2e8f0", padding: "14px 16px", scrollMarginTop: 120 }}>
+                  <div id={`reply-${reply.replyId}`} key={reply.replyId} style={{ borderBottom: "1px solid #f3f4f6", padding: "16px 0", scrollMarginTop: 120 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
                       <div style={{ fontSize: 12, color: "#64748b" }}>
                         {reply.writerEmail || `user#${reply.userId || "-"}`} · {fmtDate(reply.createdAt)}
@@ -393,14 +395,19 @@ export default function CommunityPostDetailPage({
                         style={{
                           border: "none",
                           background: "none",
-                          color: "#b91c1c",
-                          fontSize: 12,
-                          fontWeight: 800,
+                          color: "#d1d5db",
                           cursor: "pointer",
-                          padding: 0,
+                          padding: 4,
+                          borderRadius: 4,
+                          display: "flex",
+                          alignItems: "center",
+                          transition: "color .15s",
                         }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "#dc2626"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "#d1d5db"; }}
+                        title="신고하기"
                       >
-                        신고
+                        <Flag size={14} />
                       </button>
                     </div>
                     <div style={{ fontSize: 14, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>

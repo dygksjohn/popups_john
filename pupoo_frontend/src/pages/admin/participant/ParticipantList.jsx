@@ -48,6 +48,7 @@ import DATA from "../shared/data";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 import { sortAdminEventsByOperationalPriority } from "../shared/adminStatus";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 /* ── 스타일 ── */
 const styles = `
@@ -983,7 +984,7 @@ export default function ParticipantList({ subTab = "list" }) {
                             {hasImg ? (
                               <div style={{ position: "absolute", inset: 0 }}>
                                 <img
-                                  src={ev.imageUrl}
+                                  src={resolveImageUrl(ev.imageUrl)}
                                   alt=""
                                   style={{
                                     width: "100%",
