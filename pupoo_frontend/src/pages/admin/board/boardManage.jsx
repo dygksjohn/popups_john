@@ -19,6 +19,7 @@ import DATA from "../shared/data";
 import { adminQnaApi, unwrap } from "../../../api/qnaApi";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
+import BannedWordsManage from "./BannedWordsManage";
 
 const authHeaders = () => {
   const t = getToken();
@@ -1432,6 +1433,9 @@ function LoadingIndicator() {
    메인 컴포넌트
    ═══════════════════════════════════════════ */
 export default function BoardManage({ subTab = "free" }) {
+  if (subTab === "banned") {
+    return <BannedWordsManage />;
+  }
   const boardType = subTab || "free";
   const config = BOARD_CONFIG[boardType] || BOARD_CONFIG.free;
   const isQna = boardType === "qna";

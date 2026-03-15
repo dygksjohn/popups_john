@@ -1,6 +1,6 @@
 package com.popups.pupoo.common.chatbot.api;
 
-import com.popups.pupoo.common.config.AiModerationProperties;
+import com.popups.pupoo.board.bannedword.config.ModerationProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +28,7 @@ public class ChatbotProxyController {
 
     private final WebClient webClient;
 
-    public ChatbotProxyController(WebClient.Builder builder, AiModerationProperties props) {
+    public ChatbotProxyController(WebClient.Builder builder, ModerationProperties props) {
         this.webClient = builder
                 .baseUrl(props.getBaseUrl())
                 .build();

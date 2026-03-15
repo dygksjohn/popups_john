@@ -25,9 +25,26 @@ class Settings(BaseSettings):
     db_write_timeout: int = 10
     db_ssl_ca: str = ""
 
-    redis_url: str = "redis://localhost:6379/0"
-    moderation_threshold: float = 0.7
-    hatebert_model: str = "GroNLP/hateBERT"
+    # watsonx.ai 설정 (RAG용)
+    watsonx_api_key: str = ""
+    watsonx_url: str = ""
+    watsonx_project_id: str = ""
+    watsonx_region: str = ""
+    watsonx_llm_id: str = ""
+    watsonx_embedding_model_id: str = ""
+    watsonx_embedding_dim: int = 1024
+
+    # 임베딩 백엔드 선택: ""(자동) | bge-m3
+    embedding_backend: str = ""
+
+    # Milvus 설정 (셀프호스팅 Vector DB). Windows에서 localhost가 IPv6로 연결될 수 있어 127.0.0.1 권장
+    milvus_host: str = "127.0.0.1"
+    milvus_port: int = 19530
+    milvus_tls: bool = False
+    milvus_username: str | None = None
+    milvus_password: str | None = None
+    milvus_collection: str = "policy_vectors"
+
     if SettingsConfigDict is not None:
         model_config = SettingsConfigDict(
             env_file=".env",

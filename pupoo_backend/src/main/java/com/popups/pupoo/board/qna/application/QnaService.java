@@ -2,8 +2,9 @@
 package com.popups.pupoo.board.qna.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.application.ModerationClient;
+import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
-import com.popups.pupoo.board.bannedword.dto.BannedWordDetection;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
@@ -32,6 +33,7 @@ public class QnaService {
     private final QnaRepository qnaRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final ModerationClient moderationClient;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
 
@@ -44,8 +46,13 @@ public class QnaService {
         Board qnaBoard = boardRepository.findByBoardType(BoardType.QNA)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QNA 게시판(board_type=QNA)이 존재하지 않습니다."));
 
-        // 금칙어 검증 (QnA 작성 포함)
-        List<BannedWordDetection> detections = bannedWordService.validate(qnaBoard.getBoardId(), request.getTitle(), request.getContent());
+        bannedWordService.validate(qnaBoard.getBoardId(), request.getTitle(), request.getContent());
+        String textToModerate = (request.getTitle() != null ? request.getTitle() : "") + " " + (request.getContent() != null ? request.getContent() : "");
+        ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), qnaBoard.getBoardId(), "POST");
+        if (modResult != null && modResult.isBlock()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    modResult.getReason() != null ? modResult.getReason() : "QnA 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+        }
 
         Post post = Post.builder()
                 .board(qnaBoard)
@@ -62,8 +69,8 @@ public class QnaService {
                 .build();
 
         Post saved = qnaRepository.save(post);
-        if (!detections.isEmpty()) {
-            bannedWordService.logDetections(qnaBoard.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, detections);
+        if (modResult != null && modResult.isReview()) {
+            bannedWordService.logAiModeration(qnaBoard.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, modResult);
         }
         return toResponse(saved);
     }
@@ -108,15 +115,9 @@ public class QnaService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다.");
         }
 
-        // 금칙어 검증 (QnA 수정 포함)
-        List<BannedWordDetection> detections = bannedWordService.validate(post.getBoard().getBoardId(), request.getTitle(), request.getContent());
-
         post.updateTitleAndContent(request.getTitle(), request.getContent());
 
         Post saved = qnaRepository.save(post);
-        if (!detections.isEmpty()) {
-            bannedWordService.logDetections(post.getBoard().getBoardId(), post.getPostId(), BannedLogContentType.POST, userId, detections);
-        }
         return toResponse(saved);
     }
 
@@ -171,15 +172,13 @@ public class QnaService {
                 ? userRepository.findById(post.getUserId()).map(u -> u.getEmail()).orElse(null)
                 : null;
         Long boardId = post.getBoard() != null ? post.getBoard().getBoardId() : null;
-        String maskedTitle = boardId != null ? bannedWordService.mask(boardId, post.getPostTitle()) : post.getPostTitle();
-        String maskedContent = boardId != null ? bannedWordService.mask(boardId, post.getContent()) : post.getContent();
         return QnaResponse.builder()
                 .qnaId(post.getPostId())
                 .boardId(post.getBoard().getBoardId())
                 .userId(post.getUserId())
                 .writerEmail(writerEmail)
-                .title(maskedTitle)
-                .content(maskedContent)
+                .title(post.getPostTitle())
+                .content(post.getContent())
                 .status(post.getAnsweredAt() == null ? QnaStatus.WAITING : QnaStatus.ANSWERED)
                 .answerContent(post.getAnswerContent())
                 .answeredAt(post.getAnsweredAt())
