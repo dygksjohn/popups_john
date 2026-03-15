@@ -29,29 +29,69 @@ class AiSeedValidator:
         program_map = {row["program_id"]: row for row in programs}
         planned_event_ids = {row["event_id"] for row in events if row["status"] == "PLANNED"}
 
-        self._assert_pair_unique(event_ts, "event_id", "timestamp_minute", "ai_event_congestion_timeseries (event_id,timestamp_minute) 중복")
-        self._assert_pair_unique(program_ts, "program_id", "timestamp_minute", "ai_program_congestion_timeseries (program_id,timestamp_minute) 중복")
+        event_ts_map, event_ranges = self._build_ts_index(event_ts, "event_id")
+        program_ts_map, program_ranges = self._build_ts_index(program_ts, "program_id")
+
+        self._assert_pair_unique(
+            event_ts,
+            "event_id",
+            "timestamp_minute",
+            "ai_event_congestion_timeseries duplicate (event_id, timestamp_minute)",
+        )
+        self._assert_pair_unique(
+            program_ts,
+            "program_id",
+            "timestamp_minute",
+            "ai_program_congestion_timeseries duplicate (program_id, timestamp_minute)",
+        )
         self._assert_unique_key(
             training,
             keys=("target_type", "event_id", "program_id", "base_timestamp"),
-            message="ai_training_dataset (target_type,event_id,program_id,base_timestamp) 중복",
+            message="ai_training_dataset duplicate (target_type,event_id,program_id,base_timestamp)",
         )
 
-        self._assert_fk_exists(event_ts, "event_id", set(event_map.keys()), "ai_event_congestion_timeseries.event_id FK 위반")
-        self._assert_fk_exists(program_ts, "program_id", set(program_map.keys()), "ai_program_congestion_timeseries.program_id FK 위반")
-        self._assert_fk_exists(program_ts, "event_id", set(event_map.keys()), "ai_program_congestion_timeseries.event_id FK 위반")
-        self._assert_fk_nullable(training, "event_id", set(event_map.keys()), "ai_training_dataset.event_id FK 위반")
-        self._assert_fk_nullable(training, "program_id", set(program_map.keys()), "ai_training_dataset.program_id FK 위반")
-        self._assert_fk_nullable(prediction, "event_id", set(event_map.keys()), "ai_prediction_logs.event_id FK 위반")
-        self._assert_fk_nullable(prediction, "program_id", set(program_map.keys()), "ai_prediction_logs.program_id FK 위반")
+        self._assert_fk_exists(
+            event_ts,
+            "event_id",
+            set(event_map.keys()),
+            "ai_event_congestion_timeseries.event_id FK violation",
+        )
+        self._assert_fk_exists(
+            program_ts,
+            "program_id",
+            set(program_map.keys()),
+            "ai_program_congestion_timeseries.program_id FK violation",
+        )
+        self._assert_fk_exists(
+            program_ts,
+            "event_id",
+            set(event_map.keys()),
+            "ai_program_congestion_timeseries.event_id FK violation",
+        )
+        self._assert_fk_nullable(training, "event_id", set(event_map.keys()), "ai_training_dataset.event_id FK violation")
+        self._assert_fk_nullable(
+            training,
+            "program_id",
+            set(program_map.keys()),
+            "ai_training_dataset.program_id FK violation",
+        )
+        self._assert_fk_nullable(prediction, "event_id", set(event_map.keys()), "ai_prediction_logs.event_id FK violation")
+        self._assert_fk_nullable(
+            prediction,
+            "program_id",
+            set(program_map.keys()),
+            "ai_prediction_logs.program_id FK violation",
+        )
 
-        self._assert_event_time_range(event_ts, event_map)
-        self._assert_program_time_range(program_ts, program_map)
+        self._assert_event_time_range(event_ranges, event_map)
+        self._assert_program_time_range(program_ranges, program_map)
         self._assert_program_event_consistency(program_ts, program_map)
         self._assert_no_planned_timeseries(event_ts, program_ts, planned_event_ids, program_map)
 
         self._assert_training_logic(training, program_map)
+        self._assert_training_timestamps(training, event_ts_map, program_ts_map)
         self._assert_prediction_logic(prediction, program_map)
+        self._assert_prediction_timestamps(prediction, event_ts_map, program_ts_map)
         self._assert_event_ck(event_ts)
         self._assert_program_ck(program_ts)
         self._assert_training_ck(training)
@@ -66,7 +106,16 @@ class AiSeedValidator:
             "check constraint sanity checks passed",
             "rerunnable SQL shape check passed",
         ]
-        summary.extend(self._build_stats(event_ts, program_ts, training, prediction, events, programs))
+        summary.extend(
+            self._build_stats(
+                event_rows=event_ts,
+                program_rows=program_ts,
+                training_rows=training,
+                prediction_rows=prediction,
+                events=events,
+                programs=programs,
+            )
+        )
         summary.extend(self._build_row_count_messages(ai_data))
         return summary
 
@@ -88,6 +137,24 @@ class AiSeedValidator:
         if isinstance(value, datetime):
             return value
         return datetime.fromisoformat(str(value).replace(" ", "T"))
+
+    def _build_ts_index(
+        self,
+        rows: list[dict[str, Any]],
+        id_key: str,
+    ) -> tuple[dict[int, set[datetime]], dict[int, tuple[datetime, datetime]]]:
+        ts_map: dict[int, set[datetime]] = defaultdict(set)
+        ranges: dict[int, tuple[datetime, datetime]] = {}
+        for row in rows:
+            entity_id = int(row[id_key])
+            ts = self._as_dt(row["timestamp_minute"])
+            ts_map[entity_id].add(ts)
+            if entity_id not in ranges:
+                ranges[entity_id] = (ts, ts)
+            else:
+                start, end = ranges[entity_id]
+                ranges[entity_id] = (min(start, ts), max(end, ts))
+        return dict(ts_map), ranges
 
     @staticmethod
     def _assert_pair_unique(rows: list[dict[str, Any]], k1: str, k2: str, message: str) -> None:
@@ -122,37 +189,49 @@ class AiSeedValidator:
             if value not in target_ids:
                 raise ValueError(f"{message}: {value}")
 
-    def _assert_event_time_range(self, rows: list[dict[str, Any]], event_map: dict[int, dict[str, Any]]) -> None:
-        for row in rows:
-            event = event_map[row["event_id"]]
-            ts = self._as_dt(row["timestamp_minute"])
-            start_at = self._as_dt(event["start_at"])
-            end_at = self._as_dt(event["end_at"])
-            if ts < start_at or ts > end_at:
-                raise ValueError(
-                    f"ai_event_congestion_timeseries 범위 위반: event_id={row['event_id']} ts={ts} "
-                    f"event_range={start_at}~{end_at}"
+    def _assert_event_time_range(
+        self,
+        event_ranges: dict[int, tuple[datetime, datetime]],
+        event_map: dict[int, dict[str, Any]],
+    ) -> None:
+        violations: list[str] = []
+        for event_id, (ai_min, ai_max) in sorted(event_ranges.items()):
+            event = event_map[event_id]
+            op_start = self._as_dt(event["start_at"])
+            op_end = self._as_dt(event["end_at"])
+            if ai_min < op_start or ai_max > op_end:
+                violations.append(
+                    f"event_id={event_id}, ai_min={ai_min}, ai_max={ai_max}, op_start={op_start}, op_end={op_end}"
                 )
+        if violations:
+            details = " | ".join(violations[:10])
+            raise ValueError(f"ai_event_congestion_timeseries out-of-range detected: {details}")
 
-    def _assert_program_time_range(self, rows: list[dict[str, Any]], program_map: dict[int, dict[str, Any]]) -> None:
-        for row in rows:
-            program = program_map[row["program_id"]]
-            ts = self._as_dt(row["timestamp_minute"])
-            start_at = self._as_dt(program["start_at"])
-            end_at = self._as_dt(program["end_at"])
-            if ts < start_at or ts > end_at:
-                raise ValueError(
-                    f"ai_program_congestion_timeseries 범위 위반: program_id={row['program_id']} ts={ts} "
-                    f"program_range={start_at}~{end_at}"
+    def _assert_program_time_range(
+        self,
+        program_ranges: dict[int, tuple[datetime, datetime]],
+        program_map: dict[int, dict[str, Any]],
+    ) -> None:
+        violations: list[str] = []
+        for program_id, (ai_min, ai_max) in sorted(program_ranges.items()):
+            program = program_map[program_id]
+            op_start = self._as_dt(program["start_at"])
+            op_end = self._as_dt(program["end_at"])
+            if ai_min < op_start or ai_max > op_end:
+                violations.append(
+                    f"program_id={program_id}, ai_min={ai_min}, ai_max={ai_max}, op_start={op_start}, op_end={op_end}"
                 )
+        if violations:
+            details = " | ".join(violations[:10])
+            raise ValueError(f"ai_program_congestion_timeseries out-of-range detected: {details}")
 
     @staticmethod
     def _assert_program_event_consistency(rows: list[dict[str, Any]], program_map: dict[int, dict[str, Any]]) -> None:
         for row in rows:
-            expected_event_id = program_map[row["program_id"]]["event_id"]
-            if row["event_id"] != expected_event_id:
+            expected_event_id = int(program_map[row["program_id"]]["event_id"])
+            if int(row["event_id"]) != expected_event_id:
                 raise ValueError(
-                    f"ai_program_congestion_timeseries event_id 불일치: "
+                    "ai_program_congestion_timeseries event_id mismatch: "
                     f"program_id={row['program_id']} expected={expected_event_id} actual={row['event_id']}"
                 )
 
@@ -164,43 +243,89 @@ class AiSeedValidator:
         program_map: dict[int, dict[str, Any]],
     ) -> None:
         for row in event_rows:
-            if row["event_id"] in planned_event_ids:
-                raise ValueError(f"PLANNED 행사 event 시계열 생성 금지 위반: event_id={row['event_id']}")
+            if int(row["event_id"]) in planned_event_ids:
+                raise ValueError(f"PLANNED event has event timeseries: event_id={row['event_id']}")
         for row in program_rows:
-            if program_map[row["program_id"]]["event_id"] in planned_event_ids:
-                raise ValueError(f"PLANNED 행사 program 시계열 생성 금지 위반: program_id={row['program_id']}")
+            if int(program_map[row["program_id"]]["event_id"]) in planned_event_ids:
+                raise ValueError(f"PLANNED event has program timeseries: program_id={row['program_id']}")
 
     def _assert_training_logic(self, rows: list[dict[str, Any]], program_map: dict[int, dict[str, Any]]) -> None:
         for row in rows:
             target_type = row["target_type"]
             if target_type == "EVENT":
                 if row["program_id"] is not None:
-                    raise ValueError("ai_training_dataset EVENT 타입은 program_id=NULL 이어야 합니다")
+                    raise ValueError("ai_training_dataset EVENT must have program_id=NULL")
                 if row["event_id"] is None:
-                    raise ValueError("ai_training_dataset EVENT 타입은 event_id가 필요합니다")
+                    raise ValueError("ai_training_dataset EVENT requires event_id")
             elif target_type == "PROGRAM":
                 if row["program_id"] is None or row["event_id"] is None:
-                    raise ValueError("ai_training_dataset PROGRAM 타입은 event_id/program_id가 모두 필요합니다")
-                if program_map[row["program_id"]]["event_id"] != row["event_id"]:
-                    raise ValueError("ai_training_dataset PROGRAM 타입 event/program 매칭 위반")
+                    raise ValueError("ai_training_dataset PROGRAM requires event_id and program_id")
+                if int(program_map[row["program_id"]]["event_id"]) != int(row["event_id"]):
+                    raise ValueError("ai_training_dataset PROGRAM event/program mismatch")
             else:
-                raise ValueError(f"ai_training_dataset target_type invalid: {target_type}")
+                raise ValueError(f"ai_training_dataset invalid target_type: {target_type}")
+
+    def _assert_training_timestamps(
+        self,
+        rows: list[dict[str, Any]],
+        event_ts_map: dict[int, set[datetime]],
+        program_ts_map: dict[int, set[datetime]],
+    ) -> None:
+        for row in rows:
+            base_ts = self._as_dt(row["base_timestamp"])
+            if row["target_type"] == "EVENT":
+                event_id = int(row["event_id"])
+                if base_ts not in event_ts_map.get(event_id, set()):
+                    raise ValueError(
+                        "ai_training_dataset base_timestamp not found in event timeseries: "
+                        f"event_id={event_id}, base_timestamp={base_ts}"
+                    )
+            else:
+                program_id = int(row["program_id"])
+                if base_ts not in program_ts_map.get(program_id, set()):
+                    raise ValueError(
+                        "ai_training_dataset base_timestamp not found in program timeseries: "
+                        f"program_id={program_id}, base_timestamp={base_ts}"
+                    )
 
     def _assert_prediction_logic(self, rows: list[dict[str, Any]], program_map: dict[int, dict[str, Any]]) -> None:
         for row in rows:
             target_type = row["target_type"]
             if target_type == "EVENT":
                 if row["program_id"] is not None:
-                    raise ValueError("ai_prediction_logs EVENT 타입은 program_id=NULL 이어야 합니다")
+                    raise ValueError("ai_prediction_logs EVENT must have program_id=NULL")
                 if row["event_id"] is None:
-                    raise ValueError("ai_prediction_logs EVENT 타입은 event_id가 필요합니다")
+                    raise ValueError("ai_prediction_logs EVENT requires event_id")
             elif target_type == "PROGRAM":
                 if row["program_id"] is None or row["event_id"] is None:
-                    raise ValueError("ai_prediction_logs PROGRAM 타입은 event_id/program_id가 모두 필요합니다")
-                if program_map[row["program_id"]]["event_id"] != row["event_id"]:
-                    raise ValueError("ai_prediction_logs PROGRAM 타입 event/program 매칭 위반")
+                    raise ValueError("ai_prediction_logs PROGRAM requires event_id and program_id")
+                if int(program_map[row["program_id"]]["event_id"]) != int(row["event_id"]):
+                    raise ValueError("ai_prediction_logs PROGRAM event/program mismatch")
             else:
-                raise ValueError(f"ai_prediction_logs target_type invalid: {target_type}")
+                raise ValueError(f"ai_prediction_logs invalid target_type: {target_type}")
+
+    def _assert_prediction_timestamps(
+        self,
+        rows: list[dict[str, Any]],
+        event_ts_map: dict[int, set[datetime]],
+        program_ts_map: dict[int, set[datetime]],
+    ) -> None:
+        for row in rows:
+            base_ts = self._as_dt(row["prediction_base_time"])
+            if row["target_type"] == "EVENT":
+                event_id = int(row["event_id"])
+                if base_ts not in event_ts_map.get(event_id, set()):
+                    raise ValueError(
+                        "ai_prediction_logs prediction_base_time not found in event timeseries: "
+                        f"event_id={event_id}, prediction_base_time={base_ts}"
+                    )
+            else:
+                program_id = int(row["program_id"])
+                if base_ts not in program_ts_map.get(program_id, set()):
+                    raise ValueError(
+                        "ai_prediction_logs prediction_base_time not found in program timeseries: "
+                        f"program_id={program_id}, prediction_base_time={base_ts}"
+                    )
 
     @staticmethod
     def _assert_event_ck(rows: list[dict[str, Any]]) -> None:
@@ -213,13 +338,13 @@ class AiSeedValidator:
                 int(row["running_program_count"]),
                 int(row["progress_minute"]),
             ) < 0:
-                raise ValueError("ai_event_congestion_timeseries nonnegative CHECK 위반")
+                raise ValueError("ai_event_congestion_timeseries nonnegative CHECK violation")
             if not (0 <= int(row["hour_of_day"]) <= 23):
-                raise ValueError("ai_event_congestion_timeseries hour_of_day CHECK 위반")
+                raise ValueError("ai_event_congestion_timeseries hour_of_day CHECK violation")
             if not (1 <= int(row["day_of_week"]) <= 7):
-                raise ValueError("ai_event_congestion_timeseries day_of_week CHECK 위반")
+                raise ValueError("ai_event_congestion_timeseries day_of_week CHECK violation")
             if float(row["congestion_score"]) < 0:
-                raise ValueError("ai_event_congestion_timeseries congestion_score CHECK 위반")
+                raise ValueError("ai_event_congestion_timeseries congestion_score CHECK violation")
 
     @staticmethod
     def _assert_program_ck(rows: list[dict[str, Any]]) -> None:
@@ -231,16 +356,16 @@ class AiSeedValidator:
                 int(row["wait_count"]),
                 int(row["progress_minute"]),
             ) < 0:
-                raise ValueError("ai_program_congestion_timeseries nonnegative CHECK 위반")
+                raise ValueError("ai_program_congestion_timeseries nonnegative CHECK violation")
             wait_min = row.get("wait_min")
             if wait_min is not None and int(wait_min) < 0:
-                raise ValueError("ai_program_congestion_timeseries wait_min CHECK 위반")
+                raise ValueError("ai_program_congestion_timeseries wait_min CHECK violation")
             if not (0 <= int(row["hour_of_day"]) <= 23):
-                raise ValueError("ai_program_congestion_timeseries hour_of_day CHECK 위반")
+                raise ValueError("ai_program_congestion_timeseries hour_of_day CHECK violation")
             if not (1 <= int(row["day_of_week"]) <= 7):
-                raise ValueError("ai_program_congestion_timeseries day_of_week CHECK 위반")
+                raise ValueError("ai_program_congestion_timeseries day_of_week CHECK violation")
             if float(row["congestion_score"]) < 0:
-                raise ValueError("ai_program_congestion_timeseries congestion_score CHECK 위반")
+                raise ValueError("ai_program_congestion_timeseries congestion_score CHECK violation")
 
     @staticmethod
     def _assert_training_ck(rows: list[dict[str, Any]]) -> None:
@@ -248,7 +373,7 @@ class AiSeedValidator:
             avg_score = float(row["target_avg_score_60m"])
             peak_score = float(row["target_peak_score_60m"])
             if avg_score < 0 or peak_score < 0 or peak_score < avg_score:
-                raise ValueError("ai_training_dataset score CHECK 위반")
+                raise ValueError("ai_training_dataset score CHECK violation")
 
     @staticmethod
     def _assert_prediction_ck(rows: list[dict[str, Any]]) -> None:
@@ -257,9 +382,9 @@ class AiSeedValidator:
             peak_score = float(row["predicted_peak_score_60m"])
             level = int(row["predicted_level"])
             if avg_score < 0 or peak_score < 0 or peak_score < avg_score:
-                raise ValueError("ai_prediction_logs score CHECK 위반")
+                raise ValueError("ai_prediction_logs score CHECK violation")
             if not (1 <= level <= 5):
-                raise ValueError("ai_prediction_logs predicted_level CHECK 위반")
+                raise ValueError("ai_prediction_logs predicted_level CHECK violation")
 
     def _build_stats(
         self,
@@ -271,45 +396,28 @@ class AiSeedValidator:
         programs: list[dict[str, Any]],
     ) -> list[str]:
         lines: list[str] = []
-        event_ranges: dict[int, tuple[datetime, datetime]] = {}
-        for row in event_rows:
-            ts = self._as_dt(row["timestamp_minute"])
-            eid = row["event_id"]
-            if eid not in event_ranges:
-                event_ranges[eid] = (ts, ts)
-            else:
-                start, end = event_ranges[eid]
-                event_ranges[eid] = (min(start, ts), max(end, ts))
+        event_ranges = self._build_min_max(event_rows, "event_id")
+        program_ranges = self._build_min_max(program_rows, "program_id")
 
-        lines.append("event별 AI 시계열 시작/종료 요약:")
+        lines.append("event-level AI timeseries min/max:")
         for event_id in sorted(event_ranges.keys()):
-            start, end = event_ranges[event_id]
-            lines.append(f"  event_id={event_id}: {start} ~ {end} ({(end - start)})")
+            min_ts, max_ts = event_ranges[event_id]
+            lines.append(f"  event_id={event_id}: {min_ts} ~ {max_ts}")
 
-        program_ranges: dict[int, tuple[datetime, datetime]] = {}
-        for row in program_rows:
-            ts = self._as_dt(row["timestamp_minute"])
-            pid = row["program_id"]
-            if pid not in program_ranges:
-                program_ranges[pid] = (ts, ts)
-            else:
-                start, end = program_ranges[pid]
-                program_ranges[pid] = (min(start, ts), max(end, ts))
-
-        lines.append("program별 AI 시계열 시작/종료 샘플(최대 10개):")
+        lines.append("program-level AI timeseries min/max sample (max 10):")
         for program_id in sorted(program_ranges.keys())[:10]:
-            start, end = program_ranges[program_id]
-            lines.append(f"  program_id={program_id}: {start} ~ {end}")
+            min_ts, max_ts = program_ranges[program_id]
+            lines.append(f"  program_id={program_id}: {min_ts} ~ {max_ts}")
 
         event_map = {row["event_id"]: row for row in events}
-        lines.append("운영 event 일정 vs AI event 시계열 비교 샘플(최대 10개):")
+        lines.append("operational event range vs AI event range sample (max 10):")
         for event_id in sorted(event_ranges.keys())[:10]:
             op_start = self._as_dt(event_map[event_id]["start_at"])
             op_end = self._as_dt(event_map[event_id]["end_at"])
-            ai_start, ai_end = event_ranges[event_id]
-            lines.append(f"  event_id={event_id}: op={op_start}~{op_end} / ai={ai_start}~{ai_end}")
+            ai_min, ai_max = event_ranges[event_id]
+            lines.append(f"  event_id={event_id}: op={op_start}~{op_end} / ai={ai_min}~{ai_max}")
 
-        lines.append("planned 행사 제외 검증 결과: passed")
+        lines.append("planned-event exclusion check: passed")
         lines.append(
             f"row count summary: event_ts={len(event_rows)}, program_ts={len(program_rows)}, "
             f"training={len(training_rows)}, prediction={len(prediction_rows)}"
@@ -344,3 +452,19 @@ class AiSeedValidator:
             status = "OK" if min_count <= count <= max_count else "WARN"
             lines.append(f"  {table}: {count} (expected {min_count}~{max_count}) [{status}]")
         return lines
+
+    def _build_min_max(
+        self,
+        rows: list[dict[str, Any]],
+        id_key: str,
+    ) -> dict[int, tuple[datetime, datetime]]:
+        ranges: dict[int, tuple[datetime, datetime]] = {}
+        for row in rows:
+            entity_id = int(row[id_key])
+            ts = self._as_dt(row["timestamp_minute"])
+            if entity_id not in ranges:
+                ranges[entity_id] = (ts, ts)
+            else:
+                min_ts, max_ts = ranges[entity_id]
+                ranges[entity_id] = (min(min_ts, ts), max(max_ts, ts))
+        return ranges

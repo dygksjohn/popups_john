@@ -491,6 +491,102 @@ const congestionLevelToPercent = (value) => {
   return Math.min(Math.round(numeric * 20), 100);
 };
 
+const summarizeRealtimeCongestionPercent = (rows) => {
+  const values = toArray(rows)
+    .map((row) => congestionLevelToPercent(row?.congestionLevel))
+    .filter((value) => Number.isFinite(value));
+  if (values.length === 0) return null;
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(values.reduce((sum, value) => sum + value, 0) / values.length),
+    ),
+  );
+};
+
+const hexToRgb = (hex) => {
+  const value = String(hex || "").replace("#", "");
+  if (value.length !== 6) return { r: 0, g: 0, b: 0 };
+  return {
+    r: parseInt(value.slice(0, 2), 16),
+    g: parseInt(value.slice(2, 4), 16),
+    b: parseInt(value.slice(4, 6), 16),
+  };
+};
+
+const rgbToHex = (r, g, b) =>
+  `#${Math.round(r).toString(16).padStart(2, "0")}${Math.round(g)
+    .toString(16)
+    .padStart(2, "0")}${Math.round(b).toString(16).padStart(2, "0")}`;
+
+const rgbToHsl = (r, g, b) => {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const delta = max - min;
+  let h = 0;
+  const l = (max + min) / 2;
+  let s = 0;
+
+  if (delta !== 0) {
+    s = delta / (1 - Math.abs(2 * l - 1));
+    if (max === rn) h = ((gn - bn) / delta) % 6;
+    else if (max === gn) h = (bn - rn) / delta + 2;
+    else h = (rn - gn) / delta + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+
+  return { h, s, l };
+};
+
+const hslToRgb = (h, s, l) => {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = h / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r1 = 0;
+  let g1 = 0;
+  let b1 = 0;
+  if (hp >= 0 && hp < 1) [r1, g1, b1] = [c, x, 0];
+  else if (hp < 2) [r1, g1, b1] = [x, c, 0];
+  else if (hp < 3) [r1, g1, b1] = [0, c, x];
+  else if (hp < 4) [r1, g1, b1] = [0, x, c];
+  else if (hp < 5) [r1, g1, b1] = [x, 0, c];
+  else [r1, g1, b1] = [c, 0, x];
+  const m = l - c / 2;
+  return {
+    r: (r1 + m) * 255,
+    g: (g1 + m) * 255,
+    b: (b1 + m) * 255,
+  };
+};
+
+const blendHslColor = (startHex, endHex, ratio) => {
+  const normalized = Math.max(0, Math.min(1, Number(ratio) || 0));
+  const startRgb = hexToRgb(startHex);
+  const endRgb = hexToRgb(endHex);
+  const start = rgbToHsl(startRgb.r, startRgb.g, startRgb.b);
+  const end = rgbToHsl(endRgb.r, endRgb.g, endRgb.b);
+
+  const hueDiff = ((end.h - start.h + 540) % 360) - 180;
+  const h = (start.h + hueDiff * normalized + 360) % 360;
+  const s = start.s + (end.s - start.s) * normalized;
+  const l = start.l + (end.l - start.l) * normalized;
+  const rgb = hslToRgb(h, s, l);
+  return rgbToHex(rgb.r, rgb.g, rgb.b);
+};
+
+const getCongestionValueColor = (value) => {
+  if (!Number.isFinite(Number(value))) return "#d1d5db";
+  const percent = Math.max(0, Math.min(100, Math.round(Number(value))));
+  if (percent < 35) return "#22c55e"; // green
+  if (percent < 70) return "#f59e0b"; // yellow/amber
+  return "#ef4444"; // red
+};
+
 const formatDateRange = (startAt, endAt) => {
   const start = startAt ? new Date(startAt) : null;
   const end = endAt ? new Date(endAt) : null;
@@ -649,7 +745,7 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
       try {
         const [eventsResponse, performanceRows] = await Promise.all([
           eventApi.getEvents({ page: 0, size: 120, sort: "startAt,asc" }),
-          fetchAdminData("/api/admin/analytics/events", { page: 0, size: 200 }, []),
+          fetchAdminData("/api/analytics/events", { page: 0, size: 200 }, []),
         ]);
 
         const rawEvents = toArray(unwrapData(eventsResponse, { content: [] }));
@@ -707,25 +803,19 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
 
             if (status === "active") {
               const payload = await fetchAdminData(
-                `/api/admin/dashboard/realtime/events/${event.eventId}/congestions`,
-                { limit: 60 },
+                `/api/dashboard/realtime/events/${event.eventId}/congestions`,
+                { limit: 200 },
                 [],
               );
-              const values = toArray(payload)
-                .map((row) => congestionLevelToPercent(row.congestionLevel))
-                .filter((value) => Number.isFinite(value) && value > 0);
-              const average = values.length
-                ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
-                : null;
-
-              if (average != null) {
-                return [eventId, average];
+              const realtimePercent = summarizeRealtimeCongestionPercent(payload);
+              if (realtimePercent != null) {
+                return [eventId, realtimePercent];
               }
             }
 
             if (status === "ended") {
               const hourlyPayload = await fetchAdminData(
-                `/api/admin/analytics/events/${event.eventId}/congestion-by-hour`,
+                `/api/analytics/events/${event.eventId}/congestion-by-hour`,
                 {},
                 [],
               );
@@ -963,7 +1053,7 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
                       <div
                         className="rte-metric-value"
                         style={{
-                          color: event.congestion != null ? "#d97706" : "#d1d5db",
+                          color: getCongestionValueColor(event.congestion),
                         }}
                       >
                         {event.congestion != null ? `${event.congestion}%` : "-"}
@@ -972,8 +1062,10 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
                         {event.rawStatus === "PLANNED" ||
                         event.status === "upcoming" ||
                         event.status === "pending"
-                          ? "\uC608\uC0C1 \uD63C\uC7A1"
-                          : "\uD3C9\uADE0 \uD63C\uC7A1"}
+                          ? "\uC608\uC0C1 \uD63C\uC7A1\uB3C4"
+                          : event.status === "live"
+                            ? "\uC2E4\uC2DC\uAC04 \uD63C\uC7A1\uB3C4"
+                            : "\uD3C9\uADE0 \uD63C\uC7A1\uB3C4"}
                       </div>
                     </div>
                   </div>

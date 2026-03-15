@@ -21,6 +21,29 @@ DELETE_ORDER = [
     "ai_event_congestion_timeseries",
 ]
 
+# Use DB-managed AUTO_INCREMENT ids for safer import on shared/active DB.
+AUTO_INCREMENT_ID_COLUMNS: dict[str, str] = {
+    "ai_event_congestion_timeseries": "event_timeseries_id",
+    "ai_program_congestion_timeseries": "program_timeseries_id",
+    "ai_training_dataset": "training_dataset_id",
+    "ai_prediction_logs": "prediction_log_id",
+}
+
+# Upsert tables that already have natural unique keys in schema.
+UPSERT_TABLES = {
+    "ai_event_congestion_timeseries",
+    "ai_program_congestion_timeseries",
+    "ai_training_dataset",
+}
+
+# Large single INSERT can exceed server packet/timeout on remote DB.
+TABLE_BATCH_SIZE: dict[str, int] = {
+    "ai_event_congestion_timeseries": 5000,
+    "ai_program_congestion_timeseries": 5000,
+    "ai_training_dataset": 500,
+    "ai_prediction_logs": 2000,
+}
+
 
 class AiSqlWriter:
     """Render AI seed dictionary into executable SQL file."""
@@ -47,15 +70,33 @@ class AiSqlWriter:
             if not rows:
                 continue
             row_dicts = [self._to_row_dict(row) for row in rows]
-            columns = list(row_dicts[0].keys())
+            columns = self._resolve_insert_columns(table, row_dicts[0])
+            if not columns:
+                raise ValueError(f"no insertable columns for table: {table}")
             column_sql = ", ".join(f"`{col}`" for col in columns)
-            result.append(f"INSERT INTO {table} ({column_sql}) VALUES")
-            values_sql: list[str] = []
-            for row in row_dicts:
-                values = ", ".join(self._to_sql_value(row[col]) for col in columns)
-                values_sql.append(f"  ({values})")
-            result.append(",\n".join(values_sql) + ";")
+            batch_size = TABLE_BATCH_SIZE.get(table, 2000)
+            for start in range(0, len(row_dicts), batch_size):
+                batch = row_dicts[start : start + batch_size]
+                result.append(f"INSERT INTO {table} ({column_sql}) VALUES")
+                values_sql: list[str] = []
+                for row in batch:
+                    values = ", ".join(self._to_sql_value(row[col]) for col in columns)
+                    values_sql.append(f"  ({values})")
+                body_sql = ",\n".join(values_sql)
+                if table in UPSERT_TABLES:
+                    update_sql = ", ".join(f"`{col}`=VALUES(`{col}`)" for col in columns)
+                    result.append(f"{body_sql}\nON DUPLICATE KEY UPDATE {update_sql};")
+                else:
+                    result.append(body_sql + ";")
         return result
+
+    @staticmethod
+    def _resolve_insert_columns(table: str, sample_row: dict[str, Any]) -> list[str]:
+        columns = list(sample_row.keys())
+        auto_id_col = AUTO_INCREMENT_ID_COLUMNS.get(table)
+        if auto_id_col and auto_id_col in columns:
+            columns.remove(auto_id_col)
+        return columns
 
     @staticmethod
     def _to_row_dict(row: Any) -> dict[str, Any]:

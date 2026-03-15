@@ -31,6 +31,14 @@ class AiTrainingDatasetBuilder:
 
         grouped_event = self._group_sorted(event_rows, "event_id")
         grouped_program = self._group_sorted(program_rows, "program_id")
+        event_ts_lookup = {
+            entity_id: {self._as_dt(row["timestamp_minute"]) for row in rows}
+            for entity_id, rows in grouped_event.items()
+        }
+        program_ts_lookup = {
+            entity_id: {self._as_dt(row["timestamp_minute"]) for row in rows}
+            for entity_id, rows in grouped_program.items()
+        }
         program_event_map = {row["program_id"]: row["event_id"] for row in program_rows}
 
         rows: list[dict[str, Any]] = []
@@ -46,6 +54,7 @@ class AiTrainingDatasetBuilder:
             next_id=next_id,
             used_keys=used_keys,
             program_event_map=program_event_map,
+            timestamp_lookup=event_ts_lookup,
         )
         rows.extend(event_part)
 
@@ -58,6 +67,7 @@ class AiTrainingDatasetBuilder:
             next_id=next_id,
             used_keys=used_keys,
             program_event_map=program_event_map,
+            timestamp_lookup=program_ts_lookup,
         )
         rows.extend(program_part)
         return rows
@@ -72,6 +82,7 @@ class AiTrainingDatasetBuilder:
         next_id: int,
         used_keys: set[tuple[Any, Any, Any, Any]],
         program_event_map: dict[int, int],
+        timestamp_lookup: dict[int, set[datetime]],
     ) -> tuple[list[dict[str, Any]], int]:
         rows: list[dict[str, Any]] = []
         if target_count <= 0:
@@ -104,8 +115,7 @@ class AiTrainingDatasetBuilder:
                 future_rows = series[idx + 1 : idx + 1 + target_steps]
                 input_rows = series[idx - input_steps + 1 : idx + 1]
                 base_timestamp = base_row["timestamp_minute"]
-                if not isinstance(base_timestamp, datetime):
-                    base_timestamp = datetime.fromisoformat(str(base_timestamp).replace(" ", "T"))
+                base_timestamp = self._as_dt(base_timestamp)
 
                 if target_type == "EVENT":
                     event_id = entity_id
@@ -115,6 +125,12 @@ class AiTrainingDatasetBuilder:
                     event_id = program_event_map.get(program_id)
                     if event_id is None:
                         continue
+
+                entity_ts = timestamp_lookup.get(entity_id, set())
+                if base_timestamp not in entity_ts:
+                    continue
+                if len(input_rows) != input_steps or len(future_rows) != target_steps:
+                    continue
 
                 uniq_key = (target_type, event_id, program_id, base_timestamp)
                 if uniq_key in used_keys:
@@ -171,3 +187,9 @@ class AiTrainingDatasetBuilder:
         if isinstance(value, datetime):
             return value.strftime("%Y-%m-%d %H:%M:%S")
         return str(value)
+
+    @staticmethod
+    def _as_dt(value: Any) -> datetime:
+        if isinstance(value, datetime):
+            return value
+        return datetime.fromisoformat(str(value).replace(" ", "T"))

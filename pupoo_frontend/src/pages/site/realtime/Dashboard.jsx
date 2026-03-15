@@ -1290,15 +1290,12 @@ const resolveCongestionMeta = (value) => {
 
 const estimateWaitMinutes = (value) => {
   const pct = safePercent(value);
-  if (pct >= 90) return 45;
-  if (pct >= 80) return 35;
-  if (pct >= 70) return 28;
-  if (pct >= 60) return 22;
-  if (pct >= 45) return 15;
-  if (pct >= 30) return 10;
-  if (pct >= 15) return 6;
-  if (pct > 0) return 3;
-  return 0;
+  if (pct < 25) return 0;
+  if (pct < 40) return Math.max(1, Math.round((pct - 25) * 0.2 + 1));
+  if (pct < 55) return Math.round(4 + (pct - 40) * 0.33);
+  if (pct < 70) return Math.round(9 + (pct - 55) * 0.47);
+  if (pct < 85) return Math.round(16 + (pct - 70) * 0.67);
+  return Math.min(60, Math.round(26 + (pct - 85) * 0.95));
 };
 
 const deriveCongestionPercentFromWait = (waitCount, waitMin) => {
@@ -1694,9 +1691,9 @@ function DashboardContent({ eventId }) {
     try {
       const [eventResponse, performanceResult, hourlyResult, congestionResult, programsResult] = await Promise.all([
         eventApi.getEventDetail(numericEventId),
-        fetchAdminData("/api/admin/analytics/events", { page: 0, size: 200 }, []),
-        fetchAdminData(`/api/admin/analytics/events/${numericEventId}/congestion-by-hour`, {}, []),
-        fetchAdminData(`/api/admin/dashboard/realtime/events/${numericEventId}/congestions`, { limit: 200 }, []),
+        fetchAdminData("/api/analytics/events", { page: 0, size: 200 }, []),
+        fetchAdminData(`/api/analytics/events/${numericEventId}/congestion-by-hour`, {}, []),
+        fetchAdminData(`/api/dashboard/realtime/events/${numericEventId}/congestions`, { limit: 200 }, []),
         programApi.getAllProgramsByEvent({
           eventId: numericEventId,
           sort: "startAt,asc",
@@ -2322,12 +2319,20 @@ function DashboardContent({ eventId }) {
   );
 
   const expectedWaitMinutes = useMemo(() => {
+    const currentBasedWait = estimateWaitMinutes(currentCongestion);
+    if (isTodayForecast && !isPlannedEvent) {
+      return currentBasedWait;
+    }
     const predictedWait = Number(eventPrediction?.waitMinutes);
     if (Number.isFinite(predictedWait) && predictedWait >= 0) {
       return Math.round(predictedWait);
     }
-    return estimateWaitMinutes(currentCongestion);
-  }, [currentCongestion, eventPrediction?.waitMinutes]);
+    return currentBasedWait;
+  }, [currentCongestion, eventPrediction?.waitMinutes, isPlannedEvent, isTodayForecast]);
+
+  const waitKpiLabel = isTodayForecast && !isPlannedEvent
+    ? "현재 예상 대기시간"
+    : "예상 대기시간";
 
   const congestionSummaryText = useMemo(
     () => getCongestionSummaryText(currentCongestion),
@@ -2351,7 +2356,7 @@ function DashboardContent({ eventId }) {
         sub: congestionSummaryText,
       },
       {
-        label: "예상 대기시간",
+        label: waitKpiLabel,
         value: expectedWaitMinutes,
         unit: "분",
         sub: waitSummaryText,
@@ -2364,7 +2369,7 @@ function DashboardContent({ eventId }) {
         textOnly: true,
       },
     ],
-    [congestionSummaryText, currentCongestion, currentTone, expectedWaitMinutes, waitSummaryText],
+    [congestionSummaryText, currentCongestion, currentTone, expectedWaitMinutes, waitKpiLabel, waitSummaryText],
   );
 
   const calibratedTimeline = useMemo(() => {
@@ -2757,7 +2762,7 @@ function DashboardContent({ eventId }) {
             </div>
 
             <div className="rt-prediction-kpi">
-              <div className="rt-prediction-kpi-label">예상 대기시간</div>
+              <div className="rt-prediction-kpi-label">{waitKpiLabel}</div>
               <div className="rt-prediction-kpi-value">
                 {expectedWaitMinutes}
                 <span className="rt-prediction-kpi-unit">분</span>

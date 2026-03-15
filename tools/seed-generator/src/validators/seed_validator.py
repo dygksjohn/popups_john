@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Iterable
 
 from src.utils.korean_text import has_broken_particle_pattern
@@ -58,6 +58,7 @@ class SeedValidator:
         self._assert_pair_unique(event_images, "event_id", "image_order", "event_images(event_id,image_order) UNIQUE 위반")
         self._assert_group_unique(booths, "event_id", "place_name", "booths same-event place_name UNIQUE 위반")
         self._assert_group_unique(programs, "event_id", "program_title", "event_program same-event program_title UNIQUE 위반")
+        self._assert_program_daily_minimum(programs, events)
         self._assert_pair_unique(qr_codes, "user_id", "event_id", "qr_codes(user_id,event_id) UNIQUE 위반")
         self._assert_unique(booth_waits, "booth_id", "booth_waits booth_id UNIQUE 위반")
         self._assert_unique(experience_waits, "program_id", "experience_waits program_id UNIQUE 위반")
@@ -163,6 +164,40 @@ class SeedValidator:
                 raise ValueError(f"PLANNED 날짜 불일치 event_id={event.get('event_id')}")
             if status == "ENDED" and not (end < now):
                 raise ValueError(f"ENDED 날짜 불일치 event_id={event.get('event_id')}")
+
+    def _assert_program_daily_minimum(self, programs: list[dict[str, Any]], events: list[dict[str, Any]]) -> None:
+        req_session = int(self.config.get("programs", {}).get("session_min_per_day", 2))
+        req_contest = int(self.config.get("programs", {}).get("contest_min_per_day", 2))
+        req_experience = int(self.config.get("programs", {}).get("experience_min_per_day", 6))
+
+        by_event_day: dict[tuple[int, Any], Counter[str]] = defaultdict(Counter)
+        for program in programs:
+            event_id = int(program["event_id"])
+            start_date = self._as_datetime(program["start_at"]).date()
+            by_event_day[(event_id, start_date)][str(program["category"])] += 1
+
+        for event in events:
+            event_id = int(event["event_id"])
+            day = self._as_datetime(event["start_at"]).date()
+            end_day = self._as_datetime(event["end_at"]).date()
+            while day <= end_day:
+                day_counter = by_event_day.get((event_id, day), Counter())
+                session_count = day_counter.get("SESSION", 0)
+                contest_count = day_counter.get("CONTEST", 0)
+                experience_count = day_counter.get("EXPERIENCE", 0)
+                if (
+                    session_count < req_session
+                    or contest_count < req_contest
+                    or experience_count < req_experience
+                ):
+                    raise ValueError(
+                        "event_program daily minimum 위반: "
+                        f"event_id={event_id}, date={day}, "
+                        f"SESSION={session_count}(<{req_session}), "
+                        f"CONTEST={contest_count}(<{req_contest}), "
+                        f"EXPERIENCE={experience_count}(<{req_experience})"
+                    )
+                day += timedelta(days=1)
 
     @staticmethod
     def _as_datetime(value: Any) -> datetime:

@@ -97,7 +97,11 @@ class AiSeedGenerator:
 
         prediction_rows = []
         if self.context.prediction_enabled:
-            prediction_rows = AiPredictionLogBuilder(self.context).build(training_rows)
+            prediction_rows = AiPredictionLogBuilder(self.context).build(
+                training_rows=training_rows,
+                event_rows=event_ts,
+                program_rows=program_ts,
+            )
 
         return AiSeedBuildResult(
             ai_event_congestion_timeseries=event_ts,

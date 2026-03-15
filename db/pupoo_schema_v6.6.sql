@@ -33,7 +33,7 @@ DROP TABLE IF EXISTS
   congestions, experience_waits, booth_waits, program_speakers, speakers, 
   contest_votes, program_participation_stats, event_history, event_program_apply, event_program, booths, 
   event_apply, event, pet, social_account, admin_logs, refresh_token, users, ai_event_congestion_timeseries,
-  ai_program_congestion_timeseries, ai_training_dataset, ai_prediction_logs;
+  ai_program_congestion_timeseries, ai_training_dataset, ai_prediction_logs, event_congestion_policy;
 
 -- =========================================================
 -- 1) CREATE TABLES (의존성 순서에 맞게 재배치)

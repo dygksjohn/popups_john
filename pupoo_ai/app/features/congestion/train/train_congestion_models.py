@@ -92,6 +92,19 @@ def _to_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _extract_score(item: Any) -> float | None:
+    if isinstance(item, (int, float, Decimal)):
+        return float(item)
+
+    if isinstance(item, dict):
+        for key in ("score", "congestion_score", "value", "v"):
+            if key in item:
+                return _to_float(item.get(key), default=0.0)
+        return None
+
+    return None
+
+
 def _sanitize_sequence(raw_json: str) -> np.ndarray | None:
     try:
         payload = json.loads(raw_json)
@@ -101,8 +114,15 @@ def _sanitize_sequence(raw_json: str) -> np.ndarray | None:
     if not isinstance(payload, list) or len(payload) != SEQUENCE_LENGTH:
         return None
 
+    scores: list[float] = []
+    for item in payload:
+        score = _extract_score(item)
+        if score is None:
+            return None
+        scores.append(score)
+
     try:
-        sequence = np.asarray(payload, dtype=np.float32)
+        sequence = np.asarray(scores, dtype=np.float32)
     except (TypeError, ValueError):
         return None
 

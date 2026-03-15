@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 
 class EventProgramBuilder:
-    """Generate programs by category with same-event title uniqueness."""
+    """Generate event programs with per-day category minimum guarantees."""
 
     def __init__(self, context: Any) -> None:
         self.ctx = context
@@ -29,53 +29,57 @@ class EventProgramBuilder:
 
         rows: list[dict[str, Any]] = []
         programs_by_event: dict[int, list[int]] = defaultdict(list)
-        scale_counts = {
-            "L": {"SESSION": 19, "CONTEST": 10, "EXPERIENCE": 22},
-            "M": {"SESSION": 13, "CONTEST": 7, "EXPERIENCE": 14},
-            "S": {"SESSION": 9, "CONTEST": 4, "EXPERIENCE": 8},
+
+        # Per-day baseline by event scale.
+        scale_daily_counts = {
+            "L": {"SESSION": 4, "CONTEST": 3, "EXPERIENCE": 8},
+            "M": {"SESSION": 3, "CONTEST": 2, "EXPERIENCE": 7},
+            "S": {"SESSION": 2, "CONTEST": 2, "EXPERIENCE": 6},
         }
 
         for event in events:
             event_id = event["event_id"]
             scale = getattr(self.ctx, "event_scale_by_id", {}).get(event_id, "S")
             config_min = self.ctx.config["programs"]
-            counts = scale_counts[scale].copy()
-            counts["SESSION"] = max(counts["SESSION"], int(config_min["session_min_per_day"]))
-            counts["CONTEST"] = max(counts["CONTEST"], int(config_min["contest_min_per_day"]))
-            counts["EXPERIENCE"] = max(counts["EXPERIENCE"], int(config_min["experience_min_per_day"]))
+
+            per_day_counts = scale_daily_counts[scale].copy()
+            per_day_counts["SESSION"] = max(per_day_counts["SESSION"], int(config_min["session_min_per_day"]))
+            per_day_counts["CONTEST"] = max(per_day_counts["CONTEST"], int(config_min["contest_min_per_day"]))
+            per_day_counts["EXPERIENCE"] = max(per_day_counts["EXPERIENCE"], int(config_min["experience_min_per_day"]))
 
             used_titles: set[str] = set()
-            for category, count in counts.items():
-                for idx in range(count):
-                    title = self._pick_title(
-                        category=category,
-                        used_titles=used_titles,
-                        session_pool=session_pool,
-                        contest_pool=contest_pool,
-                        experience_pool=experience_pool,
-                    )
-                    start_at, end_at = self._pick_program_window(event, category, idx, scale)
-                    booth_id = self._pick_booth_id(booths_by_event[event_id], category)
-                    capacity = self._pick_capacity(category, scale)
+            for event_day in self._event_days(event["start_at"], event["end_at"]):
+                for category, count in per_day_counts.items():
+                    for idx in range(count):
+                        title = self._pick_title(
+                            category=category,
+                            used_titles=used_titles,
+                            session_pool=session_pool,
+                            contest_pool=contest_pool,
+                            experience_pool=experience_pool,
+                        )
+                        start_at, end_at = self._pick_program_window(event, category, idx, scale, event_day)
+                        booth_id = self._pick_booth_id(booths_by_event[event_id], category)
+                        capacity = self._pick_capacity(category, scale)
 
-                    program_id = self.ctx.next_id("event_program")
-                    rows.append(
-                        {
-                            "program_id": program_id,
-                            "event_id": event_id,
-                            "category": category,
-                            "program_title": title,
-                            "description": f"{title} 프로그램입니다.",
-                            "start_at": start_at,
-                            "end_at": end_at,
-                            "booth_id": booth_id,
-                            "image_url": f"/images/programs/event_{event_id}/program_{program_id}.jpg",
-                            "capacity": capacity,
-                            "throughput_per_min": round(max(1, capacity / 120.0), 2),
-                            "created_at": self.ctx.now,
-                        }
-                    )
-                    programs_by_event[event_id].append(program_id)
+                        program_id = self.ctx.next_id("event_program")
+                        rows.append(
+                            {
+                                "program_id": program_id,
+                                "event_id": event_id,
+                                "category": category,
+                                "program_title": title,
+                                "description": f"{title} 프로그램입니다.",
+                                "start_at": start_at,
+                                "end_at": end_at,
+                                "booth_id": booth_id,
+                                "image_url": f"/images/programs/event_{event_id}/program_{program_id}.jpg",
+                                "capacity": capacity,
+                                "throughput_per_min": round(max(1, capacity / 120.0), 2),
+                                "created_at": self.ctx.now,
+                            }
+                        )
+                        programs_by_event[event_id].append(program_id)
 
         self.ctx.programs_by_event = programs_by_event
         return rows
@@ -124,13 +128,11 @@ class EventProgramBuilder:
         category: str,
         index: int,
         scale: str,
+        event_day: date,
     ) -> tuple[Any, Any]:
         start = event["start_at"]
         end = event["end_at"]
-        total_days = max(1, (end.date() - start.date()).days + 1)
-        day_offset = index % total_days
 
-        # Longer 운영형 프로그램 시간으로 대규모 AI 시계열 모수를 확보한다.
         duration_map = {
             "SESSION": {"L": 300, "M": 270, "S": 240},
             "CONTEST": {"L": 270, "M": 240, "S": 210},
@@ -138,7 +140,6 @@ class EventProgramBuilder:
         }
         duration_min = duration_map[category][scale]
 
-        event_day = (start + timedelta(days=day_offset)).date()
         day_start = datetime.combine(event_day, time(hour=9, minute=0, second=0))
         day_end = datetime.combine(event_day, time(hour=18, minute=0, second=0))
 
@@ -147,7 +148,8 @@ class EventProgramBuilder:
         bounded_end = min(day_end, end)
         available_min = int((bounded_end - bounded_start).total_seconds() // 60)
         if available_min <= 0:
-            return start, min(end, start + timedelta(minutes=30))
+            fallback_end = min(end, start + timedelta(minutes=30))
+            return start, fallback_end
 
         effective_duration = min(duration_min, max(30, available_min))
         latest_start = bounded_end - timedelta(minutes=effective_duration)
@@ -162,11 +164,25 @@ class EventProgramBuilder:
         if not start_candidates:
             start_candidates.append(bounded_start)
 
-        start_at = self.ctx.rng.choice(start_candidates)
+        # Slightly rotate the slot selection for the same day/category batch.
+        rotated_idx = index % len(start_candidates)
+        base_pick = start_candidates[rotated_idx]
+        jitter = self.ctx.rng.choice([0, 0, 30, -30])
+        start_at = base_pick + timedelta(minutes=jitter)
+        if start_at < bounded_start:
+            start_at = bounded_start
+        if start_at > latest_start:
+            start_at = latest_start
+
         end_at = start_at + timedelta(minutes=effective_duration)
         if end_at > bounded_end:
             end_at = bounded_end
         return start_at, end_at
+
+    @staticmethod
+    def _event_days(start_at: datetime, end_at: datetime) -> list[date]:
+        total_days = max(1, (end_at.date() - start_at.date()).days + 1)
+        return [(start_at + timedelta(days=day_offset)).date() for day_offset in range(total_days)]
 
     def _pick_booth_id(self, event_booths: list[dict[str, Any]], category: str) -> int | None:
         if not event_booths:

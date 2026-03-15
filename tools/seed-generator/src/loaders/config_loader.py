@@ -23,9 +23,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "booths": {"min_per_event": 35},
     "programs": {
-        "session_min_per_day": 4,
-        "contest_min_per_day": 3,
-        "experience_min_per_day": 5,
+        "session_min_per_day": 2,
+        "contest_min_per_day": 2,
+        "experience_min_per_day": 6,
     },
     "qr": {"enabled": True, "volume_scale": 2.2},
     "community": {"enabled": True},
