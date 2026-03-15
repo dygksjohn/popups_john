@@ -70,9 +70,6 @@ public class StorageController {
     @GetMapping("/by-post/{postId}")
     public ApiResponse<FileResponse> getByPostId(@PathVariable Long postId) {
         FileResponse file = storageService.getFileByPostId(postId);
-        if (file == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "no file for this post");
-        }
         return ApiResponse.success(file);
     }
 

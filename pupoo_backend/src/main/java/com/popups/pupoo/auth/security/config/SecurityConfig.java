@@ -22,9 +22,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Configuration
 public class SecurityConfig {
+
+    private static final List<String> REQUIRED_CORS_ALLOWED_ORIGIN_PATTERNS = List.of(
+        "https://pupoo.site",
+        "https://www.pupoo.site"
+    );
 
     private static final List<String> SPA_EXCLUDED_PREFIXES = List.of(
         "/api",
@@ -47,9 +53,13 @@ public class SecurityConfig {
     ) {
         this.jwtProvider = jwtProvider;
         this.objectMapper = objectMapper;
-        this.corsAllowedOriginPatterns = Arrays.stream(corsAllowedOriginPatterns.split(","))
-            .map(String::trim)
-            .filter(pattern -> !pattern.isBlank())
+        this.corsAllowedOriginPatterns = Stream.concat(
+                REQUIRED_CORS_ALLOWED_ORIGIN_PATTERNS.stream(),
+                Arrays.stream(corsAllowedOriginPatterns.split(","))
+                    .map(String::trim)
+                    .filter(pattern -> !pattern.isBlank())
+            )
+            .distinct()
             .toList();
     }
 

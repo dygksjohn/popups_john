@@ -154,15 +154,15 @@ export default function QnADetailPage() {
           !loading && item?.answerContent ? (
             <div
               style={{
-                marginTop: 28,
-                padding: "18px 20px",
-                borderRadius: 14,
-                background: "#fffbeb",
-                borderLeft: "4px solid #d97706",
+                marginTop: 32,
+                padding: "20px 24px",
+                borderRadius: 0,
+                background: "#fafafa",
+                borderLeft: "3px solid #111827",
               }}
             >
               <div
-                style={{ fontSize: 13, fontWeight: 800, color: "#d97706", marginBottom: 8 }}
+                style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}
               >
                 관리자 답변 {item.answeredAt ? `· ${fmtDate(item.answeredAt)}` : ""}
               </div>

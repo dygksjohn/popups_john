@@ -1,8 +1,9 @@
 // file: src/main/java/com/popups/pupoo/board/post/application/PostService.java
 package com.popups.pupoo.board.post.application;
 
-import com.popups.pupoo.board.bannedword.application.AiModerationClient;
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.application.ModerationClient;
+import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.bannedword.dto.BannedWordDetection;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
@@ -20,11 +21,13 @@ import com.popups.pupoo.common.search.SearchType;
 import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -34,8 +37,8 @@ public class PostService {
     private final PostRepository postRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
+    private final ModerationClient moderationClient;
     private final UserRepository userRepository;
-    private final AiModerationClient aiModerationClient;
 
     private Long resolveBoardId(Long boardId, BoardType boardType) {
         if (boardId != null) return boardId;
@@ -51,7 +54,9 @@ public class PostService {
         if (boardId == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId is required");
         }
-        return postRepository.search(boardId, keyword, status, pageable).map(this::toResponse);
+        Page<Post> page = postRepository.search(boardId, keyword, status, pageable);
+        List<PostResponse> content = page.getContent().stream().map(this::toResponse).toList();
+        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, String keyword, Pageable pageable) {
@@ -60,7 +65,9 @@ public class PostService {
 
     public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, String keyword, Pageable pageable) {
         Long resolvedBoardId = resolveBoardId(boardId, boardType);
-        return postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
+        Page<Post> page = postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+        List<PostResponse> content = page.getContent().stream().map(this::toResponse).toList();
+        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, SearchType searchType, String keyword, Pageable pageable) {
@@ -69,16 +76,19 @@ public class PostService {
 
     public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, SearchType searchType, String keyword, Pageable pageable) {
         Long resolvedBoardId = resolveBoardId(boardId, boardType);
+        SearchType effectiveType = (searchType != null) ? searchType : SearchType.TITLE_CONTENT;
 
-        return switch (searchType) {
-            case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
-            case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
+        Page<Post> page = switch (effectiveType) {
+            case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+            case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
             case WRITER -> {
                 Long writerId = parseLongOrNull(keyword);
-                yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable).map(this::toResponse);
+                yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable);
             }
-            case TITLE_CONTENT -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable).map(this::toResponse);
+            default -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
         };
+        List<PostResponse> content = page.getContent().stream().map(this::toResponse).toList();
+        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
     private static Long parseLongOrNull(String keyword) {
@@ -126,10 +136,7 @@ public class PostService {
     }
 
     private PostResponse toResponse(Post post) {
-        Long boardId = post.getBoard() != null ? post.getBoard().getBoardId() : null;
-        String maskedTitle = boardId != null ? bannedWordService.mask(boardId, post.getPostTitle()) : post.getPostTitle();
-        String maskedContent = boardId != null ? bannedWordService.mask(boardId, post.getContent()) : post.getContent();
-        return PostResponse.from(post, getWriterEmail(post.getUserId()), maskedTitle, maskedContent);
+        return PostResponse.from(post, getWriterEmail(post.getUserId()), post.getPostTitle(), post.getContent());
     }
 
     @Transactional
@@ -143,7 +150,14 @@ public class PostService {
         Board board = boardRepository.findById(req.getBoardId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Board not found"));
 
-        List<BannedWordDetection> detections = bannedWordService.validate(board.getBoardId(), req.getPostTitle(), req.getContent());
+        List<BannedWordDetection> level1Detections = bannedWordService.validate(req.getBoardId(), req.getPostTitle(), req.getContent());
+
+        String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
+        ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), req.getBoardId(), "POST");
+        if (modResult != null && modResult.isBlock()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    modResult.getReason() != null ? modResult.getReason() : "게시글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+        }
 
         Post post = Post.builder()
                 .board(board)
@@ -158,20 +172,12 @@ public class PostService {
                 .build();
 
         Post saved = postRepository.save(post);
-        if (!detections.isEmpty()) {
-            bannedWordService.logDetections(board.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, detections);
+        if (!level1Detections.isEmpty()) {
+            bannedWordService.logDetections(req.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, level1Detections);
         }
-
-        // AI 모더레이션 호출 (제목+내용 기준)
-        aiModerationClient.moderate(req.getPostTitle() + "\n" + req.getContent())
-                .ifPresent(result -> bannedWordService.logAiResult(
-                        board.getBoardId(),
-                        saved.getPostId(),
-                        BannedLogContentType.POST,
-                        userId,
-                        result.getAiScore(),
-                        result.getReason()
-                ));
+        if (modResult != null && modResult.isReview()) {
+            bannedWordService.logAiModeration(req.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, modResult);
+        }
         return saved.getPostId();
     }
 
@@ -186,23 +192,18 @@ public class PostService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content is required");
         }
 
-        List<BannedWordDetection> detections = bannedWordService.validate(post.getBoard().getBoardId(), req.getPostTitle(), req.getContent());
-
-        post.updateTitleAndContent(req.getPostTitle(), req.getContent());
-        if (!detections.isEmpty()) {
-            bannedWordService.logDetections(post.getBoard().getBoardId(), postId, BannedLogContentType.POST, userId, detections);
+        bannedWordService.validate(post.getBoard().getBoardId(), req.getPostTitle(), req.getContent());
+        String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
+        ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), post.getBoard().getBoardId(), "POST");
+        if (modResult != null && modResult.isBlock()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    modResult.getReason() != null ? modResult.getReason() : "게시글 내용이 정책에 위반될 수 있어 수정할 수 없습니다.");
         }
 
-        // AI 모더레이션 호출 (제목+내용 기준)
-        aiModerationClient.moderate(req.getPostTitle() + "\n" + req.getContent())
-                .ifPresent(result -> bannedWordService.logAiResult(
-                        post.getBoard().getBoardId(),
-                        postId,
-                        BannedLogContentType.POST,
-                        userId,
-                        result.getAiScore(),
-                        result.getReason()
-                ));
+        post.updateTitleAndContent(req.getPostTitle(), req.getContent());
+        if (modResult != null && modResult.isReview()) {
+            bannedWordService.logAiModeration(post.getBoard().getBoardId(), postId, BannedLogContentType.POST, userId, modResult);
+        }
     }
 
     @Transactional

@@ -5,11 +5,11 @@ import { buildRequestUrl } from "../../../shared/config/requestUrl";
    useChatBot - AI logic hook
    ============================================================ */
 
-const AI_BASE_URL = import.meta.env.VITE_AI_BASE_URL || "";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 const TOKEN_KEY = "pupoo_admin_token";
 
 async function getBotReply(history, userMessage) {
-  const url = buildRequestUrl(AI_BASE_URL, "/internal/chatbot/chat");
+  const url = buildRequestUrl(API_BASE_URL, "/internal/chatbot/chat");
   let res;
 
   try {

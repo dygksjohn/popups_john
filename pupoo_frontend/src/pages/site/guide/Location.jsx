@@ -18,7 +18,6 @@ import {
 
 const GUIDE_CATEGORIES = [
   { label: "현장 운영 안내", path: "/guide/operation" },
-  { label: "행사 일정 안내", path: "/event/eventschedule" },
 ];
 
 const VENUE_NAME = "올림픽 공원 88잔디마당";
@@ -50,7 +49,7 @@ const styles = `
     box-sizing: border-box; font-family: inherit;
   }
   .loc-container {
-    max-width: 1100px; margin: 0 auto;
+    max-width: 1400px; margin: 0 auto;
     padding: 28px 20px 80px;
   }
   .loc-two-col {

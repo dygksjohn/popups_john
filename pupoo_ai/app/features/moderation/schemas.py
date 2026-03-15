@@ -1,4 +1,4 @@
-"""모더레이션 API 요청/응답 스키마 (조합 6: HateBERT + Redis)."""
+"""모더레이션 API 요청/응답 스키마 (등록 시점 Level 3 RAG)."""
 from pydantic import BaseModel, Field
 
 
@@ -12,6 +12,6 @@ class ModerateRequest(BaseModel):
 class ModerateResponse(BaseModel):
     """모더레이션 응답."""
     action: str = Field(..., description="PASS | REVIEW | BLOCK")
-    ai_score: float | None = Field(None, description="혐오/욕설 점수 0~1")
-    reason: str | None = Field(None, description="사유")
-    stack: str = Field("hatebert_redis", description="사용한 기술 조합 식별자")
+    ai_score: float | None = Field(None, description="AI 판정 점수 또는 RAG 근거 관련 수치")
+    reason: str | None = Field(None, description="사유 또는 RAG 근거")
+    stack: str = Field("rag_watsonx", description="사용 스택 식별자 (rag_watsonx | rag_stub)")

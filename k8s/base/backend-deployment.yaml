@@ -17,7 +17,7 @@ spec:
       serviceAccountName: pupoo-backend
       containers:
         - name: backend
-          image: 123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/pupoo/backend:latest
+          image: 593797021262.dkr.ecr.ap-northeast-2.amazonaws.com/pupoo-backend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

@@ -9,7 +9,8 @@ export function createAxiosInstance() {
   const baseURL = getConfiguredBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
   const instance = axios.create({
-    timeout: 10000,
+    baseURL: baseURL || undefined,
+    timeout: 30000,
     headers: { "Content-Type": "application/json" },
     withCredentials: true,
   });
@@ -22,10 +23,7 @@ export function createAxiosInstance() {
   console.log("axiosInstance request base =", baseURL || "(same-origin)");
 
   attachInterceptors(instance, {
-    publicPathPrefixes: [
-      "/api/auth/",
-      "/api/storage/presign",
-    ],
+    publicPathPrefixes: ["/api/auth/", "/api/storage/presign"],
     publicGetPathPrefixes: [
       "/api/ping",
       "/api/health",
