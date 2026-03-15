@@ -3,62 +3,86 @@ import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "../communityConfig";
 import { prepareContentForDisplay } from "./communityHtml";
+import BadgeTag from "./BadgeTag";
 
 const styles = {
   main: {
-    width: "min(1350px, calc(100% - 50px))",
+    width: "min(1400px, calc(100% - 40px))",
     margin: "0 auto",
-    padding: "40px 0 64px",
+    padding: "48px 0 80px",
     fontFamily: "'Noto Sans KR', sans-serif",
   },
   backButton: {
     display: "inline-flex",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 18,
-    border: "1px solid #dbe2ea",
-    background: "#fff",
-    borderRadius: 10,
-    padding: "10px 14px",
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#334155",
+    gap: 6,
+    marginBottom: 32,
+    border: "none",
+    background: "none",
+    padding: 0,
+    fontSize: 14,
+    fontWeight: 500,
+    color: "#64748b",
     cursor: "pointer",
+    transition: "color .15s",
   },
   card: {
     background: "#fff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 18,
+    borderRadius: 0,
     overflow: "hidden",
-    boxShadow: "0 18px 40px rgba(15,23,42,0.06)",
   },
   head: {
-    padding: "28px 32px 20px",
-    borderBottom: "1px solid #edf2f7",
-    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+    paddingBottom: 28,
+    borderBottom: "2px solid #111827",
+  },
+  badgeRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
   },
   title: {
-    fontSize: 28,
-    lineHeight: 1.35,
-    fontWeight: 800,
-    color: "#0f172a",
-    margin: "14px 0 0",
+    fontSize: 26,
+    lineHeight: 1.4,
+    fontWeight: 700,
+    color: "#111827",
+    margin: 0,
+    letterSpacing: -0.3,
   },
   metaRow: {
     display: "flex",
     flexWrap: "wrap",
-    gap: 12,
-    marginTop: 14,
+    gap: 20,
+    marginTop: 16,
     fontSize: 13,
-    color: "#64748b",
+    color: "#9ca3af",
+  },
+  metaItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  },
+  metaLabel: {
+    color: "#9ca3af",
+    fontWeight: 400,
+  },
+  metaValue: {
+    color: "#6b7280",
+    fontWeight: 500,
+  },
+  metaDivider: {
+    width: 1,
+    height: 12,
+    background: "#e5e7eb",
   },
   body: {
-    padding: "30px 32px",
+    padding: "36px 0",
   },
   content: {
-    color: "#334155",
-    fontSize: 15,
-    lineHeight: 1.9,
+    color: "#374151",
+    fontSize: 15.5,
+    lineHeight: 2,
+    wordBreak: "keep-all",
   },
 };
 
@@ -87,23 +111,36 @@ export default function CommunityDetailLayout({
         onNavigate={(path) => navigate(path)}
       />
       <main style={styles.main}>
-        <button type="button" style={styles.backButton} onClick={() => navigate(currentPath)}>
+        <button
+          type="button"
+          style={styles.backButton}
+          onClick={() => navigate(currentPath)}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "#111827"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#64748b"; }}
+        >
           <ArrowLeft size={16} />
           목록으로
         </button>
 
         <article style={styles.card}>
           <header style={styles.head}>
-            <span style={badge.style}>{badge.text}</span>
-            {extraHead}
-            <h1 style={styles.title}>{articleTitle}</h1>
-            <div style={styles.metaRow}>
-              {metaItems.map((item) => (
-                <span key={`${item.label}-${item.value}`}>
-                  {item.label} {item.value}
-                </span>
-              ))}
+            <div style={styles.badgeRow}>
+              <BadgeTag badge={badge} />
             </div>
+            <h1 style={styles.title}>{articleTitle}</h1>
+            {extraHead}
+            {metaItems.length > 0 && (
+              <div style={styles.metaRow}>
+                {metaItems.map((item, i) => (
+                  <span key={`${item.label}-${item.value}`} style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                    {i > 0 && <span style={{ ...styles.metaDivider, marginRight: 20 }} />}
+                    <span style={styles.metaLabel}>{item.label}</span>
+                    <span style={{ width: 6 }} />
+                    <span style={styles.metaValue}>{item.value}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </header>
 
           <div style={styles.body}>
@@ -119,4 +156,3 @@ export default function CommunityDetailLayout({
     </>
   );
 }
-

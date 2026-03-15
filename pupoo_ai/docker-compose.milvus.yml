@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  milvus:
+    image: milvusdb/milvus:v2.4.6
+    container_name: pupoo-milvus
+    restart: unless-stopped
+    environment:
+      ETCD_USE_EMBED: "true"
+      MINIO_USE_EMBED: "true"
+      MILVUS_LOG_LEVEL: "info"
+    command: ["milvus", "run", "standalone"]
+    ports:
+      - "19530:19530"  # gRPC
+      - "9091:9091"    # metrics
+    volumes:
+      - milvus-data:/var/lib/milvus
+
+volumes:
+  milvus-data:
+    driver: local
+

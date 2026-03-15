@@ -10,6 +10,7 @@ const SECTION_LABELS = {
   guide: "이용 안내",
   gallery: "갤러리",
   registration: "참가 신청",
+  payment: "결제",
 };
 
 const styles = {
@@ -103,6 +104,10 @@ export default function PageHeader({
   title,
   subtitle,
   categories,
+  currentPath,
+  breadcrumbTitle,
+  onNavigate,
+  onTabClick,
   children,
   stickyCategories = false,
 }) {
@@ -110,6 +115,7 @@ export default function PageHeader({
   const navigate = useNavigate();
   const location = useLocation();
   const hiddenPaths = new Set(["/event/preregister"]);
+  const activePath = currentPath || location.pathname;
 
   const programMatch = location.pathname.match(
     /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/([^/?#]+))?/,
@@ -164,13 +170,26 @@ export default function PageHeader({
 
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const sectionLabel = SECTION_LABELS[pathSegments[0] || ""];
+  const lastCrumb = breadcrumbTitle || title;
   const breadcrumbItems = sectionLabel
-    ? ["홈", sectionLabel, title]
-    : ["홈", title];
+    ? ["홈", sectionLabel, lastCrumb]
+    : ["홈", lastCrumb];
 
   const pageHeaderStyle = stickyCategories
     ? { ...styles.pageHeader, ...styles.pageHeaderSticky }
     : styles.pageHeader;
+
+  const handleNavigate = (targetPath) => {
+    if (onTabClick) {
+      onTabClick(targetPath);
+      return;
+    }
+    if (onNavigate) {
+      onNavigate(targetPath);
+      return;
+    }
+    navigate(targetPath);
+  };
 
   return (
     <div style={pageHeaderStyle}>
@@ -210,7 +229,7 @@ export default function PageHeader({
           <div style={styles.tabs}>
             {filteredCategories.map((cat, i) => {
               const targetPath = resolveTargetPath(cat.path);
-              const isActive = location.pathname === targetPath;
+              const isActive = activePath === targetPath;
               const isHovered = hoveredIdx === i;
 
               let btnStyle = { ...styles.tabBase };
@@ -226,7 +245,7 @@ export default function PageHeader({
                 <button
                   key={cat.path}
                   style={btnStyle}
-                  onClick={() => navigate(targetPath)}
+                  onClick={() => handleNavigate(targetPath)}
                   onMouseEnter={() => setHoveredIdx(i)}
                   onMouseLeave={() => setHoveredIdx(null)}
                   aria-current={isActive ? "page" : undefined}

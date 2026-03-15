@@ -173,7 +173,7 @@ const styles = `
   .es-mini-day:hover { background: #f3f4f6; }
   .es-mini-day.out { color: #d4d4d8; }
   .es-mini-day.today { background: #3b82f6; color: #fff; font-weight: 700; }
-  .es-mini-day.sel { background: #eff6ff; color: #3b82f6; font-weight: 700; }
+
   .es-mini-day.has-evt { font-weight: 700; color: #111827; position: relative; }
   .es-mini-day.has-evt::after {
     content: ""; display: block; width: 4px; height: 4px;
@@ -468,7 +468,7 @@ export default function EventSchedule() {
                 {miniModel.days.map((day) => {
                   const out = day.getMonth() !== miniMonth;
                   const isToday = sameDay(day, today);
-                  const isSel = !isToday && formatMonthKey(day) === selectedMonthKey && day.getMonth() === miniMonth;
+                  const isSel = false;
                   const hasEvt = !out && miniHasEvent(day);
                   return (
                     <button
