@@ -378,9 +378,9 @@ export default function CommunityPostDetailPage({
             </div>
 
             {replyLoading ? (
-              <div style={{ fontSize: 13, color: "#94a3b8" }}>댓글을 불러오는 중입니다.</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>댓글을 불러오는 중입니다.</div>
             ) : replies.length === 0 ? (
-              <div style={{ fontSize: 13, color: "#94a3b8" }}>등록된 댓글이 없습니다.</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>등록된 댓글이 없습니다.</div>
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 {replies.map((reply) => (

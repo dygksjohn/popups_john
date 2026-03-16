@@ -5,43 +5,76 @@ const styles = `
     align-items: center;
     justify-content: center;
     padding: 100px 20px;
+    min-height: 400px;
+    grid-column: 1 / -1;
   }
-  .page-loading-dots {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
+  .pl-loader {
+    position: relative;
+    width: 40px;
+    height: 40px;
   }
-  .page-loading-dot {
-    width: 10px;
-    height: 10px;
+  .pl-circle {
+    position: absolute;
+    width: 38px;
+    height: 38px;
+    opacity: 0;
+    transform: rotate(225deg);
+    animation: pl-orbit 5.5s infinite;
+  }
+  .pl-circle::after {
+    content: '';
+    position: absolute;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
-    background: #c7d2fe;
-    animation: page-dot-bounce 1.4s ease-in-out infinite;
+    background: #3b82f6;
   }
-  .page-loading-dot:nth-child(1) { animation-delay: 0s; }
-  .page-loading-dot:nth-child(2) { animation-delay: 0.16s; }
-  .page-loading-dot:nth-child(3) { animation-delay: 0.32s; }
-  @keyframes page-dot-bounce {
-    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-    40% { transform: scale(1); opacity: 1; background: #6366f1; }
-  }
+  .pl-circle:nth-child(2) { animation-delay: 240ms; }
+  .pl-circle:nth-child(2)::after { background: #60a5fa; }
+  .pl-circle:nth-child(3) { animation-delay: 480ms; }
+  .pl-circle:nth-child(3)::after { background: #93bbfd; }
+  .pl-circle:nth-child(4) { animation-delay: 720ms; }
+  .pl-circle:nth-child(4)::after { background: #bfdbfe; }
+  .pl-circle:nth-child(5) { animation-delay: 960ms; }
+  .pl-circle:nth-child(5)::after { background: #dbeafe; }
   .page-loading-text {
-    font-size: 14px;
+    margin-top: 36px;
+    font-size: 13px;
     font-weight: 600;
-    color: #94a3b8;
-    letter-spacing: -0.2px;
+    color: #9ca3af;
+    letter-spacing: -0.02em;
+    font-family: inherit;
+    animation: pl-fade 2s linear infinite;
+  }
+  @keyframes pl-orbit {
+    0%   { transform: rotate(225deg); opacity: 1; animation-timing-function: ease-out; }
+    7%   { transform: rotate(345deg); animation-timing-function: linear; }
+    30%  { transform: rotate(455deg); animation-timing-function: ease-in-out; }
+    39%  { transform: rotate(690deg); animation-timing-function: linear; }
+    70%  { transform: rotate(815deg); opacity: 1; animation-timing-function: ease-out; }
+    75%  { transform: rotate(945deg); animation-timing-function: ease-out; }
+    76%  { transform: rotate(945deg); opacity: 0; }
+    100% { transform: rotate(945deg); opacity: 0; }
+  }
+  @keyframes pl-fade {
+    0%   { opacity: 0; }
+    20%  { opacity: 0; }
+    50%  { opacity: 1; }
+    100% { opacity: 0; }
   }
 `;
 
-export default function PageLoading({ message = "데이터를 불러오는 중입니다" }) {
+export default function PageLoading({ message = "불러오는 중" }) {
   return (
     <>
       <style>{styles}</style>
       <div className="page-loading">
-        <div className="page-loading-dots">
-          <div className="page-loading-dot" />
-          <div className="page-loading-dot" />
-          <div className="page-loading-dot" />
+        <div className="pl-loader">
+          <div className="pl-circle" />
+          <div className="pl-circle" />
+          <div className="pl-circle" />
+          <div className="pl-circle" />
+          <div className="pl-circle" />
         </div>
         <span className="page-loading-text">{message}</span>
       </div>

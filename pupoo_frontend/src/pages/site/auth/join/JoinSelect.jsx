@@ -32,7 +32,7 @@ const socialProviders = [
 const css = `
   .js-outer {
     min-height: calc(100vh - 140px); display: flex; align-items: center; justify-content: center;
-    background: #f5f6fa; padding: 16px;
+    background: #f5f6fa; padding: 92px 0px 0px;
     font-family: 'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
   }
   .js-card {
@@ -81,12 +81,13 @@ const css = `
 
   /* Toast */
   .js-toast {
-    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
-    background: #333; color: #fff; font-size: 14px; font-weight: 500;
-    padding: 12px 28px; border-radius: 12px;
-    box-shadow: 0 6px 20px rgba(0,0,0,.18);
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+    background: #fff; color: #333; font-size: 14px; font-weight: 600;
+    padding: 14px 32px; border-radius: 14px;
+    border: 1px solid #e8e8e8;
+    box-shadow: 0 8px 32px rgba(0,0,0,.12);
     animation: js-toast-in .3s ease, js-toast-out .3s ease 2s forwards;
-    z-index: 100;
+    z-index: 9999;
   }
   @keyframes js-toast-in { from { opacity: 0; transform: translateX(-50%) translateY(16px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
   @keyframes js-toast-out { from { opacity: 1; } to { opacity: 0; transform: translateX(-50%) translateY(16px); } }
@@ -133,7 +134,7 @@ export default function JoinSelect() {
       <style>{css}</style>
       <div className="js-outer">
         <div className="js-card">
-          <img src="/logo_blue.png" alt="pupoo" className="js-logo" />
+          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a", marginBottom: 24 }}>회원가입</div>
           <p className="js-desc">반려동물과 함께하는 특별한 경험, 지금 시작하세요</p>
 
           <button className="js-btn js-btn-normal" onClick={() => navigate("/auth/join/joinnormal")}>

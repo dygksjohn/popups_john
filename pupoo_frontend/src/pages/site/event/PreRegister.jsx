@@ -249,6 +249,9 @@ export default function PreRegister() {
       <PageHeader
         title="행사 사전 등록"
         subtitle={SUBTITLE_MAP[currentPath]}
+        icon={<ClipboardList size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
         onNavigate={setCurrentPath}
