@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Paperclip,
   SlidersHorizontal,
+  MessageSquareText,
 } from "lucide-react";
 import { postApi } from "../../../app/http/postApi";
 import { postReplyApi } from "../../../app/http/replyApi";
@@ -408,7 +409,7 @@ function DetailModal({
 
         <div style={{ padding: "0 28px 12px" }}>
           {loading ? (
-            <div style={{ fontSize: 14, color: "#94A3B8" }}>상세 내용을 불러오는 중입니다.</div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>상세 내용을 불러오는 중입니다.</div>
           ) : (
             <p
               style={{
@@ -427,7 +428,7 @@ function DetailModal({
         <div style={{ padding: "0 28px 14px" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>첨부파일</div>
           {attachmentLoading ? (
-        <div style={{ fontSize: 12, color: "#94A3B8" }}>첨부파일 정보를 불러오는 중입니다.</div>
+        <div style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>첨부파일 정보를 불러오는 중입니다.</div>
           ) : attachment ? (
             <a
               href={toPublicAssetUrl(attachment.publicPath)}
@@ -504,9 +505,9 @@ function DetailModal({
           </div>
 
           {replyLoading ? (
-            <div style={{ fontSize: 13, color: "#94A3B8" }}>댓글을 불러오는 중입니다.</div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>댓글을 불러오는 중입니다.</div>
           ) : replies.length === 0 ? (
-            <div style={{ fontSize: 13, color: "#94A3B8" }}>댓글이 없습니다.</div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>댓글이 없습니다.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {replies.map((reply) => (
@@ -850,6 +851,9 @@ export default function FreeBoard() {
       <PageHeader
         title="자유게시판"
         subtitle="자유롭게 의견을 나누는 커뮤니티 공간입니다."
+        icon={<MessageSquareText size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}
         currentPath={currentPath}
         onNavigate={setCurrentPath}
@@ -974,7 +978,7 @@ export default function FreeBoard() {
         )}
 
         {!loading && error && (
-          <EmptyState type="error" message="게시글을 불러오지 못했습니다" description={error} />
+          <EmptyState type="error" message="게시글을 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." />
         )}
 
         {!loading && !error && (

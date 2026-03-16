@@ -58,7 +58,7 @@ const styles = `
     display: inline-flex; align-items: center; gap: 7px;
     height: 52px; padding: 0 20px;
     background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px;
-    font-size: 14px; font-weight: 700; color: #111827;
+    font-size: 16px; font-weight: 700; color: #111827;
     white-space: nowrap; flex-shrink: 0;
   }
   .ev-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; animation: ev-pulse 1.4s ease-in-out infinite; }
@@ -80,35 +80,39 @@ const styles = `
   .ev-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
 
 
-  .ev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .ev-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
   .ev-event-card {
     background: #fff; border: 1px solid #e9ecef; border-radius: 16px;
     overflow: hidden; transition: box-shadow 0.25s, transform 0.25s; cursor: pointer;
     display: flex; flex-direction: column;
   }
-  .ev-event-card:hover { box-shadow: 0 12px 36px rgba(0,0,0,0.1); transform: translateY(-3px); }
+  .ev-event-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.06); transform: translateY(-3px); }
+  .ev-event-card:hover .ev-card-btn { background: #1a4fd6; color: #fff; border-color: #1a4fd6; }
 
   .ev-card-thumb { position: relative; overflow: hidden; background: #f1f5f9; }
   .ev-card-thumb img { width: 100%; display: block; transition: transform 0.4s ease; }
   .ev-event-card:hover .ev-card-thumb img { transform: scale(1.03); }
   .ev-card-thumb-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.35) 100%); pointer-events: none; }
-  .ev-card-thumb-label { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 5px; background: rgba(239,68,68,0.9); color: #fff; padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: 700; backdrop-filter: blur(4px); }
+  .ev-card-thumb-label { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 5px; background: rgba(239,68,68,0.9); color: #fff; padding: 4px 12px; border-radius: 100px; font-size: 13px; font-weight: 700; backdrop-filter: blur(4px); }
   .ev-card-thumb-fallback { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 48px; }
 
   .ev-event-card-body { padding: 16px 18px 18px; flex: 1; display: flex; flex-direction: column; }
-  .ev-event-category { font-size: 11px; font-weight: 700; color: #1a4fd6; margin-bottom: 6px; letter-spacing: 0.3px; }
-  .ev-event-title { font-size: 14.5px; font-weight: 700; color: #111827; margin-bottom: 10px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .ev-event-category { font-size: 13px; font-weight: 700; color: #1a4fd6; margin-bottom: 6px; letter-spacing: 0.3px; }
+  .ev-event-title { font-size: 16.5px; font-weight: 700; color: #111827; margin-bottom: 10px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .ev-event-meta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
-  .ev-event-meta-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7280; }
+  .ev-event-meta-row { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #6b7280; }
   .ev-event-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #f1f3f5; }
   .ev-progress-wrap { margin-bottom: 10px; }
-  .ev-progress-label { display: flex; justify-content: space-between; font-size: 11px; color: #9ca3af; margin-bottom: 5px; }
+  .ev-progress-label { display: flex; justify-content: space-between; font-size: 13px; color: #9ca3af; margin-bottom: 5px; }
   .ev-progress-track { height: 6px; background: #f1f3f5; border-radius: 100px; overflow: hidden; }
   .ev-progress-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, #1a4fd6, #6366f1); transition: width 0.6s ease; }
-  .ev-card-btn { width: 100%; height: 36px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; font-size: 13px; font-weight: 700; color: #374151; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; font-family: inherit; transition: all 0.15s; }
+  .ev-card-btn { width: 100%; height: 42px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; font-size: 15px; font-weight: 700; color: #374151; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; font-family: inherit; transition: all 0.15s; }
   .ev-card-btn:hover { background: #1a4fd6; color: #fff; border-color: #1a4fd6; }
 
   @media (max-width: 1024px) {
+    .ev-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 860px) {
     .ev-grid { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 600px) {
@@ -255,7 +259,7 @@ export default function Current() {
         }
       } catch (e) {
         const msg =
-          e?.response?.data?.message || e?.message || "Failed to load events.";
+          e?.response?.data?.message || "네트워크 연결을 확인하고 다시 시도해 주세요.";
         if (mounted) setError(msg);
       } finally {
         if (mounted) setLoading(false);
@@ -281,6 +285,9 @@ export default function Current() {
       <PageHeader
         title="현재 진행 행사"
         subtitle={SUBTITLE_MAP[currentPath]}
+        icon={<Zap size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
         onNavigate={setCurrentPath}
@@ -290,45 +297,45 @@ export default function Current() {
         {loading ? (
           <PageLoading />
         ) : error ? (
-          <EmptyState type="error" message="행사를 불러오지 못했습니다" description={error} />
+          <EmptyState type="error" message="행사를 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." />
         ) : (
           <>
           {/* 검색 바 + 상태 칩 */}
-          <div style={{ display: "flex", gap: 12, alignItems: "stretch", marginBottom: 18 }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
             <div className="ev-live-chip">
               <div className="ev-live-dot" />
               진행 중 <span className="ev-live-count">{events.length}</span>
             </div>
-            <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
+            <div style={{ position: "relative", width: 280 }}>
               <Search
                 size={16}
                 color={searchFocused ? "#2563eb" : "#94a3b8"}
                 style={{
-                  position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
+                  position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
                   transition: "color 0.25s", zIndex: 1,
                 }}
               />
-              <span style={{
-                position: "absolute", left: 42,
-                top: searchFocused || query ? 6 : "50%",
-                transform: searchFocused || query ? "none" : "translateY(-50%)",
-                fontSize: searchFocused || query ? 10 : 13,
-                color: searchFocused ? "#2563eb" : "#94a3b8",
-                fontWeight: 600,
-                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                pointerEvents: "none", zIndex: 1,
-                background: "#fff", padding: "0 4px",
-              }}>행사 검색</span>
+              {!searchFocused && !query && (
+                <span style={{
+                  position: "absolute", left: 38,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  fontSize: 15,
+                  color: "#94a3b8",
+                  fontWeight: 600,
+                  pointerEvents: "none", zIndex: 1,
+                }}>행사 검색</span>
+              )}
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
                 style={{
-                  width: "100%", height: 52,
-                  borderRadius: 14,
+                  width: "100%", height: 44,
+                  borderRadius: 12,
                   border: searchFocused ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
-                  padding: query || searchFocused ? "14px 16px 0 42px" : "0 16px 0 42px",
+                  padding: "0 14px 0 38px",
                   fontSize: 15, fontWeight: 700, color: "#0f172a",
                   background: "#fff", outline: "none",
                   transition: "border-color 0.25s, box-shadow 0.25s, padding 0.2s",

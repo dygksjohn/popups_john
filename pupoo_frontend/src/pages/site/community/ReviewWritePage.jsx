@@ -187,7 +187,7 @@ export default function ReviewWritePage() {
         <ErrorBox message={error} />
 
         {loading ? (
-          <div style={{ fontSize: 14, color: "#64748b" }}>행사 목록을 불러오는 중입니다.</div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>행사 목록을 불러오는 중입니다.</div>
         ) : (
           <div style={{ display: "grid", gap: 18 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 14 }}>

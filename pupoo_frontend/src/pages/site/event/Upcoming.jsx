@@ -17,6 +17,7 @@ import {
   Bell,
   BellRing,
   Tag,
+  CalendarClock,
 } from "lucide-react";
 
 export const SERVICE_CATEGORIES = [
@@ -70,7 +71,7 @@ const styles = `
     display: inline-flex; align-items: center; gap: 7px;
     height: 52px; padding: 0 20px;
     background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px;
-    font-size: 14px; font-weight: 700; color: #111827;
+    font-size: 16px; font-weight: 700; color: #111827;
     white-space: nowrap; flex-shrink: 0;
   }
   .up-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #2563eb; animation: up-pulse 1.4s ease-in-out infinite; }
@@ -79,7 +80,7 @@ const styles = `
 
   .up-filter-btn {
     height: 52px; padding: 0 18px; border: 1.5px solid #e2e8f0; border-radius: 14px;
-    background: #fff; font-size: 13.5px; font-weight: 600; color: #374151;
+    background: #fff; font-size: 15.5px; font-weight: 600; color: #374151;
     cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: inherit;
     transition: all 0.15s; white-space: nowrap;
   }
@@ -108,7 +109,7 @@ const styles = `
   }
   .up-d-badge {
     position: absolute; top: 12px; right: 12px;
-    font-size: 12px; font-weight: 800; color: #fff;
+    font-size: 14px; font-weight: 800; color: #fff;
     padding: 4px 10px; border-radius: 8px;
     background: linear-gradient(135deg, #ef4444, #f97316);
     box-shadow: 0 2px 8px rgba(239,68,68,0.3);
@@ -116,16 +117,16 @@ const styles = `
 
   .up-event-body { flex: 1; padding: 20px 22px; display: flex; flex-direction: column; min-width: 0; }
   .up-event-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-  .up-event-category { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
-  .up-event-title { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 10px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .up-event-category { font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+  .up-event-title { font-size: 17px; font-weight: 700; color: #111827; margin-bottom: 10px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .up-event-meta { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-  .up-event-meta-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #6b7280; }
+  .up-event-meta-item { display: flex; align-items: center; gap: 6px; font-size: 14.5px; color: #6b7280; }
   .up-event-footer { margin-top: auto; display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #f1f3f5; gap: 8px; }
-  .up-participants { font-size: 12px; color: #6b7280; }
-  .up-participants strong { font-size: 14px; font-weight: 800; color: #111827; }
+  .up-participants { font-size: 14px; color: #6b7280; }
+  .up-participants strong { font-size: 16px; font-weight: 800; color: #111827; }
   .up-action-row { display: flex; align-items: center; gap: 6px; }
   .up-alarm-btn {
-    height: 34px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    height: 34px; padding: 0 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
     cursor: pointer; display: flex; align-items: center; gap: 5px; font-family: inherit;
     transition: all 0.15s;
   }
@@ -134,7 +135,7 @@ const styles = `
   .up-alarm-btn.on { border: 1px solid #2563eb; background: #eff6ff; color: #2563eb; }
   .up-pre-btn {
     height: 34px; padding: 0 14px; border-radius: 8px; border: none;
-    font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+    font-size: 14.5px; font-weight: 700; cursor: pointer; font-family: inherit;
     background: #1a4fd6; color: #fff; transition: all 0.15s;
   }
   .up-pre-btn:hover { background: #1640b8; }
@@ -312,7 +313,7 @@ export default function Upcoming() {
         }
       } catch (e) {
         const msg =
-          e?.response?.data?.message || e?.message || "Failed to load events.";
+          e?.response?.data?.message || "네트워크 연결을 확인하고 다시 시도해 주세요.";
         if (mounted) setError(msg);
       } finally {
         if (mounted) setLoading(false);
@@ -390,6 +391,9 @@ export default function Upcoming() {
       <PageHeader
         title="예정 행사"
         subtitle={SUBTITLE_MAP[currentPath]}
+        icon={<CalendarClock size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
         onNavigate={setCurrentPath}
@@ -399,52 +403,15 @@ export default function Upcoming() {
         {loading ? (
           <PageLoading />
         ) : error ? (
-          <EmptyState type="error" message="행사를 불러오지 못했습니다" description={error} />
+          <EmptyState type="error" message="행사를 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." />
         ) : (
           <>
           {/* 검색 바 + 상태 칩 */}
-          <div style={{ display: "flex", gap: 12, alignItems: "stretch", marginBottom: 18, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <div className="up-status-chip">
               <div className="up-status-dot" />
               예정 <span className="up-status-count">{events.length}</span>
-            </div>
-            <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
-              <Search
-                size={16}
-                color={searchFocused ? "#2563eb" : "#94a3b8"}
-                style={{
-                  position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
-                  transition: "color 0.25s", zIndex: 1,
-                }}
-              />
-              <span style={{
-                position: "absolute", left: 42,
-                top: searchFocused || query ? 6 : "50%",
-                transform: searchFocused || query ? "none" : "translateY(-50%)",
-                fontSize: searchFocused || query ? 10 : 13,
-                color: searchFocused ? "#2563eb" : "#94a3b8",
-                fontWeight: 600,
-                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                pointerEvents: "none", zIndex: 1,
-                background: "#fff", padding: "0 4px",
-              }}>행사 검색</span>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                style={{
-                  width: "100%", height: 52,
-                  borderRadius: 14,
-                  border: searchFocused ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
-                  padding: query || searchFocused ? "14px 16px 0 42px" : "0 16px 0 42px",
-                  fontSize: 15, fontWeight: 700, color: "#0f172a",
-                  background: "#fff", outline: "none",
-                  transition: "border-color 0.25s, box-shadow 0.25s, padding 0.2s",
-                  boxShadow: searchFocused ? "0 0 0 3px rgba(37,99,235,0.1)" : "none",
-                  fontFamily: "inherit",
-                }}
-              />
             </div>
             {categories.map((c) => (
               <button
@@ -455,6 +422,45 @@ export default function Upcoming() {
                 <Tag size={11} /> {c}
               </button>
             ))}
+            </div>
+            <div style={{ position: "relative", width: 280 }}>
+              <Search
+                size={16}
+                color={searchFocused ? "#2563eb" : "#94a3b8"}
+                style={{
+                  position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
+                  transition: "color 0.25s", zIndex: 1,
+                }}
+              />
+              {!searchFocused && !query && (
+                <span style={{
+                  position: "absolute", left: 38,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  fontSize: 15,
+                  color: "#94a3b8",
+                  fontWeight: 600,
+                  pointerEvents: "none", zIndex: 1,
+                }}>행사 검색</span>
+              )}
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                style={{
+                  width: "100%", height: 44,
+                  borderRadius: 12,
+                  border: searchFocused ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+                  padding: "0 14px 0 38px",
+                  fontSize: 15, fontWeight: 700, color: "#0f172a",
+                  background: "#fff", outline: "none",
+                  transition: "border-color 0.25s, box-shadow 0.25s",
+                  boxShadow: searchFocused ? "0 0 0 3px rgba(37,99,235,0.1)" : "none",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
           </div>
 
         <div className="up-grid">
@@ -517,7 +523,7 @@ export default function Upcoming() {
                   </div>
                   <div className="up-event-footer">
                     <div className="up-participants">
-                      사전 등록 <strong>{Number(ev.registered || 0).toLocaleString()}</strong> / {Number(ev.capacity || 0).toLocaleString()}명
+                      사전 등록&nbsp;&nbsp;<strong>{Number(ev.registered || 0).toLocaleString()}</strong> / {Number(ev.capacity || 0).toLocaleString()}명
                     </div>
                     <div className="up-action-row">
                       <button

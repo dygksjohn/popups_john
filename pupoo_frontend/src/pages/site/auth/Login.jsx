@@ -144,6 +144,7 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState(null);
   const externalError = location.state?.error || "";
 
   useEffect(() => {
@@ -151,6 +152,16 @@ const LoginPage = ({ leftBgImage = null }) => {
       setError(externalError);
     }
   }, [externalError]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2300);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const handleSocialClick = (name) => {
+    setToast(`${name} 로그인은 곧 지원될 예정이에요`);
+  };
 
   const handleLogin = async () => {
     if (loading) return;
@@ -176,7 +187,7 @@ const LoginPage = ({ leftBgImage = null }) => {
       sessionStorage.removeItem("post_login_redirect");
       navigate(redirectTo, { replace: true });
     } catch (e) {
-        setError(e?.response?.data?.message ?? e?.message ?? "로그인 실패");
+        setError(e?.response?.data?.message ?? "로그인에 실패했습니다. 다시 시도해 주세요.");
     } finally {
       setLoading(false);
     }
@@ -369,7 +380,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 borderRadius: "0 20px 20px 0",
               }}
             >
-              {/* Logo */}
+              {/* Title */}
               <div style={{ marginBottom: 32 }}>
                 <div
                   style={{
@@ -378,20 +389,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                     gap: 8,
                   }}
                 >
-                  {/* IMQA circle icon */}
-                  <div style={{}}>
-                    <div />
-                  </div>
-                  <span>
-                    <img
-                      src="/logo_blue.png"
-                      alt="PUPU Logo"
-                      style={{
-                        height: "38px",
-                        objectFit: "contain",
-                      }}
-                    />
-                  </span>
+                  <span style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a" }}>로그인</span>
                 </div>
               </div>
 
@@ -553,12 +551,15 @@ const LoginPage = ({ leftBgImage = null }) => {
 
                 {/* Google */}
                 <SocialButton
-                  onClick={() => console.log("Google login")}
+                  onClick={() => handleSocialClick("Google")}
                   style={{
                     background: "#FFFFFF",
                     color: "#3C4043",
                     border: "1.5px solid #DADCE0",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                    opacity: 0.35,
+                    filter: "grayscale(0.7)",
+                    cursor: "pointer",
                   }}
                 >
                   <GoogleIcon />
@@ -567,10 +568,13 @@ const LoginPage = ({ leftBgImage = null }) => {
 
                 {/* Apple */}
                 <SocialButton
-                  onClick={() => console.log("Apple login")}
+                  onClick={() => handleSocialClick("Apple")}
                   style={{
                     background: "#000000",
                     color: "#FFFFFF",
+                    opacity: 0.35,
+                    filter: "grayscale(0.7)",
+                    cursor: "pointer",
                   }}
                 >
                   <AppleIcon />
@@ -598,6 +602,21 @@ const LoginPage = ({ leftBgImage = null }) => {
           </div>
         </div>
       </div>
+
+      {toast && (
+        <div style={{
+          position: "fixed", bottom: 40, left: "50%", transform: "translateX(-50%)",
+          background: "#fff", color: "#333", fontSize: 14, fontWeight: 600,
+          padding: "14px 32px", borderRadius: 14, border: "1px solid #e8e8e8",
+          boxShadow: "0 8px 32px rgba(0,0,0,.12)", zIndex: 9999,
+          animation: "login-toast-in .3s ease, login-toast-out .3s ease 2s forwards",
+        }}>{toast}</div>
+      )}
+
+      <style>{`
+        @keyframes login-toast-in { from { opacity:0; transform:translateX(-50%) translateY(16px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+        @keyframes login-toast-out { from { opacity:1; } to { opacity:0; transform:translateX(-50%) translateY(16px); } }
+      `}</style>
     </>
   );
 };
