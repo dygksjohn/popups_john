@@ -91,8 +91,9 @@ public class ReplyService {
         if (!bannedWordService.shouldSkipModeration(userId) && boardIdForModeration != null) {
             modResult = moderationClient.moderate(request.getContent() != null ? request.getContent() : "", boardIdForModeration, "COMMENT");
             if (modResult != null && modResult.isBlock()) {
+                // 댓글 작성 실패 시 사용자 메시지 통일
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        modResult.getReason() != null ? modResult.getReason() : "댓글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+                        "댓글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
             }
         }
 
@@ -111,10 +112,6 @@ public class ReplyService {
                     .updatedAt(now)
                     .deleted(false)
                     .build());
-
-            if (modResult != null && modResult.isReview()) {
-                bannedWordService.logAiModeration(boardId, saved.getCommentId(), BannedLogContentType.COMMENT, userId, modResult);
-            }
             return toResponse(saved, ReplyTargetType.POST, request.getTargetId(), boardId);
         }
 
@@ -131,10 +128,6 @@ public class ReplyService {
                     .updatedAt(now)
                     .deleted(false)
                     .build());
-
-            if (modResult != null && modResult.isReview()) {
-                bannedWordService.logAiModeration(reviewBoardId, saved.getCommentId(), BannedLogContentType.COMMENT, userId, modResult);
-            }
             return toResponse(saved, ReplyTargetType.REVIEW, request.getTargetId(), reviewBoardId);
         }
 

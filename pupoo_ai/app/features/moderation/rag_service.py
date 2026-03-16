@@ -74,7 +74,7 @@ def retrieve_policies(query: str, top_k: int = 5) -> List[dict]:
 def moderate_with_rag(text: str) -> tuple[str, float | None, str | None, str, list[str] | None, list[str] | None]:
     """
     RAG 기반 모더레이션: 정책 검색 후 watsonx LLM으로 판정·사유·문제 문구(원문·유추) 생성.
-    - watsonx 미설정 시: 검색 결과 유무로 PASS/REVIEW만 반환(스텁).
+    - watsonx 미설정 시: 검색 결과 유무로 PASS만 반환(스텁).
     """
     docs = retrieve_policies(text, top_k=5)
 
@@ -88,5 +88,6 @@ def moderate_with_rag(text: str) -> tuple[str, float | None, str | None, str, li
     for d in docs:
         snippet = d["chunk_text"][:200].replace("\n", " ")
         reasons.append(f"[{d['policy_id']}] {snippet}")
-    return "REVIEW", None, "\n".join(reasons), "rag_milvus_stub", None, None
+    # watsonx 미설정 환경에서는 BLOCK/PASS를 AI로 구분하기 어렵기 때문에, 기본적으로 PASS 처리한다.
+    return "PASS", None, "\n".join(reasons), "rag_milvus_stub", None, None
 

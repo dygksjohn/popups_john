@@ -47,24 +47,24 @@ public class WebClientModerationClient implements ModerationClient {
                     .block(Duration.ofSeconds(properties.getTimeoutSeconds()));
 
             if (response == null) {
-                return ModerationResult.builder().action("REVIEW").reason("AI 서버 응답 없음").stack("error").build();
+                return ModerationResult.builder().action("PASS").reason("AI 서버 응답 없음").stack("error").build();
             }
             String action = (String) response.get("action");
             Object score = response.get("ai_score");
             String reason = (String) response.get("reason");
             String stack = (String) response.get("stack");
             return ModerationResult.builder()
-                    .action(action != null ? action : "REVIEW")
+                    .action(action != null ? action : "PASS")
                     .aiScore(score instanceof Number ? ((Number) score).floatValue() : null)
                     .reason(reason)
                     .stack(stack != null ? stack : "unknown")
                     .build();
         } catch (WebClientResponseException e) {
             log.warn("AI moderation API error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
-            return ModerationResult.builder().action("REVIEW").reason("AI 서버 오류: " + e.getStatusCode()).stack("error").build();
+            return ModerationResult.builder().action("PASS").reason("AI 서버 오류: " + e.getStatusCode()).stack("error").build();
         } catch (Exception e) {
             log.warn("AI moderation call failed", e);
-            return ModerationResult.builder().action("REVIEW").reason("AI 서버 연결 실패").stack("error").build();
+            return ModerationResult.builder().action("PASS").reason("AI 서버 연결 실패").stack("error").build();
         }
     }
 }

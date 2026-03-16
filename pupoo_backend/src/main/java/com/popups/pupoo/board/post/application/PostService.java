@@ -154,8 +154,9 @@ public class PostService {
             String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
             modResult = moderationClient.moderate(textToModerate.trim(), req.getBoardId(), "POST");
             if (modResult != null && modResult.isBlock()) {
+                // 자유게시판 등 게시글 전반: 사용자에게는 항상 동일한 안내만 노출
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        modResult.getReason() != null ? modResult.getReason() : "게시글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+                        "게시글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
             }
         }
 
@@ -172,9 +173,6 @@ public class PostService {
                 .build();
 
         Post saved = postRepository.save(post);
-        if (modResult != null && modResult.isReview()) {
-            bannedWordService.logAiModeration(req.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, modResult);
-        }
         return saved.getPostId();
     }
 
@@ -197,9 +195,6 @@ public class PostService {
                         modResult.getReason() != null ? modResult.getReason() : "게시글 내용이 정책에 위반될 수 있어 수정할 수 없습니다.");
             }
             post.updateTitleAndContent(req.getPostTitle(), req.getContent());
-            if (modResult != null && modResult.isReview()) {
-                bannedWordService.logAiModeration(post.getBoard().getBoardId(), postId, BannedLogContentType.POST, userId, modResult);
-            }
         } else {
             post.updateTitleAndContent(req.getPostTitle(), req.getContent());
         }

@@ -51,8 +51,9 @@ public class QnaService {
             String textToModerate = (request.getTitle() != null ? request.getTitle() : "") + " " + (request.getContent() != null ? request.getContent() : "");
             modResult = moderationClient.moderate(textToModerate.trim(), qnaBoard.getBoardId(), "POST");
             if (modResult != null && modResult.isBlock()) {
+                // QnA 작성 실패 시 사용자 메시지 통일
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        modResult.getReason() != null ? modResult.getReason() : "QnA 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+                        "QnA 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
             }
         }
 
@@ -71,9 +72,6 @@ public class QnaService {
                 .build();
 
         Post saved = qnaRepository.save(post);
-        if (modResult != null && modResult.isReview()) {
-            bannedWordService.logAiModeration(qnaBoard.getBoardId(), saved.getPostId(), BannedLogContentType.POST, userId, modResult);
-        }
         return toResponse(saved);
     }
 

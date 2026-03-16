@@ -11,7 +11,7 @@ class ModerateRequest(BaseModel):
 
 class ModerateResponse(BaseModel):
     """모더레이션 응답."""
-    action: str = Field(..., description="PASS | REVIEW | BLOCK")
+    action: str = Field(..., description="PASS | BLOCK")
     ai_score: float | None = Field(None, description="AI 판정 점수 또는 RAG 근거 관련 수치")
     flagged_phrases: list[str] | None = Field(None, description="사용자 입력에 포함된 문제 문구 목록 (원문)")
     inferred_phrases: list[str] | None = Field(None, description="문맥에서 유추된 위반 관련 단어·문구 목록")

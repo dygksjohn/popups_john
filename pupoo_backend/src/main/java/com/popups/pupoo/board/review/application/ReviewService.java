@@ -46,8 +46,9 @@ public class ReviewService {
         if (!bannedWordService.shouldSkipModeration(userId)) {
             modResult = moderationClient.moderate(request.getContent() != null ? request.getContent() : "", reviewBoardId, "POST");
             if (modResult != null && modResult.isBlock()) {
+                // 후기 작성 실패 시 사용자 메시지 통일
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        modResult.getReason() != null ? modResult.getReason() : "후기 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+                        "후기 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
             }
         }
 
@@ -66,9 +67,6 @@ public class ReviewService {
                 .reviewStatus(ReviewStatus.PUBLIC)
                 .build();
         Review saved = reviewRepository.save(review);
-        if (modResult != null && modResult.isReview()) {
-            bannedWordService.logAiModeration(reviewBoardId, saved.getReviewId(), BannedLogContentType.POST, userId, modResult);
-        }
         return toResponse(saved);
     }
 

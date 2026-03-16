@@ -12,8 +12,6 @@ import com.popups.pupoo.board.bannedword.persistence.BoardBannedLogRepository;
 import com.popups.pupoo.board.bannedword.persistence.BoardFilterPolicyRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
-import com.popups.pupoo.user.domain.enums.RoleName;
-import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,17 +36,14 @@ public class BannedWordService {
     private final BannedWordRepository bannedWordRepository;
     private final BoardFilterPolicyRepository boardFilterPolicyRepository;
     private final BoardBannedLogRepository boardBannedLogRepository;
-    private final UserRepository userRepository;
 
     /**
-     * 관리자(ADMIN, SUPER_ADMIN)는 금지어 필터(AI 모더레이션) 대상에서 제외한다.
+     * 금지어 필터(AI 모더레이션) 대상을 판단한다.
+     * 현재는 관리자 포함 모든 사용자가 검사 대상이다.
      */
     @Transactional(readOnly = true)
     public boolean shouldSkipModeration(Long userId) {
-        if (userId == null) return false;
-        return userRepository.findById(userId)
-                .map(u -> u.getRoleName() == RoleName.ADMIN || u.getRoleName() == RoleName.SUPER_ADMIN)
-                .orElse(false);
+        return false;
     }
 
     /**
@@ -117,14 +112,15 @@ public class BannedWordService {
     }
 
     /**
-     * Log AI moderation result (REVIEW/BLOCK). On save failure (e.g. missing ai_score/rag_reason columns), does not fail the request.
+     * Log AI moderation result. On save failure (e.g. missing ai_score/rag_reason columns), does not fail the request.
+     * 현재 ACTION 도메인은 PASS/BLOCK만 사용하므로, BLOCK이 아닌 경우는 로그를 남기지 않는다.
      */
     @Transactional
     public void logAiModeration(Long boardId, Long contentId, BannedLogContentType contentType, Long userId,
                                 ModerationResult result) {
         if (result == null || boardId == null || contentId == null) return;
-        if (!result.isReview() && !result.isBlock()) return;
-        FilterAction action = result.isBlock() ? FilterAction.BLOCK : FilterAction.REVIEW;
+        if (!result.isBlock()) return;
+        FilterAction action = FilterAction.BLOCK;
         String reason = result.getReason();
         if (reason != null && reason.length() > 2000) reason = reason.substring(0, 2000);
         try {
