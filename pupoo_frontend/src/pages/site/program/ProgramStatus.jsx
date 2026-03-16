@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CalendarCheck,
   CalendarX,
+  CalendarClock,
   Clock3,
   Layers3,
   MapPin,
@@ -11,6 +12,16 @@ import {
   Sparkles,
   Search,
   ChevronDown,
+  Zap,
+  ArchiveX,
+  Clock,
+  Calendar,
+  Tag,
+  Bell,
+  BellRing,
+  Users,
+  Star,
+  MessageSquareText,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
@@ -23,6 +34,7 @@ import {
   injectProgramImages,
 } from "../../admin/shared/programImageStore";
 import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
+import CommunityPagination from "../community/shared/CommunityPagination";
 
 const PROGRAM_STATUS_CATEGORIES = [
   { label: "현재 진행 프로그램", path: "/program/current" },
@@ -41,14 +53,17 @@ const PAGE_CONFIG = {
   current: {
     title: "현재 진행 프로그램",
     subtitle: "현재 진행 행사에 속한 프로그램을 확인하세요",
+    icon: <Zap size={42} color="#1a4fd6" strokeWidth={1.6} />,
   },
   upcoming: {
     title: "예정 프로그램",
     subtitle: "예정 행사에 속한 프로그램을 미리 확인하세요",
+    icon: <CalendarClock size={42} color="#1a4fd6" strokeWidth={1.6} />,
   },
   closed: {
     title: "종료 프로그램",
     subtitle: "종료 행사에 속한 프로그램 이력을 확인하세요",
+    icon: <ArchiveX size={42} color="#1a4fd6" strokeWidth={1.6} />,
   },
 };
 
@@ -129,58 +144,129 @@ const styles = `
   .ps-stat-label { font-size:12px; color:#6b7280; }
   .ps-stat-value { font-size:22px; font-weight:800; color:#111827; }
 
-  .ps-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
-  .ps-card {
-    background:#fff; border:1px solid #e9ecef; border-radius:16px; overflow:hidden;
-    display:flex; flex-direction:column; transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-    cursor:pointer;
+  /* ── Current: 4-column vertical cards (matching ev-) ── */
+  .ps-grid-current { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
+  .ps-card-current {
+    background:#fff; border:1px solid #e9ecef; border-radius:16px;
+    overflow:hidden; transition:box-shadow 0.25s, transform 0.25s; cursor:pointer;
+    display:flex; flex-direction:column;
   }
-  .ps-card:hover { transform:translateY(-3px); box-shadow:0 12px 30px rgba(15,23,42,0.08); border-color:#bfdbfe; }
-  .ps-card.done { opacity:0.76; }
-  .ps-thumb {
-    width:100%; aspect-ratio:16/10; background:linear-gradient(135deg,#eff6ff 0%,#f8fafc 100%);
-    position:relative; overflow:hidden;
+  .ps-card-current:hover { box-shadow:0 6px 18px rgba(0,0,0,0.06); transform:translateY(-3px); }
+  .ps-card-current:hover .ps-card-current-btn { background:#1a4fd6; color:#fff; border-color:#1a4fd6; }
+  .ps-card-current-thumb { position:relative; overflow:hidden; background:#f1f5f9; }
+  .ps-card-current-thumb img { width:100%; display:block; transition:transform 0.4s ease; }
+  .ps-card-current:hover .ps-card-current-thumb img { transform:scale(1.03); }
+  .ps-card-current-thumb-overlay { position:absolute; inset:0; background:linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.35) 100%); pointer-events:none; }
+  .ps-card-current-thumb-label {
+    position:absolute; top:12px; left:12px; display:flex; align-items:center; gap:5px;
+    background:rgba(239,68,68,0.9); color:#fff; padding:4px 12px; border-radius:100px;
+    font-size:13px; font-weight:700; backdrop-filter:blur(4px);
   }
-  .ps-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
-  .ps-thumb-ph {
-    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
-    color:#bfccdf;
+  .ps-card-current-thumb-fallback {
+    width:100%; aspect-ratio:3/4; display:flex; align-items:center; justify-content:center;
+    font-size:48px; background:linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%); color:#bfccdf;
   }
-  .ps-thumb-ph span { font-size:12px; font-weight:600; color:#b0bcce; }
-  .ps-badges {
-    position:absolute; top:12px; left:12px; right:12px; display:flex; justify-content:space-between; gap:8px;
+  .ps-card-current-body { padding:16px 18px 18px; flex:1; display:flex; flex-direction:column; }
+  .ps-card-current-category { font-size:13px; font-weight:700; color:#1a4fd6; margin-bottom:6px; letter-spacing:0.3px; }
+  .ps-card-current-title { font-size:16.5px; font-weight:700; color:#111827; margin-bottom:10px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .ps-card-current-meta { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; }
+  .ps-card-current-meta-row { display:flex; align-items:center; gap:6px; font-size:14px; color:#6b7280; }
+  .ps-card-current-footer { margin-top:auto; padding-top:12px; border-top:1px solid #f1f3f5; }
+  .ps-card-current-progress-wrap { margin-bottom:10px; }
+  .ps-card-current-progress-label { display:flex; justify-content:space-between; font-size:13px; color:#9ca3af; margin-bottom:5px; }
+  .ps-card-current-progress-track { height:6px; background:#f1f3f5; border-radius:100px; overflow:hidden; }
+  .ps-card-current-progress-fill { height:100%; border-radius:100px; background:linear-gradient(90deg, #1a4fd6, #6366f1); transition:width 0.6s ease; }
+  .ps-card-current-btn {
+    width:100%; height:42px; border:1px solid #e2e8f0; border-radius:10px; background:#fff;
+    font-size:15px; font-weight:700; color:#374151; cursor:pointer; display:flex;
+    align-items:center; justify-content:center; gap:4px; font-family:inherit; transition:all 0.15s;
   }
-  .ps-badge {
-    display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:999px;
-    font-size:11px; font-weight:700; backdrop-filter:blur(6px);
+  .ps-card-current-btn:hover { background:#1a4fd6; color:#fff; border-color:#1a4fd6; }
+
+  /* ── Upcoming: 2-column horizontal cards (matching up-) ── */
+  .ps-grid-upcoming { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  .ps-card-upcoming {
+    background:#fff; border:1px solid #e9ecef; border-radius:16px;
+    overflow:hidden; display:flex;
+    transition:box-shadow 0.25s, transform 0.25s; cursor:pointer;
   }
-  .ps-badge.live { background:#ecfdf5; color:#059669; }
-  .ps-badge.upcoming { background:#fff7ed; color:#d97706; }
-  .ps-badge.done { background:#f3f4f6; color:#6b7280; }
-  .ps-event-badge {
-    display:inline-flex; align-items:center; max-width:55%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-    background:rgba(17,24,39,.72); color:#fff; padding:4px 10px; border-radius:999px; font-size:10px; font-weight:700;
+  .ps-card-upcoming:hover { box-shadow:0 12px 36px rgba(0,0,0,0.08); transform:translateY(-2px); }
+  .ps-card-upcoming-thumb {
+    width:180px; flex-shrink:0; overflow:hidden; background:#eef2ff; position:relative;
   }
-  .ps-body { padding:16px; display:flex; flex-direction:column; gap:11px; flex:1; }
-  .ps-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-  .ps-category {
-    display:inline-flex; align-items:center; padding:3px 9px; border-radius:999px; font-size:10px; font-weight:700;
-    background:#eff4ff; color:#1a4fd6;
+  .ps-card-upcoming-thumb img { width:100%; height:100%; object-fit:cover; display:block; transition:transform 0.4s; }
+  .ps-card-upcoming:hover .ps-card-upcoming-thumb img { transform:scale(1.03); }
+  .ps-card-upcoming-thumb-fallback {
+    width:100%; height:100%; min-height:200px;
+    display:flex; align-items:center; justify-content:center; font-size:36px;
+    background:linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%); color:#bfccdf;
   }
-  .ps-title { font-size:16px; font-weight:800; color:#111827; line-height:1.35; }
-  .ps-desc {
-    font-size:12.5px; color:#6b7280; line-height:1.55; min-height:38px;
-    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  .ps-card-upcoming-d-badge {
+    position:absolute; top:12px; right:12px;
+    font-size:14px; font-weight:800; color:#fff;
+    padding:4px 10px; border-radius:8px;
+    background:linear-gradient(135deg, #ef4444, #f97316);
+    box-shadow:0 2px 8px rgba(239,68,68,0.3);
   }
-  .ps-meta { display:flex; flex-direction:column; gap:7px; font-size:12px; color:#6b7280; }
-  .ps-meta-row { display:flex; align-items:center; gap:6px; }
-  .ps-footer {
-    margin-top:auto; padding-top:10px; border-top:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; gap:8px;
+  .ps-card-upcoming-body { flex:1; padding:20px 22px; display:flex; flex-direction:column; min-width:0; }
+  .ps-card-upcoming-top { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .ps-card-upcoming-category { font-size:13px; font-weight:700; padding:3px 10px; border-radius:6px; }
+  .ps-card-upcoming-title { font-size:17px; font-weight:700; color:#111827; margin-bottom:10px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .ps-card-upcoming-meta { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+  .ps-card-upcoming-meta-item { display:flex; align-items:center; gap:6px; font-size:14.5px; color:#6b7280; }
+  .ps-card-upcoming-footer { margin-top:auto; display:flex; align-items:center; justify-content:space-between; padding-top:12px; border-top:1px solid #f1f3f5; gap:8px; }
+  .ps-card-upcoming-event-name { font-size:14px; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ps-card-upcoming-detail-btn {
+    height:34px; padding:0 14px; border-radius:8px; border:none;
+    font-size:14.5px; font-weight:700; cursor:pointer; font-family:inherit;
+    background:#1a4fd6; color:#fff; transition:all 0.15s; flex-shrink:0;
+    display:flex; align-items:center; gap:4px;
   }
-  .ps-footer button {
-    border:none; background:none; color:#1a4fd6; font-size:12px; font-weight:700; cursor:pointer;
-    display:inline-flex; align-items:center; gap:4px;
+  .ps-card-upcoming-detail-btn:hover { background:#1640b8; }
+
+  /* ── Closed: 2-column horizontal cards (matching upcoming, muted) ── */
+  .ps-grid-closed { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  .ps-card-closed {
+    background:#fff; border:1px solid #e9ecef; border-radius:16px;
+    overflow:hidden; display:flex;
+    transition:box-shadow 0.25s, transform 0.25s; cursor:pointer;
   }
+  .ps-card-closed:hover { box-shadow:0 12px 36px rgba(0,0,0,0.08); transform:translateY(-2px); }
+  .ps-card-closed-thumb {
+    width:180px; flex-shrink:0; overflow:hidden; background:#f1f5f9; position:relative;
+  }
+  .ps-card-closed-thumb img { width:100%; height:100%; object-fit:cover; display:block; filter:grayscale(40%) brightness(0.92); transition:filter 0.4s, transform 0.4s; }
+  .ps-card-closed:hover .ps-card-closed-thumb img { filter:grayscale(10%) brightness(0.97); transform:scale(1.03); }
+  .ps-card-closed-thumb-ph {
+    width:100%; height:100%; min-height:200px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; font-size:36px;
+    background:linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); color:#94a3b8;
+  }
+  .ps-card-closed-thumb-ph span { font-size:12px; font-weight:600; color:#94a3b8; }
+  .ps-card-closed-badge {
+    position:absolute; top:12px; right:12px;
+    font-size:13px; font-weight:800; color:#fff;
+    padding:4px 10px; border-radius:8px;
+    background:rgba(107,114,128,0.85); backdrop-filter:blur(4px);
+    display:inline-flex; align-items:center; gap:5px;
+  }
+  .ps-card-closed-body { flex:1; padding:20px 22px; display:flex; flex-direction:column; min-width:0; }
+  .ps-card-closed-top { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .ps-card-closed-category { font-size:13px; font-weight:700; padding:3px 10px; border-radius:6px; }
+  .ps-card-closed-title { font-size:17px; font-weight:700; color:#475569; margin-bottom:10px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .ps-card-closed-meta { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+  .ps-card-closed-meta-row { display:flex; align-items:center; gap:6px; font-size:14.5px; color:#94a3b8; }
+  .ps-card-closed-footer {
+    margin-top:auto; display:flex; align-items:center; justify-content:space-between; padding-top:12px; border-top:1px solid #f1f3f5; gap:8px;
+  }
+  .ps-card-closed-event-name { font-size:14px; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ps-card-closed-detail-btn {
+    height:34px; padding:0 14px; border-radius:8px; border:none;
+    font-size:14.5px; font-weight:700; cursor:pointer; font-family:inherit;
+    background:#6b7280; color:#fff; transition:all 0.15s; flex-shrink:0;
+    display:flex; align-items:center; gap:4px;
+  }
+  .ps-card-closed-detail-btn:hover { background:#4b5563; }
 
   .ps-empty {
     background:#fff; border:1px solid #e9ecef; border-radius:16px; padding:70px 24px;
@@ -188,15 +274,39 @@ const styles = `
   }
   .ps-empty strong { color:#475569; margin-bottom:6px; }
 
-  @media (max-width:1100px) { .ps-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @keyframes ps-pulse { 0%, 100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(0.8); } }
+
+  @media (max-width:1100px) {
+    .ps-grid-current { grid-template-columns:repeat(3,1fr); }
+  }
+  @media (max-width:900px) {
+    .ps-grid-upcoming { grid-template-columns:1fr; }
+    .ps-grid-closed { grid-template-columns:1fr; }
+  }
+  @media (max-width:860px) {
+    .ps-grid-current { grid-template-columns:repeat(2,1fr); }
+  }
   @media (max-width:760px) {
     .ps-wrap { padding:20px 16px 48px; }
     .ps-stats { grid-template-columns:repeat(2,1fr); }
-    .ps-grid { grid-template-columns:1fr; }
+    .ps-grid-current { grid-template-columns:1fr; }
     .ps-toolbar-left { width:100%; flex-wrap:wrap; }
     .ps-select, .ps-search-wrap { width:100%; min-width:0; }
   }
+  @media (max-width:600px) {
+    .ps-card-upcoming { flex-direction:column; }
+    .ps-card-upcoming-thumb { width:100%; height:180px; }
+    .ps-card-closed { flex-direction:column; }
+    .ps-card-closed-thumb { width:100%; height:180px; }
+  }
 `;
+
+const CATEGORY_COLORS = {
+  SESSION: { bg: "#eff6ff", color: "#2563eb" },
+  EXPERIENCE: { bg: "#ecfdf5", color: "#059669" },
+  CONTEST: { bg: "#fff7ed", color: "#ea580c" },
+  ETC: { bg: "#f3f4f6", color: "#374151" },
+};
 
 function toDate(value) {
   if (!value) return null;
@@ -373,18 +483,233 @@ function resolveDetailPath(program) {
   return `/program/detail?programId=${program.programId}`;
 }
 
+function computeDday(startAt) {
+  const date = toDate(startAt);
+  if (!date) return 0;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffMs = startOfDay(date).getTime() - today.getTime();
+  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+}
+
+/* ── Card renderers ── */
+
+function CurrentCard({ program, onClick }) {
+  const capacity = program.capacity || 1;
+  const participants = program.participants || 0;
+  const pct = Math.min(100, Math.round((participants / capacity) * 100));
+
+  return (
+    <div className="ps-card-current" onClick={onClick}>
+      <div className="ps-card-current-thumb">
+        {program.imageUrl ? (
+          <img
+            src={resolveImageUrl(program.imageUrl)}
+            alt={program.title}
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+              const fb = e.currentTarget.nextElementSibling;
+              if (fb) fb.style.display = "flex";
+            }}
+          />
+        ) : null}
+        <div
+          className="ps-card-current-thumb-fallback"
+          style={{ display: program.imageUrl ? "none" : "flex" }}
+        >
+          <CalendarDays size={28} strokeWidth={1.3} />
+        </div>
+        <div className="ps-card-current-thumb-overlay" />
+        <div className="ps-card-current-thumb-label">
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", animation: "ps-pulse 1.4s ease-in-out infinite" }} />
+          LIVE
+        </div>
+      </div>
+      <div className="ps-card-current-body">
+        <div className="ps-card-current-category">{program.categoryLabel}</div>
+        <div className="ps-card-current-title">{program.title}</div>
+        <div className="ps-card-current-meta">
+          <div className="ps-card-current-meta-row">
+            <MapPin size={12} /> {program.location}
+          </div>
+          <div className="ps-card-current-meta-row">
+            <Calendar size={12} /> {program.schedule}
+          </div>
+        </div>
+        <div className="ps-card-current-footer">
+          <div className="ps-card-current-progress-wrap">
+            <div className="ps-card-current-progress-label">
+              <span>참가자 {participants.toLocaleString()}명 / {capacity.toLocaleString()}명</span>
+              <span style={{ fontWeight: 700, color: pct >= 80 ? "#ef4444" : "#1a4fd6" }}>{pct}%</span>
+            </div>
+            <div className="ps-card-current-progress-track">
+              <div className="ps-card-current-progress-fill" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+          <button
+            className="ps-card-current-btn"
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+          >
+            상세보기 <ChevronRight size={13} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UpcomingCard({ program, onClick }) {
+  const cc = CATEGORY_COLORS[program.categoryKey] || CATEGORY_COLORS.ETC;
+  const dday = computeDday(program.startSortAt);
+
+  return (
+    <div className="ps-card-upcoming" onClick={onClick}>
+      <div className="ps-card-upcoming-thumb">
+        {program.imageUrl ? (
+          <img
+            src={resolveImageUrl(program.imageUrl)}
+            alt={program.title}
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+              const fb = e.currentTarget.nextElementSibling;
+              if (fb) fb.style.display = "flex";
+            }}
+          />
+        ) : null}
+        <div
+          className="ps-card-upcoming-thumb-fallback"
+          style={{ display: program.imageUrl ? "none" : "flex" }}
+        >
+          <CalendarDays size={28} strokeWidth={1.3} />
+        </div>
+        <span className="ps-card-upcoming-d-badge">D-{dday}</span>
+      </div>
+      <div className="ps-card-upcoming-body">
+        <div className="ps-card-upcoming-top">
+          <span
+            className="ps-card-upcoming-category"
+            style={{ background: cc.bg, color: cc.color }}
+          >
+            {program.categoryLabel}
+          </span>
+          {program.dayLabel && (
+            <span
+              className="ps-card-upcoming-category"
+              style={{ background: "#f3f4f6", color: "#475569" }}
+            >
+              {program.dayLabel}
+            </span>
+          )}
+        </div>
+        <div className="ps-card-upcoming-title">{program.title}</div>
+        <div className="ps-card-upcoming-meta">
+          <div className="ps-card-upcoming-meta-item">
+            <MapPin size={12} /> {program.location}
+          </div>
+          <div className="ps-card-upcoming-meta-item">
+            <Clock size={12} /> {program.schedule}
+          </div>
+        </div>
+        <div className="ps-card-upcoming-footer">
+          <span className="ps-card-upcoming-event-name">{program.eventName}</span>
+          <button
+            className="ps-card-upcoming-detail-btn"
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+          >
+            상세보기 <ChevronRight size={13} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClosedCard({ program, onClick }) {
+  const cc = CATEGORY_COLORS[program.categoryKey] || CATEGORY_COLORS.ETC;
+
+  return (
+    <div className="ps-card-closed" onClick={onClick}>
+      <div className="ps-card-closed-thumb">
+        {program.imageUrl ? (
+          <img
+            src={resolveImageUrl(program.imageUrl)}
+            alt={program.title}
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+              const ph = e.currentTarget.nextElementSibling;
+              if (ph) ph.style.display = "flex";
+            }}
+          />
+        ) : null}
+        <div
+          className="ps-card-closed-thumb-ph"
+          style={{ display: program.imageUrl ? "none" : "flex" }}
+        >
+          <CalendarDays size={28} strokeWidth={1.3} />
+          <span>이미지 없음</span>
+        </div>
+        <span className="ps-card-closed-badge">
+          <CalendarX size={12} /> 종료
+        </span>
+      </div>
+      <div className="ps-card-closed-body">
+        <div className="ps-card-closed-top">
+          <span
+            className="ps-card-closed-category"
+            style={{ background: cc.bg, color: cc.color, opacity: 0.7 }}
+          >
+            {program.categoryLabel}
+          </span>
+          {program.dayLabel && (
+            <span
+              className="ps-card-closed-category"
+              style={{ background: "#f3f4f6", color: "#475569", opacity: 0.7 }}
+            >
+              {program.dayLabel}
+            </span>
+          )}
+        </div>
+        <div className="ps-card-closed-title">{program.title}</div>
+        <div className="ps-card-closed-meta">
+          <div className="ps-card-closed-meta-row">
+            <MapPin size={12} /> {program.location}
+          </div>
+          <div className="ps-card-closed-meta-row">
+            <Clock size={12} /> {program.schedule}
+          </div>
+        </div>
+        <div className="ps-card-closed-footer">
+          <span className="ps-card-closed-event-name">{program.eventName}</span>
+          <button
+            className="ps-card-closed-detail-btn"
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            type="button"
+          >
+            상세보기 <ChevronRight size={13} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProgramStatus({ statusKey = "current" }) {
   const navigate = useNavigate();
   const { eventId } = useParams();
   const config = PAGE_CONFIG[statusKey] ?? PAGE_CONFIG.current;
   const safeEventId = Number(eventId);
 
+  const PAGE_SIZE = statusKey === "current" ? 12 : 8;
   const [events, setEvents] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [ddOpen, setDdOpen] = useState(false);
   const ddRef = useRef(null);
 
@@ -548,6 +873,8 @@ export default function ProgramStatus({ statusKey = "current" }) {
               status: toProgramRuntimeStatus(rebasedStartAt, rebasedEndAt),
               categoryKey: normalizedCategory,
               categoryLabel: categoryLabel(normalizedCategory),
+              capacity: Number(row?.capacity ?? row?.maxParticipants ?? eventInfo?.capacity ?? 1),
+              participants: Number(row?.participants ?? row?.appliedCount ?? 0),
             };
           })
           .sort((a, b) => compareProgramsByPage(a, b, statusKey));
@@ -569,8 +896,7 @@ export default function ProgramStatus({ statusKey = "current" }) {
         setPrograms([]);
         setError(
           err?.response?.data?.message ??
-            err?.message ??
-            "프로그램 정보를 불러오지 못했습니다.",
+            "네트워크 연결을 확인하고 다시 시도해 주세요.",
         );
       } finally {
         if (mounted) setLoading(false);
@@ -585,6 +911,7 @@ export default function ProgramStatus({ statusKey = "current" }) {
 
   useEffect(() => {
     setCategoryFilter("ALL");
+    setPage(1);
   }, [safeEventId, statusKey]);
 
   useEffect(() => {
@@ -608,6 +935,17 @@ export default function ProgramStatus({ statusKey = "current" }) {
     });
   }, [programs, categoryFilter, searchQuery]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredPrograms.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedPrograms = useMemo(
+    () => filteredPrograms.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredPrograms, currentPage, PAGE_SIZE],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [categoryFilter, searchQuery]);
+
   const statPrograms = programs;
   const sessionCount = statPrograms.filter(
     (row) => row.categoryKey === "SESSION",
@@ -627,13 +965,24 @@ export default function ProgramStatus({ statusKey = "current" }) {
     navigate(`/program/${statusKey}/${nextEventId}`);
   };
 
+  const gridClass =
+    statusKey === "current"
+      ? "ps-grid-current"
+      : statusKey === "upcoming"
+        ? "ps-grid-upcoming"
+        : "ps-grid-closed";
+
   return (
     <div className="ps-root">
       <style>{styles}</style>
       <PageHeader
         title={config.title}
         subtitle={config.subtitle}
+        icon={config.icon}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
         categories={PROGRAM_STATUS_CATEGORIES}
+        className="ps-page-header"
       />
 
       <main className="ps-wrap">
@@ -742,104 +1091,54 @@ export default function ProgramStatus({ statusKey = "current" }) {
         {loading ? (
           <PageLoading message="프로그램 목록을 불러오는 중입니다" />
         ) : error ? (
-          <EmptyState type="error" message="프로그램을 불러오지 못했습니다" description={error} />
+          <EmptyState type="error" message="프로그램을 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." />
         ) : filteredPrograms.length === 0 ? (
           <div className="ps-empty">
             <strong>조건에 맞는 프로그램이 없습니다</strong>
             <span>행사나 분류를 바꿔 다시 확인해 주세요.</span>
           </div>
         ) : (
-          <div className="ps-grid">
-            {filteredPrograms.map((program) => (
-              <div
-                key={program.key}
-                className={`ps-card ${program.status === "done" ? "done" : ""}`}
-                onClick={() => navigate(resolveDetailPath(program))}
-              >
-                <div className="ps-thumb">
-                  {program.imageUrl ? (
-                    <img
-                      src={resolveImageUrl(program.imageUrl)}
-                      alt={program.title}
-                      loading="lazy"
-                      onError={(event) => {
-                        event.currentTarget.style.display = "none";
-                        const fallback = event.currentTarget.nextElementSibling;
-                        if (fallback) fallback.style.display = "flex";
-                      }}
+          <>
+            <div className={gridClass}>
+              {pagedPrograms.map((program) => {
+                const goDetail = () => navigate(resolveDetailPath(program));
+
+                if (statusKey === "current") {
+                  return (
+                    <CurrentCard
+                      key={program.key}
+                      program={program}
+                      onClick={goDetail}
                     />
-                  ) : null}
-                  <div
-                    className="ps-thumb-ph"
-                    style={{ display: program.imageUrl ? "none" : "flex" }}
-                  >
-                    <CalendarDays size={28} strokeWidth={1.3} />
-                    <span>이미지 없음</span>
-                  </div>
-                  <div className="ps-badges">
-                    <span className={`ps-badge ${program.status}`}>
-                      {program.status === "live" ? (
-                        <Clock3 size={12} />
-                      ) : program.status === "upcoming" ? (
-                        <CalendarCheck size={12} />
-                      ) : (
-                        <CalendarX size={12} />
-                      )}
-                      {program.status === "live"
-                        ? "진행 중"
-                        : program.status === "upcoming"
-                          ? "예정"
-                          : "종료"}
-                    </span>
-                    <span className="ps-event-badge" title={program.eventName}>
-                      {program.eventName}
-                    </span>
-                  </div>
-                </div>
+                  );
+                }
 
-                <div className="ps-body">
-                  <div className="ps-card-top">
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      <span className="ps-category">{program.categoryLabel}</span>
-                      {program.dayLabel ? (
-                        <span className="ps-category" style={{ background: "#f3f4f6", color: "#475569" }}>
-                          {program.dayLabel}
-                        </span>
-                      ) : null}
-                    </div>
-                    <span className={`ps-badge ${program.status}`}>
-                      {program.status === "live"
-                        ? "진행 중"
-                        : program.status === "upcoming"
-                          ? "예정"
-                          : "종료"}
-                    </span>
-                  </div>
+                if (statusKey === "upcoming") {
+                  return (
+                    <UpcomingCard
+                      key={program.key}
+                      program={program}
+                      onClick={goDetail}
+                    />
+                  );
+                }
 
-                  <div className="ps-title">{program.title}</div>
-                  <div className="ps-desc">
-                    {program.description || "설명이 등록되지 않았습니다."}
-                  </div>
+                return (
+                  <ClosedCard
+                    key={program.key}
+                    program={program}
+                    onClick={goDetail}
+                  />
+                );
+              })}
+            </div>
 
-                  <div className="ps-meta">
-                    <div className="ps-meta-row">
-                      <CalendarDays size={12} /> {program.schedule}
-                    </div>
-                    <div className="ps-meta-row">
-                      <MapPin size={12} /> {program.location}
-                    </div>
-                  </div>
-
-                  <div className="ps-footer">
-                    <span>{program.eventName}</span>
-                    <button type="button">
-                      상세보기 <ChevronRight size={13} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+            <CommunityPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onChange={setPage}
+            />
+          </>
         )}
       </main>
     </div>

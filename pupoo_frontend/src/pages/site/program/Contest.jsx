@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
 import EventSelectPage from "../components/EventSelectPage";
 import {
   SERVICE_CATEGORIES,
@@ -1293,7 +1294,7 @@ function ContestContent({ eventId }) {
   };
 
   if (loading)
-    return <div className="ct-card-tag">콘테스트 불러오는 중...</div>;
+    return <PageLoading />;
   if (!loading && errorMsg)
     return <div className="ct-card-tag">{errorMsg}</div>;
   if (!loading && contests.length === 0)
@@ -1970,9 +1971,7 @@ export default function Contest() {
         </div>
 
         {listLoading && (
-          <div className="cl-empty">
-            <div style={{ fontSize: 14, color: "#9ca3af" }}>불러오는 중...</div>
-          </div>
+          <PageLoading />
         )}
         {!listLoading && listError && (
           <div className="cl-empty">

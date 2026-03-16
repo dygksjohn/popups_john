@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, ChevronRight, ListFilter, Loader2, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ListFilter, Loader2, Megaphone, Search, SlidersHorizontal } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import EmptyState from "../components/EmptyState";
@@ -105,6 +105,9 @@ export default function Notice() {
       <PageHeader
         title="공지사항"
         subtitle="중요한 행사와 서비스 소식을 확인해 보세요."
+        icon={<Megaphone size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}
         currentPath="/community/notice"
         onNavigate={(path) => navigate(path)}
@@ -245,7 +248,7 @@ export default function Notice() {
         )}
 
         {!loading && error && (
-          <EmptyState type="error" message="공지사항을 불러오지 못했습니다" description={error} />
+          <EmptyState type="error" message="공지사항을 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." />
         )}
 
         {!loading && !error && (

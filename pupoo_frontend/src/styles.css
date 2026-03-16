@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Pretendard", sans-serif;
+  --font-sans: "Kakao Big Sans", "Pretendard", sans-serif;
 
   --color-bg: #ffffff;
   --color-surface: #ffffff;
@@ -40,5 +40,13 @@
 }
 
 html {
-  font-family: "Pretendard", sans-serif !important;
+  font-family: "Kakao Big Sans", "Pretendard", sans-serif !important;
+}
+
+*,
+*::before,
+*::after,
+*::placeholder {
+  font-family: "Kakao Big Sans", "Pretendard", sans-serif !important;
+  letter-spacing: -0.5px !important;
 }
