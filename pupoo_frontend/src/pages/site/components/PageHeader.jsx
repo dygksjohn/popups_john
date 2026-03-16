@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
 
 const SECTION_LABELS = {
@@ -10,23 +10,16 @@ const SECTION_LABELS = {
   guide: "이용 안내",
   gallery: "갤러리",
   registration: "참가 신청",
-  payment: "결제",
+  payment: "참가 신청",
 };
 
 const styles = {
   pageHeader: {
     backgroundColor: "#fff",
-    borderBottom: "1px solid #e9ecef",
-    paddingTop: 100,
-  },
-  pageHeaderSticky: {
-    position: "sticky",
-    top: 70,
-    zIndex: 1200,
-    paddingTop: 0,
+    marginTop: 150,
   },
   inner: {
-    width: "min(1350px, calc(100% - 50px))",
+    width: "min(1400px, calc(100% - 40px))",
     margin: "0 auto",
   },
   topRow: {
@@ -36,23 +29,18 @@ const styles = {
     gap: 16,
   },
   title: {
-    fontSize: 22,
+    fontSize: 46,
     fontWeight: 800,
     color: "#111827",
-    margin: "0 0 4px",
-  },
-  subtitle: {
-    fontSize: 13.5,
-    color: "#6b7280",
-    fontWeight: 400,
-    margin: "0 0 20px",
-    lineHeight: 1.6,
+    margin: 0,
+    letterSpacing: "-1px",
+    lineHeight: "66px",
   },
   breadcrumb: {
     display: "flex",
     alignItems: "center",
     gap: 6,
-    fontSize: 12.5,
+    fontSize: 14,
     color: "#b0b5bd",
     fontWeight: 400,
     whiteSpace: "nowrap",
@@ -67,166 +55,114 @@ const styles = {
     color: "#6b7280",
     fontWeight: 600,
   },
+  subtitle: {
+    fontSize: 20,
+    color: "#6b7280",
+    fontWeight: 400,
+    margin: "8px 0 0",
+    lineHeight: 1.6,
+  },
   searchArea: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "8px 0 14px",
+    padding: "30px 0 0",
   },
   tabs: {
     display: "flex",
     gap: 0,
+    marginTop: 48,
   },
   tabBase: {
-    padding: "10px 20px",
-    fontSize: 13.5,
+    flex: 1,
+    padding: "13px 8px",
+    fontSize: 17,
     fontWeight: 600,
-    background: "none",
+    background: "#f3f4f6",
     border: "none",
     cursor: "pointer",
-    borderBottom: "2.5px solid transparent",
     transition: "all 0.15s",
-    fontFamily: "inherit",
-  },
-  tabDefault: {
+    fontFamily: "'Kakao Big Sans', Apple SD Gothic Neo, Malgun Gothic, '맑은 고딕', sans-serif",
     color: "#6b7280",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+    borderRadius: 0,
   },
   tabActive: {
-    color: "#1a4fd6",
-    borderBottomColor: "#1a4fd6",
+    color: "#fff",
+    background: "#1a4fd6",
+    borderRadius: 8,
   },
   tabHover: {
     color: "#1a4fd6",
   },
 };
 
-export default function PageHeader({
-  title,
-  subtitle,
-  categories,
-  currentPath,
-  breadcrumbTitle,
-  onNavigate,
-  onTabClick,
-  children,
-  stickyCategories = false,
-}) {
+export default function PageHeader({ title, subtitle, icon, titleStyle, subtitleStyle, categories, currentPath, breadcrumbTitle, onTabClick, children, className }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const hiddenPaths = new Set(["/event/preregister"]);
-  const activePath = currentPath || location.pathname;
-
   const programMatch = location.pathname.match(
     /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/([^/?#]+))?/,
   );
-  const realtimeMatch = location.pathname.match(
-    /^\/realtime\/(?:dashboard|waitingstatus|checkinstatus|votestatus)(?:\/([^/?#]+))?/,
-  );
-  const currentProgramEventId = programMatch?.[1] || null;
-  const currentRealtimeEventId = realtimeMatch?.[1] || null;
+  const currentEventId = programMatch?.[1] || null;
 
   const isProgramTabPath = (path) =>
-    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/[^/?#]+)?$/.test(
-      path,
-    );
-  const hasProgramEventIdInPath = (path) =>
-    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)\/[^/?#]+$/.test(
-      path,
-    );
+    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/[^/?#]+)?$/.test(path);
 
-  const isRealtimeTabPath = (path) =>
-    /^\/realtime\/(?:dashboard|waitingstatus|checkinstatus|votestatus)(?:\/[^/?#]+)?$/.test(
-      path,
-    );
-  const hasRealtimeEventIdInPath = (path) =>
-    /^\/realtime\/(?:dashboard|waitingstatus|checkinstatus|votestatus)\/[^/?#]+$/.test(
-      path,
-    );
+  const hasEventIdInPath = (path) =>
+    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)\/[^/?#]+$/.test(path);
 
   const resolveTargetPath = (path) => {
-    if (
-      currentProgramEventId &&
-      isProgramTabPath(path) &&
-      !hasProgramEventIdInPath(path)
-    ) {
-      return `${path}/${currentProgramEventId}`;
-    }
-
-    if (
-      currentRealtimeEventId &&
-      isRealtimeTabPath(path) &&
-      !hasRealtimeEventIdInPath(path)
-    ) {
-      return `${path}/${currentRealtimeEventId}`;
-    }
-
-    return path;
+    if (!currentEventId) return path;
+    if (!isProgramTabPath(path)) return path;
+    if (hasEventIdInPath(path)) return path;
+    return `${path}/${currentEventId}`;
   };
 
   const filteredCategories = (categories || []).filter(
     (cat) => !hiddenPaths.has(cat.path),
   );
 
+  // Auto breadcrumb from URL
+  const activePath = currentPath || location.pathname;
   const pathSegments = location.pathname.split("/").filter(Boolean);
-  const sectionLabel = SECTION_LABELS[pathSegments[0] || ""];
+  const section = pathSegments[0] || "";
+  const sectionLabel = SECTION_LABELS[section];
   const lastCrumb = breadcrumbTitle || title;
-  const breadcrumbItems = sectionLabel
-    ? ["홈", sectionLabel, lastCrumb]
-    : ["홈", lastCrumb];
-
-  const pageHeaderStyle = stickyCategories
-    ? { ...styles.pageHeader, ...styles.pageHeaderSticky }
-    : styles.pageHeader;
-
-  const handleNavigate = (targetPath) => {
-    if (onTabClick) {
-      onTabClick(targetPath);
-      return;
-    }
-    if (onNavigate) {
-      onNavigate(targetPath);
-    }
-    if (location.pathname !== targetPath) {
-      navigate(targetPath);
-    }
-  };
+  const breadcrumbItems = sectionLabel ? ["홈", sectionLabel, lastCrumb] : ["홈", lastCrumb];
 
   return (
-    <div style={pageHeaderStyle}>
+    <div style={styles.pageHeader} className={className || ""}>
       <div style={styles.inner}>
+        {/* Title + Breadcrumb */}
         <div style={styles.topRow}>
           <div>
-            {title ? <h1 style={styles.title}>{title}</h1> : null}
-            {subtitle ? <p style={styles.subtitle}>{subtitle}</p> : null}
-          </div>
-          {title ? (
-            <div style={styles.breadcrumb}>
-              <Home size={12} style={{ color: "#b0b5bd" }} />
-              {breadcrumbItems.map((item, i) => (
-                <span
-                  key={`${item}-${i}`}
-                  style={{ display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  {i > 0 ? <span style={styles.breadcrumbSep}>{">"}</span> : null}
-                  <span
-                    style={
-                      i === breadcrumbItems.length - 1
-                        ? styles.breadcrumbCurrent
-                        : undefined
-                    }
-                  >
-                    {item}
-                  </span>
-                </span>
-              ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {icon && icon}
+              <h1 style={{ ...styles.title, ...titleStyle }}>{title}</h1>
             </div>
-          ) : null}
+            {subtitle && <p style={{ ...styles.subtitle, ...subtitleStyle }}>{subtitle}</p>}
+          </div>
+          <div style={styles.breadcrumb}>
+            <Home size={12} style={{ color: "#b0b5bd" }} />
+            {breadcrumbItems.map((item, i) => (
+              <span key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {i > 0 && <span style={styles.breadcrumbSep}>{">"}</span>}
+                <span style={i === breadcrumbItems.length - 1 ? styles.breadcrumbCurrent : undefined}>
+                  {item}
+                </span>
+              </span>
+            ))}
+          </div>
         </div>
 
-        {children ? <div style={styles.searchArea}>{children}</div> : null}
+        {/* Optional Search Area */}
+        {children && <div style={styles.searchArea}>{children}</div>}
 
-        {filteredCategories.length > 0 ? (
+        {/* Tabs */}
+        {filteredCategories.length > 0 && (
           <div style={styles.tabs}>
             {filteredCategories.map((cat, i) => {
               const targetPath = resolveTargetPath(cat.path);
@@ -238,25 +174,24 @@ export default function PageHeader({
                 btnStyle = { ...btnStyle, ...styles.tabActive };
               } else if (isHovered) {
                 btnStyle = { ...btnStyle, ...styles.tabHover };
-              } else {
-                btnStyle = { ...btnStyle, ...styles.tabDefault };
               }
 
               return (
                 <button
                   key={cat.path}
                   style={btnStyle}
-                  onClick={() => handleNavigate(targetPath)}
+                  onClick={() => onTabClick ? onTabClick(targetPath) : navigate(targetPath)}
                   onMouseEnter={() => setHoveredIdx(i)}
                   onMouseLeave={() => setHoveredIdx(null)}
                   aria-current={isActive ? "page" : undefined}
                 >
+                  {cat.icon && <span style={{ display: "inline-flex", alignItems: "center", marginRight: 6 }}>{cat.icon}</span>}
                   {cat.label}
                 </button>
               );
             })}
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );
