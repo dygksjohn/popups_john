@@ -1,28 +1,25 @@
 import { useState, useCallback, useRef } from "react";
-import { getToken } from "../../../api/noticeApi";
+import { buildRequestUrl } from "../../../shared/config/requestUrl";
 
 /* ============================================================
-   useChatBot — AI 로직 분리용 훅
-   ✅ AI 교체 포인트: getBotReply 함수만 수정하면 됩니다.
+   useChatBot - AI logic hook
    ============================================================ */
 
-// Vite proxy를 통해 /internal → AI 서버로 전달 (CORS 우회)
-const AI_BASE_URL = "";
-const INTERNAL_TOKEN = "dev-internal-token";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const TOKEN_KEY = "pupoo_admin_token";
 
-/**
- * 백엔드 POST /internal/chatbot/chat 호출
- * @param {Array}  history     - 이전 대화 이력 (useChatBot messages 배열)
- * @param {string} userMessage - 현재 사용자 메시지
- * @returns {Promise<string>}  - AI 응답 텍스트
- */
 async function getBotReply(history, userMessage) {
-  const url = `${AI_BASE_URL}/internal/chatbot/chat`;
+  const url = buildRequestUrl(API_BASE_URL, "/internal/chatbot/chat");
   let res;
+
   try {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
     res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         message: userMessage,
         history: history.map((m) => ({
@@ -32,12 +29,12 @@ async function getBotReply(history, userMessage) {
       }),
     });
   } catch (fetchErr) {
-    throw new Error(`[연결 실패] ${url} → ${fetchErr.message}`);
+    throw new Error("AI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해 주세요.");
   }
 
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`[${res.status}] ${text.slice(0, 200)}`);
+    throw new Error("AI 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
   }
 
   try {
@@ -48,15 +45,13 @@ async function getBotReply(history, userMessage) {
   }
 }
 
-/* ============================================================ */
-
 export function useChatBot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
       id: 1,
       role: "bot",
-      text: "안녕하세요! 푸푸 도우미예요. 무엇이든 편하게 물어보세요! 😊",
+      text: "반가워요. 무엇을 도와드릴까요?",
       ts: new Date(),
     },
   ]);

@@ -13,6 +13,7 @@ public class SpaForwardController {
 
     private static final List<String> EXCLUDED_PREFIXES = List.of(
         "/api",
+        "/internal",
         "/actuator",
         "/swagger-ui",
         "/v3/api-docs",

@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 /**
  * ✅ 개선 포인트:
@@ -65,7 +66,7 @@ const ProgramScheduleDetail = () => {
       {imageUrl && (
         <div style={styles.posterSection}>
           <img
-            src={imageUrl}
+            src={resolveImageUrl(imageUrl)}
             alt={`${title} 포스터`}
             style={styles.posterImg}
           />
@@ -136,7 +137,7 @@ const ProgramScheduleDetail = () => {
                 {speakers.map((s, i) => (
                   <div key={i} style={styles.speakerItem}>
                     {s.imageUrl && (
-                      <img src={s.imageUrl} alt={s.name} style={styles.speakerAvatar} />
+                      <img src={resolveImageUrl(s.imageUrl)} alt={s.name} style={styles.speakerAvatar} />
                     )}
                     <div>
                       <p style={styles.speakerName}>{s.name}</p>
@@ -162,7 +163,7 @@ const ProgramScheduleDetail = () => {
                 onClick={() => navigate(`/event/${parentEvent.id}`)}
               >
                 {parentEvent.imageUrl && (
-                  <img src={parentEvent.imageUrl} alt={parentEvent.title} style={styles.eventThumb} />
+                  <img src={resolveImageUrl(parentEvent.imageUrl)} alt={parentEvent.title} style={styles.eventThumb} />
                 )}
                 <div>
                   <p style={styles.eventName}>{parentEvent.title}</p>
@@ -271,7 +272,7 @@ const styles = {
 
   /* 제목 섹션 */
   titleSection: {
-    maxWidth: '1200px',
+    maxWidth: '1400px',
     margin: '0 auto',
     padding: '28px 24px 0',
   },
@@ -308,7 +309,7 @@ const styles = {
 
   /* 레이아웃 */
   layout: {
-    maxWidth: '1200px',
+    maxWidth: '1400px',
     margin: '24px auto 0',
     padding: '0 24px',
     display: 'grid',

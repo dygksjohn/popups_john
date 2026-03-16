@@ -1,32 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  Activity,
+  Clock,
+  ListOrdered,
+  RefreshCw,
+  Timer,
+  Users,
+} from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import RealtimeEventSelector from "./RealtimeEventSelector";
-
 import {
-  Clock,
-  Users,
-  CheckCircle2,
-  ArrowRight,
-  ListOrdered,
-  Timer,
-  RefreshCw,
-} from "lucide-react";
-import {
+  SHARED_ANIM_STYLES,
+  useAutoRefresh,
+  useBarAnimate,
   useCountUp,
   useRefresh,
   useStaggerIn,
-  useAutoRefresh,
-  useBarAnimate,
-  SHARED_ANIM_STYLES,
 } from "./useRealtimeAnimations";
-import { eventApi } from "../../../app/http/eventApi";
+import { formatKoreanTime } from "./aiCongestionViewModel";
 import { boothApi } from "../../../app/http/boothApi";
+import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
-
   .wt-root {
     box-sizing: border-box;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
@@ -35,171 +33,270 @@ const styles = `
   }
   .wt-root *, .wt-root *::before, .wt-root *::after { box-sizing: border-box; font-family: inherit; }
   .wt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
+  .wt-container.selector-mode { padding-top: 104px; }
+  .wt-page-shell { max-width: 1120px; margin: 0 auto; }
 
-  .rt-live-badge {
+  .wt-live-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  .wt-live-header-left { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .wt-live-badge {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca;
-    border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444;
-    margin-bottom: 20px;
+    padding: 4px 12px; border-radius: 999px; margin-bottom: 0;
+    font-size: 11px; font-weight: 700; color: #ef4444;
+    border: 1px solid #fecaca; background: #fff0f0;
   }
-  .rt-live-dot {
-    width: 7px; height: 7px; border-radius: 50%; background: #ef4444;
-    animation: wt-pulse 1.4s ease-in-out infinite;
+  .wt-live-meta { display: none; }
+  .wt-live-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: wt-pulse 1.4s ease-in-out infinite; }
+  @keyframes wt-pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: 0.5; transform: scale(0.8);} }
+  .wt-live-title { margin: 0; font-size: 28px; line-height: 1.05; letter-spacing: -0.03em; font-weight: 900; color: #111827; }
+  .wt-live-header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .wt-timestamp { font-size: 12px; color: #9ca3af; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .wt-refresh-btn {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: #6b7280; transition: all 0.15s;
   }
-  @keyframes wt-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(0.8); }
-  }
-
-  .wt-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
-  .wt-stat-card {
-    background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 20px 22px;
-    display: flex; align-items: center; gap: 14px;
-  }
-  .wt-stat-icon { width: 44px; height: 44px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .wt-stat-label { font-size: 12px; color: #6b7280; font-weight: 500; }
-  .wt-stat-value { font-size: 22px; font-weight: 800; color: #111827; }
-
-  .wt-card { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 24px 28px; margin-bottom: 16px; }
-  .wt-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #f1f3f5; }
-  .wt-card-title { font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin: 0; }
-  .wt-card-title-icon { width: 24px; height: 24px; border-radius: 6px; background: #fffbeb; display: flex; align-items: center; justify-content: center; }
-  .wt-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
-
-  .wt-main-grid { display: grid; grid-template-columns: 380px 1fr; gap: 14px; }
-
-  .wt-my-ticket {
-    background: linear-gradient(135deg, #1a4fd6 0%, #3b82f6 100%);
-    border-radius: 13px; padding: 28px 24px; color: #fff; margin-bottom: 14px;
-    position: relative; overflow: hidden;
-  }
-  .wt-my-ticket::before {
-    content: ''; position: absolute; top: -30px; right: -30px;
-    width: 120px; height: 120px; background: rgba(255,255,255,0.08); border-radius: 50%;
-  }
-  .wt-my-ticket::after {
-    content: ''; position: absolute; bottom: -20px; left: 60px;
-    width: 80px; height: 80px; background: rgba(255,255,255,0.05); border-radius: 50%;
-  }
-  .wt-ticket-label { font-size: 12px; font-weight: 500; opacity: 0.75; margin-bottom: 4px; }
-  .wt-ticket-num {
-    font-size: 52px; font-weight: 900; line-height: 1; letter-spacing: -2px;
-    margin-bottom: 12px;
-  }
-  .wt-ticket-info { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-  .wt-ticket-row { display: flex; align-items: center; gap: 8px; font-size: 13px; opacity: 0.85; }
-  .wt-ticket-divider { height: 1px; background: rgba(255,255,255,0.2); margin: 14px 0; }
-  .wt-ticket-status { display: flex; align-items: center; gap: 8px; }
-  .wt-ticket-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; animation: wt-pulse 1.4s ease-in-out infinite; }
-  .wt-ticket-status-text { font-size: 13px; font-weight: 600; }
-
-  .wt-ahead {
-    background: rgba(255,255,255,0.15); border-radius: 10px; padding: 12px 16px;
-    display: flex; align-items: center; justify-content: space-between; margin-top: 14px;
-  }
-  .wt-ahead-label { font-size: 12px; opacity: 0.8; }
-  .wt-ahead-val { font-size: 18px; font-weight: 800; }
-
-  .wt-queue-list { display: flex; flex-direction: column; gap: 8px; }
-  .wt-queue-item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 14px 16px; border: 1px solid #e9ecef; border-radius: 10px;
-    background: #fff; transition: all 0.15s;
-  }
-  .wt-queue-item.calling { border-color: #1a4fd6; background: #f5f8ff; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
-  .wt-queue-item.done { opacity: 0.7; }
-  .wt-queue-num {
-    width: 36px; height: 36px; border-radius: 9px; background: #f3f4f6;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 800; color: #6b7280; flex-shrink: 0;
-  }
-  .wt-queue-num.calling { background: #1a4fd6; color: #fff; }
-  .wt-queue-num.done { background: #ecfdf5; color: #10b981; }
-  .wt-queue-info { flex: 1; min-width: 0; }
-  .wt-queue-name { font-size: 14px; font-weight: 600; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .wt-queue-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .wt-queue-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600;
-    flex-shrink: 0;
-  }
-  .wt-queue-badge.calling { background: #eff4ff; color: #1a4fd6; }
-  .wt-queue-badge.waiting { background: #fff7ed; color: #d97706; }
-  .wt-queue-badge.done { background: #ecfdf5; color: #059669; }
-  .wt-queue-wait { font-size: 12px; color: #9ca3af; min-width: 56px; text-align: right; flex-shrink: 0; }
-
-  .wt-zone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 0; }
-  .wt-zone-card { border: 1.5px solid #e9ecef; border-radius: 10px; padding: 16px 18px; text-align: center; }
-  .wt-zone-card.busy { border-color: #fca5a5; background: #fff5f5; }
-  .wt-zone-card.normal { border-color: #fde68a; background: #fffdf0; }
-  .wt-zone-card.clear { border-color: #a7f3d0; background: #f0fdf9; }
-  .wt-zone-name { font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 8px; }
-  .wt-zone-num { font-size: 24px; font-weight: 900; color: #111827; }
-  .wt-zone-label { font-size: 11px; margin-top: 4px; font-weight: 600; }
-  .wt-zone-card.busy .wt-zone-label { color: #ef4444; }
-  .wt-zone-card.normal .wt-zone-label { color: #d97706; }
-  .wt-zone-card.clear .wt-zone-label { color: #10b981; }
-
-  .wt-notify-btn {
-    width: 100%; padding: 11px; background: rgba(255,255,255,0.15);
-    border: 1.5px solid rgba(255,255,255,0.3); border-radius: 8px;
-    color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
-    font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 7px;
-    transition: background 0.15s; margin-top: 14px;
-  }
-  .wt-notify-btn:hover { background: rgba(255,255,255,0.25); }
-  .wt-notify-btn.active { background: rgba(255,255,255,0.9); color: #1a4fd6; }
-
-  .wt-wave-wrap { display: flex; align-items: flex-end; gap: 4px; height: 60px; padding: 0 4px; }
-  .wt-wave-bar { flex: 1; border-radius: 4px 4px 0 0; background: #bfdbfe; cursor: default; position: relative; min-width: 0; }
-  .wt-wave-bar.current { background: #1a4fd6; }
-  .wt-wave-bar:hover .wt-wave-tooltip { display: block; }
-  .wt-wave-tooltip {
-    display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
-    background: #1a4fd6; color: #fff; font-size: 10px; font-weight: 600;
-    padding: 3px 7px; border-radius: 4px; white-space: nowrap;
-  }
-
-  /* Live header */
-  .wt-live-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-  .wt-live-header-left { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-  .wt-live-title { font-size: 28px; font-weight: 900; color: #111827; line-height: 1.05; letter-spacing: -0.03em; }
-  .wt-live-sub { font-size: 13px; color: #6b7280; }
-  .wt-live-header-right { display: flex; align-items: center; gap: 12px; }
-  .wt-timestamp { font-size: 12px; color: #9ca3af; font-weight: 500; font-variant-numeric: tabular-nums; }
-
+  .wt-refresh-btn:hover { border-color: #1a4fd6; color: #1a4fd6; background: #f5f8ff; }
+  .wt-refresh-btn:active { transform: scale(0.95); }
   .wt-status-banner {
-    margin-bottom: 16px; padding: 12px 14px; border-radius: 10px;
-    border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c;
-    font-size: 13px; font-weight: 600;
+    margin-bottom: 16px; padding: 12px 14px; border-radius: 10px; border: 1px solid #fecaca;
+    background: #fef2f2; color: #b91c1c; font-size: 13px; font-weight: 600;
+  }
+
+  .wt-hero-card {
+    border: 1px solid #dbe5f5; border-radius: 16px; margin-bottom: 16px; padding: 22px 24px;
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 52%, #60a5fa 100%);
+    color: #fff; display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px;
+  }
+  .wt-hero-label { margin: 0 0 8px; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.86); }
+  .wt-hero-status { margin: 0; font-size: 32px; line-height: 1.08; letter-spacing: -0.02em; font-weight: 900; }
+  .wt-hero-desc { margin: 10px 0 0; font-size: 14px; line-height: 1.45; font-weight: 700; color: rgba(255,255,255,0.96); }
+  .wt-hero-sub-desc { margin: 8px 0 0; font-size: 12px; line-height: 1.45; font-weight: 600; color: rgba(255,255,255,0.9); }
+  .wt-hero-side {
+    border: 1px solid rgba(255,255,255,0.36); border-radius: 12px; background: rgba(255,255,255,0.14);
+    padding: 12px; display: flex; flex-direction: column; gap: 8px; justify-content: center;
+  }
+  .wt-hero-side-row { font-size: 12px; line-height: 1.3; font-weight: 700; color: rgba(255,255,255,0.94); }
+
+  .wt-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .wt-summary-card {
+    min-height: 102px; border: 1px solid #e9ecef; border-radius: 13px; background: #fff;
+    padding: 18px 18px 16px; display: flex; align-items: center; gap: 12px;
+  }
+  .wt-summary-icon {
+    width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .wt-summary-label { font-size: 12px; color: #6b7280; font-weight: 600; margin-bottom: 6px; }
+  .wt-summary-value { font-size: 28px; line-height: 1; font-weight: 900; letter-spacing: -0.02em; color: #111827; }
+  .wt-summary-unit { margin-left: 3px; font-size: 14px; color: #4b5563; font-weight: 700; }
+  .wt-summary-value-text { font-size: 16px; line-height: 1.28; letter-spacing: -0.01em; font-weight: 800; color: #111827; }
+  .wt-summary-sub { margin-top: 6px; font-size: 11px; line-height: 1.35; color: #6b7280; font-weight: 600; }
+
+  .wt-card { border: 1px solid #e9ecef; border-radius: 13px; background: #fff; padding: 22px 22px 20px; margin-bottom: 14px; }
+  .wt-card-congestion {
+    display: flex;
+    flex-direction: column;
+  }
+  .wt-card-header {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #f1f3f5;
+  }
+  .wt-card-header-congestion {
+    justify-content: flex-start;
+  }
+  .wt-card-header-congestion .wt-card-actions {
+    justify-content: space-between;
+    margin-left: 0;
+    width: 100%;
+  }
+  .wt-congestion-scroll {
+    max-height: clamp(300px, 54vh, 560px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+  }
+  .wt-card-title { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: #111827; }
+  .wt-card-title-icon {
+    width: 24px; height: 24px; border-radius: 6px; background: #eff6ff;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .wt-card-tag { font-size: 11px; font-weight: 700; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
+  .wt-card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .wt-toggle-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background: #f8fafc;
+  }
+  .wt-toggle-btn {
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .wt-toggle-btn.active {
+    color: #1d4ed8;
+    background: #eff6ff;
+  }
+  .wt-toggle-btn:hover {
+    color: #1f2937;
+    background: #f1f5f9;
+  }
+  .wt-sort-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding: 3px;
+    border: 1px solid #dbe3f0;
+    border-radius: 999px;
+    background: #ffffff;
+  }
+  .wt-sort-btn {
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .wt-sort-btn.active {
+    color: #1d4ed8;
+    background: #eff6ff;
+  }
+  .wt-sort-btn:hover {
+    color: #1f2937;
+    background: #f1f5f9;
   }
   .wt-empty-state {
-    min-height: 144px; border: 1px dashed #dbe3f0; border-radius: 10px;
-    background: #fafcff; color: #6b7280; font-size: 13px;
-    display: flex; align-items: center; justify-content: center; text-align: center;
-    padding: 20px;
+    min-height: 136px; border: 1px dashed #dbe3f0; border-radius: 10px; background: #fafcff;
+    color: #6b7280; font-size: 13px; line-height: 1.5; text-align: center; padding: 20px;
+    display: flex; align-items: center; justify-content: center;
   }
-  .wt-chart-label-row {
-    display: flex; justify-content: space-between; margin-top: 8px; padding-left: 4px; gap: 4px;
-  }
-  .wt-chart-label {
-    flex: 1; text-align: center; font-size: 10px; color: #9ca3af;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .wt-card-note {
-    margin-top: 12px; display: flex; gap: 16px; font-size: 12.5px; color: #6b7280;
-  }
-  .wt-card-note-item { display: flex; align-items: center; gap: 5px; }
-  .wt-card-note-swatch { width: 10px; height: 10px; border-radius: 2px; }
 
-  @media (max-width: 1000px) { .wt-main-grid { grid-template-columns: 1fr; } }
-  @media (max-width: 640px) {
+  .wt-program-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .wt-program-card {
+    border: 1px solid #e5e7eb; border-left-width: 4px; border-radius: 12px;
+    background: #fff; padding: 13px 14px 12px;
+  }
+  .wt-tone-relaxed { border-left-color: #22c55e; }
+  .wt-tone-normal { border-left-color: #f59e0b; }
+  .wt-tone-busy { border-left-color: #f97316; }
+  .wt-tone-critical { border-left-color: #ef4444; }
+  .wt-tone-pending { border-left-color: #9ca3af; }
+
+  .wt-program-card-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: flex-start; }
+  .wt-program-title { margin: 0; font-size: 15px; line-height: 1.3; color: #111827; font-weight: 800; }
+  .wt-program-time { margin-top: 6px; font-size: 12px; color: #6b7280; line-height: 1.3; }
+  .wt-program-wait-count { margin-top: 8px; font-size: 13px; color: #111827; font-weight: 700; }
+  .wt-program-right { text-align: right; }
+  .wt-program-wait-min { margin-top: 7px; font-size: 22px; line-height: 1; letter-spacing: -0.02em; color: #111827; font-weight: 900; }
+  .wt-program-status {
+    margin-top: 10px; padding-top: 8px; border-top: 1px solid #f1f3f5;
+    font-size: 12px; color: #4b5563; font-weight: 700; line-height: 1.35;
+  }
+
+  .wt-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 999px; border: 1px solid #e5e7eb; padding: 4px 10px;
+    font-size: 11px; font-weight: 800; white-space: nowrap;
+  }
+  .wt-badge-lg { width: fit-content; padding: 5px 12px; font-size: 12px; }
+  .wt-badge-relaxed { color: #166534; background: #ecfdf3; border-color: #bbf7d0; }
+  .wt-badge-normal { color: #854d0e; background: #fffbeb; border-color: #fde68a; }
+  .wt-badge-busy { color: #9a3412; background: #fff7ed; border-color: #fdba74; }
+  .wt-badge-critical { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+  .wt-badge-pending { color: #4b5563; background: #f3f4f6; border-color: #d1d5db; }
+
+  .wt-chart-lead { margin: -2px 0 10px; font-size: 12px; color: #6b7280; line-height: 1.4; }
+  .wt-chart-bars { display: flex; align-items: stretch; gap: 8px; }
+  .wt-chart-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .wt-chart-bar-wrap { height: 176px; display: flex; align-items: flex-end; }
+  .wt-chart-bar {
+    width: 100%; min-height: 6px; border-radius: 8px 8px 4px 4px; background: #bfdbfe;
+    position: relative; cursor: default; transition: filter 0.15s;
+  }
+  .wt-chart-bar.top { background: #2563eb; }
+  .wt-chart-bar:hover { filter: brightness(0.95); }
+  .wt-chart-bar:hover .wt-chart-tooltip { display: flex; }
+  .wt-chart-tooltip {
+    display: none; position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+    z-index: 3; border-radius: 8px; background: #111827; color: #fff; min-width: 140px; max-width: 220px;
+    padding: 8px 9px; font-size: 11px; line-height: 1.3; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    flex-direction: column; gap: 3px;
+  }
+  .wt-chart-tooltip strong { font-size: 11.5px; font-weight: 800; }
+  .wt-chart-label { text-align: center; font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .wt-support-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .wt-support-grid-promoted { margin-top: 0; }
+  .wt-booth-priority-note {
+    margin: 0 0 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #dbeafe;
+    background: #eff6ff;
+    color: #1e40af;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .wt-zone-list { display: flex; flex-direction: column; gap: 10px; }
+  .wt-zone-item { border: 1px solid #edf0f5; border-radius: 10px; background: #fafcff; padding: 10px 11px; }
+  .wt-zone-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; font-weight: 700; color: #1f2937; }
+  .wt-zone-track { width: 100%; height: 7px; border-radius: 99px; background: #e5e7eb; overflow: hidden; }
+  .wt-zone-fill { height: 100%; border-radius: inherit; background: #60a5fa; }
+  .wt-zone-meta { margin-top: 6px; font-size: 11px; color: #6b7280; line-height: 1.3; }
+
+  .wt-booth-list { display: flex; flex-direction: column; gap: 8px; }
+  .wt-booth-item {
+    border: 1px solid #eef1f5; border-radius: 10px; background: #fafcff; padding: 9px 10px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  }
+  .wt-booth-title { margin: 0; font-size: 13px; line-height: 1.3; color: #111827; font-weight: 700; }
+  .wt-booth-meta { margin-top: 4px; font-size: 11px; color: #6b7280; }
+  .wt-booth-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+  .wt-booth-wait { font-size: 12px; color: #111827; font-weight: 800; }
+
+  @media (max-width: 1200px) { .wt-program-list { grid-template-columns: 1fr; } }
+  @media (max-width: 1040px) {
+    .wt-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .wt-support-grid { grid-template-columns: 1fr; }
+    .wt-hero-card { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 700px) {
     .wt-container { padding: 20px 16px 48px; }
-    .wt-stat-grid { grid-template-columns: 1fr 1fr; }
-    .wt-zone-grid { grid-template-columns: 1fr; }
+    .wt-container.selector-mode { padding-top: 88px; }
+    .wt-live-header { flex-direction: column; align-items: flex-start; }
     .wt-live-title { font-size: 22px; }
-    .wt-card { padding: 20px 18px; }
-    .wt-ticket-num { font-size: 40px; }
+    .wt-hero-status { font-size: 30px; }
+    .wt-summary-grid { grid-template-columns: 1fr; }
+    .wt-card { padding: 18px 16px; }
+    .wt-chart-bars { gap: 6px; }
+    .wt-chart-bar-wrap { height: 160px; }
+    .wt-program-card-main { grid-template-columns: 1fr; }
+    .wt-program-right { text-align: left; display: flex; align-items: center; gap: 8px; }
+    .wt-program-wait-min { margin-top: 0; font-size: 18px; }
+    .wt-congestion-scroll { max-height: clamp(260px, 50vh, 420px); }
+    .wt-sort-group {
+      margin-left: 0;
+    }
   }
 `;
 
@@ -209,14 +306,7 @@ export const SERVICE_CATEGORIES = [
   { label: "체크인 현황", path: "/realtime/checkinstatus" },
   { label: "투표 현황", path: "/realtime/votestatus" },
 ];
-export const SUBTITLE_MAP = {
-  "/realtime/dashboard": "행사 전체 현황을 실시간으로 모니터링합니다",
-  "/realtime/waitingstatus": "대기열 현황을 실시간으로 확인합니다",
-  "/realtime/checkinstatus": "참가자 체크인 현황을 실시간으로 확인합니다",
-  "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 확인합니다",
-};
 
-const ZONE_LABEL = { busy: "혼잡", normal: "보통", clear: "원활" };
 const ZONE_NAME_MAP = {
   ZONE_A: "A 구역",
   ZONE_B: "B 구역",
@@ -234,6 +324,13 @@ const toArray = (payload) =>
       ? payload.content
       : [];
 
+function toNumberOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(0, Math.round(parsed));
+}
+
 function safeNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -243,14 +340,6 @@ function formatZoneName(value) {
   return ZONE_NAME_MAP[String(value ?? "").toUpperCase()] ?? "미분류";
 }
 
-function formatWaitText(waitMin, waitCount) {
-  const normalizedWait = safeNumber(waitMin);
-  const normalizedCount = safeNumber(waitCount);
-  if (normalizedWait > 0) return `약 ${normalizedWait}분`;
-  if (normalizedCount > 0) return `${normalizedCount}팀 대기`;
-  return "즉시 입장";
-}
-
 function formatTimeValue(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -258,28 +347,88 @@ function formatTimeValue(value) {
   return date.toLocaleTimeString("ko-KR", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
 }
 
 function formatTimeRange(startAt, endAt) {
   const start = formatTimeValue(startAt);
   const end = formatTimeValue(endAt);
-  if (start && end) return `${start}~${end}`;
-  return start || end || "시간 정보 없음";
+  if (start && end) return `${start} ~ ${end}`;
+  return start || end || "운영 시간 정보 없음";
 }
 
-function truncateLabel(value, max = 7) {
+function toDateOrNull(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isProgramOperatingNow(startAt, endAt, now = new Date()) {
+  const start = toDateOrNull(startAt);
+  const end = toDateOrNull(endAt);
+  if (!start || !end) return true;
+  return start <= now && now < end;
+}
+
+function getCongestionStatus(waitCount, waitMin) {
+  const count = toNumberOrNull(waitCount);
+  const minutes = toNumberOrNull(waitMin);
+
+  if (count === null || minutes === null) {
+    return { label: "집계 중", tone: "pending" };
+  }
+  if (count === 0 && minutes === 0) {
+    return { label: "여유", tone: "relaxed" };
+  }
+  if (minutes < 10) {
+    return { label: "보통", tone: "normal" };
+  }
+  if (minutes < 20) {
+    return { label: "혼잡", tone: "busy" };
+  }
+  return { label: "매우 혼잡", tone: "critical" };
+}
+
+function getStatusText(waitCount, waitMin) {
+  const count = toNumberOrNull(waitCount);
+  const minutes = toNumberOrNull(waitMin);
+
+  if (count === null || minutes === null) return "집계 중";
+  if (count === 0 && minutes === 0) return "즉시 참여 가능";
+  if (minutes === 0) return "대기 거의 없음";
+  if (count > 0 || minutes > 0) return "대기 발생";
+  return "집계 중";
+}
+
+function getWaitCountDisplay(waitCount, waitMin) {
+  const count = toNumberOrNull(waitCount);
+  const minutes = toNumberOrNull(waitMin);
+  if (count === null || minutes === null) return "집계 중";
+  if (count === 0 && minutes === 0) return "즉시 참여 가능";
+  return `대기 ${count}팀`;
+}
+
+function getWaitMinuteDisplay(waitMin, waitCount) {
+  const minutes = toNumberOrNull(waitMin);
+  const count = toNumberOrNull(waitCount);
+  if (minutes === null || count === null) return "집계 중";
+  if (minutes === 0) return "대기 없음";
+  return `약 ${minutes}분`;
+}
+
+function getCongestionGuideText(tone) {
+  if (tone === "relaxed") return "지금 참여하기 좋아요";
+  if (tone === "normal") return "무난하게 이용 가능해요";
+  if (tone === "busy") return "조금 기다려야 해요";
+  if (tone === "critical") return "혼잡하니 잠시 후 방문 추천";
+  return "대기 정보를 집계하고 있어요";
+}
+
+function truncateLabel(value, max = 9) {
   const label = String(value ?? "").trim();
   if (label.length <= max) return label;
   return `${label.slice(0, max)}…`;
-}
-
-function resolveZoneTone(waitCount, waitMin) {
-  const normalizedCount = safeNumber(waitCount);
-  const normalizedWait = safeNumber(waitMin);
-  if (normalizedCount >= 10 || normalizedWait >= 20) return "busy";
-  if (normalizedCount > 0 || normalizedWait > 0) return "normal";
-  return "clear";
 }
 
 async function getAllBoothsByEvent(eventId) {
@@ -304,88 +453,102 @@ async function getAllBoothsByEvent(eventId) {
 }
 
 function mapBoothWait(detail) {
-  if (!detail?.wait) return null;
+  if (!detail) return null;
+
+  const waitCount = toNumberOrNull(detail.wait?.waitCount);
+  const waitMin = toNumberOrNull(detail.wait?.waitMin);
+  const congestion = getCongestionStatus(waitCount, waitMin);
 
   return {
     id: `booth-${detail.boothId}`,
-    name: detail.placeName || `부스 ${detail.boothId}`,
-    kind: "booth",
-    typeLabel: "부스",
-    groupName: formatZoneName(detail.zone),
-    subText: detail.company
-      ? `${detail.company} · ${formatZoneName(detail.zone)}`
-      : `${formatZoneName(detail.zone)} · 부스 대기`,
-    waitCount: safeNumber(detail.wait?.waitCount),
-    waitMin: safeNumber(detail.wait?.waitMin),
-    updatedAt: detail.wait?.updatedAt || detail.createdAt || null,
+    boothId: detail.boothId,
+    boothTitle: detail.placeName || `부스 ${detail.boothId}`,
+    zone: String(detail.zone ?? "").toUpperCase(),
+    zoneLabel: formatZoneName(detail.zone),
+    subText: detail.company || "현장 부스",
+    waitCount,
+    waitMin,
+    congestionLabel: congestion.label,
+    congestionTone: congestion.tone,
+    statusText: getStatusText(waitCount, waitMin),
+    updatedAt: detail.wait?.updatedAt || detail.updatedAt || detail.createdAt || null,
   };
 }
 
-function mapExperienceWait(detail) {
-  if (!detail?.experienceWait) return null;
+function mapProgramWait(detail) {
+  if (!detail) return null;
+
+  const waitCount = toNumberOrNull(detail.experienceWait?.waitCount);
+  const waitMin = toNumberOrNull(detail.experienceWait?.waitMin);
+  const congestion = getCongestionStatus(waitCount, waitMin);
 
   return {
     id: `program-${detail.programId}`,
-    name: detail.programTitle || `체험 프로그램 ${detail.programId}`,
-    kind: "experience",
-    typeLabel: "체험",
-    groupName: "체험 프로그램",
-    subText: `${formatTimeRange(detail.startAt, detail.endAt)} · 체험 프로그램`,
-    waitCount: safeNumber(detail.experienceWait?.waitCount),
-    waitMin: safeNumber(detail.experienceWait?.waitMin),
-    updatedAt: detail.experienceWait?.updatedAt || detail.startAt || null,
+    programId: detail.programId,
+    programTitle: detail.programTitle || `프로그램 ${detail.programId}`,
+    startAt: detail.startAt || null,
+    endAt: detail.endAt || null,
+    timeText: formatTimeRange(detail.startAt, detail.endAt),
+    waitCount,
+    waitMin,
+    congestionLabel: congestion.label,
+    congestionTone: congestion.tone,
+    statusText: getStatusText(waitCount, waitMin),
+    updatedAt:
+      detail.experienceWait?.updatedAt || detail.updatedAt || detail.startAt || null,
   };
 }
 
-function compareWaitingRows(a, b) {
+function compareProgramRows(a, b) {
+  const aWaitMin = a.waitMin ?? -1;
+  const bWaitMin = b.waitMin ?? -1;
+  const aWaitCount = a.waitCount ?? -1;
+  const bWaitCount = b.waitCount ?? -1;
+
   return (
-    safeNumber(b.waitMin) - safeNumber(a.waitMin) ||
-    safeNumber(b.waitCount) - safeNumber(a.waitCount) ||
-    String(a.name ?? "").localeCompare(String(b.name ?? ""), "ko-KR")
+    bWaitMin - aWaitMin ||
+    bWaitCount - aWaitCount ||
+    String(a.programTitle ?? "").localeCompare(String(b.programTitle ?? ""), "ko-KR")
   );
 }
 
-/* ── Animated stat card ── */
-function AnimStatCard({ item, index }) {
-  const count = useCountUp(item.rawValue, 1000, index * 120);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), index * 100 + 50);
-    return () => clearTimeout(t);
-  }, [index]);
+function compareBoothRows(a, b) {
+  const aWaitMin = a.waitMin ?? -1;
+  const bWaitMin = b.waitMin ?? -1;
+  const aWaitCount = a.waitCount ?? -1;
+  const bWaitCount = b.waitCount ?? -1;
 
   return (
-    <div className={`wt-stat-card anim-pop ${visible ? "visible" : ""}`}>
-      <div className="wt-stat-icon" style={{ background: item.bg }}>
+    bWaitMin - aWaitMin ||
+    bWaitCount - aWaitCount ||
+    String(a.boothTitle ?? "").localeCompare(String(b.boothTitle ?? ""), "ko-KR")
+  );
+}
+
+function SummaryCard({ item, index }) {
+  const isNumericValue =
+    item.rawValue !== null &&
+    item.rawValue !== undefined &&
+    Number.isFinite(Number(item.rawValue));
+  const count = useCountUp(isNumericValue ? Number(item.rawValue) : 0, 900, index * 80);
+
+  return (
+    <div className="wt-summary-card">
+      <div className="wt-summary-icon" style={{ background: item.bg }}>
         {item.icon}
       </div>
       <div>
-        <div className="wt-stat-label">{item.label}</div>
-        <div className="wt-stat-value">
-          {count}
-          {item.suffix}
-        </div>
+        <div className="wt-summary-label">{item.label}</div>
+        {isNumericValue ? (
+          <div className="wt-summary-value">
+            {count}
+            <span className="wt-summary-unit">{item.unit}</span>
+          </div>
+        ) : (
+          <div className="wt-summary-value-text">{item.textValue || "집계 중"}</div>
+        )}
+        {item.sub ? <div className="wt-summary-sub">{item.sub}</div> : null}
       </div>
-    </div>
-  );
-}
-
-/* ── Animated zone card ── */
-function AnimZoneCard({ zone, index }) {
-  const count = useCountUp(zone.count, 800, index * 150 + 300);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), index * 150 + 200);
-    return () => clearTimeout(t);
-  }, [index]);
-
-  return (
-    <div
-      className={`wt-zone-card ${zone.status} anim-pop ${visible ? "visible" : ""}`}
-    >
-      <div className="wt-zone-name">{zone.name}</div>
-      <div className="wt-zone-num">{count}</div>
-      <div className="wt-zone-label">{ZONE_LABEL[zone.status]}</div>
     </div>
   );
 }
@@ -393,12 +556,16 @@ function AnimZoneCard({ zone, index }) {
 function WaitingContent({ eventId }) {
   const numericEventId = Number(eventId);
   const { tick } = useAutoRefresh(15000);
+
   const [eventDetail, setEventDetail] = useState(null);
-  const [waitingRows, setWaitingRows] = useState([]);
+  const [programWaitingRows, setProgramWaitingRows] = useState([]);
+  const [boothWaitingRows, setBoothWaitingRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [flashKey, setFlashKey] = useState(0);
   const [lastLoadedAt, setLastLoadedAt] = useState(new Date());
+  const [congestionView, setCongestionView] = useState("program");
+  const [congestionSortOrder, setCongestionSortOrder] = useState("busy");
 
   const loadData = useCallback(
     async (options = {}) => {
@@ -406,6 +573,8 @@ function WaitingContent({ eventId }) {
 
       if (!numericEventId || Number.isNaN(numericEventId)) {
         setErrorMsg("잘못된 행사 경로입니다.");
+        setProgramWaitingRows([]);
+        setBoothWaitingRows([]);
         setLoading(false);
         return;
       }
@@ -413,7 +582,7 @@ function WaitingContent({ eventId }) {
       if (!preserveLoading) setLoading(true);
 
       try {
-        const [eventResponse, booths, programs] = await Promise.all([
+        const [eventResponse, booths, programListResponse] = await Promise.all([
           eventApi.getEventDetail(numericEventId),
           getAllBoothsByEvent(numericEventId),
           programApi.getAllProgramsByEvent({
@@ -424,6 +593,8 @@ function WaitingContent({ eventId }) {
           }),
         ]);
 
+        const programs = toArray(programListResponse);
+
         const [boothDetails, programDetails] = await Promise.all([
           Promise.allSettled(
             booths.map((booth) => boothApi.getBoothDetail(booth.boothId)),
@@ -433,31 +604,35 @@ function WaitingContent({ eventId }) {
           ),
         ]);
 
-        const boothWaitingRows = boothDetails
+        const nextBoothRows = boothDetails
           .map((result) =>
             result.status === "fulfilled"
               ? mapBoothWait(unwrapData(result.value, null))
               : null,
           )
-          .filter(Boolean);
+          .filter(Boolean)
+          .sort(compareBoothRows);
 
-        const experienceWaitingRows = programDetails
-          .map((result) =>
-            result.status === "fulfilled"
-              ? mapExperienceWait(unwrapData(result.value, null))
-              : null,
-          )
-          .filter(Boolean);
+        const now = new Date();
+        const nextProgramRows = programDetails
+          .map((result) => {
+            if (result.status !== "fulfilled") return null;
+            const detail = unwrapData(result.value, null);
+            if (!detail) return null;
+            if (!isProgramOperatingNow(detail.startAt, detail.endAt, now)) return null;
+            return mapProgramWait(detail);
+          })
+          .filter(Boolean)
+          .sort(compareProgramRows);
 
         setEventDetail(unwrapData(eventResponse, null));
-        setWaitingRows(
-          [...boothWaitingRows, ...experienceWaitingRows].sort(compareWaitingRows),
-        );
+        setProgramWaitingRows(nextProgramRows);
+        setBoothWaitingRows(nextBoothRows);
         setErrorMsg("");
         setLastLoadedAt(new Date());
       } catch (error) {
         console.error("[WaitingStatus] load failed:", error);
-        setErrorMsg("대기 데이터를 불러오지 못했습니다.");
+        setErrorMsg("대기 현황 데이터를 불러오지 못했습니다.");
       } finally {
         if (!preserveLoading) setLoading(false);
       }
@@ -474,167 +649,277 @@ function WaitingContent({ eventId }) {
   }, [loadData]);
 
   useEffect(() => {
-    if (!loading) {
-      loadData({ preserveLoading: true });
-    }
+    if (!loading) loadData({ preserveLoading: true });
   }, [tick, loadData, loading]);
 
   useEffect(() => {
     setFlashKey((value) => value + 1);
   }, [lastLoadedAt]);
 
-  const liveSummary = useMemo(() => {
-    const activeRows = waitingRows.filter(
-      (row) => safeNumber(row.waitCount) > 0 || safeNumber(row.waitMin) > 0,
+  const sortedProgramRows = useMemo(
+    () => [...programWaitingRows].sort(compareProgramRows),
+    [programWaitingRows],
+  );
+  const sortedBoothRows = useMemo(
+    () => [...boothWaitingRows].sort(compareBoothRows),
+    [boothWaitingRows],
+  );
+  const orderedProgramRows = useMemo(
+    () =>
+      congestionSortOrder === "relaxed"
+        ? [...sortedProgramRows].reverse()
+        : sortedProgramRows,
+    [congestionSortOrder, sortedProgramRows],
+  );
+  const orderedBoothRows = useMemo(
+    () =>
+      congestionSortOrder === "relaxed"
+        ? [...sortedBoothRows].reverse()
+        : sortedBoothRows,
+    [congestionSortOrder, sortedBoothRows],
+  );
+  useEffect(() => {
+    if (
+      congestionView === "program" &&
+      sortedProgramRows.length === 0 &&
+      sortedBoothRows.length > 0
+    ) {
+      setCongestionView("booth");
+      return;
+    }
+    if (
+      congestionView === "booth" &&
+      sortedBoothRows.length === 0 &&
+      sortedProgramRows.length > 0
+    ) {
+      setCongestionView("program");
+    }
+  }, [congestionView, sortedBoothRows.length, sortedProgramRows.length]);
+  const measuredProgramRows = useMemo(
+    () =>
+      sortedProgramRows.filter((row) => row.waitCount !== null && row.waitMin !== null),
+    [sortedProgramRows],
+  );
+
+  const summary = useMemo(() => {
+    const operatingProgramCount = sortedProgramRows.length;
+    const waitingProgramRows = sortedProgramRows.filter(
+      (row) => toNumberOrNull(row.waitMin) !== null && safeNumber(row.waitMin) > 0,
     );
-    const totalWaitCount = waitingRows.reduce(
-      (sum, row) => sum + safeNumber(row.waitCount),
-      0,
+    const waitingProgramCount = waitingProgramRows.length;
+    const immediateProgramRows = sortedProgramRows.filter(
+      (row) => toNumberOrNull(row.waitMin) === 0,
     );
-    const averageWaitMin = activeRows.length
-      ? Math.round(
-          activeRows.reduce((sum, row) => sum + safeNumber(row.waitMin), 0) /
-            activeRows.length,
-        )
+    const immediateProgramCount = immediateProgramRows.length;
+    const busiestProgram = waitingProgramRows[0] ?? sortedProgramRows[0] ?? null;
+    const maxWaitMin = waitingProgramRows.length
+      ? Math.max(...waitingProgramRows.map((row) => safeNumber(row.waitMin)))
       : 0;
-    const maxWaitMin = activeRows.length
-      ? Math.max(...activeRows.map((row) => safeNumber(row.waitMin)))
-      : 0;
-    const busiest = activeRows[0] ?? waitingRows[0] ?? null;
 
     const stats = [
       {
-        label: "집계 리소스",
-        rawValue: waitingRows.length,
-        suffix: "곳",
-        icon: <ListOrdered size={20} color="#f59e0b" />,
-        bg: "#fffbeb",
+        label: "운영 프로그램 수",
+        rawValue: operatingProgramCount,
+        unit: "개",
+        icon: <ListOrdered size={19} color="#1d4ed8" />,
+        bg: "#eff6ff",
       },
       {
-        label: "현재 대기",
-        rawValue: totalWaitCount,
-        suffix: "팀",
-        icon: <Users size={20} color="#10b981" />,
-        bg: "#ecfdf5",
+        label: "즉시 참여 가능",
+        rawValue: immediateProgramCount,
+        unit: "개",
+        icon: <Users size={19} color="#0f766e" />,
+        bg: "#ecfeff",
       },
       {
-        label: "평균 대기",
-        rawValue: averageWaitMin,
-        suffix: "분",
-        icon: <Timer size={20} color="#1a4fd6" />,
-        bg: "#eff4ff",
+        label: "가장 인기있는 프로그램",
+        rawValue: null,
+        textValue:
+          waitingProgramCount > 0
+            ? busiestProgram?.programTitle || "집계 중"
+            : "현재 대기 없음",
+        sub: busiestProgram
+          ? waitingProgramCount > 0
+            ? `${getWaitMinuteDisplay(busiestProgram.waitMin, busiestProgram.waitCount)} · ${getWaitCountDisplay(busiestProgram.waitCount, busiestProgram.waitMin)}`
+            : "모든 프로그램 즉시 참여 가능"
+          : "프로그램 대기 정보 집계 중",
+        icon: <Timer size={19} color="#4338ca" />,
+        bg: "#eef2ff",
       },
       {
-        label: "최장 대기",
-        rawValue: maxWaitMin,
-        suffix: "분",
-        icon: <Clock size={20} color="#8b5cf6" />,
-        bg: "#f5f3ff",
+        label: "대기 중 최대 예상시간",
+        rawValue: waitingProgramCount > 0 ? maxWaitMin : null,
+        unit: waitingProgramCount > 0 ? "분" : "",
+        textValue: waitingProgramCount > 0 ? null : "대기 없음",
+        sub:
+          waitingProgramCount > 0
+            ? `${waitingProgramCount}개 프로그램 대기 중`
+            : "대기 발생 프로그램 없음",
+        icon: <Clock size={19} color="#9333ea" />,
+        bg: "#f3e8ff",
       },
     ];
 
-    const grouped = new Map();
-    waitingRows.forEach((row) => {
-      const key = row.groupName;
-      const current = grouped.get(key) ?? {
-        name: key,
-        count: 0,
-        waitMin: 0,
-      };
-      current.count += safeNumber(row.waitCount);
-      current.waitMin = Math.max(current.waitMin, safeNumber(row.waitMin));
-      grouped.set(key, current);
-    });
-
-    const zoneItems = Array.from(grouped.values())
-      .sort(
-        (a, b) =>
-          safeNumber(b.count) - safeNumber(a.count) ||
-          safeNumber(b.waitMin) - safeNumber(a.waitMin),
-      )
-      .slice(0, 3)
-      .map((item) => ({
-        name: item.name,
-        count: safeNumber(item.count),
-        status: resolveZoneTone(item.count, item.waitMin),
-      }));
-
-    const chartItems = activeRows.slice(0, 8);
-
     return {
-      totalWaitCount,
-      averageWaitMin,
+      operatingProgramCount,
+      waitingProgramRows,
+      waitingProgramCount,
+      immediateProgramRows,
+      immediateProgramCount,
       maxWaitMin,
-      busiest,
+      busiestProgram,
       stats,
-      zoneItems,
-      chartItems,
     };
-  }, [waitingRows]);
+  }, [measuredProgramRows, sortedProgramRows]);
 
-  const queueVisible = useStaggerIn(waitingRows.length, 80);
+  const topBusyPrograms = useMemo(
+    () => measuredProgramRows.slice(0, 8),
+    [measuredProgramRows],
+  );
   const chartMax = useMemo(
-    () =>
-      Math.max(1, ...liveSummary.chartItems.map((item) => safeNumber(item.waitMin))),
-    [liveSummary.chartItems],
+    () => Math.max(1, ...topBusyPrograms.map((row) => safeNumber(row.waitMin))),
+    [topBusyPrograms],
   );
   const barHeights = useBarAnimate(
-    liveSummary.chartItems.map((item) =>
-      chartMax > 0 ? (safeNumber(item.waitMin) / chartMax) * 100 : 0,
+    topBusyPrograms.map((row) =>
+      chartMax > 0 ? (safeNumber(row.waitMin) / chartMax) * 100 : 0,
     ),
     70,
   );
+
+  const zoneDistribution = useMemo(() => {
+    const map = new Map();
+
+    sortedBoothRows.forEach((row) => {
+      const key = row.zoneLabel || "미분류";
+      const current = map.get(key) || {
+        zoneLabel: key,
+        boothCount: 0,
+        waitTeamTotal: 0,
+        waitMinTotal: 0,
+        measuredCount: 0,
+      };
+      current.boothCount += 1;
+      if (row.waitCount !== null) current.waitTeamTotal += safeNumber(row.waitCount);
+      if (row.waitMin !== null) {
+        current.waitMinTotal += safeNumber(row.waitMin);
+        current.measuredCount += 1;
+      }
+      map.set(key, current);
+    });
+
+    return [...map.values()]
+      .map((item) => ({
+        ...item,
+        averageWaitMin: item.measuredCount
+          ? Math.round(item.waitMinTotal / item.measuredCount)
+          : 0,
+      }))
+      .sort(
+        (a, b) =>
+          b.waitTeamTotal - a.waitTeamTotal ||
+          b.averageWaitMin - a.averageWaitMin ||
+          a.zoneLabel.localeCompare(b.zoneLabel, "ko-KR"),
+      );
+  }, [sortedBoothRows]);
+
+  const zoneMaxWaitTeam = useMemo(
+    () => Math.max(1, ...zoneDistribution.map((item) => safeNumber(item.waitTeamTotal))),
+    [zoneDistribution],
+  );
+
+  const programVisible = useStaggerIn(orderedProgramRows.length, 60);
+  const boothVisible = useStaggerIn(orderedBoothRows.length, 40);
+  const visibleBoothRows = useMemo(() => orderedBoothRows.slice(0, 12), [orderedBoothRows]);
+
   const lastLoadedLabel = lastLoadedAt.toLocaleTimeString("ko-KR", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
   });
+
   const eventName =
     eventDetail?.eventName || eventDetail?.title || `행사 ${numericEventId}`;
-  const summaryTitle = loading ? "집계 중" : `${liveSummary.totalWaitCount}팀`;
-  const summaryStatus = liveSummary.busiest
-    ? `${liveSummary.busiest.name} · ${formatWaitText(
-        liveSummary.busiest.waitMin,
-        liveSummary.busiest.waitCount,
-      )}`
-    : "현재 집계된 대기 리소스가 없습니다";
-  const isEmpty = !loading && waitingRows.length === 0;
+
+  const heroProgram =
+    summary.waitingProgramCount > 0 ? summary.busiestProgram : null;
+  const heroProgramPreview = summary.immediateProgramRows
+    .slice(0, 2)
+    .map((row) => row.programTitle)
+    .join(", ");
+  const heroTone = heroProgram
+    ? {
+        tone: heroProgram.congestionTone,
+        label: heroProgram.congestionLabel,
+      }
+    : summary.immediateProgramCount > 0
+      ? { tone: "relaxed", label: "여유" }
+      : { tone: "pending", label: "집계 중" };
+  const heroLabel = heroProgram
+    ? "현재 가장 인기있는 프로그램"
+    : summary.immediateProgramCount > 0
+      ? "지금 바로 참여하기 좋은 프로그램"
+      : "프로그램 대기 정보";
+  const heroTitle = heroProgram
+    ? heroProgram.programTitle
+    : summary.immediateProgramCount > 0
+      ? `${summary.immediateProgramCount}개 프로그램 즉시 참여 가능`
+      : "대기 정보 집계 중";
+  const heroDescription = heroProgram
+    ? `${getWaitMinuteDisplay(heroProgram.waitMin, heroProgram.waitCount)} · ${getWaitCountDisplay(heroProgram.waitCount, heroProgram.waitMin)}`
+    : summary.immediateProgramCount > 0
+      ? `현재 대기 없이 참여 가능한 프로그램이 ${summary.immediateProgramCount}개 있어요.`
+      : "운영 프로그램의 대기 정보를 집계 중입니다.";
+  const heroSubDescription = heroProgram
+    ? getCongestionGuideText(heroProgram.congestionTone)
+    : summary.immediateProgramCount > 0
+      ? heroProgramPreview
+        ? `추천 프로그램: ${heroProgramPreview}`
+        : "프로그램 목록에서 즉시 참여 가능한 항목을 확인해 보세요."
+      : "잠시 후 다시 확인해 주세요.";
+
+  const isProgramEmpty = !loading && sortedProgramRows.length === 0;
+  const isBoothEmpty = !loading && sortedBoothRows.length === 0;
+  const isZoneEmpty = !loading && zoneDistribution.length === 0;
+  const shouldPromoteBooth = isProgramEmpty && !loading;
+  const isProgramCongestionView = congestionView === "program";
+  const isBoothCongestionView = congestionView === "booth";
+  const isZoneCongestionView = congestionView === "zone";
+  const isCongestionLoading =
+    loading &&
+    (isProgramCongestionView
+      ? orderedProgramRows.length === 0
+      : isBoothCongestionView
+        ? orderedBoothRows.length === 0
+        : zoneDistribution.length === 0);
+  const isCongestionEmpty = !loading && (
+    isProgramCongestionView
+      ? isProgramEmpty
+      : isBoothCongestionView
+        ? isBoothEmpty
+        : isZoneEmpty
+  );
 
   return (
     <>
+      <div className="wt-page-shell">
       <div className="wt-live-header">
         <div className="wt-live-header-left">
-          <div className="rt-live-badge anim-glow">
-            <div className="rt-live-dot" />
+          <div className="wt-live-badge anim-glow">
+            <div className="wt-live-dot" />
             LIVE
           </div>
-          <div className="wt-live-title">{eventName}</div>
-          <div className="wt-live-sub">
-            부스 상세와 체험 프로그램 상세의 실시간 대기 집계를 반영합니다
+          <div className="wt-live-meta">
+            <span>{eventName}</span>
+            <span>·</span>
+            <span>프로그램 대기 안내</span>
           </div>
         </div>
         <div className="wt-live-header-right">
           <span key={flashKey} className="wt-timestamp anim-flash">
             마지막 갱신: {lastLoadedLabel}
           </span>
-          <button
-            className="rt-refresh-btn"
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 8,
-              border: "1px solid #e2e8f0",
-              background: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: "#6b7280",
-              transition: "all 0.15s",
-            }}
-            onClick={refresh}
-            title="새로고침"
-          >
+          <button className="wt-refresh-btn" onClick={refresh} title="새로고침">
             <RefreshCw
               size={14}
               style={{
@@ -649,218 +934,328 @@ function WaitingContent({ eventId }) {
 
       {errorMsg ? <div className="wt-status-banner">{errorMsg}</div> : null}
 
-      <div className="wt-stat-grid">
-        {liveSummary.stats.map((item, index) => (
-          <AnimStatCard key={item.label} item={item} index={index} />
+      <div className="wt-hero-card">
+        <div>
+          <p className="wt-hero-label">{heroLabel}</p>
+          <h2 className="wt-hero-status">{heroTitle}</h2>
+          <p className="wt-hero-desc">{heroDescription}</p>
+          <p className="wt-hero-sub-desc">{heroSubDescription}</p>
+        </div>
+        <div className="wt-hero-side">
+          <span className={`wt-badge wt-badge-lg wt-badge-${heroTone.tone}`}>
+            {heroTone.label}
+          </span>
+          <div className="wt-hero-side-row">운영 프로그램 수: {summary.operatingProgramCount}개</div>
+          <div className="wt-hero-side-row">즉시 참여 가능: {summary.immediateProgramCount}개</div>
+          <div className="wt-hero-side-row">대기 발생 프로그램: {summary.waitingProgramCount}개</div>
+          <div className="wt-hero-side-row">
+            대기 중 최대 예상시간: {summary.waitingProgramCount > 0 ? `${summary.maxWaitMin}분` : "대기 없음"}
+          </div>
+        </div>
+      </div>
+
+      <div className="wt-summary-grid">
+        {summary.stats.map((item, index) => (
+          <SummaryCard key={item.label} item={item} index={index} />
         ))}
       </div>
 
-      <div className="wt-main-grid">
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div className="wt-my-ticket">
-            <div className="wt-ticket-label">행사 대기 요약</div>
-            <div className="wt-ticket-num">{summaryTitle}</div>
-            <div className="wt-ticket-info">
-              <div className="wt-ticket-row">
-                <Users size={13} /> {eventName}
-              </div>
-              <div className="wt-ticket-row">
-                <Clock size={13} /> 집계 리소스 {waitingRows.length}곳 · 평균 {liveSummary.averageWaitMin}분
-              </div>
-            </div>
-            <div className="wt-ticket-divider" />
-            <div className="wt-ticket-status">
-              <div className="wt-ticket-status-dot" />
-              <span className="wt-ticket-status-text">{summaryStatus}</span>
-            </div>
-            <div className="wt-ahead">
-              <span className="wt-ahead-label">최장 예상 대기</span>
-              <span className="wt-ahead-val">{liveSummary.maxWaitMin}분</span>
-            </div>
-            <button className="wt-notify-btn" onClick={refresh}>
-              <RefreshCw
-                size={14}
-                style={{
-                  animation: spinning
-                    ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)"
-                    : "none",
-                }}
-              />
-              지금 다시 집계
-            </button>
-          </div>
-
-          <div className="wt-card">
-            <div className="wt-card-header">
-              <div className="wt-card-title">
-                <div className="wt-card-title-icon">
-                  <ListOrdered size={14} color="#f59e0b" />
-                </div>
-                대기 구역 요약
-              </div>
-            </div>
-            {loading && waitingRows.length === 0 ? (
-              <div className="wt-empty-state">실시간 대기 구역 정보를 불러오는 중입니다.</div>
-            ) : liveSummary.zoneItems.length === 0 ? (
-              <div className="wt-empty-state">표시할 구역별 대기 데이터가 없습니다.</div>
-            ) : (
-              <div className="wt-zone-grid">
-                {liveSummary.zoneItems.map((zone, index) => (
-                  <AnimZoneCard key={zone.name} zone={zone} index={index} />
-                ))}
-              </div>
-            )}
-          </div>
+      {shouldPromoteBooth ? (
+        <div className="wt-booth-priority-note">
+          현재 운영 중인 프로그램이 없어 부스 대기 정보를 먼저 안내합니다.
         </div>
+      ) : null}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div className="wt-card">
-            <div className="wt-card-header">
-              <div className="wt-card-title">
-                <div className="wt-card-title-icon">
-                  <Users size={14} color="#f59e0b" />
-                </div>
-                현재 대기 리소스
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="wt-card-tag">실시간 집계</span>
+      <div className="wt-card wt-card-congestion">
+        <div className="wt-card-header wt-card-header-congestion">
+          <div className="wt-card-actions">
+            <div className="wt-toggle-group">
+              <button
+                type="button"
+                className={`wt-toggle-btn ${isProgramCongestionView ? "active" : ""}`}
+                onClick={() => setCongestionView("program")}
+              >
+                체험 프로그램
+              </button>
+              <button
+                type="button"
+                className={`wt-toggle-btn ${isBoothCongestionView ? "active" : ""}`}
+                onClick={() => setCongestionView("booth")}
+              >
+                운영중인 부스
+              </button>
+              <button
+                type="button"
+                className={`wt-toggle-btn ${isZoneCongestionView ? "active" : ""}`}
+                onClick={() => setCongestionView("zone")}
+              >
+                붐비는 구역
+              </button>
+            </div>
+            {!isZoneCongestionView ? (
+              <div className="wt-sort-group" role="group" aria-label="혼잡도 정렬">
                 <button
-                  style={{
-                    width: 30,
-                    height: 30,
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 7,
-                    background: "#fff",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#6b7280",
-                    transition: "all 0.15s",
-                  }}
-                  onClick={refresh}
+                  type="button"
+                  className={`wt-sort-btn ${congestionSortOrder === "busy" ? "active" : ""}`}
+                  onClick={() => setCongestionSortOrder("busy")}
                 >
-                  <RefreshCw
-                    size={13}
-                    style={{
-                      animation: spinning
-                        ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)"
-                        : "none",
-                    }}
-                  />
+                  인기 체험
+                </button>
+                <button
+                  type="button"
+                  className={`wt-sort-btn ${congestionSortOrder === "relaxed" ? "active" : ""}`}
+                  onClick={() => setCongestionSortOrder("relaxed")}
+                >
+                  바로 참여 가능 체험
                 </button>
               </div>
-            </div>
-            {loading && waitingRows.length === 0 ? (
-              <div className="wt-empty-state">실시간 대기 리소스를 불러오는 중입니다.</div>
-            ) : isEmpty ? (
-              <div className="wt-empty-state">현재 연결된 대기 데이터가 없습니다.</div>
-            ) : (
-              <div className="wt-queue-list">
-                {waitingRows.map((row, index) => {
-                  const isActive =
-                    safeNumber(row.waitCount) > 0 || safeNumber(row.waitMin) > 0;
-                  const visualStatus = !isActive
-                    ? "done"
-                    : index === 0
-                      ? "calling"
-                      : "waiting";
-                  const badgeLabel = !isActive
-                    ? "즉시 입장"
-                    : index === 0
-                      ? "최장 대기"
-                      : "대기 중";
-
-                  return (
-                    <div
-                      key={row.id}
-                      className={`wt-queue-item${visualStatus === "calling" ? " calling" : visualStatus === "done" ? " done" : ""} anim-slide-right ${queueVisible.includes(index) ? "visible" : ""}`}
-                    >
-                      <div
-                        className={`wt-queue-num${visualStatus === "calling" ? " calling" : visualStatus === "done" ? " done" : ""}`}
-                      >
-                        {visualStatus === "done" ? (
-                          <CheckCircle2 size={16} />
-                        ) : (
-                          String(index + 1).padStart(2, "0")
-                        )}
-                      </div>
-                      <div className="wt-queue-info">
-                        <div className="wt-queue-name">{row.name}</div>
-                        <div className="wt-queue-sub">
-                          {row.typeLabel} · {row.subText} · {row.waitCount}팀
-                        </div>
-                      </div>
-                      <span className={`wt-queue-badge ${visualStatus}`}>
-                        {visualStatus === "calling" ? <ArrowRight size={11} /> : null}
-                        {badgeLabel}
-                      </span>
-                      <span className="wt-queue-wait">
-                        {formatWaitText(row.waitMin, row.waitCount)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="wt-card">
-            <div className="wt-card-header">
-              <div className="wt-card-title">
-                <div className="wt-card-title-icon">
-                  <Timer size={14} color="#f59e0b" />
-                </div>
-                대기 리소스별 예상 대기 시간
-              </div>
-              <span className="wt-card-tag">단위: 분</span>
-            </div>
-            {loading && liveSummary.chartItems.length === 0 ? (
-              <div className="wt-empty-state">대기 시간 차트를 준비하는 중입니다.</div>
-            ) : liveSummary.chartItems.length === 0 ? (
-              <div className="wt-empty-state">표시할 예상 대기 시간 데이터가 없습니다.</div>
-            ) : (
-              <>
-                <div className="wt-wave-wrap">
-                  {liveSummary.chartItems.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`wt-wave-bar${index === 0 ? " current" : ""} anim-bar-grow`}
-                      style={{ height: `${barHeights[index] ?? 0}%` }}
-                    >
-                      <div className="wt-wave-tooltip">
-                        {item.name} · {safeNumber(item.waitMin)}분
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="wt-chart-label-row">
-                  {liveSummary.chartItems.map((item) => (
-                    <div key={item.id} className="wt-chart-label">
-                      {truncateLabel(item.name)}
-                    </div>
-                  ))}
-                </div>
-                <div className="wt-card-note">
-                  <span className="wt-card-note-item">
-                    <div
-                      className="wt-card-note-swatch"
-                      style={{ background: "#bfdbfe" }}
-                    />
-                    일반 대기
-                  </span>
-                  <span className="wt-card-note-item">
-                    <div
-                      className="wt-card-note-swatch"
-                      style={{ background: "#1a4fd6" }}
-                    />
-                    최장 대기
-                  </span>
-                </div>
-              </>
-            )}
+            ) : null}
           </div>
         </div>
+
+        <div className="wt-congestion-scroll">
+        {isBoothCongestionView ? (
+          isCongestionLoading ? (
+            <div className="wt-empty-state">부스 혼잡도 데이터를 불러오는 중입니다.</div>
+          ) : isCongestionEmpty ? (
+            <div className="wt-empty-state">현재 집계된 부스 혼잡도 정보가 없습니다.</div>
+          ) : (
+            <div className="wt-booth-list">
+              {visibleBoothRows.map((row, index) => (
+                <div
+                  key={row.id}
+                  className={`wt-booth-item anim-slide-right ${boothVisible.includes(index) ? "visible" : ""}`}
+                >
+                  <div>
+                    <h4 className="wt-booth-title">{row.boothTitle}</h4>
+                    <div className="wt-booth-meta">
+                      {row.zoneLabel} · {row.subText}
+                    </div>
+                  </div>
+                  <div className="wt-booth-right">
+                    <span className={`wt-badge wt-badge-${row.congestionTone}`}>
+                      {row.congestionLabel}
+                    </span>
+                    <div className="wt-booth-wait">
+                      {getWaitMinuteDisplay(row.waitMin, row.waitCount)}
+                    </div>
+                    <div className="wt-chart-label">
+                      {formatKoreanTime(row.updatedAt) || "집계 중"}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : isZoneCongestionView ? (
+          isCongestionLoading ? (
+            <div className="wt-empty-state">구역별 대기 데이터를 불러오는 중입니다.</div>
+          ) : isCongestionEmpty ? (
+            <div className="wt-empty-state">현재 집계된 구역별 대기 정보가 없습니다.</div>
+          ) : (
+            <div className="wt-zone-list">
+              {zoneDistribution.map((item) => (
+                <div key={item.zoneLabel} className="wt-zone-item">
+                  <div className="wt-zone-head">
+                    <span>{item.zoneLabel}</span>
+                    <span>대기 {item.waitTeamTotal}팀</span>
+                  </div>
+                  <div className="wt-zone-track">
+                    <div
+                      className="wt-zone-fill"
+                      style={{
+                        width: `${Math.round(
+                          (safeNumber(item.waitTeamTotal) / zoneMaxWaitTeam) * 100,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="wt-zone-meta">
+                    부스 {item.boothCount}개 · 평균 예상 대기 {item.averageWaitMin}분
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : loading && orderedProgramRows.length === 0 ? (
+          <div className="wt-empty-state">프로그램 대기 현황을 불러오는 중입니다.</div>
+        ) : isProgramEmpty ? (
+          <div className="wt-empty-state">현재 집계된 프로그램 대기 정보가 없습니다.</div>
+        ) : (
+          <div className="wt-program-list">
+            {orderedProgramRows.map((row, index) => (
+              <div
+                key={row.id}
+                className={`wt-program-card wt-tone-${row.congestionTone} anim-slide-right ${programVisible.includes(index) ? "visible" : ""}`}
+              >
+                <div className="wt-program-card-main">
+                  <div>
+                    <h4 className="wt-program-title">{row.programTitle}</h4>
+                    <div className="wt-program-time">운영 시간: {row.timeText}</div>
+                    <div className="wt-program-wait-count">
+                      {getWaitCountDisplay(row.waitCount, row.waitMin)}
+                    </div>
+                  </div>
+                  <div className="wt-program-right">
+                    <span className={`wt-badge wt-badge-${row.congestionTone}`}>
+                      {row.congestionLabel}
+                    </span>
+                    <div className="wt-program-wait-min">
+                      {getWaitMinuteDisplay(row.waitMin, row.waitCount)}
+                    </div>
+                  </div>
+                </div>
+                <div className="wt-program-status">
+                  {row.statusText}
+                  {row.statusText === "집계 중"
+                    ? ""
+                    : ` · ${getCongestionGuideText(row.congestionTone)}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        </div>
+      </div>
+
+      {false ? (
+      <div className="wt-card">
+        <div className="wt-card-header">
+          <h3 className="wt-card-title">
+            <span className="wt-card-title-icon">
+              <Activity size={14} color="#1d4ed8" />
+            </span>
+            프로그램 예상 대기시간 비교
+          </h3>
+          <span className="wt-card-tag">상위 8개 프로그램</span>
+        </div>
+        <div className="wt-chart-lead">
+          프로그램별 예상 대기시간을 한눈에 비교할 수 있어요.
+        </div>
+
+        {loading && topBusyPrograms.length === 0 ? (
+          <div className="wt-empty-state">프로그램 대기 현황을 불러오는 중입니다.</div>
+        ) : topBusyPrograms.length === 0 ? (
+          <div className="wt-empty-state">현재 집계된 프로그램 대기 정보가 없습니다.</div>
+        ) : (
+          <div className="wt-chart-bars">
+            {topBusyPrograms.map((item, index) => (
+              <div key={item.id} className="wt-chart-col">
+                <div className="wt-chart-bar-wrap">
+                  <div
+                    className={`wt-chart-bar${index === 0 ? " top" : ""} anim-bar-grow`}
+                    style={{ height: `${barHeights[index] ?? 0}%` }}
+                  >
+                    <div className="wt-chart-tooltip">
+                      <strong>{item.programTitle}</strong>
+                      <span>
+                        예상 대기: {getWaitMinuteDisplay(item.waitMin, item.waitCount)}
+                      </span>
+                      <span>
+                        대기 팀 수:{" "}
+                        {item.waitCount === null ? "집계 중" : `${item.waitCount}팀`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="wt-chart-label" title={item.programTitle}>
+                  {truncateLabel(item.programTitle)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      ) : null}
+
+      {false ? (
+      <div className={`wt-support-grid${shouldPromoteBooth ? " wt-support-grid-promoted" : ""}`}>
+        <div className="wt-card">
+          <div className="wt-card-header">
+            <h3 className="wt-card-title">
+              <span className="wt-card-title-icon">
+                <ListOrdered size={14} color="#0f766e" />
+              </span>
+              구역별 대기 분포
+            </h3>
+            <span className="wt-card-tag">보조 정보</span>
+          </div>
+
+          {zoneDistribution.length === 0 ? (
+            <div className="wt-empty-state">현재 집계된 부스 대기 정보가 없습니다.</div>
+          ) : (
+            <div className="wt-zone-list">
+              {zoneDistribution.map((item) => (
+                <div key={item.zoneLabel} className="wt-zone-item">
+                  <div className="wt-zone-head">
+                    <span>{item.zoneLabel}</span>
+                    <span>대기 {item.waitTeamTotal}팀</span>
+                  </div>
+                  <div className="wt-zone-track">
+                    <div
+                      className="wt-zone-fill"
+                      style={{
+                        width: `${Math.round(
+                          (safeNumber(item.waitTeamTotal) / zoneMaxWaitTeam) * 100,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="wt-zone-meta">
+                    부스 {item.boothCount}개 · 평균 예상 대기 {item.averageWaitMin}분
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="wt-card">
+          <div className="wt-card-header">
+            <h3 className="wt-card-title">
+              <span className="wt-card-title-icon">
+                <ListOrdered size={14} color="#0f766e" />
+              </span>
+              부스 대기 참고
+            </h3>
+            <span className="wt-card-tag">보조 섹션</span>
+          </div>
+
+          {loading && sortedBoothRows.length === 0 ? (
+            <div className="wt-empty-state">부스 대기 현황을 불러오는 중입니다.</div>
+          ) : isBoothEmpty ? (
+            <div className="wt-empty-state">현재 집계된 부스 대기 정보가 없습니다.</div>
+          ) : (
+            <div className="wt-booth-list">
+              {visibleBoothRows.map((row, index) => (
+                <div
+                  key={row.id}
+                  className={`wt-booth-item anim-slide-right ${boothVisible.includes(index) ? "visible" : ""}`}
+                >
+                  <div>
+                    <h4 className="wt-booth-title">{row.boothTitle}</h4>
+                    <div className="wt-booth-meta">
+                      {row.zoneLabel} · {row.subText}
+                    </div>
+                  </div>
+                  <div className="wt-booth-right">
+                    <span className={`wt-badge wt-badge-${row.congestionTone}`}>
+                      {row.congestionLabel}
+                    </span>
+                    <div className="wt-booth-wait">
+                      {getWaitMinuteDisplay(row.waitMin, row.waitCount)}
+                    </div>
+                    <div className="wt-chart-label">
+                      {formatKoreanTime(row.updatedAt) || "집계 중"}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      ) : null}
       </div>
     </>
   );
@@ -888,14 +1283,17 @@ export default function WaitingStatus({ onNavigate: onNavigateProp }) {
     <div className="wt-root">
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
-      <PageHeader
-        title="대기 현황"
-        subtitle={SUBTITLE_MAP[currentPath]}
-        categories={SERVICE_CATEGORIES}
-        currentPath={currentPath}
-        onNavigate={handleNavigate}
-      />
-      <main className="wt-container">
+      {eventId ? (
+        <PageHeader
+          title={null}
+          subtitle={null}
+          categories={SERVICE_CATEGORIES}
+          stickyCategories
+          currentPath={currentPath}
+          onNavigate={handleNavigate}
+        />
+      ) : null}
+      <main className={`wt-container${eventId ? "" : " selector-mode"}`}>
         {eventId ? (
           <WaitingContent eventId={eventId} />
         ) : (

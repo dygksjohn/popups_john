@@ -5,6 +5,10 @@ import { reviewApi } from "../../../app/http/reviewApi";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
+import {
+  createImageFallbackHandler,
+  resolveImageUrl,
+} from "../../../shared/utils/publicAssetUrl";
 
 /* ?? ?대?吏 ?대갚 ?? */
 const DOG_IMGS = [
@@ -360,11 +364,11 @@ function SessionLineup() {
                       <div key={i} style={{ width: CARD_W }} className="shrink-0" onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} onClick={() => navigate("/program/current")}>
                         <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-[3/4]">
                           <img
-                            src={s.image}
+                            src={resolveImageUrl(s.image, dogImg(s.id))}
                             alt={s.title}
                             className={`w-full h-full object-cover transition-all duration-700 ease-out ${isH ? "scale-105 grayscale-0" : "scale-100 grayscale"}`}
                             draggable={false}
-                            onError={(e) => { e.target.onerror = null; e.target.src = dogImg(s.id); }}
+                            onError={createImageFallbackHandler(dogImg(s.id))}
                           />
                           <div className="absolute inset-x-0 bottom-0 h-2/5" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55), transparent)" }} />
                           <div className="absolute bottom-0 left-0 right-0 p-5">
@@ -462,7 +466,7 @@ function RecommendCarousel() {
             {extended.map((ev, i) => (
               <div key={i} style={{ width: CARD_W }} className="shrink-0 group">
                 <div className="relative overflow-hidden rounded-2xl">
-                  <img src={ev.image} alt={ev.title} draggable={false} className="h-[260px] w-full object-cover transition-transform duration-700 group-hover:scale-105" onError={(e) => { e.target.onerror = null; e.target.src = dogImg(ev.id); }} />
+                  <img src={resolveImageUrl(ev.image, dogImg(ev.id))} alt={ev.title} draggable={false} className="h-[260px] w-full object-cover transition-transform duration-700 group-hover:scale-105" onError={createImageFallbackHandler(dogImg(ev.id))} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
                 <div className="mt-4">
@@ -585,9 +589,9 @@ function NoticeSection() {
 // ================= MAIN =================
 export default function Home() {
   const heroVideos = [
-    "http://kgj.dothome.co.kr/pupoo/1.mov",
-    "http://kgj.dothome.co.kr/pupoo/2.mov",
-    "http://kgj.dothome.co.kr/pupoo/3.mp4",
+    "/1.mov",
+    "/2.mov",
+    "/3.mp4",
   ];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [fade, setFade] = useState(true);
@@ -636,7 +640,13 @@ export default function Home() {
           </div>
           <div className="flex justify-between items-center mt-3 text-white text-sm">
             <span>{String(currentVideoIndex + 1).padStart(2, "0")} / {String(heroVideos.length).padStart(2, "0")}</span>
-            <button type="button" onClick={togglePlay}>{isPlaying ? "일시정지" : "재생"}</button>
+            <button type="button" onClick={togglePlay} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/20 transition">
+              {isPlaying ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z" /></svg>
+              )}
+            </button>
           </div>
         </div>
       </section>

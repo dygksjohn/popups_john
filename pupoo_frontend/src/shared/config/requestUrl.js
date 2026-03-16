@@ -57,14 +57,11 @@ export function buildAssetUrl(rawBaseUrl = "", rawUrl = "") {
   }
 
   const normalizedUrl = normalizeLeadingSlash(url);
-  const runtimeAssetBaseUrl =
-    typeof import.meta !== "undefined"
-      ? import.meta.env?.VITE_ASSET_BASE_URL
-      : "";
-  const baseUrl = getConfiguredAssetBaseUrl(runtimeAssetBaseUrl, rawBaseUrl);
-  if (!baseUrl || !ABSOLUTE_URL_RE.test(baseUrl)) {
+  const baseUrl = getConfiguredBaseUrl(rawBaseUrl);
+
+  if (!baseUrl) {
     return normalizedUrl;
   }
 
-  return `${new URL(baseUrl).origin}${normalizedUrl}`;
+  return `${baseUrl}${normalizedUrl}`;
 }

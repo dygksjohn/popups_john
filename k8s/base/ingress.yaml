@@ -5,16 +5,19 @@ metadata:
   namespace: pupoo
   annotations:
     kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/group.name: pupoo-public
+    alb.ingress.kubernetes.io/group.order: "10"
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:123456789012:certificate/REPLACE_ME
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:593797021262:certificate/d58bc288-7491-4463-919c-abf2ecf7f6a5
     alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
     alb.ingress.kubernetes.io/success-codes: "200"
-    external-dns.alpha.kubernetes.io/hostname: api.pupoo.com
+    external-dns.alpha.kubernetes.io/hostname: api.pupoo.site
 spec:
+  ingressClassName: alb
   rules:
-    - host: api.pupoo.com
+    - host: api.pupoo.site
       http:
         paths:
           - path: /api

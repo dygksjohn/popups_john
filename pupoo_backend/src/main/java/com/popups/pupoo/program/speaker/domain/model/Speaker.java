@@ -38,6 +38,7 @@ public class Speaker {
     @Column(name = "speaker_phone", nullable = false, length = 30, unique = true)
     private String speakerPhone;
 
+    // TODO(step-01-storage-policy): keep the legacy column name for now, but store a storage key instead of a full URL.
     @Column(name = "speaker_image_url", length = 500)
     private String speakerImageUrl;
 

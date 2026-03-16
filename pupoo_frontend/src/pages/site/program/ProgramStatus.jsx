@@ -22,6 +22,7 @@ import {
   loadImageCache as loadProgramImageCache,
   injectProgramImages,
 } from "../../admin/shared/programImageStore";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 const PROGRAM_STATUS_CATEGORIES = [
   { label: "현재 진행 프로그램", path: "/program/current" },
@@ -53,7 +54,7 @@ const PAGE_CONFIG = {
 
 const styles = `
   .ps-root { background:#f8f9fc; min-height:100vh; }
-  .ps-wrap { max-width:1400px; margin:0 auto; padding:32px 25px 64px; }
+  .ps-wrap { max-width:1400px; margin:0 auto; padding:32px 0px 64px; }
 
   .ps-toolbar {
     display:flex; align-items:center; justify-content:space-between; gap:14px;
@@ -758,7 +759,7 @@ export default function ProgramStatus({ statusKey = "current" }) {
                 <div className="ps-thumb">
                   {program.imageUrl ? (
                     <img
-                      src={program.imageUrl}
+                      src={resolveImageUrl(program.imageUrl)}
                       alt={program.title}
                       loading="lazy"
                       onError={(event) => {

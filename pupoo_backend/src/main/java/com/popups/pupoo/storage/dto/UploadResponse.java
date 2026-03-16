@@ -13,7 +13,8 @@ public class UploadResponse {
     private Long fileId;
     private String originalName;
     private String storedName;
-    private String publicPath; // 예: /static/post/10/uuid.png
+    private String publicPath; // Final public URL resolved by the backend from the stored key.
+
     public static UploadResponse of(Long fileId, String originalName, String storedName, String publicPath) {
         return new UploadResponse(fileId, originalName, storedName, publicPath);
     }

@@ -1,6 +1,5 @@
 package com.popups.pupoo.common.dashboard.dto;
 
-import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.model.Event;
 import lombok.Builder;
@@ -9,60 +8,61 @@ import lombok.Getter;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-/**
- * 관리자 대시보드 - 행사 관리 전용 응답 DTO
- *
- * 프론트(data.js) events 배열 형식과 1:1 매칭:
- *   { id, name, date, location, status, participants, capacity, description }
- */
 @Getter
 @Builder
 public class DashboardEventResponse {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
-    private Long   eventId;
-    private String id;           // "EV-001"
+    private Long eventId;
+    private String id;
     private String name;
-    private String date;         // "2026.01.10 ~ 2026.01.12"
+    private String date;
     private String location;
-    private String status;       // "active" | "pending" | "ended"
-    private long   participants;
-    private int    capacity;
+    private String status;
+    private long participants;
+    private int capacity;
     private String description;
     private String imageUrl;
 
-    public static DashboardEventResponse from(Event e, long participantCount) {
-        String dateStr = e.getStartAt().format(FMT) + " ~ " + e.getEndAt().format(FMT);
-        String frontStatus = mapStatus(e);
-        String frontId = "EV-" + String.format("%03d", e.getEventId());
+    public static DashboardEventResponse from(Event event, long participantCount, String imageUrl) {
+        String date = event.getStartAt().format(FMT) + " ~ " + event.getEndAt().format(FMT);
+        String frontStatus = mapStatus(event);
 
         return DashboardEventResponse.builder()
-                .eventId(e.getEventId())
-                .id(frontId)
-                .name(e.getEventName())
-                .date(dateStr)
-                .location(e.getLocation() != null ? e.getLocation() : "")
+                .eventId(event.getEventId())
+                .id("EV-" + String.format("%03d", event.getEventId()))
+                .name(event.getEventName())
+                .date(date)
+                .location(event.getLocation() != null ? event.getLocation() : "")
                 .status(frontStatus)
                 .participants(participantCount)
-                .capacity(500)  // event 테이블에 capacity 컬럼 없음 → 기본값
-                .description(e.getDescription() != null ? e.getDescription() : "")
-                .imageUrl(PublicUrlNormalizer.normalize(e.getImageUrl()))
+                .capacity(500)
+                .description(event.getDescription() != null ? event.getDescription() : "")
+                .imageUrl(imageUrl)
                 .build();
     }
 
     private static String mapStatus(Event event) {
-        if (event == null) return "pending";
+        if (event == null) {
+            return "pending";
+        }
 
         EventStatus status = event.getStatus();
-        if (status == EventStatus.CANCELLED) return "ended";
+        if (status == EventStatus.CANCELLED) {
+            return "ended";
+        }
 
         LocalDate today = LocalDate.now();
         LocalDate startDate = event.getStartAt() == null ? null : event.getStartAt().toLocalDate();
         LocalDate endDate = event.getEndAt() == null ? null : event.getEndAt().toLocalDate();
 
-        if (startDate != null && startDate.isAfter(today)) return "pending";
-        if (endDate != null && endDate.isBefore(today)) return "ended";
+        if (startDate != null && startDate.isAfter(today)) {
+            return "pending";
+        }
+        if (endDate != null && endDate.isBefore(today)) {
+            return "ended";
+        }
         return "active";
     }
 }

@@ -5,9 +5,9 @@ import com.popups.pupoo.common.audit.application.AdminLogService;
 import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.model.Event;
 import com.popups.pupoo.event.domain.model.EventInterestMap;
-import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.dto.AdminEventCreateRequest;
 import com.popups.pupoo.event.dto.AdminEventUpdateRequest;
 import com.popups.pupoo.event.dto.EventResponse;
@@ -17,24 +17,17 @@ import com.popups.pupoo.event.persistence.EventRepository;
 import com.popups.pupoo.notification.application.NotificationService;
 import com.popups.pupoo.notification.domain.enums.InboxTargetType;
 import com.popups.pupoo.notification.domain.enums.NotificationType;
-
+import com.popups.pupoo.storage.support.StorageKeyNormalizer;
+import com.popups.pupoo.storage.support.StorageUrlResolver;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
 import java.time.LocalDateTime;
-
 import java.util.List;
 import java.util.stream.Collectors;
-/**
- * 관리자용 EventAdminService
- *
- * - 이벤트 생성/수정 시 interest_id 리스트를 event_interest_map에 저장
- * - update는 "delete + insert" 전략(유지보수 단순화)
- * - interest 기반 알림 발행(인박스 적재)
- */
+
 @Service
 public class EventAdminService {
 
@@ -43,22 +36,27 @@ public class EventAdminService {
     private final EventRegistrationRepository eventRegistrationRepository;
     private final NotificationService notificationService;
     private final AdminLogService adminLogService;
+    private final StorageKeyNormalizer storageKeyNormalizer;
+    private final StorageUrlResolver storageUrlResolver;
 
     public EventAdminService(
             EventRepository eventRepository,
             EventInterestMapRepository eventInterestMapRepository,
             EventRegistrationRepository eventRegistrationRepository,
             NotificationService notificationService,
-            AdminLogService adminLogService
+            AdminLogService adminLogService,
+            StorageKeyNormalizer storageKeyNormalizer,
+            StorageUrlResolver storageUrlResolver
     ) {
         this.eventRepository = eventRepository;
         this.eventInterestMapRepository = eventInterestMapRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
         this.notificationService = notificationService;
         this.adminLogService = adminLogService;
+        this.storageKeyNormalizer = storageKeyNormalizer;
+        this.storageUrlResolver = storageUrlResolver;
     }
 
-    /** 행사 등록(관리자) */
     @Transactional
     public EventResponse createEvent(AdminEventCreateRequest request) {
         Event event = Event.create(
@@ -67,7 +65,7 @@ public class EventAdminService {
                 request.getStartAt(),
                 request.getEndAt(),
                 request.getLocation(),
-                request.getImageUrl(),
+                storageKeyNormalizer.normalizeToKey(request.getImageUrl()),
                 request.getOrganizer(),
                 request.getStatus(),
                 request.getRoundNo(),
@@ -77,7 +75,6 @@ public class EventAdminService {
 
         saveEventInterests(saved.getEventId(), request.getInterestIds());
 
-        // 관심사 기반 행사 알림(인앱)
         notificationService.publishEventInterestNotification(
                 saved.getEventId(),
                 NotificationType.EVENT,
@@ -87,17 +84,17 @@ public class EventAdminService {
                 saved.getEventId()
         );
 
-        // 관리자 로그 적재
         adminLogService.write("EVENT_CREATE", AdminTargetType.EVENT, saved.getEventId());
-
-        return EventResponse.from(saved);
+        return toEventResponse(saved);
     }
 
-    /** 행사 수정(관리자) */
     @Transactional
     public EventResponse updateEvent(Long eventId, AdminEventUpdateRequest request) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "존재하지 않는 행사입니다. eventId=" + eventId));
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.INVALID_REQUEST,
+                        "존재하지 않는 행사입니다. eventId=" + eventId
+                ));
 
         event.update(
                 request.getEventName(),
@@ -105,7 +102,7 @@ public class EventAdminService {
                 request.getStartAt(),
                 request.getEndAt(),
                 request.getLocation(),
-                request.getImageUrl(),
+                storageKeyNormalizer.normalizeToKey(request.getImageUrl()),
                 request.getOrganizer(),
                 request.getStatus(),
                 request.getRoundNo(),
@@ -114,7 +111,6 @@ public class EventAdminService {
 
         saveEventInterests(eventId, request.getInterestIds());
 
-        // 행사 정보 변경 알림
         notificationService.publishEventInterestNotification(
                 eventId,
                 NotificationType.EVENT,
@@ -125,58 +121,57 @@ public class EventAdminService {
         );
 
         adminLogService.write("EVENT_UPDATE", AdminTargetType.EVENT, eventId);
-
-        return EventResponse.from(event);
+        return toEventResponse(event);
     }
 
-    /** 관리자용 행사 목록(검색 포함) */
-    public Page<EventResponse> list(String keyword, EventStatus status, LocalDateTime fromAt, LocalDateTime toAt, Pageable pageable) {
-        return eventRepository.search(keyword, status, fromAt, toAt, pageable).map(EventResponse::from);
+    public Page<EventResponse> list(
+            String keyword,
+            EventStatus status,
+            LocalDateTime fromAt,
+            LocalDateTime toAt,
+            Pageable pageable
+    ) {
+        return eventRepository.search(keyword, status, fromAt, toAt, pageable).map(this::toEventResponse);
     }
 
-    /** 관리자용 행사 상세 */
     public EventResponse get(Long eventId) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "존재하지 않는 행사입니다. eventId=" + eventId));
-        return EventResponse.from(event);
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.INVALID_REQUEST,
+                        "존재하지 않는 행사입니다. eventId=" + eventId
+                ));
+        return toEventResponse(event);
     }
 
-    /** 관리자용 행사 상태 변경(예: CANCELLED 전환) */
     @Transactional
     public EventResponse changeStatus(Long eventId, EventStatus status) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "존재하지 않는 행사입니다. eventId=" + eventId));
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.INVALID_REQUEST,
+                        "존재하지 않는 행사입니다. eventId=" + eventId
+                ));
 
         event.changeStatus(status);
-
         adminLogService.write("EVENT_STATUS_CHANGE", AdminTargetType.EVENT, eventId);
-        return EventResponse.from(event);
+        return toEventResponse(event);
     }
 
-    /**
-     * ★ 행사 Hard Delete (관리자)
-     * - 연관 데이터(interest map, registration) 먼저 삭제 후 행사 삭제
-     * - DB에서 완전히 제거됨
-     */
     @Transactional
     public void hardDeleteEvent(Long eventId) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST,
-                        "존재하지 않는 행사입니다. eventId=" + eventId));
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.INVALID_REQUEST,
+                        "존재하지 않는 행사입니다. eventId=" + eventId
+                ));
 
-        // 1. 연관 데이터 삭제 (FK 제약 방지)
         eventInterestMapRepository.deleteByEventId(eventId);
         try {
             eventRegistrationRepository.deleteByEventId(eventId);
         } catch (Exception ignored) {
-            // registration 데이터가 없을 수 있음
         }
 
-        // 2. 행사 삭제
         eventRepository.delete(event);
         eventRepository.flush();
-
-        // 3. 관리자 로그
         adminLogService.write("EVENT_HARD_DELETE", AdminTargetType.EVENT, eventId);
     }
 
@@ -185,10 +180,15 @@ public class EventAdminService {
         if (interestIds == null || interestIds.isEmpty()) {
             return;
         }
+
         List<EventInterestMap> mappings = interestIds.stream()
                 .distinct()
                 .map(interestId -> EventInterestMap.create(eventId, interestId))
                 .collect(Collectors.toList());
         eventInterestMapRepository.saveAll(mappings);
+    }
+
+    private EventResponse toEventResponse(Event event) {
+        return EventResponse.from(event, storageUrlResolver.toPublicUrl(event.getImageUrl()));
     }
 }
