@@ -17,6 +17,7 @@ import {
   ChevronRight,
   SlidersHorizontal,
   ListFilter,
+  CircleHelp,
 } from "lucide-react";
 import { qnaApi, unwrap } from "../../../api/qnaApi";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
@@ -554,6 +555,9 @@ export default function ServicePage() {
       <PageHeader
         title="질문/답변"
         subtitle="서비스 이용과 관련한 문의사항을 등록하고 답변을 확인할 수 있습니다."
+        icon={<CircleHelp size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}
         currentPath={currentPath}
         onNavigate={setCurrentPath}
@@ -718,7 +722,7 @@ export default function ServicePage() {
 
         {/* ?먮윭 */}
         {!loading && error && (
-          <EmptyState type="error" message="질문 목록을 불러오지 못했습니다" description={error} />
+          <EmptyState type="error" message="질문 목록을 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." />
         )}
 
         {/* 紐⑸줉 */}

@@ -1,58 +1,61 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-/* reduced-motion */
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onChange = () => setReduced(!!mq.matches);
-    onChange();
-    mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
-  }, []);
-  return reduced;
-}
+const FONT = "'Kakao Big Sans', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
 
-/* reveal */
-function useReveal(threshold = 0.18) {
+/* ── scroll reveal hook ── */
+function useReveal(threshold = 0.15) {
   const ref = useRef(null);
+  const [ratio, setRatio] = useState(0);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-
     const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          obs.unobserve(el);
-        }
+      ([e]) => {
+        setRatio(e.intersectionRatio);
+        if (e.isIntersecting) setVisible(true);
       },
-      { threshold, rootMargin: "0px 0px -30px 0px" },
+      { threshold: [0, 0.1, 0.2, 0.3, 0.5, 0.7, 1] },
     );
-
     obs.observe(el);
     return () => obs.disconnect();
   }, [threshold]);
 
-  return [ref, visible];
+  return { ref, ratio, visible };
 }
 
-function R({ children, delay = 0, y = 10, style = {} }) {
-  const reduced = usePrefersReducedMotion();
-  const [ref, vis] = useReveal();
+/* ── parallax scroll hook ── */
+function useParallax(speed = 0.3) {
+  const ref = useRef(null);
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (!ref.current) return;
+      const rect = ref.current.getBoundingClientRect();
+      const center = rect.top + rect.height / 2 - window.innerHeight / 2;
+      setOffset(center * speed);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [speed]);
+
+  return { ref, offset };
+}
+
+/* ── Reveal wrapper ── */
+function Reveal({ children, delay = 0, y = 60, style = {} }) {
+  const { ref, visible } = useReveal();
   return (
     <div
       ref={ref}
       style={{
         ...style,
-        opacity: vis || reduced ? 1 : 0,
-        transform:
-          vis || reduced ? "translate3d(0,0,0)" : `translate3d(0,${y}px,0)`,
-        transition: reduced
-          ? "none"
-          : `opacity 520ms cubic-bezier(0.22,1,0.36,1) ${delay}s, transform 620ms cubic-bezier(0.22,1,0.36,1) ${delay}s`,
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translate3d(0,0,0)" : `translate3d(0,${y}px,0)`,
+        transition: `opacity 0.8s cubic-bezier(0.25,1,0.5,1) ${delay}s, transform 1s cubic-bezier(0.25,1,0.5,1) ${delay}s`,
       }}
     >
       {children}
@@ -60,648 +63,735 @@ function R({ children, delay = 0, y = 10, style = {} }) {
   );
 }
 
-export default function PupooBrandIdentity() {
-  const base = "http://kgj.dothome.co.kr/pupoo";
-  const img = (n) => `${base}/info${n}.png`;
-
-  const reduced = usePrefersReducedMotion();
-
-  const colors = useMemo(
-    () => [
-      {
-        hex: "#2F55FF",
-        name: "PUPOO BLUE",
-        p: "2728 C",
-        c: "80 · 64 · 0 · 0",
-        r: "47 · 85 · 255",
-      },
-      {
-        hex: "#00B894",
-        name: "PUPOO MINT",
-        p: "7465 C",
-        c: "67 · 0 · 40 · 0",
-        r: "0 · 184 · 148",
-      },
-    ],
-    [],
-  );
-
-  const handleDownload = async () => {
-    try {
-      const res = await fetch(`${base}/pupoo_logo.psd`);
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "pupoo_logo.psd";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch {
-      window.open(`${base}/pupoo_logo.psd`, "_blank");
-    }
-  };
-
-  const jump = (id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.scrollIntoView({
-      behavior: reduced ? "auto" : "smooth",
-      block: "start",
-    });
-  };
-
+/* ── Scale-in image ── */
+function ScaleImage({ src, alt, style = {} }) {
+  const { ref, visible } = useReveal(0.1);
   return (
     <div
+      ref={ref}
       style={{
-        background: "#F2F3F5", // 아주 연한 회색
-        color: "#141414",
-        minHeight: "100vh",
+        overflow: "hidden",
+        borderRadius: 24,
+        ...style,
       }}
     >
-      <style>{`
-        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+      <img
+        src={src}
+        alt={alt || ""}
+        style={{
+          width: "100%",
+          display: "block",
+          transform: visible ? "scale(1)" : "scale(1.08)",
+          opacity: visible ? 1 : 0,
+          transition: "transform 1.4s cubic-bezier(0.25,1,0.5,1), opacity 0.8s ease",
+        }}
+      />
+    </div>
+  );
+}
 
-        :root{
-          --bg: #F2F3F5;
-          --fg: #141414;
-          --muted: rgba(20,20,20,.58);
-          --muted2: rgba(20,20,20,.36);
-          --line: rgba(20,20,20,.10);
-          --panel: rgba(255,255,255,.78);
-          --blue: #2F55FF;
-          --mint: #00B894;
+/* ── Counter animation ── */
+function Counter({ end, suffix = "", duration = 2000 }) {
+  const { ref, visible } = useReveal();
+  const [count, setCount] = useState(0);
 
-          --sans: 'Pretendard Variable', Pretendard, system-ui, -apple-system, sans-serif;
-          --display: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-          --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  useEffect(() => {
+    if (!visible) return;
+    let start = 0;
+    const startTime = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(eased * end));
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [visible, end, duration]);
 
-          --radius: 16px;
-          --shadow: 0 18px 50px rgba(0,0,0,.06);
-        }
+  return (
+    <span ref={ref}>
+      {count.toLocaleString()}{suffix}
+    </span>
+  );
+}
 
-        *{ box-sizing: border-box; }
-        body{ margin:0; }
+const css = `
+.au-root {
+  background: #000;
+  color: #fff;
+  font-family: ${FONT};
+  overflow-x: hidden;
+}
 
-        /* ✅ margin-top:70 조건 = wrap padding-top으로 유지 */
-        .wrap{
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 70px 24px 120px;
-        }
+/* ── 히어로 ── */
+.au-hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+}
+.au-hero-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 40%, #1a1a3e 0%, #000 100%);
+}
+.au-hero-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.3;
+  animation: au-glow-pulse 6s ease-in-out infinite alternate;
+}
+@keyframes au-glow-pulse {
+  0% { transform: scale(1); opacity: 0.2; }
+  100% { transform: scale(1.3); opacity: 0.4; }
+}
+.au-hero-content {
+  position: relative;
+  z-index: 1;
+  padding: 40px;
+}
+.au-hero-kicker {
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.au-hero-title {
+  font-size: clamp(48px, 8vw, 96px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin: 0 0 28px;
+  background: linear-gradient(180deg, #fff 30%, rgba(255,255,255,0.6) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.au-hero-sub {
+  font-size: clamp(18px, 2.5vw, 24px);
+  font-weight: 400;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.6;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.au-scroll-hint {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.7);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+.au-scroll-mouse {
+  width: 22px;
+  height: 36px;
+  border-radius: 11px;
+  border: 2px solid rgba(255,255,255,0.7);
+  position: relative;
+}
+.au-scroll-mouse::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.8);
+  animation: au-scroll-wheel 2s ease-in-out infinite;
+}
+@keyframes au-scroll-wheel {
+  0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(12px); }
+}
+.au-scroll-line {
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.7), transparent);
+  animation: au-scroll-anim 2s ease-in-out infinite;
+}
+@keyframes au-scroll-anim {
+  0% { transform: scaleY(0); transform-origin: top; }
+  50% { transform: scaleY(1); transform-origin: top; }
+  50.01% { transform-origin: bottom; }
+  100% { transform: scaleY(0); transform-origin: bottom; }
+}
 
-        /* ✅ 헤더 “못생김” 해결: 타이틀/서브/메뉴/다운로드를 한 줄에서 정돈 */
-        .dochead{
-          display:flex;
-          align-items:center;
-          justify-content: space-between;
-          gap: 16px;
+/* ── 미션 섹션 (어두운 배경, 큰 텍스트) ── */
+.au-mission {
+  padding: 160px 40px;
+  text-align: center;
+  background: #000;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.au-mission-text {
+  font-size: clamp(28px, 4.5vw, 56px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.35;
+  max-width: 900px;
+  margin: 0 auto;
+  color: rgba(255,255,255,0.9);
+}
+.au-mission-text em {
+  font-style: normal;
+  background: linear-gradient(90deg, #2F55FF, #00B894);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 
-          padding: 14px 0;
-          border-bottom: 1px solid var(--line);
+/* ── 풀폭 이미지 섹션 ── */
+.au-fullimg {
+  position: relative;
+  max-width: 1400px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+.au-fullimg img {
+  width: 100%;
+  display: block;
+}
 
-          position: sticky;
-          top: 0;
-          z-index: 30;
+/* ── 숫자 섹션 ── */
+.au-stats {
+  padding: 140px 40px;
+  background: #0a0a0a;
+}
+.au-stats-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 60px;
+  text-align: center;
+}
+.au-stat-num {
+  font-size: clamp(42px, 6vw, 72px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #2F55FF, #00B894);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+.au-stat-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.5);
+}
 
-          background: rgba(242,243,245,.86);
-          backdrop-filter: blur(14px);
-        }
+/* ── 텍스트 + 이미지 가로 섹션 ── */
+.au-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+  align-items: center;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.au-split-text {
+  padding: 80px 60px 80px 80px;
+}
+.au-split-img {
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+.au-split-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.au-split-kicker {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+.au-split-title {
+  font-size: clamp(32px, 3.5vw, 48px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  margin: 0 0 24px;
+}
+.au-split-desc {
+  font-size: 17px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.85;
+  max-width: 480px;
+}
 
-        .brand{
-          display:flex;
-          align-items:center;
-          gap: 12px;
-          min-width: 0;
-        }
+/* ── 가치 카드 섹션 ── */
+.au-values {
+  padding: 160px 40px;
+  background: #fff;
+  color: #111;
+}
+.au-values-header {
+  text-align: center;
+  margin-bottom: 80px;
+}
+.au-values-kicker {
+  font-size: 13px;
+  font-weight: 700;
+  color: #aaa;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.au-values-title {
+  font-size: clamp(32px, 4vw, 52px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+.au-values-grid {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+.au-value-card {
+  background: #f8f8f8;
+  border-radius: 24px;
+  padding: 48px 36px;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+.au-value-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+}
+.au-value-emoji {
+  font-size: 44px;
+  margin-bottom: 24px;
+  display: block;
+}
+.au-value-name {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+}
+.au-value-desc {
+  font-size: 15px;
+  font-weight: 400;
+  color: #888;
+  line-height: 1.75;
+}
 
-        .brandMark{
-          width: 34px;
-          height: 34px;
-          border-radius: 12px;
-          background:
-            radial-gradient(circle at 30% 30%, rgba(47,85,255,.16), transparent 56%),
-            radial-gradient(circle at 70% 70%, rgba(0,184,148,.16), transparent 56%),
-            rgba(255,255,255,.78);
-          border: 1px solid rgba(20,20,20,.10);
-          box-shadow: 0 10px 28px rgba(0,0,0,.06);
-          flex: 0 0 auto;
-        }
+/* ── CTA 섹션 ── */
+.au-cta {
+  padding: 160px 40px;
+  text-align: center;
+  background: #000;
+  position: relative;
+  overflow: hidden;
+}
+.au-cta-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(47,85,255,0.15) 0%, transparent 70%);
+}
+.au-cta-title {
+  position: relative;
+  font-size: clamp(36px, 5vw, 64px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  margin: 0 0 28px;
+}
+.au-cta-desc {
+  position: relative;
+  font-size: 18px;
+  color: rgba(255,255,255,0.5);
+  margin: 0 0 40px;
+  line-height: 1.6;
+}
+.au-cta-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 40px;
+  border-radius: 999px;
+  border: none;
+  background: #fff;
+  color: #000;
+  font-size: 17px;
+  font-weight: 800;
+  font-family: ${FONT};
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.au-cta-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 40px rgba(255,255,255,0.15);
+}
 
-        .brandText{
-          display:flex;
-          flex-direction: column;
-          gap: 3px;
-          min-width: 0;
-        }
+@media (max-width: 768px) {
+  .au-stats-inner { grid-template-columns: 1fr; gap: 40px; }
+  .au-split { grid-template-columns: 1fr; }
+  .au-split-text { padding: 60px 24px; }
+  .au-split-img { height: 60vw; }
+  .au-values-grid { grid-template-columns: 1fr; }
+  .au-mission { padding: 100px 24px; }
+  .au-values { padding: 100px 24px; }
+  .au-cta { padding: 100px 24px; }
+}
+`;
 
-        .brand-title{
-          font-family: var(--display);
-          font-weight: 800;
-          letter-spacing: -0.03em;
-          font-size: 16px;
-          line-height: 1.15;
-          margin: 0;
+export default function AboutUs() {
+  return (
+    <div className="au-root">
+      <style>{css}</style>
 
-          display:flex;
-          align-items: baseline;
-          gap: 8px;
-
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .brand-chip{
-          font-family: var(--mono);
-          font-size: 10px;
-          letter-spacing: .12em;
-          color: rgba(20,20,20,.46);
-          background: rgba(255,255,255,.70);
-          border: 1px solid rgba(20,20,20,.10);
-          padding: 4px 8px;
-          border-radius: 999px;
-          flex: 0 0 auto;
-        }
-
-        .brand-sub{
-          font-family: var(--mono);
-          font-size: 10px;
-          letter-spacing: .16em;
-          color: var(--muted2);
-          text-transform: uppercase;
-          margin: 0;
-        }
-
-        .head-actions{
-          display:flex;
-          align-items:center;
-          gap: 6px;
-          flex-wrap: wrap;
-        }
-
-        /* ✅ ABOUT~APPLICATION = 탭 느낌 */
-        .btn{
-          height: 34px;
-          padding: 0 10px;
-          border-radius: 10px;
-          border: 1px solid transparent;
-          background: transparent;
-          box-shadow: none;
-          cursor: pointer;
-
-          font-family: var(--display);
-          font-weight: 700;
-          font-size: 12px;
-          letter-spacing: -0.01em;
-          color: rgba(20,20,20,.62);
-
-          transition: background .18s ease, color .18s ease, border-color .18s ease;
-        }
-
-        .btn:hover{
-          background: rgba(255,255,255,.72);
-          border-color: rgba(20,20,20,.10);
-          color: rgba(20,20,20,.88);
-        }
-
-        /* ✅ DOWNLOAD만 진짜 CTA */
-        .btn-primary{
-          height: 34px;
-          padding: 0 12px;
-          border-radius: 999px;
-          border: 1px solid rgba(20,20,20,.22);
-          background: rgba(20,20,20,1);
-          color: #fff;
-          box-shadow: 0 14px 34px rgba(0,0,0,.14);
-        }
-        .btn-primary:hover{
-          background: rgba(20,20,20,.92);
-          border-color: rgba(20,20,20,.30);
-        }
-
-        /* 본문: 좌측 인덱스 + 우측 콘텐츠 */
-        .layout{
-          display:grid;
-          grid-template-columns: 240px 1fr;
-          gap: 36px;
-          padding-top: 28px;
-        }
-
-        .side{
-          position: sticky;
-          top: 92px;
-          align-self: start;
-        }
-
-        .nav{
-          border-left: 1px solid var(--line);
-          padding-left: 14px;
-          display:flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .nav a{
-          text-decoration:none;
-          color: var(--muted);
-          font-family: var(--mono);
-          font-size: 11px;
-          letter-spacing: .14em;
-          text-transform: uppercase;
-          padding: 6px 0;
-          display:block;
-        }
-        .nav a:hover{ color: var(--fg); }
-
-        /* 섹션 */
-        .section{
-          padding: 56px 0;
-          border-bottom: 1px solid var(--line);
-        }
-        .kicker{
-          font-family: var(--mono);
-          font-size: 11px;
-          letter-spacing: .18em;
-          color: var(--muted2);
-          text-transform: uppercase;
-          margin-bottom: 14px;
-        }
-        .h2{
-          margin: 0 0 12px;
-          font-family: var(--sans);
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          font-size: 28px;
-          line-height: 1.25;
-        }
-        .p{
-          margin: 0;
-          font-family: var(--sans);
-          font-weight: 350;
-          color: var(--muted);
-          font-size: 15px;
-          line-height: 1.9;
-          max-width: 62ch;
-        }
-
-        /* 미디어 프레임 */
-        .frame{
-          margin-top: 22px;
-          border: 1px solid var(--line);
-          background: var(--panel);
-          border-radius: var(--radius);
-          overflow:hidden;
-          box-shadow: var(--shadow);
-        }
-        .frame-inner{ padding: 22px; }
-
-        .mediaGrid{
-          display:grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 14px;
-        }
-        .shot{
-          border: 1px solid var(--line);
-          border-radius: 14px;
-          background: #fff;
-          aspect-ratio: 4 / 3;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          position: relative;
-          overflow:hidden;
-        }
-        .shotLabel{
-          position:absolute;
-          top: 14px; left: 14px;
-          font-family: var(--mono);
-          font-size: 10px;
-          letter-spacing: .16em;
-          color: rgba(20,20,20,.28);
-          text-transform: uppercase;
-        }
-        .shot img{
-          max-width: 72%;
-          max-height: 62%;
-          object-fit: contain;
-        }
-
-        /* 컬러 */
-        .colorGrid{
-          display:grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 14px;
-          margin-top: 22px;
-        }
-        .colorCard{
-          border: 1px solid var(--line);
-          border-radius: var(--radius);
-          overflow:hidden;
-          background: var(--panel);
-          box-shadow: var(--shadow);
-        }
-        .swatch{
-          height: 170px;
-          display:flex;
-          align-items:flex-end;
-          padding: 18px;
-        }
-        .swatchName{
-          font-family: var(--display);
-          font-weight: 800;
-          font-size: 14px;
-          letter-spacing: .02em;
-          color: #fff;
-        }
-        .spec{ padding: 16px 18px; }
-        .row{
-          display:flex;
-          justify-content: space-between;
-          align-items:center;
-          padding: 9px 0;
-          border-top: 1px solid var(--line);
-        }
-        .row:first-child{ border-top: none; }
-        .k{ font-family: var(--mono); font-size: 10px; letter-spacing: .14em; color: var(--muted2); }
-        .v{ font-family: var(--mono); font-size: 12px; color: var(--fg); }
-
-        /* 다운로드 CTA */
-        .cta{
-          margin-top: 22px;
-          border: 1px solid var(--line);
-          border-radius: var(--radius);
-          background: var(--panel);
-          padding: 18px;
-          display:flex;
-          align-items:center;
-          justify-content: space-between;
-          gap: 12px;
-          flex-wrap: wrap;
-          box-shadow: var(--shadow);
-        }
-        .ctaTitle{
-          font-family: var(--sans);
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          font-size: 16px;
-          margin: 0 0 4px;
-        }
-        .ctaDesc{
-          font-family: var(--sans);
-          font-weight: 350;
-          color: var(--muted);
-          font-size: 14px;
-          margin: 0;
-          line-height: 1.7;
-        }
-
-        @media (max-width: 980px){
-          .layout{ grid-template-columns: 1fr; }
-          .side{ position: relative; top: 0; }
-          .nav{
-            border-left: none;
-            padding-left: 0;
-            flex-direction: row;
-            flex-wrap: wrap;
-            gap: 12px;
-          }
-          .section{ padding: 44px 0; }
-          .mediaGrid{ grid-template-columns: 1fr; }
-          .colorGrid{ grid-template-columns: 1fr; }
-        }
-      `}</style>
-
-      <div className="wrap">
-        {/* Doc Header */}
-        <div className="dochead">
-          <div className="brand">
-            <div className="brandMark" aria-hidden />
-            <div className="brandText">
-              <div className="brand-title">
-                PUPOO{" "}
-                <span style={{ color: "var(--blue)" }}>Brand Identity</span>
-                <span className="brand-chip">v1.0</span>
-              </div>
-              <div className="brand-sub">Guideline · 2026</div>
-            </div>
-          </div>
-
-          <div className="head-actions">
-            <button className="btn" onClick={() => jump("about")}>
-              ABOUT
-            </button>
-            <button className="btn" onClick={() => jump("logotype")}>
-              LOGOTYPE
-            </button>
-            <button className="btn" onClick={() => jump("color")}>
-              COLOR
-            </button>
-            <button className="btn" onClick={() => jump("apply")}>
-              APPLICATION
-            </button>
-            <button className="btn btn-primary" onClick={handleDownload}>
-              DOWNLOAD <span style={{ opacity: 0.85 }}>↗</span>
-            </button>
-          </div>
+      {/* ══════ HERO ══════ */}
+      <section className="au-hero">
+        <div className="au-hero-bg" />
+        <div className="au-hero-glow" style={{ top: "10%", left: "20%", background: "#2F55FF" }} />
+        <div className="au-hero-glow" style={{ bottom: "10%", right: "20%", background: "#00B894" }} />
+        <div className="au-hero-content">
+          <Reveal>
+            <div className="au-hero-kicker">About Pupoo</div>
+          </Reveal>
+          <Reveal delay={0.15}>
+            <h1 className="au-hero-title">
+              모든 행사를<br />하나로 잇다.
+            </h1>
+          </Reveal>
+          <Reveal delay={0.3}>
+            <p className="au-hero-sub">
+              기획부터 현장까지, 단절 없는 행사 경험을 만들어갑니다.
+            </p>
+          </Reveal>
         </div>
+        <div className="au-scroll-hint">
+          <div className="au-scroll-mouse" />
+          <span>SCROLL</span>
+          <div className="au-scroll-line" />
+        </div>
+      </section>
 
-        <div className="layout">
-          {/* Side index */}
-          <aside className="side">
-            <nav className="nav">
-              <a
-                href="#about"
-                onClick={(e) => (e.preventDefault(), jump("about"))}
-              >
-                01 — ABOUT
-              </a>
-              <a
-                href="#logotype"
-                onClick={(e) => (e.preventDefault(), jump("logotype"))}
-              >
-                02 — LOGOTYPE
-              </a>
-              <a
-                href="#color"
-                onClick={(e) => (e.preventDefault(), jump("color"))}
-              >
-                03 — COLOR
-              </a>
-              <a
-                href="#apply"
-                onClick={(e) => (e.preventDefault(), jump("apply"))}
-              >
-                04 — APPLICATION
-              </a>
-              <a
-                href="#assets"
-                onClick={(e) => (e.preventDefault(), jump("assets"))}
-              >
-                05 — ASSETS
-              </a>
-            </nav>
-          </aside>
+      {/* ══════ MISSION ══════ */}
+      <section className="au-mission">
+        <Reveal>
+          <p className="au-mission-text">
+            우리는 <em>행사의 모든 순간</em>이<br />
+            자연스럽게 연결되는 세상을 만듭니다.
+          </p>
+        </Reveal>
+      </section>
 
-          {/* Content */}
-          <main>
-            {/* 01 */}
-            <section id="about" className="section">
-              <R>
-                <div className="kicker">01 — ABOUT</div>
-                <h2 className="h2">연결과 확장</h2>
-                <p className="p">
-                  Pupoo는 행사 기획, 참가 신청, 결제, 현장 운영, 커뮤니티까지
-                  하나의 시스템으로 이어지는 통합 경험을 제공합니다.
-                  정보/신청/결제/현장/후기가 단절되지 않게, 한 번의 흐름으로
-                  이어지는 것이 핵심입니다.
-                </p>
-
-                <div className="frame">
-                  <div
-                    className="frame-inner"
-                    style={{ display: "flex", justifyContent: "center" }}
-                  >
-                    <img
-                      src={img(1)}
-                      alt="Pupoo Logo"
-                      style={{ width: "min(320px, 70%)", opacity: 0.98 }}
-                    />
-                  </div>
+      {/* ══════ FEATURE VISUAL ══════ */}
+      <section style={{ background: "#000", padding: "0 40px" }}>
+        <Reveal>
+          <div style={{
+            maxWidth: 1400, margin: "0 auto", borderRadius: 32, overflow: "hidden",
+            background: "linear-gradient(135deg, #0d1b3e 0%, #1a1a2e 40%, #0f3460 100%)",
+            padding: "80px 60px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20,
+          }}>
+            {[
+              { icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4", label: "참가 신청", sub: "원클릭 행사 등록" },
+              { icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z", label: "간편 결제", sub: "안전한 통합 결제" },
+              { icon: "M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z", label: "QR 체크인", sub: "빠른 현장 입장" },
+              { icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z", label: "실시간 현황", sub: "라이브 대시보드" },
+              { icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z", label: "커뮤니티", sub: "참가자 소통 공간" },
+              { icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", label: "갤러리", sub: "행사 사진 아카이브" },
+            ].map((item, i) => (
+              <div key={i} style={{
+                background: "rgba(255,255,255,0.05)", borderRadius: 20, padding: "44px 32px",
+                border: "1px solid rgba(255,255,255,0.08)", transition: "background 0.3s, transform 0.3s",
+                textAlign: "center",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; e.currentTarget.style.transform = "translateY(-4px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.transform = "translateY(0)"; }}
+              >
+                <div style={{
+                  width: 64, height: 64, borderRadius: 18, margin: "0 auto 24px",
+                  background: "rgba(47,85,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="url(#au-grad)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <defs><linearGradient id="au-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#2F55FF" /><stop offset="100%" stopColor="#00B894" /></linearGradient></defs>
+                    <path d={item.icon} />
+                  </svg>
                 </div>
-              </R>
-            </section>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 10, letterSpacing: "-0.01em" }}>{item.label}</div>
+                <div style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", fontWeight: 400, lineHeight: 1.5 }}>{item.sub}</div>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+      </section>
 
-            {/* 02 */}
-            <section id="logotype" className="section">
-              <R>
-                <div className="kicker">02 — LOGOTYPE</div>
-                <h2 className="h2">Logotype</h2>
-                <p className="p">
-                  국문/영문 로고 타입을 동일한 규격의 프레임으로 정리합니다.
-                </p>
+      {/* ══════ STATS ══════ */}
+      <section className="au-stats">
+        <div className="au-stats-inner">
+          <Reveal delay={0}>
+            <div className="au-stat-num"><Counter end={500} suffix="+" /></div>
+            <div className="au-stat-label">누적 행사 운영</div>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div className="au-stat-num"><Counter end={50000} suffix="+" /></div>
+            <div className="au-stat-label">참가자 수</div>
+          </Reveal>
+          <Reveal delay={0.2}>
+            <div className="au-stat-num"><Counter end={99} suffix="%" /></div>
+            <div className="au-stat-label">고객 만족도</div>
+          </Reveal>
+        </div>
+      </section>
 
-                <div className="frame">
-                  <div className="frame-inner">
-                    <div className="mediaGrid">
-                      {[
-                        { src: img(2), label: "KOREAN TYPE" },
-                        { src: img(3), label: "ENGLISH TYPE" },
-                      ].map((t, i) => (
-                        <div key={i} className="shot">
-                          <div className="shotLabel">{t.label}</div>
-                          <img src={t.src} alt={t.label} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+      {/* ══════ SPLIT 1 — 통합 플랫폼 ══════ */}
+      <section className="au-split" style={{ background: "#111" }}>
+        <div className="au-split-text">
+          <Reveal>
+            <div className="au-split-kicker">Integrated Platform</div>
+            <h2 className="au-split-title">하나의 플랫폼,<br />끊김 없는 경험.</h2>
+            <p className="au-split-desc">
+              행사 기획, 참가 신청, 결제, QR 체크인, 실시간 현황, 커뮤니티까지.
+              분산되어 있던 모든 프로세스를 하나로 통합했습니다.
+              더 이상 여러 도구를 오갈 필요가 없습니다.
+            </p>
+          </Reveal>
+        </div>
+        <div className="au-split-img" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
+          <Reveal>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
+              {/* 대시보드 목업 */}
+              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 20, padding: "28px 32px", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>행사 현황</div>
+                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 12px #10b981" }} />
                 </div>
-              </R>
-            </section>
-
-            {/* 03 */}
-            <section id="color" className="section">
-              <R>
-                <div className="kicker">03 — COLOR</div>
-                <h2 className="h2">Color System</h2>
-                <p className="p">
-                  컬러는 스펙 중심으로 간결하게 표시하고, 과한 장식은 쓰지
-                  않습니다.
-                </p>
-
-                <div className="colorGrid">
-                  {colors.map((c, i) => (
-                    <div key={i} className="colorCard">
-                      <div className="swatch" style={{ background: c.hex }}>
-                        <div className="swatchName">{c.name}</div>
-                      </div>
-                      <div className="spec">
-                        {[
-                          ["PANTONE", c.p],
-                          ["CMYK", c.c],
-                          ["RGB", c.r],
-                        ].map(([k, v], idx) => (
-                          <div className="row" key={idx}>
-                            <div className="k">{k}</div>
-                            <div className="v">{v}</div>
-                          </div>
-                        ))}
-                      </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
+                  {[{ n: "128", l: "신청" }, { n: "96", l: "승인" }, { n: "84", l: "체크인" }].map((d, i) => (
+                    <div key={i} style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 42, fontWeight: 900, background: "linear-gradient(135deg, #2F55FF, #00B894)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{d.n}</div>
+                      <div style={{ fontSize: 16, color: "rgba(255,255,255,0.35)", marginTop: 6 }}>{d.l}</div>
                     </div>
                   ))}
                 </div>
-              </R>
-            </section>
+              </div>
+              {/* 프로세스 플로우 */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                {["기획", "신청", "결제", "체크인", "후기"].map((step, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      padding: "10px 20px", borderRadius: 999, fontSize: 16, fontWeight: 700,
+                      background: i === 0 ? "rgba(47,85,255,0.25)" : "rgba(255,255,255,0.06)",
+                      color: i === 0 ? "#5b8aff" : "rgba(255,255,255,0.4)",
+                      border: `1px solid ${i === 0 ? "rgba(47,85,255,0.3)" : "rgba(255,255,255,0.08)"}`,
+                    }}>{step}</div>
+                    {i < 4 && <span style={{ color: "rgba(255,255,255,0.15)", fontSize: 14 }}>→</span>}
+                  </div>
+                ))}
+              </div>
+              {/* 바 차트 */}
+              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 20, padding: "28px 32px", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 24 }}>주간 참가율</div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 120 }}>
+                  {[45, 62, 78, 55, 90, 72, 85].map((h, i) => (
+                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                      <div style={{
+                        width: "100%", height: h * 1.2, borderRadius: 8,
+                        background: i === 4 ? "linear-gradient(180deg, #2F55FF, #00B894)" : "rgba(255,255,255,0.08)",
+                        transition: "height 0.6s ease",
+                      }} />
+                      <span style={{ fontSize: 13, color: "rgba(255,255,255,0.25)" }}>{["월","화","수","목","금","토","일"][i]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
 
-            {/* 04 */}
-            <section id="apply" className="section">
-              <R>
-                <div className="kicker">04 — APPLICATION</div>
-                <h2 className="h2">Usage</h2>
-                <p className="p">
-                  화이트/다크 배경에서의 사용 예시를 최소 구성으로 제시합니다.
-                </p>
-
-                <div className="frame">
-                  <div className="frame-inner">
-                    <div className="mediaGrid">
-                      {[
-                        { src: img(4), label: "WHITE" },
-                        { src: img(5), label: "DARK" },
-                      ].map((t, i) => (
-                        <div
-                          key={i}
-                          className="shot"
-                          style={{ background: i === 1 ? "#0F0F10" : "#fff" }}
-                        >
-                          <div
-                            className="shotLabel"
-                            style={{
-                              color:
-                                i === 1
-                                  ? "rgba(255,255,255,.35)"
-                                  : "rgba(20,20,20,.28)",
-                            }}
-                          >
-                            {t.label}
-                          </div>
-                          <img src={t.src} alt={t.label} />
-                        </div>
-                      ))}
+      {/* ══════ SPLIT 2 — 실시간 (reversed) ══════ */}
+      <section className="au-split" style={{ background: "#0a0a0a" }}>
+        <div className="au-split-img" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
+          <Reveal>
+            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 24 }}>
+              {/* 라이브 상태 카드 */}
+              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 20, padding: "28px 32px", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ef4444", animation: "au-glow-pulse 1.5s ease-in-out infinite" }} />
+                  <span style={{ fontSize: 20, fontWeight: 700, color: "#ef4444" }}>LIVE</span>
+                  <span style={{ fontSize: 16, color: "rgba(255,255,255,0.35)", marginLeft: "auto" }}>업데이트 2초 전</span>
+                </div>
+                {[
+                  { label: "체크인", value: "847 / 1,200", pct: 70, color: "#2F55FF" },
+                  { label: "대기열", value: "23명 대기중", pct: 19, color: "#f59e0b" },
+                  { label: "만족도", value: "4.8 / 5.0", pct: 96, color: "#10b981" },
+                ].map((row, i) => (
+                  <div key={i} style={{ marginBottom: i < 2 ? 20 : 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                      <span style={{ fontSize: 17, color: "rgba(255,255,255,0.5)" }}>{row.label}</span>
+                      <span style={{ fontSize: 17, fontWeight: 700, color: "rgba(255,255,255,0.8)" }}>{row.value}</span>
+                    </div>
+                    <div style={{ height: 10, borderRadius: 5, background: "rgba(255,255,255,0.06)" }}>
+                      <div style={{ height: "100%", borderRadius: 5, width: `${row.pct}%`, background: row.color, transition: "width 1s ease" }} />
                     </div>
                   </div>
-                </div>
-              </R>
-            </section>
-
-            {/* 05 */}
-            <section
-              id="assets"
-              className="section"
-              style={{ borderBottom: "none" }}
-            >
-              <R>
-                <div className="kicker">05 — ASSETS</div>
-                <h2 className="h2">Download</h2>
-                <p className="p">필요한 파일만 명확한 CTA로 제공합니다.</p>
-
-                <div className="cta">
-                  <div>
-                    <p className="ctaTitle">로고 PSD 파일</p>
-                    <p className="ctaDesc">
-                      원본 파일을 다운로드해 활용할 수 있습니다.
-                    </p>
+                ))}
+              </div>
+              {/* 실시간 알림 */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {[
+                  { emoji: "✅", text: "김민수님 체크인 완료", time: "방금 전" },
+                  { emoji: "🎟️", text: "신규 참가 신청 3건", time: "1분 전" },
+                  { emoji: "📊", text: "투표 결과 업데이트", time: "3분 전" },
+                ].map((noti, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "center", gap: 16,
+                    background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "16px 20px",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                  }}>
+                    <span style={{ fontSize: 26 }}>{noti.emoji}</span>
+                    <span style={{ fontSize: 17, color: "rgba(255,255,255,0.6)", flex: 1 }}>{noti.text}</span>
+                    <span style={{ fontSize: 14, color: "rgba(255,255,255,0.25)" }}>{noti.time}</span>
                   </div>
-                  <button className="btn btn-primary" onClick={handleDownload}>
-                    DOWNLOAD <span style={{ opacity: 0.85 }}>↗</span>
-                  </button>
-                </div>
-              </R>
-            </section>
-          </main>
+                ))}
+              </div>
+            </div>
+          </Reveal>
         </div>
-      </div>
+        <div className="au-split-text">
+          <Reveal>
+            <div className="au-split-kicker">Real-time Dashboard</div>
+            <h2 className="au-split-title">현장의 모든 것을<br />실시간으로.</h2>
+            <p className="au-split-desc">
+              체크인 현황, 대기 상태, 투표 결과까지 실시간으로 확인하세요.
+              데이터 기반의 의사결정으로 행사 운영의 질을 높입니다.
+            </p>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ══════ VALUES ══════ */}
+      <section className="au-values">
+        <div className="au-values-header">
+          <Reveal>
+            <div className="au-values-kicker">Our Values</div>
+            <h2 className="au-values-title">우리가 믿는 가치</h2>
+          </Reveal>
+        </div>
+        <div className="au-values-grid">
+          {[
+            {
+              icon: "M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1",
+              color: "#2F55FF", bg: "#eff2ff",
+              name: "연결", desc: "기획자, 참가자, 현장 스태프 모두가 하나의 흐름 안에서 소통합니다. 정보의 단절 없이 모든 과정이 자연스럽게 이어집니다.",
+            },
+            {
+              icon: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z",
+              color: "#f59e0b", bg: "#fffbeb",
+              name: "단순함", desc: "복잡한 행사 운영을 직관적인 인터페이스로 단순화합니다. 누구나 쉽게 사용할 수 있는 경험을 추구합니다.",
+            },
+            {
+              icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+              color: "#10b981", bg: "#ecfdf5",
+              name: "신뢰", desc: "안정적인 시스템과 투명한 데이터로 신뢰를 쌓습니다. 결제, 개인정보, 운영 데이터 모두 안전하게 보호됩니다.",
+            },
+          ].map((v, i) => (
+            <Reveal key={i} delay={i * 0.1}>
+              <div className="au-value-card">
+                <div style={{
+                  width: 56, height: 56, borderRadius: 16, background: v.bg,
+                  display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24,
+                }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={v.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={v.icon} />
+                  </svg>
+                </div>
+                <div className="au-value-name">{v.name}</div>
+                <div className="au-value-desc">{v.desc}</div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      {/* ══════ 타임라인 섹션 ══════ */}
+      <section style={{ background: "#000", padding: "120px 40px" }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+          <Reveal>
+            <div style={{ textAlign: "center", marginBottom: 80 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 16 }}>How It Works</div>
+              <h2 style={{ fontSize: "clamp(32px, 4vw, 48px)", fontWeight: 900, letterSpacing: "-0.03em", margin: 0, color: "#fff" }}>행사의 처음부터 끝까지</h2>
+            </div>
+          </Reveal>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24 }}>
+            {[
+              { step: "01", icon: "📋", title: "행사 기획", desc: "행사 정보를 등록하고 프로그램을 구성합니다." },
+              { step: "02", icon: "🎫", title: "참가 신청", desc: "참가자가 온라인으로 간편하게 신청합니다." },
+              { step: "03", icon: "📱", title: "현장 운영", desc: "QR 체크인과 실시간 현황을 관리합니다." },
+              { step: "04", icon: "💬", title: "소통 & 후기", desc: "커뮤니티에서 후기를 공유하고 소통합니다." },
+            ].map((item, i) => (
+              <Reveal key={i} delay={i * 0.1}>
+                <div style={{
+                  background: "rgba(255,255,255,0.04)", borderRadius: 24, padding: "40px 28px",
+                  border: "1px solid rgba(255,255,255,0.06)", textAlign: "center",
+                  transition: "background 0.3s, transform 0.3s", cursor: "default",
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.transform = "translateY(-6px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.transform = "translateY(0)"; }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.2)", letterSpacing: "0.1em", marginBottom: 16 }}>{item.step}</div>
+                  <div style={{ fontSize: 48, marginBottom: 20 }}>{item.icon}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 10 }}>{item.title}</div>
+                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", lineHeight: 1.65 }}>{item.desc}</div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════ CTA ══════ */}
+      <section className="au-cta">
+        <div className="au-cta-bg" />
+        <Reveal>
+          <h2 className="au-cta-title">
+            함께 만들어갈<br />다음 행사가 기대됩니다.
+          </h2>
+          <p className="au-cta-desc">
+            Pupoo와 함께 더 나은 행사 경험을 시작하세요.
+          </p>
+          <a href="/registration/apply" style={{ textDecoration: "none" }}>
+            <button className="au-cta-btn" type="button">
+              시작하기
+              <span style={{ fontSize: 20 }}>→</span>
+            </button>
+          </a>
+        </Reveal>
+      </section>
     </div>
   );
 }

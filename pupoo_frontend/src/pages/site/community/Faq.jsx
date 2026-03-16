@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, ChevronRight, Loader2, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Loader2, Search, SlidersHorizontal } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import EmptyState from "../components/EmptyState";
@@ -134,6 +134,9 @@ export default function CommunityFaq() {
       <PageHeader
         title="자주 묻는 질문"
         subtitle="자주 문의하는 내용을 빠르게 확인할 수 있는 안내 게시판입니다."
+        icon={<HelpCircle size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}
         currentPath="/community/faq"
         onNavigate={(path) => navigate(path)}
@@ -237,7 +240,7 @@ export default function CommunityFaq() {
         {loading ? (
           <PageLoading message="FAQ를 불러오는 중입니다" />
         ) : error ? (
-          <EmptyState type="error" message="FAQ를 불러오지 못했습니다" description={error} />
+          <EmptyState type="error" message="FAQ를 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." />
         ) : (
           <>
             <div>
