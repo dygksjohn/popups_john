@@ -12,6 +12,7 @@ import {
   MessageCircle,
   ChevronDown,
   SlidersHorizontal,
+  Award,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
@@ -229,6 +230,9 @@ export default function Review() {
       <PageHeader
         title="행사후기"
         subtitle="행사에 참여한 사용자의 후기와 별점을 확인하세요"
+        icon={<Award size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}
         currentPath="/community/review"
         onNavigate={(path) => navigate(path)}
@@ -385,7 +389,7 @@ export default function Review() {
         )}
 
         {!loading && error && (
-          <EmptyState type="error" message="후기를 불러오지 못했습니다" description={error} />
+          <EmptyState type="error" message="후기를 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." />
         )}
 
         {!loading && !error && (

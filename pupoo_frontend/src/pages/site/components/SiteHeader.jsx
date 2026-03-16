@@ -1,176 +1,23 @@
-﻿import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogIn, LogOut, UserPlus, UserCircle, Bell } from "lucide-react";
+import { LogIn, UserPlus, Bell, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity } from "lucide-react";
 import {
   notificationApi,
   NOTIFICATION_UNREAD_COUNT_EVENT,
   emitNotificationUnreadCount,
 } from "../../../app/http/notificationApi";
-import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
-/* ??????????????????????????????????????????????????????????????????????????????????????????
-   ICONS
-?????????????????????????????????????????????????????????????????????????????????????????? */
+const FONT = "'Kakao Big Sans', Pretendard, 'Apple SD Gothic Neo', sans-serif";
 
-/**
- * IconButtonWithTooltip
- * - to揶쎛 ??됱몵筌?<Link> ???쐭筌?
- * - onClick????됱몵筌?<button> ???쐭筌?
- * - tooltip?? createPortal嚥?body?????쐭筌?
- */
-
-const IconButtonWithTooltip = ({ children, tooltip, to, onClick }) => {
-  const [hovered, setHovered] = useState(false);
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
-  const btnRef = useRef(null);
-
-  const handleMouseEnter = () => {
-    setHovered(true);
-    if (btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setTooltipPos({
-        top: rect.bottom + 10,
-        left: rect.left + rect.width / 2,
-      });
-    }
-  };
-
-  const commonStyle = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    padding: "4px",
-
-    textDecoration: "none",
-  };
-
-  const trigger = (
-    <Link
-      to={to || "#"}
-      onClick={(e) => {
-        if (!to && onClick) {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      className="pupoo-icon-btn"
-      style={commonStyle}
-    >
-      {children}
-    </Link>
-  );
-
-  return (
-    <div
-      ref={btnRef}
-      style={{ position: "relative", display: "inline-block" }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={() => setHovered(false)}
-      title={tooltip} // ?臾롫젏????媛?
-    >
-      {trigger}
-
-      {hovered &&
-        createPortal(
-          <div
-            style={{
-              position: "fixed",
-              top: tooltipPos.top + "px",
-              left: tooltipPos.left + "px",
-              transform: "translateX(-50%)",
-              backgroundColor: "#262626",
-              color: "#ffffff",
-              fontSize: "12px",
-              padding: "6px 10px",
-              borderRadius: "6px",
-              whiteSpace: "nowrap",
-              pointerEvents: "none",
-              zIndex: 99999,
-            }}
-          >
-            {tooltip}
-            <div
-              style={{
-                position: "absolute",
-                bottom: "100%",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: 0,
-                height: 0,
-                borderLeft: "6px solid transparent",
-                borderRight: "6px solid transparent",
-                borderBottom: "6px solid #262626",
-              }}
-            />
-          </div>,
-          document.body,
-        )}
-    </div>
-  );
-};
-
-const ChevronIcon = ({ isOpen }) => (
-  <svg
-    width="12"
-    height="12"
-    viewBox="0 0 12 12"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    style={{
-      marginLeft: "4px",
-      transition: "transform 0.2s ease",
-      transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-      display: "inline-block",
-      verticalAlign: "middle",
-    }}
-  >
-    <path
-      d="M2 4L6 8L10 4"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const ArrowRight = ({ color = "#1c69d4" }) => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 16 16"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    style={{
-      display: "inline-block",
-      verticalAlign: "middle",
-      marginLeft: "4px",
-    }}
-  >
-    <path
-      d="M3 8H13M13 8L9 4M13 8L9 12"
-      stroke={color}
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-/* ??????????????????????????????????????????????????????????????????????????????????????????
+/* ─────────────────────────────────────────────
    NAV DATA
-?????????????????????????????????????????????????????????????????????????????????????????? */
+───────────────────────────────────────────── */
 const megaMenuData = {
   events: {
     columns: [
       {
-        title: "행사 안내",
+        title: "행사",
         items: [
           { label: "현재 진행 행사", href: "/event/current" },
           { label: "예정 행사", href: "/event/upcoming" },
@@ -179,7 +26,7 @@ const megaMenuData = {
         ],
       },
       {
-        title: "프로그램/참여",
+        title: "프로그램",
         items: [
           { label: "현재 진행 프로그램", href: "/program/current" },
           { label: "예정 프로그램", href: "/program/upcoming" },
@@ -188,10 +35,10 @@ const megaMenuData = {
       },
     ],
     promo: {
-      image: "https://picsum.photos/600/400",
-      description: "Pupoo의 주요 행사와 프로그램을 한눈에 확인해보세요.",
-      ctaLabel: "행사 보러가기",
-      ctaHref: "/event/current",
+      image: "/promo_event.jpg",
+      title: "행사 안내",
+      desc: "Pupoo의 주요 행사와 프로그램을 한눈에 확인하세요.",
+      icon: "event",
     },
   },
   community: {
@@ -213,10 +60,10 @@ const megaMenuData = {
       },
     ],
     promo: {
-      image: "https://picsum.photos/600/400",
-      description: "커뮤니티에서 참여 후기와 유용한 정보를 확인해보세요.",
-      ctaLabel: "커뮤니티 둘러보기",
-      ctaHref: "/community/notice",
+      image: "/promo_community.jpg",
+      title: "커뮤니티",
+      desc: "참여 후기와 유용한 정보를 커뮤니티에서 확인하세요.",
+      icon: "community",
     },
   },
   registration: {
@@ -236,10 +83,10 @@ const megaMenuData = {
       },
     ],
     promo: {
-      image: "https://picsum.photos/600/400",
-      description: "참가 신청부터 현장 이용까지 필요한 정보를 빠르게 확인해보세요.",
-      ctaLabel: "신청하러 가기",
-      ctaHref: "/registration/apply",
+      image: "/promo_registration.jpg",
+      title: "참가 신청",
+      desc: "참가 신청부터 현장 이용까지 빠르게 확인하세요.",
+      icon: "registration",
     },
   },
   realtime: {
@@ -255,42 +102,46 @@ const megaMenuData = {
       },
     ],
     promo: {
-      image: "https://picsum.photos/600/400",
-      description: "행사장의 주요 지표를 실시간으로 확인할 수 있습니다.",
-      ctaLabel: "현황 보러가기",
-      ctaHref: "/realtime/dashboard",
+      image: "/promo_realtime.jpg",
+      title: "실시간 현황",
+      desc: "행사장의 주요 지표를 실시간으로 확인할 수 있습니다.",
+      icon: "realtime",
     },
   },
 };
 
 const navItems = [
-  { label: "행사", hasDropdown: true, menuKey: "events" },
-  { label: "커뮤니티", hasDropdown: true, menuKey: "community" },
-  { label: "참가신청", hasDropdown: true, menuKey: "registration" },
-  { label: "실시간현황", hasDropdown: false, href: "/realtime/dashboard" },
+  { label: "행사", menuKey: "events" },
+  { label: "커뮤니티", menuKey: "community" },
+  { label: "참가신청", menuKey: "registration" },
+  { label: "실시간현황", menuKey: "realtime" },
 ];
 
-/* ??????????????????????????????????????????????????????????????????????????????????????????
-   MEGA MENU ITEM
-?????????????????????????????????????????????????????????????????????????????????????????? */
-const MegaMenuItem = ({ item }) => {
+/* ─────────────────────────────────────────────
+   MEGA MENU LINK ITEM
+───────────────────────────────────────────── */
+const MegaLink = ({ item, onNavigate }) => {
   const [hovered, setHovered] = useState(false);
   return (
     <a
       href={item.href}
+      onClick={(e) => {
+        e.preventDefault();
+        onNavigate(item.href);
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         display: "block",
-        color: hovered ? "#1c69d4" : "#262626",
-        fontSize: "14px",
-        fontFamily: "'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif",
-        fontWeight: "400",
-        lineHeight: "1.4",
-        padding: "8px 0",
-        textDecoration: "none",
-        transition: "color 0.15s ease",
-        letterSpacing: "0.01em",
+        padding: "5px 0",
+        fontSize: 15,
+        fontFamily: FONT,
+        fontWeight: 500,
+        color: hovered ? "#000" : "#333",
+        textDecoration: hovered ? "underline" : "none",
+        textUnderlineOffset: "4px",
+        transition: "color 0.15s",
+        lineHeight: 1.55,
       }}
     >
       {item.label}
@@ -298,251 +149,159 @@ const MegaMenuItem = ({ item }) => {
   );
 };
 
-/* ??????????????????????????????????????????????????????????????????????????????????????????
-   MEGA MENU PANEL
-?????????????????????????????????????????????????????????????????????????????????????????? */
-const MegaMenu = ({ menuData }) => {
+/* ─────────────────────────────────────────────
+   PROMO ICON MAP
+───────────────────────────────────────────── */
+const PROMO_ICONS = {
+  event: { Icon: CalendarHeart, bg: "#eff4ff", color: "#1a4fd6" },
+  community: { Icon: MessageCircleHeart, bg: "#fef3f2", color: "#e04545" },
+  registration: { Icon: TicketCheck, bg: "#ecfdf5", color: "#059669" },
+  realtime: { Icon: Activity, bg: "#fef9ee", color: "#ea580c" },
+};
+
+const PromoCard = ({ promo }) => {
+  const iconCfg = PROMO_ICONS[promo.icon] || PROMO_ICONS.event;
+  const { Icon, bg, color } = iconCfg;
+
+  return (
+    <div
+      style={{
+        width: 280,
+        flexShrink: 0,
+        backgroundColor: "#f7f8fa",
+        borderRadius: 18,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          aspectRatio: "5 / 3",
+          backgroundColor: "#e8edf3",
+          overflow: "hidden",
+        }}
+      >
+        <img
+          src={promo.image}
+          alt=""
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
+          onError={(e) => {
+            e.target.style.display = "none";
+            e.target.parentElement.style.background =
+              "linear-gradient(135deg, #dce3ed 0%, #c5d0e0 100%)";
+          }}
+        />
+      </div>
+      <div style={{ padding: "16px 18px 20px" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 14,
+              fontFamily: FONT,
+              fontWeight: 700,
+              color: "rgb(127, 127, 127)",
+            }}
+          >
+            {promo.title}
+          </span>
+        </div>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 15,
+            fontFamily: FONT,
+            fontWeight: 500,
+            color: "rgb(127, 127, 127)",
+            lineHeight: 1.5,
+          }}
+        >
+          {promo.desc}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────────────────────────────────────
+   DROPDOWN CARD (compact, fixed below header)
+───────────────────────────────────────────── */
+const DropdownCard = ({ menuData, onNavigate }) => {
   if (!menuData) return null;
   const { columns, promo } = menuData;
 
   return (
     <div
       style={{
-        position: "absolute",
-        top: "100%",
-        left: 0,
-        right: 0,
-        backgroundColor: "rgba(255,255,255,0.97)",
-        backdropFilter: "blur(12px)",
-        borderTop: "1px solid #e0e0e0",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-        zIndex: 1000,
-        padding: "40px 0 48px",
+        position: "fixed",
+        top: 92,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 1001,
+        backgroundColor: "#fff",
+        borderRadius: "0 0 20px 20px",
+        padding: "28px 36px 26px",
+        display: "flex",
+        gap: 0,
+        animation: "megaSlideDown 0.18s ease",
       }}
     >
-      <div
-        style={{
-          maxWidth: "1440px",
-          margin: "0 auto",
-          padding: "0 80px",
-          display: "flex",
-          gap: "0",
-          alignItems: "flex-start",
-        }}
-      >
-        <div style={{ display: "flex", gap: "80px", flex: "1" }}>
-          {columns.map((col, i) => (
-            <div key={i} style={{ minWidth: "200px" }}>
-              <div
-                style={{
-                  fontSize: "22px",
-                  fontFamily:
-                    "'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif",
-                  fontWeight: "700",
-                  color: "#262626",
-                  marginBottom: "20px",
-                  letterSpacing: "-0.01em",
-                  lineHeight: "1.2",
-                }}
-              >
-                {col.title}
-              </div>
-              <div>
-                {col.items.map((item, j) => (
-                  <MegaMenuItem key={j} item={item} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {promo && (
-          <div style={{ width: "380px", flexShrink: 0, marginLeft: "40px" }}>
+      {/* Columns */}
+      <div style={{ display: "flex", gap: 48 }}>
+        {columns.map((col, i) => (
+          <div key={i} style={{ minWidth: 130 }}>
             <div
               style={{
-                width: "100%",
-                aspectRatio: "380/240",
-                overflow: "hidden",
-                backgroundColor: "#1a1a1a",
+                fontSize: 14,
+                fontFamily: FONT,
+                fontWeight: 400,
+                color: "#999",
+                marginBottom: 14,
+                lineHeight: 1,
               }}
             >
-              <img
-                src={resolveImageUrl(promo.image)}
-                alt="pupoo promo"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-                onError={(e) => {
-                  e.target.style.display = "none";
-                  e.target.parentElement.innerHTML = `
-                    <div style="width:100%;height:100%;background:linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 30%,#16213e 60%,#0f3460 100%);display:flex;align-items:center;justify-content:center;">
-                      <svg width="120" height="60" viewBox="0 0 120 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <ellipse cx="60" cy="50" rx="55" ry="6" fill="rgba(255,255,255,0.05)"/>
-                        <path d="M15 42 Q30 28 60 30 Q90 28 105 42 L100 44 Q85 35 60 36 Q35 35 20 44 Z" fill="rgba(255,255,255,0.15)"/>
-                        <path d="M25 36 Q35 24 60 26 Q85 24 95 36 L92 38 Q82 28 60 30 Q38 28 28 38 Z" fill="rgba(255,255,255,0.1)"/>
-                        <circle cx="35" cy="44" r="5" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-                        <circle cx="85" cy="44" r="5" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-                      </svg>
-                    </div>
-                  `;
-                }}
-              />
+              {col.title}
             </div>
-
-            <p
-              style={{
-                margin: "16px 0 12px",
-                fontSize: "15px",
-                fontFamily:
-                  "'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif",
-                fontWeight: "400",
-                color: "#262626",
-                lineHeight: "1.5",
-                letterSpacing: "0.01em",
-              }}
-            >
-              {promo.description}
-            </p>
-
-            <a
-              href={promo.ctaHref}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                color: "#1c69d4",
-                fontSize: "14px",
-                fontFamily:
-                  "'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif",
-                fontWeight: "700",
-                textDecoration: "none",
-                letterSpacing: "0.01em",
-              }}
-            >
-              {promo.ctaLabel}
-              <ArrowRight color="#1c69d4" />
-            </a>
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              {col.items.map((item, j) => (
+                <MegaLink key={j} item={item} onNavigate={onNavigate} />
+              ))}
+            </div>
           </div>
-        )}
+        ))}
       </div>
+
+      {/* Divider */}
+      {promo && (
+        <div style={{ width: 1, background: "#f0f0f0", margin: "0 36px", flexShrink: 0 }} />
+      )}
+
+      {/* Promo Card (right side — Kakao ESG style) */}
+      {promo && (
+        <PromoCard promo={promo} />
+      )}
     </div>
   );
 };
 
-/* ??????????????????????????????????????????????????????????????????????????????????????????
-   INDIVIDUAL NAV BUTTON / LINK
-?????????????????????????????????????????????????????????????????????????????????????????? */
-const NavItem = ({
-  label,
-  hasDropdown,
-  isActive,
-  onClick,
-  href,
-  isScrolled,
-  isMenuOpen,
-  isHome,
-}) => {
-  const [hovered, setHovered] = useState(false);
-
-  const isLight = isHome && !isScrolled && !isMenuOpen;
-
-  const baseColor = isLight ? "#ffffff" : "#262626";
-  const activeColor = "rgb(47, 85, 255)";
-  const computedColor = isActive || hovered ? activeColor : baseColor;
-
-  if (!hasDropdown) {
-    return (
-      <a
-        href={href || "#"}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          position: "relative",
-          display: "inline-flex",
-          alignItems: "center",
-          height: "100%",
-          padding: "0 4px",
-          color: computedColor,
-          fontSize: "14px",
-          fontFamily: "'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif",
-          fontWeight: "400",
-          textDecoration: "none",
-          whiteSpace: "nowrap",
-          letterSpacing: "0.01em",
-          transition: "color 0.2s ease",
-          cursor: "pointer",
-        }}
-      >
-        {label}
-        <span
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: "2px",
-            backgroundColor: "#1c69d4",
-            transform: hovered ? "scaleX(1)" : "scaleX(0)",
-            transition: "transform 0.2s ease",
-            transformOrigin: "center",
-          }}
-        />
-      </a>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        position: "relative",
-        display: "inline-flex",
-        alignItems: "center",
-        height: "100%",
-        padding: "0 4px",
-        background: "none",
-        border: "none",
-        color: computedColor,
-        fontSize: "14px",
-        fontFamily: "'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif",
-        fontWeight: "400",
-        whiteSpace: "nowrap",
-        letterSpacing: "0.01em",
-        cursor: "pointer",
-        transition: "color 0.2s ease",
-        outline: "none",
-      }}
-    >
-      {label}
-      <ChevronIcon isOpen={isActive} />
-      <span
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: "3px",
-          backgroundColor: "#1c69d4",
-          transform: isActive ? "scaleX(1)" : "scaleX(0)",
-          transition: "transform 0.2s ease",
-          transformOrigin: "center",
-        }}
-      />
-    </button>
-  );
-};
-
-/* ??????????????????????????????????????????????????????????????????????????????????????????
+/* ─────────────────────────────────────────────
    MAIN HEADER
-?????????????????????????????????????????????????????????????????????????????????????????? */
+───────────────────────────────────────────── */
 export default function PupooHeader() {
   const navigate = useNavigate();
-  const { isAuthed, logout } = useAuth(); // ??logoutLocal ??볤탢
+  const { isAuthed, logout } = useAuth();
   const [activeMenu, setActiveMenu] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -551,12 +310,14 @@ export default function PupooHeader() {
   const location = useLocation();
   const isHome = location.pathname === "/";
 
+  /* ── scroll listener ── */
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  /* ── unread count sync ── */
   useEffect(() => {
     unreadCountRef.current = unreadCount;
   }, [unreadCount]);
@@ -567,51 +328,32 @@ export default function PupooHeader() {
       setUnreadCount(0);
       return;
     }
-
     let disposed = false;
-
     const syncUnreadCount = async ({ forceEmit = false } = {}) => {
       try {
-        const nextCount = Math.max(
-          0,
-          Number(await notificationApi.getUnreadCount()) || 0,
-        );
+        const nextCount = Math.max(0, Number(await notificationApi.getUnreadCount()) || 0);
         if (disposed) return;
-
         const prevCount = unreadCountRef.current;
         unreadCountRef.current = nextCount;
         setUnreadCount(nextCount);
-
-        if (forceEmit || prevCount !== nextCount) {
-          emitNotificationUnreadCount(nextCount);
-        }
+        if (forceEmit || prevCount !== nextCount) emitNotificationUnreadCount(nextCount);
       } catch {
         if (disposed) return;
         unreadCountRef.current = 0;
         setUnreadCount(0);
       }
     };
-
     syncUnreadCount({ forceEmit: true });
-
     const intervalId = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       syncUnreadCount();
     }, 5000);
-
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        syncUnreadCount();
-      }
+      if (document.visibilityState === "visible") syncUnreadCount();
     };
-
-    const handleWindowFocus = () => {
-      syncUnreadCount();
-    };
-
+    const handleWindowFocus = () => syncUnreadCount();
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleWindowFocus);
-
     return () => {
       disposed = true;
       window.clearInterval(intervalId);
@@ -624,225 +366,368 @@ export default function PupooHeader() {
     if (typeof window === "undefined") return undefined;
     const handleUnreadCountChange = (event) => {
       const nextCount = Number(event?.detail?.count);
-      if (Number.isFinite(nextCount)) {
-        setUnreadCount(Math.max(0, nextCount));
-      }
+      if (Number.isFinite(nextCount)) setUnreadCount(Math.max(0, nextCount));
     };
-    window.addEventListener(
-      NOTIFICATION_UNREAD_COUNT_EVENT,
-      handleUnreadCountChange,
-    );
-    return () =>
-      window.removeEventListener(
-        NOTIFICATION_UNREAD_COUNT_EVENT,
-        handleUnreadCountChange,
-      );
+    window.addEventListener(NOTIFICATION_UNREAD_COUNT_EVENT, handleUnreadCountChange);
+    return () => window.removeEventListener(NOTIFICATION_UNREAD_COUNT_EVENT, handleUnreadCountChange);
   }, []);
 
+  /* ── outside click ── */
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (headerRef.current && !headerRef.current.contains(e.target)) {
-        setActiveMenu(null);
-      }
+      if (headerRef.current && !headerRef.current.contains(e.target)) setActiveMenu(null);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  /* ── close on route change ── */
+  useEffect(() => {
+    setActiveMenu(null);
+  }, [location.pathname]);
+
   const handleNavClick = (menuKey) => {
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey));
   };
 
+  const handleMegaNavigate = (href) => {
+    setActiveMenu(null);
+    navigate(href);
+  };
+
   const isWhiteMode = !isHome || scrolled || activeMenu !== null;
-  const iconColor = isWhiteMode ? "#262626" : "#ffffff";
-  const showGuestBell = isWhiteMode;
+  const isLight = isHome && !scrolled && !activeMenu;
+  const textColor = isWhiteMode ? "#222" : "#fff";
+  const iconColor = isWhiteMode ? "#222" : "#fff";
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
-        body { font-family: 'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif; }
-        .pupoo-header-root {
-          font-family: 'Noto Sans KR', 'Helvetica Neue', Arial, sans-serif;
+        @keyframes megaSlideDown {
+          from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        .kakao-nav-btn {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          height: auto;
+          padding: 10px 20px;
+          background: none;
+          border: 1px solid transparent;
+          border-radius: 999px;
+          font-size: 17px;
+          font-family: ${FONT};
+          font-weight: 700;
+          white-space: nowrap;
+          letter-spacing: -0.02em;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          outline: none;
+          line-height: 1;
+          margin: 0;
+        }
+        .kakao-nav-btn.light {
+          color: rgba(255,255,255,0.85);
+        }
+        .kakao-nav-btn.light:hover,
+        .kakao-nav-btn.light.active {
+          color: #fff;
+          border-color: #fff;
+        }
+        .kakao-nav-btn.dark {
+          color: #555;
+        }
+        .kakao-nav-btn.dark:hover {
+          color: #333;
+          background: #f0f0f0;
+          border-color: #f0f0f0;
+        }
+        .kakao-nav-btn.dark.active {
+          color: #fff;
+          background: #222;
+          border-color: #222;
+        }
+        .kakao-icon-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+          background: none;
+          border: none;
+          cursor: pointer;
+          transition: background-color 0.2s ease, transform 0.2s ease;
+          text-decoration: none;
+          position: relative;
+          flex-shrink: 0;
+        }
+        .kakao-icon-btn:hover {
+          background-color: rgba(0,0,0,0.06);
+          transform: scale(1.08);
+        }
+        .kakao-icon-btn.light:hover {
+          background-color: rgba(255,255,255,0.15);
+        }
+        /* ── custom tooltip ── */
+        .kakao-icon-btn .ktt {
+          position: absolute;
+          bottom: -36px;
+          left: 50%;
+          transform: translateX(-50%) translateY(4px);
+          padding: 5px 12px;
+          border-radius: 8px;
+          background: #222;
+          color: #fff;
+          font-family: 'Kakao Big Sans', Pretendard, sans-serif;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: -0.02em;
+          white-space: nowrap;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.2s ease, transform 0.2s ease;
+          z-index: 9999;
+        }
+        .kakao-icon-btn.light .ktt {
+          background: rgba(255,255,255,0.92);
+          color: #222;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+        }
+        .kakao-icon-btn .ktt::before {
+          content: '';
+          position: absolute;
+          top: -5px;
+          left: 50%;
+          transform: translateX(-50%);
+          border-left: 5px solid transparent;
+          border-right: 5px solid transparent;
+          border-bottom: 5px solid #222;
+        }
+        .kakao-icon-btn.light .ktt::before {
+          border-bottom-color: rgba(255,255,255,0.92);
+        }
+        .kakao-icon-btn:hover .ktt {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+        /* ── CTA Button ── */
+        .kakao-cta {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 18px;
+          border-radius: 999px;
+          background: #2563eb;
+          color: #fff;
+          font-family: 'Kakao Big Sans', Pretendard, sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          text-decoration: none;
+          white-space: nowrap;
+          transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+          box-shadow: 0 2px 12px rgba(37,99,235,0.3);
+          flex-shrink: 0;
+          margin-right: 8px;
+        }
+        .kakao-cta:hover {
+          background: #1d4ed8;
+          transform: scale(1.04);
+          box-shadow: 0 4px 20px rgba(37,99,235,0.4);
+        }
+        .kakao-cta:active {
+          transform: scale(0.97);
+        }
+        .kakao-cta.light {
+          background: #fff;
+          color: #2563eb;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+        .kakao-cta.light:hover {
+          background: #f0f4ff;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
       `}</style>
 
-      <div
-        className="pupoo-header-root"
-        ref={headerRef}
-        style={{ position: "relative", zIndex: 3000 }}
-      >
+      <div ref={headerRef} style={{ position: "relative", zIndex: 3000 }}>
+        {/* ── HEADER BAR ── */}
         <header
           style={{
             position: "fixed",
             top: 0,
             left: 0,
             width: "100%",
-            height: "70px",
+            height: 92,
             display: "flex",
-            alignItems: "stretch",
+            alignItems: "center",
             zIndex: 1000,
-            backgroundColor: isWhiteMode
-              ? "rgba(255,255,255,0.97)"
-              : "transparent",
-            backdropFilter: isWhiteMode ? "blur(12px)" : "none",
-            borderBottom:
-              isWhiteMode && !activeMenu ? "1px solid #e0e0e0" : "none",
-            transition:
-              "background-color 0.3s ease, border-bottom 0.3s ease, backdrop-filter 0.3s ease",
+            backgroundColor: isWhiteMode ? "#fff" : "transparent",
+            borderBottom: isWhiteMode ? "1px solid #f0f0f0" : "none",
+            transition: "background-color 0.3s ease",
           }}
         >
           <div
             style={{
-              maxWidth: "1400px",
+              maxWidth: 1712,
               width: "100%",
               margin: "0 auto",
-              padding: "0 25px",
+              padding: "0 40px",
               display: "flex",
-              alignItems: "stretch",
-              justifyContent: "space-between",
+              alignItems: "center",
+              height: "100%",
             }}
           >
-            {/* Left: Logo + Nav */}
-            <div
-              style={{ display: "flex", alignItems: "stretch", gap: "32px" }}
+            {/* ── LEFT: Logo ── */}
+            <Link
+              to="/"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                textDecoration: "none",
+                flexShrink: 0,
+                marginRight: 40,
+              }}
             >
-              <Link
-                to="/"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  textDecoration: "none",
-                  marginRight: "8px",
-                  flexShrink: 0,
-                }}
-              >
-                <img
-                  src={
-                    isHome && !scrolled && activeMenu === null
-                      ? "/logo_white.png"
-                      : "/logo_blue.png"
-                  }
-                  alt="Pupoo Logo"
-                  style={{
-                    height: "25px",
-                    width: "auto",
-                    display: "block",
-                    objectFit: "contain",
-                  }}
-                />
-              </Link>
+              <img
+                src={isLight ? "/logo_white.png" : "/logo_blue.png"}
+                alt="Pupoo"
+                style={{ height: 28, width: "auto", display: "block" }}
+              />
+            </Link>
 
-              <nav
-                style={{ display: "flex", alignItems: "stretch", gap: "28px" }}
-              >
-                {navItems.map((item) => (
-                  <NavItem
-                    key={item.label}
-                    label={item.label}
-                    hasDropdown={item.hasDropdown}
-                    isActive={activeMenu === item.menuKey}
-                    onClick={() =>
-                      item.hasDropdown && handleNavClick(item.menuKey)
-                    }
-                    href={item.href}
-                    isScrolled={scrolled}
-                    isMenuOpen={activeMenu !== null}
-                    isHome={isHome}
-                  />
-                ))}
-              </nav>
-            </div>
+            {/* ── CENTER: Nav (Kakao-style pill buttons) ── */}
+            <nav
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flex: 1,
+                height: "100%",
+                columnGap: 52,
+              }}
+            >
+              {navItems.map((item) => (
+                <button
+                  key={item.menuKey}
+                  className={`kakao-nav-btn ${isLight ? "light" : "dark"} ${activeMenu === item.menuKey ? "active" : ""}`}
+                  onClick={() => handleNavClick(item.menuKey)}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            {/* ── RIGHT: Icons ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
               {!isAuthed ? (
                 <>
-                  {showGuestBell ? (
-                    <IconButtonWithTooltip to="/auth/login" tooltip="알림">
-                      <Bell size={23} color={iconColor} strokeWidth={1.5} />
-                    </IconButtonWithTooltip>
-                  ) : null}
-
-                  <IconButtonWithTooltip to="/auth/login" tooltip="로그인">
-                    <LogIn size={23} color={iconColor} strokeWidth={1.5} />
-                  </IconButtonWithTooltip>
-
-                  <IconButtonWithTooltip
-                    to="/auth/join/joinselect"
-                    tooltip="회원가입"
+                  <Link
+                    to="/auth/login"
+                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
                   >
-                    <UserPlus size={23} color={iconColor} strokeWidth={1.5} />
-                  </IconButtonWithTooltip>
+                    <Bell size={20} color={iconColor} strokeWidth={1.8} />
+                    <span className="ktt">알림</span>
+                  </Link>
+                  <Link
+                    to="/auth/login"
+                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                  >
+                    <LogIn size={20} color={iconColor} strokeWidth={1.8} />
+                    <span className="ktt">로그인</span>
+                  </Link>
+                  <Link
+                    to="/auth/join/joinselect"
+                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                  >
+                    <UserPlus size={20} color={iconColor} strokeWidth={1.8} />
+                    <span className="ktt">회원가입</span>
+                  </Link>
                 </>
               ) : (
                 <>
-                  <IconButtonWithTooltip
+                  <Link
                     to="/mypage"
-                    tooltip={unreadCount > 0 ? `알림 ${unreadCount}건` : "알림"}
+                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                    style={{ position: "relative" }}
                   >
-                    <span style={{ position: "relative", display: "inline-flex" }}>
-                      <Bell size={23} color={iconColor} strokeWidth={1.5} />
-                      {unreadCount > 0 && (
-                        <span
-                          style={{
-                            position: "absolute",
-                            top: -4,
-                            right: -6,
-                            minWidth: 18,
-                            height: 18,
-                            padding: "0 5px",
-                            borderRadius: 9,
-                            backgroundColor: "#ef4444",
-                            color: "#fff",
-                            fontSize: 11,
-                            fontWeight: 700,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            boxSizing: "border-box",
-                          }}
-                        >
-                          {unreadCount > 99 ? "99+" : unreadCount}
-                        </span>
-                      )}
-                    </span>
-                  </IconButtonWithTooltip>
-
-                  <IconButtonWithTooltip
-                    tooltip="로그아웃"
+                    <Bell size={20} color={iconColor} strokeWidth={1.8} />
+                    {unreadCount > 0 && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 2,
+                          right: 2,
+                          minWidth: 16,
+                          height: 16,
+                          padding: "0 4px",
+                          borderRadius: 8,
+                          backgroundColor: "#ef4444",
+                          color: "#fff",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                    <span className="ktt">{unreadCount > 0 ? `알림 ${unreadCount}건` : "알림"}</span>
+                  </Link>
+                  <Link
+                    to="/mypage"
+                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                  >
+                    <UserCircle size={20} color={iconColor} strokeWidth={1.8} />
+                    <span className="ktt">마이페이지</span>
+                  </Link>
+                  <button
+                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
                     onClick={() => {
                       logout();
-
                       navigate("/", { replace: true });
                     }}
+                    type="button"
                   >
-                    <LogOut size={23} color={iconColor} strokeWidth={1.5} />
-                  </IconButtonWithTooltip>
-
-                  <IconButtonWithTooltip to="/mypage" tooltip="마이페이지">
-                    <UserCircle size={23} color={iconColor} strokeWidth={1.5} />
-                  </IconButtonWithTooltip>
+                    <LogOut size={20} color={iconColor} strokeWidth={1.8} />
+                    <span className="ktt">로그아웃</span>
+                  </button>
                 </>
               )}
             </div>
           </div>
         </header>
 
+        {/* ── DROPDOWN CARD ── */}
         {activeMenu && megaMenuData[activeMenu] && (
+          <DropdownCard
+            menuData={megaMenuData[activeMenu]}
+            onNavigate={handleMegaNavigate}
+          />
+        )}
+
+        {/* ── BACKDROP (dark overlay below header, click to close) ── */}
+        {activeMenu && (
           <div
+            onClick={() => setActiveMenu(null)}
             style={{
               position: "fixed",
-              top: "70px",
+              top: 92,
               left: 0,
               right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.35)",
               zIndex: 1000,
             }}
-          >
-            <MegaMenu menuData={megaMenuData[activeMenu]} />
-          </div>
+          />
         )}
       </div>
     </>
   );
 }
-

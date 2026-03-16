@@ -13,6 +13,7 @@ import {
   Clock,
   Calendar,
   Users,
+  ChevronLeft,
   ChevronRight,
   Phone,
   Mail,
@@ -119,11 +120,11 @@ const modalStyles = `
     flex-shrink: 0;
   }
   .evm-right-title {
-    font-size: 22px; font-weight: 800; color: #111827;
+    font-size: 26px; font-weight: 800; color: #111827;
     line-height: 1.3; margin: 0 0 4px;
   }
   .evm-right-sub {
-    font-size: 12px; color: #9ca3af; font-weight: 500;
+    font-size: 15px; color: #9ca3af; font-weight: 500;
     margin-bottom: 16px;
   }
   .evm-topbar-right {
@@ -164,8 +165,8 @@ const modalStyles = `
     width: 36px; height: 36px; border-radius: 9px;
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .evm-qi-label { font-size: 11px; color: #9ca3af; font-weight: 500; }
-  .evm-qi-value { font-size: 13px; color: #111827; font-weight: 700; }
+  .evm-qi-label { font-size: 13px; color: #9ca3af; font-weight: 500; }
+  .evm-qi-value { font-size: 15px; color: #111827; font-weight: 700; }
 
   /* Section */
   .evm-section { margin-bottom: 28px; }
@@ -215,17 +216,12 @@ const modalStyles = `
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 500;
     color: #111827;
   }
   .evm-guide-pill {
-    font-size: 11px;
-    font-weight: 700;
-    color: #6b7280;
-    background: #f3f4f6;
-    padding: 3px 10px;
-    border-radius: 999px;
+    display: none;
   }
   .evm-guide-day-list,
   .evm-guide-program-scroll {
@@ -260,8 +256,8 @@ const modalStyles = `
     box-shadow: 0 0 0 2px rgba(26,79,214,0.08) inset;
   }
   .evm-guide-date-chip {
-    width: 44px;
-    height: 44px;
+    width: 50px;
+    height: 50px;
     border-radius: 10px;
     background: #f3f4f6;
     color: #111827;
@@ -276,12 +272,12 @@ const modalStyles = `
     background: #1a4fd6;
     color: #fff;
   }
-  .evm-guide-date-day { font-size: 18px; line-height: 1; }
-  .evm-guide-date-week { font-size: 9px; opacity: 0.85; margin-top: 2px; }
+  .evm-guide-date-day { font-size: 12px; font-weight: 600; line-height: 1; opacity: 0.7; }
+  .evm-guide-date-week { font-size: 17px; font-weight: 500; margin-top: 2px; }
   .evm-guide-day-info { flex: 1; min-width: 0; }
   .evm-guide-day-title {
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 500;
     color: #111827;
     white-space: nowrap;
     overflow: hidden;
@@ -289,13 +285,7 @@ const modalStyles = `
   }
   .evm-guide-day-sub { margin-top: 4px; font-size: 12px; color: #9ca3af; }
   .evm-guide-day-count {
-    font-size: 11px;
-    font-weight: 700;
-    color: #1a4fd6;
-    background: #eff4ff;
-    border-radius: 999px;
-    padding: 3px 9px;
-    flex-shrink: 0;
+    display: none;
   }
   .evm-guide-program-group { margin-bottom: 10px; }
   .evm-guide-program-group:last-child { margin-bottom: 0; }
@@ -422,9 +412,10 @@ const modalStyles = `
     transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
   }
   .evm-part-note {
-    font-size: 12px; color: #9ca3af;
+    font-size: 13px; color: #6b7280; font-weight: 500;
+    margin-top: 4px;
   }
-  .evm-part-note strong { color: #ef4444; font-weight: 700; }
+  .evm-part-note strong { color: #1a4fd6; font-weight: 800; }
 
   /* Location */
   .evm-map-placeholder {
@@ -476,6 +467,7 @@ const modalStyles = `
   .evm-map-organizer {
     font-size: 13px;
     color: #374151;
+    margin-top: 30px;
     margin-bottom: 14px;
   }
   .evm-transport { display: flex; flex-direction: column; gap: 8px; }
@@ -520,8 +512,8 @@ const modalStyles = `
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     flex-shrink: 0;
   }
-  .evm-cta-price-label { font-size: 11px; color: #9ca3af; }
-  .evm-cta-price { font-size: 16px; font-weight: 800; color: #111827; }
+  .evm-cta-price-label { font-size: 14px; color: #9ca3af; }
+  .evm-cta-price { font-size: 19px; font-weight: 800; color: #111827; }
   .evm-cta-actions { display: flex; gap: 8px; }
   .evm-btn-secondary {
     height: 42px; padding: 0 18px; border-radius: 10px;
@@ -562,7 +554,7 @@ const modalStyles = `
     .evm-quick-info { grid-template-columns: 1fr; }
     .evm-speakers { grid-template-columns: 1fr; }
     .evm-contact-grid { grid-template-columns: 1fr; }
-    .evm-right-title { font-size: 20px; }
+    .evm-right-title { font-size: 22px; }
     .evm-content { padding: 20px 18px 28px; }
     .evm-cta-bar { padding: 14px 18px; }
     .evm-guide-grid { grid-template-columns: 1fr; }
@@ -852,6 +844,10 @@ export default function EventDetailModal({ event, onClose }) {
     car: "",
   });
   const overlayRef = useRef(null);
+  const dayListRef = useRef(null);
+  const scrollDayList = (dir) => {
+    if (dayListRef.current) dayListRef.current.scrollLeft += dir * 160;
+  };
 
   const modalEventId = Number(event?.eventId ?? event?.id);
   const hasToken = !!tokenStore.getAccess();
@@ -1438,7 +1434,7 @@ export default function EventDetailModal({ event, onClose }) {
                         >
                           <div className="evm-guide-date-chip">
                             <div className="evm-guide-date-day">{day.key.slice(8, 10)}</div>
-                            <div className="evm-guide-date-week">{day.weekday}</div>
+                            <div className="evm-guide-date-week">{day.weekday}요일</div>
                           </div>
                           <div className="evm-guide-day-info">
                             <div className="evm-guide-day-title">
@@ -1581,11 +1577,11 @@ export default function EventDetailModal({ event, onClose }) {
                 <div className="evm-part-note">
                   {remaining > 0 ? (
                     <>
-                      잔여 <strong>{(remaining ?? 0).toLocaleString()}명</strong> 있음
+                      <strong>{(remaining ?? 0).toLocaleString()}명</strong> 참가 가능
                     </>
                   ) : (
                     <>
-                      <strong>마감</strong> 대기자 등록 가능
+                      참가 접수가 <strong>마감</strong>되었습니다
                     </>
                   )}
                 </div>

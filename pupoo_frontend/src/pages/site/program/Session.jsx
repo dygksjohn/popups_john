@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
 import EventSelectPage from "../components/EventSelectPage";
 import {
   SERVICE_CATEGORIES,
@@ -281,7 +282,7 @@ function SessionList({ eventId }) {
         ))}
       </div>
 
-      {loading && <div className="pg-card-empty">로딩 중...</div>}
+      {loading && <PageLoading />}
       {!loading && error && <div className="pg-card-empty">{error}</div>}
       {!loading && !error && filtered.length === 0 && (
         <div className="pg-card-empty">
@@ -455,13 +456,7 @@ export default function Session() {
           onNavigate={(path) => navigate(path)}
         />
         <EventSelectPage events={events} basePath="/program/session" />
-        {eventsLoading && (
-          <main className="pg-wrap">
-            <div style={{ color: "#9ca3af", fontSize: 13 }}>
-              행사 목록 불러오는 중...
-            </div>
-          </main>
-        )}
+        {eventsLoading && <PageLoading />}
       </div>
     );
 

@@ -174,7 +174,6 @@ export default function ContestDetailPage() {
       setErrorMsg(
         error?.response?.data?.message ||
           error?.response?.data?.error?.message ||
-          error?.message ||
           "콘테스트 상세 정보를 불러오지 못했습니다.",
       );
     } finally {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
 import {
   SERVICE_CATEGORIES,
   SUBTITLE_MAP,
@@ -269,9 +270,7 @@ export default function Experience() {
         </div>
 
         {loading && (
-          <div className="ex-empty">
-            <div style={{ fontSize: 14, color: "#9ca3af" }}>불러오는 중...</div>
-          </div>
+          <PageLoading />
         )}
         {!loading && error && (
           <div className="ex-empty">
