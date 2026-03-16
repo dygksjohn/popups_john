@@ -412,6 +412,8 @@ function VoteContent({ eventId, onNavigate }) {
     () => contests.filter((contest) => contest.status === contestStatusFilter),
     [contests, contestStatusFilter],
   );
+  const canNavigateToVotePage =
+    contestStatusFilter === "진행 중" && filteredContests.length > 0;
 
   useEffect(() => {
     setActiveContestKey((prev) => {
@@ -557,12 +559,14 @@ function VoteContent({ eventId, onNavigate }) {
               ))}
             </div>
           </div>
-          <button
-            className="vt-selector-link"
-            onClick={() => onNavigate("/program/contest")}
-          >
-            투표참여 페이지로 이동
-          </button>
+          {canNavigateToVotePage ? (
+            <button
+              className="vt-selector-link"
+              onClick={() => onNavigate("/program/contest")}
+            >
+              투표참여 페이지로 이동
+            </button>
+          ) : null}
         </header>
         <div className="vt-selector-list">
           {filteredContests.length > 0 ? (
@@ -738,11 +742,24 @@ export default function VoteStatus({ onNavigate: onNavigateProp }) {
 
   const handleNavigate = useCallback(
     (path) => {
-      if (eventId) {
-        navigate(`${path}/${eventId}`);
-      } else {
+      if (!eventId) {
         navigate(path);
+        onNavigateProp?.(path);
+        return;
       }
+
+      const match = String(path || "").match(/^([^?#]*)(.*)$/);
+      const pathname = (match?.[1] || "").replace(/\/+$/, "");
+      const suffix = match?.[2] || "";
+      const lastSegment = pathname.split("/").filter(Boolean).at(-1);
+
+      if (lastSegment && /^\d+$/.test(lastSegment)) {
+        navigate(`${pathname}${suffix}`);
+        onNavigateProp?.(path);
+        return;
+      }
+
+      navigate(`${pathname}/${eventId}${suffix}`);
       onNavigateProp?.(path);
     },
     [eventId, navigate, onNavigateProp],

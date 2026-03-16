@@ -6,6 +6,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -23,6 +24,7 @@ public class AdminAnalyticsQueryRepositoryImpl implements AdminAnalyticsQueryRep
             from congestions c
             join event_program p on p.program_id = c.program_id
             where p.event_id = :eventId
+              and c.measured_at <= :now
             group by hour(c.measured_at)
             order by h asc
         """;
@@ -30,6 +32,7 @@ public class AdminAnalyticsQueryRepositoryImpl implements AdminAnalyticsQueryRep
         @SuppressWarnings("unchecked")
         List<Object[]> rows = em.createNativeQuery(sql)
                 .setParameter("eventId", eventId)
+                .setParameter("now", LocalDateTime.now())
                 .getResultList();
 
         return rows.stream()

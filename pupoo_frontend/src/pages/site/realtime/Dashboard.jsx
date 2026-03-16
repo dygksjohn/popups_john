@@ -1,4 +1,4 @@
-﻿﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import RealtimeEventSelector from "./RealtimeEventSelector";
@@ -376,11 +376,12 @@ const styles = `
   }
   .rt-prediction-bottom {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
     align-items: stretch;
   }
   .rt-prediction-chart-card {
+    grid-column: span 2;
     border: 1px solid #e5e7eb;
     border-radius: 11px;
     background: #f8fafc;
@@ -407,6 +408,7 @@ const styles = `
     min-width: 0;
   }
   .rt-prediction-near-card {
+    grid-column: span 1;
     border: 1px solid #e5e7eb;
     border-radius: 11px;
     background: #fff;
@@ -414,6 +416,38 @@ const styles = `
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+  .rt-prediction-alert-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f1f3f5;
+  }
+  .rt-prediction-alert-title {
+    font-size: 13px;
+    color: #111827;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rt-prediction-alert-chip-list {
+    margin-top: 0;
+    margin-bottom: 8px;
+  }
+  .rt-prediction-alert-chip-list .rt-chip {
+    font-size: 11px;
+  }
+  .rt-prediction-alert-timeline .rt-timeline-item {
+    padding: 8px 0;
+  }
+  .rt-prediction-alert-timeline .rt-timeline-time {
+    min-width: 40px;
+  }
+  .rt-prediction-alert-timeline .rt-timeline-text {
+    font-size: 12px;
   }
   .rt-prediction-near-title {
     font-size: 13px;
@@ -614,6 +648,35 @@ const styles = `
     background: #eff4ff; display: flex; align-items: center; justify-content: center;
   }
   .rt-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
+  .rt-ended-sort-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .rt-ended-sort-btn {
+    height: 28px;
+    border-radius: 999px;
+    border: 1px solid #dbe2ea;
+    background: #fff;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .rt-ended-sort-btn:hover {
+    border-color: #93c5fd;
+    color: #1d4ed8;
+    background: #eff6ff;
+  }
+  .rt-ended-sort-btn.active {
+    border-color: #60a5fa;
+    color: #1d4ed8;
+    background: #dbeafe;
+  }
   .rt-card-controls {
     display: flex;
     align-items: center;
@@ -822,6 +885,10 @@ const styles = `
       flex-direction: column;
       align-items: flex-start;
     }
+    .rt-ended-sort-group {
+      width: 100%;
+      justify-content: flex-start;
+    }
     .rt-hero-top {
       flex-direction: column;
       align-items: flex-start;
@@ -840,6 +907,10 @@ const styles = `
     }
     .rt-prediction-bottom {
       grid-template-columns: 1fr;
+    }
+    .rt-prediction-chart-card,
+    .rt-prediction-near-card {
+      grid-column: span 1;
     }
     .rt-program-grid {
       grid-template-columns: 1fr;
@@ -899,6 +970,7 @@ export const SUBTITLE_MAP = {
 const FALLBACK_HOURS = Array.from({ length: 12 }, (_, index) => 10 + index);
 const FULL_DAY_HOURS = Array.from({ length: 24 }, (_, index) => index);
 const AI_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const PROGRAM_CONGESTION_FRESHNESS_MS = 30 * 60 * 1000;
 
 const STATUS_BADGE = {
   ONGOING: { className: "", label: "LIVE", showDot: true },
@@ -906,6 +978,12 @@ const STATUS_BADGE = {
   ENDED: { className: "ended", label: "종료", showDot: false },
   CANCELLED: { className: "cancelled", label: "취소", showDot: false },
 };
+
+const ENDED_POPULAR_SORT_OPTIONS = [
+  { key: "perHour", label: "시간당 방문자" },
+  { key: "totalVisitors", label: "총 방문자" },
+  { key: "avgWait", label: "평균 대기시간" },
+];
 
 const unwrapData = (response, fallback) => response?.data?.data ?? response?.data ?? fallback;
 
@@ -1187,6 +1265,18 @@ const formatDateRange = (startAt, endAt) => {
   return `${target.getFullYear()}.${String(target.getMonth() + 1).padStart(2, "0")}.${String(target.getDate()).padStart(2, "0")}`;
 };
 
+const formatShortDateKey = (value) => {
+  if (typeof value !== "string") return "--.--";
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+  return `${month}.${day}`;
+};
+
+const formatHourLabel = (hour) => {
+  if (!Number.isFinite(hour)) return "--:--";
+  return `${String(normalizeHour(hour)).padStart(2, "0")}:00`;
+};
+
 const formatTime = (value) => {
   if (!value) return "--:--";
   const date = new Date(value);
@@ -1240,6 +1330,85 @@ const getActivityColor = (pct) => {
 const safeNumber = (value, fallback = 0) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const getFirstFiniteNumber = (...values) => {
+  for (const value of values) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  return 0;
+};
+
+const getFirstDefinedFiniteNumber = (...values) => {
+  for (const value of values) {
+    if (value == null || value === "") continue;
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  return null;
+};
+
+const getFirstPositiveNumber = (...values) => {
+  for (const value of values) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  }
+  return getFirstFiniteNumber(...values);
+};
+
+const resolveProgramVisitorCount = (program) => Math.max(
+  0,
+  Math.round(
+    getFirstPositiveNumber(
+      program?.visitorCount,
+      program?.visitCount,
+      program?.checkinCount,
+      program?.attendeeCount,
+      program?.attendanceCount,
+      program?.participantCount,
+      program?.participants,
+      program?.applyCount,
+      program?.appliedCount,
+      program?.totalApply,
+      program?.totalApplyCount,
+    ),
+  ),
+);
+
+const resolveProgramParticipantCount = (program) => Math.max(
+  0,
+  Math.round(
+    getFirstPositiveNumber(
+      program?.participantCount,
+      program?.participants,
+      program?.applyCount,
+      program?.appliedCount,
+      program?.applyCnt,
+      program?.totalApply,
+      program?.totalApplyCount,
+      program?.approvedRegistrationCount,
+      program?.activeRegistrationCount,
+      program?.registrationCount,
+      program?.registeredCount,
+    ),
+  ),
+);
+
+const resolveProgramAverageWaitMin = (program) => {
+  const resolved = getFirstDefinedFiniteNumber(
+    program?.averageWaitMin,
+    program?.avgWaitMin,
+    program?.avgWaitingMinutes,
+    program?.averageWaitingMinutes,
+    program?.waitAvg,
+    program?.waitAverage,
+    program?.experienceWait?.avgWaitMin,
+    program?.experienceWait?.averageWaitMin,
+    program?.experienceWait?.waitMin,
+  );
+  if (!Number.isFinite(resolved)) return null;
+  return Math.max(0, Math.round(resolved));
 };
 
 const safePercent = (value) => clamp(Math.round(Number(value) || 0), 0, 100);
@@ -1307,6 +1476,12 @@ const getProgramGuideText = (congestionPercent) => {
   return "대기가 길 수 있어요";
 };
 
+const getReadyProgramLabel = (waitCount, waitMin) => {
+  const teams = Math.max(0, safeNumber(waitCount));
+  const minutes = Math.max(0, safeNumber(waitMin));
+  return teams <= 0 || minutes <= 0 ? "바로 참여 가능" : "대기 짧음";
+};
+
 const getCongestionSummaryText = (congestionPercent) => {
   const pct = safePercent(congestionPercent);
   if (pct <= 30) return "현재 여유로운 수준이에요";
@@ -1357,11 +1532,112 @@ async function fetchAdminData(url, params, fallback) {
   }
 }
 
-function HourlyTrendChart({ points, activeDateKey, isTodayForecast }) {
+const isUnauthorizedError = (error) => {
+  const status = Number(error?.response?.status);
+  return status === 401 || status === 403;
+};
+
+const getPagedTotalCount = (payload) => {
+  const total = Number(
+    payload?.totalElements ??
+      payload?.totalCount ??
+      payload?.count ??
+      payload?.total ??
+      payload?.totalApply,
+  );
+  if (!Number.isFinite(total) || total < 0) return null;
+  return Math.round(total);
+};
+
+const isCheckedInApply = (apply) => {
+  const status = String(apply?.status ?? "").toUpperCase();
+  return Boolean(apply?.checkedInAt) || status === "CHECKED_IN";
+};
+
+async function fetchProgramApplyStats(
+  programId,
+  { scanAll = false, pageSize = 200, maxPages = 100 } = {},
+) {
+  if (!programId) return { totalApply: 0, checkedIn: 0 };
+
+  const fetchWithPaging = async (fetchPage) => {
+    let page = 0;
+    let isLast = false;
+    let totalApply = 0;
+    let checkedIn = 0;
+    let hasTotalFromPayload = false;
+    const size = scanAll ? pageSize : 1;
+
+    while (!isLast && page < maxPages) {
+      const payload = await fetchPage(page, size);
+      const rows = toArray(payload);
+      const payloadTotal = getPagedTotalCount(payload);
+
+      if (payloadTotal != null) {
+        totalApply = Math.max(totalApply, payloadTotal);
+        hasTotalFromPayload = true;
+      } else if (!hasTotalFromPayload) {
+        totalApply += rows.length;
+      }
+
+      if (scanAll) {
+        checkedIn += rows.filter((row) => isCheckedInApply(row)).length;
+      } else {
+        checkedIn = Math.max(
+          checkedIn,
+          Math.round(
+            getFirstPositiveNumber(
+              payload?.checkedInCount,
+              payload?.checkinCount,
+              payload?.checkedCount,
+              payload?.doneCount,
+            ),
+          ),
+        );
+      }
+
+      const totalPages = Number(payload?.totalPages ?? 1);
+      isLast = Boolean(payload?.last) || page + 1 >= totalPages;
+      if (!scanAll) isLast = true;
+      page += 1;
+    }
+
+    return {
+      totalApply: Math.max(0, Math.round(totalApply)),
+      checkedIn: Math.max(0, Math.round(checkedIn)),
+    };
+  };
+
+  try {
+    return await fetchWithPaging(async (page, size) => {
+      const response = await axiosInstance.get(
+        `/api/admin/dashboard/programs/${programId}/applies`,
+        {
+          params: { page, size },
+        },
+      );
+      return unwrapData(response, {});
+    });
+  } catch (error) {
+    if (!isUnauthorizedError(error)) {
+      return { totalApply: 0, checkedIn: 0 };
+    }
+  }
+
+  try {
+    return await fetchWithPaging(async (page, size) => {
+      const response = await programApi.getCandidates(programId, { page, size });
+      return unwrapData(response, {});
+    });
+  } catch {
+    return { totalApply: 0, checkedIn: 0 };
+  }
+}
+
+function HourlyTrendChart({ points, isTodayForecast }) {
   const now = new Date();
   const currentHour = now.getHours();
-  const todayKey = toDateKey(now);
-  const isTodayDate = Boolean(isTodayForecast || activeDateKey === todayKey);
+  const isTodayDate = Boolean(isTodayForecast);
   const safePoints = Array.isArray(points) ? points : [];
   const yTicks = [100, 75, 50, 25, 0];
   const chartTopPadding = 12;
@@ -1392,10 +1668,17 @@ function HourlyTrendChart({ points, activeDateKey, isTodayForecast }) {
     const fallbackValue = parseSeriesValue(point?.v);
     const value = fallbackValue ?? actual ?? predicted ?? 0;
     const isCurrent = isTodayDate && Number.isFinite(hour) && hour === currentHour;
+    const xLabel =
+      typeof point?.xLabel === "string" && point.xLabel.trim()
+        ? point.xLabel
+        : Number.isFinite(hour)
+          ? `${String(hour).padStart(2, "0")}:00`
+          : "--:--";
     return {
       ...point,
       x,
       hour,
+      xLabel,
       value,
       actual,
       predicted,
@@ -1578,9 +1861,6 @@ function HourlyTrendChart({ points, activeDateKey, isTodayForecast }) {
 
         <div className="rt-hourly-x-axis">
           {chartPoints.map((point, index) => {
-            const hourLabel = Number.isFinite(point.hour)
-              ? `${String(point.hour).padStart(2, "0")}:00`
-              : "--:--";
             const isFirst = index === 0;
             const isLast = index === chartPoints.length - 1;
             return (
@@ -1594,7 +1874,7 @@ function HourlyTrendChart({ points, activeDateKey, isTodayForecast }) {
                   fontSize: "10px",
                 }}
               >
-                {hourLabel}
+                {point.xLabel}
               </div>
             );
           })}
@@ -1604,13 +1884,36 @@ function HourlyTrendChart({ points, activeDateKey, isTodayForecast }) {
   );
 }
 
-function ProgramCrowdCard({ item, badgeText = "", badgeStyle = null }) {
+function ProgramCrowdCard({
+  item,
+  badgeText = "",
+  badgeStyle = null,
+  metricItems = null,
+  guideText = undefined,
+}) {
   const resolvedBadgeText = badgeText || item.tone.label;
   const resolvedBadgeStyle = badgeStyle || {
     color: item.tone.color,
     background: item.tone.bg,
     borderColor: item.tone.border,
   };
+  const metrics = Array.isArray(metricItems) && metricItems.length > 0
+    ? metricItems
+    : [
+      {
+        label: "현재 대기 팀 수",
+        value: `${item.waitCount}팀`,
+      },
+      {
+        label: "예상 대기시간",
+        value: `${item.waitMin}분`,
+      },
+      {
+        label: "혼잡도",
+        value: `${item.congestionPercent}%`,
+      },
+    ];
+  const resolvedGuideText = guideText ?? item.guideText;
 
   return (
     <div className="rt-program-card">
@@ -1624,21 +1927,18 @@ function ProgramCrowdCard({ item, badgeText = "", badgeStyle = null }) {
         </span>
       </div>
       <div className="rt-program-time">운영 시간: {item.timeLabel}</div>
-      <div className="rt-program-metric-grid">
-        <div className="rt-program-metric">
-          <div className="rt-program-metric-label">현재 대기 팀 수</div>
-          <div className="rt-program-metric-value">{item.waitCount}팀</div>
-        </div>
-        <div className="rt-program-metric">
-          <div className="rt-program-metric-label">예상 대기시간</div>
-          <div className="rt-program-metric-value">{item.waitMin}분</div>
-        </div>
-        <div className="rt-program-metric">
-          <div className="rt-program-metric-label">혼잡도</div>
-          <div className="rt-program-metric-value">{item.congestionPercent}%</div>
-        </div>
+      <div
+        className="rt-program-metric-grid"
+        style={{ gridTemplateColumns: `repeat(${Math.max(metrics.length, 1)}, minmax(0, 1fr))` }}
+      >
+        {metrics.map((metric) => (
+          <div key={`${item.key}-${metric.label}`} className="rt-program-metric">
+            <div className="rt-program-metric-label">{metric.label}</div>
+            <div className="rt-program-metric-value">{metric.value}</div>
+          </div>
+        ))}
       </div>
-      <div className="rt-program-guide">{item.guideText}</div>
+      {resolvedGuideText ? <div className="rt-program-guide">{resolvedGuideText}</div> : null}
     </div>
   );
 }
@@ -1662,6 +1962,7 @@ function DashboardContent({ eventId }) {
   const loadRequestIdRef = useRef(0);
   const lastAutoRefreshTickRef = useRef(tick);
   const [selectedForecastDate, setSelectedForecastDate] = useState("");
+  const [endedPopularSortKey, setEndedPopularSortKey] = useState("perHour");
 
   const loadData = useCallback(async (options = {}) => {
     const { preserveLoading = false, forceAi = false } = options;
@@ -1737,6 +2038,41 @@ function DashboardContent({ eventId }) {
       );
       const detailStatus = String(detail?.status ?? "").toUpperCase();
       const rawCheckinCount = Number(matchedPerformance?.checkinCount) || 0;
+      let programsForDashboard = mergedPrograms;
+
+      if (detailStatus === "ENDED" && mergedPrograms.length > 0) {
+        const applyStatsResults = await Promise.allSettled(
+          mergedPrograms.map((program) =>
+            fetchProgramApplyStats(program?.programId, { scanAll: true }),
+          ),
+        );
+
+        if (requestId !== loadRequestIdRef.current) return;
+
+        programsForDashboard = mergedPrograms.map((program, index) => {
+          const settled = applyStatsResults[index];
+          if (settled?.status !== "fulfilled") return program;
+
+          const totalApply = Math.max(0, Math.round(safeNumber(settled.value?.totalApply)));
+          const checkedIn = Math.max(0, Math.round(safeNumber(settled.value?.checkedIn)));
+
+          return {
+            ...program,
+            totalApply: Math.max(totalApply, Math.round(safeNumber(program?.totalApply))),
+            totalApplyCount: Math.max(totalApply, Math.round(safeNumber(program?.totalApplyCount))),
+            applyCount: Math.max(totalApply, Math.round(safeNumber(program?.applyCount))),
+            appliedCount: Math.max(totalApply, Math.round(safeNumber(program?.appliedCount))),
+            participantCount: Math.max(totalApply, Math.round(safeNumber(program?.participantCount))),
+            participants: Math.max(totalApply, Math.round(safeNumber(program?.participants))),
+            checkinCount: Math.max(checkedIn, Math.round(safeNumber(program?.checkinCount))),
+            visitorCount: Math.max(
+              checkedIn,
+              totalApply,
+              Math.round(safeNumber(program?.visitorCount)),
+            ),
+          };
+        });
+      }
 
       setEventDetail(detail);
       setPerformance({
@@ -1754,12 +2090,21 @@ function DashboardContent({ eventId }) {
         congestionResult?.hasError && prev.length > 0 ? prev : latestCongestions,
       );
       setProgramRows((prev) =>
-        programsResult?.hasError && prev.length > 0 ? prev : mergedPrograms,
+        programsResult?.hasError && prev.length > 0 ? prev : programsForDashboard,
       );
       setErrorMsg(
         hasOperationalLoadError ? "실시간 운영 데이터를 불러오지 못했습니다." : "",
       );
       setLastLoadedAt(new Date());
+
+      if (detailStatus === "ENDED") {
+        aiPredictionRef.current = null;
+        aiLoadedAtRef.current = 0;
+        aiRangeKeyRef.current = "";
+        setEventPrediction(null);
+        setAiErrorMsg("");
+        return;
+      }
 
       const aiRangeParams = resolveAiRangeParams(detail, selectedForecastDate);
       const aiRangeKey = JSON.stringify({
@@ -1869,6 +2214,19 @@ function DashboardContent({ eventId }) {
     if (isPlannedEvent) {
       return safePercent(aiAverage || 0);
     }
+    if (isEndedEvent) {
+      // Ended events should show full-event average congestion, not the final snapshot.
+      if (hourlyAverageCongestion > 0) {
+        return hourlyAverageCongestion;
+      }
+      if (measuredCongestions.length > 0) {
+        return safePercent(averageCongestion);
+      }
+      if (Number.isFinite(aiAverage) && aiAverage > 0) {
+        return safePercent(aiAverage);
+      }
+      return 0;
+    }
     if (measuredCongestions.length > 0) {
       return safePercent(averageCongestion);
     }
@@ -1883,6 +2241,7 @@ function DashboardContent({ eventId }) {
     averageCongestion,
     eventPrediction?.avgScore,
     hourlyAverageCongestion,
+    isEndedEvent,
     isPlannedEvent,
     measuredCongestions.length,
   ]);
@@ -1923,18 +2282,20 @@ function DashboardContent({ eventId }) {
     setSelectedForecastDate("");
   }, [forecastDateOptions, selectedForecastDate]);
 
-  const isTodayForecast = useMemo(
-    () => Boolean(activeForecastDateKey) && activeForecastDateKey === toDateKey(new Date()),
-    [activeForecastDateKey],
-  );
+  const isTodayForecast = useMemo(() => {
+    if (!activeForecastDateKey || isEndedEvent) return false;
+    return activeForecastDateKey === toDateKey(new Date());
+  }, [activeForecastDateKey, isEndedEvent]);
   const isPastForecast = useMemo(() => {
     if (!activeForecastDateKey) return false;
-    return activeForecastDateKey < toDateKey(new Date());
-  }, [activeForecastDateKey]);
+    const todayKey = toDateKey(new Date());
+    if (isEndedEvent) return activeForecastDateKey <= todayKey;
+    return activeForecastDateKey < todayKey;
+  }, [activeForecastDateKey, isEndedEvent]);
   const isFutureForecast = useMemo(() => {
-    if (!activeForecastDateKey) return false;
+    if (!activeForecastDateKey || isEndedEvent) return false;
     return activeForecastDateKey > toDateKey(new Date());
-  }, [activeForecastDateKey]);
+  }, [activeForecastDateKey, isEndedEvent]);
 
   const chartTimeline = useMemo(() => {
     const baseTimeline = Array.isArray(eventPrediction?.timeline)
@@ -2042,7 +2403,7 @@ function DashboardContent({ eventId }) {
       }
     }
 
-    const axisHourlyRows = isTodayForecast ? hourlyRows : [];
+    const axisHourlyRows = isTodayForecast && !isEndedEvent ? hourlyRows : [];
     const hourAxis = buildHourAxis({
       hourlyRows: axisHourlyRows,
       timeline: chartTimeline,
@@ -2062,12 +2423,12 @@ function DashboardContent({ eventId }) {
       const predictedCandidate = Number.isFinite(predictedValue)
         ? clamp(Math.round(predictedValue), 0, 100)
         : null;
-      const predicted = isPastForecast ? null : predictedCandidate;
+      const predicted = isPastForecast || isEndedEvent ? null : predictedCandidate;
       const value = isTodayForecast
         ? normalizedHour <= nowHour
           ? actual ?? predicted ?? 0
           : predicted ?? actual ?? 0
-        : isPastForecast
+        : isPastForecast || isEndedEvent
           ? actual ?? 0
           : predicted ?? actual ?? 0;
       return {
@@ -2079,7 +2440,7 @@ function DashboardContent({ eventId }) {
       };
     });
 
-    if (isPastForecast) {
+    if (isPastForecast || isEndedEvent) {
       const hasActualAt = (row) => Number.isFinite(row.actual);
       let startIndex = 0;
       let endIndex = baseRows.length - 1;
@@ -2095,7 +2456,7 @@ function DashboardContent({ eventId }) {
       return baseRows;
     }
 
-    if (!isTodayForecast) {
+    if (!isTodayForecast || isEndedEvent) {
       return baseRows;
     }
 
@@ -2155,11 +2516,163 @@ function DashboardContent({ eventId }) {
     eventDetail?.endAt,
     eventDetail?.startAt,
     hourlyRows,
+    isEndedEvent,
     isPastForecast,
     isTodayForecast,
     measuredCongestions,
     resolvedCurrentCongestion,
   ]);
+
+  const dailyCongestionPoints = useMemo(() => {
+    if (!isEndedEvent) return [];
+
+    const dateKeys = forecastDateOptions.length > 0
+      ? forecastDateOptions
+      : Array.from(
+        new Set(
+          measuredCongestions
+            .map((row) => toDateKey(row?.measuredAt))
+            .filter(Boolean),
+        ),
+      ).sort((left, right) => left.localeCompare(right));
+
+    if (dateKeys.length === 0) return [];
+
+    const bucketMap = new Map();
+    measuredCongestions.forEach((row) => {
+      const dateKey = toDateKey(row?.measuredAt);
+      const congestion = Number(row?.congestionPercent);
+      if (!dateKey || !Number.isFinite(congestion)) return;
+      const bucket = bucketMap.get(dateKey) || { sum: 0, count: 0 };
+      bucket.sum += congestion;
+      bucket.count += 1;
+      bucketMap.set(dateKey, bucket);
+    });
+
+    return dateKeys
+      .map((dateKey, index) => {
+        const bucket = bucketMap.get(dateKey);
+        const actual = bucket && bucket.count > 0
+          ? clamp(Math.round(bucket.sum / bucket.count), 0, 100)
+          : null;
+        return {
+          h: String(index).padStart(2, "0"),
+          xLabel: formatShortDateKey(dateKey),
+          v: actual ?? 0,
+          pct: actual ?? 0,
+          actual,
+          predicted: null,
+        };
+      })
+      .filter((row) => Number.isFinite(row.actual));
+  }, [forecastDateOptions, isEndedEvent, measuredCongestions]);
+
+  const endedHourlyInsights = useMemo(() => {
+    if (!isEndedEvent) {
+      return {
+        overallRelaxed: null,
+        overallPeak: null,
+        relaxedByDay: [],
+      };
+    }
+
+    const dateKeys = forecastDateOptions.length > 0
+      ? forecastDateOptions
+      : Array.from(
+        new Set(
+          measuredCongestions
+            .map((row) => toDateKey(row?.measuredAt))
+            .filter(Boolean),
+        ),
+      ).sort((left, right) => left.localeCompare(right));
+
+    const dayHourBucketMap = new Map();
+    measuredCongestions.forEach((row) => {
+      const dateKey = toDateKey(row?.measuredAt);
+      const hour = toHour(row?.measuredAt);
+      const score = safePercent(row?.congestionPercent);
+      if (!dateKey || !Number.isFinite(hour) || !Number.isFinite(score)) return;
+
+      const bucketKey = `${dateKey}-${normalizeHour(hour)}`;
+      const bucket = dayHourBucketMap.get(bucketKey) || {
+        dateKey,
+        hour: normalizeHour(hour),
+        sum: 0,
+        count: 0,
+      };
+      bucket.sum += score;
+      bucket.count += 1;
+      dayHourBucketMap.set(bucketKey, bucket);
+    });
+
+    const dayHourAverages = Array.from(dayHourBucketMap.values())
+      .map((bucket) => ({
+        dateKey: bucket.dateKey,
+        hour: bucket.hour,
+        score: clamp(Math.round(bucket.sum / bucket.count), 0, 100),
+      }))
+      .filter((item) => Number.isFinite(item.score));
+
+    const perDayBestMap = new Map();
+    dayHourAverages.forEach((item) => {
+      const previous = perDayBestMap.get(item.dateKey);
+      if (
+        !previous ||
+        item.score < previous.score ||
+        (item.score === previous.score && item.hour < previous.hour)
+      ) {
+        perDayBestMap.set(item.dateKey, item);
+      }
+    });
+
+    const relaxedByDayBase = dateKeys.length > 0
+      ? dateKeys
+      : Array.from(new Set(dayHourAverages.map((item) => item.dateKey))).sort(
+        (left, right) => left.localeCompare(right),
+      );
+
+    const relaxedByDay = relaxedByDayBase.map((dateKey) => {
+      const match = perDayBestMap.get(dateKey) || null;
+      const matchedHour = Number.isFinite(match?.hour) ? match.hour : null;
+      const matchedScore = Number.isFinite(match?.score) ? match.score : null;
+      return {
+        dateKey,
+        dateLabel: formatShortDateKey(dateKey),
+        hour: matchedHour,
+        hourLabel: Number.isFinite(matchedHour) ? formatHourLabel(matchedHour) : "--:--",
+        score: matchedScore,
+      };
+    });
+
+    const hourBucketMap = new Map();
+    dayHourAverages.forEach((item) => {
+      const bucket = hourBucketMap.get(item.hour) || { hour: item.hour, sum: 0, count: 0 };
+      bucket.sum += item.score;
+      bucket.count += 1;
+      hourBucketMap.set(item.hour, bucket);
+    });
+
+    const hourlyAverages = Array.from(hourBucketMap.values())
+      .map((bucket) => ({
+        hour: bucket.hour,
+        hourLabel: formatHourLabel(bucket.hour),
+        score: clamp(Math.round(bucket.sum / bucket.count), 0, 100),
+      }))
+      .filter((item) => Number.isFinite(item.score));
+
+    const overallRelaxed = [...hourlyAverages].sort(
+      (left, right) => left.score - right.score || left.hour - right.hour,
+    )[0] || null;
+    const overallPeak = [...hourlyAverages].sort(
+      (left, right) => right.score - left.score || left.hour - right.hour,
+    )[0] || null;
+
+    return {
+      overallRelaxed,
+      overallPeak,
+      relaxedByDay,
+    };
+  }, [forecastDateOptions, isEndedEvent, measuredCongestions]);
 
   const handleForecastDateChange = useCallback(
     (event) => {
@@ -2189,7 +2702,8 @@ function DashboardContent({ eventId }) {
       if (
         !previous ||
         candidateMeasured > previous.measuredAt ||
-        candidatePercent > previous.congestionPercent
+        (candidateMeasured === previous.measuredAt &&
+          candidatePercent > previous.congestionPercent)
       ) {
         map.set(programId, {
           congestionPercent: candidatePercent,
@@ -2198,6 +2712,29 @@ function DashboardContent({ eventId }) {
       }
     });
     return map;
+  }, [measuredCongestions]);
+
+  const programAverageCongestionMap = useMemo(() => {
+    const bucketMap = new Map();
+    measuredCongestions.forEach((row) => {
+      const programId = Number(row?.programId);
+      if (!Number.isFinite(programId)) return;
+      const congestionPercent = Number(row?.congestionPercent);
+      if (!Number.isFinite(congestionPercent)) return;
+
+      const bucket = bucketMap.get(programId) || { sum: 0, count: 0 };
+      bucket.sum += congestionPercent;
+      bucket.count += 1;
+      bucketMap.set(programId, bucket);
+    });
+
+    const averageMap = new Map();
+    bucketMap.forEach((bucket, programId) => {
+      if (!bucket || bucket.count <= 0) return;
+      averageMap.set(programId, clamp(Math.round(bucket.sum / bucket.count), 0, 100));
+    });
+
+    return averageMap;
   }, [measuredCongestions]);
 
   const allProgramRows = useMemo(() => {
@@ -2217,10 +2754,34 @@ function DashboardContent({ eventId }) {
         const waitCount = Math.max(0, safeNumber(program?.experienceWait?.waitCount));
         const waitMin = Math.max(0, safeNumber(program?.experienceWait?.waitMin));
         const hasWaitInfo = Boolean(program?.experienceWait);
-        const mappedCongestion = programCongestionMap.get(programId)?.congestionPercent;
+        const totalVisitorCount = resolveProgramVisitorCount(program);
+        const totalParticipantCount = resolveProgramParticipantCount(program);
+        const operatingMinutes =
+          startDate && endDate && endDate.getTime() > startDate.getTime()
+            ? Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 60000))
+            : 60;
+        const visitorsPerHour = Math.round(
+          (totalVisitorCount / Math.max(operatingMinutes / 60, 1 / 60)) * 10,
+        ) / 10;
+        const mappedCongestionEntry = programCongestionMap.get(programId);
+        const mappedMeasuredAt = safeNumber(mappedCongestionEntry?.measuredAt, 0);
+        const isMappedCongestionFresh =
+          mappedMeasuredAt > 0 && now - mappedMeasuredAt <= PROGRAM_CONGESTION_FRESHNESS_MS;
+        const mappedCongestion = isMappedCongestionFresh
+          ? mappedCongestionEntry?.congestionPercent
+          : null;
         const congestionPercent = safePercent(
           mappedCongestion ?? deriveCongestionPercentFromWait(waitCount, waitMin),
         );
+        const rawAverageWaitMin = resolveProgramAverageWaitMin(program);
+        const measuredAverageCongestion = programAverageCongestionMap.get(programId);
+        const estimatedAverageWaitFromMeasured = Number.isFinite(measuredAverageCongestion)
+          ? estimateWaitMinutes(measuredAverageCongestion)
+          : null;
+        const averageWaitMin =
+          rawAverageWaitMin ??
+          estimatedAverageWaitFromMeasured ??
+          estimateWaitMinutes(congestionPercent);
         const tone = resolveCongestionMeta(congestionPercent);
 
         return {
@@ -2230,6 +2791,11 @@ function DashboardContent({ eventId }) {
           timeLabel: formatProgramTimeRange(program?.startAt, program?.endAt),
           waitCount,
           waitMin,
+          averageWaitMin,
+          totalVisitorCount,
+          totalParticipantCount,
+          operatingMinutes,
+          visitorsPerHour,
           congestionPercent,
           guideText: getProgramGuideText(congestionPercent),
           tone,
@@ -2238,7 +2804,7 @@ function DashboardContent({ eventId }) {
         };
       })
       .filter(Boolean);
-  }, [programCongestionMap, programRows]);
+  }, [programAverageCongestionMap, programCongestionMap, programRows]);
 
   const programNameMap = useMemo(
     () =>
@@ -2262,8 +2828,46 @@ function DashboardContent({ eventId }) {
   );
 
   const popularTopPrograms = useMemo(
-    () =>
-      [...queueProgramRows]
+    () => {
+      if (isEndedEvent) {
+        return [...allProgramRows]
+          .sort(
+            (left, right) => {
+              if (endedPopularSortKey === "totalVisitors") {
+                return (
+                  right.totalVisitorCount - left.totalVisitorCount ||
+                  right.visitorsPerHour - left.visitorsPerHour ||
+                  left.operatingMinutes - right.operatingMinutes ||
+                  right.averageWaitMin - left.averageWaitMin ||
+                  right.congestionPercent - left.congestionPercent ||
+                  String(left.name).localeCompare(String(right.name), "ko-KR")
+                );
+              }
+
+              if (endedPopularSortKey === "avgWait") {
+                return (
+                  right.averageWaitMin - left.averageWaitMin ||
+                  right.totalVisitorCount - left.totalVisitorCount ||
+                  right.visitorsPerHour - left.visitorsPerHour ||
+                  right.congestionPercent - left.congestionPercent ||
+                  String(left.name).localeCompare(String(right.name), "ko-KR")
+                );
+              }
+
+              return (
+                right.visitorsPerHour - left.visitorsPerHour ||
+                right.totalVisitorCount - left.totalVisitorCount ||
+                left.operatingMinutes - right.operatingMinutes ||
+                right.averageWaitMin - left.averageWaitMin ||
+                right.congestionPercent - left.congestionPercent ||
+                String(left.name).localeCompare(String(right.name), "ko-KR")
+              );
+            },
+          )
+          .slice(0, 9);
+      }
+
+      return [...queueProgramRows]
         .sort(
           (left, right) =>
             right.congestionPercent - left.congestionPercent ||
@@ -2271,8 +2875,9 @@ function DashboardContent({ eventId }) {
             right.waitCount - left.waitCount ||
             String(left.name).localeCompare(String(right.name), "ko-KR"),
         )
-        .slice(0, 3),
-    [queueProgramRows],
+        .slice(0, 3);
+    },
+    [allProgramRows, endedPopularSortKey, isEndedEvent, queueProgramRows],
   );
 
   const popularTopProgramIds = useMemo(
@@ -2281,6 +2886,18 @@ function DashboardContent({ eventId }) {
   );
 
   const readyPrograms = useMemo(() => {
+    if (isEndedEvent) {
+      return [...allProgramRows]
+        .sort(
+          (left, right) =>
+            right.totalParticipantCount - left.totalParticipantCount ||
+            right.totalVisitorCount - left.totalVisitorCount ||
+            right.averageWaitMin - left.averageWaitMin ||
+            String(left.name).localeCompare(String(right.name), "ko-KR"),
+        )
+        .slice(0, 9);
+    }
+
     const candidates = queueProgramRows
       .filter((program) => !popularTopProgramIds.has(program.programId))
       .sort(
@@ -2300,9 +2917,10 @@ function DashboardContent({ eventId }) {
     }
 
     return candidates.slice(0, 8);
-  }, [popularTopProgramIds, queueProgramRows]);
+  }, [allProgramRows, isEndedEvent, popularTopProgramIds, queueProgramRows]);
 
   const currentVisitors = isPlannedEvent ? 0 : performance.checkin;
+  const totalParticipants = Math.max(0, safeNumber(performance.approved));
 
   const currentCongestion = resolvedCurrentCongestion;
 
@@ -2313,6 +2931,9 @@ function DashboardContent({ eventId }) {
 
   const expectedWaitMinutes = useMemo(() => {
     const currentBasedWait = estimateWaitMinutes(currentCongestion);
+    if (isEndedEvent) {
+      return currentBasedWait;
+    }
     if (isTodayForecast && !isPlannedEvent) {
       return currentBasedWait;
     }
@@ -2321,11 +2942,13 @@ function DashboardContent({ eventId }) {
       return Math.round(predictedWait);
     }
     return currentBasedWait;
-  }, [currentCongestion, eventPrediction?.waitMinutes, isPlannedEvent, isTodayForecast]);
+  }, [currentCongestion, eventPrediction?.waitMinutes, isEndedEvent, isPlannedEvent, isTodayForecast]);
 
-  const waitKpiLabel = isTodayForecast && !isPlannedEvent
-    ? "현재 예상 대기시간"
-    : "예상 대기시간";
+  const waitKpiLabel = isEndedEvent
+    ? "종료 시점 예상 대기시간"
+    : isTodayForecast && !isPlannedEvent
+      ? "현재 예상 대기시간"
+      : "예상 대기시간";
 
   const congestionSummaryText = useMemo(
     () => getCongestionSummaryText(currentCongestion),
@@ -2339,9 +2962,44 @@ function DashboardContent({ eventId }) {
     () => getVisitorMoodText(currentVisitors, isPlannedEvent),
     [currentVisitors, isPlannedEvent],
   );
+  const endedCongestionSummaryText = useMemo(() => {
+    const pct = safePercent(currentCongestion);
+    if (pct <= 30) return "행사 전반 평균 기준 여유로운 수준이었습니다.";
+    if (pct <= 60) return "행사 전반 평균 기준 보통 수준이었습니다.";
+    if (pct <= 80) return "행사 전반에 혼잡한 구간이 있었습니다.";
+    return "행사 전반에 매우 혼잡한 구간이 많았습니다.";
+  }, [currentCongestion]);
+  const endedStatusSummaryText = useMemo(
+    () => `행사 전반 평균 혼잡 상태는 ${currentTone.label} 수준이었습니다.`,
+    [currentTone.label],
+  );
 
-  const heroStats = useMemo(
-    () => [
+  const heroStats = useMemo(() => {
+    if (isEndedEvent) {
+      return [
+        {
+          label: "평균 혼잡도",
+          value: currentCongestion,
+          unit: "%",
+          sub: endedCongestionSummaryText,
+        },
+        {
+          label: "행사 전체 참가자수",
+          value: totalParticipants,
+          unit: "명",
+          sub: "행사 전체 참가 등록 기준 집계입니다.",
+        },
+        {
+          label: "혼잡 상태",
+          value: currentTone.label,
+          unit: "",
+          sub: endedStatusSummaryText,
+          textOnly: true,
+        },
+      ];
+    }
+
+    return [
       {
         label: "현재 혼잡도",
         value: currentCongestion,
@@ -2361,9 +3019,20 @@ function DashboardContent({ eventId }) {
         sub: currentTone.sentence,
         textOnly: true,
       },
-    ],
-    [congestionSummaryText, currentCongestion, currentTone, expectedWaitMinutes, waitKpiLabel, waitSummaryText],
-  );
+    ];
+  }, [
+    congestionSummaryText,
+    currentCongestion,
+    currentTone.label,
+    currentTone.sentence,
+    endedCongestionSummaryText,
+    endedStatusSummaryText,
+    expectedWaitMinutes,
+    isEndedEvent,
+    totalParticipants,
+    waitKpiLabel,
+    waitSummaryText,
+  ]);
 
   const calibratedTimeline = useMemo(() => {
     const source = Array.isArray(chartTimeline) ? chartTimeline : [];
@@ -2440,11 +3109,20 @@ function DashboardContent({ eventId }) {
   );
 
   const nextPeakPoint = useMemo(() => {
+    if (isEndedEvent) {
+      if (!endedHourlyInsights.overallPeak || !Number.isFinite(endedHourlyInsights.overallPeak.score)) {
+        return null;
+      }
+      return {
+        time: endedHourlyInsights.overallPeak.hourLabel,
+        score: endedHourlyInsights.overallPeak.score,
+      };
+    }
     if (aiTimelinePreview.length === 0) return null;
     return [...aiTimelinePreview].sort(
       (left, right) => (Number(right?.score) || 0) - (Number(left?.score) || 0),
     )[0];
-  }, [aiTimelinePreview]);
+  }, [aiTimelinePreview, endedHourlyInsights.overallPeak, isEndedEvent]);
 
   const aiCurrentScore = useMemo(() => {
     if (isTodayForecast && !isPlannedEvent) {
@@ -2469,12 +3147,33 @@ function DashboardContent({ eventId }) {
   ]);
   const aiCurrentTone = resolveCongestionMeta(aiCurrentScore);
   const aiSoonScore = safePercent(
-    nextPeakPoint?.score ?? (isTodayForecast ? aiCurrentScore : eventPrediction?.peakScore) ?? aiCurrentScore,
+    nextPeakPoint?.score ??
+      (isEndedEvent
+        ? aiCurrentScore
+        : (isTodayForecast ? aiCurrentScore : eventPrediction?.peakScore)) ??
+      aiCurrentScore,
   );
   const aiSoonTone = resolveCongestionMeta(aiSoonScore);
   const aiSoonWait = estimateWaitMinutes(aiSoonScore);
+  const endedRelaxedScore = safePercent(endedHourlyInsights?.overallRelaxed?.score ?? 0);
+  const endedRelaxedTone = resolveCongestionMeta(endedRelaxedScore);
+  const hasEndedRelaxedInsight = Number.isFinite(endedHourlyInsights?.overallRelaxed?.score);
 
   const chartGuideText = useMemo(() => {
+    if (isEndedEvent) {
+      if (dailyCongestionPoints.length === 0) {
+        return "행사 기간 날짜별 혼잡도 데이터를 집계 중입니다.";
+      }
+      const mostBusyDay = [...dailyCongestionPoints].sort(
+        (left, right) => (Number(right?.actual) || 0) - (Number(left?.actual) || 0),
+      )[0];
+      if (!mostBusyDay || !Number.isFinite(mostBusyDay.actual)) {
+        return "행사 기간 날짜별 혼잡 추이를 확인할 수 있습니다.";
+      }
+      const dayLabel = mostBusyDay.xLabel || "--.--";
+      return `행사 기간 중 ${dayLabel}에 평균 혼잡도가 가장 높았습니다.`;
+    }
+
     if (eventPrediction && aiSoonScore >= aiCurrentScore + 10) {
       return "지금보다 1시간 뒤 더 붐빌 수 있어요. 인기 프로그램은 조금 일찍 이동하는 것을 추천해요.";
     }
@@ -2489,7 +3188,7 @@ function DashboardContent({ eventId }) {
       return "오후 시간대 방문객이 늘어나는 경향이 있어요. 원하는 프로그램을 먼저 확인해 보세요.";
     }
     return "혼잡도가 낮은 시간대를 골라 이동하면 더 편하게 즐길 수 있어요.";
-  }, [aiCurrentScore, aiSoonScore, eventPrediction, hours]);
+  }, [aiCurrentScore, aiSoonScore, dailyCongestionPoints, eventPrediction, hours, isEndedEvent]);
 
   const activities = useMemo(() => {
     const liveItems = [...measuredCongestions]
@@ -2522,13 +3221,36 @@ function DashboardContent({ eventId }) {
 
   const badge = STATUS_BADGE[String(eventDetail?.status).toUpperCase()] || STATUS_BADGE.PLANNED;
   const eventName = eventDetail?.eventName || "행사 정보 없음";
-  const heroVisitorSummary = `현재 방문객 ${currentVisitors.toLocaleString()}명 · ${visitorMoodText}`;
-  const soonPeakTimeLabel = nextPeakPoint?.time
-    ? `${formatKoreanTime(nextPeakPoint.time)} 무렵`
-    : "가까운 시간대";
+  const heroVisitorSummary = isEndedEvent
+    ? ""
+    : `현재 방문객 ${currentVisitors.toLocaleString()}명 · ${visitorMoodText}`;
+  const endedRelaxedTimeLabel = endedHourlyInsights?.overallRelaxed?.hourLabel || "--:--";
+  const soonPeakTimeLabel = isEndedEvent
+    ? nextPeakPoint?.time || "가장 혼잡했던 시간대"
+    : nextPeakPoint?.time
+      ? `${formatKoreanTime(nextPeakPoint.time)} 무렵`
+      : "가까운 시간대";
   const hasAnyPrograms = allProgramRows.length > 0;
   const hasOperatingPrograms = operatingProgramRows.length > 0;
   const hasQueuePrograms = queueProgramRows.length > 0;
+  const readyProgramSectionTitle = isEndedEvent
+    ? "가장 참가자가 많은 프로그램 TOP9"
+    : "지금 참여하기 좋은 프로그램";
+  const predictionCardTitle = isEndedEvent
+    ? "행사 혼잡도"
+    : "지금 행사장은 얼마나 붐빌까요?";
+  const predictionChartModeLabel = isEndedEvent
+    ? "날짜별 실제 혼잡도"
+    : isTodayForecast
+      ? "실시간 + AI 예측"
+      : isPastForecast
+        ? "실제 혼잡도"
+        : "AI 예측";
+  const predictionTrendTitle = isEndedEvent ? "날짜별 혼잡도" : "시간대별 혼잡도";
+  const predictionCardTag = isEndedEvent ? "날짜별 혼잡도" : "시간대별 혼잡도";
+  const chartPointsForDisplay = isEndedEvent ? dailyCongestionPoints : hours;
+  const showForecastCalendar = forecastDateOptions.length > 0 && !isEndedEvent;
+  const showPredictedLegend = !isPastForecast && !isEndedEvent;
 
   if (loading && !eventDetail) {
     return (
@@ -2585,7 +3307,7 @@ function DashboardContent({ eventId }) {
                 {eventDetail?.location || "장소 정보 없음"}
               </span>
             </div>
-            <div className="rt-hero-note">{heroVisitorSummary}</div>
+            {heroVisitorSummary ? <div className="rt-hero-note">{heroVisitorSummary}</div> : null}
           </div>
           <div className="rt-hero-kpi-grid">
             {heroStats.map((item) => (
@@ -2609,18 +3331,37 @@ function DashboardContent({ eventId }) {
               <TrendingUp size={14} color="#dc2626" />
             </div>
             {isEndedEvent
-              ? "종료 시점 인기 프로그램 TOP3"
+              ? "인기 프로그램 TOP9"
               : "인기 프로그램 TOP3"}
           </div>
-          <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "지금 사람들이 몰리는 프로그램"}</span>
+          {isEndedEvent ? (
+            <div className="rt-ended-sort-group" role="group" aria-label="인기 프로그램 정렬">
+              {ENDED_POPULAR_SORT_OPTIONS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  className={`rt-ended-sort-btn${endedPopularSortKey === option.key ? " active" : ""}`}
+                  onClick={() => setEndedPopularSortKey(option.key)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className="rt-card-tag">지금 사람들이 몰리는 프로그램</span>
+          )}
         </div>
 
         {!hasAnyPrograms || !hasOperatingPrograms ? (
           <div className="rt-empty">
-            <span className="rt-empty-strong">운영 중인 프로그램이 없습니다</span>
-            운영 시간이 시작되면 인기 프로그램 정보가 표시됩니다.
+            <span className="rt-empty-strong">
+              {isEndedEvent ? "종료 시점 프로그램 데이터가 없습니다" : "운영 중인 프로그램이 없습니다"}
+            </span>
+            {isEndedEvent
+              ? "행사 종료 데이터가 집계되면 인기 프로그램 정보를 표시합니다."
+              : "운영 시간이 시작되면 인기 프로그램 정보가 표시됩니다."}
           </div>
-        ) : !hasQueuePrograms ? (
+        ) : !isEndedEvent && !hasQueuePrograms ? (
           <div className="rt-empty">
             <span className="rt-empty-strong">
               {isEndedEvent ? "종료 시점 대기 정보가 없습니다" : "아직 집계된 대기 정보가 없습니다"}
@@ -2631,60 +3372,93 @@ function DashboardContent({ eventId }) {
           </div>
         ) : (
           <div className="rt-program-grid rt-program-grid-top3">
-            {popularTopPrograms.map((item) => (
-              <ProgramCrowdCard key={`top3-${item.key}`} item={item} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="rt-card">
-        <div className="rt-card-header">
-          <div className="rt-card-title">
-            <div className="rt-card-title-icon">
-              <Radio size={14} color="#10b981" />
-            </div>
-            {isEndedEvent ? "종료 시점 바로 참여 프로그램" : "바로 참여 프로그램"}
-          </div>
-          <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "대기 짧은 순"}</span>
-        </div>
-
-        {!hasAnyPrograms || !hasOperatingPrograms ? (
-          <div className="rt-empty">
-            <span className="rt-empty-strong">운영 중인 프로그램이 없습니다</span>
-            운영 시간이 시작되면 참여 가능한 프로그램이 표시됩니다.
-          </div>
-        ) : !hasQueuePrograms ? (
-          <div className="rt-empty">
-            <span className="rt-empty-strong">
-              {isEndedEvent ? "종료 시점 대기 정보가 없습니다" : "아직 집계된 대기 정보가 없습니다"}
-            </span>
-            {isEndedEvent
-              ? "행사 종료 이후에는 신규 대기 집계가 갱신되지 않습니다."
-              : "잠시 후 다시 확인해 주세요."}
-          </div>
-        ) : readyPrograms.length === 0 ? (
-          <div className="rt-empty">
-            <span className="rt-empty-strong">바로 참여 가능한 프로그램이 없습니다</span>
-            현재는 인기 프로그램 쪽으로 방문이 몰리고 있어요.
-          </div>
-        ) : (
-          <div className="rt-program-grid rt-program-grid-top3">
-            {readyPrograms.map((item) => (
+            {popularTopPrograms.map((item, index) => (
               <ProgramCrowdCard
-                key={`ready-${item.key}`}
+                key={`top3-${item.key}`}
                 item={item}
-                badgeText="바로 참여 가능"
-                badgeStyle={{
-                  color: "#047857",
-                  background: "#ecfdf5",
-                  borderColor: "#a7f3d0",
-                }}
+                badgeText={isEndedEvent ? `TOP${index + 1}` : ""}
+                badgeStyle={
+                  isEndedEvent
+                    ? {
+                      color: "#991b1b",
+                      background: "#fee2e2",
+                      borderColor: "#fecaca",
+                    }
+                    : null
+                }
+                metricItems={
+                  isEndedEvent
+                    ? [
+                      {
+                        label: "시간당 방문자수",
+                        value: `${item.visitorsPerHour.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}명/시간`,
+                      },
+                      {
+                        label: "총 방문자수",
+                        value: `${item.totalVisitorCount.toLocaleString()}명`,
+                      },
+                      {
+                        label: "평균 대기시간",
+                        value: `${item.averageWaitMin}분`,
+                      },
+                    ]
+                    : null
+                }
+                guideText={isEndedEvent ? "" : undefined}
               />
             ))}
           </div>
         )}
       </div>
+
+      {!isEndedEvent ? (
+        <div className="rt-card">
+          <div className="rt-card-header">
+            <div className="rt-card-title">
+              <div className="rt-card-title-icon">
+                <Radio size={14} color="#10b981" />
+              </div>
+              {readyProgramSectionTitle}
+            </div>
+            <span className="rt-card-tag">대기 짧은 순</span>
+          </div>
+
+          {!hasAnyPrograms || !hasOperatingPrograms ? (
+            <div className="rt-empty">
+              <span className="rt-empty-strong">운영 중인 프로그램이 없습니다</span>
+              운영 시간이 시작되면 참여 가능한 프로그램이 표시됩니다.
+            </div>
+          ) : !hasQueuePrograms ? (
+            <div className="rt-empty">
+              <span className="rt-empty-strong">아직 집계된 대기 정보가 없습니다</span>
+              잠시 후 다시 확인해 주세요.
+            </div>
+          ) : readyPrograms.length === 0 ? (
+            <div className="rt-empty">
+              <span className="rt-empty-strong">지금 참여하기 좋은 프로그램이 없습니다</span>
+              현재는 인기 프로그램 쪽으로 방문이 몰리고 있어요.
+            </div>
+          ) : (
+            <div className="rt-program-grid rt-program-grid-top3">
+              {readyPrograms.map((item) => {
+                const readyLabel = getReadyProgramLabel(item.waitCount, item.waitMin);
+                return (
+                  <ProgramCrowdCard
+                    key={`ready-${item.key}`}
+                    item={{ ...item, guideText: readyLabel }}
+                    badgeText={readyLabel}
+                    badgeStyle={{
+                      color: "#047857",
+                      background: "#ecfdf5",
+                      borderColor: "#a7f3d0",
+                    }}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       <div className="rt-card">
         <div className="rt-card-header">
@@ -2692,29 +3466,43 @@ function DashboardContent({ eventId }) {
             <div className="rt-card-title-icon">
               <BarChart2 size={14} color="#1a4fd6" />
             </div>
-            지금 행사장은 얼마나 붐빌까요?
+            {predictionCardTitle}
           </div>
           <div className="rt-card-controls">
             <div className="rt-prediction-meta-strip rt-prediction-meta-strip--header">
-              <span className="rt-prediction-meta-pill">
-                예측 기준: {formatKoreanTime(eventPrediction?.baseTime) || "-"}
-              </span>
-              <span className="rt-prediction-meta-pill">
-                신뢰도:{" "}
-                {eventPrediction
-                  ? `${Math.round(safeNumber(eventPrediction.confidence, 0) * 100)}%`
-                  : "집계 중"}
-              </span>
-              <span className="rt-prediction-meta-pill">
-                {eventPrediction
-                  ? eventPrediction.fallbackUsed
-                    ? "보정 예측 적용"
-                    : "AI 예측 반영"
-                  : "AI 예측 준비 중"}
-              </span>
+              {isEndedEvent ? (
+                <>
+                  <span className="rt-prediction-meta-pill">
+                    집계 기간: {formatDateRange(eventDetail?.startAt, eventDetail?.endAt)}
+                  </span>
+                  <span className="rt-prediction-meta-pill">
+                    집계 일수: {dailyCongestionPoints.length}일
+                  </span>
+                  <span className="rt-prediction-meta-pill">기준: 실제 혼잡도</span>
+                </>
+              ) : (
+                <>
+                  <span className="rt-prediction-meta-pill">
+                    예측 기준: {formatKoreanTime(eventPrediction?.baseTime) || "-"}
+                  </span>
+                  <span className="rt-prediction-meta-pill">
+                    신뢰도:{" "}
+                    {eventPrediction
+                      ? `${Math.round(safeNumber(eventPrediction.confidence, 0) * 100)}%`
+                      : "집계 중"}
+                  </span>
+                  <span className="rt-prediction-meta-pill">
+                    {eventPrediction
+                      ? eventPrediction.fallbackUsed
+                        ? "보정 예측 적용"
+                        : "AI 예측 반영"
+                      : "AI 예측 준비 중"}
+                  </span>
+                </>
+              )}
             </div>
-            <span className="rt-card-tag">시간대별 혼잡도</span>
-            {forecastDateOptions.length > 0 ? (
+            <span className="rt-card-tag">{predictionCardTag}</span>
+            {showForecastCalendar ? (
               <div className="rt-calendar-control">
                 <CalendarDays size={13} />
                 <span>달력</span>
@@ -2735,7 +3523,7 @@ function DashboardContent({ eventId }) {
           <div className="rt-prediction-kpi-grid">
             <div className="rt-prediction-kpi">
               <div className="rt-prediction-kpi-label">
-                {isFutureForecast ? "예상 혼잡도" : "현재 혼잡도"}
+                {isEndedEvent ? "행사 전반 평균 혼잡도" : isFutureForecast ? "예상 혼잡도" : "현재 혼잡도"}
               </div>
               <div className="rt-prediction-kpi-value">
                 {aiCurrentScore}
@@ -2755,34 +3543,50 @@ function DashboardContent({ eventId }) {
             </div>
 
             <div className="rt-prediction-kpi">
-              <div className="rt-prediction-kpi-label">{waitKpiLabel}</div>
-              <div className="rt-prediction-kpi-value">
-                {expectedWaitMinutes}
-                <span className="rt-prediction-kpi-unit">분</span>
+              <div className="rt-prediction-kpi-label">
+                {isEndedEvent ? "가장 여유로운 시간대" : waitKpiLabel}
               </div>
-              <div className="rt-prediction-kpi-desc">{waitSummaryText}</div>
+              <div className="rt-prediction-kpi-value">
+                {isEndedEvent ? endedRelaxedTimeLabel : expectedWaitMinutes}
+                {isEndedEvent ? null : <span className="rt-prediction-kpi-unit">분</span>}
+              </div>
+              <div className="rt-prediction-kpi-desc">
+                {isEndedEvent
+                  ? hasEndedRelaxedInsight
+                    ? `${endedRelaxedTimeLabel}에 가장 여유로웠습니다. 평균 혼잡도 ${endedRelaxedScore}%`
+                    : "행사 전반 여유 시간대를 집계 중입니다."
+                  : waitSummaryText}
+              </div>
               <span
                 className="rt-prediction-kpi-badge"
                 style={{
-                  color: aiCurrentTone.color,
-                  background: aiCurrentTone.bg,
-                  borderColor: aiCurrentTone.border,
+                  color: isEndedEvent ? endedRelaxedTone.color : aiCurrentTone.color,
+                  background: isEndedEvent ? endedRelaxedTone.bg : aiCurrentTone.bg,
+                  borderColor: isEndedEvent ? endedRelaxedTone.border : aiCurrentTone.border,
                 }}
               >
-                {aiCurrentTone.label} 구간
+                {isEndedEvent
+                  ? hasEndedRelaxedInsight
+                    ? `${endedRelaxedTone.label} 시간대`
+                    : "집계 중"
+                  : `${aiCurrentTone.label} 구간`}
               </span>
             </div>
 
             <div className="rt-prediction-kpi">
-              <div className="rt-prediction-kpi-label">곧 예상되는 변화</div>
+              <div className="rt-prediction-kpi-label">{isEndedEvent ? "행사 전반 혼잡 피크" : "곧 예상되는 변화"}</div>
               <div className="rt-prediction-kpi-value">
-                {aiSoonScore}
-                <span className="rt-prediction-kpi-unit">%</span>
+                {isEndedEvent ? soonPeakTimeLabel : aiSoonScore}
+                {isEndedEvent ? null : <span className="rt-prediction-kpi-unit">%</span>}
               </div>
               <div className="rt-prediction-kpi-desc">
-                {eventPrediction
-                  ? `${soonPeakTimeLabel}에는 ${aiSoonTone.label} 예상 · 약 ${aiSoonWait}분`
-                  : "예측 데이터가 준비되면 다음 혼잡 변화를 안내해 드려요."}
+                {isEndedEvent
+                  ? nextPeakPoint
+                    ? `${soonPeakTimeLabel}가 행사 전반에서 가장 혼잡했습니다. 평균 혼잡도 ${aiSoonScore}%`
+                    : "행사 전반 혼잡도 데이터를 집계 중입니다."
+                  : eventPrediction
+                    ? `${soonPeakTimeLabel}에는 ${aiSoonTone.label} 예상 · 약 ${aiSoonWait}분`
+                    : "예측 데이터가 준비되면 다음 혼잡 변화를 안내해 드려요."}
               </div>
               <span
                 className="rt-prediction-kpi-badge"
@@ -2792,7 +3596,7 @@ function DashboardContent({ eventId }) {
                   borderColor: aiSoonTone.border,
                 }}
               >
-                {eventPrediction ? aiSoonTone.label : "집계 중"}
+                {isEndedEvent ? (nextPeakPoint ? aiSoonTone.label : "집계 중") : (eventPrediction ? aiSoonTone.label : "집계 중")}
               </span>
             </div>
           </div>
@@ -2800,23 +3604,24 @@ function DashboardContent({ eventId }) {
           <div className="rt-prediction-bottom">
             <div className="rt-prediction-chart-card">
               <div className="rt-prediction-chart-head">
-                <span className="rt-prediction-chart-title">시간대별 혼잡도</span>
+                <span className="rt-prediction-chart-title">{predictionTrendTitle}</span>
                 <span className="rt-prediction-chart-sub">
-                  {selectedForecastDate || "오늘"} · {isTodayForecast ? "실시간 + AI 예측" : isPastForecast ? "실제 혼잡도" : "AI 예측"}
+                  {isEndedEvent
+                    ? `행사 전체 기간 · ${predictionChartModeLabel}`
+                    : `${selectedForecastDate || "오늘"} · ${predictionChartModeLabel}`}
                 </span>
               </div>
               <div className="rt-prediction-chart">
                 <HourlyTrendChart
-                  points={hours}
-                  activeDateKey={activeForecastDateKey}
-                  isTodayForecast={isTodayForecast}
+                  points={chartPointsForDisplay}
+                  isTodayForecast={isTodayForecast && !isEndedEvent}
                 />
                 <div className="rt-heat-legend">
                   <span className="rt-heat-legend-item">
                     <span className="rt-heat-legend-swatch actual" />
                     <span className="rt-heat-legend-text">Actual (실제 혼잡도)</span>
                   </span>
-                  {!isPastForecast ? (
+                  {showPredictedLegend ? (
                     <span className="rt-heat-legend-item">
                       <span className="rt-heat-legend-swatch predicted" />
                       <span className="rt-heat-legend-text">Predicted (AI 예측)</span>
@@ -2827,33 +3632,50 @@ function DashboardContent({ eventId }) {
             </div>
 
             <div className="rt-prediction-near-card">
-              <div className="rt-prediction-near-title">가까운 시간대 예측</div>
-              <div className="rt-prediction-near-sub">
-                현재 상태에서 곧 어떻게 변할지 시간 순서로 확인하세요.
-              </div>
-              {aiTimelinePreview.length > 0 ? (
-                <>
-                  <div className="rt-chip-list rt-prediction-chip-list">
-                    {aiTimelinePreview.slice(0, 6).map((point) => (
-                      <span
-                        key={`${point.time}-${point.score}`}
-                        className="rt-chip"
-                        style={{
-                          borderColor: point.tone.border,
-                          background: point.tone.bg,
-                          color: point.tone.color,
-                        }}
-                      >
-                        {formatKoreanTime(point.time)} {Math.round(point.score)}%
-                      </span>
-                    ))}
+              <div className="rt-prediction-alert-head">
+                <div className="rt-prediction-alert-title">
+                  <div className="rt-card-title-icon">
+                    <Activity size={14} color="#1a4fd6" />
                   </div>
-                </>
-              ) : (
-                <div className="rt-prediction-empty">
-                  예측 데이터가 준비되면 가까운 시간대 흐름을 안내해 드릴게요.
+                  현장 참고 알림
                 </div>
-              )}
+                <span className="rt-card-tag">{isEndedEvent ? "종료 시점" : "자동 갱신"}</span>
+              </div>
+
+              <div className="rt-chip-list rt-prediction-alert-chip-list">
+                <span className="rt-chip">{isEndedEvent ? "종료 시점 집계" : "실시간 수집"} {measuredCongestions.length}개 지점</span>
+                <span className="rt-chip">혼잡 주의 지점 {hotBoothCount}개</span>
+                <span className="rt-chip">
+                  프로그램 데이터 {hasQueuePrograms ? "대기 정보 반영 중" : "집계 대기 중"}
+                </span>
+              </div>
+
+              <div className="rt-timeline rt-prediction-alert-timeline">
+                {activities.length === 0 ? (
+                  <div className="rt-empty">
+                    <span className="rt-empty-strong">
+                      {isEndedEvent ? "종료 시점 참고 정보가 아직 없습니다" : "실시간 참고 정보가 아직 없습니다"}
+                    </span>
+                    {isEndedEvent
+                      ? "종료 시점 혼잡 반영 내역이 집계되면 표시됩니다."
+                      : "곧 최신 혼잡 반영 내역이 표시됩니다."}
+                  </div>
+                ) : (
+                  activities.slice(0, 4).map((activity, index) => (
+                    <div
+                      key={`${activity.time}-${index}`}
+                      className={`rt-timeline-item anim-slide-right ${timelineVisible.includes(index) ? "visible" : ""}`}
+                    >
+                      <div
+                        className="rt-timeline-dot"
+                        style={{ background: activity.color }}
+                      />
+                      <div className="rt-timeline-time">{activity.time}</div>
+                      <div className="rt-timeline-text">{activity.text}</div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -2863,49 +3685,6 @@ function DashboardContent({ eventId }) {
         {aiErrorMsg ? (
           <div style={{ marginTop: 12, fontSize: 12, color: "#b91c1c" }}>{aiErrorMsg}</div>
         ) : null}
-      </div>
-
-      <div className="rt-card">
-        <div className="rt-card-header">
-          <div className="rt-card-title">
-            <div className="rt-card-title-icon">
-              <Activity size={14} color="#1a4fd6" />
-            </div>
-            현장 참고 알림
-          </div>
-          <span className="rt-card-tag">자동 갱신</span>
-        </div>
-
-        <div className="rt-chip-list" style={{ marginTop: 0, marginBottom: 12 }}>
-          <span className="rt-chip">실시간 수집 {measuredCongestions.length}개 지점</span>
-          <span className="rt-chip">혼잡 주의 지점 {hotBoothCount}개</span>
-          <span className="rt-chip">
-            프로그램 데이터 {hasQueuePrograms ? "대기 정보 반영 중" : "집계 대기 중"}
-          </span>
-        </div>
-
-        <div className="rt-timeline">
-          {activities.length === 0 ? (
-            <div className="rt-empty">
-              <span className="rt-empty-strong">실시간 참고 정보가 아직 없습니다</span>
-              곧 최신 혼잡 반영 내역이 표시됩니다.
-            </div>
-          ) : (
-            activities.map((activity, index) => (
-              <div
-                key={`${activity.time}-${index}`}
-                className={`rt-timeline-item anim-slide-right ${timelineVisible.includes(index) ? "visible" : ""}`}
-              >
-                <div
-                  className="rt-timeline-dot"
-                  style={{ background: activity.color }}
-                />
-                <div className="rt-timeline-time">{activity.time}</div>
-                <div className="rt-timeline-text">{activity.text}</div>
-              </div>
-            ))
-          )}
-        </div>
       </div>
       </div>
     </>
@@ -2929,8 +3708,22 @@ export default function Dashboard() {
   };
 
   const handleNavigate = (path) => {
-    if (eventId) navigate(`${path}/${eventId}`);
-    else navigate(path);
+    if (!eventId) {
+      navigate(path);
+      return;
+    }
+
+    const match = String(path || "").match(/^([^?#]*)(.*)$/);
+    const pathname = (match?.[1] || "").replace(/\/+$/, "");
+    const suffix = match?.[2] || "";
+    const lastSegment = pathname.split("/").filter(Boolean).at(-1);
+
+    if (lastSegment && /^\d+$/.test(lastSegment)) {
+      navigate(`${pathname}${suffix}`);
+      return;
+    }
+
+    navigate(`${pathname}/${eventId}${suffix}`);
   };
 
   return (

@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long> {
 
@@ -55,6 +56,7 @@ public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long
 
     long countByProgramIdAndStatusIn(Long programId, Collection<ApplyStatus> statuses);
     long countByProgramIdAndCheckedInAtIsNotNull(Long programId);
+    long countByProgramIdAndCheckedInAtBetween(Long programId, LocalDateTime fromInclusive, LocalDateTime toInclusive);
 
     /**
      *  환불 COMPLETED 시 자동 취소용(행사 기준):

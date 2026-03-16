@@ -71,9 +71,10 @@ public class AiCongestionAggregationService {
                 .map(AiCongestionAggregationQueryRepository.EventTargetRow::eventId)
                 .toList();
 
-        LocalDateTime bucketEnd = bucket.plusMinutes(BUCKET_MINUTES);
+        LocalDateTime flowWindowStart = bucket.minusMinutes(1);
+        LocalDateTime flowWindowEnd = bucket;
         Map<Long, AiCongestionAggregationQueryRepository.EventQrLogCountRow> eventLogMap =
-                aggregationQueryRepository.findEventQrLogCounts(bucket, bucketEnd).stream()
+                aggregationQueryRepository.findEventQrLogCounts(flowWindowStart, flowWindowEnd).stream()
                         .collect(Collectors.toMap(
                                 AiCongestionAggregationQueryRepository.EventQrLogCountRow::eventId,
                                 Function.identity(),
@@ -101,6 +102,14 @@ public class AiCongestionAggregationService {
                         .collect(Collectors.toMap(
                                 AiCongestionAggregationQueryRepository.EventRunningProgramCountRow::eventId,
                                 AiCongestionAggregationQueryRepository.EventRunningProgramCountRow::runningProgramCount,
+                                (left, right) -> left
+                        ));
+
+        Map<Long, Integer> totalProgramCountMap =
+                aggregationQueryRepository.findTotalProgramCounts().stream()
+                        .collect(Collectors.toMap(
+                                AiCongestionAggregationQueryRepository.EventTotalProgramCountRow::eventId,
+                                AiCongestionAggregationQueryRepository.EventTotalProgramCountRow::totalProgramCount,
                                 (left, right) -> left
                         ));
 
@@ -137,11 +146,16 @@ public class AiCongestionAggregationService {
                     : normalizeScale2(waitAggregateRow.avgWaitMin());
 
             int runningProgramCount = Math.max(runningProgramCountMap.getOrDefault(eventId, 0), 0);
+            int totalProgramCount = Math.max(totalProgramCountMap.getOrDefault(eventId, 0), 0);
 
             BigDecimal congestionScore = calculateEventCongestionScore(
+                    checkins,
+                    checkouts,
                     activeApplyCount,
                     totalWaitCount,
                     avgWaitMin,
+                    runningProgramCount,
+                    totalProgramCount,
                     policyMap.get(eventId)
             );
 
@@ -182,10 +196,15 @@ public class AiCongestionAggregationService {
         List<Long> programIds = targets.stream()
                 .map(AiCongestionAggregationQueryRepository.ProgramTargetRow::programId)
                 .toList();
+        List<Long> eventIds = targets.stream()
+                .map(AiCongestionAggregationQueryRepository.ProgramTargetRow::eventId)
+                .distinct()
+                .toList();
 
-        LocalDateTime bucketEnd = bucket.plusMinutes(BUCKET_MINUTES);
+        LocalDateTime flowWindowStart = bucket.minusMinutes(1);
+        LocalDateTime flowWindowEnd = bucket;
         Map<Long, AiCongestionAggregationQueryRepository.BoothQrLogCountRow> boothLogMap =
-                aggregationQueryRepository.findBoothQrLogCounts(bucket, bucketEnd).stream()
+                aggregationQueryRepository.findBoothQrLogCounts(flowWindowStart, flowWindowEnd).stream()
                         .collect(Collectors.toMap(
                                 AiCongestionAggregationQueryRepository.BoothQrLogCountRow::boothId,
                                 Function.identity(),
@@ -200,10 +219,26 @@ public class AiCongestionAggregationService {
                                 (left, right) -> left
                         ));
 
+        Map<Long, Integer> programCheckinCountMap =
+                aggregationQueryRepository.findProgramCheckinCounts(programIds, flowWindowStart, flowWindowEnd).stream()
+                        .collect(Collectors.toMap(
+                                AiCongestionAggregationQueryRepository.ProgramCheckinCountRow::programId,
+                                AiCongestionAggregationQueryRepository.ProgramCheckinCountRow::checkinCount,
+                                (left, right) -> left
+                        ));
+
         Map<Long, AiCongestionAggregationQueryRepository.ProgramWaitRow> waitMap =
                 aggregationQueryRepository.findProgramWaits().stream()
                         .collect(Collectors.toMap(
                                 AiCongestionAggregationQueryRepository.ProgramWaitRow::programId,
+                                Function.identity(),
+                                (left, right) -> left
+                        ));
+
+        Map<Long, EventCongestionPolicy> policyMap =
+                eventCongestionPolicyRepository.findAllByEventIdIn(eventIds).stream()
+                        .collect(Collectors.toMap(
+                                EventCongestionPolicy::getEventId,
                                 Function.identity(),
                                 (left, right) -> left
                         ));
@@ -225,21 +260,32 @@ public class AiCongestionAggregationService {
             int waitCount = waitRow == null ? 0 : Math.max(waitRow.waitCount(), 0);
             int waitMin = waitRow == null || waitRow.waitMin() == null ? 0 : Math.max(waitRow.waitMin(), 0);
 
-            int checkins = 0;
+            Integer programCheckins = programCheckinCountMap.get(programId);
+            int checkins = programCheckins == null ? 0 : Math.max(programCheckins, 0);
             int checkouts = 0;
             if (target.boothId() != null) {
                 AiCongestionAggregationQueryRepository.BoothQrLogCountRow boothLog = boothLogMap.get(target.boothId());
                 if (boothLog != null) {
-                    checkins = Math.max(boothLog.checkins(), 0);
+                    if (programCheckins == null) {
+                        checkins = Math.max(boothLog.checkins(), 0);
+                    }
                     checkouts = Math.max(boothLog.checkouts(), 0);
                 }
             }
+            EventCongestionPolicy policy = policyMap.get(target.eventId());
+            int targetWaitMin = resolvePositive(
+                    policy == null ? null : policy.getTargetWaitMin(),
+                    DEFAULT_TARGET_WAIT_MIN
+            );
 
             BigDecimal congestionScore = calculateProgramCongestionScore(
                     checkins,
                     activeApplyCount,
                     waitCount,
-                    target.capacity()
+                    waitMin,
+                    target.capacity(),
+                    target.throughputPerMin(),
+                    targetWaitMin
             );
 
             AiProgramCongestionTimeseries entity = AiProgramCongestionTimeseries.builder()
@@ -378,44 +424,64 @@ public class AiCongestionAggregationService {
     }
 
     private BigDecimal calculateEventCongestionScore(
+            int entryCount,
+            int checkoutCount,
             int activeApplyCount,
             int totalWaitCount,
             BigDecimal avgWaitMin,
+            int runningProgramCount,
+            int totalProgramCount,
             EventCongestionPolicy policy
     ) {
         int capacityBaseline = resolveEventCapacityBaseline(policy, activeApplyCount);
         int waitBaseline = resolvePositive(policy == null ? null : policy.getWaitBaseline(), DEFAULT_WAIT_BASELINE);
         int targetWaitMin = resolvePositive(policy == null ? null : policy.getTargetWaitMin(), DEFAULT_TARGET_WAIT_MIN);
+        int netEntryCount = Math.max(entryCount - checkoutCount, 0);
 
-        double eventEntryRate = divide(activeApplyCount, capacityBaseline);
-        double waitPressure = divide(totalWaitCount, waitBaseline);
-        double waitTimeRate = divide(avgWaitMin.doubleValue(), targetWaitMin);
+        double waitBaselinePerProgram = runningProgramCount <= 0
+                ? waitBaseline
+                : Math.max(waitBaseline / (double) runningProgramCount, 1.0);
 
-        double scoreRaw = (eventEntryRate * 0.35)
-                + (waitPressure * 0.40)
-                + (waitTimeRate * 0.25);
+        double entryPressure = clamp01(safeDiv(netEntryCount, Math.max(capacityBaseline * 0.08, 1.0)));
+        double waitPressure = clamp01(safeDiv(totalWaitCount, Math.max(waitBaseline, 1)));
+        double avgWaitPerRunningProgram = safeDiv(totalWaitCount, Math.max(runningProgramCount, 1));
+        double waitDensityPressure = clamp01(safeDiv(avgWaitPerRunningProgram, Math.max(waitBaselinePerProgram, 1.0)));
+        double waitTimePressure = clamp01(safeDiv(avgWaitMin.doubleValue(), Math.max(targetWaitMin, 1)));
+        double operationRelief = clamp01(safeDiv(runningProgramCount, Math.max(totalProgramCount, 1)));
 
-        return clampScore(scoreRaw * 100.0);
+        double eventUnitScore = (0.22 * entryPressure)
+                + (0.30 * waitPressure)
+                + (0.23 * waitDensityPressure)
+                + (0.30 * waitTimePressure)
+                - (0.05 * operationRelief);
+
+        return clampScore(eventUnitScore * 100.0);
     }
 
     private BigDecimal calculateProgramCongestionScore(
             int checkins1m,
             int activeApplyCount,
             int waitCount,
-            Integer programCapacity
+            int waitMin,
+            Integer programCapacity,
+            BigDecimal throughputPerMin,
+            int targetWaitMin
     ) {
         int fallbackCapacity = Math.max(activeApplyCount + waitCount, 1);
         int capacityBase = resolvePositive(programCapacity, fallbackCapacity);
+        double throughputBase = resolvePositive(throughputPerMin == null ? null : throughputPerMin.doubleValue(), 1.0);
 
-        double checkinRate = divide(checkins1m, capacityBase);
-        double waitRate = divide(waitCount, capacityBase);
-        double applyRate = divide(activeApplyCount, capacityBase);
+        double checkinPressure = clamp01(safeDiv(checkins1m, Math.max(throughputBase, 1.0)));
+        double queuePressure = clamp01(safeDiv(waitCount, Math.max(capacityBase, 1)));
+        double waitTimePressure = clamp01(safeDiv(waitMin, Math.max(targetWaitMin, 1)));
+        double applyBacklogPressure = clamp01(safeDiv(activeApplyCount, Math.max(capacityBase * 2.0, 1.0)));
 
-        double scoreRaw = (checkinRate * 0.50)
-                + (waitRate * 0.30)
-                + (applyRate * 0.20);
+        double programUnitScore = (0.20 * checkinPressure)
+                + (0.40 * queuePressure)
+                + (0.30 * waitTimePressure)
+                + (0.10 * applyBacklogPressure);
 
-        return clampScore(scoreRaw * 100.0);
+        return clampScore(programUnitScore * 100.0);
     }
 
     private int resolveEventCapacityBaseline(EventCongestionPolicy policy, int activeApplyCount) {
@@ -433,6 +499,13 @@ public class AiCongestionAggregationService {
         return value;
     }
 
+    private double resolvePositive(Double value, double fallback) {
+        if (value == null || value <= 0.0) {
+            return fallback;
+        }
+        return value;
+    }
+
     private BigDecimal normalizeScale2(BigDecimal value) {
         if (value == null) {
             return ZERO_SCALE_2;
@@ -440,15 +513,20 @@ public class AiCongestionAggregationService {
         return value.setScale(2, RoundingMode.HALF_UP);
     }
 
-    private double divide(double numerator, double denominator) {
-        if (denominator <= 0.0) {
-            return 0.0;
-        }
-        return numerator / denominator;
+    private double safeDiv(double numerator, double denominator) {
+        return denominator <= 0.0 ? 0.0 : numerator / denominator;
+    }
+
+    private double clamp01(double value) {
+        return Math.max(0.0, Math.min(1.0, value));
+    }
+
+    private double clamp100(double value) {
+        return Math.max(0.0, Math.min(100.0, value));
     }
 
     private BigDecimal clampScore(double score) {
-        double clamped = Math.max(0.0, Math.min(100.0, score));
+        double clamped = clamp100(score);
         return BigDecimal.valueOf(clamped).setScale(2, RoundingMode.HALF_UP);
     }
 

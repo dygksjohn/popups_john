@@ -981,11 +981,22 @@ export default function CheckinStatus() {
   };
 
   const handleNavigate = (path) => {
-    if (eventId) {
-      navigate(`${path}/${eventId}`);
+    if (!eventId) {
+      navigate(path);
       return;
     }
-    navigate(path);
+
+    const match = String(path || "").match(/^([^?#]*)(.*)$/);
+    const pathname = (match?.[1] || "").replace(/\/+$/, "");
+    const suffix = match?.[2] || "";
+    const lastSegment = pathname.split("/").filter(Boolean).at(-1);
+
+    if (lastSegment && /^\d+$/.test(lastSegment)) {
+      navigate(`${pathname}${suffix}`);
+      return;
+    }
+
+    navigate(`${pathname}/${eventId}${suffix}`);
   };
 
   return (

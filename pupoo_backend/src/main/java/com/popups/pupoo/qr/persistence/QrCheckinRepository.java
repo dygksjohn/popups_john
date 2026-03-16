@@ -94,6 +94,13 @@ public interface QrCheckinRepository extends JpaRepository<QrCheckin, Long> {
 
     long countByQrCode_Event_EventId(Long eventId);
 
+    long countByQrCode_Event_EventIdAndCheckTypeAndCheckedAtBetween(
+            Long eventId,
+            QrCheckType checkType,
+            LocalDateTime fromInclusive,
+            LocalDateTime toInclusive
+    );
+
     @Query("""
         select count(distinct l.qrCode.user.userId)
         from QrCheckin l

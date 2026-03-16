@@ -1,15 +1,17 @@
 const LEVEL_LABEL_MAP = {
-  1: "Low",
-  2: "Moderate",
-  3: "Busy",
-  4: "Very Busy",
+  1: "여유",
+  2: "원활",
+  3: "보통",
+  4: "인기",
+  5: "매우 인기",
 };
 
 const LEVEL_TONE_MAP = {
   1: { color: "#047857", bg: "#ecfdf5", border: "#a7f3d0" },
   2: { color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
   3: { color: "#b45309", bg: "#fffbeb", border: "#fde68a" },
-  4: { color: "#b91c1c", bg: "#fef2f2", border: "#fecaca" },
+  4: { color: "#c2410c", bg: "#fff7ed", border: "#fdba74" },
+  5: { color: "#b91c1c", bg: "#fef2f2", border: "#fecaca" },
 };
 
 function clamp(value, min, max) {
@@ -23,12 +25,13 @@ function toNumber(value, fallback = 0) {
 
 function resolveLevel(score, level) {
   const explicitLevel = Number(level);
-  if ([1, 2, 3, 4].includes(explicitLevel)) return explicitLevel;
+  if ([1, 2, 3, 4, 5].includes(explicitLevel)) return explicitLevel;
 
   const normalizedScore = clamp(Math.round(toNumber(score, 0)), 0, 100);
-  if (normalizedScore >= 75) return 4;
-  if (normalizedScore >= 50) return 3;
-  if (normalizedScore >= 25) return 2;
+  if (normalizedScore >= 81) return 5;
+  if (normalizedScore >= 61) return 4;
+  if (normalizedScore >= 41) return 3;
+  if (normalizedScore >= 21) return 2;
   return 1;
 }
 

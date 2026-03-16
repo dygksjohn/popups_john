@@ -13,11 +13,15 @@ class EventPredictionRequest(BaseModel):
     eventStartAt: datetime
     eventEndAt: datetime
     entryCount: int = Field(default=0, ge=0)
+    checkoutCount: int = Field(default=0, ge=0)
     activeApplyCount: int = Field(default=0, ge=0)
     runningProgramCount: int = Field(default=0, ge=0)
     totalProgramCount: int = Field(default=0, ge=0)
     totalWaitCount: int = Field(default=0, ge=0)
     averageWaitMinutes: float = Field(default=0.0, ge=0.0)
+    capacityBaseline: int = Field(default=0, ge=0)
+    waitBaseline: int = Field(default=0, ge=0)
+    targetWaitMin: int = Field(default=0, ge=0)
 
 
 class ProgramPredictionRequest(BaseModel):
@@ -30,6 +34,9 @@ class ProgramPredictionRequest(BaseModel):
     checkinCount: int = Field(default=0, ge=0)
     waitCount: int = Field(default=0, ge=0)
     waitMinutes: float = Field(default=0.0, ge=0.0)
+    programCapacity: int = Field(default=0, ge=0)
+    throughputPerMin: float = Field(default=0.0, ge=0.0)
+    targetWaitMin: int = Field(default=0, ge=0)
     category: str | None = None
     target: str | None = None
     zone: str | None = None
