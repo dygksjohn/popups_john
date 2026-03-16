@@ -2937,16 +2937,14 @@ export default function Dashboard() {
     <div className="rt-root">
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
-      {eventId ? (
-        <PageHeader
-          title={null}
-          subtitle={null}
-          categories={SERVICE_CATEGORIES}
-          stickyCategories
-          currentPath={currentPath}
-          onNavigate={handleNavigate}
-        />
-      ) : null}
+      <PageHeader
+        title="통합 현황"
+        subtitle={SUBTITLE_MAP[currentPath]}
+        icon={<Activity size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />}
+        categories={SERVICE_CATEGORIES}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
       <main className={`rt-container${eventId ? "" : " selector-mode"}`}>
         {eventId ? (
           <DashboardContent eventId={eventId} />
