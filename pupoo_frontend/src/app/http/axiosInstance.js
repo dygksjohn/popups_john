@@ -1,25 +1,31 @@
 import axios from "axios";
 import { attachInterceptors } from "./interceptors";
+import {
+  buildRequestUrl,
+  getConfiguredBaseUrl,
+} from "../../shared/config/requestUrl";
 
 export function createAxiosInstance() {
-  const baseURL = String(import.meta.env.VITE_API_BASE_URL || "")
-    .trim()
-    .replace(/\/+$/, "");
+  const baseURL = getConfiguredBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
   const instance = axios.create({
-    baseURL: baseURL || undefined,
+    // Keep axios baseURL unset and build the final URL explicitly in the
+    // request interceptor. This prevents duplicate prefixes like /api/api/*.
+    baseURL: undefined,
     timeout: 30000,
     headers: { "Content-Type": "application/json" },
     withCredentials: true,
   });
 
-  console.log("axiosInstance baseURL =", instance.defaults.baseURL);
+  instance.interceptors.request.use((config) => {
+    config.url = buildRequestUrl(baseURL, config.url);
+    return config;
+  });
+
+  console.log("axiosInstance request base =", baseURL || "(same-origin)");
 
   attachInterceptors(instance, {
-    publicPathPrefixes: [
-      "/api/auth/",
-      "/api/storage/presign",
-    ],
+    publicPathPrefixes: ["/api/auth/", "/api/storage/presign"],
     publicGetPathPrefixes: [
       "/api/ping",
       "/api/health",
@@ -29,6 +35,7 @@ export function createAxiosInstance() {
       "/api/faqs",
       "/api/events",
       "/api/programs",
+      "/api/ai",
       "/api/program-applies/programs/",
       "/api/speakers",
       "/api/booths",

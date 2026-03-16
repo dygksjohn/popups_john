@@ -13,6 +13,17 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     aws_region: str = "us-east-1"
     bedrock_model_id: str = "us.amazon.nova-lite-v1:0"
+    db_url: str = ""
+    db_host: str = ""
+    db_port: int = 3306
+    db_user: str = ""
+    db_password: str = ""
+    db_name: str = ""
+    db_charset: str = "utf8mb4"
+    db_connect_timeout: int = 5
+    db_read_timeout: int = 10
+    db_write_timeout: int = 10
+    db_ssl_ca: str = ""
 
     # watsonx.ai 설정 (RAG용)
     watsonx_api_key: str = ""

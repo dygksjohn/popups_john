@@ -349,6 +349,43 @@ const summarizeCongestionLines = (lines = []) => {
   };
 };
 
+const summarizeRealtimeCongestionRows = (rows = []) => {
+  const values = toArray(rows)
+    .map((row) => Number(row?.congestionLevel))
+    .filter((value) => Number.isFinite(value));
+  if (values.length === 0) {
+    return {
+      current: 0,
+      peak: 0,
+      pointCount: 0,
+    };
+  }
+  return {
+    current: Math.round(values.reduce((sum, value) => sum + value, 0) / values.length),
+    peak: Math.max(...values),
+    pointCount: values.length,
+  };
+};
+
+const summarizeRealtimeByEvents = (eventRealtimeRows = []) => {
+  const summaries = eventRealtimeRows.map((eventRow) => ({
+    eventId: Number(eventRow?.eventId) || 0,
+    eventName: eventRow?.eventName || "",
+    summary: summarizeRealtimeCongestionRows(eventRow?.rows),
+  }));
+  const effective = summaries.filter((item) => item.summary.pointCount > 0);
+  const currentValues = effective.map((item) => item.summary.current);
+  const peakValues = effective.map((item) => item.summary.peak);
+
+  return {
+    current: currentValues.length
+      ? Math.round(currentValues.reduce((sum, value) => sum + value, 0) / currentValues.length)
+      : 0,
+    peak: peakValues.length ? Math.max(...peakValues) : 0,
+    eventCount: effective.length,
+  };
+};
+
 const eventOptionLabel = (event) =>
   `${event.eventName} · ${formatDateRange(event.startAt, event.endAt)}`;
 
@@ -465,7 +502,7 @@ export default function HomeDashboard({ initialEventId = null }) {
         ...graphEventSelection,
         totalCount: graphEvents.length,
       };
-      const [focusCongestionPayload, focusBoothPayload, multiEventCongestionPayloads] = await Promise.all([
+      const [focusCongestionPayload, focusBoothPayload, multiEventCongestionPayloads, multiEventRealtimePayloads] = await Promise.all([
         focusEvent
           ? safePayload(`/api/admin/analytics/events/${focusEvent.eventId}/congestion-by-hour`, {}, [])
           : Promise.resolve([]),
@@ -485,6 +522,21 @@ export default function HomeDashboard({ initialEventId = null }) {
               ),
             )
           : Promise.resolve([]),
+        isAllEventCongestionView
+          ? Promise.all(
+              graphEvents.map((event) =>
+                safePayload(
+                  `/api/admin/dashboard/realtime/events/${event.eventId}/congestions`,
+                  { limit: 24 },
+                  [],
+                ).then((payload) => ({
+                  eventId: event.eventId,
+                  eventName: event.eventName,
+                  rows: toArray(payload),
+                })),
+              ),
+            )
+          : Promise.resolve([]),
       ]);
 
       const focusLine = focusEvent
@@ -501,6 +553,9 @@ export default function HomeDashboard({ initialEventId = null }) {
       const allEventCongestionSummary = summarizeCongestionLines(
         allEventCongestionLines,
       );
+      const allEventRealtimeSummary = summarizeRealtimeByEvents(
+        multiEventRealtimePayloads,
+      );
       const usingAnyDummyCongestion = isAllEventCongestionView
         ? allEventCongestionLines.some((line) => line.useDummy)
         : usingDummyCongestion;
@@ -514,6 +569,9 @@ export default function HomeDashboard({ initialEventId = null }) {
         }))
         .sort((a, b) => b.congestionLevel - a.congestionLevel)
         .slice(0, 5);
+      const focusRealtimeSummary = summarizeRealtimeCongestionRows(
+        focusBoothPayload,
+      );
 
       const paymentRows = Array.isArray(payments) ? payments : [];
       const refundRows = Array.isArray(refunds) ? refunds : [];
@@ -641,7 +699,9 @@ export default function HomeDashboard({ initialEventId = null }) {
         allEventGraphMeta,
         allEventCongestionChartData,
         allEventCongestionSummary,
+        allEventRealtimeSummary,
         topBooths,
+        focusRealtimeSummary,
         eventPerformance,
         selectedPerformance,
         approvedPaymentAmount,
@@ -824,9 +884,9 @@ export default function HomeDashboard({ initialEventId = null }) {
         <SectionCard
           title="실시간 혼잡 추이"
           subtitle={isAllEventCongestionView
-              ? `${congestionGraphScope}의 시간대별 평균 혼잡도`
+              ? `${congestionGraphScope}의 시간대별 실시간 혼잡도`
               : snapshot.focusEvent
-                ? `${snapshot.focusEvent.eventName} 행사 기준 시간대별 평균 혼잡도`
+                ? `${snapshot.focusEvent.eventName} 행사 기준 시간대별 실시간 혼잡도`
                 : "행사를 선택하면 시간대별 혼잡 추이를 보여줍니다."}
             action={isAllEventCongestionView ? (
               <Pill color={ds.green} bg={ds.greenSoft}>
@@ -840,21 +900,21 @@ export default function HomeDashboard({ initialEventId = null }) {
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
-                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>현재 평균 혼잡도</div>
+                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>현재 실시간 혼잡도</div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
-                      {formatNumber(snapshot.allEventCongestionSummary.average)}%
+                      {formatNumber(snapshot.allEventRealtimeSummary.current || snapshot.allEventCongestionSummary.average)}%
                     </div>
                   </div>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>최고 혼잡도</div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
-                      {formatNumber(snapshot.allEventCongestionSummary.peak)}%
+                      {formatNumber(snapshot.allEventRealtimeSummary.peak || snapshot.allEventCongestionSummary.peak)}%
                     </div>
                   </div>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>집계 행사</div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
-                      {formatNumber(snapshot.allEventCongestionSummary.eventCount)}
+                      {formatNumber(snapshot.allEventRealtimeSummary.eventCount || snapshot.allEventCongestionSummary.eventCount)}
                     </div>
                   </div>
                 </div>
@@ -912,16 +972,16 @@ export default function HomeDashboard({ initialEventId = null }) {
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
-                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>평균 혼잡도</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>{formatNumber(average(snapshot.focusCongestion))}%</div>
+                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>실시간 혼잡도</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>{formatNumber(snapshot.focusRealtimeSummary.current || average(snapshot.focusCongestion))}%</div>
                   </div>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
-                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>최고 혼잡도</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>{formatNumber(Math.max(...snapshot.focusCongestion.map((row) => row.value)))}%</div>
+                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>실시간 최대 혼잡도</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>{formatNumber(snapshot.focusRealtimeSummary.peak || Math.max(...snapshot.focusCongestion.map((row) => row.value)))}%</div>
                   </div>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
-                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>집계 부스</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>{formatNumber(snapshot.topBooths.length)}</div>
+                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>실시간 집계 지점</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>{formatNumber(snapshot.focusRealtimeSummary.pointCount || snapshot.topBooths.length)}</div>
                   </div>
                 </div>
                 <ResponsiveContainer width="100%" height={240}>

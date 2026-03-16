@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { axiosInstance } from "../../../../app/http/axiosInstance";
+import {
+  createImageFallbackHandler,
+  resolveImageUrl,
+} from "../../../../shared/utils/publicAssetUrl";
 
 const BREED_KO = { DOG: "강아지", CAT: "고양이", OTHER: "기타" };
 const WEIGHT_KO = { SMALL: "소형", MEDIUM: "중형", LARGE: "대형" };
@@ -345,8 +349,9 @@ export default function ContestApply() {
                     등록 사진
                   </div>
                   <img
-                    src={myApply.imageUrl}
+                    src={resolveImageUrl(myApply.imageUrl)}
                     alt="신청 사진"
+                    onError={createImageFallbackHandler()}
                     style={{
                       width: 120,
                       height: 120,

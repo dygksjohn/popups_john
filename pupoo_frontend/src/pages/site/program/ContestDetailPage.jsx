@@ -17,13 +17,17 @@ import {
 import { programApi } from "../../../app/http/programApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { authApi } from "../auth/api/authApi";
+import {
+  createImageFallbackHandler,
+  resolveImageUrl,
+} from "../../../shared/utils/publicAssetUrl";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
 
   .cd-root { box-sizing: border-box; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; background: #f8f9fc; min-height: 100vh; }
   .cd-root *, .cd-root *::before, .cd-root *::after { box-sizing: border-box; font-family: inherit; }
-  .cd-container { width: min(1350px, calc(100% - 50px)); margin: 0 auto; padding: 28px 0 64px; }
+  .cd-container { width: min(1400px, calc(100% - 40px)); margin: 0 auto; padding: 28px 0 64px; }
 
   .cd-back {
     height: 36px; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff;
@@ -89,15 +93,6 @@ const styles = `
     .cd-candidate-grid { grid-template-columns: 1fr; }
   }
 `;
-
-const toAbsUrl = (url) => {
-  if (!url) return null;
-  if (url.startsWith("http")) return url;
-  const base = String(import.meta.env.VITE_API_BASE_URL || "")
-    .trim()
-    .replace(/\/$/, "");
-  return base + (url.startsWith("/") ? url : `/${url}`);
-};
 
 function formatTimeRange(startAt, endAt) {
   const pick = (value) => {
@@ -324,17 +319,11 @@ export default function ContestDetailPage() {
                 {rows.map((row) => (
                   <div key={row.id} className="cd-candidate-card">
                     <div className="cd-candidate-thumb">
-                      {row.imageUrl ? (
-                        <img
-                          src={toAbsUrl(row.imageUrl)}
-                          alt={row.name}
-                          onError={(event) => {
-                            event.target.style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <PawPrint size={30} color="#9ca3af" />
-                      )}
+                      <img
+                        src={resolveImageUrl(row.imageUrl)}
+                        alt={row.name}
+                        onError={createImageFallbackHandler()}
+                      />
                     </div>
 
                     <div className="cd-candidate-body">

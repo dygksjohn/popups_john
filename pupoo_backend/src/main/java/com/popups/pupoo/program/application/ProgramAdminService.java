@@ -8,6 +8,8 @@ import com.popups.pupoo.program.dto.ProgramResponse;
 import com.popups.pupoo.program.dto.ProgramUpdateRequest;
 import com.popups.pupoo.program.persistence.ProgramRepository;
 import com.popups.pupoo.program.speaker.persistence.ProgramSpeakerMappingRepository;
+import com.popups.pupoo.storage.support.StorageKeyNormalizer;
+import com.popups.pupoo.storage.support.StorageUrlResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,54 +23,69 @@ public class ProgramAdminService {
 
     private final ProgramRepository programRepository;
     private final ProgramSpeakerMappingRepository programSpeakerMappingRepository;
+    private final StorageKeyNormalizer storageKeyNormalizer;
+    private final StorageUrlResolver storageUrlResolver;
 
-    /** 프로그램 등록 */
-    public ProgramResponse createProgram(ProgramCreateRequest req) {
+    public ProgramResponse createProgram(ProgramCreateRequest request) {
         Program program = Program.builder()
-                .eventId(req.eventId)
-                .category(req.category)
-                .programTitle(req.programTitle)
-                .description(req.description)
-                .startAt(req.startAt)
-                .endAt(req.endAt)
-                .boothId(req.boothId)
-                .imageUrl(req.imageUrl)
+                .eventId(request.eventId)
+                .category(request.category)
+                .programTitle(request.programTitle)
+                .description(request.description)
+                .startAt(request.startAt)
+                .endAt(request.endAt)
+                .boothId(request.boothId)
+                .imageUrl(storageKeyNormalizer.normalizeToKey(request.imageUrl))
                 .createdAt(LocalDateTime.now())
                 .build();
 
         Program saved = programRepository.save(program);
-        return ProgramResponse.from(saved);
+        return toResponse(saved);
     }
 
-    /** 프로그램 수정 */
-    public ProgramResponse updateProgram(Long programId, ProgramUpdateRequest req) {
+    public ProgramResponse updateProgram(Long programId, ProgramUpdateRequest request) {
         Program program = programRepository.findById(programId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "프로그램을 찾을 수 없습니다. id=" + programId));
+                .orElseThrow(() -> new IllegalArgumentException("프로그램을 찾을 수 없습니다. id=" + programId));
 
-        if (req.category != null)     program.updateCategory(req.category);
-        if (req.programTitle != null) program.updateProgramTitle(req.programTitle);
-        if (req.description != null)  program.updateDescription(req.description);
-        if (req.startAt != null)      program.updateStartAt(req.startAt);
-        if (req.endAt != null)        program.updateEndAt(req.endAt);
-        if (req.boothId != null)      program.updateBoothId(req.boothId);
-        if (req.imageUrl != null)     program.updateImageUrl(req.imageUrl);
+        if (request.category != null) {
+            program.updateCategory(request.category);
+        }
+        if (request.programTitle != null) {
+            program.updateProgramTitle(request.programTitle);
+        }
+        if (request.description != null) {
+            program.updateDescription(request.description);
+        }
+        if (request.startAt != null) {
+            program.updateStartAt(request.startAt);
+        }
+        if (request.endAt != null) {
+            program.updateEndAt(request.endAt);
+        }
+        if (request.boothId != null) {
+            program.updateBoothId(request.boothId);
+        }
+        if (request.imageUrl != null) {
+            program.updateImageUrl(storageKeyNormalizer.normalizeToKey(request.imageUrl));
+        }
         if (program.getCategory() != ProgramCategory.SESSION) {
             programSpeakerMappingRepository.deleteByProgramId(programId);
         }
 
-        return ProgramResponse.from(program);
+        return toResponse(program);
     }
 
-    /** 프로그램 삭제 */
     public ProgramResponse deleteProgram(Long programId) {
         Program program = programRepository.findById(programId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "프로그램을 찾을 수 없습니다. id=" + programId));
+                .orElseThrow(() -> new IllegalArgumentException("프로그램을 찾을 수 없습니다. id=" + programId));
 
-        ProgramResponse response = ProgramResponse.from(program);
+        ProgramResponse response = toResponse(program);
         programSpeakerMappingRepository.deleteByProgramId(programId);
         programRepository.delete(program);
         return response;
+    }
+
+    private ProgramResponse toResponse(Program program) {
+        return ProgramResponse.from(program, storageUrlResolver.toPublicUrl(program.getImageUrl()));
     }
 }

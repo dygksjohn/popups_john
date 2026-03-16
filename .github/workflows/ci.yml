@@ -1,3 +1,6 @@
+# Scope note:
+# - This workflow remains the shared CI pipeline for develop/main validation only.
+# - Production deployment lives in .github/workflows/deploy.yml.
 name: CI
 
 on:
@@ -7,7 +10,6 @@ on:
       - main
     paths:
       - ".github/workflows/ci.yml"
-      - ".github/workflows/deploy-ec2.yml"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
@@ -17,7 +19,6 @@ on:
       - main
     paths:
       - ".github/workflows/ci.yml"
-      - ".github/workflows/deploy-ec2.yml"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"

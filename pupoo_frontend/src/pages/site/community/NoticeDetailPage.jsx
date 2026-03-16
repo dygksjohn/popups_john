@@ -74,14 +74,15 @@ export default function NoticeDetailPage() {
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "5px 11px",
-                borderRadius: 999,
+                padding: "3px 8px",
+                borderRadius: 4,
                 border: `1px solid ${scopeBadge.borderColor}`,
                 background: scopeBadge.background,
                 color: scopeBadge.color,
-                fontSize: 12,
-                fontWeight: 800,
+                fontSize: 11.5,
+                fontWeight: 600,
                 lineHeight: 1,
+                letterSpacing: 0.2,
               }}
             >
               {scopeBadge.label}

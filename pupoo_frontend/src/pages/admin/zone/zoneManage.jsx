@@ -27,6 +27,7 @@ import {
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 import { sortAdminEventsByOperationalPriority } from "../shared/adminStatus";
+import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
 const styles = `
 .card-manage-btn:active,.card-manage-btn:focus,.card-manage-btn:focus-visible{outline:none!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent;}
@@ -1266,7 +1267,7 @@ export default function ZoneManage({ subTab = "all" }) {
                             {hasImg ? (
                               <div style={{ position: "absolute", inset: 0 }}>
                                 <img
-                                  src={ev.imageUrl}
+                                  src={resolveImageUrl(ev.imageUrl)}
                                   alt=""
                                   style={{
                                     width: "100%",
@@ -1379,7 +1380,7 @@ export default function ZoneManage({ subTab = "all" }) {
                                     }}
                                   >
                                     <img
-                                      src={ev.imageUrl}
+                                      src={resolveImageUrl(ev.imageUrl)}
                                       alt=""
                                       style={{
                                         width: "100%",

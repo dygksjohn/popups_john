@@ -1,6 +1,7 @@
 // file: src/main/java/com/popups/pupoo/qr/persistence/QrCheckinRepository.java
 package com.popups.pupoo.qr.persistence;
 
+import com.popups.pupoo.qr.domain.enums.QrCheckType;
 import com.popups.pupoo.qr.domain.model.QrCheckin;
 import com.popups.pupoo.qr.persistence.projection.BoothVisitSummaryRow;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -92,4 +93,19 @@ public interface QrCheckinRepository extends JpaRepository<QrCheckin, Long> {
     long countByCheckedAtBetween(LocalDateTime from, LocalDateTime to);
 
     long countByQrCode_Event_EventId(Long eventId);
+
+    @Query("""
+        select count(distinct l.qrCode.user.userId)
+        from QrCheckin l
+        where l.qrCode.event.eventId = :eventId
+          and l.checkType = :checkType
+    """)
+    long countDistinctUsersByEventIdAndCheckType(
+            @Param("eventId") Long eventId,
+            @Param("checkType") QrCheckType checkType
+    );
+
+    default long countDistinctCheckinUsersByEventId(Long eventId) {
+        return countDistinctUsersByEventIdAndCheckType(eventId, QrCheckType.CHECKIN);
+    }
 }

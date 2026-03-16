@@ -33,7 +33,10 @@ import {
 } from "../shared/programImageStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
-import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
+import {
+  resolveImageUrl,
+  toPublicAssetUrl,
+} from "../../../shared/utils/publicAssetUrl";
 
 const normalizeAdminProgramCategory = (program) => {
   const raw = String(
@@ -901,7 +904,7 @@ function ProgramDetailModal({ item, onClose, onEdit, onDelete }) {
             }}
           >
             <img
-              src={item.imageUrl}
+              src={resolveImageUrl(item.imageUrl)}
               alt={item.name}
               style={{
                 width: "100%",
@@ -1454,7 +1457,7 @@ export default function ProgramManage({ subTab = "all" }) {
                             {hasImg ? (
                               <div style={{ position: "absolute", inset: 0 }}>
                                 <img
-                                  src={ev.imageUrl}
+                                  src={resolveImageUrl(ev.imageUrl)}
                                   alt=""
                                   style={{
                                     width: "100%",
@@ -1567,7 +1570,7 @@ export default function ProgramManage({ subTab = "all" }) {
                                     }}
                                   >
                                     <img
-                                      src={ev.imageUrl}
+                                      src={resolveImageUrl(ev.imageUrl)}
                                       alt=""
                                       style={{
                                         width: "100%",
@@ -2037,7 +2040,7 @@ export default function ProgramManage({ subTab = "all" }) {
                           >
                             {r.imageUrl && (
                               <img
-                                src={r.imageUrl}
+                                src={resolveImageUrl(r.imageUrl)}
                                 alt=""
                                 style={{
                                   width: 36,

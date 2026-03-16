@@ -1,9 +1,71 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "../api/authApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
 import { petApi } from "../../../../features/pet/api/petApi";
+import {
+  ClipboardCheck, PenLine, Smartphone, Mail,
+  Check, ChevronDown, Info, Clock, ShieldCheck,
+  AlertCircle, KeyRound, PawPrint, Plus, Minus,
+  ArrowLeft, Loader2, CheckCircle2, Send,
+} from "lucide-react";
+
+/* ── Custom Dropdown ── */
+function CustomSelect({ value, onChange, options, disabled, placeholder, style }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const selected = options.find(o => o.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div className="cselect-wrap" ref={ref} style={style}>
+      <button
+        type="button"
+        className={`cselect-trigger${open ? " open" : ""}`}
+        onClick={() => !disabled && setOpen(v => !v)}
+        disabled={disabled}
+      >
+        <span className="cselect-value">{selected ? selected.label : (placeholder || "선택")}</span>
+        <ChevronDown size={14} className="cselect-arrow" style={open ? { transform: "rotate(180deg)" } : undefined} />
+      </button>
+      {open && (
+        <div className="cselect-menu">
+          {options.map(o => (
+            <button
+              key={o.value}
+              type="button"
+              className={`cselect-option${o.value === value ? " active" : ""}`}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Hint banner (for helper messages) ── */
+function HintBanner({ icon: Icon, children, variant = "default" }) {
+  const bg = variant === "success" ? "#f0fdf4" : variant === "warn" ? "#fefce8" : "#f8f8fc";
+  const border = variant === "success" ? "#bbf7d0" : variant === "warn" ? "#fef08a" : "#e8e6f0";
+  const color = variant === "success" ? "#15803d" : variant === "warn" ? "#a16207" : "#555";
+  const iconColor = variant === "success" ? "#22c55e" : variant === "warn" ? "#eab308" : "#6c5ce7";
+  return (
+    <div className="hint-banner" style={{ background: bg, borderColor: border, color }}>
+      {Icon && <Icon size={16} style={{ color: iconColor, flexShrink: 0, marginTop: 1 }} />}
+      <span>{children}</span>
+    </div>
+  );
+}
 
 const PET_TYPE_OPTIONS = [
   { value: "DOG", label: "강아지 (DOG)" },
@@ -19,506 +81,404 @@ const PET_WEIGHT_OPTIONS = [
   { value: "XL", label: "XL (35kg 이상)" },
 ];
 
-const DEFAULT_PET = {
-  name: "",
-  type: "DOG",
-  age: "",
-  weight: "M",
-};
+const DEFAULT_PET = { name: "", type: "DOG", age: "", weight: "M" };
 
-/**
- * ✅ JoinNormal (EMAIL 회원가입)
- * - FORM -> OTP -> COMPLETE(이메일 인증) -> 가입완료 & 자동로그인
- *
- * ✅ 안정화 포인트
- * 1) ApiResponse 래핑/unwrap 혼재 대응: getApiData() 유틸로 signupKey 파싱 통일
- * 2) 429(Too Many Requests) 사용자 메시지 + 재시도 방지
- * 3) 연타 방지: loading 가드
- * 4) PHONE 포맷 통일: 휴대폰은 digits로 전송(01012345678)
- */
-
-// 스타일 그대로 유지 (사용자 제공)
 const styles = `
-
-  body {
-    font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
-    background: #fff;
-    color: #333;
-    font-size: 14px;
+  /* ── Outer ── */
+  .signup-outer { background: #f3f4f6; min-height: 100vh; }
+  .signup-inner {
+    max-width: 1400px; margin: 0 auto; background: #fff;
+    min-height: 100vh; padding: 0 40px;
+    box-shadow: 0 0 40px rgba(0,0,0,.04);
   }
-
   .signup-wrap {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 140px 20px 80px;
+    max-width: 1100px; margin: 0 auto;
+    padding: 80px 0 120px;
+    font-family: 'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+    color: #333; font-size: 16px;
   }
 
+  /* ── Title ── */
   .signup-title {
-    text-align: center;
-    font-size: 28px;
-    font-weight: 700;
-    color: #222;
-    margin-bottom: 50px;
+    font-size: 38px; font-weight: 800; color: #111;
+    text-align: center; margin-bottom: 8px; letter-spacing: -0.5px;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+  }
+  .signup-desc {
+    font-size: 16px; color: #999; text-align: center;
+    margin-bottom: 56px; line-height: 1.6;
   }
 
-  .section-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: #333;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #333;
-    margin-bottom: 0;
+  /* ── Step ── */
+  .step-bar { display: flex; align-items: center; justify-content: center; margin-bottom: 64px; }
+  .step-item { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 100px; }
+  .step-num {
+    width: 54px; height: 54px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: #f0f0f0; color: #bbb; transition: all 0.3s;
+    border: 2px solid transparent;
+  }
+  .step-num.active { background: #6c5ce7; color: #fff; border-color: #6c5ce7; }
+  .step-num.done   { background: #6c5ce7; color: #fff; border-color: #6c5ce7; }
+  .step-txt { font-size: 14px; color: #bbb; font-weight: 500; transition: color 0.3s; }
+  .step-txt.active { color: #333; font-weight: 700; }
+  .step-txt.done   { color: #6c5ce7; font-weight: 600; }
+  .step-line {
+    width: 80px; height: 2px; background: #e8e8e8;
+    margin: 0 6px 34px; transition: background 0.3s;
+  }
+  .step-line.done { background: #6c5ce7; }
+
+  /* ── Card ── */
+  .card-panel {
+    background: #fff; border: 1px solid #e8e8e8;
+    border-radius: 16px; padding: 52px 56px; margin-bottom: 32px;
   }
 
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #333;
+  /* ── Section ── */
+  .section-divider { border: none; border-top: 1px solid #eee; margin: 40px 0; }
+  .section-label {
+    font-size: 22px; font-weight: 800; color: #111;
+    margin-bottom: 36px; padding-bottom: 18px;
+    border-bottom: 2px solid #111;
+    display: flex; align-items: center; gap: 10px;
   }
 
-  .required-note {
-    font-size: 12px;
-    color: #666;
+  /* ── Field ── */
+  .field {
+    display: flex; align-items: flex-start;
+    padding: 24px 0; border-bottom: 1px solid #f0f0f0;
+  }
+  .field:last-child { border-bottom: none; }
+  .field-label {
+    display: flex; align-items: center; gap: 4px;
+    min-width: 180px; width: 180px;
+    font-size: 15px; font-weight: 700; color: #333;
+    padding-top: 16px; flex-shrink: 0;
+  }
+  .field-label .req { color: #6c5ce7; font-size: 14px; }
+  .field-body { flex: 1; min-width: 0; }
+  .field-helper { margin-top: 10px; font-size: 13px; color: #aaa; line-height: 1.5; }
+
+  /* ── Hint banner ── */
+  .hint-banner {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px 20px; border-radius: 8px;
+    border: 1px solid #e8e6f0; font-size: 14px; text-align: center;
+    line-height: 1.5; margin-top: 10px;
   }
 
-  .required-note span {
-    color: #1a9ac9;
+  /* ── Input ── */
+  .fi {
+    width: 100%; height: 54px;
+    border: 1px solid #ddd; border-radius: 10px;
+    padding: 0 18px; font-size: 16px; color: #222;
+    outline: none; background: #fff;
+    transition: border-color 0.2s; font-family: inherit;
+    box-sizing: border-box;
+  }
+  .fi:focus { border-color: #6c5ce7; }
+  .fi::placeholder { color: #ccc; font-size: 15px; }
+  .fi:disabled { background: #fafafa; color: #aaa; }
+
+  /* ── Custom Select ── */
+  .cselect-wrap { position: relative; display: inline-block; }
+  .cselect-trigger {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; height: 54px; min-width: 140px; padding: 0 16px;
+    border: 1px solid #e5e7eb; border-radius: 999px;
+    background: #fff; cursor: pointer; font-family: inherit;
+    font-size: 15px; font-weight: 500; color: #333;
+    outline: none; transition: all 0.15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04); box-sizing: border-box;
+  }
+  .cselect-trigger:hover { border-color: #d1d5db; }
+  .cselect-trigger.open { border-color: #6c5ce7; box-shadow: 0 0 0 3px rgba(108,92,231,.08); }
+  .cselect-trigger:disabled { background: #fafafa; color: #aaa; cursor: not-allowed; }
+  .cselect-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cselect-arrow { flex-shrink: 0; transition: transform 0.15s ease; color: #9ca3af; }
+  .cselect-menu {
+    position: absolute; top: calc(100% + 6px); left: 0;
+    min-width: 100%; background: #fff; border-radius: 14px;
+    padding: 6px 0; box-shadow: 0 4px 24px rgba(0,0,0,.10);
+    z-index: 50; max-height: 280px; overflow-y: auto;
+    animation: cselect-in .12s ease;
+  }
+  @keyframes cselect-in { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+  .cselect-option {
+    display: block; width: 100%; padding: 12px 20px;
+    border: none; background: none; color: #6b7280;
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    text-align: left; font-family: inherit; transition: background 0.1s;
+  }
+  .cselect-option:hover { background: #f9fafb; }
+  .cselect-option.active { color: #111; font-weight: 700; }
+
+  /* ── Radio ── */
+  .radio-row { display: flex; gap: 36px; align-items: center; padding-top: 14px; }
+  .radio-item { display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 16px; color: #333; font-weight: 500; }
+  .radio-item input[type="radio"] {
+    appearance: none; -webkit-appearance: none;
+    width: 24px; height: 24px; border: 2px solid #d1d5db;
+    border-radius: 50%; cursor: pointer; transition: all 0.15s;
+    flex-shrink: 0; background: #fff;
+  }
+  .radio-item input[type="radio"]:checked {
+    border-color: #6c5ce7; background: #6c5ce7;
+    box-shadow: inset 0 0 0 4.5px #fff;
   }
 
-  .form-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 40px;
+  /* ── Address ── */
+  .addr-stack { display: flex; flex-direction: column; gap: 8px; }
+  .addr-top { display: flex; gap: 8px; }
+  .btn-addr {
+    height: 54px; padding: 0 26px; background: #555; color: #fff;
+    border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; font-family: inherit;
+    transition: background 0.15s; flex-shrink: 0;
+  }
+  .btn-addr:hover { background: #333; }
+  .btn-addr:disabled { background: #ccc; cursor: not-allowed; }
+
+  /* ── Pet ── */
+  .pet-card {
+    background: #fafbfc; border: 1px solid #eee;
+    border-radius: 14px; padding: 28px; margin-bottom: 16px;
+  }
+  .pet-card-head {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;
+  }
+  .pet-card-title {
+    font-size: 16px; font-weight: 700; color: #333;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .pet-card-btns { display: flex; gap: 6px; }
+  .pet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .pet-grid .fi { height: 48px; font-size: 15px; }
+  .pet-grid .cselect-trigger { height: 48px; font-size: 14px; min-width: 100px; }
+  .btn-pet-circle {
+    width: 32px; height: 32px; border: none; border-radius: 50%;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s; color: #fff;
+  }
+  .btn-pet-add { background: #6c5ce7; }
+  .btn-pet-add:hover { background: #5a4bd1; }
+  .btn-pet-del { background: #ccc; }
+  .btn-pet-del:hover { background: #aaa; }
+  .btn-pet-del:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ── Verify ── */
+  .verify-section { text-align: center; padding: 48px 0 20px; }
+  .verify-icon-wrap {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: #f3f1fb; display: flex; align-items: center;
+    justify-content: center; margin: 0 auto 24px;
+  }
+  .verify-title { font-size: 26px; font-weight: 800; color: #111; margin-bottom: 12px; }
+  .verify-desc { font-size: 16px; color: #888; margin-bottom: 40px; line-height: 1.7; }
+  .verify-input-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 24px; }
+  .verify-input-row .fi {
+    max-width: 300px; text-align: center; font-size: 26px;
+    letter-spacing: 12px; font-weight: 700; height: 62px;
   }
 
-  .form-table tr {
-    border-bottom: 1px solid #e5e5e5;
+  /* ── OTP 6-digit boxes ── */
+  .otp-digit-row {
+    display: flex; gap: 10px; justify-content: center;
+    margin: 32px auto 28px; max-width: 420px;
   }
-
-  .form-table tr:first-child {
-    border-top: none;
+  .otp-digit-box {
+    width: 58px; height: 64px; border: 1.5px solid #ddd;
+    border-radius: 12px; background: #fafafa;
+    text-align: center; font-size: 28px; font-weight: 700;
+    color: #4a7cf7; caret-color: #6c5ce7;
+    outline: none; transition: border-color .15s, box-shadow .15s;
   }
-
-  .form-table th {
-    background: #f8f8f8;
-    padding: 18px 20px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #444;
-    text-align: left;
-    width: 220px;
-    vertical-align: middle;
-  }
-
-  .form-table td {
-    padding: 14px 20px;
-    vertical-align: middle;
-  }
-
-  .req {
-    color: #1a9ac9;
-    margin-left: 2px;
-  }
-
-  .form-input {
-    width: 100%;
-    max-width: 500px;
-    height: 42px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 0 12px;
-    font-size: 14px;
-    color: #333;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .form-input:focus {
-    border-color: #1a9ac9;
-  }
-
-  .form-input::placeholder {
-    color: #aaa;
-    font-size: 13px;
-  }
-
-  .radio-group {
-    display: flex;
-    gap: 30px;
-    align-items: center;
-  }
-
-  .radio-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    color: #444;
-  }
-
-  .radio-label input[type="radio"] {
-    accent-color: #1a9ac9;
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-  }
-
-  .phone-group {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .phone-select {
-    height: 42px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 0 8px;
-    font-size: 14px;
-    color: #333;
+  .otp-digit-box:focus {
+    border-color: #6c5ce7; box-shadow: 0 0 0 3px rgba(108,92,231,.12);
     background: #fff;
-    outline: none;
-    cursor: pointer;
-    min-width: 80px;
+  }
+  .otp-digit-box::placeholder { color: #ccc; font-weight: 400; }
+
+  /* ── Countdown ── */
+  .countdown-bar {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 14px 24px; border-radius: 10px;
+    background: #f8f8fc; border: 1px solid #e8e6f0;
+    font-size: 15px; font-weight: 600; color: #555;
+    margin-bottom: 24px;
+  }
+  .countdown-bar .count-num {
+    font-size: 22px; font-weight: 800; color: #6c5ce7;
+    font-variant-numeric: tabular-nums;
   }
 
-  .phone-input {
-    height: 42px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 0 10px;
-    font-size: 14px;
-    color: #333;
-    outline: none;
-    width: 120px;
-  }
-
-  .phone-input:focus, .phone-select:focus {
-    border-color: #1a9ac9;
-  }
-
-  .address-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-width: 500px;
-  }
-
-  .address-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-
-  .btn-postcode {
-    height: 42px;
-    padding: 0 18px;
-    background: #888;
-    color: #fff;
-    border: none;
-    border-radius: 3px;
-    font-size: 13px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .btn-postcode:hover {
-    background: #666;
-  }
-
-  .address-input {
-    flex: 1;
-    height: 48px;
-    line-height: 48px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 0 14px;
-    font-size: 14px;
-    color: #333;
-    outline: none;
-  }
-
-  .address-input:focus {
-    border-color: #1a9ac9;
-  }
-
-  .address-input::placeholder {
-    color: #aaa;
-    font-size: 13px;
-  }
-
-  .identity-btn {
-    height: 42px;
-    padding: 0 24px;
-    background: #888;
-    color: #fff;
-    border: none;
-    border-radius: 3px;
-    font-size: 14px;
-    cursor: pointer;
-    margin-right: 12px;
-  }
-
-  .identity-btn:hover {
-    background: #666;
-  }
-
-  .identity-note {
-    font-size: 13px;
-    color: #555;
-  }
-
-  .auto-fill-note {
-    font-size: 13px;
-    color: #1a9ac9;
-  }
-
-  .pet-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .pet-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .pet-label {
-    font-size: 13px;
-    color: #555;
-    min-width: 60px;
-  }
-
-  .pet-select {
-    height: 38px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 0 10px;
-    font-size: 14px;
-    color: #333;
-    background: #fff;
-    outline: none;
-    cursor: pointer;
-    min-width: 100px;
-  }
-
-  .pet-select:focus {
-    border-color: #1a9ac9;
-  }
-
-  .pet-name-input {
-    height: 38px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 0 10px;
-    font-size: 14px;
-    color: #333;
-    outline: none;
-    width: 120px;
-  }
-
-  .pet-name-input:focus {
-    border-color: #1a9ac9;
-  }
-
-  .pet-age-input {
-    height: 38px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 0 10px;
-    font-size: 14px;
-    color: #333;
-    outline: none;
-    width: 80px;
-  }
-
-  .pet-age-input:focus {
-    border-color: #1a9ac9;
-  }
-
-  .pet-size-select {
-    height: 38px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 0 10px;
-    font-size: 13px;
-    color: #333;
-    background: #fff;
-    outline: none;
-    cursor: pointer;
-    min-width: 160px;
-  }
-
-  .pet-size-select:focus {
-    border-color: #1a9ac9;
-  }
-
-  .pet-size-note {
-    font-size: 12px;
-    color: #666;
-  }
-
-  .pet-age-unit {
-    font-size: 13px;
-    color: #555;
-  }
-
-  .btn-add-pet {
-    height: 34px;
-    width: 34px;
-    background: #1a9ac9;
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    font-size: 20px;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
+  /* ── Summary ── */
+  .info-summary {
+    display: flex; flex-wrap: wrap; gap: 14px 32px;
     justify-content: center;
-    flex-shrink: 0;
+    background: #fafbfc; border: 1px solid #eee;
+    border-radius: 12px; padding: 20px 28px;
+    margin-bottom: 28px; font-size: 14px;
+  }
+  .info-summary-item {
+    display: inline-flex; align-items: center; gap: 8px; color: #444;
+  }
+  .info-summary-item b {
+    color: #888; font-weight: 500; font-size: 13px;
+  }
+  .info-summary-item .info-val {
+    background: #f3f1fb; color: #5a4fc7; font-weight: 600;
+    padding: 4px 14px; border-radius: 20px; font-size: 14px;
+    letter-spacing: 0.3px;
   }
 
-  .btn-add-pet:hover {
-    background: #1588b0;
+  /* ── Buttons ── */
+  .btn-row { display: flex; gap: 14px; margin-top: 40px; justify-content: center; }
+  .btn-primary {
+    flex: 1; max-width: 320px; height: 60px;
+    background: #6c5ce7; color: #fff; border: none; border-radius: 12px;
+    font-size: 18px; font-weight: 700; cursor: pointer;
+    transition: background 0.15s; font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
   }
-
-  .btn-remove-pet {
-    height: 34px;
-    width: 34px;
-    background: #bbb;
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    font-size: 22px;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+  .btn-primary:hover { background: #5a4bd1; }
+  .btn-primary:disabled { background: #ddd; color: #aaa; cursor: not-allowed; }
+  .btn-outline {
+    flex: 0 0 auto; min-width: 180px; height: 60px;
+    background: #fff; color: #555; border: 1px solid #ddd;
+    border-radius: 12px; font-size: 18px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
   }
-
-  .btn-remove-pet:hover {
-    background: #999;
+  .btn-outline:hover { background: #f8f8f8; border-color: #ccc; }
+  .btn-text-link {
+    background: none; border: none; color: #888; font-size: 14px;
+    cursor: pointer; text-decoration: underline; padding: 0; font-family: inherit;
   }
-
-  .btn-remove-pet:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .submit-wrap {
-    text-align: center;
-    margin-top: 20px;
-  }
-
-  .btn-submit {
-    height: 50px;
-    padding: 0 60px;
-    background: #1a9ac9;
-    color: #fff;
-    border: none;
-    border-radius: 3px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    margin: 0 6px;
-    transition: background 0.2s;
-  }
-
-  .btn-submit:hover {
-    background: #1588b0;
-  }
-
-  .btn-cancel {
-    height: 50px;
-    padding: 0 60px;
-    background: #888;
-    color: #fff;
-    border: none;
-    border-radius: 3px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    margin: 0 6px;
-    transition: background 0.2s;
-  }
-
-  .btn-cancel:hover {
-    background: #666;
-  }
+  .btn-text-link:hover { color: #555; }
 
   .error-text {
-    color: #e11d48;
-    margin-top: -20px;
-    margin-bottom: 20px;
-    font-size: 13px;
-    white-space: pre-line;
+    display: flex; align-items: flex-start; gap: 8px;
+    margin-bottom: 20px; font-size: 14px;
+    line-height: 1.6; background: #fef2f2;
+    border: 1px solid #fecaca; border-radius: 10px;
+    padding: 16px 20px; color: #991b1b;
+  }
+  .inline-error {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    margin-top: 16px; font-size: 14px; font-weight: 500;
+    color: #dc2626; animation: shake .35s ease-in-out;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  /* ── Notice box ── */
+  .notice-box {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: #f8f8fc; border: 1px solid #e8e6f0;
+    border-radius: 14px; padding: 24px 32px;
+    margin-bottom: 40px; font-size: 15px; color: #555; line-height: 1.9;
+  }
+  .notice-box b { color: #333; font-weight: 600; }
+
+  /* ── Terms ── */
+  .terms-all {
+    display: flex; align-items: center; gap: 16px;
+    padding: 24px 28px; background: #fff; border: 1px solid #ddd;
+    border-radius: 14px; margin-bottom: 32px; cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .terms-all:hover { border-color: #bbb; }
+  .terms-all label { font-size: 17px; font-weight: 700; color: #111; cursor: pointer; }
+  .terms-item { padding: 18px 0; border-bottom: 1px solid #f0f0f0; }
+  .terms-item:last-child { border-bottom: none; }
+  .terms-item-head { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .terms-item-head label { font-size: 16px; font-weight: 500; color: #333; cursor: pointer; flex: 1; }
+  .terms-item-head .terms-tag { font-size: 14px; font-weight: 600; color: #6c5ce7; }
+  .terms-item-head .terms-tag-opt { font-size: 14px; font-weight: 500; color: #999; }
+  .btn-terms-view {
+    padding: 8px 18px; font-size: 13px; font-weight: 600;
+    color: #6c5ce7; background: #fff; border: 1px solid #d4d0ef;
+    border-radius: 6px; cursor: pointer; white-space: nowrap;
+    font-family: inherit; transition: all 0.15s; flex-shrink: 0;
+  }
+  .btn-terms-view:hover { background: #f3f1fb; }
+  .terms-box {
+    background: #fafbfc; border: 1px solid #eee; border-radius: 10px;
+    padding: 24px; max-height: 200px; overflow-y: auto;
+    font-size: 13px; color: #555; line-height: 1.9; margin-top: 14px;
+  }
+  .terms-box h4 { font-size: 13px; font-weight: 700; color: #333; margin: 16px 0 6px 0; }
+  .terms-box h4:first-child { margin-top: 0; }
+  .terms-checkbox {
+    appearance: none; -webkit-appearance: none;
+    width: 24px; height: 24px; border: 2px solid #d1d5db;
+    border-radius: 50%; cursor: pointer; flex-shrink: 0;
+    transition: all 0.15s; background: #fff;
+  }
+  .terms-checkbox:checked {
+    border-color: #6c5ce7; background: #6c5ce7;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 12 10 16 18 8'/%3E%3C/svg%3E");
+    background-size: 16px; background-position: center; background-repeat: no-repeat;
+  }
+  .terms-helper { margin-top: 20px; padding: 0 4px; font-size: 12.5px; color: #aaa; line-height: 1.8; }
+  .terms-helper li { list-style: none; padding-left: 12px; position: relative; }
+  .terms-helper li::before { content: '·'; position: absolute; left: 0; color: #ccc; }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .signup-inner { padding: 0 16px; }
+    .signup-wrap { padding: 60px 0 80px; max-width: 100%; }
+    .signup-title { font-size: 28px; }
+    .card-panel { padding: 32px 24px; border-radius: 12px; }
+    .step-line { width: 36px; }
+    .step-num { width: 42px; height: 42px; }
+    .step-txt { font-size: 12px; }
+    .field { flex-direction: column; gap: 8px; }
+    .field-label { width: auto; min-width: auto; padding-top: 0; font-size: 14px; }
+    .fi { height: 48px; font-size: 15px; }
+    .cselect-trigger { height: 48px; font-size: 14px; }
+    .btn-primary { height: 52px; font-size: 16px; max-width: none; }
+    .btn-outline { height: 52px; font-size: 15px; min-width: 110px; }
+    .pet-grid { grid-template-columns: 1fr; }
+    .verify-section { padding: 32px 0 10px; }
+    .section-label { font-size: 18px; }
+    .terms-all label { font-size: 15px; }
+    .terms-item-head label { font-size: 14px; }
   }
 `;
 
-// ✅ ApiResponse / unwrap 혼재 대응 유틸
+// ── Utilities ──
 function getApiData(res) {
-  // 1) 이미 data(T)로 unwrap된 경우
-  if (
-    res &&
-    typeof res === "object" &&
-    ("signupKey" in res || "accessToken" in res)
-  ) {
-    return res;
-  }
-  // 2) ApiResponse<T>를 그대로 받은 경우: { success, data, error }
-  if (res && typeof res === "object" && "data" in res) {
-    return res.data;
-  }
+  if (res && typeof res === "object" && ("signupKey" in res || "accessToken" in res)) return res;
+  if (res && typeof res === "object" && "data" in res) return res.data;
   return null;
 }
-
 const digitsOnly = (s) => (s || "").replace(/[^0-9]/g, "");
 
 function parsePetsForCreate(pets) {
   const rows = Array.isArray(pets) ? pets : [];
   const payloads = [];
-
   for (const pet of rows) {
     const petName = String(pet?.name || "").trim();
     const rawAge = String(pet?.age ?? "").trim();
-    const hasAnyInput = petName || rawAge;
-    if (!hasAnyInput) continue;
-
-    if (!petName) {
-      throw new Error("반려동물 이름을 입력해 주세요.");
-    }
-    if (!rawAge) {
-      throw new Error("반려동물 나이를 입력해 주세요.");
-    }
-
+    if (!petName && !rawAge) continue;
+    if (!petName) throw new Error("반려동물 이름을 입력해 주세요.");
+    if (!rawAge) throw new Error("반려동물 나이를 입력해 주세요.");
     const petAge = Number(rawAge);
-    if (!Number.isInteger(petAge) || petAge < 0 || petAge > 100) {
-      throw new Error("반려동물 나이는 0~100 사이 정수로 입력해 주세요.");
-    }
-
+    if (!Number.isInteger(petAge) || petAge < 0 || petAge > 100) throw new Error("반려동물 나이는 0~100 사이 정수로 입력해 주세요.");
     const type = String(pet?.type || "DOG").toUpperCase();
     const petBreed = ["DOG", "CAT", "OTHER"].includes(type) ? type : "DOG";
     const selectedWeight = String(pet?.weight || "M").toUpperCase();
-    const petWeight = ["XS", "S", "M", "L", "XL"].includes(selectedWeight)
-      ? selectedWeight
-      : "M";
-
-    payloads.push({
-      petName,
-      petBreed,
-      petAge,
-      petWeight: petBreed === "DOG" ? petWeight : "M",
-    });
+    const petWeight = ["XS", "S", "M", "L", "XL"].includes(selectedWeight) ? selectedWeight : "M";
+    payloads.push({ petName, petBreed, petAge, petWeight: petBreed === "DOG" ? petWeight : "M" });
   }
-
   return payloads;
 }
 
@@ -528,984 +488,596 @@ export default function JoinNormal() {
   const { login } = useAuth();
 
   const [memberType, setMemberType] = useState("individual");
-
   const [form, setForm] = useState({
-    id: "",
-    password: "",
-    passwordConfirm: "",
-    nickname: "",
-    name: "",
-    email: "",
-    tel1: "02",
-    tel2: "",
-    tel3: "",
-    mobile1: "010",
-    mobile2: "",
-    mobile3: "",
-    postcode: "",
-    address: "",
-    addressDetail: "",
-    employeeId: "",
+    id: "", password: "", passwordConfirm: "", nickname: "", name: "",
+    email: "", tel1: "02", tel2: "", tel3: "",
+    mobile1: "010", mobile2: "", mobile3: "",
+    postcode: "", address: "", addressDetail: "", employeeId: "",
   });
-
   const [pets, setPets] = useState([{ ...DEFAULT_PET }]);
   const [error, setError] = useState("");
-
-  // ✅ 플로우
-  const [step, setStep] = useState("FORM"); // FORM -> OTP -> COMPLETE
+  const [step, setStep] = useState("AGREE");
   const [signupKey, setSignupKey] = useState(null);
+
+  const [agreeAll, setAgreeAll] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [agreeMarketing, setAgreeMarketing] = useState(false);
+  const [showTerms, setShowTerms] = useState({ terms: false, privacy: false, marketing: false });
+
+  const handleAgreeAll = (checked) => { setAgreeAll(checked); setAgreeTerms(checked); setAgreePrivacy(checked); setAgreeMarketing(checked); };
+  useEffect(() => { setAgreeAll(agreeTerms && agreePrivacy && agreeMarketing); }, [agreeTerms, agreePrivacy, agreeMarketing]);
+
   const [otpCode, setOtpCode] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // ✅ EMAIL 가입: 이메일 인증 상태
   const [emailRequested, setEmailRequested] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [emailCode, setEmailCode] = useState("");
-
-  // ✅ OTP 쿨다운(429 UX)
   const [otpCooldown, setOtpCooldown] = useState(0);
 
   useEffect(() => {
     if (otpCooldown <= 0) return;
-    const t = setInterval(
-      () => setOtpCooldown((s) => Math.max(0, s - 1)),
-      1000,
-    );
+    const t = setInterval(() => setOtpCooldown((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
   }, [otpCooldown]);
 
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleNumberOnlyChange = (e) => {
-    const { name, value } = e.target;
-    const onlyNumber = value.replace(/[^0-9]/g, "");
-    setForm((prev) => ({ ...prev, [name]: onlyNumber }));
-  };
+  const handleFormChange = (e) => { const { name, value } = e.target; setForm((p) => ({ ...p, [name]: value })); };
+  const handleNumberOnlyChange = (e) => { const { name, value } = e.target; setForm((p) => ({ ...p, [name]: value.replace(/[^0-9]/g, "") })); };
 
   const openPostcode = () => {
     new window.daum.Postcode({
-      oncomplete: function (data) {
-        let fullAddress = data.address;
-        let extraAddress = "";
-
+      oncomplete: (data) => {
+        let full = data.address, extra = "";
         if (data.addressType === "R") {
-          if (data.bname !== "") extraAddress += data.bname;
-          if (data.buildingName !== "") {
-            extraAddress +=
-              extraAddress !== ""
-                ? `, ${data.buildingName}`
-                : data.buildingName;
-          }
-          fullAddress += extraAddress !== "" ? ` (${extraAddress})` : "";
+          if (data.bname) extra += data.bname;
+          if (data.buildingName) extra += extra ? `, ${data.buildingName}` : data.buildingName;
+          full += extra ? ` (${extra})` : "";
         }
-
-        setForm((prev) => ({
-          ...prev,
-          postcode: data.zonecode,
-          address: fullAddress,
-        }));
+        setForm((p) => ({ ...p, postcode: data.zonecode, address: full }));
       },
     }).open();
   };
 
   const handlePetChange = (index, field, value) => {
     setPets((prev) => {
-      const updated = [...prev];
-      const next = { ...updated[index], [field]: value };
-
-      if (field === "type") {
-        const type = String(value || "DOG").toUpperCase();
-        next.type = type;
-        if (type !== "DOG") next.weight = "M";
-      }
-
-      updated[index] = next;
-      return updated;
+      const updated = [...prev]; const next = { ...updated[index], [field]: value };
+      if (field === "type") { next.type = String(value || "DOG").toUpperCase(); if (next.type !== "DOG") next.weight = "M"; }
+      updated[index] = next; return updated;
     });
   };
+  const addPet = () => setPets((p) => [...p, { ...DEFAULT_PET }]);
+  const removePet = (i) => { if (pets.length > 1) setPets((p) => p.filter((_, j) => j !== i)); };
 
-  const addPet = () => setPets((prev) => [...prev, { ...DEFAULT_PET }]);
-
-  const removePet = (index) => {
-    if (pets.length === 1) return;
-    setPets((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const phoneTel = useMemo(() => {
-    const t2 = (form.tel2 || "").trim();
-    const t3 = (form.tel3 || "").trim();
-    if (!t2 && !t3) return "";
-    return `${form.tel1}-${t2}-${t3}`;
-  }, [form.tel1, form.tel2, form.tel3]);
-
-  const phoneMobileText = useMemo(() => {
-    const m2 = (form.mobile2 || "").trim();
-    const m3 = (form.mobile3 || "").trim();
-    if (!m2 || !m3) return "";
-    return `${form.mobile1}-${m2}-${m3}`;
-  }, [form.mobile1, form.mobile2, form.mobile3]);
-
-  // ✅ API 전송용 휴대폰(숫자만)
   const phoneMobileDigits = useMemo(() => {
-    const m2 = digitsOnly(form.mobile2);
-    const m3 = digitsOnly(form.mobile3);
+    const m2 = digitsOnly(form.mobile2), m3 = digitsOnly(form.mobile3);
     if (!m2 || !m3) return "";
     return `${digitsOnly(form.mobile1)}${m2}${m3}`;
   }, [form.mobile1, form.mobile2, form.mobile3]);
 
-  // --- SOCIAL 상태 복원(필요 시) ---
-  const socialStateFromRoute =
-    location.state && location.state.signupType === "SOCIAL"
-      ? location.state
-      : null;
-
+  const socialStateFromRoute = location.state?.signupType === "SOCIAL" ? location.state : null;
   const socialStateFromStorage = (() => {
     const uid = sessionStorage.getItem("kakao_provider_uid");
     if (!uid) return null;
-    return {
-      signupType: "SOCIAL",
-      socialProvider: "KAKAO",
-      socialProviderUid: uid,
-      email: sessionStorage.getItem("kakao_email") ?? "",
-      nickname: sessionStorage.getItem("kakao_nickname") ?? "",
-      phone: "",
-    };
+    return { signupType: "SOCIAL", socialProvider: "KAKAO", socialProviderUid: uid, email: sessionStorage.getItem("kakao_email") ?? "", nickname: sessionStorage.getItem("kakao_nickname") ?? "", phone: "" };
   })();
-
   const socialState = socialStateFromRoute ?? socialStateFromStorage;
   const isSocial = socialState?.signupType === "SOCIAL";
 
   useEffect(() => {
     if (!isSocial) return;
-    setForm((prev) => ({
-      ...prev,
-      email: socialState.email ?? prev.email,
-      nickname: socialState.nickname ?? prev.nickname,
-    }));
+    setForm((p) => ({ ...p, email: socialState.email ?? p.email, nickname: socialState.nickname ?? p.nickname }));
   }, [isSocial, socialState]);
 
-  // ✅ 1) Start (가입 세션 + OTP 발송)
+  // Filter out Network Error and technical messages from user-facing errors
+  const setUserError = (msg) => {
+    const s = String(msg || "");
+    if (/network\s*error/i.test(s) || /signupKey/i.test(s) || /accessToken/i.test(s)) return;
+    if (/request failed with status code 400/i.test(s)) return setError("인증번호가 올바르지 않습니다. 다시 확인해주세요.");
+    if (/request failed with status code/i.test(s)) return setError("요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.");
+    setError(s);
+  };
+
   const signupStart = async () => {
-    if (loading) return; // ✅ 연타 방지
-    if (otpCooldown > 0) {
-      throw new Error(
-        `OTP 재요청 대기 중입니다. ${otpCooldown}초 후 다시 시도해주세요.`,
-      );
-    }
-
-    // 공통 필수
-    if (!form.nickname?.trim()) throw new Error("닉네임을 입력하세요.");
+    if (loading) return;
+    if (otpCooldown > 0) throw new Error(`인증번호 재요청까지 ${otpCooldown}초 남았습니다.`);
     if (!phoneMobileDigits) throw new Error("휴대전화 번호를 완성해주세요.");
-
-    // EMAIL 가입
     if (!isSocial) {
       if (!form.email.trim()) throw new Error("이메일을 입력하세요.");
       if (!form.password) throw new Error("비밀번호를 입력하세요.");
-      if (form.password !== form.passwordConfirm)
-        throw new Error("비밀번호가 일치하지 않습니다.");
+      if (form.password !== form.passwordConfirm) throw new Error("비밀번호가 일치하지 않습니다.");
     } else {
-      // SOCIAL 가입(JoinNormal을 소셜로도 재사용하는 경우)
       if (!form.email.trim()) throw new Error("이메일을 입력하세요.");
-      if (!socialState?.socialProviderUid) {
-        throw new Error(
-          "소셜 UID가 없습니다. 카카오 콜백부터 다시 진행해주세요.",
-        );
-      }
-      // ⚠️ SOCIAL도 백엔드가 password를 필수로 요구한다면 여기서 임시 비번을 생성해야 함.
-      // 현재는 KakaoJoin에서 처리하므로 JoinNormal은 EMAIL 기준으로 사용하는 것을 권장.
+      if (!socialState?.socialProviderUid) throw new Error("소셜 인증 정보가 없습니다. 다시 시도해주세요.");
     }
-
-    setLoading(true);
-    setError("");
+    setLoading(true); setError("");
     try {
       const payload = isSocial
-        ? {
-            signupType: "SOCIAL",
-            socialProvider: socialState.socialProvider ?? "KAKAO",
-            socialProviderUid: socialState.socialProviderUid,
-            email: form.email.trim(),
-            nickname: form.nickname.trim(),
-            phone: phoneMobileDigits,
-          }
-        : {
-            signupType: "EMAIL",
-            email: form.email.trim(),
-            password: form.password,
-            nickname: form.nickname.trim(),
-            phone: phoneMobileDigits,
-          };
-
+        ? { signupType: "SOCIAL", socialProvider: socialState.socialProvider ?? "KAKAO", socialProviderUid: socialState.socialProviderUid, email: form.email.trim(), nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileDigits }
+        : { signupType: "EMAIL", email: form.email.trim(), password: form.password, nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileDigits };
       const res = await authApi.signupStart(payload);
-
-      const data = getApiData(res);
-      const key = data?.signupKey;
-
-      if (!key) {
-        console.error("signupStart response =", res);
-        throw new Error("signupStart 응답에 signupKey가 없습니다.");
-      }
-
-      setSignupKey(key);
-      setStep("OTP");
-
-      if (data?.otpCooldownSeconds)
-        setOtpCooldown(Number(data.otpCooldownSeconds) || 0);
+      const data = getApiData(res); const key = data?.signupKey;
+      if (!key) throw new Error("가입 세션 생성에 실패했습니다. 다시 시도해주세요.");
+      setSignupKey(key); setStep("OTP");
+      if (data?.otpCooldownSeconds) setOtpCooldown(Number(data.otpCooldownSeconds) || 0);
       if (data?.devOtp) setOtpCode(String(data.devOtp));
     } catch (e) {
-      const status = e?.response?.status;
-      if (status === 429) {
-        // 서버가 내려주는 Retry-After 또는 data.otpCooldownSeconds 활용 가능
+      if (e?.response?.status === 429) {
         const retryAfter = Number(e?.response?.headers?.["retry-after"]);
-        const cool =
-          Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 60;
+        const cool = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 60;
         setOtpCooldown(cool);
-        throw new Error(
-          `OTP 요청이 너무 많습니다. ${cool}초 후 다시 시도해주세요.`,
-        );
+        throw new Error(`잠시 후 다시 시도해주세요. (${cool}초)`);
       }
       throw e;
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  // ✅ 2) Verify OTP
   const verifyOtp = async () => {
     if (loading) return;
-    if (!signupKey) throw new Error("signupKey가 없습니다. 다시 시도해주세요.");
-    if (!otpCode.trim()) throw new Error("인증번호(OTP)를 입력하세요.");
-    if (!phoneMobileDigits) throw new Error("휴대전화 번호를 완성해주세요.");
-
-    setLoading(true);
-    setError("");
+    if (!signupKey) throw new Error("가입 세션이 만료되었습니다. 처음부터 다시 시도해주세요.");
+    if (!otpCode.trim()) throw new Error("인증번호를 입력하세요.");
+    setLoading(true); setError("");
     try {
-      await authApi.signupVerifyOtp({
-        signupKey,
-        phone: phoneMobileDigits,
-        otpCode: otpCode.trim(),
-      });
-
-      // EMAIL이면 COMPLETE 단계로
+      await authApi.signupVerifyOtp({ signupKey, phone: phoneMobileDigits, otpCode: otpCode.trim() });
       setStep("COMPLETE");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  // ✅ 3) 이메일 인증 메일 요청
   const requestEmailVerification = async () => {
-    if (loading) return;
-    if (!signupKey) return setError("signupKey가 없습니다.");
-    setError("");
-    setLoading(true);
-
+    if (loading || !signupKey) return;
+    setError(""); setLoading(true);
     try {
       const res = await authApi.signupEmailRequest({ signupKey });
-
-      // unwrap 혼재 대응
       const body = res?.data ?? res;
-      const devCode =
-        body?.data?.devCode || body?.devCode || body?.data?.code || "";
-
+      const devCode = body?.data?.devCode || body?.devCode || body?.data?.code || "";
       if (devCode) setEmailCode(devCode);
       setEmailRequested(true);
-    } catch (err) {
-      setError(
-        err?.response?.data?.message ?? err?.message ?? "이메일 인증 요청 실패",
-      );
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setUserError(err?.response?.data?.message ?? err?.message ?? "이메일 인증 요청에 실패했습니다."); }
+    finally { setLoading(false); }
   };
 
-  // ✅ 4) 이메일 인증 확인
   const confirmEmailVerification = async () => {
-    if (loading) return;
-    if (!signupKey) return setError("signupKey가 없습니다.");
-    if (!emailCode.trim()) return setError("이메일 인증 코드를 입력하세요.");
-
-    setError("");
-    setLoading(true);
+    if (loading || !signupKey) return;
+    if (!emailCode.trim()) return setError("인증 코드를 입력하세요.");
+    setError(""); setLoading(true);
     try {
-      await authApi.signupEmailConfirm({
-        signupKey,
-        code: emailCode.trim(),
-      });
+      await authApi.signupEmailConfirm({ signupKey, code: emailCode.trim() });
       setEmailVerified(true);
-    } catch (err) {
-      setError(
-        err?.response?.data?.message ?? err?.message ?? "이메일 인증 확인 실패",
-      );
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setUserError(err?.response?.data?.message ?? err?.message ?? "인증 확인에 실패했습니다."); }
+    finally { setLoading(false); }
   };
 
-  // ✅ 5) Complete (users 생성 + 토큰 발급)
   const completeSignup = async () => {
-    if (loading) return;
-    if (!signupKey) throw new Error("signupKey가 없습니다. 다시 시도해주세요.");
+    if (loading || !signupKey) return;
     if (!emailVerified) throw new Error("이메일 인증을 완료해주세요.");
     const petPayloads = parsePetsForCreate(pets);
-
-    setLoading(true);
-    setError("");
+    setLoading(true); setError("");
     try {
       const res = await authApi.signupComplete({ signupKey });
-
-      const data = getApiData(res);
-      const accessToken = data?.accessToken;
-
-      if (!accessToken) {
-        console.error("signupComplete response =", res);
-        throw new Error("회원가입 완료 응답에 accessToken이 없습니다.");
-      }
-
-      tokenStore.setAccess(accessToken);
-      login();
-
+      const data = getApiData(res); const accessToken = data?.accessToken;
+      if (!accessToken) throw new Error("가입 완료에 실패했습니다. 다시 시도해주세요.");
+      tokenStore.setAccess(accessToken); login();
       if (petPayloads.length > 0) {
-        try {
-          await Promise.all(petPayloads.map((pet) => petApi.createPet(pet)));
-        } catch (petError) {
-          console.error("[JoinNormal] pet create failed:", petError);
-          window.alert(
-            "회원가입은 완료되었지만 반려동물 저장에 실패했습니다. 마이페이지에서 다시 등록해 주세요.",
-          );
-        }
+        try { await Promise.all(petPayloads.map((pet) => petApi.createPet(pet))); }
+        catch (e) { console.error("[JoinNormal] pet create failed:", e); }
       }
-
       navigate("/");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  // ✅ Submit: step에 따라 분기
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-
+    e.preventDefault(); setError("");
     try {
-      if (step === "FORM") {
-        await signupStart();
-        return;
-      }
-      if (step === "OTP") {
-        await verifyOtp();
-        return;
-      }
-      if (step === "COMPLETE") {
-        await completeSignup();
-        return;
-      }
-    } catch (err) {
-      setError(err?.response?.data?.message ?? err?.message ?? "회원가입 실패");
-    }
+      if (step === "AGREE") { if (!agreeTerms || !agreePrivacy) throw new Error("필수 약관에 동의해 주세요."); setStep("FORM"); return; }
+      if (step === "FORM") { await signupStart(); return; }
+      if (step === "OTP") { await verifyOtp(); return; }
+      if (step === "COMPLETE") { await completeSignup(); return; }
+    } catch (err) { setUserError(err?.response?.data?.message ?? err?.message); }
   };
 
-  const stepTitle = useMemo(() => {
-    if (step === "FORM") return "회원가입 정보 입력";
-    if (step === "OTP") return "휴대폰 인증(OTP)";
-    return "가입 완료";
-  }, [step]);
+  const stepIndex = step === "AGREE" ? 0 : step === "FORM" ? 1 : step === "OTP" ? 2 : 3;
+  const stepLabels = ["약관 동의", "정보 입력", "휴대폰 인증", "이메일 인증"];
+  const StepIcons = [ClipboardCheck, PenLine, Smartphone, Mail];
 
   return (
     <>
       <style>{styles}</style>
-
+      <div className="signup-outer">
+      <div className="signup-inner">
       <form className="signup-wrap" onSubmit={handleSubmit}>
-        <h1 className="signup-title">회원가입</h1>
 
-        <div style={{ marginBottom: 20, color: "#666", fontSize: 13 }}>
-          현재 단계: <b>{stepTitle}</b>
-          {otpCooldown > 0 && (
-            <span style={{ marginLeft: 10, color: "#e11d48" }}>
-              (OTP 재요청 대기: {otpCooldown}s)
-            </span>
-          )}
-          {signupKey && (
-            <span style={{ marginLeft: 10, color: "#999" }}>
-              (signupKey: {String(signupKey).slice(0, 8)}…)
-            </span>
-          )}
+        <h1 className="signup-title">
+          회원가입
+        </h1>
+        <p className="signup-desc">
+          {step === "AGREE" ? "서비스 이용을 위해 약관을 확인해 주세요." : step === "FORM" ? "간단한 정보만 입력하면 pupoo의 모든 서비스를 이용할 수 있어요." : step === "OTP" ? "휴대폰으로 전송된 인증번호를 확인해 주세요." : "마지막으로 이메일 인증을 완료해 주세요."}
+        </p>
+
+        {/* Step */}
+        <div className="step-bar">
+          {stepLabels.map((label, i) => {
+            const Icon = StepIcons[i];
+            return (
+              <div key={i} style={{ display: "flex", alignItems: "center" }}>
+                {i > 0 && <div className={`step-line${i <= stepIndex ? " done" : ""}`} />}
+                <div className="step-item">
+                  <div className={`step-num${i === stepIndex ? " active" : ""}${i < stepIndex ? " done" : ""}`}>
+                    {i < stepIndex ? <Check size={20} /> : <Icon size={20} />}
+                  </div>
+                  <span className={`step-txt${i === stepIndex ? " active" : ""}${i < stepIndex ? " done" : ""}`}>{label}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* 회원구분 */}
-        <p className="section-title">회원구분</p>
-        <table className="form-table">
-          <tbody>
-            <tr>
-              <th>회원구분</th>
-              <td>
-                <div className="radio-group">
-                  <label className="radio-label">
-                    <input
-                      type="radio"
-                      name="memberType"
-                      value="individual"
-                      checked={memberType === "individual"}
-                      onChange={() => setMemberType("individual")}
-                      disabled={loading || step !== "FORM"}
-                    />
-                    개인회원
-                  </label>
-                  <label className="radio-label">
-                    <input
-                      type="radio"
-                      name="memberType"
-                      value="business"
-                      checked={memberType === "business"}
-                      onChange={() => setMemberType("business")}
-                      disabled={loading || step !== "FORM"}
-                    />
-                    사업자회원
-                  </label>
+
+
+        {/* Error — show only in AGREE / FORM steps at top */}
+        {error && (step === "AGREE" || step === "FORM") && (
+          <div className="error-text">
+            <AlertCircle size={16} style={{ color: "#dc2626", flexShrink: 0, marginTop: 2 }} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* ═══ AGREE ═══ */}
+        {step === "AGREE" && (
+          <>
+            <div className="card-panel">
+              <div className="section-label"><ClipboardCheck size={22} style={{ color: "#6c5ce7" }} /> 약관 동의</div>
+
+              <div className="terms-all" onClick={() => handleAgreeAll(!agreeAll)}>
+                <input type="checkbox" className="terms-checkbox" checked={agreeAll} onChange={(e) => handleAgreeAll(e.target.checked)} />
+                <label>전체 약관 동의</label>
+              </div>
+
+              <div className="terms-item">
+                <div className="terms-item-head">
+                  <input type="checkbox" className="terms-checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />
+                  <label onClick={() => setAgreeTerms(!agreeTerms)}><span className="terms-tag">(필수)</span> 이용 약관</label>
+                  <button type="button" className="btn-terms-view" onClick={() => setShowTerms(p => ({ ...p, terms: !p.terms }))}>{showTerms.terms ? "닫기" : "내용보기"}</button>
                 </div>
-              </td>
-            </tr>
-            <tr>
-              <th>회원인증</th>
-              <td>
-                <button type="button" className="identity-btn" disabled>
-                  본인인증
+                {showTerms.terms && (
+                  <div className="terms-box">
+                    <h4>제1조 목적</h4><p>본 이용약관은 "푸푸컴퍼니"(이하 "사이트")의 서비스의 이용조건과 운영에 관한 제반 사항 규정을 목적으로 합니다.</p>
+                    <h4>제2조 용어의 정의</h4><p>본 약관에서 사용되는 주요한 용어의 정의는 다음과 같습니다.</p><p>① 회원 : 사이트의 약관에 동의하고 개인정보를 제공하여 회원등록을 한 자로서 사이트와의 이용계약을 체결하고 사이트를 이용하는 이용자를 말합니다.</p><p>② 이용계약 : 사이트 이용과 관련하여 사이트와 회원간에 체결하는 계약을 말합니다.</p><p>③ 해지 : 회원이 이용계약을 해약하는 것을 말합니다.</p>
+                    <h4>제3조 약관의 게시 및 변경</h4><p>① 본 약관은 회원가입 화면 및 사이트 내 공지사항 등을 통해 게시됩니다.</p><p>② 사이트는 관련 법률에 위배되지 않는 범위에서 본 약관을 변경할 수 있으며, 변경된 약관은 공지사항을 통해 고지합니다.</p>
+                    <h4>제4조 서비스의 제공</h4><p>사이트는 다음과 같은 서비스를 제공합니다.</p><p>① 애견 행사 정보 제공 및 참여 신청</p><p>② 커뮤니티(자유게시판, 리뷰, Q&A 등) 서비스</p><p>③ 반려동물 관련 콘텐츠 서비스</p><p>④ 기타 사이트가 정하는 서비스</p>
+                    <h4>제5조 이용계약의 성립</h4><p>이용계약은 이용자가 약관의 내용에 동의한 후 회원가입 신청을 하고, 사이트가 이를 승낙함으로써 성립됩니다.</p>
+                    <h4>제6조 회원 탈퇴 및 자격 상실</h4><p>① 회원은 언제든지 탈퇴를 요청할 수 있으며, 사이트는 즉시 회원탈퇴를 처리합니다.</p><p>② 회원이 서비스 이용 시 관계법령, 본 약관의 규정을 위반하거나 공서양속에 반하는 행위를 하는 경우 자격이 상실될 수 있습니다.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="terms-item">
+                <div className="terms-item-head">
+                  <input type="checkbox" className="terms-checkbox" checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} />
+                  <label onClick={() => setAgreePrivacy(!agreePrivacy)}><span className="terms-tag">(필수)</span> 개인정보 수집 이용 동의</label>
+                  <button type="button" className="btn-terms-view" onClick={() => setShowTerms(p => ({ ...p, privacy: !p.privacy }))}>{showTerms.privacy ? "닫기" : "내용보기"}</button>
+                </div>
+                {showTerms.privacy && (
+                  <div className="terms-box">
+                    <h4>1. 수집하는 개인정보의 항목</h4><p>회사는 회원가입, 서비스 이용 등을 위해 아래와 같은 개인정보를 수집합니다.</p><p>- 필수항목 : 이메일, 비밀번호, 휴대폰번호</p><p>- 선택항목 : 주소, 일반전화, 반려동물 정보(이름, 종류, 나이, 체중)</p><p>- 자동수집항목 : IP주소, 쿠키, 접속일시, 서비스 이용기록</p>
+                    <h4>2. 개인정보의 수집 및 이용목적</h4><p>- 회원가입 의사 확인, 회원제 서비스 제공, 회원 식별</p><p>- 행사 참여 신청 및 관리</p><p>- 커뮤니티 서비스 제공</p><p>- 고객 상담 및 불만 처리</p>
+                    <h4>3. 개인정보의 보유 및 이용기간</h4><p>회원 탈퇴 시 즉시 파기합니다. 단, 관계법령에 의해 보존할 필요가 있는 경우 해당 법령에서 정한 기간 동안 보관합니다.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="terms-item">
+                <div className="terms-item-head">
+                  <input type="checkbox" className="terms-checkbox" checked={agreeMarketing} onChange={(e) => setAgreeMarketing(e.target.checked)} />
+                  <label onClick={() => setAgreeMarketing(!agreeMarketing)}><span className="terms-tag-opt">(선택)</span> 마케팅 정보 수신 동의</label>
+                  <button type="button" className="btn-terms-view" onClick={() => setShowTerms(p => ({ ...p, marketing: !p.marketing }))}>{showTerms.marketing ? "닫기" : "내용보기"}</button>
+                </div>
+                {showTerms.marketing && (
+                  <div className="terms-box">
+                    <p>서비스와 관련한 신상품 소식, 이벤트 안내, 고객 혜택 등 다양한 정보를 SMS, 이메일 등을 통해 제공합니다.</p>
+                    <p>마케팅 정보 수신에 동의하지 않으셔도 회원가입 및 서비스 이용이 가능합니다.</p>
+                  </div>
+                )}
+              </div>
+
+              <ul className="terms-helper">
+                <li>필수항목에 동의하지 않을 경우 서비스 가입이 불가합니다.</li>
+                <li>선택항목에 동의하지 않아도 서비스 가입이 가능하나, 관련 서비스는 제공받으실 수 없습니다.</li>
+              </ul>
+            </div>
+
+            <div className="btn-row">
+              <button type="button" className="btn-outline" onClick={() => window.history.back()} disabled={loading}>
+                <ArrowLeft size={18} /> 취소
+              </button>
+              <button type="submit" className="btn-primary" disabled={!agreeTerms || !agreePrivacy}>
+                동의하고 계속하기
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ═══ FORM ═══ */}
+        {step === "FORM" && (
+          <>
+            <div className="notice-box">
+              <Info size={18} style={{ color: "#6c5ce7", flexShrink: 0, marginTop: 2 }} />
+              <div>
+                본 서비스는 별도의 아이디 없이 <b>이메일</b>로 로그인합니다.<br />
+                가입 시 입력한 <b>휴대폰 번호</b>로 OTP 인증번호가 발송되며,
+                이후 <b>이메일 인증</b>까지 완료하면 가입이 완료됩니다.
+              </div>
+            </div>
+
+            <div className="card-panel">
+              <div className="section-label"><PenLine size={20} style={{ color: "#6c5ce7" }} /> 가입 정보 입력</div>
+
+              <div className="field">
+                <label className="field-label">회원구분</label>
+                <div className="field-body">
+                  <div className="radio-row">
+                    <label className="radio-item">
+                      <input type="radio" name="memberType" value="individual" checked={memberType === "individual"} onChange={() => setMemberType("individual")} disabled={loading} />
+                      개인회원
+                    </label>
+                    <label className="radio-item">
+                      <input type="radio" name="memberType" value="business" checked={memberType === "business"} onChange={() => setMemberType("business")} disabled={loading} />
+                      사업자회원
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {!isSocial && (
+                <>
+                  <div className="field">
+                    <label className="field-label">비밀번호 <span className="req">*</span></label>
+                    <div className="field-body">
+                      <input className="fi" type="password" name="password" value={form.password} onChange={handleFormChange} placeholder="영문/숫자/특수문자 조합 8~16자" disabled={loading} />
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label className="field-label">비밀번호 확인 <span className="req">*</span></label>
+                    <div className="field-body">
+                      <input className="fi" type="password" name="passwordConfirm" value={form.passwordConfirm} onChange={handleFormChange} placeholder="비밀번호 확인 입력" disabled={loading} />
+                      {form.passwordConfirm && form.password !== form.passwordConfirm && (
+                        <HintBanner icon={AlertCircle} variant="warn">비밀번호가 일치하지 않습니다</HintBanner>
+                      )}
+                      {form.passwordConfirm && form.password === form.passwordConfirm && (
+                        <HintBanner icon={CheckCircle2} variant="success">비밀번호가 일치합니다</HintBanner>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="field">
+                <label className="field-label">이메일 <span className="req">*</span></label>
+                <div className="field-body">
+                  <input className="fi" type="email" name="email" value={form.email} onChange={handleFormChange} placeholder="이메일 주소 입력" disabled={loading} />
+                  <HintBanner icon={KeyRound}>이메일이 로그인 아이디로 사용됩니다</HintBanner>
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="field-label">휴대폰 <span className="req">*</span></label>
+                <div className="field-body">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <CustomSelect value={form.mobile1} onChange={(v) => setForm(p => ({ ...p, mobile1: v }))} options={[{ value: "010", label: "010" },{ value: "011", label: "011" },{ value: "016", label: "016" },{ value: "017", label: "017" },{ value: "018", label: "018" },{ value: "019", label: "019" }]} disabled={loading} style={{ flex: "0 0 auto" }} />
+                    <span style={{ color: "#ddd", fontSize: 18 }}>-</span>
+                    <input className="fi" type="text" name="mobile2" value={form.mobile2} onChange={handleNumberOnlyChange} maxLength={4} placeholder="0000" disabled={loading} style={{ flex: 1 }} />
+                    <span style={{ color: "#ddd", fontSize: 18 }}>-</span>
+                    <input className="fi" type="text" name="mobile3" value={form.mobile3} onChange={handleNumberOnlyChange} maxLength={4} placeholder="0000" disabled={loading} style={{ flex: 1 }} />
+                  </div>
+                  <HintBanner icon={Smartphone}>다음 단계에서 이 번호로 OTP 인증번호가 발송됩니다</HintBanner>
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="field-label">연락처</label>
+                <div className="field-body">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <CustomSelect value={form.tel1} onChange={(v) => setForm(p => ({ ...p, tel1: v }))} options={["02","031","032","033","041","042","043","051","052","053","054","055","061","062","063","064"].map(v => ({ value: v, label: v }))} disabled={loading} style={{ flex: "0 0 auto" }} />
+                    <span style={{ color: "#ddd", fontSize: 18 }}>-</span>
+                    <input className="fi" type="text" name="tel2" value={form.tel2} onChange={handleNumberOnlyChange} maxLength={4} placeholder="0000" disabled={loading} style={{ flex: 1 }} />
+                    <span style={{ color: "#ddd", fontSize: 18 }}>-</span>
+                    <input className="fi" type="text" name="tel3" value={form.tel3} onChange={handleNumberOnlyChange} maxLength={4} placeholder="0000" disabled={loading} style={{ flex: 1 }} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="field-label">주소</label>
+                <div className="field-body">
+                  <div className="addr-stack">
+                    <div className="addr-top">
+                      <input className="fi" type="text" name="postcode" value={form.postcode} placeholder="우편번호" disabled readOnly style={{ flex: 1 }} />
+                      <button type="button" className="btn-addr" onClick={openPostcode} disabled={loading}>우편번호 검색</button>
+                    </div>
+                    <input className="fi" type="text" name="address" value={form.address} placeholder="기본주소 (우편번호 검색 시 자동 입력)" disabled readOnly />
+                    <input className="fi" type="text" name="addressDetail" value={form.addressDetail} onChange={handleFormChange} placeholder="상세주소를 입력하세요 (동/호수 등)" disabled={loading} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card-panel">
+              <div className="section-label"><PawPrint size={20} style={{ color: "#6c5ce7" }} /> 반려동물 정보</div>
+
+              {pets.map((pet, index) => (
+                <div className="pet-card" key={index}>
+                  <div className="pet-card-head">
+                    <span className="pet-card-title"><PawPrint size={16} style={{ color: "#6c5ce7" }} /> 반려동물 {index + 1}</span>
+                    <div className="pet-card-btns">
+                      <button type="button" className="btn-pet-circle btn-pet-del" onClick={() => removePet(index)} disabled={loading || pets.length === 1}><Minus size={14} /></button>
+                      <button type="button" className="btn-pet-circle btn-pet-add" onClick={addPet} disabled={loading}><Plus size={14} /></button>
+                    </div>
+                  </div>
+                  <div className="pet-grid">
+                    <input className="fi" type="text" value={pet.name} onChange={(e) => handlePetChange(index, "name", e.target.value)} placeholder="이름" disabled={loading} />
+                    <CustomSelect value={pet.type} onChange={(v) => handlePetChange(index, "type", v)} options={PET_TYPE_OPTIONS} disabled={loading} style={{ width: "100%" }} />
+                    <input className="fi" type="number" min="0" max="100" value={pet.age} onChange={(e) => handlePetChange(index, "age", e.target.value)} placeholder="나이 (살)" disabled={loading} />
+                    {pet.type === "DOG" ? (
+                      <CustomSelect value={pet.weight} onChange={(v) => handlePetChange(index, "weight", v)} options={PET_WEIGHT_OPTIONS} disabled={loading} style={{ width: "100%" }} />
+                    ) : (
+                      <div className="fi" style={{ display: "flex", alignItems: "center", color: "#aaa", fontSize: 14, cursor: "default" }}>사이즈: 기본값 (M)</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div className="field-helper" style={{ marginTop: 4 }}>가입 후 마이페이지에서도 등록/수정할 수 있습니다</div>
+            </div>
+
+            <div className="btn-row">
+              <button type="button" className="btn-outline" onClick={() => setStep("AGREE")} disabled={loading}><ArrowLeft size={18} /> 이전</button>
+              <button type="submit" className="btn-primary" disabled={loading || otpCooldown > 0}>
+                {loading ? <><Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> 처리 중...</> : "가입신청"}
+              </button>
+            </div>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </>
+        )}
+
+        {/* ═══ OTP ═══ */}
+        {step === "OTP" && (
+          <div className="card-panel">
+            <div className="verify-section">
+              <div style={{ fontSize: 28, fontWeight: 800, color: "#111", lineHeight: 1.4, marginBottom: 8 }}>
+                문자로 받은<br />인증번호 6자리를 입력해주세요
+              </div>
+              <div style={{ fontSize: 14, color: "#888", marginBottom: 8 }}>
+                <b style={{ color: "#6c5ce7" }}>{form.mobile1}-{form.mobile2}-****</b> 로 발송되었습니다
+              </div>
+              {otpCooldown > 0 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 14, color: "#6c5ce7", fontWeight: 600, marginBottom: 4 }}>
+                  <Clock size={14} />
+                  <span>남은 시간 {String(Math.floor(otpCooldown / 60)).padStart(2, "0")}:{String(otpCooldown % 60).padStart(2, "0")}</span>
+                </div>
+              )}
+
+              <div className="otp-digit-row">
+                {[0, 1, 2, 3, 4, 5].map(i => (
+                  <input
+                    key={i}
+                    id={`otp-${i}`}
+                    className="otp-digit-box"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={otpCode[i] || ""}
+                    autoFocus={i === 0}
+                    disabled={loading}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/[^0-9]/g, "");
+                      if (!v && !e.target.value) return;
+                      const arr = (otpCode || "").split("");
+                      arr[i] = v.slice(-1);
+                      const next = arr.join("").slice(0, 6);
+                      setOtpCode(next);
+                      if (v && i < 5) document.getElementById(`otp-${i + 1}`)?.focus();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Backspace" && !otpCode[i] && i > 0) {
+                        document.getElementById(`otp-${i - 1}`)?.focus();
+                      }
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const paste = e.clipboardData.getData("text").replace(/[^0-9]/g, "").slice(0, 6);
+                      setOtpCode(paste);
+                      const focusIdx = Math.min(paste.length, 5);
+                      document.getElementById(`otp-${focusIdx}`)?.focus();
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div className="btn-row" style={{ justifyContent: "center", maxWidth: 360, margin: "0 auto" }}>
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? <><Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> 확인 중...</> : <><ShieldCheck size={18} /> 인증 확인</>}
                 </button>
-                <span className="identity-note">
-                  (현재는 OTP로 인증합니다) 본인 명의의 휴대폰으로 인증을
-                  진행합니다.
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* 가입정보 */}
-        <div className="section-header">
-          <span
-            className="section-title"
-            style={{ borderBottom: "none", paddingBottom: 0 }}
-          >
-            가입정보
-          </span>
-          <span className="required-note">
-            <span>*</span> 표시는 반드시 입력하셔야 합니다.
-          </span>
-        </div>
-
-        <table className="form-table" style={{ borderTop: "2px solid #333" }}>
-          <tbody>
-            <tr>
-              <th>아이디</th>
-              <td>
-                <input
-                  className="form-input"
-                  type="text"
-                  name="id"
-                  value={form.id}
-                  onChange={handleFormChange}
-                  placeholder="(미사용) 이메일이 로그인 ID 역할"
-                  disabled
-                />
-              </td>
-            </tr>
-
-            {/* EMAIL 가입 전용 비밀번호 */}
-            {!isSocial && (
-              <>
-                <tr>
-                  <th>
-                    비밀번호 <span className="req">*</span>
-                  </th>
-                  <td>
-                    <input
-                      className="form-input"
-                      type="password"
-                      name="password"
-                      value={form.password}
-                      onChange={handleFormChange}
-                      placeholder="8~16자"
-                      disabled={loading || step !== "FORM"}
-                    />
-                  </td>
-                </tr>
-
-                <tr>
-                  <th>
-                    비밀번호 확인 <span className="req">*</span>
-                  </th>
-                  <td>
-                    <input
-                      className="form-input"
-                      type="password"
-                      name="passwordConfirm"
-                      value={form.passwordConfirm}
-                      onChange={handleFormChange}
-                      disabled={loading || step !== "FORM"}
-                    />
-                  </td>
-                </tr>
-              </>
-            )}
-
-            <tr>
-              <th>
-                닉네임 <span className="req">*</span>
-              </th>
-              <td>
-                <input
-                  className="form-input"
-                  type="text"
-                  name="nickname"
-                  value={form.nickname || ""}
-                  onChange={handleFormChange}
-                  placeholder="닉네임을 입력하세요"
-                  disabled={loading || step !== "FORM"}
-                />
-              </td>
-            </tr>
-
-            <tr>
-              <th>이름</th>
-              <td>
-                <span className="auto-fill-note">
-                  ※ 본인인증 후 자동 입력 됩니다.
-                </span>
-              </td>
-            </tr>
-
-            <tr>
-              <th>
-                이메일 <span className="req">*</span>
-              </th>
-              <td>
-                <input
-                  className="form-input"
-                  type="email"
-                  name="email"
-                  value={form.email}
-                  onChange={handleFormChange}
-                  disabled={loading || step !== "FORM"}
-                />
-              </td>
-            </tr>
-
-            <tr>
-              <th>일반전화</th>
-              <td>
-                <div className="phone-group">
-                  <select
-                    className="phone-select"
-                    name="tel1"
-                    value={form.tel1}
-                    onChange={handleFormChange}
-                    disabled={loading || step !== "FORM"}
-                  >
-                    <option value="02">02</option>
-                    <option value="031">031</option>
-                    <option value="032">032</option>
-                    <option value="033">033</option>
-                    <option value="041">041</option>
-                    <option value="042">042</option>
-                    <option value="043">043</option>
-                    <option value="051">051</option>
-                    <option value="052">052</option>
-                    <option value="053">053</option>
-                    <option value="054">054</option>
-                    <option value="055">055</option>
-                    <option value="061">061</option>
-                    <option value="062">062</option>
-                    <option value="063">063</option>
-                    <option value="064">064</option>
-                  </select>
-
-                  <input
-                    className="phone-input"
-                    type="text"
-                    name="tel2"
-                    value={form.tel2}
-                    onChange={handleNumberOnlyChange}
-                    maxLength={4}
-                    disabled={loading || step !== "FORM"}
-                  />
-                  <input
-                    className="phone-input"
-                    type="text"
-                    name="tel3"
-                    value={form.tel3}
-                    onChange={handleNumberOnlyChange}
-                    maxLength={4}
-                    disabled={loading || step !== "FORM"}
-                  />
+              </div>
+              {error && (
+                <div className="inline-error">
+                  <AlertCircle size={15} />
+                  <span>{error}</span>
                 </div>
+              )}
+              <div style={{ marginTop: 20, textAlign: "center" }}>
+                <button type="button" className="btn-text-link" disabled={loading} onClick={() => { setStep("FORM"); setSignupKey(null); setOtpCode(""); setEmailRequested(false); setEmailVerified(false); setEmailCode(""); }}>
+                  이전 단계로 돌아가기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-                {phoneTel && (
-                  <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
-                    입력된 전화: {phoneTel}
+        {/* ═══ COMPLETE ═══ */}
+        {step === "COMPLETE" && (
+          <div className="card-panel">
+            <div className="verify-section">
+
+              {!emailRequested && (
+                <>
+                  <div className="verify-icon-wrap"><Mail size={32} style={{ color: "#6c5ce7" }} /></div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: "#111", lineHeight: 1.4, marginBottom: 8 }}>
+                    이메일 인증을 진행해주세요
                   </div>
-                )}
-              </td>
-            </tr>
-
-            <tr>
-              <th>
-                휴대전화 <span className="req">*</span>
-              </th>
-              <td>
-                <div className="phone-group">
-                  <select
-                    className="phone-select"
-                    name="mobile1"
-                    value={form.mobile1}
-                    onChange={handleFormChange}
-                    disabled={loading || step !== "FORM"}
-                  >
-                    <option value="010">010</option>
-                    <option value="011">011</option>
-                    <option value="016">016</option>
-                    <option value="017">017</option>
-                    <option value="018">018</option>
-                    <option value="019">019</option>
-                  </select>
-
-                  <input
-                    className="phone-input"
-                    type="text"
-                    name="mobile2"
-                    value={form.mobile2}
-                    onChange={handleNumberOnlyChange}
-                    maxLength={4}
-                    disabled={loading || step !== "FORM"}
-                  />
-                  <input
-                    className="phone-input"
-                    type="text"
-                    name="mobile3"
-                    value={form.mobile3}
-                    onChange={handleNumberOnlyChange}
-                    maxLength={4}
-                    disabled={loading || step !== "FORM"}
-                  />
-                </div>
-
-                {phoneMobileText && (
-                  <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
-                    입력된 휴대전화: {phoneMobileText}
+                  <div style={{ fontSize: 14, color: "#888", marginBottom: 4 }}>
+                    <b style={{ color: "#6c5ce7" }}>{form.email}</b> 로 인증 메일을 보내드립니다
                   </div>
-                )}
-              </td>
-            </tr>
-
-            <tr>
-              <th>주소</th>
-              <td>
-                <div className="address-group">
-                  <div className="address-row">
-                    <input
-                      className="address-input"
-                      type="text"
-                      name="postcode"
-                      value={form.postcode}
-                      onChange={handleNumberOnlyChange}
-                      style={{ maxWidth: 160 }}
-                      disabled={loading || step !== "FORM"}
-                    />
-                    <button
-                      type="button"
-                      className="btn-postcode"
-                      onClick={openPostcode}
-                      disabled={loading || step !== "FORM"}
-                    >
-                      우편번호
+                  <div className="btn-row" style={{ justifyContent: "center", maxWidth: 360, margin: "32px auto 0" }}>
+                    <button type="button" className="btn-primary" onClick={requestEmailVerification} disabled={loading}>
+                      {loading ? <><Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> 발송 중...</> : <><Send size={18} /> 인증 메일 발송</>}
                     </button>
                   </div>
+                </>
+              )}
 
-                  <input
-                    className="address-input"
-                    type="text"
-                    name="address"
-                    value={form.address}
-                    onChange={handleFormChange}
-                    placeholder="기본주소"
-                    disabled={loading || step !== "FORM"}
-                  />
-                  <input
-                    className="address-input"
-                    type="text"
-                    name="addressDetail"
-                    value={form.addressDetail}
-                    onChange={handleFormChange}
-                    placeholder="나머지주소"
-                    disabled={loading || step !== "FORM"}
-                  />
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* ✅ OTP 단계 UI */}
-        {step === "OTP" && (
-          <div style={{ marginTop: 10, marginBottom: 30 }}>
-            <p className="section-title">휴대폰 인증(OTP)</p>
-            <div
-              style={{
-                marginTop: 12,
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
-              <input
-                className="form-input"
-                style={{ maxWidth: 260 }}
-                type="text"
-                value={otpCode}
-                onChange={(e) =>
-                  setOtpCode(e.target.value.replace(/[^0-9]/g, ""))
-                }
-                placeholder="인증번호 6자리"
-                maxLength={6}
-                inputMode="numeric"
-                disabled={loading}
-              />
-              <button type="submit" className="btn-submit" disabled={loading}>
-                {loading ? "검증 중..." : "OTP 검증"}
-              </button>
-
-              <button
-                type="button"
-                className="btn-cancel"
-                disabled={loading}
-                onClick={() => {
-                  setStep("FORM");
-                  setSignupKey(null);
-                  setOtpCode("");
-                  setEmailRequested(false);
-                  setEmailVerified(false);
-                  setEmailCode("");
-                }}
-              >
-                처음으로
-              </button>
-            </div>
-            <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
-              가입 시작 시 입력한 휴대폰으로 인증번호가 발송됩니다.
-            </div>
-          </div>
-        )}
-
-        {/* ✅ COMPLETE 단계: EMAIL만 이메일 인증 UI 표시 */}
-        {step === "COMPLETE" && (
-          <div style={{ marginTop: 10, marginBottom: 30 }}>
-            <p className="section-title">가입 완료</p>
-
-            <div
-              style={{
-                marginTop: 12,
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
-              <button
-                type="button"
-                className="btn-cancel"
-                onClick={requestEmailVerification}
-                disabled={loading || emailRequested}
-              >
-                {emailRequested ? "메일 요청 완료" : "이메일 인증 메일 요청"}
-              </button>
-
-              <input
-                className="form-input"
-                style={{ maxWidth: 260 }}
-                type="text"
-                value={emailCode}
-                onChange={(e) => setEmailCode(e.target.value)}
-                placeholder="이메일 인증 코드 입력"
-                disabled={loading || !emailRequested || emailVerified}
-              />
-
-              <button
-                type="button"
-                className="btn-cancel"
-                onClick={confirmEmailVerification}
-                disabled={loading || !emailRequested || emailVerified}
-              >
-                {emailVerified ? "이메일 인증 완료" : "이메일 인증 확인"}
-              </button>
-
-              <button
-                type="submit"
-                className="btn-submit"
-                disabled={loading || !emailVerified}
-              >
-                {loading ? "처리 중..." : "가입 완료 & 로그인"}
-              </button>
-            </div>
-
-            <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
-              OTP 검증이 완료되었습니다. EMAIL 가입은 이메일 인증 후 가입을
-              완료할 수 있습니다.
-            </div>
-          </div>
-        )}
-
-        {/* 추가정보 */}
-        <p className="section-title">추가정보</p>
-        <table className="form-table" style={{ borderTop: "2px solid #333" }}>
-          <tbody>
-            <tr>
-              <th>반려동물 정보</th>
-              <td>
-                <div className="pet-rows">
-                  {pets.map((pet, index) => (
-                    <div className="pet-row" key={index}>
-                      <span className="pet-label">Pet {index + 1}</span>
-
-                      <input
-                        className="pet-name-input"
-                        type="text"
-                        value={pet.name}
-                        onChange={(e) =>
-                          handlePetChange(index, "name", e.target.value)
-                        }
-                        placeholder="이름"
-                        disabled={loading}
-                      />
-
-                      <select
-                        className="pet-select"
-                        value={pet.type}
-                        onChange={(e) =>
-                          handlePetChange(index, "type", e.target.value)
-                        }
-                        disabled={loading}
-                      >
-                        {PET_TYPE_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      <input
-                        className="pet-age-input"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={pet.age}
-                        onChange={(e) =>
-                          handlePetChange(index, "age", e.target.value)
-                        }
-                        placeholder="나이"
-                        disabled={loading}
-                      />
-                      <span className="pet-age-unit">살</span>
-
-                      {pet.type === "DOG" ? (
-                        <select
-                          className="pet-size-select"
-                          value={pet.weight}
-                          onChange={(e) =>
-                            handlePetChange(index, "weight", e.target.value)
-                          }
-                          disabled={loading}
-                        >
-                          {PET_WEIGHT_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className="pet-size-note">
-                          강아지가 아닐 경우 사이즈는 기본값(M)으로 저장됩니다.
-                        </span>
-                      )}
-
-                      <button
-                        type="button"
-                        className="btn-remove-pet"
-                        onClick={() => removePet(index)}
-                        disabled={loading || pets.length === 1}
-                        title="반려동물 삭제"
-                      >
-                        −
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-add-pet"
-                        onClick={addPet}
-                        disabled={loading}
-                        title="반려동물 추가"
-                      >
-                        +
-                      </button>
+              {emailRequested && !emailVerified && (
+                <>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: "#111", lineHeight: 1.4, marginBottom: 8 }}>
+                    메일로 받은<br />인증 코드를 입력해주세요
+                  </div>
+                  <div style={{ fontSize: 14, color: "#888", marginBottom: 4 }}>
+                    <b style={{ color: "#6c5ce7" }}>{form.email}</b> 로 발송되었습니다
+                  </div>
+                  <div className="verify-input-row" style={{ marginTop: 32 }}>
+                    <input className="fi" type="text" value={emailCode} onChange={(e) => setEmailCode(e.target.value)} placeholder="인증 코드 입력" autoFocus disabled={loading} style={{ maxWidth: 280, textAlign: "center", fontSize: 18 }} />
+                  </div>
+                  <div className="btn-row" style={{ justifyContent: "center", maxWidth: 360, margin: "0 auto" }}>
+                    <button type="button" className="btn-primary" onClick={confirmEmailVerification} disabled={loading}>
+                      {loading ? <><Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> 확인 중...</> : <><ShieldCheck size={18} /> 인증 확인</>}
+                    </button>
+                  </div>
+                  {error && (
+                    <div className="inline-error">
+                      <AlertCircle size={15} />
+                      <span>{error}</span>
                     </div>
-                  ))}
-                </div>
-                <div style={{ marginTop: 8, fontSize: 12, color: "#777" }}>
-                  ※ 입력한 반려동물 정보는 가입 완료 후 내 계정에 자동 등록됩니다.
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                  )}
+                </>
+              )}
 
-        {error && <div className="error-text">{error}</div>}
+              {emailVerified && (
+                <>
+                  <div className="verify-icon-wrap" style={{ background: "#f0fdf4" }}><CheckCircle2 size={32} style={{ color: "#22c55e" }} /></div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: "#111", lineHeight: 1.4, marginBottom: 8 }}>
+                    이메일 인증이 완료되었습니다
+                  </div>
+                  <div style={{ fontSize: 14, color: "#888", marginBottom: 4 }}>아래 버튼을 눌러 가입을 완료하세요</div>
+                  <div className="btn-row" style={{ justifyContent: "center", maxWidth: 360, margin: "32px auto 0" }}>
+                    <button type="submit" className="btn-primary" disabled={loading}>
+                      {loading ? <><Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> 처리 중...</> : <><CheckCircle2 size={18} /> 가입 완료</>}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
-        <div className="submit-wrap">
-          <button
-            type="button"
-            className="btn-cancel"
-            onClick={() => window.history.back()}
-            disabled={loading}
-          >
-            취소
-          </button>
-
-          {step === "FORM" && (
-            <button
-              type="submit"
-              className="btn-submit"
-              disabled={loading || otpCooldown > 0}
-              title={
-                otpCooldown > 0
-                  ? `OTP 재요청 대기 중 (${otpCooldown}s)`
-                  : undefined
-              }
-            >
-              {loading
-                ? "처리 중..."
-                : otpCooldown > 0
-                  ? `재시도 (${otpCooldown}s)`
-                  : "가입 시작(OTP 발송)"}
-            </button>
-          )}
-
-          {step === "OTP" && (
-            <button type="submit" className="btn-submit" disabled={loading}>
-              {loading ? "검증 중..." : "OTP 검증"}
-            </button>
-          )}
-
-          {step === "COMPLETE" && (
-            <button
-              type="submit"
-              className="btn-submit"
-              disabled={loading || !emailVerified}
-            >
-              {loading ? "처리 중..." : "가입 완료 & 로그인"}
-            </button>
-          )}
-        </div>
       </form>
+      </div>
+      </div>
     </>
   );
 }

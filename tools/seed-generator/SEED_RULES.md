@@ -1,0 +1,22 @@
+# SEED RULES
+
+- 기준 스키마는 `pupoo_schema_v6.6.sql`을 사용한다.
+- PK / UNIQUE / FK / CHECK 제약을 깨지 않는다.
+- 시드는 재실행 가능해야 한다.
+- URL은 절대경로가 아닌 상대경로만 사용한다.
+- `program_title`은 같은 event 내에서만 중복 금지한다.
+- `pet_name`은 같은 user 내에서만 중복 금지한다.
+- 모든 user가 pet을 가질 필요는 없다.
+- 행사 수는 15개를 유지한다.
+- 행사 상태 분포는 `ENDED 5 / ONGOING 7 / PLANNED 3`을 유지한다.
+- `booth place_name`은 같은 행사 내 중복 금지한다.
+- `event_images`는 `(event_id, image_order)` 중복 금지한다.
+- `booth_waits`는 booth당 1건만 생성한다.
+- `experience_waits`는 program당 1건만 생성한다.
+- `qr_codes`는 `(user_id, event_id)` unique를 보장한다.
+- `reviews`는 `(event_id, user_id)` unique를 보장한다.
+- `gallery_likes`는 `(gallery_id, user_id)` unique를 보장한다.
+- `user_interest_subscriptions`는 `(user_id, interest_id)` unique를 보장한다.
+- `event_interest_map`는 `(event_id, interest_id)` unique를 보장한다.
+- 텍스트는 실제 서비스처럼 자연스럽게 작성한다.
+- 단순 번호형 이름 생성(`게시글1`, `부스1`)은 지양한다.

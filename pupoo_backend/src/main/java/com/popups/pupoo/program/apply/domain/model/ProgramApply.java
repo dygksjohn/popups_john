@@ -31,6 +31,7 @@ public class ProgramApply {
     @Column(name = "pet_id")
     private Long petId;
 
+    // TODO(step-01-storage-policy): keep the legacy column name for now, but store a storage key instead of a full URL.
     @Column(name = "image_url")
     private String imageUrl;
 

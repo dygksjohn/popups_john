@@ -24,6 +24,7 @@ import { boardApi } from "../../../app/http/boardApi";
 import { fileApi } from "../../../app/http/fileApi";
 import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
+import BadgeTag from "./shared/BadgeTag";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 
@@ -356,7 +357,7 @@ function DetailModal({
           }}
         >
           <div style={{ flex: 1, paddingRight: 16 }}>
-            <span style={badge.style}>{badge.text}</span>
+            <BadgeTag badge={badge} />
             <h2
               style={{
                 fontSize: 20,
@@ -857,7 +858,7 @@ export default function InfoBoard() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
       <main
         style={{
-          width: "min(1350px, calc(100% - 50px))",
+          width: "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
           padding: "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",

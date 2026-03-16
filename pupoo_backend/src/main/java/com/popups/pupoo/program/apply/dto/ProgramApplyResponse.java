@@ -1,7 +1,6 @@
 /* file: src/main/java/com/popups/pupoo/program/apply/dto/ProgramApplyResponse.java */
 package com.popups.pupoo.program.apply.dto;
 
-import com.popups.pupoo.common.util.PublicUrlNormalizer;
 import com.popups.pupoo.program.apply.domain.enums.ApplyStatus;
 import com.popups.pupoo.program.apply.domain.model.ProgramApply;
 import lombok.Builder;
@@ -20,78 +19,37 @@ public class ProgramApplyResponse {
     private String petName;
     private String ownerNickname;
     private String imageUrl;
-
     private ApplyStatus status;
-
     private String ticketNo;
     private Integer etaMin;
     private LocalDateTime notifiedAt;
     private LocalDateTime checkedInAt;
     private LocalDateTime createdAt;
 
-    public static ProgramApplyResponse from(ProgramApply a) {
-        if (a == null) {
+    public static ProgramApplyResponse from(
+            ProgramApply apply,
+            String petName,
+            String ownerNickname,
+            String imageUrl
+    ) {
+        if (apply == null) {
             throw new IllegalArgumentException("ProgramApply is null");
         }
 
         return ProgramApplyResponse.builder()
-                .programApplyId(a.getProgramApplyId())
-                .programId(a.getProgramId())
-                .userId(a.getUserId())
-                .petId(a.getPetId())
-                .petName(null)
-                .ownerNickname(null)
-                .imageUrl(PublicUrlNormalizer.normalize(a.getImageUrl()))
-                .status(a.getStatus())
-                .ticketNo(a.getTicketNo())
-                .etaMin(a.getEtaMin())
-                .notifiedAt(a.getNotifiedAt())
-                .checkedInAt(a.getCheckedInAt())
-                .createdAt(a.getCreatedAt())
-                .build();
-    }
-
-    public static ProgramApplyResponse from(ProgramApply a, String petName) {
-        if (a == null) {
-            throw new IllegalArgumentException("ProgramApply is null");
-        }
-
-        return ProgramApplyResponse.builder()
-                .programApplyId(a.getProgramApplyId())
-                .programId(a.getProgramId())
-                .userId(a.getUserId())
-                .petId(a.getPetId())
-                .petName(petName)
-                .ownerNickname(null)
-                .imageUrl(PublicUrlNormalizer.normalize(a.getImageUrl()))
-                .status(a.getStatus())
-                .ticketNo(a.getTicketNo())
-                .etaMin(a.getEtaMin())
-                .notifiedAt(a.getNotifiedAt())
-                .checkedInAt(a.getCheckedInAt())
-                .createdAt(a.getCreatedAt())
-                .build();
-    }
-
-    public static ProgramApplyResponse from(ProgramApply a, String petName, String ownerNickname) {
-        if (a == null) {
-            throw new IllegalArgumentException("ProgramApply is null");
-        }
-
-        return ProgramApplyResponse.builder()
-                .programApplyId(a.getProgramApplyId())
-                .programId(a.getProgramId())
-                .userId(a.getUserId())
-                .petId(a.getPetId())
+                .programApplyId(apply.getProgramApplyId())
+                .programId(apply.getProgramId())
+                .userId(apply.getUserId())
+                .petId(apply.getPetId())
                 .petName(petName)
                 .ownerNickname(ownerNickname)
-                .imageUrl(PublicUrlNormalizer.normalize(a.getImageUrl()))
-                .status(a.getStatus())
-                .ticketNo(a.getTicketNo())
-                .etaMin(a.getEtaMin())
-                .notifiedAt(a.getNotifiedAt())
-                .checkedInAt(a.getCheckedInAt())
-                .createdAt(a.getCreatedAt())
+                .imageUrl(imageUrl)
+                .status(apply.getStatus())
+                .ticketNo(apply.getTicketNo())
+                .etaMin(apply.getEtaMin())
+                .notifiedAt(apply.getNotifiedAt())
+                .checkedInAt(apply.getCheckedInAt())
+                .createdAt(apply.getCreatedAt())
                 .build();
     }
 }

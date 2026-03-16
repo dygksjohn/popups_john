@@ -47,6 +47,7 @@ public class QrCode {
     )
     private Event event;
 
+    // Note: this original_url is the QR payload URL, not an object storage key.
     @Column(name = "original_url", nullable = false, length = 500)
     private String originalUrl;
 
