@@ -44,7 +44,16 @@
 
 html,
 body {
-  font-family: "Pretendard", sans-serif !important;
+  font-family: "Kakao Big Sans", "Pretendard", sans-serif !important;
+}
+
+/* 모든 요소에 Kakao Big Sans 강제 적용 (인라인 스타일도 덮어씀) */
+*,
+*::before,
+*::after,
+*::placeholder {
+  font-family: "Kakao Big Sans", "Pretendard", sans-serif !important;
+  letter-spacing: -0.5px !important;
 }
 
 /* 공통으로 들어가는 제목 (타이틀부분) */
@@ -57,7 +66,7 @@ body {
   }
 
   .section-title {
-    font-family: "Pretendard", sans-serif;
+    font-family: "Kakao Big Sans", "Pretendard", sans-serif;
     font-size: 44px;
     font-weight: 800;
     color: #111;

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CalendarDays, ClipboardList, ChevronRight, MapPin } from "lucide-react";
+import { Search, TicketCheck, ArrowRight, ClipboardList } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
 import { eventApi } from "../../../app/http/eventApi";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { tokenStore } from "../../../app/http/tokenStore";
@@ -20,143 +21,236 @@ const SUBTITLE_MAP = {
   "/registration/qrcheckin": "내 QR 코드를 확인하세요",
 };
 
-const styles = `
-  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
+const CARD_GRADIENTS = [
+  "linear-gradient(135deg, #e0dcd4 0%, #c8d8e8 100%)",
+  "linear-gradient(135deg, #ddd0e8 0%, #f4ddd0 100%)",
+  "linear-gradient(135deg, #cce4df 0%, #d4daf0 100%)",
+  "linear-gradient(135deg, #f0e0cc 0%, #e4d0e0 100%)",
+];
 
+const styles = `
   .reg-root {
     box-sizing: border-box;
-    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    background: #F5F6FA;
+    font-family: inherit;
+    background: #fff;
     min-height: 100vh;
+    color: #1a1a1a;
   }
   .reg-root *, .reg-root *::before, .reg-root *::after { box-sizing: border-box; font-family: inherit; }
-  .reg-container { max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; }
-
-  .reg-card {
-    background: #fff; border: 1px solid #EBEBEB; border-radius: 16px;
-    padding: 24px; margin-bottom: 12px;
-  }
-  .reg-card-scroll { display: flex; flex-direction: column; }
-
-  .reg-card-title {
-    font-size: 15px; font-weight: 700; color: #111827;
-    margin: 0; display: flex; align-items: center; gap: 9px;
-  }
-  .reg-card-title-icon {
-    width: 28px; height: 28px; border-radius: 8px;
-    background: #EEF2FF; display: flex; align-items: center; justify-content: center; color: #1B50D9;
+  .reg-container {
+    width: min(1400px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 36px 0 80px;
   }
 
-  .reg-card-head {
+  .reg-toolbar {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 12px;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #F3F4F6;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    background: #fff;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 16px;
+    flex-wrap: wrap;
   }
-  .reg-status-filters { display: flex; gap: 6px; }
+  .reg-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .reg-toolbar-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    background: #fff;
+    border-radius: 999px;
+    height: 42px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .reg-status-filters { display: flex; gap: 0; }
   .reg-status-btn {
-    height: 30px; padding: 0 12px; border-radius: 999px;
-    border: 1.5px solid #E5E7EB; background: #fff;
-    font-size: 12px; font-weight: 700; color: #6B7280; cursor: pointer;
+    height: 42px; padding: 0 20px; border-radius: 999px;
+    border: none; background: transparent;
+    font-size: 13px; font-weight: 600; color: #9ca3af; cursor: pointer;
+    transition: all 0.15s; font-family: inherit;
   }
-  .reg-status-btn.active { border-color: #1B50D9; color: #1B50D9; background: #EEF2FF; }
-  .reg-search-input {
-    height: 32px;
-    min-width: 220px;
-    padding: 0 12px;
-    border-radius: 10px;
-    border: 1.5px solid #E5E7EB;
-    background: #fff;
-    color: #111827;
-    font-size: 12.5px;
-    outline: none;
-  }
-  .reg-search-input:focus {
-    border-color: #1B50D9;
-    box-shadow: 0 0 0 3px rgba(27,80,217,0.1);
-  }
+  .reg-status-btn.active { background: #1f2937; color: #fff; }
+  .reg-status-btn:not(.active):hover { color: #6b7280; }
 
-  .reg-event-scroll {
-    overflow-y: auto;
-    padding-right: 4px;
-    max-height: 760px;
+  .reg-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
   }
-  .reg-event-list { display: flex; flex-direction: column; gap: 10px; }
-  .reg-event-item {
-    border: 1.5px solid #EBEBEB; border-radius: 12px; padding: 16px;
-    cursor: pointer; transition: all 0.15s;
-    display: flex; align-items: center; gap: 14px;
-  }
-  .reg-event-item.selected { border-color: #1B50D9; background: #F5F8FF; }
-  .reg-event-item:hover:not(.selected) { border-color: #C7D2FA; }
-
-  .reg-event-radio {
-    width: 20px; height: 20px; border-radius: 50%; border: 2px solid #D1D5DB;
-    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-  }
-  .reg-event-item.selected .reg-event-radio { border-color: #1B50D9; }
-  .reg-event-radio-dot { width: 10px; height: 10px; border-radius: 50%; background: #1B50D9; opacity: 0; }
-  .reg-event-item.selected .reg-event-radio-dot { opacity: 1; }
-
-  .reg-event-info { flex: 1; min-width: 0; }
-  .reg-event-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
-  .reg-event-name { font-size: 14px; font-weight: 700; color: #111827; }
-  .reg-event-meta { font-size: 12.5px; color: #6B7280; margin-top: 4px; display: flex; align-items: center; gap: 5px; }
-
-  .reg-event-badge {
-    padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700;
+  .reg-search-wrap::before {
+    content: '';
+    width: 1px;
+    height: 20px;
+    background: #e5e7eb;
+    margin-right: 0;
     flex-shrink: 0;
   }
-  .reg-event-badge.ONGOING { background: #DCFCE7; color: #166534; }
-  .reg-event-badge.PLANNED { background: #DBEAFE; color: #1D4ED8; }
-
-  .reg-event-price {
-    margin-left: auto;
-    margin-right: 10px;
-    font-size: 13px;
-    font-weight: 800;
+  .reg-search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    pointer-events: none;
+  }
+  .reg-search-input {
+    height: 42px;
+    width: 260px;
+    padding: 0 14px 0 38px;
+    border-radius: 0 999px 999px 0;
+    border: none;
+    background: transparent;
     color: #111827;
-    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 500;
+    outline: none;
+  }
+  .reg-search-input::placeholder { color: #9ca3af; font-size: 13px; font-weight: 500; }
+
+  .reg-total {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
   }
 
-  .reg-event-action { margin-left: auto; flex-shrink: 0; }
-
-  .reg-btn {
-    padding: 11px 24px; border-radius: 10px; font-size: 14px; font-weight: 700;
-    cursor: pointer; border: none; transition: all 0.15s;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .reg-btn-primary { background: #1B50D9; color: #fff; }
-  .reg-btn-primary:hover { background: #1640B8; }
-  .reg-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-  .reg-btn-outline { border: 1.5px solid #D1D5DB; background: #fff; color: #374151; }
-  .reg-btn-outline:hover { border-color: #9CA3AF; }
-  .reg-btn-history {
-    background: #FFFFFF;
-    border: 1.5px solid #D1D5DB;
-    color: #6B7280;
+  .reg-event-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
   }
 
-  .reg-msg { font-size: 13px; margin-top: 12px; }
-  .reg-msg.error { color: #B91C1C; }
+  .reg-card {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow 0.3s, transform 0.3s;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .reg-card:hover {
+    box-shadow: 0 8px 28px rgba(0,0,0,0.12);
+    transform: translateY(-4px);
+  }
+
+  .reg-card-art {
+    height: 220px;
+    position: relative;
+    overflow: hidden;
+  }
+  .reg-card-bookmark {
+    position: absolute;
+    top: 0;
+    right: 20px;
+    width: 32px;
+    height: 40px;
+    background: #f5ba42;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%);
+    z-index: 2;
+  }
+
+  .reg-card-body {
+    padding: 24px 24px 22px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+  .reg-card-name {
+    font-size: 17px;
+    font-weight: 800;
+    color: #222;
+    line-height: 1.4;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .reg-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #999;
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+  .reg-card-meta-dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #ccc;
+    flex-shrink: 0;
+  }
+  .reg-card-divider {
+    height: 1px;
+    background: #f0f0f0;
+    margin-bottom: 14px;
+  }
+  .reg-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+  }
+  .reg-card-price {
+    font-size: 13px;
+    font-weight: 600;
+    color: #999;
+  }
+  .reg-card-price.free { color: #059669; }
+  .reg-card-apply {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 10px;
+    background: #3b82f6;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, transform 0.1s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .reg-card-apply:hover { background: #2563eb; }
+  .reg-card-apply:active { background: #1d4ed8; transform: scale(0.97); }
+  .reg-card-apply:disabled { opacity: 0.35; cursor: not-allowed; }
+  .reg-card-apply.secondary {
+    background: #f3f4f6;
+    color: #666;
+  }
+  .reg-card-apply.secondary:hover { background: #e5e7eb; }
+
+  .reg-msg {
+    text-align: center;
+    padding: 48px 20px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 500;
+    grid-column: 1 / -1;
+  }
+  .reg-msg.error {
+    background: #fef2f2;
+    color: #dc2626;
+  }
   .reg-msg.ok { color: #166534; }
 
   .reg-empty {
-    text-align: center; padding: 40px 20px; border: 1px dashed #D1D5DB;
-    border-radius: 12px; color: #6B7280; font-size: 14px;
+    text-align: center;
+    padding: 80px 20px;
+    color: #bbb;
+    font-size: 14px;
+    grid-column: 1 / -1;
   }
 
-  @media (max-width: 720px) {
-    .reg-container { padding: 20px 16px 64px; }
-    .reg-event-scroll { max-height: 520px; }
-    .reg-search-input { min-width: 150px; }
+  @media (max-width: 1100px) {
+    .reg-event-list { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .reg-event-list { grid-template-columns: 1fr; }
   }
 `;
 
@@ -326,111 +420,101 @@ export default function Apply() {
 
       <PageHeader
         title="행사 참가 신청"
+        icon={<TicketCheck size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />}
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
       />
 
       <main className="reg-container">
-        <section className="reg-card reg-card-scroll">
-          <div className="reg-card-head">
-            <h3 className="reg-card-title">
-              <span className="reg-card-title-icon">
-                <ClipboardList size={14} />
-              </span>
-              행사 선택
-            </h3>
+        <div className="reg-toolbar">
+          <div className="reg-toolbar-left">
+            <span className="reg-total">총 {filteredEvents.length}건</span>
+          </div>
+          <div className="reg-toolbar-right">
             <div className="reg-status-filters">
               <button
                 type="button"
                 className={`reg-status-btn${statusFilter === "ONGOING" ? " active" : ""}`}
                 onClick={() => setStatusFilter("ONGOING")}
               >
-                ONGOING
+                진행 중
               </button>
               <button
                 type="button"
                 className={`reg-status-btn${statusFilter === "PLANNED" ? " active" : ""}`}
                 onClick={() => setStatusFilter("PLANNED")}
               >
-                PLANNED
+                예정
               </button>
             </div>
-            <input
-              className="reg-search-input"
-              type="text"
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              placeholder="행사명/장소 검색"
-            />
+            <div className="reg-search-wrap">
+              <Search size={16} className="reg-search-icon" />
+              <input
+                className="reg-search-input"
+                type="text"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="행사명 또는 장소 검색"
+              />
+            </div>
           </div>
+        </div>
 
-          <div className="reg-event-scroll">
-            {loading ? (
-              <div className="reg-empty">행사 목록을 불러오는 중...</div>
-            ) : filteredEvents.length === 0 ? (
-              <div className="reg-empty">선택한 상태의 신청 가능 행사가 없습니다.</div>
-            ) : (
-              <div className="reg-event-list">
-                {filteredEvents.map((ev) => {
-                  const selected = Number(ev.eventId) === Number(selectedEventId);
-                  const registrationStatus = String(registrationStatusByEvent[ev.eventId] || "").toUpperCase();
-                  const isApproved = registrationStatus === "APPROVED" || registrationStatus === "승인완료";
-                  return (
-                    <div
-                      key={ev.eventId}
-                      className={`reg-event-item${selected ? " selected" : ""}`}
-                      onClick={() => setSelectedEventId(ev.eventId)}
-                    >
-                      <div className="reg-event-radio">
-                        <div className="reg-event-radio-dot" />
-                      </div>
-                      <div className="reg-event-info">
-                        <div className="reg-event-title-row">
-                          <div className={`reg-event-badge ${ev.status || ""}`}>{ev.status || "-"}</div>
-                          <div className="reg-event-name">{ev.eventName}</div>
-                        </div>
-                        <div className="reg-event-meta">
-                          <CalendarDays size={13} /> {formatDate(ev.startAt)} ~ {formatDate(ev.endAt)}
-                        </div>
-                        <div className="reg-event-meta">
-                          <MapPin size={13} /> {ev.location || "장소 미정"}
-                        </div>
-                      </div>
-                      <div className="reg-event-price">{formatPrice(ev.baseFee)}</div>
+        {loading ? (
+          <PageLoading />
+        ) : filteredEvents.length === 0 ? (
+          <div className="reg-empty" style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>신청 가능한 행사가 없습니다.</div>
+        ) : (
+          <div className="reg-event-list">
+            {filteredEvents.map((ev, idx) => {
+              const selected = Number(ev.eventId) === Number(selectedEventId);
+              const registrationStatus = String(registrationStatusByEvent[ev.eventId] || "").toUpperCase();
+              const isApproved = registrationStatus === "APPROVED" || registrationStatus === "승인완료";
+              const priceText = formatPrice(ev.baseFee);
+              const isFree = priceText === "무료";
+              const pal = CARD_GRADIENTS[idx % CARD_GRADIENTS.length];
+              const statusLabel = ev.status === "ONGOING" ? "진행 중" : ev.status === "PLANNED" ? "예정" : ev.status || "-";
+              return (
+                <div
+                  key={ev.eventId}
+                  className={`reg-card${selected ? " selected" : ""}`}
+                  onClick={() => setSelectedEventId(ev.eventId)}
+                >
+                  <div className="reg-card-art" style={{ background: pal }}>
+                    <div className="reg-card-bookmark" />
+                  </div>
+                  <div className="reg-card-body">
+                    <div className="reg-card-name">{ev.eventName}</div>
+                    <div className="reg-card-meta">
+                      <span>{statusLabel}</span>
+                      <span className="reg-card-meta-dot" />
+                      <span>{formatDate(ev.startAt)} ~ {formatDate(ev.endAt)}</span>
+                    </div>
+                    <div className="reg-card-divider" />
+                    <div className="reg-card-bottom">
+                      <span className={`reg-card-price${isFree ? " free" : ""}`}>{ev.location || priceText}</span>
                       {isApproved ? (
                         <button
-                          className="reg-btn reg-btn-history reg-event-action"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate("/registration/applyhistory");
-                          }}
+                          className="reg-card-apply secondary"
+                          onClick={(e) => { e.stopPropagation(); navigate("/registration/applyhistory"); }}
                           type="button"
-                        >
-                          신청내역조회
-                        </button>
+                        ><ClipboardList size={14} />신청내역</button>
                       ) : (
                         <button
-                          className="reg-btn reg-btn-primary reg-event-action"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleApply(ev.eventId);
-                          }}
+                          className="reg-card-apply"
+                          onClick={(e) => { e.stopPropagation(); handleApply(ev.eventId); }}
                           disabled={submitting}
                           type="button"
-                        >
-                          {submitting ? "신청 중..." : "참가 신청"}
-                          <ChevronRight size={14} />
-                        </button>
+                        >{submitting ? "신청 중..." : <><TicketCheck size={14} />참가 신청</>}</button>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </section>
+        )}
 
-        {error ? <div className="reg-msg error">{error}</div> : null}
         {success ? <div className="reg-msg ok">{success}</div> : null}
       </main>
     </div>

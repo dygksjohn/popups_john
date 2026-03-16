@@ -393,7 +393,6 @@ function VoteContent({ eventId, onNavigate }) {
         if (!cancelled) {
           setErrorMsg(
             error?.response?.data?.message ||
-              error?.message ||
               "투표 데이터를 불러오지 못했습니다.",
           );
         }
