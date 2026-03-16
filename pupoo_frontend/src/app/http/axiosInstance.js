@@ -9,7 +9,9 @@ export function createAxiosInstance() {
   const baseURL = getConfiguredBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
   const instance = axios.create({
-    baseURL: baseURL || undefined,
+    // Keep axios baseURL unset and build the final URL explicitly in the
+    // request interceptor. This prevents duplicate prefixes like /api/api/*.
+    baseURL: undefined,
     timeout: 30000,
     headers: { "Content-Type": "application/json" },
     withCredentials: true,

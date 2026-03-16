@@ -21,7 +21,6 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { aiApi } from "../../../app/http/aiApi";
-import { getToken } from "../../../api/noticeApi";
 import {
   formatKoreanTime,
   normalizePrediction,
@@ -144,6 +143,7 @@ const styles = `
   }
   .rt-hero-main {
     min-width: 0;
+    flex: 1 1 auto;
   }
   .rt-hero-title {
     margin: 0;
@@ -165,19 +165,6 @@ const styles = `
     align-items: center;
     gap: 5px;
   }
-  .rt-status-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    background: rgba(255, 255, 255, 0.18);
-    color: #fff;
-    white-space: nowrap;
-  }
   .rt-hero-summary {
     margin-top: 12px;
     font-size: 14px;
@@ -191,6 +178,53 @@ const styles = `
     color: rgba(255, 255, 255, 0.88);
     font-weight: 600;
     line-height: 1.35;
+  }
+  .rt-hero-kpi-grid {
+    margin-top: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    width: min(640px, 100%);
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .rt-hero-kpi {
+    border: 1px solid rgba(191, 219, 254, 0.45);
+    border-radius: 12px;
+    background: rgba(147, 197, 253, 0.2);
+    backdrop-filter: blur(1px);
+    padding: 10px 12px;
+  }
+  .rt-hero-kpi-label {
+    font-size: 11px;
+    color: rgba(239, 246, 255, 0.92);
+    font-weight: 700;
+  }
+  .rt-hero-kpi-value {
+    margin-top: 6px;
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: -0.02em;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+  .rt-hero-kpi-value.text {
+    font-size: 24px;
+  }
+  .rt-hero-kpi-unit {
+    font-size: 13px;
+    color: rgba(239, 246, 255, 0.95);
+    font-weight: 700;
+  }
+  .rt-hero-kpi-sub {
+    margin-top: 6px;
+    font-size: 11px;
+    color: rgba(239, 246, 255, 0.88);
+    line-height: 1.35;
+    font-weight: 600;
   }
 
   .rt-user-stat-grid {
@@ -277,6 +311,10 @@ const styles = `
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+  .rt-prediction-meta-strip--header {
+    justify-content: flex-end;
+    gap: 6px;
   }
   .rt-prediction-meta-pill {
     display: inline-flex;
@@ -424,21 +462,55 @@ const styles = `
     display: flex;
     gap: 10px;
     align-items: center;
+    flex-wrap: wrap;
+  }
+  .rt-heat-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
   .rt-heat-legend-text {
     font-size: 11px;
     color: #9ca3af;
   }
   .rt-heat-legend-swatch {
-    width: 16px;
-    height: 10px;
-    border-radius: 2px;
+    width: 22px;
+    height: 0;
+    border-top: 2px solid #93c5fd;
+    border-radius: 999px;
+  }
+  .rt-heat-legend-swatch.actual {
+    border-top-color: #2563eb;
+    border-top-width: 2.2px;
+    opacity: 0.95;
+  }
+  .rt-heat-legend-swatch.predicted {
+    border-top-color: #2563eb;
+    border-top-width: 2.2px;
+    border-top-style: dashed;
+    opacity: 0.95;
   }
 
   .rt-program-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+  }
+  .rt-program-grid-top3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .rt-program-grid-top3 .rt-program-card {
+    padding: 12px;
+  }
+  .rt-program-grid-top3 .rt-program-name {
+    font-size: 14px;
+  }
+  .rt-program-grid-top3 .rt-program-metric {
+    padding: 6px 7px;
+  }
+  .rt-program-grid-top3 .rt-program-metric-value {
+    font-size: 14px;
   }
   .rt-program-card {
     border: 1px solid #dfe8f5;
@@ -583,16 +655,142 @@ const styles = `
   .rt-timeline-time { font-size: 11.5px; color: #9ca3af; min-width: 44px; padding-top: 1px; }
   .rt-timeline-text { font-size: 13px; color: #374151; line-height: 1.5; }
 
-  .rt-hour-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; }
-  .rt-hour-cell {
-    aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center;
-    justify-content: center; font-size: 9px; font-weight: 700;
-    cursor: default;
+  .rt-hourly-chart {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    align-items: stretch;
   }
-  .rt-hour-cell-label {
+  .rt-hourly-y-axis {
+    position: relative;
+    height: 184px;
+    color: #6b7280;
     font-size: 9px;
-    color: #9ca3af;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .rt-hourly-y-label {
+    position: absolute;
+    right: 0;
+    transform: translateY(-50%);
+    text-align: right;
+  }
+  .rt-hourly-plot-wrap {
+    min-width: 0;
+  }
+  .rt-hourly-svg-wrap {
+    position: relative;
+    height: 184px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #f8fafc;
+    overflow: hidden;
+  }
+  .rt-hourly-now-label {
+    position: absolute;
+    bottom: 4px;
+    transform: translateX(-50%);
+    color: #1d4ed8;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 2;
+  }
+  .rt-hourly-now-label.edge-start {
+    left: 0 !important;
+    transform: none;
+  }
+  .rt-hourly-now-label.edge-end {
+    transform: translateX(-100%);
+  }
+  .rt-hourly-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .rt-hourly-zone.relaxed {
+    fill: rgba(22, 163, 74, 0.022);
+  }
+  .rt-hourly-zone.moderate {
+    fill: rgba(250, 204, 21, 0.02);
+  }
+  .rt-hourly-zone.busy {
+    fill: rgba(249, 115, 22, 0.022);
+  }
+  .rt-hourly-grid-line {
+    stroke: #cbd5e1;
+    stroke-width: 0.4;
+    opacity: 0.36;
+  }
+  .rt-hourly-grid-line.dashed {
+    stroke-dasharray: 2 2;
+    opacity: 0.28;
+  }
+  .rt-hourly-area.past {
+    fill: #9ca3af;
+    opacity: 0.045;
+  }
+  .rt-hourly-area.future {
+    fill: #93c5fd;
+    opacity: 0.02;
+  }
+  .rt-hourly-line {
+    stroke-width: 2.2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .rt-hourly-line.actual {
+    stroke: #2563eb;
+    opacity: 0.98;
+  }
+  .rt-hourly-line.predicted {
+    stroke: #2563eb;
+    stroke-dasharray: 3.8 2.8;
+    opacity: 0.98;
+  }
+  .rt-hourly-current-line {
+    stroke: #1d4ed8;
+    stroke-width: 0.72;
+    stroke-dasharray: 2.5 2.5;
+    opacity: 0.44;
+    vector-effect: non-scaling-stroke;
+  }
+  .rt-hourly-x-axis {
+    margin-top: 9px;
+    position: relative;
+    height: 20px;
+  }
+  .rt-hourly-x-label {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
     text-align: center;
+    font-size: 10px;
+    line-height: 1.1;
+    color: #94a3b8;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .rt-hourly-x-label.edge-start {
+    left: 0 !important;
+    transform: none;
+    text-align: left;
+  }
+  .rt-hourly-x-label.edge-end {
+    transform: translateX(-100%);
+    text-align: right;
+  }
+  .rt-calendar-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 700;
   }
 
   .rt-empty {
@@ -628,6 +826,12 @@ const styles = `
       flex-direction: column;
       align-items: flex-start;
     }
+    .rt-hero-kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+      margin-left: 0;
+      margin-top: 14px;
+    }
     .rt-user-stat-grid {
       grid-template-columns: 1fr 1fr;
     }
@@ -646,6 +850,18 @@ const styles = `
   @media (max-width: 640px) {
     .rt-container { padding: 20px 16px 48px; }
     .rt-container.selector-mode { padding-top: 88px; }
+    .rt-hero-kpi-grid {
+      grid-template-columns: 1fr;
+      width: 100%;
+      margin-left: 0;
+      margin-top: 14px;
+    }
+    .rt-hero-kpi-value {
+      font-size: 25px;
+    }
+    .rt-hero-kpi-value.text {
+      font-size: 22px;
+    }
     .rt-user-stat-grid {
       grid-template-columns: 1fr;
     }
@@ -681,6 +897,7 @@ export const SUBTITLE_MAP = {
 };
 
 const FALLBACK_HOURS = Array.from({ length: 12 }, (_, index) => 10 + index);
+const FULL_DAY_HOURS = Array.from({ length: 24 }, (_, index) => index);
 const AI_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const STATUS_BADGE = {
@@ -688,11 +905,6 @@ const STATUS_BADGE = {
   PLANNED: { className: "planned", label: "예정", showDot: false },
   ENDED: { className: "ended", label: "종료", showDot: false },
   CANCELLED: { className: "cancelled", label: "취소", showDot: false },
-};
-
-const authHeaders = () => {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 const unwrapData = (response, fallback) => response?.data?.data ?? response?.data ?? fallback;
@@ -842,7 +1054,15 @@ const buildHourRange = (startAt, endAt) => {
   const sameDay = startDate.toDateString() === endDate.toDateString();
   const startHour = startDate.getHours();
   const endHour = sameDay ? endDate.getHours() : 23;
-  if (endHour < startHour) return [normalizeHour(startHour)];
+  if (endHour < startHour) {
+    const forward = Array.from({ length: 24 - startHour }, (_, index) =>
+      normalizeHour(startHour + index),
+    );
+    const wrapped = Array.from({ length: endHour + 1 }, (_, index) =>
+      normalizeHour(index),
+    );
+    return uniqueNormalizedHours([...forward, ...wrapped]);
+  }
 
   return Array.from({ length: endHour - startHour + 1 }, (_, index) =>
     normalizeHour(startHour + index),
@@ -853,6 +1073,20 @@ const uniqueNormalizedHours = (hours) =>
   Array.from(new Set(hours.map((hour) => normalizeHour(hour)).filter(Number.isFinite))).sort(
     (a, b) => a - b,
   );
+
+const buildAroundHourAxis = (centerHour, radius = 6) =>
+  uniqueNormalizedHours(
+    Array.from({ length: radius * 2 + 1 }, (_, index) =>
+      normalizeHour(centerHour - radius + index),
+    ),
+  );
+
+const ensureDenseHourAxis = (baseHours, { isToday = false, minPoints = 8 } = {}) => {
+  const normalized = uniqueNormalizedHours(Array.isArray(baseHours) ? baseHours : []);
+  if (normalized.length >= minPoints) return normalized;
+  if (isToday) return buildAroundHourAxis(new Date().getHours(), 6);
+  return [...FULL_DAY_HOURS];
+};
 
 const buildHourAxis = ({ hourlyRows, timeline, startAt, endAt, preferRange = false }) => {
   if (preferRange) {
@@ -1050,15 +1284,12 @@ const resolveCongestionMeta = (value) => {
 
 const estimateWaitMinutes = (value) => {
   const pct = safePercent(value);
-  if (pct >= 90) return 45;
-  if (pct >= 80) return 35;
-  if (pct >= 70) return 28;
-  if (pct >= 60) return 22;
-  if (pct >= 45) return 15;
-  if (pct >= 30) return 10;
-  if (pct >= 15) return 6;
-  if (pct > 0) return 3;
-  return 0;
+  if (pct < 25) return 0;
+  if (pct < 40) return Math.max(1, Math.round((pct - 25) * 0.2 + 1));
+  if (pct < 55) return Math.round(4 + (pct - 40) * 0.33);
+  if (pct < 70) return Math.round(9 + (pct - 55) * 0.47);
+  if (pct < 85) return Math.round(16 + (pct - 70) * 0.67);
+  return Math.min(60, Math.round(26 + (pct - 85) * 0.95));
 };
 
 const deriveCongestionPercentFromWait = (waitCount, waitMin) => {
@@ -1112,64 +1343,284 @@ const formatProgramTimeRange = (startAt, endAt) => {
 async function fetchAdminData(url, params, fallback) {
   try {
     const response = await axiosInstance.get(url, {
-      headers: authHeaders(),
       params,
     });
-    return unwrapData(response, fallback);
+    return {
+      data: unwrapData(response, fallback),
+      hasError: false,
+    };
   } catch {
-    return fallback;
+    return {
+      data: fallback,
+      hasError: true,
+    };
   }
 }
 
-function AnimatedHeatCell({ item, index }) {
-  const [visible, setVisible] = useState(false);
+function HourlyTrendChart({ points, activeDateKey, isTodayForecast }) {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const todayKey = toDateKey(now);
+  const isTodayDate = Boolean(isTodayForecast || activeDateKey === todayKey);
+  const safePoints = Array.isArray(points) ? points : [];
+  const yTicks = [100, 75, 50, 25, 0];
+  const chartTopPadding = 12;
+  const chartBottomPadding = 10;
+  const chartInnerHeight = 100 - chartTopPadding - chartBottomPadding;
+  const chartBottomY = chartTopPadding + chartInnerHeight;
+  const toY = (value) =>
+    chartTopPadding + ((100 - clamp(Number(value) || 0, 0, 100)) / 100) * chartInnerHeight;
 
-  useEffect(() => {
-    const timer = setTimeout(() => setVisible(true), index * 60 + 200);
-    return () => clearTimeout(timer);
-  }, [index]);
+  if (safePoints.length === 0) {
+    return (
+      <div className="rt-prediction-empty">
+        시간대 혼잡도 데이터가 준비되면 그래프로 보여드릴게요.
+      </div>
+    );
+  }
+
+  const chartPoints = safePoints.map((point, index) => {
+    const x = safePoints.length <= 1 ? 50 : (index / (safePoints.length - 1)) * 100;
+    const hour = Number(point?.h);
+    const parseSeriesValue = (raw) => {
+      if (raw == null || raw === "") return null;
+      const numeric = Number(raw);
+      return Number.isFinite(numeric) ? clamp(Math.round(numeric), 0, 100) : null;
+    };
+    const actual = parseSeriesValue(point?.actual);
+    const predicted = parseSeriesValue(point?.predicted);
+    const fallbackValue = parseSeriesValue(point?.v);
+    const value = fallbackValue ?? actual ?? predicted ?? 0;
+    const isCurrent = isTodayDate && Number.isFinite(hour) && hour === currentHour;
+    return {
+      ...point,
+      x,
+      hour,
+      value,
+      actual,
+      predicted,
+      isCurrent,
+    };
+  });
+
+  const toSeriesPoint = (point, value) => ({
+    ...point,
+    value,
+    y: toY(value),
+  });
+
+  const actualSeries = chartPoints
+    .filter((point) => {
+      if (!Number.isFinite(point.actual)) return false;
+      if (!isTodayDate) return true;
+      return Number.isFinite(point.hour) ? point.hour <= currentHour : false;
+    })
+    .map((point) => toSeriesPoint(point, point.actual));
+
+  let predictedSeries = chartPoints
+    .filter((point) => {
+      if (isTodayDate && Number.isFinite(point.hour) && point.hour < currentHour) return false;
+      if (Number.isFinite(point.predicted)) return true;
+      return Boolean(isTodayDate && point.isCurrent && Number.isFinite(point.actual));
+    })
+    .map((point) =>
+      toSeriesPoint(
+        point,
+        Number.isFinite(point.predicted) ? point.predicted : point.actual,
+      ),
+    );
+
+  const latestActualPoint = actualSeries.length > 0 ? actualSeries[actualSeries.length - 1] : null;
+  if (isTodayDate && latestActualPoint && predictedSeries.length > 0) {
+    const firstPredictedPoint = predictedSeries[0];
+    const shouldBridge =
+      Number.isFinite(firstPredictedPoint?.x) &&
+      Number.isFinite(latestActualPoint?.x) &&
+      firstPredictedPoint.x > latestActualPoint.x;
+    if (shouldBridge) {
+      predictedSeries = [latestActualPoint, ...predictedSeries];
+    }
+  }
+
+  const buildAreaPath = (series) => {
+    if (!Array.isArray(series) || series.length < 2) return "";
+    const first = series[0];
+    const last = series[series.length - 1];
+    const pointPath = series.map((point) => `${point.x} ${point.y}`).join(" L ");
+    return `M ${first.x} ${chartBottomY} L ${pointPath} L ${last.x} ${chartBottomY} Z`;
+  };
+
+  const buildSmoothPath = (series) => {
+    if (!Array.isArray(series) || series.length === 0) return "";
+    if (series.length === 1) {
+      const only = series[0];
+      return `M ${only.x} ${only.y}`;
+    }
+    if (series.length === 2) {
+      return `M ${series[0].x} ${series[0].y} L ${series[1].x} ${series[1].y}`;
+    }
+
+    let path = `M ${series[0].x} ${series[0].y}`;
+    for (let index = 0; index < series.length - 1; index += 1) {
+      const p0 = index > 0 ? series[index - 1] : series[index];
+      const p1 = series[index];
+      const p2 = series[index + 1];
+      const p3 = index + 2 < series.length ? series[index + 2] : p2;
+
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
+      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+    }
+    return path;
+  };
+
+  const actualLinePath = buildSmoothPath(actualSeries);
+  const predictedLinePath = buildSmoothPath(predictedSeries);
+  const actualAreaPath = buildAreaPath(actualSeries);
+  const predictedAreaPath = buildAreaPath(predictedSeries);
+  const toHourLabel = (hour) =>
+    Number.isFinite(hour) ? `${String(hour).padStart(2, "0")}:00` : "--:--";
+
+  const currentPoint = chartPoints.find((point) => point.isCurrent) || null;
+  const currentMarkerX = (() => {
+    if (!isTodayDate || chartPoints.length === 0) return null;
+    if (currentPoint) return currentPoint.x;
+
+    const hourPoints = chartPoints
+      .filter((point) => Number.isFinite(point.hour))
+      .sort((left, right) => left.hour - right.hour);
+    if (hourPoints.length === 0) return null;
+
+    const nextPoint = hourPoints.find((point) => point.hour >= currentHour) || null;
+    const prevPoint = [...hourPoints].reverse().find((point) => point.hour <= currentHour) || null;
+
+    if (prevPoint && nextPoint) {
+      if (prevPoint.hour === nextPoint.hour) return prevPoint.x;
+      const ratio = (currentHour - prevPoint.hour) / (nextPoint.hour - prevPoint.hour);
+      return prevPoint.x + (nextPoint.x - prevPoint.x) * ratio;
+    }
+
+    return (prevPoint || nextPoint || null)?.x ?? null;
+  })();
+
+  const bands = [
+    { key: "busy", top: 100, bottom: 70, className: "busy" },
+    { key: "moderate", top: 70, bottom: 40, className: "moderate" },
+    { key: "relaxed", top: 40, bottom: 0, className: "relaxed" },
+  ];
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 5,
-      }}
-    >
-      <div
-        className="rt-hour-cell"
-        style={{
-          background: visible ? getHeatColor(item.pct) : "#f1f3f5",
-          width: "100%",
-          color: visible ? getHeatTextColor(item.pct) : "#9ca3af",
-          transition: "background 0.5s ease, color 0.5s ease, transform 0.5s ease",
-          transform: visible ? "scale(1)" : "scale(0.8)",
-        }}
-        title={`${item.h}:00 / ${item.v}%`}
-      >
-        {visible && item.v > 0 ? item.v : ""}
+    <div className="rt-hourly-chart">
+      <div className="rt-hourly-y-axis">
+        {yTicks.map((tick) => (
+          <span
+            key={`tick-${tick}`}
+            className="rt-hourly-y-label"
+            style={{ top: `${toY(tick)}%` }}
+          >
+            {tick}
+          </span>
+        ))}
       </div>
-      <div className="rt-hour-cell-label">{item.h}:00</div>
+
+      <div className="rt-hourly-plot-wrap">
+        <div className="rt-hourly-svg-wrap">
+          <svg className="rt-hourly-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+            {bands.map((band) => (
+              <rect
+                key={`zone-${band.key}`}
+                className={`rt-hourly-zone ${band.className}`}
+                x="0"
+                y={toY(band.top)}
+                width="100"
+                height={toY(band.bottom) - toY(band.top)}
+              />
+            ))}
+
+            {yTicks.map((tick) => (
+              <line
+                key={`grid-${tick}`}
+                className={`rt-hourly-grid-line${tick === 0 ? "" : " dashed"}`}
+                x1="0"
+                y1={toY(tick)}
+                x2="100"
+                y2={toY(tick)}
+              />
+            ))}
+
+            {actualAreaPath ? <path className="rt-hourly-area past" d={actualAreaPath} /> : null}
+            {predictedAreaPath ? <path className="rt-hourly-area future" d={predictedAreaPath} /> : null}
+
+            {Number.isFinite(currentMarkerX) ? (
+              <line
+                className="rt-hourly-current-line"
+                x1={currentMarkerX}
+                y1={chartTopPadding}
+                x2={currentMarkerX}
+                y2={chartBottomY}
+              />
+            ) : null}
+
+            {actualLinePath ? <path className="rt-hourly-line actual" d={actualLinePath} /> : null}
+            {predictedLinePath ? <path className="rt-hourly-line predicted" d={predictedLinePath} /> : null}
+          </svg>
+          {Number.isFinite(currentMarkerX) ? (
+            <span
+              className={`rt-hourly-now-label ${currentMarkerX <= 2 ? "edge-start" : ""} ${currentMarkerX >= 98 ? "edge-end" : ""}`.trim()}
+              style={{ left: `${currentMarkerX}%` }}
+            >
+              지금
+            </span>
+          ) : null}
+        </div>
+
+        <div className="rt-hourly-x-axis">
+          {chartPoints.map((point, index) => {
+            const hourLabel = Number.isFinite(point.hour)
+              ? `${String(point.hour).padStart(2, "0")}:00`
+              : "--:--";
+            const isFirst = index === 0;
+            const isLast = index === chartPoints.length - 1;
+            return (
+              <div
+                key={`xlabel-${point.h}-${index}`}
+                className={`rt-hourly-x-label ${isFirst ? "edge-start" : ""} ${isLast ? "edge-end" : ""}`.trim()}
+                style={{
+                  left: `${point.x}%`,
+                  color: "#94a3b8",
+                  fontWeight: 600,
+                  fontSize: "10px",
+                }}
+              >
+                {hourLabel}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
 
-function ProgramCrowdCard({ item }) {
+function ProgramCrowdCard({ item, badgeText = "", badgeStyle = null }) {
+  const resolvedBadgeText = badgeText || item.tone.label;
+  const resolvedBadgeStyle = badgeStyle || {
+    color: item.tone.color,
+    background: item.tone.bg,
+    borderColor: item.tone.border,
+  };
+
   return (
     <div className="rt-program-card">
       <div className="rt-program-card-head">
         <h4 className="rt-program-name">{item.name}</h4>
         <span
           className="rt-mini-badge"
-          style={{
-            color: item.tone.color,
-            background: item.tone.bg,
-            borderColor: item.tone.border,
-          }}
+          style={resolvedBadgeStyle}
         >
-          {item.tone.label}
+          {resolvedBadgeText}
         </span>
       </div>
       <div className="rt-program-time">운영 시간: {item.timeLabel}</div>
@@ -1208,10 +1659,15 @@ function DashboardContent({ eventId }) {
   const aiPredictionRef = useRef(null);
   const aiLoadedAtRef = useRef(0);
   const aiRangeKeyRef = useRef("");
+  const loadRequestIdRef = useRef(0);
+  const lastAutoRefreshTickRef = useRef(tick);
   const [selectedForecastDate, setSelectedForecastDate] = useState("");
 
   const loadData = useCallback(async (options = {}) => {
     const { preserveLoading = false, forceAi = false } = options;
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+
     if (!numericEventId || Number.isNaN(numericEventId)) {
       setErrorMsg("잘못된 행사 경로입니다.");
       setEventPrediction(null);
@@ -1226,19 +1682,38 @@ function DashboardContent({ eventId }) {
     if (!preserveLoading) setLoading(true);
 
     try {
-      const [eventResponse, performanceRows, hourlyData, latestCongestions, programs] = await Promise.all([
+      const [eventResponse, performanceResult, hourlyResult, congestionResult, programsResult] = await Promise.all([
         eventApi.getEventDetail(numericEventId),
-        fetchAdminData("/api/admin/analytics/events", { page: 0, size: 200 }, []),
-        fetchAdminData(`/api/admin/analytics/events/${numericEventId}/congestion-by-hour`, {}, []),
-        fetchAdminData(`/api/admin/dashboard/realtime/events/${numericEventId}/congestions`, { limit: 200 }, []),
+        fetchAdminData("/api/analytics/events", { page: 0, size: 200 }, []),
+        fetchAdminData(`/api/analytics/events/${numericEventId}/congestion-by-hour`, {}, []),
+        fetchAdminData(`/api/dashboard/realtime/events/${numericEventId}/congestions`, { limit: 200 }, []),
         programApi.getAllProgramsByEvent({
           eventId: numericEventId,
           sort: "startAt,asc",
           pageSize: 200,
-        }).catch(() => []),
+        })
+          .then((data) => ({
+            data,
+            hasError: false,
+          }))
+          .catch(() => ({
+            data: [],
+            hasError: true,
+          })),
       ]);
 
-      const basePrograms = Array.isArray(programs) ? programs : [];
+      if (requestId !== loadRequestIdRef.current) return;
+
+      const performanceRows = toArray(performanceResult?.data);
+      const hourlyData = toArray(hourlyResult?.data);
+      const latestCongestions = toArray(congestionResult?.data);
+      const basePrograms = Array.isArray(programsResult?.data) ? programsResult.data : [];
+      const hasOperationalLoadError =
+        Boolean(performanceResult?.hasError) ||
+        Boolean(hourlyResult?.hasError) ||
+        Boolean(congestionResult?.hasError) ||
+        Boolean(programsResult?.hasError);
+
       const programDetails = await Promise.allSettled(
         basePrograms.map((program) => programApi.getProgramDetail(program?.programId)),
       );
@@ -1253,6 +1728,8 @@ function DashboardContent({ eventId }) {
           experienceWait: detail?.experienceWait ?? program?.experienceWait ?? null,
         };
       });
+
+      if (requestId !== loadRequestIdRef.current) return;
 
       const detail = unwrapData(eventResponse, null);
       const matchedPerformance = toArray(performanceRows).find(
@@ -1270,10 +1747,18 @@ function DashboardContent({ eventId }) {
           ) || 0,
         checkin: detailStatus === "PLANNED" ? 0 : rawCheckinCount,
       });
-      setHourlyRows(toArray(hourlyData));
-      setCongestionRows(toArray(latestCongestions));
-      setProgramRows(mergedPrograms);
-      setErrorMsg("");
+      setHourlyRows((prev) =>
+        hourlyResult?.hasError && prev.length > 0 ? prev : hourlyData,
+      );
+      setCongestionRows((prev) =>
+        congestionResult?.hasError && prev.length > 0 ? prev : latestCongestions,
+      );
+      setProgramRows((prev) =>
+        programsResult?.hasError && prev.length > 0 ? prev : mergedPrograms,
+      );
+      setErrorMsg(
+        hasOperationalLoadError ? "실시간 운영 데이터를 불러오지 못했습니다." : "",
+      );
       setLastLoadedAt(new Date());
 
       const aiRangeParams = resolveAiRangeParams(detail, selectedForecastDate);
@@ -1292,6 +1777,7 @@ function DashboardContent({ eventId }) {
       if (shouldLoadAi) {
         try {
           const aiResponse = await aiApi.predictEventCongestion(numericEventId, aiRangeParams);
+          if (requestId !== loadRequestIdRef.current) return;
           const aiPayload = normalizePrediction(unwrapData(aiResponse, null));
           aiPredictionRef.current = aiPayload;
           aiLoadedAtRef.current = now;
@@ -1299,18 +1785,21 @@ function DashboardContent({ eventId }) {
           setEventPrediction(aiPayload);
           setAiErrorMsg("");
         } catch (aiError) {
+          if (requestId !== loadRequestIdRef.current) return;
           console.error("[Realtime Dashboard] ai predict failed:", aiError);
           setAiErrorMsg("AI prediction is temporarily unavailable.");
         }
       } else {
+        if (requestId !== loadRequestIdRef.current) return;
         setEventPrediction(aiPredictionRef.current);
         setAiErrorMsg("");
       }
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current) return;
       console.error("[Realtime Dashboard] load failed:", error);
       setErrorMsg("실시간 운영 데이터를 불러오지 못했습니다.");
     } finally {
-      if (!preserveLoading) setLoading(false);
+      if (requestId === loadRequestIdRef.current && !preserveLoading) setLoading(false);
     }
   }, [numericEventId, selectedForecastDate]);
 
@@ -1324,6 +1813,8 @@ function DashboardContent({ eventId }) {
 
   useEffect(() => {
     if (!loading) {
+      if (lastAutoRefreshTickRef.current === tick) return;
+      lastAutoRefreshTickRef.current = tick;
       loadData({ preserveLoading: true });
     }
   }, [tick, loadData, loading]);
@@ -1373,6 +1864,29 @@ function DashboardContent({ eventId }) {
   const isEndedEvent = eventStatus === "ENDED";
   const isOngoingEvent = eventStatus === "ONGOING";
 
+  const resolvedCurrentCongestion = useMemo(() => {
+    const aiAverage = Number(eventPrediction?.avgScore);
+    if (isPlannedEvent) {
+      return safePercent(aiAverage || 0);
+    }
+    if (measuredCongestions.length > 0) {
+      return safePercent(averageCongestion);
+    }
+    if (Number.isFinite(aiAverage) && aiAverage > 0) {
+      return safePercent(aiAverage);
+    }
+    if (hourlyAverageCongestion > 0) {
+      return hourlyAverageCongestion;
+    }
+    return safePercent(aiAverage || 0);
+  }, [
+    averageCongestion,
+    eventPrediction?.avgScore,
+    hourlyAverageCongestion,
+    isPlannedEvent,
+    measuredCongestions.length,
+  ]);
+
   const forecastDateOptions = useMemo(() => {
     const rangeDates = buildDateKeysFromRange(eventDetail?.startAt, eventDetail?.endAt);
     if (rangeDates.length > 0) return rangeDates;
@@ -1389,50 +1903,53 @@ function DashboardContent({ eventId }) {
     return timelineDates;
   }, [eventDetail?.endAt, eventDetail?.startAt, eventPrediction?.timeline]);
 
-  useEffect(() => {
-    if (forecastDateOptions.length === 0) {
-      if (selectedForecastDate) {
-        setSelectedForecastDate("");
-      }
-      return;
-    }
-
+  const activeForecastDateKey = useMemo(() => {
     if (selectedForecastDate && forecastDateOptions.includes(selectedForecastDate)) {
-      return;
+      return selectedForecastDate;
     }
-
-    const todayKey = toDateKey(new Date());
-    if (isOngoingEvent && forecastDateOptions.includes(todayKey)) {
-      setSelectedForecastDate(todayKey);
-      return;
+    if (isOngoingEvent) {
+      const todayKey = toDateKey(new Date());
+      if (forecastDateOptions.includes(todayKey)) return todayKey;
     }
-
-    if (eventStatus === "ENDED") {
-      setSelectedForecastDate(forecastDateOptions[forecastDateOptions.length - 1]);
-      return;
+    if (eventStatus === "ENDED" && forecastDateOptions.length > 0) {
+      return forecastDateOptions[forecastDateOptions.length - 1];
     }
-
-    setSelectedForecastDate(forecastDateOptions[0]);
+    return forecastDateOptions[0] ?? "";
   }, [eventStatus, forecastDateOptions, isOngoingEvent, selectedForecastDate]);
+
+  useEffect(() => {
+    if (!selectedForecastDate) return;
+    if (forecastDateOptions.includes(selectedForecastDate)) return;
+    setSelectedForecastDate("");
+  }, [forecastDateOptions, selectedForecastDate]);
+
+  const isTodayForecast = useMemo(
+    () => Boolean(activeForecastDateKey) && activeForecastDateKey === toDateKey(new Date()),
+    [activeForecastDateKey],
+  );
+  const isPastForecast = useMemo(() => {
+    if (!activeForecastDateKey) return false;
+    return activeForecastDateKey < toDateKey(new Date());
+  }, [activeForecastDateKey]);
+  const isFutureForecast = useMemo(() => {
+    if (!activeForecastDateKey) return false;
+    return activeForecastDateKey > toDateKey(new Date());
+  }, [activeForecastDateKey]);
 
   const chartTimeline = useMemo(() => {
     const baseTimeline = Array.isArray(eventPrediction?.timeline)
       ? eventPrediction.timeline
       : [];
     if (baseTimeline.length === 0) return [];
+
     let timeline = baseTimeline;
-    if (selectedForecastDate) {
+    if (activeForecastDateKey) {
       timeline = baseTimeline.filter(
-        (point) => toDateKey(point?.time) === selectedForecastDate,
+        (point) => toDateKey(point?.time) === activeForecastDateKey,
       );
-    } else if (isOngoingEvent) {
-      const todayKey = toDateKey(new Date());
-      timeline = baseTimeline.filter((point) => toDateKey(point?.time) === todayKey);
     }
 
-    const todayKey = toDateKey(new Date());
-    const activeDateKey = selectedForecastDate || (isOngoingEvent ? todayKey : "");
-    if (isOngoingEvent && activeDateKey === todayKey) {
+    if (isOngoingEvent && isTodayForecast) {
       const minPredictionStart = getMinPredictionStart(5);
       if (minPredictionStart) {
         timeline = timeline.filter((point) => {
@@ -1443,77 +1960,205 @@ function DashboardContent({ eventId }) {
     }
 
     return timeline;
-  }, [eventPrediction?.timeline, isOngoingEvent, selectedForecastDate]);
+  }, [activeForecastDateKey, eventPrediction?.timeline, isOngoingEvent, isTodayForecast]);
 
   const hours = useMemo(() => {
-    const hourlyMap = new Map(
-      toArray(hourlyRows)
-        .map((row) => [
-          normalizeHour(Number(row?.hour ?? row?.h)),
-          congestionLevelToPercent(row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level),
-        ])
-        .filter(([hour]) => Number.isFinite(hour)),
-    );
-
-    const timelineMap = new Map();
+    const predictionMap = new Map();
     if (Array.isArray(chartTimeline)) {
       chartTimeline.forEach((point) => {
         const hour = toHour(point?.time);
         if (!Number.isFinite(hour)) return;
         const normalizedHour = normalizeHour(hour);
         const score = clamp(Math.round(Number(point?.score) || 0), 0, 100);
-        const previous = timelineMap.get(normalizedHour);
+        const previous = predictionMap.get(normalizedHour);
         if (previous == null || score > previous) {
-          timelineMap.set(normalizedHour, score);
+          predictionMap.set(normalizedHour, score);
         }
       });
     }
 
-    const todayKey = toDateKey(new Date());
-    const rangeDateKey =
-      selectedForecastDate ||
-      (isOngoingEvent ? todayKey : forecastDateOptions[0] ?? "");
+    const actualMap = new Map();
+    const measuredHourBuckets = new Map();
+    const pushMeasuredActual = (hour, value) => {
+      if (value == null || value === "") return;
+      const normalizedHour = normalizeHour(hour);
+      const numericValue = Number(value);
+      if (!Number.isFinite(normalizedHour) || !Number.isFinite(numericValue)) return;
+
+      const bucket = measuredHourBuckets.get(normalizedHour) || { sum: 0, count: 0 };
+      bucket.sum += numericValue;
+      bucket.count += 1;
+      measuredHourBuckets.set(normalizedHour, bucket);
+    };
+
+    const measuredRowsForDate = measuredCongestions.filter((row) => {
+      if (!activeForecastDateKey) return true;
+      return toDateKey(row?.measuredAt) === activeForecastDateKey;
+    });
+
+    if (isTodayForecast || isPastForecast) {
+      measuredRowsForDate.forEach((row) => {
+        const hour = toHour(row?.measuredAt);
+        if (!Number.isFinite(hour)) return;
+        pushMeasuredActual(hour, row?.congestionPercent);
+      });
+    }
+
+    measuredHourBuckets.forEach((bucket, hour) => {
+      if (!bucket || bucket.count <= 0) return;
+      actualMap.set(hour, clamp(Math.round(bucket.sum / bucket.count), 0, 100));
+    });
+
+    const nowHour = normalizeHour(new Date().getHours());
+    if (isTodayForecast) {
+      actualMap.set(nowHour, safePercent(resolvedCurrentCongestion));
+    }
+
+    if (isTodayForecast || (isPastForecast && actualMap.size === 0)) {
+      toArray(hourlyRows)
+        .map((row) => [
+          normalizeHour(Number(row?.hour ?? row?.h)),
+          congestionLevelToPercent(row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level),
+        ])
+        .filter(([hour]) => Number.isFinite(hour))
+        .forEach(([hour, value]) => {
+          if (!actualMap.has(hour)) {
+            actualMap.set(hour, clamp(Math.round(Number(value) || 0), 0, 100));
+          }
+        });
+    }
 
     let axisStart = eventDetail?.startAt ?? null;
     let axisEnd = eventDetail?.endAt ?? null;
-    if (isDateKeyInRange(rangeDateKey, eventDetail?.startAt, eventDetail?.endAt)) {
+    if (activeForecastDateKey) {
       const operationRange = buildOperationRangeByDate(
         eventDetail?.startAt,
         eventDetail?.endAt,
-        rangeDateKey,
+        activeForecastDateKey,
       );
-      axisStart = operationRange.startAt;
-      axisEnd = operationRange.endAt;
+      if (operationRange.startAt && operationRange.endAt) {
+        axisStart = operationRange.startAt;
+        axisEnd = operationRange.endAt;
+      }
     }
 
+    const axisHourlyRows = isTodayForecast ? hourlyRows : [];
     const hourAxis = buildHourAxis({
-      hourlyRows,
+      hourlyRows: axisHourlyRows,
       timeline: chartTimeline,
       startAt: axisStart,
       endAt: axisEnd,
       preferRange: Boolean(axisStart && axisEnd),
     });
+    const displayHourAxis = uniqueNormalizedHours(hourAxis);
 
-    return hourAxis.map((hour) => {
+    const baseRows = displayHourAxis.map((hour) => {
       const normalizedHour = normalizeHour(hour);
-      const value = isPlannedEvent
-        ? timelineMap.get(normalizedHour) ?? hourlyMap.get(normalizedHour) ?? 0
-        : hourlyMap.get(normalizedHour) ?? timelineMap.get(normalizedHour) ?? 0;
+      const actualValue = actualMap.get(normalizedHour);
+      const predictedValue = predictionMap.get(normalizedHour);
+      const actual = Number.isFinite(actualValue)
+        ? clamp(Math.round(actualValue), 0, 100)
+        : null;
+      const predictedCandidate = Number.isFinite(predictedValue)
+        ? clamp(Math.round(predictedValue), 0, 100)
+        : null;
+      const predicted = isPastForecast ? null : predictedCandidate;
+      const value = isTodayForecast
+        ? normalizedHour <= nowHour
+          ? actual ?? predicted ?? 0
+          : predicted ?? actual ?? 0
+        : isPastForecast
+          ? actual ?? 0
+          : predicted ?? actual ?? 0;
       return {
         h: String(normalizedHour).padStart(2, "0"),
         v: value,
         pct: value,
+        actual,
+        predicted,
+      };
+    });
+
+    if (isPastForecast) {
+      const hasActualAt = (row) => Number.isFinite(row.actual);
+      let startIndex = 0;
+      let endIndex = baseRows.length - 1;
+      while (startIndex <= endIndex && !hasActualAt(baseRows[startIndex])) {
+        startIndex += 1;
+      }
+      while (endIndex >= startIndex && !hasActualAt(baseRows[endIndex])) {
+        endIndex -= 1;
+      }
+      if (startIndex <= endIndex) {
+        return baseRows.slice(startIndex, endIndex + 1);
+      }
+      return baseRows;
+    }
+
+    if (!isTodayForecast) {
+      return baseRows;
+    }
+
+    const latestActualRow = [...baseRows]
+      .filter((row) => Number.isFinite(row.actual) && Number(row.h) <= nowHour)
+      .sort((left, right) => Number(left.h) - Number(right.h))
+      .pop();
+
+    if (!latestActualRow || !Number.isFinite(latestActualRow.actual)) {
+      return baseRows;
+    }
+
+    const latestActualHour = Number(latestActualRow.h);
+    const anchorPredictionRow =
+      baseRows.find(
+        (row) =>
+          Number(row.h) === latestActualHour && Number.isFinite(row.predicted),
+      ) ||
+      baseRows
+        .filter((row) => Number(row.h) > latestActualHour && Number.isFinite(row.predicted))
+        .sort((left, right) => Number(left.h) - Number(right.h))[0] ||
+      null;
+
+    const predictionOffset =
+      anchorPredictionRow && Number.isFinite(anchorPredictionRow.predicted)
+        ? latestActualRow.actual - anchorPredictionRow.predicted
+        : 0;
+
+    return baseRows.map((row) => {
+      const rowHour = Number(row.h);
+      const calibratedPredicted = Number.isFinite(row.predicted)
+        ? clamp(
+            Math.round(
+              rowHour >= latestActualHour ? row.predicted + predictionOffset : row.predicted,
+            ),
+            0,
+            100,
+          )
+        : null;
+      const bridgedPredicted =
+        rowHour === latestActualHour && Number.isFinite(latestActualRow.actual)
+          ? latestActualRow.actual
+          : calibratedPredicted;
+      const value = rowHour <= nowHour
+        ? row.actual ?? bridgedPredicted ?? 0
+        : bridgedPredicted ?? row.actual ?? 0;
+      return {
+        ...row,
+        v: value,
+        pct: value,
+        predicted: bridgedPredicted,
       };
     });
   }, [
+    activeForecastDateKey,
     chartTimeline,
     eventDetail?.endAt,
     eventDetail?.startAt,
-    forecastDateOptions,
     hourlyRows,
-    isOngoingEvent,
-    isPlannedEvent,
-    selectedForecastDate,
+    isPastForecast,
+    isTodayForecast,
+    measuredCongestions,
+    resolvedCurrentCongestion,
   ]);
 
   const handleForecastDateChange = useCallback(
@@ -1616,58 +2261,50 @@ function DashboardContent({ eventId }) {
     [operatingProgramRows],
   );
 
-  const lessCrowdedPrograms = useMemo(
+  const popularTopPrograms = useMemo(
     () =>
       [...queueProgramRows]
         .sort(
           (left, right) =>
-            left.waitCount - right.waitCount ||
-            left.waitMin - right.waitMin ||
-            left.congestionPercent - right.congestionPercent ||
+            right.congestionPercent - left.congestionPercent ||
+            right.waitMin - left.waitMin ||
+            right.waitCount - left.waitCount ||
             String(left.name).localeCompare(String(right.name), "ko-KR"),
         )
-        .slice(0, 8),
+        .slice(0, 3),
     [queueProgramRows],
   );
 
-  const popularPrograms = useMemo(
-    () =>
-      [...queueProgramRows]
-        .sort(
-          (left, right) =>
-            right.waitCount - left.waitCount ||
-            right.congestionPercent - left.congestionPercent ||
-            right.waitMin - left.waitMin ||
-            String(left.name).localeCompare(String(right.name), "ko-KR"),
-        )
-        .slice(0, 8),
-    [queueProgramRows],
+  const popularTopProgramIds = useMemo(
+    () => new Set(popularTopPrograms.map((program) => program.programId)),
+    [popularTopPrograms],
   );
+
+  const readyPrograms = useMemo(() => {
+    const candidates = queueProgramRows
+      .filter((program) => !popularTopProgramIds.has(program.programId))
+      .sort(
+        (left, right) =>
+          left.waitMin - right.waitMin ||
+          left.waitCount - right.waitCount ||
+          left.congestionPercent - right.congestionPercent ||
+          String(left.name).localeCompare(String(right.name), "ko-KR"),
+      );
+
+    const shortWaitCandidates = candidates.filter(
+      (program) => program.waitMin <= 15 || program.waitCount <= 2,
+    );
+
+    if (shortWaitCandidates.length > 0) {
+      return shortWaitCandidates.slice(0, 8);
+    }
+
+    return candidates.slice(0, 8);
+  }, [popularTopProgramIds, queueProgramRows]);
 
   const currentVisitors = isPlannedEvent ? 0 : performance.checkin;
 
-  const currentCongestion = useMemo(() => {
-    const aiAverage = Number(eventPrediction?.avgScore);
-    if (isPlannedEvent) {
-      return safePercent(aiAverage || 0);
-    }
-    if (measuredCongestions.length > 0) {
-      return safePercent(averageCongestion);
-    }
-    if (Number.isFinite(aiAverage) && aiAverage > 0) {
-      return safePercent(aiAverage);
-    }
-    if (hourlyAverageCongestion > 0) {
-      return hourlyAverageCongestion;
-    }
-    return safePercent(aiAverage || 0);
-  }, [
-    averageCongestion,
-    eventPrediction?.avgScore,
-    hourlyAverageCongestion,
-    isPlannedEvent,
-    measuredCongestions.length,
-  ]);
+  const currentCongestion = resolvedCurrentCongestion;
 
   const currentTone = useMemo(
     () => resolveCongestionMeta(currentCongestion),
@@ -1675,12 +2312,20 @@ function DashboardContent({ eventId }) {
   );
 
   const expectedWaitMinutes = useMemo(() => {
+    const currentBasedWait = estimateWaitMinutes(currentCongestion);
+    if (isTodayForecast && !isPlannedEvent) {
+      return currentBasedWait;
+    }
     const predictedWait = Number(eventPrediction?.waitMinutes);
     if (Number.isFinite(predictedWait) && predictedWait >= 0) {
       return Math.round(predictedWait);
     }
-    return estimateWaitMinutes(currentCongestion);
-  }, [currentCongestion, eventPrediction?.waitMinutes]);
+    return currentBasedWait;
+  }, [currentCongestion, eventPrediction?.waitMinutes, isPlannedEvent, isTodayForecast]);
+
+  const waitKpiLabel = isTodayForecast && !isPlannedEvent
+    ? "현재 예상 대기시간"
+    : "예상 대기시간";
 
   const congestionSummaryText = useMemo(
     () => getCongestionSummaryText(currentCongestion),
@@ -1695,28 +2340,103 @@ function DashboardContent({ eventId }) {
     [currentVisitors, isPlannedEvent],
   );
 
-  const userStats = useMemo(
+  const heroStats = useMemo(
     () => [
       {
         label: "현재 혼잡도",
         value: currentCongestion,
         unit: "%",
         sub: congestionSummaryText,
-        badge: currentTone,
       },
       {
-        label: "예상 대기시간",
+        label: waitKpiLabel,
         value: expectedWaitMinutes,
         unit: "분",
         sub: waitSummaryText,
       },
+      {
+        label: "혼잡 상태",
+        value: currentTone.label,
+        unit: "",
+        sub: currentTone.sentence,
+        textOnly: true,
+      },
     ],
-    [congestionSummaryText, currentCongestion, currentTone, expectedWaitMinutes, waitSummaryText],
+    [congestionSummaryText, currentCongestion, currentTone, expectedWaitMinutes, waitKpiLabel, waitSummaryText],
   );
 
+  const calibratedTimeline = useMemo(() => {
+    const source = Array.isArray(chartTimeline) ? chartTimeline : [];
+    if (source.length === 0) return [];
+
+    const withTone = (point, score) => {
+      const normalizedScore = safePercent(score);
+      const meta = resolveCongestionMeta(normalizedScore);
+      return {
+        ...point,
+        score: normalizedScore,
+        label: meta.label,
+        tone: {
+          color: meta.color,
+          bg: meta.bg,
+          border: meta.border,
+        },
+      };
+    };
+
+    if (!isTodayForecast) {
+      return source.map((point) => withTone(point, point?.score));
+    }
+
+    const nowHour = normalizeHour(new Date().getHours());
+    const latestActualRow = [...hours]
+      .filter((row) => Number.isFinite(row?.actual) && Number(row?.h) <= nowHour)
+      .sort((left, right) => Number(left.h) - Number(right.h))
+      .pop();
+
+    if (!latestActualRow || !Number.isFinite(latestActualRow.actual)) {
+      return source.map((point) => withTone(point, point?.score));
+    }
+
+    const latestActualHour = Number(latestActualRow.h);
+    const anchorCandidate =
+      source
+        .map((point) => ({
+          point,
+          hour: toHour(point?.time),
+          score: safePercent(point?.score),
+        }))
+        .filter((candidate) => Number.isFinite(candidate.hour))
+        .filter((candidate) => candidate.hour >= latestActualHour)
+        .sort((left, right) => left.hour - right.hour)[0] ||
+      source
+        .map((point) => ({
+          point,
+          hour: toHour(point?.time),
+          score: safePercent(point?.score),
+        }))
+        .filter((candidate) => Number.isFinite(candidate.hour) && Number.isFinite(candidate.score))
+        .sort((left, right) => left.hour - right.hour)[0] ||
+      null;
+
+    const predictionOffset =
+      anchorCandidate && Number.isFinite(anchorCandidate.score)
+        ? latestActualRow.actual - anchorCandidate.score
+        : 0;
+
+    return source.map((point) => {
+      const pointHour = toHour(point?.time);
+      const baseScore = safePercent(point?.score);
+      if (!Number.isFinite(pointHour) || pointHour < latestActualHour) {
+        return withTone(point, baseScore);
+      }
+      return withTone(point, clamp(Math.round(baseScore + predictionOffset), 0, 100));
+    });
+  }, [chartTimeline, hours, isTodayForecast]);
+
   const aiTimelinePreview = useMemo(
-    () => (Array.isArray(chartTimeline) ? chartTimeline.slice(0, 8) : []),
-    [chartTimeline],
+    () => calibratedTimeline.slice(0, 8),
+    [calibratedTimeline],
   );
 
   const nextPeakPoint = useMemo(() => {
@@ -1726,9 +2446,31 @@ function DashboardContent({ eventId }) {
     )[0];
   }, [aiTimelinePreview]);
 
-  const aiCurrentScore = safePercent(eventPrediction?.avgScore ?? currentCongestion);
+  const aiCurrentScore = useMemo(() => {
+    if (isTodayForecast && !isPlannedEvent) {
+      return safePercent(currentCongestion);
+    }
+
+    const timelineScores = calibratedTimeline
+      .map((point) => safePercent(point?.score))
+      .filter(Number.isFinite);
+    if (timelineScores.length > 0) {
+      const sum = timelineScores.reduce((acc, score) => acc + score, 0);
+      return safePercent(Math.round(sum / timelineScores.length));
+    }
+
+    return safePercent(eventPrediction?.avgScore ?? currentCongestion);
+  }, [
+    calibratedTimeline,
+    currentCongestion,
+    eventPrediction?.avgScore,
+    isPlannedEvent,
+    isTodayForecast,
+  ]);
   const aiCurrentTone = resolveCongestionMeta(aiCurrentScore);
-  const aiSoonScore = safePercent(nextPeakPoint?.score ?? eventPrediction?.peakScore ?? aiCurrentScore);
+  const aiSoonScore = safePercent(
+    nextPeakPoint?.score ?? (isTodayForecast ? aiCurrentScore : eventPrediction?.peakScore) ?? aiCurrentScore,
+  );
   const aiSoonTone = resolveCongestionMeta(aiSoonScore);
   const aiSoonWait = estimateWaitMinutes(aiSoonScore);
 
@@ -1748,23 +2490,6 @@ function DashboardContent({ eventId }) {
     }
     return "혼잡도가 낮은 시간대를 골라 이동하면 더 편하게 즐길 수 있어요.";
   }, [aiCurrentScore, aiSoonScore, eventPrediction, hours]);
-
-  const petHintMessages = useMemo(() => {
-    const hints = [];
-    if (!isPlannedEvent && currentVisitors >= 300) {
-      hints.push("현재 많은 반려가족이 함께하고 있어요");
-    }
-    if (popularPrograms[0]?.congestionPercent >= 61 || expectedWaitMinutes >= 20) {
-      hints.push("인기 프로그램은 조금 일찍 이동하는 것을 추천해요");
-    }
-    if (currentCongestion <= 30) {
-      hints.push("지금은 비교적 여유롭게 둘러볼 수 있어요");
-    }
-    if (hints.length === 0) {
-      hints.push("반려가족 동선을 고려해 천천히 이동하면 더 편안해요");
-    }
-    return hints.slice(0, 3);
-  }, [currentCongestion, currentVisitors, expectedWaitMinutes, isPlannedEvent, popularPrograms]);
 
   const activities = useMemo(() => {
     const liveItems = [...measuredCongestions]
@@ -1797,8 +2522,6 @@ function DashboardContent({ eventId }) {
 
   const badge = STATUS_BADGE[String(eventDetail?.status).toUpperCase()] || STATUS_BADGE.PLANNED;
   const eventName = eventDetail?.eventName || "행사 정보 없음";
-  const heroSummary =
-    `${congestionSummaryText}. ${waitSummaryText}.`;
   const heroVisitorSummary = `현재 방문객 ${currentVisitors.toLocaleString()}명 · ${visitorMoodText}`;
   const soonPeakTimeLabel = nextPeakPoint?.time
     ? `${formatKoreanTime(nextPeakPoint.time)} 무렵`
@@ -1821,8 +2544,6 @@ function DashboardContent({ eventId }) {
   return (
     <>
       <div className="rt-page-shell">
-        {errorMsg ? <div className="rt-error">{errorMsg}</div> : null}
-
         <div className="rt-live-header">
           <div className="rt-live-header-left">
             <div className={`rt-live-badge ${badge.className}`}>
@@ -1848,6 +2569,8 @@ function DashboardContent({ eventId }) {
           </div>
         </div>
 
+        {errorMsg ? <div className="rt-error">{errorMsg}</div> : null}
+
         <section className="rt-hero">
         <div className="rt-hero-top">
           <div className="rt-hero-main">
@@ -1862,23 +2585,19 @@ function DashboardContent({ eventId }) {
                 {eventDetail?.location || "장소 정보 없음"}
               </span>
             </div>
-            <div className="rt-hero-meta">
-              <span>현재 혼잡도 {currentCongestion}%</span>
-              <span>혼잡 상태 {currentTone.label}</span>
-              <span>예상 대기 {expectedWaitMinutes}분</span>
-            </div>
-            <div className="rt-hero-summary">{heroSummary}</div>
             <div className="rt-hero-note">{heroVisitorSummary}</div>
           </div>
-          <div
-            className="rt-status-pill"
-            style={{
-              color: currentTone.color,
-              background: currentTone.bg,
-              borderColor: currentTone.border,
-            }}
-          >
-            {currentTone.label}
+          <div className="rt-hero-kpi-grid">
+            {heroStats.map((item) => (
+              <div key={item.label} className="rt-hero-kpi">
+                <div className="rt-hero-kpi-label">{item.label}</div>
+                <div className={`rt-hero-kpi-value${item.textOnly ? " text" : ""}`}>
+                  {item.value}
+                  {item.unit ? <span className="rt-hero-kpi-unit">{item.unit}</span> : null}
+                </div>
+                <div className="rt-hero-kpi-sub">{item.sub}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -1887,11 +2606,45 @@ function DashboardContent({ eventId }) {
         <div className="rt-card-header">
           <div className="rt-card-title">
             <div className="rt-card-title-icon">
-              <Radio size={14} color="#10b981" />
+              <TrendingUp size={14} color="#dc2626" />
             </div>
             {isEndedEvent
-              ? "종료 시점 비교적 여유로웠던 프로그램"
-              : "지금 바로 참여하기 좋은 프로그램"}
+              ? "종료 시점 인기 프로그램 TOP3"
+              : "인기 프로그램 TOP3"}
+          </div>
+          <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "지금 사람들이 몰리는 프로그램"}</span>
+        </div>
+
+        {!hasAnyPrograms || !hasOperatingPrograms ? (
+          <div className="rt-empty">
+            <span className="rt-empty-strong">운영 중인 프로그램이 없습니다</span>
+            운영 시간이 시작되면 인기 프로그램 정보가 표시됩니다.
+          </div>
+        ) : !hasQueuePrograms ? (
+          <div className="rt-empty">
+            <span className="rt-empty-strong">
+              {isEndedEvent ? "종료 시점 대기 정보가 없습니다" : "아직 집계된 대기 정보가 없습니다"}
+            </span>
+            {isEndedEvent
+              ? "행사 종료 이후에는 신규 대기 집계가 갱신되지 않습니다."
+              : "대기 정보가 수집되면 인기 프로그램을 보여드릴게요."}
+          </div>
+        ) : (
+          <div className="rt-program-grid rt-program-grid-top3">
+            {popularTopPrograms.map((item) => (
+              <ProgramCrowdCard key={`top3-${item.key}`} item={item} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rt-card">
+        <div className="rt-card-header">
+          <div className="rt-card-title">
+            <div className="rt-card-title-icon">
+              <Radio size={14} color="#10b981" />
+            </div>
+            {isEndedEvent ? "종료 시점 바로 참여 프로그램" : "바로 참여 프로그램"}
           </div>
           <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "대기 짧은 순"}</span>
         </div>
@@ -1910,100 +2663,27 @@ function DashboardContent({ eventId }) {
               ? "행사 종료 이후에는 신규 대기 집계가 갱신되지 않습니다."
               : "잠시 후 다시 확인해 주세요."}
           </div>
+        ) : readyPrograms.length === 0 ? (
+          <div className="rt-empty">
+            <span className="rt-empty-strong">바로 참여 가능한 프로그램이 없습니다</span>
+            현재는 인기 프로그램 쪽으로 방문이 몰리고 있어요.
+          </div>
         ) : (
-          <div className="rt-program-grid">
-            {lessCrowdedPrograms.map((item) => (
-              <ProgramCrowdCard key={`low-${item.key}`} item={item} />
+          <div className="rt-program-grid rt-program-grid-top3">
+            {readyPrograms.map((item) => (
+              <ProgramCrowdCard
+                key={`ready-${item.key}`}
+                item={item}
+                badgeText="바로 참여 가능"
+                badgeStyle={{
+                  color: "#047857",
+                  background: "#ecfdf5",
+                  borderColor: "#a7f3d0",
+                }}
+              />
             ))}
           </div>
         )}
-      </div>
-
-      <div className="rt-card">
-        <div className="rt-card-header">
-          <div className="rt-card-title">
-            <div className="rt-card-title-icon">
-              <TrendingUp size={14} color="#dc2626" />
-            </div>
-            {isEndedEvent ? "종료 시점 인기 / 혼잡 프로그램" : "현재 인기 / 혼잡 프로그램"}
-          </div>
-          <span className="rt-card-tag">{isEndedEvent ? "종료 시점 기준" : "대기/혼잡 높은 순"}</span>
-        </div>
-
-        {!hasAnyPrograms || !hasOperatingPrograms ? (
-          <div className="rt-empty">
-            <span className="rt-empty-strong">운영 중인 프로그램이 없습니다</span>
-            운영 시간이 시작되면 인기 프로그램 정보가 표시됩니다.
-          </div>
-        ) : !hasQueuePrograms ? (
-          <div className="rt-empty">
-            <span className="rt-empty-strong">
-              {isEndedEvent ? "종료 시점 대기 정보가 없습니다" : "아직 집계된 대기 정보가 없습니다"}
-            </span>
-            {isEndedEvent
-              ? "행사 종료 이후에는 신규 대기 집계가 갱신되지 않습니다."
-              : "대기 정보가 수집되면 인기 프로그램을 보여드릴게요."}
-          </div>
-        ) : (
-          <div className="rt-program-grid">
-            {popularPrograms.map((item) => (
-              <ProgramCrowdCard key={`hot-${item.key}`} item={item} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="rt-card">
-        <div className="rt-card-header">
-          <div className="rt-card-title">
-            <div className="rt-card-title-icon">
-              <Activity size={14} color="#0f766e" />
-            </div>
-            지금 행사장 분위기
-          </div>
-          <span className="rt-card-tag">실시간 안내</span>
-        </div>
-
-        <div className="rt-section-lead">
-          큰 숫자보다 중요한 건 지금 체감이에요. 현재 상태를 짧게 확인하고 바로 이동해 보세요.
-        </div>
-
-        <div className="rt-user-stat-grid">
-          {userStats.map((item) => (
-            <div key={item.label} className="rt-user-stat">
-              <div className="rt-user-stat-label">{item.label}</div>
-              <div className="rt-user-stat-value">
-                {Number(item.value).toLocaleString()}
-                <span className="rt-user-stat-unit">{item.unit}</span>
-              </div>
-              <div className="rt-user-stat-sub">{item.sub}</div>
-              {item.badge ? (
-                <span
-                  className="rt-user-stat-badge"
-                  style={{
-                    color: item.badge.color,
-                    background: item.badge.bg,
-                    borderColor: item.badge.border,
-                  }}
-                >
-                  {item.badge.label}
-                </span>
-              ) : null}
-            </div>
-          ))}
-        </div>
-
-        <div className="rt-visitor-note">
-          {heroVisitorSummary}
-        </div>
-
-        <div className="rt-pet-hints">
-          {petHintMessages.map((hint) => (
-            <span key={hint} className="rt-chip">
-              {hint}
-            </span>
-          ))}
-        </div>
       </div>
 
       <div className="rt-card">
@@ -2015,47 +2695,48 @@ function DashboardContent({ eventId }) {
             지금 행사장은 얼마나 붐빌까요?
           </div>
           <div className="rt-card-controls">
+            <div className="rt-prediction-meta-strip rt-prediction-meta-strip--header">
+              <span className="rt-prediction-meta-pill">
+                예측 기준: {formatKoreanTime(eventPrediction?.baseTime) || "-"}
+              </span>
+              <span className="rt-prediction-meta-pill">
+                신뢰도:{" "}
+                {eventPrediction
+                  ? `${Math.round(safeNumber(eventPrediction.confidence, 0) * 100)}%`
+                  : "집계 중"}
+              </span>
+              <span className="rt-prediction-meta-pill">
+                {eventPrediction
+                  ? eventPrediction.fallbackUsed
+                    ? "보정 예측 적용"
+                    : "AI 예측 반영"
+                  : "AI 예측 준비 중"}
+              </span>
+            </div>
             <span className="rt-card-tag">시간대별 혼잡도</span>
             {forecastDateOptions.length > 0 ? (
-              <input
-                className="rt-date-input"
-                type="date"
-                value={selectedForecastDate}
-                min={forecastDateOptions[0]}
-                max={forecastDateOptions[forecastDateOptions.length - 1]}
-                onChange={handleForecastDateChange}
-              />
+              <div className="rt-calendar-control">
+                <CalendarDays size={13} />
+                <span>달력</span>
+                <input
+                  className="rt-date-input"
+                  type="date"
+                  value={activeForecastDateKey || forecastDateOptions[0]}
+                  min={forecastDateOptions[0]}
+                  max={forecastDateOptions[forecastDateOptions.length - 1]}
+                  onChange={handleForecastDateChange}
+                />
+              </div>
             ) : null}
           </div>
         </div>
 
-        <div className="rt-section-lead">
-          상태 요약과 시간대 흐름을 함께 확인하고, 덜 붐비는 시간대를 빠르게 선택해 보세요.
-        </div>
-
         <div className="rt-prediction-section">
-          <div className="rt-prediction-meta-strip">
-            <span className="rt-prediction-meta-pill">
-              예측 기준: {formatKoreanTime(eventPrediction?.baseTime) || "-"}
-            </span>
-            <span className="rt-prediction-meta-pill">
-              신뢰도:{" "}
-              {eventPrediction
-                ? `${Math.round(safeNumber(eventPrediction.confidence, 0) * 100)}%`
-                : "집계 중"}
-            </span>
-            <span className="rt-prediction-meta-pill">
-              {eventPrediction
-                ? eventPrediction.fallbackUsed
-                  ? "보정 예측 적용"
-                  : "AI 예측 반영"
-                : "AI 예측 준비 중"}
-            </span>
-          </div>
-
           <div className="rt-prediction-kpi-grid">
             <div className="rt-prediction-kpi">
-              <div className="rt-prediction-kpi-label">현재 혼잡도</div>
+              <div className="rt-prediction-kpi-label">
+                {isFutureForecast ? "예상 혼잡도" : "현재 혼잡도"}
+              </div>
               <div className="rt-prediction-kpi-value">
                 {aiCurrentScore}
                 <span className="rt-prediction-kpi-unit">%</span>
@@ -2074,7 +2755,7 @@ function DashboardContent({ eventId }) {
             </div>
 
             <div className="rt-prediction-kpi">
-              <div className="rt-prediction-kpi-label">예상 대기시간</div>
+              <div className="rt-prediction-kpi-label">{waitKpiLabel}</div>
               <div className="rt-prediction-kpi-value">
                 {expectedWaitMinutes}
                 <span className="rt-prediction-kpi-unit">분</span>
@@ -2121,30 +2802,26 @@ function DashboardContent({ eventId }) {
               <div className="rt-prediction-chart-head">
                 <span className="rt-prediction-chart-title">시간대별 혼잡도</span>
                 <span className="rt-prediction-chart-sub">
-                  {selectedForecastDate || "오늘"} 기준
+                  {selectedForecastDate || "오늘"} · {isTodayForecast ? "실시간 + AI 예측" : isPastForecast ? "실제 혼잡도" : "AI 예측"}
                 </span>
               </div>
               <div className="rt-prediction-chart">
-                <div
-                  className="rt-hour-grid"
-                  style={{
-                    gridTemplateColumns: `repeat(${Math.max(hours.length, 1)}, 1fr)`,
-                  }}
-                >
-                  {hours.map((item, index) => (
-                    <AnimatedHeatCell key={`${item.h}-${index}`} item={item} index={index} />
-                  ))}
-                </div>
+                <HourlyTrendChart
+                  points={hours}
+                  activeDateKey={activeForecastDateKey}
+                  isTodayForecast={isTodayForecast}
+                />
                 <div className="rt-heat-legend">
-                  <span className="rt-heat-legend-text">낮음</span>
-                  {["#dbeafe", "#93c5fd", "#3b82f6", "#1d4ed8"].map((color) => (
-                    <div
-                      key={color}
-                      className="rt-heat-legend-swatch"
-                      style={{ background: color }}
-                    />
-                  ))}
-                  <span className="rt-heat-legend-text">높음</span>
+                  <span className="rt-heat-legend-item">
+                    <span className="rt-heat-legend-swatch actual" />
+                    <span className="rt-heat-legend-text">Actual (실제 혼잡도)</span>
+                  </span>
+                  {!isPastForecast ? (
+                    <span className="rt-heat-legend-item">
+                      <span className="rt-heat-legend-swatch predicted" />
+                      <span className="rt-heat-legend-text">Predicted (AI 예측)</span>
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </div>

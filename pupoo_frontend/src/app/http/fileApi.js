@@ -1,5 +1,9 @@
 // src/app/http/fileApi.js
 import { axiosInstance } from "./axiosInstance";
+import {
+  buildRequestUrl,
+  getConfiguredBaseUrl,
+} from "../../shared/config/requestUrl";
 
 function unwrap(res) {
   const body = res?.data;
@@ -51,8 +55,8 @@ export const fileApi = {
    * 브라우저에서 링크로 열거나 publicPath 직접 사용 가능.
    */
   getDownloadUrl(fileId) {
-    const base = axiosInstance.defaults.baseURL || "";
-    return `${base}/api/files/${fileId}/download`;
+    const base = getConfiguredBaseUrl(import.meta.env.VITE_API_BASE_URL);
+    return buildRequestUrl(base, `/api/files/${fileId}/download`);
   },
 
   /** DELETE /api/files/{fileId} — 첨부 삭제 (업로더만) */

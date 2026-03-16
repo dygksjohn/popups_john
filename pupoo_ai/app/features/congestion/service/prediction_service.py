@@ -31,7 +31,77 @@ def _level_from_score(score: float) -> int:
 
 
 def _to_wait_minutes(score: float) -> int:
-    return max(0, int(round(score * 0.35)))
+    # Human-facing wait conversion should be conservative for low congestion scores.
+    normalized = max(0.0, min(100.0, score))
+    if normalized < 25.0:
+        return 0
+    if normalized < 40.0:
+        return max(1, int(round((normalized - 25.0) * 0.20 + 1.0)))
+    if normalized < 55.0:
+        return int(round(4.0 + (normalized - 40.0) * 0.33))
+    if normalized < 70.0:
+        return int(round(9.0 + (normalized - 55.0) * 0.47))
+    if normalized < 85.0:
+        return int(round(16.0 + (normalized - 70.0) * 0.67))
+    return min(60, int(round(26.0 + (normalized - 85.0) * 0.95)))
+
+
+def _time_profile_multiplier(point_time: datetime) -> float:
+    hour = point_time.hour + (point_time.minute / 60.0)
+    if hour < 10.0:
+        return 0.85
+    if hour < 12.0:
+        return 1.00
+    if hour < 14.0:
+        return 0.92
+    if hour < 16.0:
+        return 1.10
+    if hour < 18.0:
+        return 1.00
+    return 0.88
+
+
+def _event_wait_anchor(request: EventPredictionRequest) -> float:
+    if request.totalWaitCount <= 0 and request.averageWaitMinutes <= 0:
+        return 0.0
+
+    running_programs = max(request.runningProgramCount, 1)
+    density_wait = request.totalWaitCount / running_programs
+    entry_pressure = min(request.entryCount / max(request.activeApplyCount, 1), 1.2)
+    anchor = (request.averageWaitMinutes * 0.65) + (density_wait * 0.35) + (entry_pressure * 1.2)
+
+    if request.totalWaitCount <= 5 and request.averageWaitMinutes <= 2:
+        return 0.0
+    return max(0.0, min(120.0, anchor))
+
+
+def _program_wait_anchor(request: ProgramPredictionRequest) -> float:
+    if request.waitCount <= 0 and request.waitMinutes <= 0:
+        return 0.0
+
+    queue_wait = request.waitCount * 0.70
+    checkin_pressure = min(request.checkinCount / max(request.activeApplyCount, 1), 1.2)
+    anchor = (request.waitMinutes * 0.60) + (queue_wait * 0.40) + (checkin_pressure * 1.5)
+
+    if request.waitCount <= 2 and request.waitMinutes <= 2 and checkin_pressure < 0.25:
+        return 0.0
+    return max(0.0, min(120.0, anchor))
+
+
+def _point_wait_minutes(
+    score: float,
+    wait_anchor: float,
+    profile_multiplier: float,
+    target_type: str,
+) -> int:
+    score_wait = _to_wait_minutes(score)
+    if wait_anchor <= 0.0:
+        return score_wait
+
+    profile_adjusted_anchor = wait_anchor * (0.90 + (profile_multiplier - 1.0) * 0.5)
+    blend_anchor_weight = 0.70 if target_type == "PROGRAM" else 0.60
+    blended_wait = (profile_adjusted_anchor * blend_anchor_weight) + (score_wait * (1.0 - blend_anchor_weight))
+    return int(round(max(1.0, min(120.0, blended_wait))))
 
 
 def _align_to_five_minutes(value: datetime) -> datetime:
@@ -63,19 +133,19 @@ def _event_base_score(request: EventPredictionRequest) -> float:
     running_programs = max(request.runningProgramCount, 0)
     total_programs = max(request.totalProgramCount, 1)
 
-    entry_rate = request.entryCount / total_apply
-    wait_rate = request.totalWaitCount / total_apply
-    wait_time_rate = min(request.averageWaitMinutes / 20.0, 1.5)
-    program_operation_rate = running_programs / total_programs
-    wait_density_rate = min((request.totalWaitCount / max(running_programs, 1)) / 15.0, 1.5)
+    entry_pressure = min(request.entryCount / total_apply, 1.2) / 1.2
+    wait_pressure = min(request.totalWaitCount / total_apply, 1.5) / 1.5
+    wait_density = request.totalWaitCount / max(running_programs, 1)
+    wait_density_pressure = min(wait_density / 30.0, 1.0)
+    wait_time_pressure = min(request.averageWaitMinutes / 40.0, 1.0)
+    operation_rate = running_programs / total_programs
 
-    # Re-estimated from ai_event_congestion_timeseries (2026-03-11, constrained no-bias fit)
     unit_score = (
-        (entry_rate * 0.1022)
-        + (wait_rate * 0.0000)
-        + (wait_time_rate * 0.0266)
-        + (wait_density_rate * 0.2616)
-        - (program_operation_rate * 0.0000)
+        (entry_pressure * 0.35)
+        + (wait_pressure * 0.25)
+        + (wait_density_pressure * 0.25)
+        + (wait_time_pressure * 0.20)
+        - (operation_rate * 0.05)
     )
 
     return _clamp_score(max(0.0, min(1.0, unit_score)) * 100.0)
@@ -83,15 +153,14 @@ def _event_base_score(request: EventPredictionRequest) -> float:
 
 def _program_base_score(request: ProgramPredictionRequest) -> float:
     total_apply = max(request.activeApplyCount, 1)
-    checkin_rate = request.checkinCount / total_apply
-    wait_rate = request.waitCount / total_apply
-    wait_time_rate = min(request.waitMinutes / 15.0, 1.5)
+    checkin_pressure = min(request.checkinCount / total_apply, 1.2) / 1.2
+    queue_pressure = min(request.waitCount / total_apply, 1.5) / 1.5
+    wait_time_pressure = min(request.waitMinutes / 40.0, 1.0)
 
-    # Re-estimated from ai_program_congestion_timeseries (2026-03-11, constrained no-bias fit)
     unit_score = (
-        (checkin_rate * 0.1417)
-        + (wait_rate * 0.4864)
-        + (wait_time_rate * 0.0157)
+        (checkin_pressure * 0.30)
+        + (queue_pressure * 0.45)
+        + (wait_time_pressure * 0.25)
     )
     return _clamp_score(max(0.0, min(1.0, unit_score)) * 100.0)
 
@@ -101,7 +170,12 @@ def _confidence_from_data(volume: float) -> float:
     return round(max(0.5, min(0.95, confidence)), 2)
 
 
-def _build_timeline(points: list[datetime], base_score: float) -> list[TimelinePoint]:
+def _build_timeline(
+    points: list[datetime],
+    base_score: float,
+    wait_anchor: float,
+    target_type: str,
+) -> list[TimelinePoint]:
     if not points:
         return []
 
@@ -110,15 +184,21 @@ def _build_timeline(points: list[datetime], base_score: float) -> list[TimelineP
 
     for index, point_time in enumerate(points):
         progress = index / denominator
-        wave = math.sin(progress * math.pi * 2.0) * 5.5
-        trend = (progress - 0.5) * 7.0
-        score = _clamp_score(base_score + wave + trend)
+        profile_multiplier = _time_profile_multiplier(point_time)
+        wave = math.sin(progress * math.pi * 2.0) * 2.2
+        trend = (progress - 0.5) * 3.0
+        score = _clamp_score((base_score * profile_multiplier) + wave + trend)
         result.append(
             TimelinePoint(
                 time=point_time,
                 score=score,
                 level=_level_from_score(score),
-                waitMinutes=_to_wait_minutes(score),
+                waitMinutes=_point_wait_minutes(
+                    score=score,
+                    wait_anchor=wait_anchor,
+                    profile_multiplier=profile_multiplier,
+                    target_type=target_type,
+                ),
             )
         )
 
@@ -128,9 +208,11 @@ def _build_timeline(points: list[datetime], base_score: float) -> list[TimelineP
 def predict_event(request: EventPredictionRequest) -> PredictionResult:
     points = _build_time_points(request.eventStartAt, request.eventEndAt)
     base_score = _event_base_score(request)
-    timeline = _build_timeline(points, base_score)
+    wait_anchor = _event_wait_anchor(request)
+    timeline = _build_timeline(points, base_score, wait_anchor, "EVENT")
 
     scores = [point.score for point in timeline] or [base_score]
+    waits = [point.waitMinutes for point in timeline] or [_to_wait_minutes(base_score)]
     avg_score = _clamp_score(sum(scores) / len(scores))
     peak_score = _clamp_score(max(scores))
     confidence = _confidence_from_data(
@@ -144,7 +226,7 @@ def predict_event(request: EventPredictionRequest) -> PredictionResult:
         predictedAvgScore=avg_score,
         predictedPeakScore=peak_score,
         predictedLevel=_level_from_score(peak_score),
-        predictedWaitMinutes=_to_wait_minutes(avg_score),
+        predictedWaitMinutes=max(0, int(round(sum(waits) / len(waits)))),
         confidence=confidence,
         fallbackUsed=False,
         timeline=timeline,
@@ -155,9 +237,11 @@ def predict_program(request: ProgramPredictionRequest) -> PredictionResult:
     horizon_start = max(request.baseTime, request.programStartAt)
     points = _build_time_points(horizon_start, request.programEndAt)
     base_score = _program_base_score(request)
-    timeline = _build_timeline(points, base_score)
+    wait_anchor = _program_wait_anchor(request)
+    timeline = _build_timeline(points, base_score, wait_anchor, "PROGRAM")
 
     scores = [point.score for point in timeline] or [base_score]
+    waits = [point.waitMinutes for point in timeline] or [_to_wait_minutes(base_score)]
     avg_score = _clamp_score(sum(scores) / len(scores))
     peak_score = _clamp_score(max(scores))
     confidence = _confidence_from_data(request.activeApplyCount + request.waitCount * 2)
@@ -170,7 +254,7 @@ def predict_program(request: ProgramPredictionRequest) -> PredictionResult:
         predictedAvgScore=avg_score,
         predictedPeakScore=peak_score,
         predictedLevel=_level_from_score(peak_score),
-        predictedWaitMinutes=_to_wait_minutes(avg_score),
+        predictedWaitMinutes=max(0, int(round(sum(waits) / len(waits)))),
         confidence=confidence,
         fallbackUsed=False,
         timeline=timeline,

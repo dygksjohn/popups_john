@@ -126,6 +126,7 @@ public class AiCongestionService {
 
         AiCongestionPredictionResponse response = aiInferenceClient.predictEvent(request)
                 .orElseGet(() -> fallbackEventPrediction(event, baseTime, request));
+        response = enforceScoreWaitConsistency(response);
         savePredictionLog(response);
         return response;
     }
@@ -159,6 +160,7 @@ public class AiCongestionService {
 
         AiCongestionPredictionResponse response = aiInferenceClient.predictProgram(request)
                 .orElseGet(() -> fallbackProgramPrediction(program, baseTime, request));
+        response = enforceScoreWaitConsistency(response);
         if (persistLog) {
             savePredictionLog(response);
         }
@@ -393,6 +395,14 @@ public class AiCongestionService {
         double peakScore = scores.isEmpty()
                 ? clampScore(baseScore)
                 : clampScore(scores.stream().mapToDouble(Double::doubleValue).max().orElse(baseScore));
+        int predictedWaitMinutes = timeline.isEmpty()
+                ? waitFromScore(baseScore)
+                : (int) Math.round(
+                timeline.stream()
+                        .mapToInt(AiTimelinePoint::waitMinutes)
+                        .average()
+                        .orElse(waitFromScore(avgScore))
+        );
 
         return new AiCongestionPredictionResponse(
                 targetType,
@@ -402,7 +412,7 @@ public class AiCongestionService {
                 avgScore,
                 peakScore,
                 levelFromScore(peakScore),
-                waitFromScore(avgScore),
+                Math.max(0, predictedWaitMinutes),
                 0.62,
                 fallbackUsed,
                 timeline
@@ -422,18 +432,30 @@ public class AiCongestionService {
         int denominator = Math.max(1, points.size() - 1);
         List<AiTimelinePoint> timeline = new ArrayList<>();
         for (int index = 0; index < points.size(); index++) {
+            LocalDateTime point = points.get(index);
             double progress = (double) index / denominator;
-            double wave = Math.sin(progress * Math.PI * 2.0) * 5.5;
-            double trend = (progress - 0.5) * 7.0;
-            double score = clampScore(baseScore + wave + trend);
+            double multiplier = timeProfileMultiplier(point);
+            double wave = Math.sin(progress * Math.PI * 2.0) * 2.2;
+            double trend = (progress - 0.5) * 3.0;
+            double score = clampScore((baseScore * multiplier) + wave + trend);
             timeline.add(new AiTimelinePoint(
-                    points.get(index),
+                    point,
                     score,
                     levelFromScore(score),
                     waitFromScore(score)
             ));
         }
         return timeline;
+    }
+
+    private double timeProfileMultiplier(LocalDateTime time) {
+        double hour = time.getHour() + (time.getMinute() / 60.0);
+        if (hour < 10.0) return 0.85;
+        if (hour < 12.0) return 1.00;
+        if (hour < 14.0) return 0.92;
+        if (hour < 16.0) return 1.10;
+        if (hour < 18.0) return 1.00;
+        return 0.88;
     }
 
     private List<LocalDateTime> buildTimePoints(LocalDateTime startAt, LocalDateTime endAt) {
@@ -569,18 +591,18 @@ public class AiCongestionService {
             double averageWaitMinutes
     ) {
         double totalApplyBase = Math.max(activeApplyCount, 1);
-        double entryRate = entryCount / totalApplyBase;
-        double waitRate = totalWaitCount / totalApplyBase;
-        double waitTimeRate = Math.min(averageWaitMinutes / 20.0, 1.5);
-        double programOperationRate = runningProgramCount / (double) Math.max(totalProgramCount, 1);
-        double waitDensityRate = Math.min((totalWaitCount / (double) Math.max(runningProgramCount, 1)) / 15.0, 1.5);
+        double entryPressure = Math.min(entryCount / totalApplyBase, 1.2) / 1.2;
+        double waitPressure = Math.min(totalWaitCount / totalApplyBase, 1.5) / 1.5;
+        double waitDensity = totalWaitCount / (double) Math.max(runningProgramCount, 1);
+        double waitDensityPressure = Math.min(waitDensity / 30.0, 1.0);
+        double waitTimePressure = Math.min(averageWaitMinutes / 40.0, 1.0);
+        double operationRate = runningProgramCount / (double) Math.max(totalProgramCount, 1);
 
-        // Re-estimated from ai_event_congestion_timeseries (2026-03-11, constrained no-bias fit)
-        double score = (entryRate * 0.1022)
-                + (waitRate * 0.0000)
-                + (waitTimeRate * 0.0266)
-                + (waitDensityRate * 0.2616)
-                - (programOperationRate * 0.0000);
+        double score = (entryPressure * 0.35)
+                + (waitPressure * 0.25)
+                + (waitDensityPressure * 0.25)
+                + (waitTimePressure * 0.20)
+                - (operationRate * 0.05);
 
         return clampScore(Math.max(0.0, Math.min(1.0, score)) * 100.0);
     }
@@ -592,14 +614,13 @@ public class AiCongestionService {
             double waitMinutes
     ) {
         double applyBase = Math.max(activeApplyCount, 1);
-        double checkinRate = checkinCount / applyBase;
-        double waitRate = waitCount / applyBase;
-        double waitTimeRate = Math.min(waitMinutes / 15.0, 1.5);
+        double checkinPressure = Math.min(checkinCount / applyBase, 1.2) / 1.2;
+        double queuePressure = Math.min(waitCount / applyBase, 1.5) / 1.5;
+        double waitTimePressure = Math.min(waitMinutes / 40.0, 1.0);
 
-        // Re-estimated from ai_program_congestion_timeseries (2026-03-11, constrained no-bias fit)
-        double score = (checkinRate * 0.1417)
-                + (waitRate * 0.4864)
-                + (waitTimeRate * 0.0157);
+        double score = (checkinPressure * 0.30)
+                + (queuePressure * 0.45)
+                + (waitTimePressure * 0.25);
 
         return clampScore(Math.max(0.0, Math.min(1.0, score)) * 100.0);
     }
@@ -626,7 +647,64 @@ public class AiCongestionService {
     }
 
     private int waitFromScore(double score) {
-        return Math.max(0, (int) Math.round(score * 0.35));
+        double normalized = Math.max(0.0, Math.min(100.0, score));
+        if (normalized < 25.0) {
+            return 0;
+        }
+        if (normalized < 40.0) {
+            return Math.max(1, (int) Math.round((normalized - 25.0) * 0.20 + 1.0));
+        }
+        if (normalized < 55.0) {
+            return (int) Math.round(4.0 + (normalized - 40.0) * 0.33);
+        }
+        if (normalized < 70.0) {
+            return (int) Math.round(9.0 + (normalized - 55.0) * 0.47);
+        }
+        if (normalized < 85.0) {
+            return (int) Math.round(16.0 + (normalized - 70.0) * 0.67);
+        }
+        return Math.min(60, (int) Math.round(26.0 + (normalized - 85.0) * 0.95));
+    }
+
+    private AiCongestionPredictionResponse enforceScoreWaitConsistency(AiCongestionPredictionResponse response) {
+        if (response == null) {
+            return null;
+        }
+
+        int normalizedWait = normalizeWaitByScore(response.predictedAvgScore(), response.predictedWaitMinutes());
+        List<AiTimelinePoint> timeline = response.timeline() == null ? List.of() : response.timeline();
+        List<AiTimelinePoint> normalizedTimeline = timeline.stream()
+                .map(point -> new AiTimelinePoint(
+                        point.time(),
+                        point.score(),
+                        point.level(),
+                        normalizeWaitByScore(point.score(), point.waitMinutes())
+                ))
+                .toList();
+
+        return new AiCongestionPredictionResponse(
+                response.targetType(),
+                response.eventId(),
+                response.programId(),
+                response.baseTime(),
+                response.predictedAvgScore(),
+                response.predictedPeakScore(),
+                response.predictedLevel(),
+                normalizedWait,
+                response.confidence(),
+                response.fallbackUsed(),
+                normalizedTimeline
+        );
+    }
+
+    private int normalizeWaitByScore(double score, int waitMinutes) {
+        int boundedWait = Math.max(0, waitMinutes);
+        if (score < 25.0) {
+            return 0;
+        }
+        int scoreBaseWait = waitFromScore(score);
+        int softCap = scoreBaseWait + 8;
+        return Math.min(boundedWait, softCap);
     }
 
     private TimeWindow resolveEventPredictionWindow(Event event, LocalDateTime from, LocalDateTime to) {
