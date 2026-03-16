@@ -1283,16 +1283,14 @@ export default function WaitingStatus({ onNavigate: onNavigateProp }) {
     <div className="wt-root">
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
-      {eventId ? (
-        <PageHeader
-          title={null}
-          subtitle={null}
-          categories={SERVICE_CATEGORIES}
-          stickyCategories
-          currentPath={currentPath}
-          onNavigate={handleNavigate}
-        />
-      ) : null}
+      <PageHeader
+        title="대기 현황"
+        subtitle="대기열 현황을 실시간으로 확인합니다"
+        icon={<Clock size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />}
+        categories={SERVICE_CATEGORIES}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
       <main className={`wt-container${eventId ? "" : " selector-mode"}`}>
         {eventId ? (
           <WaitingContent eventId={eventId} />
