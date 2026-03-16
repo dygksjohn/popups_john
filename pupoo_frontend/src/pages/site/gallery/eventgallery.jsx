@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
   Upload,
   X,
+  Images,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
@@ -519,7 +520,7 @@ export default function EventGallery() {
     } catch (err) {
       console.error("[EventGallery] gallery load failed:", err);
       setGalleries([]);
-      setError(err?.response?.data?.message || "갤러리를 불러오지 못했습니다.");
+      setError(err?.response?.data?.message || "네트워크 연결을 확인하고 다시 시도해 주세요.");
     } finally {
       setLoading(false);
     }
@@ -707,7 +708,7 @@ export default function EventGallery() {
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Noto Sans KR', sans-serif" }}>
       <style>{`.board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
-      <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
+      <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" icon={<Images size={42} color="#1a4fd6" strokeWidth={1.6} />} titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }} subtitleStyle={{ fontSize: 20 }} categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
       <main
         style={{
           width: "min(1400px, calc(100% - 40px))",
@@ -802,7 +803,7 @@ export default function EventGallery() {
             </div>
           ) : null}
           <div>
-            {loading ? <PageLoading message="갤러리를 불러오는 중입니다" /> : error ? <EmptyState type="error" message="갤러리를 불러오지 못했습니다" description={error} /> : pagedGalleries.length === 0 ? <EmptyState message="조건에 맞는 갤러리가 없습니다" description="행사나 검색어를 바꿔 다시 확인해 주세요" /> : <><div className="grid grid-cols-1 gap-[20px] sm:grid-cols-2 xl:grid-cols-4">{pagedGalleries.map((gallery) => { const cover = gallery.imageUrls[0] || ""; const liked = !!likedMap[gallery.galleryId]; const evName = eventNameMap[String(gallery.eventId)] || `행사 ${gallery.eventId}`; return <article key={gallery.galleryId} style={{ borderRadius: 16, overflow: "hidden", position: "relative", cursor: "pointer", aspectRatio: "3 / 4", background: "#1e293b" }} onClick={() => openViewer(gallery)}>
+            {loading ? <PageLoading message="갤러리를 불러오는 중입니다" /> : error ? <EmptyState type="error" message="갤러리를 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." /> : pagedGalleries.length === 0 ? <EmptyState message="조건에 맞는 갤러리가 없습니다" description="행사나 검색어를 바꿔 다시 확인해 주세요" /> : <><div className="grid grid-cols-1 gap-[20px] sm:grid-cols-2 xl:grid-cols-4">{pagedGalleries.map((gallery) => { const cover = gallery.imageUrls[0] || ""; const liked = !!likedMap[gallery.galleryId]; const evName = eventNameMap[String(gallery.eventId)] || `행사 ${gallery.eventId}`; return <article key={gallery.galleryId} style={{ borderRadius: 16, overflow: "hidden", position: "relative", cursor: "pointer", aspectRatio: "3 / 4", background: "#1e293b" }} onClick={() => openViewer(gallery)}>
   {cover ? <img src={cover} alt={gallery.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform .4s ease" }} onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.06)"} onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"} /> : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><ImageOff size={36} color="#cbd5e1" /></div>}
   <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.18) 40%, transparent 60%)", pointerEvents: "none" }} />
   <div style={{ position: "absolute", top: 14, right: 14, padding: "5px 12px", borderRadius: 999, background: "rgba(255,255,255,0.18)", backdropFilter: "blur(6px)", fontSize: 11, fontWeight: 700, color: "#fff", maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{evName}</div>

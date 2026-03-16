@@ -98,14 +98,22 @@ export default function ProgramList({
     <div style={{ padding: 16 }}>
       <h2 style={{ marginBottom: 24 }}>{title}</h2>
 
-      {loading && <div>로딩중...</div>}
+      {loading && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 20px", gap: 16 }}>
+          <span className="inline-dots" />
+          <span style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>데이터를 불러오는 중입니다</span>
+          <style>{`.inline-dots{display:inline-flex;gap:6px}.inline-dots::before,.inline-dots::after,& .inline-dots{content:'';width:12px;height:12px;border-radius:50%;background:#bcc3ce;animation:idot 1.4s ease-in-out infinite both}.inline-dots::before{animation-delay:-0.32s}.inline-dots::after{animation-delay:0s}@keyframes idot{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}`}</style>
+        </div>
+      )}
 
       {errorMsg && (
-        <div style={{ color: "red", marginBottom: 12 }}>에러: {errorMsg}</div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "80px 20px", gap: 8, color: "#adb5bd", fontSize: 14, fontWeight: 500 }}>
+          {errorMsg}
+        </div>
       )}
 
       {!loading && !errorMsg && programs.length === 0 && (
-        <div style={{ opacity: 0.7 }}>조회 결과가 없습니다.</div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "80px 20px", color: "#adb5bd", fontSize: 14, fontWeight: 500 }}>조회 결과가 없습니다.</div>
       )}
 
       <div style={{ display: "grid", gap: 12, marginTop: 12 }}>

@@ -6,7 +6,8 @@ const styles = `
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 60px 20px;
+    padding: 120px 20px;
+    min-height: 400px;
   }
   .empty-state-icon {
     width: 64px;
@@ -18,17 +19,19 @@ const styles = `
     margin-bottom: 16px;
   }
   .empty-state-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: #334155;
+    font-size: 14px;
+    font-weight: 500;
+    color: #adb5bd;
     margin-bottom: 6px;
+    font-family: 'Kakao Big Sans', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   }
   .empty-state-desc {
-    font-size: 13px;
-    color: #94a3b8;
+    font-size: 14px;
+    color: #adb5bd;
     font-weight: 500;
     text-align: center;
     line-height: 1.5;
+    font-family: 'Kakao Big Sans', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   }
 `;
 
@@ -40,11 +43,11 @@ export default function EmptyState({ type = "empty", message, description }) {
       <div className="empty-state">
         <div
           className="empty-state-icon"
-          style={{ background: isError ? "#fef2f2" : "#f1f5f9" }}
+          style={{ background: "none" }}
         >
           {isError
-            ? <AlertCircle size={28} color="#f87171" />
-            : <SearchX size={28} color="#94a3b8" />
+            ? <AlertCircle size={48} color="#d1d5db" strokeWidth={1.2} />
+            : <SearchX size={48} color="#d1d5db" strokeWidth={1.2} />
           }
         </div>
         <div className="empty-state-title">
