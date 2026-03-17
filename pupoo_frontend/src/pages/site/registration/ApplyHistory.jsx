@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardList, QrCode, ChevronRight, Inbox } from "lucide-react";
+import { ClipboardList, QrCode, Inbox, CalendarDays, MapPin, Clock } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import { axiosInstance } from "../../../app/http/axiosInstance";
@@ -22,14 +22,15 @@ const SUBTITLE_MAP = {
 };
 
 const STATUS_META = {
-  APPLIED: { label: "신청 완료", bg: "#f0fdf4", color: "#16a34a" },
-  APPROVED: { label: "승인 완료", bg: "#eff6ff", color: "#3b82f6" },
-  CANCELLED: { label: "신청 취소", bg: "#fef2f2", color: "#ef4444" },
-  REJECTED: { label: "승인 거절", bg: "#f5f5f5", color: "#999" },
+  APPLIED: { label: "신청 완료", bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+  APPROVED: { label: "승인 완료", bg: "#eff6ff", color: "#2563eb", border: "#bfdbfe" },
+  CANCELLED: { label: "신청 취소", bg: "#fef2f2", color: "#ef4444", border: "#fecaca" },
+  REJECTED: { label: "승인 거절", bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" },
 };
 
 const FILTERS = [
   { key: "all", label: "전체" },
+  { key: "APPLIED", label: "신청" },
   { key: "APPROVED", label: "승인" },
   { key: "CANCELLED", label: "취소" },
   { key: "REJECTED", label: "거절" },
@@ -38,7 +39,7 @@ const FILTERS = [
 const styles = `
   .ah-root {
     box-sizing: border-box;
-    font-family: inherit;
+    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
     background: #fff;
     min-height: 100vh;
     color: #111;
@@ -50,139 +51,205 @@ const styles = `
     padding: 0 0 80px;
   }
 
-  /* ── 상단 요약 ── */
+  /* ── 상단 요약 (카카오 st) ── */
   .ah-summary {
     display: flex;
-    align-items: stretch;
     gap: 0;
     margin: 32px 0;
-    border: 1px solid #f0f0f0;
-    border-radius: 16px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
     overflow: hidden;
   }
-  .ah-summary-item {
+  .ah-summary-card {
     flex: 1;
+    padding: 24px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-right: 1px solid #e5e7eb;
+  }
+  .ah-summary-card:last-child { border-right: none; }
+  .ah-summary-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #d1d5db;
+  }
+  .ah-summary-dot.dot-blue { background: #2563eb; }
+  .ah-summary-dot.dot-red { background: #ef4444; }
+  .ah-summary-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ah-summary-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #888;
+  }
+  .ah-summary-val {
+    font-size: 24px;
+    font-weight: 800;
+    color: #222;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  /* ── 필터 + 건수 (한 줄) ── */
+  .ah-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 12px;
+  }
+  .ah-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .ah-toolbar-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111;
+  }
+  .ah-count {
+    font-size: 14px;
+    color: #9ca3af;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .ah-count strong {
+    color: #111;
+    font-weight: 800;
+  }
+  .ah-filters {
+    display: inline-flex;
+    background: #f3f4f6;
+    border-radius: 999px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .ah-filter {
+    border: 1px solid transparent;
+    background: transparent;
+    color: #9ca3af;
+    padding: 8px 20px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  .ah-filter:hover { color: #374151; }
+  .ah-filter.active {
+    background: #1f2937;
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+
+  /* ── 카드 리스트 ── */
+  .ah-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ah-card {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 28px 32px;
+    border: 1px solid #f0f0f0;
+    border-radius: 16px;
+    background: #fff;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .ah-card:hover {
+    background: #f9fafb;
+  }
+  .ah-card-status {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 28px 0;
-    gap: 6px;
+    width: 80px;
+    flex-shrink: 0;
+    gap: 4px;
   }
-  .ah-summary-item + .ah-summary-item { border-left: 1px solid #f0f0f0; }
-  .ah-summary-val {
-    font-size: 26px;
-    font-weight: 800;
-    color: #111;
-    letter-spacing: -0.03em;
+  .ah-status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
   }
-  .ah-summary-val.green { color: #16a34a; }
-  .ah-summary-val.red { color: #ef4444; }
-  .ah-summary-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: #aaa;
-  }
-
-  /* ── 필터 탭 ── */
-  .ah-filters {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-  }
-  .ah-filter {
-    padding: 8px 20px;
-    border-radius: 999px;
-    border: 1px solid #e5e7eb;
-    background: #fff;
-    font-size: 13px;
-    font-weight: 600;
-    color: #9ca3af;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.15s;
-  }
-  .ah-filter:hover { border-color: #d1d5db; color: #6b7280; }
-  .ah-filter.active { background: #111; color: #fff; border-color: #111; }
-
-  /* ── 섹션 ── */
-  .ah-section {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: 8px;
-  }
-  .ah-section-title {
-    font-size: 16px;
-    font-weight: 800;
-    color: #111;
-  }
-  .ah-section-count {
-    font-size: 13px;
-    color: #bbb;
-  }
-
-  /* ── 테이블 ── */
-  .ah-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .ah-table thead th {
-    padding: 12px 0;
-    font-size: 12px;
-    font-weight: 600;
-    color: #bbb;
-    text-align: left;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  .ah-table thead th:last-child { text-align: right; }
-  .ah-table tbody tr {
-    transition: background 0.1s;
-  }
-  .ah-table tbody tr:hover { background: #fafafa; }
-  .ah-table td {
-    padding: 18px 0;
+  .ah-status-label {
     font-size: 14px;
-    color: #111;
-    border-bottom: 1px solid #f7f7f7;
-    vertical-align: middle;
-  }
-  .ah-table td:last-child { text-align: right; }
-  .ah-td-name {
-    font-weight: 700;
-    color: #111;
-  }
-  .ah-td-sub {
-    font-size: 12px;
-    color: #bbb;
-    margin-top: 2px;
-  }
-  .ah-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 999px;
-    font-size: 11px;
     font-weight: 700;
   }
-  .ah-actions {
+  .ah-card-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .ah-card-title {
+    font-size: 19px;
+    font-weight: 800;
+    color: #111;
+    margin-bottom: 12px;
+    line-height: 1.3;
+  }
+  .ah-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .ah-meta-item {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    font-size: 15px;
+    color: #6b7280;
+    font-weight: 500;
   }
-  .ah-icon-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: 1px solid #eee;
-    background: #fff;
+  .ah-meta-item svg {
+    color: #9ca3af;
+    flex-shrink: 0;
+  }
+  .ah-card-actions {
+    display: flex;
+    flex-shrink: 0;
+  }
+  .ah-qr-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 10px;
+    padding: 14px 28px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg, #3b6df5 0%, #6c63ff 100%);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
     cursor: pointer;
-    color: #bbb;
-    transition: all 0.15s;
+    font-family: inherit;
+    transition: all 0.2s;
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(59, 109, 245, 0.25);
   }
-  .ah-icon-btn:hover { border-color: #ccc; color: #666; background: #fafafa; }
+  .ah-qr-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(59, 109, 245, 0.35);
+  }
+  .ah-qr-btn:active {
+    transform: translateY(0);
+  }
+  .ah-qr-btn svg {
+    flex-shrink: 0;
+  }
 
   /* ── 빈 상태 ── */
   .ah-empty {
@@ -190,31 +257,35 @@ const styles = `
     flex-direction: column;
     align-items: center;
     padding: 80px 20px;
-    gap: 10px;
+    gap: 12px;
     color: #d1d5db;
   }
   .ah-empty span {
-    font-size: 14px;
-    color: #aaa;
+    font-size: 15px;
+    color: #9ca3af;
+    font-weight: 500;
   }
 
   @media (max-width: 768px) {
-    .ah-table thead { display: none; }
-    .ah-table, .ah-table tbody, .ah-table tr, .ah-table td {
-      display: block;
+    .ah-summary { flex-direction: column; }
+    .ah-summary-card { border-right: none; border-bottom: 1px solid #e5e7eb; }
+    .ah-summary-card:last-child { border-bottom: none; }
+    .ah-card {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .ah-card-status {
+      flex-direction: row;
+      width: auto;
+      gap: 8px;
+    }
+    .ah-card-actions {
       width: 100%;
     }
-    .ah-table tr {
-      padding: 16px 0;
-      border-bottom: 1px solid #f5f5f5;
-    }
-    .ah-table td {
-      padding: 3px 0;
-      border: none;
-      text-align: left !important;
-    }
-    .ah-summary-val { font-size: 20px; }
-    .ah-summary-item { padding: 20px 0; }
+    .ah-qr-btn { width: 100%; justify-content: center; }
+    .ah-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .ah-filter { padding: 7px 14px; font-size: 12px; }
   }
 `;
 
@@ -334,81 +405,106 @@ export default function ApplyHistory() {
       />
 
       <div className="ah-wrap">
+        {/* 요약 */}
         <div className="ah-summary">
-          <div className="ah-summary-item">
-            <div className="ah-summary-val">{counts.total}</div>
-            <div className="ah-summary-label">전체 신청</div>
+          <div className="ah-summary-card">
+            <div className="ah-summary-dot" />
+            <div className="ah-summary-text">
+              <div className="ah-summary-label">전체 신청</div>
+              <div className="ah-summary-val">{counts.total}</div>
+            </div>
           </div>
-          <div className="ah-summary-item">
-            <div className="ah-summary-val green">{counts.approved}</div>
-            <div className="ah-summary-label">승인 / 신청</div>
+          <div className="ah-summary-card">
+            <div className="ah-summary-dot dot-blue" />
+            <div className="ah-summary-text">
+              <div className="ah-summary-label">승인 / 신청</div>
+              <div className="ah-summary-val">{counts.approved}</div>
+            </div>
           </div>
-          <div className="ah-summary-item">
-            <div className="ah-summary-val red">{counts.cancelled}</div>
-            <div className="ah-summary-label">취소 / 거절</div>
+          <div className="ah-summary-card">
+            <div className="ah-summary-dot dot-red" />
+            <div className="ah-summary-text">
+              <div className="ah-summary-label">취소 / 거절</div>
+              <div className="ah-summary-val">{counts.cancelled}</div>
+            </div>
           </div>
         </div>
 
-        <div className="ah-filters">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              className={`ah-filter${filter === f.key ? " active" : ""}`}
-              onClick={() => setFilter(f.key)}
-              type="button"
-            >{f.label}</button>
-          ))}
+        {/* 필터 + 건수 */}
+        <div className="ah-toolbar">
+          <div className="ah-toolbar-left">
+            <span className="ah-toolbar-title">신청 내역</span>
+            {!loading && <span className="ah-count"><strong>{filtered.length}</strong>건</span>}
+          </div>
+          <div className="ah-filters">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                className={`ah-filter${filter === f.key ? " active" : ""}`}
+                onClick={() => setFilter(f.key)}
+                type="button"
+              >{f.label}</button>
+            ))}
+          </div>
         </div>
 
-        <div className="ah-section">
-          <span className="ah-section-title">신청 내역</span>
-          <span className="ah-section-count">{loading ? "" : `${filtered.length}건`}</span>
-        </div>
-
+        {/* 리스트 */}
         {loading ? (
           <PageLoading />
         ) : (error || filtered.length === 0) ? (
           <div className="ah-empty">
-            <Inbox size={44} strokeWidth={1.2} />
+            <Inbox size={48} strokeWidth={1.2} />
             <span>{error || "신청 내역이 없습니다."}</span>
           </div>
         ) : (
-          <table className="ah-table">
-            <thead>
-              <tr>
-                <th>행사명</th>
-                <th>일정</th>
-                <th>장소</th>
-                <th>신청일</th>
-                <th>상태</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((record) => {
-                const meta = STATUS_META[record.status] || { label: record.status, bg: "#f5f5f5", color: "#999" };
-                return (
-                  <tr key={record.id}>
-                    <td><span className="ah-td-name">{record.eventName}</span></td>
-                    <td style={{ color: "#888", fontSize: 13 }}>{formatDate(record.startAt)} ~ {formatDate(record.endAt)}</td>
-                    <td style={{ color: "#888", fontSize: 13 }}>{record.location}</td>
-                    <td style={{ color: "#888", fontSize: 13 }}>{formatDateTime(record.appliedAt)}</td>
-                    <td><span className="ah-badge" style={{ background: meta.bg, color: meta.color }}>{meta.label}</span></td>
-                    <td>
-                      <div className="ah-actions">
-                        <button className="ah-icon-btn" type="button" onClick={() => navigate(`/registration/qrcheckin?eventId=${record.eventId}`)} title="QR 체크인">
-                          <QrCode size={15} />
-                        </button>
-                        <button className="ah-icon-btn" type="button" onClick={() => navigate(`/program/all/${record.eventId}`)} title="상세">
-                          <ChevronRight size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="ah-list">
+            {filtered.map((record) => {
+              const meta = STATUS_META[record.status] || { label: record.status, bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" };
+              return (
+                <div
+                  key={record.id}
+                  className="ah-card"
+                  onClick={() => navigate(`/program/all/${record.eventId}`)}
+                >
+                  {/* 상태 */}
+                  <div className="ah-card-status">
+                    <div className="ah-status-dot" style={{ background: meta.color }} />
+                    <span className="ah-status-label" style={{ color: meta.color }}>{meta.label}</span>
+                  </div>
+
+                  {/* 본문 */}
+                  <div className="ah-card-body">
+                    <div className="ah-card-title">{record.eventName}</div>
+                    <div className="ah-card-meta">
+                      <span className="ah-meta-item">
+                        <CalendarDays size={14} />
+                        {formatDate(record.startAt)} ~ {formatDate(record.endAt)}
+                      </span>
+                      <span className="ah-meta-item">
+                        <MapPin size={14} />
+                        {record.location}
+                      </span>
+                      <span className="ah-meta-item">
+                        <Clock size={14} />
+                        신청 {formatDateTime(record.appliedAt)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 액션 */}
+                  <div className="ah-card-actions" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="ah-qr-btn"
+                      type="button"
+                      onClick={() => navigate(`/registration/qrcheckin?eventId=${record.eventId}`)}
+                    >
+                      <QrCode size={18} /> QR 체크인
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
