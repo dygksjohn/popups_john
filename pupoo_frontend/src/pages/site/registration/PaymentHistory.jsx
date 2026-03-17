@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CreditCard, Loader2, Inbox } from "lucide-react";
+import { CreditCard, Loader2, Inbox, CalendarDays, Wallet, Hash, ReceiptText } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import { axiosInstance } from "../../../app/http/axiosInstance";
@@ -22,7 +22,7 @@ export const SUBTITLE_MAP = {
 const styles = `
   .ph-root {
     box-sizing: border-box;
-    font-family: inherit;
+    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
     background: #fff;
     min-height: 100vh;
     color: #111;
@@ -34,185 +34,231 @@ const styles = `
     padding: 0 0 80px;
   }
 
-  /* ── 상단 요약 ── */
+  /* ── 상단 요약 (카카오 st) ── */
   .ph-summary {
     display: flex;
-    align-items: stretch;
     gap: 0;
     margin: 32px 0;
-    border: 1px solid #f0f0f0;
-    border-radius: 16px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
     overflow: hidden;
   }
-  .ph-summary-item {
+  .ph-summary-card {
     flex: 1;
+    padding: 24px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-right: 1px solid #e5e7eb;
+  }
+  .ph-summary-card:last-child { border-right: none; }
+  .ph-summary-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #d1d5db;
+  }
+  .ph-summary-dot.dot-green { background: #16a34a; }
+  .ph-summary-dot.dot-blue { background: #2563eb; }
+  .ph-summary-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ph-summary-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #888;
+  }
+  .ph-summary-val {
+    font-size: 24px;
+    font-weight: 800;
+    color: #222;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  /* ── 툴바 ── */
+  .ph-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 12px;
+  }
+  .ph-toolbar-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111;
+  }
+  .ph-count {
+    font-size: 16px;
+    color: #9ca3af;
+    font-weight: 600;
+  }
+  .ph-count strong {
+    color: #111;
+    font-weight: 800;
+  }
+
+  /* ── 카드 리스트 ── */
+  .ph-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ph-card {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 28px 32px;
+    border: 1px solid #f0f0f0;
+    border-radius: 16px;
+    background: #fff;
+    transition: all 0.15s;
+  }
+  .ph-card:hover {
+    background: #f9fafb;
+  }
+  .ph-card-status {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 28px 0;
-    gap: 6px;
+    width: 80px;
+    flex-shrink: 0;
+    gap: 4px;
   }
-  .ph-summary-item + .ph-summary-item { border-left: 1px solid #f0f0f0; }
-  .ph-summary-val {
-    font-size: 26px;
+  .ph-status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .ph-status-label {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .ph-card-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .ph-card-title {
+    font-size: 19px;
     font-weight: 800;
+    color: #111;
+    margin-bottom: 12px;
+    line-height: 1.3;
+  }
+  .ph-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .ph-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    color: #6b7280;
+    font-weight: 500;
+  }
+  .ph-meta-item svg {
+    color: #9ca3af;
+    flex-shrink: 0;
+  }
+  .ph-card-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .ph-amount {
+    font-size: 22px;
+    font-weight: 900;
     color: #111;
     letter-spacing: -0.03em;
   }
-  .ph-summary-val.green { color: #16a34a; }
-  .ph-summary-val.blue { color: #3b82f6; }
-  .ph-summary-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: #aaa;
-  }
-
-  /* ── 섹션 ── */
-  .ph-section {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: 8px;
-  }
-  .ph-section-title {
-    font-size: 16px;
-    font-weight: 800;
-    color: #111;
-  }
-  .ph-section-count {
-    font-size: 13px;
-    color: #bbb;
-  }
-
-  /* ── 테이블 ── */
-  .ph-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .ph-table thead th {
-    padding: 12px 0;
-    font-size: 12px;
-    font-weight: 600;
-    color: #bbb;
-    text-align: left;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  .ph-table thead th:last-child { text-align: right; }
-  .ph-table tbody tr {
-    transition: background 0.1s;
-  }
-  .ph-table tbody tr:hover { background: #fafafa; }
-  .ph-table td {
-    padding: 18px 0;
-    font-size: 14px;
-    color: #111;
-    border-bottom: 1px solid #f7f7f7;
-    vertical-align: middle;
-  }
-  .ph-table td:last-child { text-align: right; }
-  .ph-td-name {
-    font-weight: 700;
-    color: #111;
-  }
-  .ph-td-sub {
-    font-size: 12px;
-    color: #bbb;
-    margin-top: 2px;
-  }
-  .ph-td-amount {
-    font-size: 15px;
-    font-weight: 800;
-    color: #111;
-    letter-spacing: -0.02em;
-  }
-  .ph-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 700;
-  }
   .ph-refund-btn {
-    padding: 6px 14px;
-    border-radius: 8px;
-    border: none;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    background: #fef2f2;
-    color: #ef4444;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    transition: background 0.15s;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: 1px solid #fecaca;
+    background: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    color: #ef4444;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    white-space: nowrap;
   }
-  .ph-refund-btn:hover { background: #fee2e2; }
+  .ph-refund-btn:hover { background: #fef2f2; }
   .ph-refund-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   /* ── 합계 ── */
   .ph-total {
     margin-top: 20px;
-    padding: 20px 0;
-    border-top: 2px solid #f0f0f0;
+    padding: 24px;
+    border-radius: 16px;
+    background: #f9fafb;
     display: flex;
     align-items: center;
     justify-content: space-between;
   }
   .ph-total-label {
-    font-size: 14px;
-    font-weight: 600;
-    color: #999;
+    font-size: 17px;
+    font-weight: 700;
+    color: #6b7280;
   }
   .ph-total-amount {
-    font-size: 22px;
-    font-weight: 800;
+    font-size: 30px;
+    font-weight: 900;
     color: #111;
     letter-spacing: -0.03em;
   }
 
-  /* ── 빈 상태 / 에러 ── */
+  /* ── 빈 상태 ── */
   .ph-empty {
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 80px 20px;
-    gap: 10px;
+    gap: 12px;
     color: #d1d5db;
   }
   .ph-empty span {
-    font-size: 14px;
-    color: #aaa;
-  }
-  .ph-error {
-    text-align: center;
-    padding: 40px 20px;
-    background: #fef2f2;
-    color: #dc2626;
-    border-radius: 12px;
-    font-size: 14px;
+    font-size: 15px;
+    color: #9ca3af;
     font-weight: 500;
-    margin-bottom: 16px;
   }
 
   @media (max-width: 768px) {
-    .ph-table thead { display: none; }
-    .ph-table, .ph-table tbody, .ph-table tr, .ph-table td {
-      display: block;
+    .ph-summary { flex-direction: column; }
+    .ph-summary-card { border-right: none; border-bottom: 1px solid #e5e7eb; }
+    .ph-summary-card:last-child { border-bottom: none; }
+    .ph-card {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .ph-card-status {
+      flex-direction: row;
+      width: auto;
+      gap: 8px;
+    }
+    .ph-card-right {
+      flex-direction: row;
       width: 100%;
+      justify-content: space-between;
+      align-items: center;
     }
-    .ph-table tr {
-      padding: 16px 0;
-      border-bottom: 1px solid #f5f5f5;
-    }
-    .ph-table td {
-      padding: 3px 0;
-      border: none;
-      text-align: left !important;
-    }
-    .ph-summary-val { font-size: 20px; }
-    .ph-summary-item { padding: 20px 0; }
+    .ph-toolbar { flex-direction: column; align-items: flex-start; }
   }
 `;
 
@@ -222,7 +268,8 @@ function toNumberAmount(amount) {
 }
 
 function formatAmount(amount) {
-  return `₩${toNumberAmount(amount).toLocaleString("ko-KR")}`;
+  const num = toNumberAmount(amount).toLocaleString("ko-KR");
+  return <>{num}<span style={{ fontSize: '0.65em', fontWeight: 600, marginLeft: 2 }}>원</span></>;
 }
 
 function formatDateTime(value) {
@@ -255,18 +302,18 @@ function methodLabelOf(paymentMethod) {
 
 function getStatusMeta(payment) {
   const refundStatus = String(payment?.refund?.status || "").toUpperCase();
-  if (refundStatus === "REQUESTED") return { label: "환불 요청", bg: "#fefce8", color: "#ca8a04" };
-  if (refundStatus === "APPROVED") return { label: "환불 승인", bg: "#eff6ff", color: "#3b82f6" };
-  if (refundStatus === "REJECTED") return { label: "환불 거절", bg: "#fef2f2", color: "#ef4444" };
-  if (refundStatus === "REFUNDED") return { label: "환불 완료", bg: "#f5f5f5", color: "#999" };
+  if (refundStatus === "REQUESTED") return { label: "환불 요청", color: "#ca8a04" };
+  if (refundStatus === "APPROVED") return { label: "환불 승인", color: "#3b82f6" };
+  if (refundStatus === "REJECTED") return { label: "환불 거절", color: "#ef4444" };
+  if (refundStatus === "REFUNDED") return { label: "환불 완료", color: "#6b7280" };
 
   switch (String(payment?.status || "").toUpperCase()) {
-    case "APPROVED": return { label: "결제 완료", bg: "#f0fdf4", color: "#16a34a" };
-    case "REQUESTED": return { label: "결제 요청", bg: "#eff6ff", color: "#3b82f6" };
-    case "FAILED": return { label: "결제 실패", bg: "#fef2f2", color: "#ef4444" };
-    case "CANCELLED": return { label: "취소됨", bg: "#fef2f2", color: "#ef4444" };
-    case "REFUNDED": return { label: "환불 완료", bg: "#f5f5f5", color: "#999" };
-    default: return { label: payment?.status || "-", bg: "#f5f5f5", color: "#999" };
+    case "APPROVED": return { label: "결제 완료", color: "#16a34a" };
+    case "REQUESTED": return { label: "결제 요청", color: "#2563eb" };
+    case "FAILED": return { label: "결제 실패", color: "#ef4444" };
+    case "CANCELLED": return { label: "취소됨", color: "#ef4444" };
+    case "REFUNDED": return { label: "환불 완료", color: "#6b7280" };
+    default: return { label: payment?.status || "-", color: "#6b7280" };
   }
 }
 
@@ -369,84 +416,105 @@ export default function PaymentHistory({ onNavigate }) {
       />
 
       <div className="ph-wrap">
+        {/* 요약 */}
         <div className="ph-summary">
-          <div className="ph-summary-item">
-            <div className="ph-summary-val">{stats.total}</div>
-            <div className="ph-summary-label">전체 결제</div>
+          <div className="ph-summary-card">
+            <div className="ph-summary-dot" />
+            <div className="ph-summary-text">
+              <div className="ph-summary-label">전체 결제</div>
+              <div className="ph-summary-val">{stats.total}</div>
+            </div>
           </div>
-          <div className="ph-summary-item">
-            <div className="ph-summary-val green">{stats.approved}</div>
-            <div className="ph-summary-label">결제 완료</div>
+          <div className="ph-summary-card">
+            <div className="ph-summary-dot dot-green" />
+            <div className="ph-summary-text">
+              <div className="ph-summary-label">결제 완료</div>
+              <div className="ph-summary-val">{stats.approved}</div>
+            </div>
           </div>
-          <div className="ph-summary-item">
-            <div className="ph-summary-val blue">{formatAmount(stats.amount)}</div>
-            <div className="ph-summary-label">유효 금액</div>
+          <div className="ph-summary-card">
+            <div className="ph-summary-dot dot-blue" />
+            <div className="ph-summary-text">
+              <div className="ph-summary-label">유효 금액</div>
+              <div className="ph-summary-val">{formatAmount(stats.amount)}</div>
+            </div>
           </div>
         </div>
 
-        <div className="ph-section">
-          <span className="ph-section-title">결제 내역</span>
-          <span className="ph-section-count">{loading ? "" : `${stats.total}건`}</span>
+        {/* 툴바 */}
+        <div className="ph-toolbar">
+          <span className="ph-toolbar-title">결제 내역</span>
+          {!loading && <span className="ph-count"><strong>{stats.total}</strong>건</span>}
         </div>
 
+        {/* 리스트 */}
         {loading ? (
           <PageLoading />
         ) : (error || paymentRows.length === 0) ? (
           <div className="ph-empty">
-            <Inbox size={44} strokeWidth={1.2} />
+            <Inbox size={48} strokeWidth={1.2} />
             <span>{error || "결제 내역이 없습니다."}</span>
           </div>
         ) : (
-          <table className="ph-table">
-            <thead>
-              <tr>
-                <th>행사명</th>
-                <th>결제수단</th>
-                <th>결제일시</th>
-                <th>주문번호</th>
-                <th>상태</th>
-                <th>금액</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            <div className="ph-list">
               {paymentRows.map((payment) => {
                 const meta = getStatusMeta(payment);
                 const canRefund = payment.status === "APPROVED" && !payment.refund;
                 const refundLabel = isAutoRefundEligible(payment) ? "환불" : "환불 신청";
 
                 return (
-                  <tr key={payment.paymentId || payment.orderNo}>
-                    <td><span className="ph-td-name">{payment.eventTitle || "행사 결제"}</span></td>
-                    <td style={{ color: "#888", fontSize: 13 }}>{methodLabelOf(payment.paymentMethod)}</td>
-                    <td style={{ color: "#888", fontSize: 13 }}>{formatDateTime(payment.requestedAt)}</td>
-                    <td style={{ color: "#888", fontSize: 13 }}>{payment.orderNo || `PAY-${payment.paymentId}`}</td>
-                    <td><span className="ph-badge" style={{ background: meta.bg, color: meta.color }}>{meta.label}</span></td>
-                    <td><span className="ph-td-amount">{formatAmount(payment.amount)}</span></td>
-                    <td>
-                      {canRefund ? (
+                  <div key={payment.paymentId || payment.orderNo} className="ph-card">
+                    {/* 상태 */}
+                    <div className="ph-card-status">
+                      <div className="ph-status-dot" style={{ background: meta.color }} />
+                      <span className="ph-status-label" style={{ color: meta.color }}>{meta.label}</span>
+                    </div>
+
+                    {/* 본문 */}
+                    <div className="ph-card-body">
+                      <div className="ph-card-title">{payment.eventTitle || "행사 결제"}</div>
+                      <div className="ph-card-meta">
+                        <span className="ph-meta-item">
+                          <Wallet size={14} />
+                          {methodLabelOf(payment.paymentMethod)}
+                        </span>
+                        <span className="ph-meta-item">
+                          <CalendarDays size={14} />
+                          {formatDateTime(payment.requestedAt)}
+                        </span>
+                        <span className="ph-meta-item">
+                          <Hash size={14} />
+                          {payment.orderNo || `PAY-${payment.paymentId}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 금액 + 환불 */}
+                    <div className="ph-card-right">
+                      <span className="ph-amount">{formatAmount(payment.amount)}</span>
+                      {canRefund && (
                         <button
                           type="button"
                           className="ph-refund-btn"
                           onClick={() => handleRefund(payment)}
                           disabled={refundingId === payment.paymentId}
                         >
-                          {refundingId === payment.paymentId ? <><Loader2 size={12} /> 처리 중</> : refundLabel}
+                          {refundingId === payment.paymentId ? <><Loader2 size={13} /> 처리 중</> : refundLabel}
                         </button>
-                      ) : null}
-                    </td>
-                  </tr>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
-        )}
+            </div>
 
-        {paymentRows.length > 0 && (
-          <div className="ph-total">
-            <span className="ph-total-label">유효 결제 금액</span>
-            <span className="ph-total-amount">{formatAmount(stats.amount)}</span>
-          </div>
+            {/* 합계 */}
+            <div className="ph-total">
+              <span className="ph-total-label">유효 결제 금액</span>
+              <span className="ph-total-amount">{formatAmount(stats.amount)}</span>
+            </div>
+          </>
         )}
       </div>
     </div>

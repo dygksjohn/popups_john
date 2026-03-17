@@ -737,6 +737,20 @@ export default function Closed() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'Noto Sans KR', sans-serif" }}>
+      <style>{`
+        .closed-prog-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+        .closed-prog-scroll:hover { scrollbar-color: rgba(0,0,0,0.15) transparent; }
+        .closed-prog-scroll::-webkit-scrollbar { width: 6px; }
+        .closed-prog-scroll::-webkit-scrollbar-track { background: transparent; }
+        .closed-prog-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; transition: background 0.3s; }
+        .closed-prog-scroll:hover::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+        .closed-prog-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+        @keyframes closed-scroll-bounce {
+          0%, 100% { transform: translateY(0); opacity: 0.4; }
+          50% { transform: translateY(5px); opacity: 1; }
+        }
+        .closed-scroll-hint { animation: closed-scroll-bounce 1.8s ease-in-out infinite; }
+      `}</style>
       <PageHeader
         title="종료 행사"
         subtitle="종료된 행사 결과를 행사별 그래프로 확인하세요"
@@ -883,15 +897,22 @@ export default function Closed() {
 
             {/* ── 종료 행사 선택 카드 ── */}
             {filtered.length > 0 && (
-              <section style={{ marginBottom: 28 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: "#475569" }}>
-                    행사를 선택하여 결과를 확인하세요
+              <section style={{ marginBottom: 28, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 20, overflow: "hidden" }}>
+                <div style={{ padding: "18px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Archive size={16} color="#94a3b8" />
+                    <span style={{ fontSize: 15, fontWeight: 700, color: "#555" }}>종료 행사</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#bbb" }}>{filtered.length}</span>
                   </div>
-                  <div style={{ fontSize: 14, color: "#94a3b8", fontWeight: 600 }}>{filtered.length}개 행사</div>
+                  {selected && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, background: "#2563eb", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", opacity: 0.6 }} />
+                      {selected.title}
+                    </span>
+                  )}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-                  {filtered.slice(0, 8).map((event) => {
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 0 }}>
+                  {filtered.slice(0, 8).map((event, idx) => {
                     const active = event.id === selected?.id;
                     return (
                       <button
@@ -900,72 +921,47 @@ export default function Closed() {
                         onClick={() => handleSelectEvent(event.id)}
                         style={{
                           position: "relative",
-                          border: active ? "2px solid #475569" : "1.5px solid #e2e8f0",
-                          borderRadius: 16,
-                          background: active ? "#f8fafc" : "#fff",
-                          padding: "16px 16px 14px",
+                          border: "none",
+                          borderRight: (idx % 4 !== 3) ? "1px solid #f1f5f9" : "none",
+                          borderBottom: "1px solid #f1f5f9",
+                          borderLeft: active ? "3px solid #2563eb" : "3px solid transparent",
+                          background: active ? "#eff6ff" : "#fff",
+                          padding: "20px 20px",
                           cursor: "pointer",
                           textAlign: "left",
-                          transition: "all 0.2s",
-                          boxShadow: active ? "0 4px 16px rgba(71,85,105,0.12)" : "0 1px 4px rgba(0,0,0,0.04)",
-                          overflow: "hidden",
+                          transition: "all 0.15s",
                         }}
-                        onMouseEnter={(e) => { if (!active) { e.currentTarget.style.borderColor = "#94a3b8"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.06)"; } }}
-                        onMouseLeave={(e) => { if (!active) { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.04)"; } }}
+                        onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "#fafafa"; }}
+                        onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "#fff"; }}
                       >
-                        {active && (
-                          <div style={{
-                            position: "absolute", top: 10, right: 10,
-                            width: 22, height: 22, borderRadius: 999,
-                            background: "#475569", display: "flex", alignItems: "center", justifyContent: "center",
-                          }}>
-                            <ChevronRight size={13} color="#fff" />
-                          </div>
-                        )}
                         <div style={{
-                          fontSize: 15, fontWeight: 700, color: active ? "#1e293b" : "#64748b",
-                          lineHeight: 1.4,
+                          fontSize: 15, fontWeight: 700, color: active ? "#2563eb" : "#555",
+                          lineHeight: 1.45,
                           display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-                          marginBottom: 10, paddingRight: active ? 28 : 0,
+                          marginBottom: 12,
                         }}>
                           {event.title}
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: "#94a3b8", marginBottom: 4 }}>
-                          <Calendar size={11} />
-                          {event.dateLabel}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, color: "#999" }}>
+                            <Calendar size={11} /> {event.dateLabel}
+                          </span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, color: "#999", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            <MapPin size={11} /> {event.location}
+                          </span>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: "#94a3b8" }}>
-                          <MapPin size={11} />
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{event.location}</span>
-                        </div>
-                        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                            {[0, 1, 2, 3, 4].map((i) => {
-                              const fill = Math.min(1, Math.max(0, event.rating - i));
-                              return (
-                                <div key={i} style={{ position: "relative", width: 12, height: 12 }}>
-                                  <svg width={12} height={12} viewBox="0 0 24 24">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#e5e7eb" />
-                                  </svg>
-                                  <div style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${fill * 100}%` }}>
-                                    <svg width={12} height={12} viewBox="0 0 24 24" style={{ minWidth: 12 }}>
-                                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#f59e0b" />
-                                    </svg>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "#94a3b8", marginLeft: 2 }}>{event.ratingText}</span>
-                          </div>
-                          <span style={{ fontSize: 12, color: "#cbd5e1" }}>·</span>
-                          <span style={{ fontSize: 13, color: "#94a3b8", fontWeight: 600 }}>{event.participants.toLocaleString()}명</span>
+                        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                          <Star size={12} fill={event.rating > 0 ? "#f59e0b" : "#e5e7eb"} color={event.rating > 0 ? "#f59e0b" : "#e5e7eb"} />
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "#aaa" }}>{event.ratingText}</span>
+                          <span style={{ fontSize: 12, color: "#ddd" }}>·</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, color: "#aaa", fontWeight: 600 }}><Users size={11} />{event.participants.toLocaleString()}명</span>
                         </div>
                       </button>
                     );
                   })}
                 </div>
                 {filtered.length > 8 && (
-                  <div style={{ textAlign: "center", marginTop: 10 }}>
+                  <div style={{ textAlign: "center", padding: "14px 0", borderTop: "1px solid #f1f5f9" }}>
                     <span style={{ fontSize: 13, color: "#94a3b8" }}>아래 목록에서 더 많은 행사를 확인하세요</span>
                   </div>
                 )}
@@ -1114,60 +1110,74 @@ export default function Closed() {
                         ) : filteredPrograms.length === 0 ? (
                           <div style={{ padding: "28px 0 10px", fontSize: 15, color: "#94a3b8" }}>연결된 프로그램이 없습니다.</div>
                         ) : (
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 18, paddingBottom: 24 }}>
-                            {filteredPrograms.map((program, index) => {
-                              const categoryMeta = getProgramCategoryMeta(program?.category);
-                              return (
-                                <div
-                                  key={program?.programId || `${selected.id}-${index}`}
-                                  style={{
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: 18,
-                                    padding: "16px 18px",
-                                    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-                                    display: "grid",
-                                    gap: 10,
-                                  }}
-                                >
-                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                                    <div style={{ display: "grid", gap: 8 }}>
-                                      <span style={{ display: "inline-flex", width: "fit-content", padding: "5px 10px", borderRadius: 999, background: categoryMeta.bg, color: categoryMeta.color, fontSize: 14, fontWeight: 800 }}>
-                                        {categoryMeta.label}
-                                      </span>
-                                      <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", lineHeight: 1.45 }}>
-                                        {program?.programTitle || "프로그램"}
-                                      </div>
-                                    </div>
-                                    <div style={{ minWidth: 34, height: 34, borderRadius: 999, background: "#e0e7ff", color: "#4338ca", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900 }}>
-                                      {String(index + 1).padStart(2, "0")}
-                                    </div>
-                                  </div>
-                                  <div style={{ display: "grid", gap: 6, fontSize: 14, color: "#64748b" }}>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                      <Calendar size={13} />
-                                      {fmtProgramSchedule(program?.startAt, program?.endAt)}
-                                    </span>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                      <MapPin size={13} />
-                                      {program?.location || program?.boothName || "프로그램 공간"}
-                                    </span>
-                                  </div>
+                          <div style={{ marginTop: 18 }}>
+                            <div className="closed-prog-scroll" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, maxHeight: 440, overflowY: "auto", paddingRight: 4 }}>
+                              {filteredPrograms.map((program, index) => {
+                                const categoryMeta = getProgramCategoryMeta(program?.category);
+                                return (
                                   <div
+                                    key={program?.programId || `${selected.id}-${index}`}
                                     style={{
-                                      fontSize: 15,
-                                      lineHeight: 1.7,
-                                      color: "#475569",
-                                      display: "-webkit-box",
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: "vertical",
-                                      overflow: "hidden",
+                                      border: "1px solid #eee",
+                                      borderRadius: 14,
+                                      padding: "20px 20px",
+                                      background: "#fff",
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: 14,
+                                      transition: "background 0.15s",
                                     }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = "#fafafa"}
+                                    onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}
                                   >
-                                    {program?.description || "상세 설명이 없습니다."}
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: categoryMeta.color, flexShrink: 0 }} />
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: categoryMeta.color, letterSpacing: "0.02em" }}>
+                                          {categoryMeta.label}
+                                        </span>
+                                      </div>
+                                      <span style={{ fontSize: 13, fontWeight: 600, color: "#ccc" }}>
+                                        {String(index + 1).padStart(2, "0")}
+                                      </span>
+                                    </div>
+                                    <div style={{ fontSize: 17, fontWeight: 700, color: "#111", lineHeight: 1.5 }}>
+                                      {program?.programTitle || "프로그램"}
+                                    </div>
+                                    <div style={{ display: "flex", gap: 14, fontSize: 14, color: "#999" }}>
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                        <Calendar size={12} />
+                                        {fmtProgramSchedule(program?.startAt, program?.endAt)}
+                                      </span>
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                        <MapPin size={12} />
+                                        {program?.location || program?.boothName || "프로그램 공간"}
+                                      </span>
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: 14.5,
+                                        lineHeight: 1.7,
+                                        color: "#888",
+                                        display: "-webkit-box",
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: "vertical",
+                                        overflow: "hidden",
+                                      }}
+                                    >
+                                      {program?.description || "상세 설명이 없습니다."}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
+                            {filteredPrograms.length > 4 && (
+                              <div style={{ textAlign: "center", padding: "24px 0 12px" }}>
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, color: "#94a3b8", fontWeight: 500, letterSpacing: "0.5px" }}>
+                                  <ChevronDown size={14} /> 스크롤하여 더보기 ({filteredPrograms.length - 4}개 더)
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

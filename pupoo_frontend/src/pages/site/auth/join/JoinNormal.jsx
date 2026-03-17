@@ -88,7 +88,7 @@ const styles = `
   .signup-outer { background: #f3f4f6; min-height: 100vh; }
   .signup-inner {
     max-width: 1400px; margin: 0 auto; background: #fff;
-    min-height: 100vh; padding: 0 40px;
+    min-height: 100vh; padding: 90px 40px;
     box-shadow: 0 0 40px rgba(0,0,0,.04);
   }
   .signup-wrap {
