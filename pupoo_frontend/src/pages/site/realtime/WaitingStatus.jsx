@@ -33,19 +33,43 @@ const styles = `
   }
   .wt-root *, .wt-root *::before, .wt-root *::after { box-sizing: border-box; font-family: inherit; }
   .wt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
+  .wt-container.with-event { padding-top: 92px; }
   .wt-container.selector-mode { padding-top: 104px; }
   .wt-page-shell { max-width: 1120px; margin: 0 auto; }
 
-  .wt-live-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  .wt-live-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 10px; margin-bottom: 10px; }
   .wt-live-header-left { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
   .wt-live-badge {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 4px 12px; border-radius: 999px; margin-bottom: 0;
     font-size: 11px; font-weight: 700; color: #ef4444;
     border: 1px solid #fecaca; background: #fff0f0;
+    line-height: 1;
+  }
+  .wt-live-badge.planned {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #2563eb;
+    justify-content: center;
+    gap: 0;
+  }
+  .wt-live-badge.ended {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #6b7280;
+    justify-content: center;
+    gap: 0;
+  }
+  .wt-live-badge.cancelled {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+    justify-content: center;
+    gap: 0;
   }
   .wt-live-meta { display: none; }
   .wt-live-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: wt-pulse 1.4s ease-in-out infinite; }
+  .wt-live-dot.placeholder { visibility: hidden; animation: none; width: 0; margin: 0; }
   @keyframes wt-pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: 0.5; transform: scale(0.8);} }
   .wt-live-title { margin: 0; font-size: 28px; line-height: 1.05; letter-spacing: -0.03em; font-weight: 900; color: #111827; }
   .wt-live-header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
@@ -282,6 +306,7 @@ const styles = `
   }
   @media (max-width: 700px) {
     .wt-container { padding: 20px 16px 48px; }
+    .wt-container.with-event { padding-top: 80px; }
     .wt-container.selector-mode { padding-top: 88px; }
     .wt-live-header { flex-direction: column; align-items: flex-start; }
     .wt-live-title { font-size: 22px; }
@@ -493,7 +518,7 @@ function mapProgramWait(detail, aiPrediction = null) {
   const rawWaitMin = toNumberOrNull(detail.experienceWait?.waitMin);
   const aiWaitMin = toNumberOrNull(aiPrediction?.predictedWaitMinutes);
   const resolvedWaitMin = aiWaitMin ?? rawWaitMin;
-  const waitCount = rawWaitCount ?? (aiWaitMin === 0 ? 0 : null);
+  const waitCount = rawWaitCount;
   const waitMin = resolvedWaitMin;
   const congestion = getCongestionStatus(waitCount, waitMin);
 
@@ -886,6 +911,62 @@ function WaitingContent({ eventId }) {
 
   const eventName =
     eventDetail?.eventName || eventDetail?.title || `행사 ${numericEventId}`;
+  const statusBadge = useMemo(() => {
+    const statusCandidates = [
+      eventDetail?.status,
+      eventDetail?.eventStatus,
+      eventDetail?.realtimeStatus,
+      eventDetail?.state,
+    ]
+      .map((value) => String(value ?? "").trim().toUpperCase())
+      .filter(Boolean);
+    const status = statusCandidates[0] ?? "";
+
+    if (
+      status === "PLANNED" ||
+      status === "PENDING" ||
+      status === "UPCOMING" ||
+      status === "SCHEDULED"
+    ) {
+      return { className: "planned", label: "예정", showDot: false };
+    }
+    if (
+      status === "ONGOING" ||
+      status === "LIVE" ||
+      status === "IN_PROGRESS" ||
+      status === "RUNNING"
+    ) {
+      return { className: "", label: "LIVE", showDot: true };
+    }
+    if (status === "ENDED") {
+      return { className: "ended", label: "종료", showDot: false };
+    }
+    if (status === "CANCELLED") {
+      return { className: "cancelled", label: "취소", showDot: false };
+    }
+
+    const startAt =
+      toDateOrNull(eventDetail?.startAt) ??
+      toDateOrNull(eventDetail?.eventStartAt) ??
+      toDateOrNull(eventDetail?.startDate);
+    const endAt =
+      toDateOrNull(eventDetail?.endAt) ??
+      toDateOrNull(eventDetail?.eventEndAt) ??
+      toDateOrNull(eventDetail?.endDate);
+    const now = Date.now();
+
+    if (startAt && now < startAt.getTime()) {
+      return { className: "planned", label: "예정", showDot: false };
+    }
+    if (endAt && now > endAt.getTime()) {
+      return { className: "ended", label: "종료", showDot: false };
+    }
+    if (startAt && endAt && now >= startAt.getTime() && now <= endAt.getTime()) {
+      return { className: "", label: "LIVE", showDot: true };
+    }
+
+    return { className: "planned", label: "예정", showDot: false };
+  }, [eventDetail]);
 
   const heroProgram =
     summary.waitingProgramCount > 0 ? summary.busiestProgram : null;
@@ -951,9 +1032,9 @@ function WaitingContent({ eventId }) {
       <div className="wt-page-shell">
       <div className="wt-live-header">
         <div className="wt-live-header-left">
-          <div className="wt-live-badge anim-glow">
-            <div className="wt-live-dot" />
-            LIVE
+          <div className={`wt-live-badge ${statusBadge.className} anim-glow`.trim()}>
+            <div className={`wt-live-dot${statusBadge.showDot ? "" : " placeholder"}`} />
+            {statusBadge.label}
           </div>
           <div className="wt-live-meta">
             <span>{eventName}</span>
@@ -1352,7 +1433,7 @@ export default function WaitingStatus({ onNavigate: onNavigateProp }) {
           onNavigate={handleNavigate}
         />
       ) : null}
-      <main className={`wt-container${eventId ? "" : " selector-mode"}`}>
+      <main className={`wt-container${eventId ? " with-event" : " selector-mode"}`}>
         {eventId ? (
           <WaitingContent eventId={eventId} />
         ) : (

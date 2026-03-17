@@ -12,6 +12,7 @@ import {
   useAutoRefresh,
   useRefresh,
 } from "./useRealtimeAnimations";
+import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import {
   createImageFallbackHandler,
@@ -23,14 +24,19 @@ const styles = `
   .vt-root { box-sizing: border-box; min-height: 100vh; background: #f8f9fc; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; }
   .vt-root *, .vt-root *::before, .vt-root *::after { box-sizing: border-box; font-family: inherit; }
   .vt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
-  .vt-container.with-event { padding-top: 32px; }
+  .vt-container.with-event { padding-top: 92px; }
   .vt-container.selector-mode { padding-top: 104px; }
   .vt-page-shell { max-width: 1120px; margin: 0 auto; }
 
-  .vt-live-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
-  .vt-live-meta { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .vt-live-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; margin-bottom: 10px; }
+  .vt-live-header-left { min-width: 0; display: flex; flex-direction: column; gap: 0; }
+  .vt-live-header-right { display: flex; align-items: center; gap: 12px; }
   .vt-live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; border: 1px solid #fecaca; background: #fff0f0; color: #ef4444; font-size: 11px; font-weight: 700; }
+  .vt-live-badge.planned { background: #eff6ff; border-color: #bfdbfe; color: #2563eb; justify-content: center; gap: 0; }
+  .vt-live-badge.ended { background: #f3f4f6; border-color: #e5e7eb; color: #6b7280; justify-content: center; gap: 0; }
+  .vt-live-badge.cancelled { background: #fef2f2; border-color: #fecaca; color: #b91c1c; justify-content: center; gap: 0; }
   .vt-live-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: vt-pulse 1.4s ease-in-out infinite; }
+  .vt-live-dot.placeholder { visibility: hidden; animation: none; width: 0; margin: 0; }
   @keyframes vt-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.76); } }
   .vt-live-time { font-size: 12px; color: #6b7280; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .vt-refresh-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #6b7280; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; }
@@ -42,6 +48,32 @@ const styles = `
   .vt-card-title { margin: 0; display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: #111827; }
   .vt-card-title-icon { width: 24px; height: 24px; border-radius: 6px; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; }
   .vt-card-tag { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; border: 1px solid #e5e7eb; background: #f8fafc; color: #4b5563; font-size: 11px; font-weight: 700; }
+  .vt-detail-rank-badge {
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 900;
+    color: #7c2d12;
+    background: #fff7ed;
+    border-color: #fdba74;
+    letter-spacing: -0.01em;
+  }
+  .vt-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+  }
+  .vt-detail-name-group {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+  .vt-detail-rank-badge-inline {
+    flex-shrink: 0;
+  }
 
   .vt-selector-wrap { margin-top: 8px; margin-bottom: 14px; }
   .vt-selector-head-left {
@@ -121,7 +153,8 @@ const styles = `
   .vt-ranking-toggle { margin-top: 10px; border: 1px solid #dbe3ef; border-radius: 999px; background: #fff; color: #334155; font-size: 12px; font-weight: 700; padding: 5px 11px; cursor: pointer; }
   .vt-ranking-toggle:hover { border-color: #c2d0e4; background: #f8fafc; }
 
-  .vt-detail-name { margin: 0; font-size: 20px; line-height: 1.2; letter-spacing: -0.01em; color: #111827; font-weight: 900; }
+  .vt-detail-name { margin: 0; font-size: 20px; line-height: 1.2; letter-spacing: -0.01em; color: #111827; font-weight: 900; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vt-detail-owner-inline { margin: 0; font-size: 12px; color: #6b7280; font-weight: 600; white-space: nowrap; }
   .vt-detail-sub { margin: 6px 0 0; font-size: 12px; color: #6b7280; font-weight: 600; }
   .vt-detail-media { width: 100%; aspect-ratio: 16 / 10; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; background: #f8fafc; display: flex; align-items: center; justify-content: center; margin: 12px 0; }
   .vt-detail-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -143,9 +176,8 @@ const styles = `
   }
   @media (max-width: 680px) {
     .vt-container { padding: 20px 16px 48px; }
-    .vt-container.with-event { padding-top: 20px; }
+    .vt-container.with-event { padding-top: 80px; }
     .vt-container.selector-mode { padding-top: 88px; }
-    .vt-live-header { flex-direction: column; align-items: flex-start; gap: 8px; }
     .vt-card { padding: 16px; }
     .vt-selector-head-left { width: 100%; }
     .vt-detail-metrics { grid-template-columns: 1fr; }
@@ -298,10 +330,12 @@ function VoteContent({ eventId, onNavigate }) {
   const [contestStatusFilter, setContestStatusFilter] = useState("진행 중");
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [showAllCandidates, setShowAllCandidates] = useState(false);
+  const [eventStatus, setEventStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const loadedRef = useRef(false);
   const activeKeyRef = useRef(null);
+  const candidateCacheRef = useRef(new Map());
   const [manualRefreshSeed, setManualRefreshSeed] = useState(0);
   const { tick, lastUpdated } = useAutoRefresh(5000);
   const { spinning, refresh } = useRefresh(
@@ -315,10 +349,12 @@ function VoteContent({ eventId, onNavigate }) {
     setContestStatusFilter("진행 중");
     setSelectedCandidateId(null);
     setShowAllCandidates(false);
+    setEventStatus("");
     setLoading(true);
     setErrorMsg("");
     loadedRef.current = false;
     activeKeyRef.current = null;
+    candidateCacheRef.current = new Map();
   }, [eventId]);
 
   useEffect(() => {
@@ -337,48 +373,62 @@ function VoteContent({ eventId, onNavigate }) {
       setErrorMsg("");
 
       try {
+        try {
+          const eventResponse = await eventApi.getEventDetail(Number(eventId));
+          const resolvedStatus = String(
+            eventResponse?.data?.data?.status ?? eventResponse?.data?.status ?? "",
+          ).toUpperCase();
+          if (!cancelled && resolvedStatus) {
+            setEventStatus(resolvedStatus);
+          }
+        } catch {
+          if (!cancelled) setEventStatus("");
+        }
+
         const programs = await programApi.getAllProgramsByEvent({
           eventId: Number(eventId),
           category: "CONTEST",
           sort: "startAt,asc",
         });
 
-        const mapped = await Promise.all(
-          (Array.isArray(programs) ? programs : []).map(async (program) => {
+        const programRows = Array.isArray(programs) ? programs : [];
+        const votePayloadMap = new Map();
+
+        const voteResults = await Promise.allSettled(
+          programRows.map((program) => {
             const programId = Number(program?.programId);
-            const [voteResult, candidateResult] = await Promise.allSettled([
-              programApi.getContestVoteResult(programId),
-              programApi.getCandidates(programId, { page: 0, size: 200 }),
-            ]);
-
-            const votePayload =
-              voteResult.status === "fulfilled"
-                ? voteResult.value?.data?.data ?? voteResult.value?.data ?? {}
-                : {};
-            const candidatePayload =
-              candidateResult.status === "fulfilled"
-                ? candidateResult.value?.data?.data ?? candidateResult.value?.data ?? {}
-                : {};
-
-            const candidateRows = toCandidateRows(candidatePayload);
-            const voteRows = Array.isArray(votePayload?.results) ? votePayload.results : [];
-            const { totalVotes, items } = buildContestItems(
-              candidateRows,
-              voteRows,
-              toNumber(votePayload?.totalVotes),
-            );
-
-            return {
-              key: `contest-${programId}`,
-              programId,
-              title: program?.programTitle || `콘테스트 #${programId}`,
-              status: toContestStatus(program),
-              totalVotes,
-              participantCount: items.length,
-              items,
-            };
+            if (!Number.isFinite(programId)) return Promise.resolve(null);
+            return programApi.getContestVoteResult(programId);
           }),
         );
+
+        const mapped = programRows.map((program, index) => {
+          const programId = Number(program?.programId);
+          const voteResult = voteResults[index];
+          const votePayload =
+            voteResult?.status === "fulfilled"
+              ? voteResult.value?.data?.data ?? voteResult.value?.data ?? {}
+              : {};
+          votePayloadMap.set(programId, votePayload);
+
+          const candidateRows = candidateCacheRef.current.get(programId) ?? [];
+          const voteRows = Array.isArray(votePayload?.results) ? votePayload.results : [];
+          const { totalVotes, items } = buildContestItems(
+            candidateRows,
+            voteRows,
+            toNumber(votePayload?.totalVotes),
+          );
+
+          return {
+            key: `contest-${programId}`,
+            programId,
+            title: program?.programTitle || `콘테스트 #${programId}`,
+            status: toContestStatus(program),
+            totalVotes,
+            participantCount: items.length,
+            items,
+          };
+        });
 
         if (cancelled) return;
         setContests(mapped);
@@ -389,6 +439,54 @@ function VoteContent({ eventId, onNavigate }) {
           return mapped[0]?.key ?? null;
         });
         loadedRef.current = true;
+
+        const missingCandidatePrograms = programRows.filter((program) => {
+          const programId = Number(program?.programId);
+          return Number.isFinite(programId) && !candidateCacheRef.current.has(programId);
+        });
+
+        if (missingCandidatePrograms.length > 0) {
+          const candidateResults = await Promise.allSettled(
+            missingCandidatePrograms.map((program) =>
+              programApi.getCandidates(Number(program?.programId), { page: 0, size: 200 }),
+            ),
+          );
+
+          let candidateCacheUpdated = false;
+          missingCandidatePrograms.forEach((program, index) => {
+            const result = candidateResults[index];
+            if (result?.status !== "fulfilled") return;
+            const payload = result.value?.data?.data ?? result.value?.data ?? {};
+            const candidateRows = toCandidateRows(payload);
+            candidateCacheRef.current.set(Number(program?.programId), candidateRows);
+            candidateCacheUpdated = true;
+          });
+
+          if (!cancelled && candidateCacheUpdated) {
+            const enriched = programRows.map((program) => {
+              const programId = Number(program?.programId);
+              const votePayload = votePayloadMap.get(programId) ?? {};
+              const candidateRows = candidateCacheRef.current.get(programId) ?? [];
+              const voteRows = Array.isArray(votePayload?.results) ? votePayload.results : [];
+              const { totalVotes, items } = buildContestItems(
+                candidateRows,
+                voteRows,
+                toNumber(votePayload?.totalVotes),
+              );
+
+              return {
+                key: `contest-${programId}`,
+                programId,
+                title: program?.programTitle || `콘테스트 #${programId}`,
+                status: toContestStatus(program),
+                totalVotes,
+                participantCount: items.length,
+                items,
+              };
+            });
+            setContests(enriched);
+          }
+        }
       } catch (error) {
         if (!cancelled) {
           setErrorMsg(
@@ -476,6 +574,18 @@ function VoteContent({ eventId, onNavigate }) {
       return acc;
     }, {});
   }, [contests]);
+  const statusBadge = useMemo(() => {
+    if (eventStatus === "PLANNED" || eventStatus === "PENDING" || eventStatus === "UPCOMING") {
+      return { className: "planned", label: "예정", showDot: false };
+    }
+    if (eventStatus === "ENDED") {
+      return { className: "ended", label: "종료", showDot: false };
+    }
+    if (eventStatus === "CANCELLED") {
+      return { className: "cancelled", label: "취소", showDot: false };
+    }
+    return { className: "", label: "LIVE", showDot: true };
+  }, [eventStatus]);
 
   if (loading && contests.length === 0) {
     return <div className="vt-state-card">실시간 투표 현황을 불러오는 중입니다.</div>;
@@ -490,50 +600,35 @@ function VoteContent({ eventId, onNavigate }) {
       {errorMsg ? <div className="vt-inline-banner">{errorMsg}</div> : null}
 
       <section className="vt-live-header">
-        <div
-          className="vt-live-meta"
-          style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}
-        >
+        <div className="vt-live-header-left">
           <span
-            className="vt-live-badge"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "4px 11px",
-              borderRadius: 999,
-              border: "1px solid #fecaca",
-              background: "#fff0f0",
-              color: "#ef4444",
-              fontSize: 11,
-              fontWeight: 700,
-              lineHeight: 1,
-              whiteSpace: "nowrap",
-            }}
+            className={`vt-live-badge ${statusBadge.className}`.trim()}
+            style={{ lineHeight: 1, whiteSpace: "nowrap" }}
           >
             <span
-              className="vt-live-dot"
-              style={{ width: 7, height: 7, borderRadius: "50%", background: "#ef4444" }}
+              className={`vt-live-dot${statusBadge.showDot ? "" : " placeholder"}`}
             />
-            LIVE 집계
+            {statusBadge.label}
           </span>
+        </div>
+        <div className="vt-live-header-right">
           <span
             className="vt-live-time"
             style={{ color: "#6b7280", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}
           >
             마지막 갱신 {lastUpdated}
           </span>
+          <button className="vt-refresh-btn" onClick={refresh} aria-label="새로고침">
+            <RefreshCw
+              size={15}
+              style={{
+                animation: spinning
+                  ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)"
+                  : "none",
+              }}
+            />
+          </button>
         </div>
-        <button className="vt-refresh-btn" onClick={refresh} aria-label="새로고침">
-          <RefreshCw
-            size={15}
-            style={{
-              animation: spinning
-                ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)"
-                : "none",
-            }}
-          />
-        </button>
       </section>
 
       <section className="vt-card vt-selector-wrap">
@@ -659,14 +754,18 @@ function VoteContent({ eventId, onNavigate }) {
               </span>
               후보 상세
             </h2>
-            {selectedCandidate ? (
-              <span className="vt-card-tag">현재 {selectedCandidate.rank}위</span>
-            ) : null}
           </header>
           {selectedCandidate ? (
             <>
-              <p className="vt-detail-name">{selectedCandidate.name}</p>
-              <p className="vt-detail-sub">{selectedCandidate.ownerNickname}</p>
+              <div className="vt-detail-head">
+                <div className="vt-detail-name-group">
+                  <p className="vt-detail-name">{selectedCandidate.name}</p>
+                  <p className="vt-detail-owner-inline">{selectedCandidate.ownerNickname}</p>
+                </div>
+                <span className="vt-card-tag vt-detail-rank-badge vt-detail-rank-badge-inline">
+                  현재 {selectedCandidate.rank}위
+                </span>
+              </div>
               <div className="vt-detail-media">
                 {selectedCandidate.imageUrl ? (
                   <img
@@ -684,10 +783,6 @@ function VoteContent({ eventId, onNavigate }) {
                 )}
               </div>
               <div className="vt-detail-metrics">
-                <div className="vt-detail-metric">
-                  <p className="vt-detail-metric-label">현재 순위</p>
-                  <p className="vt-detail-metric-value">{selectedCandidate.rank}위</p>
-                </div>
                 <div className="vt-detail-metric">
                   <p className="vt-detail-metric-label">득표수</p>
                   <p className="vt-detail-metric-value">{formatCount(selectedCandidate.votes)}표</p>

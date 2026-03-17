@@ -25,7 +25,7 @@ const styles = {
   },
   pageHeaderSticky: {
     position: "sticky",
-    top: 70,
+    top: 92,
     zIndex: 1200,
     paddingTop: 0,
   },

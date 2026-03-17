@@ -387,6 +387,12 @@ export default function PupooHeader() {
   }, [location.pathname]);
 
   const handleNavClick = (menuKey) => {
+    if (menuKey === "realtime") {
+      setActiveMenu(null);
+      navigate("/realtime/dashboard");
+      return;
+    }
+
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey));
   };
 
@@ -612,7 +618,7 @@ export default function PupooHeader() {
               {navItems.map((item) => (
                 <button
                   key={item.menuKey}
-                  className={`kakao-nav-btn ${isLight ? "light" : "dark"} ${activeMenu === item.menuKey ? "active" : ""}`}
+                  className={`kakao-nav-btn ${isLight ? "light" : "dark"} ${item.menuKey !== "realtime" && activeMenu === item.menuKey ? "active" : ""}`}
                   onClick={() => handleNavClick(item.menuKey)}
                   type="button"
                 >

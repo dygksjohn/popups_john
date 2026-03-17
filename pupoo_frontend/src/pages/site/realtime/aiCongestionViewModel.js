@@ -23,6 +23,16 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function normalizeScorePercent(value) {
+  const numeric = toNumber(value, 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  // AI congestion score is provided in 0~5 scale in current backend payload.
+  if (numeric <= 5) {
+    return clamp(Math.round(numeric * 20), 0, 100);
+  }
+  return clamp(Math.round(numeric), 0, 100);
+}
+
 function resolveLevel(score, level) {
   const explicitLevel = Number(level);
   if ([1, 2, 3, 4, 5].includes(explicitLevel)) return explicitLevel;
@@ -47,8 +57,8 @@ export function getLevelMeta(score, level) {
 export function normalizePrediction(payload) {
   if (!payload || typeof payload !== "object") return null;
 
-  const avgScore = clamp(toNumber(payload.predictedAvgScore, 0), 0, 100);
-  const peakScore = clamp(toNumber(payload.predictedPeakScore, avgScore), 0, 100);
+  const avgScore = normalizeScorePercent(payload.predictedAvgScore);
+  const peakScore = normalizeScorePercent(payload.predictedPeakScore ?? avgScore);
   const waitMinutes = Math.max(0, Math.round(toNumber(payload.predictedWaitMinutes, 0)));
   const confidence = clamp(toNumber(payload.confidence, 0), 0, 1);
   const levelMeta = getLevelMeta(peakScore, payload.predictedLevel);
@@ -56,7 +66,7 @@ export function normalizePrediction(payload) {
   const timeline = Array.isArray(payload.timeline)
     ? payload.timeline
         .map((point) => {
-          const score = clamp(toNumber(point?.score, 0), 0, 100);
+          const score = normalizeScorePercent(point?.score);
           const pointLevel = getLevelMeta(score, point?.predictedLevel);
           return {
             time: point?.time ?? point?.timestamp ?? null,
@@ -91,7 +101,7 @@ export function normalizeRecommendation(payload) {
 
   const recommendations = Array.isArray(payload.recommendations)
     ? payload.recommendations.map((item) => {
-        const score = clamp(toNumber(item?.predictedScore, 0), 0, 100);
+        const score = normalizeScorePercent(item?.predictedScore);
         const levelMeta = getLevelMeta(score, item?.predictedLevel);
         return {
           programId: item?.programId ?? null,

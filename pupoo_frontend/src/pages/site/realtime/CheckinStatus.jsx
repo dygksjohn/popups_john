@@ -42,6 +42,7 @@ const styles = `
   .ck-root *, .ck-root *::before, .ck-root *::after { box-sizing: border-box; font-family: inherit; }
 
   .ck-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
+  .ck-container.with-event { padding-top: 92px; }
   .ck-container.selector-mode { padding-top: 104px; }
   .ck-page-shell { max-width: 1120px; margin: 0 auto; }
 
@@ -50,13 +51,41 @@ const styles = `
     padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca;
     border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444;
     margin-bottom: 0;
+    line-height: 1;
+  }
+  .rt-live-badge.planned {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #2563eb;
+    justify-content: center;
+    gap: 0;
+  }
+  .rt-live-badge.ended {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #6b7280;
+    justify-content: center;
+    gap: 0;
+  }
+  .rt-live-badge.cancelled {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+    justify-content: center;
+    gap: 0;
   }
   .rt-live-dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: #ef4444;
+    background: currentColor;
     animation: ck-pulse 1.4s ease-in-out infinite;
+  }
+  .rt-live-dot.placeholder {
+    visibility: hidden;
+    animation: none;
+    width: 0;
+    margin: 0;
   }
   @keyframes ck-pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
@@ -65,9 +94,10 @@ const styles = `
 
   .ck-live-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
+    margin-top: 10px;
+    margin-bottom: 10px;
     gap: 12px;
   }
   .ck-live-header-left {
@@ -404,6 +434,7 @@ const styles = `
   }
   @media (max-width: 640px) {
     .ck-container { padding: 20px 16px 48px; }
+    .ck-container.with-event { padding-top: 80px; }
     .ck-container.selector-mode { padding-top: 88px; }
     .ck-card { padding: 20px 16px; }
     .ck-card-header { flex-wrap: wrap; gap: 8px; }
@@ -809,6 +840,19 @@ function CheckinContent({ eventId }) {
   const [myCheckin, setMyCheckin] = useState(null);
   const [programCheckinStatus, setProgramCheckinStatus] = useState(null);
   const [lastLoadedAt, setLastLoadedAt] = useState(new Date());
+  const statusBadge = useMemo(() => {
+    const status = String(eventDetail?.status ?? "").toUpperCase();
+    if (status === "PLANNED" || status === "PENDING" || status === "UPCOMING") {
+      return { className: "planned", label: "예정", showDot: false };
+    }
+    if (status === "ENDED") {
+      return { className: "ended", label: "종료", showDot: false };
+    }
+    if (status === "CANCELLED") {
+      return { className: "cancelled", label: "취소", showDot: false };
+    }
+    return { className: "", label: "LIVE", showDot: true };
+  }, [eventDetail?.status]);
 
   const loadData = useCallback(
     async ({ preserveLoading = false } = {}) => {
@@ -930,9 +974,9 @@ function CheckinContent({ eventId }) {
       <div className="ck-page-shell">
         <div className="ck-live-header">
           <div className="ck-live-header-left">
-            <div className="rt-live-badge anim-glow">
-              <div className="rt-live-dot" />
-              LIVE
+            <div className={`rt-live-badge ${statusBadge.className} anim-glow`.trim()}>
+              <div className={`rt-live-dot${statusBadge.showDot ? "" : " placeholder"}`} />
+              {statusBadge.label}
             </div>
           </div>
 
@@ -1014,7 +1058,7 @@ export default function CheckinStatus() {
         />
       ) : null}
 
-      <main className={`ck-container${eventId ? "" : " selector-mode"}`}>
+      <main className={`ck-container${eventId ? " with-event" : " selector-mode"}`}>
         {eventId ? (
           <CheckinContent eventId={eventId} />
         ) : (

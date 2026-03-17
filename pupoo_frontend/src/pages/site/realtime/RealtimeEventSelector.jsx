@@ -493,7 +493,13 @@ const congestionLevelToPercent = (value) => {
 
 const summarizeRealtimeCongestionPercent = (rows) => {
   const values = toArray(rows)
-    .map((row) => congestionLevelToPercent(row?.congestionLevel))
+    .map((row) => {
+      const rawLevel = row?.congestionLevel;
+      const hasMeasuredLevel = rawLevel !== null && rawLevel !== undefined && rawLevel !== "";
+      const congestionLevel = hasMeasuredLevel ? Number(rawLevel) : NaN;
+      if (!Number.isFinite(congestionLevel)) return null;
+      return congestionLevelToPercent(congestionLevel);
+    })
     .filter((value) => Number.isFinite(value));
   if (values.length === 0) return null;
   return Math.max(
@@ -503,6 +509,27 @@ const summarizeRealtimeCongestionPercent = (rows) => {
       Math.round(values.reduce((sum, value) => sum + value, 0) / values.length),
     ),
   );
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const estimateUpcomingCongestionPercent = (registrations, startAt, endAt) => {
+  const totalRegistrations = Math.max(0, Number(registrations) || 0);
+  if (totalRegistrations <= 0) return 0;
+
+  const startDate = toValidDate(startAt);
+  const endDate = toValidDate(endAt);
+  let operationDays = 1;
+
+  if (startDate && endDate && endDate >= startDate) {
+    const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    operationDays = Math.max(1, Math.ceil((endDay.getTime() - startDay.getTime() + DAY_MS) / DAY_MS));
+  }
+
+  const registrationsPerDay = totalRegistrations / operationDays;
+  const estimated = Math.round((registrationsPerDay / 300) * 100);
+  return Math.max(5, Math.min(85, estimated));
 };
 
 const hexToRgb = (hex) => {
@@ -846,7 +873,12 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
               const aiAverage = aiPrediction
                 ? Math.round(Number(aiPrediction.avgScore) || 0)
                 : null;
-              return [eventId, Number.isFinite(aiAverage) ? aiAverage : null];
+              const shouldUseAiAverage =
+                Number.isFinite(aiAverage) &&
+                // Active rows can use AI fallback if measured data is missing.
+                // Pending/ended rows should avoid uniform fallback AI values.
+                (status === "active" || !aiPrediction?.fallbackUsed);
+              return [eventId, shouldUseAiAverage ? aiAverage : null];
             } catch {
               return [eventId, null];
             }
@@ -870,11 +902,21 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
             const checkedInRaw = Number(performance?.checkinCount) || 0;
             const checkedIn = rawStatus === "PLANNED" ? 0 : checkedInRaw;
             const measuredCongestion = congestionMap.get(Number(event.eventId));
+            const endedRatioCongestion =
+              selectorStatus === "ended" && registrations > 0
+                ? Math.max(0, Math.min(100, Math.round((checkedInRaw / registrations) * 100)))
+                : null;
+            const upcomingEstimatedCongestion =
+              selectorStatus === "upcoming"
+                ? estimateUpcomingCongestionPercent(registrations, event.startAt, event.endAt)
+                : null;
             const congestion =
               measuredCongestion != null
                 ? measuredCongestion
                 : selectorStatus === "ended"
-                  ? 0
+                  ? endedRatioCongestion
+                  : selectorStatus === "upcoming"
+                    ? upcomingEstimatedCongestion
                   : null;
             return {
               id: event.eventId,

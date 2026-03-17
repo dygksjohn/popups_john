@@ -37,6 +37,7 @@ const styles = `
   }
   .rt-root *, .rt-root *::before, .rt-root *::after { box-sizing: border-box; font-family: inherit; }
   .rt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
+  .rt-container.with-event { padding-top: 92px; }
   .rt-container.selector-mode { padding-top: 104px; }
   .rt-page-shell { max-width: 1120px; margin: 0 auto; }
 
@@ -45,16 +46,27 @@ const styles = `
     padding: 4px 12px; background: #fff0f0; border: 1px solid #fecaca;
     border-radius: 100px; font-size: 11px; font-weight: 700; color: #ef4444;
     margin-bottom: 0;
+    line-height: 1;
   }
   .rt-live-badge.planned {
     background: #eff6ff;
     border-color: #bfdbfe;
     color: #2563eb;
+    justify-content: center;
+    gap: 0;
+  }
+  .rt-live-badge.planned .rt-live-dot.placeholder {
+    display: none;
   }
   .rt-live-badge.ended {
     background: #f3f4f6;
     border-color: #e5e7eb;
     color: #6b7280;
+    justify-content: center;
+    gap: 0;
+  }
+  .rt-live-badge.ended .rt-live-dot.placeholder {
+    display: none;
   }
   .rt-live-badge.cancelled {
     background: #fef2f2;
@@ -65,14 +77,20 @@ const styles = `
     width: 7px; height: 7px; border-radius: 50%; background: currentColor;
     animation: rt-pulse 1.4s ease-in-out infinite;
   }
+  .rt-live-dot.placeholder {
+    visibility: hidden;
+    animation: none;
+  }
   @keyframes rt-pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.5; transform: scale(0.8); }
   }
 
   .rt-live-header {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    margin-bottom: 16px; gap: 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    gap: 16px;
   }
   .rt-live-header-left {
     display: flex;
@@ -337,11 +355,16 @@ const styles = `
     border-radius: 11px;
     background: #fff;
     padding: 12px 12px 11px;
+    position: relative;
   }
   .rt-prediction-kpi-label {
     font-size: 11px;
     color: #6b7280;
     font-weight: 700;
+    min-height: 18px;
+    padding-right: 96px;
+    display: flex;
+    align-items: center;
   }
   .rt-prediction-kpi-value {
     margin-top: 7px;
@@ -350,6 +373,27 @@ const styles = `
     color: #111827;
     font-weight: 900;
     letter-spacing: -0.02em;
+  }
+  .rt-prediction-kpi-value.with-day {
+    font-size: 26px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    white-space: normal;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .rt-prediction-kpi-score {
+    display: inline-flex;
+    align-items: baseline;
+  }
+  .rt-prediction-kpi-day {
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 0;
+    margin-bottom: 2px;
   }
   .rt-prediction-kpi-unit {
     margin-left: 3px;
@@ -365,7 +409,7 @@ const styles = `
     font-weight: 600;
   }
   .rt-prediction-kpi-badge {
-    margin-top: 8px;
+    margin-top: 0;
     display: inline-flex;
     align-items: center;
     border-radius: 999px;
@@ -373,6 +417,10 @@ const styles = `
     font-size: 11px;
     font-weight: 800;
     border: 1px solid #e5e7eb;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    white-space: nowrap;
   }
   .rt-prediction-bottom {
     display: grid;
@@ -545,6 +593,23 @@ const styles = `
   }
   .rt-program-grid-top3 .rt-program-metric-value {
     font-size: 14px;
+  }
+  .rt-ready-program-scroll {
+    max-height: 430px;
+    overflow-y: auto;
+    padding-right: 4px;
+    align-content: start;
+  }
+  .rt-ready-program-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+  .rt-ready-program-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+  }
+  .rt-ready-program-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 999px;
   }
   .rt-program-card {
     border: 1px solid #dfe8f5;
@@ -915,11 +980,15 @@ const styles = `
     .rt-program-grid {
       grid-template-columns: 1fr;
     }
+    .rt-ready-program-scroll {
+      max-height: 1260px;
+    }
     .rt-stat-grid { grid-template-columns: repeat(2, 1fr); }
     .rt-two-col { grid-template-columns: 1fr; }
   }
   @media (max-width: 640px) {
     .rt-container { padding: 20px 16px 48px; }
+    .rt-container.with-event { padding-top: 80px; }
     .rt-container.selector-mode { padding-top: 88px; }
     .rt-hero-kpi-grid {
       grid-template-columns: 1fr;
@@ -1202,6 +1271,9 @@ const resolveAiDateKey = (eventDetail, preferredDateKey) => {
   }
 
   const status = String(eventDetail?.status ?? "").toUpperCase();
+  if (status === "PLANNED" || status === "PENDING" || status === "UPCOMING") {
+    return "";
+  }
   const todayKey = toDateKey(new Date());
   if (status === "ONGOING" && dateOptions.includes(todayKey)) {
     return todayKey;
@@ -1412,6 +1484,77 @@ const resolveProgramAverageWaitMin = (program) => {
 };
 
 const safePercent = (value) => clamp(Math.round(Number(value) || 0), 0, 100);
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const estimateUpcomingCongestionPercent = (registrations, startAt, endAt) => {
+  const totalRegistrations = Math.max(0, Number(registrations) || 0);
+  if (totalRegistrations <= 0) return 0;
+
+  const startDate = toValidDate(startAt);
+  const endDate = toValidDate(endAt);
+  let operationDays = 1;
+
+  if (startDate && endDate && endDate >= startDate) {
+    const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    operationDays = Math.max(1, Math.ceil((endDay.getTime() - startDay.getTime() + DAY_MS) / DAY_MS));
+  }
+
+  const registrationsPerDay = totalRegistrations / operationDays;
+  const estimated = Math.round((registrationsPerDay / 300) * 100);
+  return Math.max(5, Math.min(85, estimated));
+};
+
+const estimatePlannedBaseCongestion = ({
+  registrationCount,
+  dayCount,
+  programCount,
+}) => {
+  const registrations = Math.max(0, safeNumber(registrationCount));
+  const days = Math.max(1, safeNumber(dayCount, 1));
+  const programs = Math.max(0, safeNumber(programCount));
+  const registrationsPerDay = registrations / days;
+
+  const registrationPressure = clamp((registrationsPerDay - 20) / 260, 0, 1);
+  const programPressure = clamp((programs - 4) / 20, 0, 1);
+
+  return safePercent(20 + (registrationPressure * 45) + (programPressure * 10));
+};
+
+const resolvePlannedDailyMultiplier = (dateKey, index, totalDays) => {
+  let multiplier = 1;
+  const date = toValidDate(`${dateKey}T00:00:00`);
+  if (date) {
+    const dayOfWeek = date.getDay();
+    if (dayOfWeek === 6) multiplier += 0.12;
+    else if (dayOfWeek === 0) multiplier += 0.08;
+    else if (dayOfWeek === 5) multiplier += 0.05;
+    else if (dayOfWeek === 1) multiplier -= 0.05;
+    else if (dayOfWeek === 2) multiplier -= 0.03;
+  }
+
+  if (index === 0) multiplier += 0.04;
+  if (index === totalDays - 1) multiplier += 0.06;
+
+  if (totalDays >= 4 && index > 0 && index < totalDays - 1) {
+    const center = (totalDays - 1) / 2;
+    const distance = Math.abs(index - center);
+    const centerBias = 1 - (distance / Math.max(center, 1));
+    multiplier -= centerBias * 0.03;
+  }
+
+  return clamp(multiplier, 0.82, 1.22);
+};
+
+const estimatePlannedDayCongestion = ({
+  dateKey,
+  index,
+  totalDays,
+  baseScore,
+}) => {
+  const multiplier = resolvePlannedDailyMultiplier(dateKey, index, totalDays);
+  return safePercent(Math.round(baseScore * multiplier));
+};
 
 const resolveCongestionMeta = (value) => {
   const pct = safePercent(value);
@@ -1468,19 +1611,91 @@ const deriveCongestionPercentFromWait = (waitCount, waitMin) => {
   return safePercent(score);
 };
 
-const getProgramGuideText = (congestionPercent) => {
-  const pct = safePercent(congestionPercent);
-  if (pct <= 30) return "지금 참여하기 좋아요";
-  if (pct <= 60) return "무난하게 이용 가능해요";
-  if (pct <= 80) return "조금 혼잡해요";
-  return "대기가 길 수 있어요";
+const WAIT_CATEGORY_STYLE = {
+  instant: {
+    color: "#047857",
+    background: "#ecfdf5",
+    borderColor: "#a7f3d0",
+  },
+  relaxed: {
+    color: "#0f766e",
+    background: "#f0fdfa",
+    borderColor: "#99f6e4",
+  },
+  normal: {
+    color: "#1d4ed8",
+    background: "#eff6ff",
+    borderColor: "#bfdbfe",
+  },
+  popular: {
+    color: "#c2410c",
+    background: "#fff7ed",
+    borderColor: "#fdba74",
+  },
+  veryPopular: {
+    color: "#b91c1c",
+    background: "#fef2f2",
+    borderColor: "#fecaca",
+  },
 };
 
-const getReadyProgramLabel = (waitCount, waitMin) => {
-  const teams = Math.max(0, safeNumber(waitCount));
+const resolveProgramWaitCategory = (waitMin) => {
   const minutes = Math.max(0, safeNumber(waitMin));
-  return teams <= 0 || minutes <= 0 ? "바로 참여 가능" : "대기 짧음";
+
+  if (minutes <= 0) {
+    return {
+      key: "instant",
+      label: "바로 참여가능",
+      guideText: "예상 대기시간 0분",
+      style: WAIT_CATEGORY_STYLE.instant,
+    };
+  }
+  if (minutes <= 10) {
+    return {
+      key: "relaxed",
+      label: "여유있음",
+      guideText: "예상 대기시간 1~10분",
+      style: WAIT_CATEGORY_STYLE.relaxed,
+    };
+  }
+  if (minutes <= 20) {
+    return {
+      key: "normal",
+      label: "보통",
+      guideText: "예상 대기시간 11~20분",
+      style: WAIT_CATEGORY_STYLE.normal,
+    };
+  }
+  if (minutes <= 30) {
+    return {
+      key: "popular",
+      label: "인기",
+      guideText: "예상 대기시간 21~30분",
+      style: WAIT_CATEGORY_STYLE.popular,
+    };
+  }
+
+  return {
+    key: "veryPopular",
+    label: "매우 인기",
+    guideText: "예상 대기시간 31분 이상",
+    style: WAIT_CATEGORY_STYLE.veryPopular,
+  };
 };
+
+const getProgramGuideText = (waitMin) => resolveProgramWaitCategory(waitMin).guideText;
+
+const getPetEventGuideText = (waitCategory) => {
+  const key = String(waitCategory?.key || "").toLowerCase();
+  if (key === "instant") return "대기 없이 참여 가능해요";
+  if (key === "relaxed") return "반려견과 여유롭게 참여할 수 있어요";
+  if (key === "normal") return "반려견과 잠시만 기다리면 참여할 수 있어요";
+  if (key === "popular") return "인기가 많아 반려견과 잠깐 대기가 필요해요";
+  if (key === "verypopular") return "인기가 매우 높아 반려견과 대기줄이 길 수 있어요";
+  return "현장 상황에 맞춰 이동하면 더 편하게 참여할 수 있어요";
+};
+
+const getReadyProgramLabel = (_waitCount, waitMin) => resolveProgramWaitCategory(waitMin).label;
 
 const getCongestionSummaryText = (congestionPercent) => {
   const pct = safePercent(congestionPercent);
@@ -1983,7 +2198,7 @@ function DashboardContent({ eventId }) {
     if (!preserveLoading) setLoading(true);
 
     try {
-      const [eventResponse, performanceResult, hourlyResult, congestionResult, programsResult] = await Promise.all([
+      const [eventResponse, performanceResult, hourlyResult, congestionResult, programsResult, aiProgramsResult] = await Promise.all([
         eventApi.getEventDetail(numericEventId),
         fetchAdminData("/api/analytics/events", { page: 0, size: 200 }, []),
         fetchAdminData(`/api/analytics/events/${numericEventId}/congestion-by-hour`, {}, []),
@@ -2001,6 +2216,15 @@ function DashboardContent({ eventId }) {
             data: [],
             hasError: true,
           })),
+        aiApi.predictProgramsCongestionByEvent(numericEventId)
+          .then((data) => ({
+            data,
+            hasError: false,
+          }))
+          .catch(() => ({
+            data: [],
+            hasError: true,
+          })),
       ]);
 
       if (requestId !== loadRequestIdRef.current) return;
@@ -2009,6 +2233,16 @@ function DashboardContent({ eventId }) {
       const hourlyData = toArray(hourlyResult?.data);
       const latestCongestions = toArray(congestionResult?.data);
       const basePrograms = Array.isArray(programsResult?.data) ? programsResult.data : [];
+      const aiProgramPredictionMap = new Map(
+        toArray(unwrapData(aiProgramsResult?.data, []))
+          .map((item) => {
+            const normalized = normalizePrediction(item);
+            const programId = Number(item?.programId ?? normalized?.programId);
+            if (!normalized || !Number.isFinite(programId)) return null;
+            return [programId, normalized];
+          })
+          .filter(Boolean),
+      );
       const hasOperationalLoadError =
         Boolean(performanceResult?.hasError) ||
         Boolean(hourlyResult?.hasError) ||
@@ -2020,13 +2254,24 @@ function DashboardContent({ eventId }) {
       );
       const mergedPrograms = basePrograms.map((program, index) => {
         const settled = programDetails[index];
-        if (settled?.status !== "fulfilled") return program;
-        const detail = unwrapData(settled.value, null);
-        if (!detail || typeof detail !== "object") return program;
+        const detail = settled?.status === "fulfilled"
+          ? unwrapData(settled.value, null)
+          : null;
+        const merged = detail && typeof detail === "object"
+          ? {
+            ...program,
+            ...detail,
+            experienceWait: detail?.experienceWait ?? program?.experienceWait ?? null,
+          }
+          : program;
+        const programId = Number(merged?.programId);
+        const aiPrediction = Number.isFinite(programId)
+          ? aiProgramPredictionMap.get(programId) ?? null
+          : null;
+
         return {
-          ...program,
-          ...detail,
-          experienceWait: detail?.experienceWait ?? program?.experienceWait ?? null,
+          ...merged,
+          aiPrediction,
         };
       });
 
@@ -2167,11 +2412,16 @@ function DashboardContent({ eventId }) {
   const measuredCongestions = useMemo(
     () =>
       congestionRows
-        .map((row) => ({
-          ...row,
-          congestionLevel: Number(row?.congestionLevel),
-          congestionPercent: congestionLevelToPercent(row?.congestionLevel),
-        }))
+        .map((row) => {
+          const rawLevel = row?.congestionLevel;
+          const hasMeasuredLevel = rawLevel !== null && rawLevel !== undefined && rawLevel !== "";
+          const congestionLevel = hasMeasuredLevel ? Number(rawLevel) : NaN;
+          return {
+            ...row,
+            congestionLevel,
+            congestionPercent: congestionLevelToPercent(congestionLevel),
+          };
+        })
         .filter((row) => Number.isFinite(row.congestionLevel)),
     [congestionRows],
   );
@@ -2181,11 +2431,6 @@ function DashboardContent({ eventId }) {
     const sum = measuredCongestions.reduce((acc, row) => acc + row.congestionPercent, 0);
     return clamp(Math.round(sum / measuredCongestions.length), 0, 100);
   }, [measuredCongestions]);
-
-  const hotBoothCount = useMemo(
-    () => measuredCongestions.filter((row) => row.congestionPercent >= 80).length,
-    [measuredCongestions],
-  );
 
   const hourlyAverageCongestion = useMemo(() => {
     const samples = toArray(hourlyRows)
@@ -2208,11 +2453,62 @@ function DashboardContent({ eventId }) {
     eventStatus === "UPCOMING";
   const isEndedEvent = eventStatus === "ENDED";
   const isOngoingEvent = eventStatus === "ONGOING";
+  const plannedParticipantCount = Math.max(0, safeNumber(performance.approved));
+  const plannedRangeDateKeys = useMemo(
+    () => buildDateKeysFromRange(eventDetail?.startAt, eventDetail?.endAt),
+    [eventDetail?.endAt, eventDetail?.startAt],
+  );
+  const plannedHeuristicBaseScore = useMemo(() => {
+    if (!isPlannedEvent) return 0;
+    return estimatePlannedBaseCongestion({
+      registrationCount: plannedParticipantCount,
+      dayCount: plannedRangeDateKeys.length || 1,
+      programCount: toArray(programRows).length,
+    });
+  }, [isPlannedEvent, plannedParticipantCount, plannedRangeDateKeys.length, programRows]);
+  const plannedHeuristicFloorScore = useMemo(() => {
+    if (!isPlannedEvent || plannedHeuristicBaseScore <= 0) return 0;
+    return safePercent(Math.max(12, Math.round(plannedHeuristicBaseScore * 0.8)));
+  }, [isPlannedEvent, plannedHeuristicBaseScore]);
+  const endedRatioCongestion = useMemo(() => {
+    if (!isEndedEvent) return 0;
+    const approvedCount = Math.max(0, safeNumber(performance?.approved));
+    const checkedInCount = Math.max(0, safeNumber(performance?.checkin));
+    if (approvedCount <= 0 && checkedInCount <= 0) return 0;
+    const denominator = approvedCount > 0 ? approvedCount : checkedInCount;
+    return safePercent(Math.round((checkedInCount / denominator) * 100));
+  }, [isEndedEvent, performance?.approved, performance?.checkin]);
+  const endedProgramAiAverageCongestion = useMemo(() => {
+    if (!isEndedEvent) return 0;
+    const samples = toArray(programRows)
+      .map((program) =>
+        getFirstDefinedFiniteNumber(
+          program?.aiPrediction?.avgScore,
+          program?.aiPrediction?.peakScore,
+          program?.aiPrediction?.predictedAvgScore,
+          program?.aiPrediction?.predictedPeakScore,
+        ),
+      )
+      .map((score) => safePercent(score))
+      .filter((score) => Number.isFinite(score) && score > 0);
+
+    if (samples.length === 0) return 0;
+    const sum = samples.reduce((acc, score) => acc + score, 0);
+    return safePercent(Math.round(sum / samples.length));
+  }, [isEndedEvent, programRows]);
 
   const resolvedCurrentCongestion = useMemo(() => {
     const aiAverage = Number(eventPrediction?.avgScore);
     if (isPlannedEvent) {
-      return safePercent(aiAverage || 0);
+      const canUseAiAverage = Number.isFinite(aiAverage) && aiAverage > 0 && !eventPrediction?.fallbackUsed;
+      if (canUseAiAverage) {
+        return safePercent(aiAverage);
+      }
+      return estimateUpcomingCongestionPercent(
+        plannedParticipantCount,
+        eventDetail?.startAt,
+        eventDetail?.endAt,
+      );
     }
     if (isEndedEvent) {
       // Ended events should show full-event average congestion, not the final snapshot.
@@ -2221,6 +2517,12 @@ function DashboardContent({ eventId }) {
       }
       if (measuredCongestions.length > 0) {
         return safePercent(averageCongestion);
+      }
+      if (endedRatioCongestion > 0) {
+        return endedRatioCongestion;
+      }
+      if (endedProgramAiAverageCongestion > 0) {
+        return endedProgramAiAverageCongestion;
       }
       if (Number.isFinite(aiAverage) && aiAverage > 0) {
         return safePercent(aiAverage);
@@ -2244,10 +2546,18 @@ function DashboardContent({ eventId }) {
     isEndedEvent,
     isPlannedEvent,
     measuredCongestions.length,
+    endedProgramAiAverageCongestion,
+    endedRatioCongestion,
+    eventDetail?.endAt,
+    eventDetail?.startAt,
+    eventPrediction?.fallbackUsed,
+    plannedParticipantCount,
+    plannedHeuristicBaseScore,
+    plannedHeuristicFloorScore,
   ]);
 
   const forecastDateOptions = useMemo(() => {
-    const rangeDates = buildDateKeysFromRange(eventDetail?.startAt, eventDetail?.endAt);
+    const rangeDates = plannedRangeDateKeys;
     if (rangeDates.length > 0) return rangeDates;
 
     const timelineDates = Array.isArray(eventPrediction?.timeline)
@@ -2260,7 +2570,7 @@ function DashboardContent({ eventId }) {
         ).sort((left, right) => left.localeCompare(right))
       : [];
     return timelineDates;
-  }, [eventDetail?.endAt, eventDetail?.startAt, eventPrediction?.timeline]);
+  }, [eventPrediction?.timeline, plannedRangeDateKeys]);
 
   const activeForecastDateKey = useMemo(() => {
     if (selectedForecastDate && forecastDateOptions.includes(selectedForecastDate)) {
@@ -2536,36 +2846,264 @@ function DashboardContent({ eventId }) {
         ),
       ).sort((left, right) => left.localeCompare(right));
 
+    if (dateKeys.length > 0) {
+      const bucketMap = new Map();
+      measuredCongestions.forEach((row) => {
+        const dateKey = toDateKey(row?.measuredAt);
+        const congestion = Number(row?.congestionPercent);
+        if (!dateKey || !Number.isFinite(congestion)) return;
+        const bucket = bucketMap.get(dateKey) || { sum: 0, count: 0 };
+        bucket.sum += congestion;
+        bucket.count += 1;
+        bucketMap.set(dateKey, bucket);
+      });
+
+      const measuredPoints = dateKeys
+        .map((dateKey, index) => {
+          const bucket = bucketMap.get(dateKey);
+          const actual = bucket && bucket.count > 0
+            ? clamp(Math.round(bucket.sum / bucket.count), 0, 100)
+            : null;
+          return {
+            dateKey,
+            h: String(index).padStart(2, "0"),
+            xLabel: formatShortDateKey(dateKey),
+            v: actual ?? 0,
+            pct: actual ?? 0,
+            actual,
+            predicted: null,
+          };
+        })
+        .filter((row) => Number.isFinite(row.actual));
+      if (measuredPoints.length > 0) {
+        return measuredPoints;
+      }
+
+      const syntheticActual = hourlyAverageCongestion > 0
+        ? hourlyAverageCongestion
+        : endedRatioCongestion > 0
+          ? endedRatioCongestion
+          : endedProgramAiAverageCongestion;
+      const demandBucketMap = new Map();
+      toArray(programRows).forEach((program) => {
+        const dateKey = toDateKey(program?.startAt ?? program?.endAt);
+        if (!dateKey) return;
+        const demand = Math.max(
+          resolveProgramVisitorCount(program),
+          resolveProgramParticipantCount(program),
+        );
+        if (!Number.isFinite(demand) || demand <= 0) return;
+        const bucket = demandBucketMap.get(dateKey) || { sum: 0, count: 0 };
+        bucket.sum += demand;
+        bucket.count += 1;
+        demandBucketMap.set(dateKey, bucket);
+      });
+      const demands = dateKeys
+        .map((dateKey) => safeNumber(demandBucketMap.get(dateKey)?.sum, 0))
+        .filter((value) => Number.isFinite(value) && value > 0);
+      if (demands.length > 0) {
+        const minDemand = Math.min(...demands);
+        const maxDemand = Math.max(...demands);
+        const base = syntheticActual > 0 ? syntheticActual : 55;
+
+        return dateKeys.map((dateKey, index) => {
+          const demand = safeNumber(demandBucketMap.get(dateKey)?.sum, 0);
+          let factor = 1;
+          if (maxDemand > minDemand && demand > 0) {
+            factor = 0.82 + (((demand - minDemand) / (maxDemand - minDemand)) * 0.36);
+          } else if (demand <= 0) {
+            factor = 0.78;
+          }
+          const actual = safePercent(Math.round(base * factor));
+          return {
+            dateKey,
+            h: String(index).padStart(2, "0"),
+            xLabel: formatShortDateKey(dateKey),
+            v: actual,
+            pct: actual,
+            actual,
+            predicted: null,
+          };
+        });
+      }
+      if (syntheticActual > 0) {
+        const fallbackDateKey = dateKeys[dateKeys.length - 1] || toDateKey(new Date());
+        return [
+          {
+            dateKey: fallbackDateKey,
+            h: "00",
+            xLabel: formatShortDateKey(fallbackDateKey),
+            v: syntheticActual,
+            pct: syntheticActual,
+            actual: syntheticActual,
+            predicted: null,
+          },
+        ];
+      }
+    }
+
+    const hourlyBucketMap = new Map();
+    toArray(hourlyRows).forEach((row) => {
+      const dateKey =
+        toDateKey(row?.date ?? row?.day ?? row?.measuredAt ?? row?.timestamp ?? row?.time) ||
+        toDateKey(eventDetail?.endAt ?? eventDetail?.startAt) ||
+        toDateKey(new Date());
+      const score = congestionLevelToPercent(
+        row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level ?? row?.congestionLevel ?? row?.congestion,
+      );
+      if (!dateKey || !Number.isFinite(score)) return;
+      const bucket = hourlyBucketMap.get(dateKey) || { sum: 0, count: 0 };
+      bucket.sum += score;
+      bucket.count += 1;
+      hourlyBucketMap.set(dateKey, bucket);
+    });
+
+    if (hourlyBucketMap.size > 0) {
+      const fallbackDateKeys = Array.from(hourlyBucketMap.keys()).sort((left, right) =>
+        left.localeCompare(right),
+      );
+      return fallbackDateKeys.map((dateKey, index) => {
+        const bucket = hourlyBucketMap.get(dateKey);
+        const actual = bucket && bucket.count > 0
+          ? clamp(Math.round(bucket.sum / bucket.count), 0, 100)
+          : 0;
+        return {
+          dateKey,
+          h: String(index).padStart(2, "0"),
+          xLabel: formatShortDateKey(dateKey),
+          v: actual,
+          pct: actual,
+          actual,
+          predicted: null,
+        };
+      });
+    }
+
+    if (hourlyAverageCongestion > 0) {
+      const fallbackDateKey =
+        toDateKey(eventDetail?.endAt ?? eventDetail?.startAt) || toDateKey(new Date());
+      return [
+        {
+          dateKey: fallbackDateKey,
+          h: "00",
+          xLabel: formatShortDateKey(fallbackDateKey),
+          v: hourlyAverageCongestion,
+          pct: hourlyAverageCongestion,
+          actual: hourlyAverageCongestion,
+          predicted: null,
+        },
+      ];
+    }
+
+    return [];
+  }, [endedProgramAiAverageCongestion, endedRatioCongestion, eventDetail?.endAt, eventDetail?.startAt, forecastDateOptions, hourlyAverageCongestion, hourlyRows, isEndedEvent, measuredCongestions, programRows]);
+
+  const hasEndedMeasuredCongestionData = useMemo(() => {
+    if (!isEndedEvent) return false;
+    if (measuredCongestions.length > 0) return true;
+    return toArray(hourlyRows).some((row) => {
+      const score = congestionLevelToPercent(
+        row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level ?? row?.congestionLevel ?? row?.congestion,
+      );
+      return Number.isFinite(score) && score > 0;
+    });
+  }, [hourlyRows, isEndedEvent, measuredCongestions.length]);
+
+  const plannedDailyForecastPoints = useMemo(() => {
+    if (!isPlannedEvent) return [];
+
+    const timeline = Array.isArray(eventPrediction?.timeline) ? eventPrediction.timeline : [];
+    const dateKeys = forecastDateOptions.length > 0
+      ? forecastDateOptions
+      : plannedRangeDateKeys;
     if (dateKeys.length === 0) return [];
 
     const bucketMap = new Map();
-    measuredCongestions.forEach((row) => {
-      const dateKey = toDateKey(row?.measuredAt);
-      const congestion = Number(row?.congestionPercent);
-      if (!dateKey || !Number.isFinite(congestion)) return;
+    timeline.forEach((point) => {
+      const dateKey = toDateKey(point?.time);
+      const score = Number(point?.score);
+      if (!dateKey || !Number.isFinite(score)) return;
       const bucket = bucketMap.get(dateKey) || { sum: 0, count: 0 };
-      bucket.sum += congestion;
+      bucket.sum += score;
       bucket.count += 1;
       bucketMap.set(dateKey, bucket);
     });
 
-    return dateKeys
-      .map((dateKey, index) => {
-        const bucket = bucketMap.get(dateKey);
-        const actual = bucket && bucket.count > 0
-          ? clamp(Math.round(bucket.sum / bucket.count), 0, 100)
-          : null;
-        return {
-          h: String(index).padStart(2, "0"),
-          xLabel: formatShortDateKey(dateKey),
-          v: actual ?? 0,
-          pct: actual ?? 0,
-          actual,
-          predicted: null,
-        };
-      })
-      .filter((row) => Number.isFinite(row.actual));
-  }, [forecastDateOptions, isEndedEvent, measuredCongestions]);
+    const rawPoints = dateKeys.map((dateKey, index) => {
+      const bucket = bucketMap.get(dateKey);
+      const aiPredicted = bucket && bucket.count > 0
+        ? safePercent(Math.round(bucket.sum / bucket.count))
+        : null;
+      const heuristicPredicted = estimatePlannedDayCongestion({
+        dateKey,
+        index,
+        totalDays: dateKeys.length,
+        baseScore: plannedHeuristicBaseScore,
+      });
+      const heuristicFloor = safePercent(
+        Math.max(
+          plannedHeuristicFloorScore,
+          Math.round(heuristicPredicted * 0.85),
+        ),
+      );
+      const predicted = Number.isFinite(aiPredicted)
+        ? safePercent(
+          Math.max(
+            Math.round((aiPredicted * 0.35) + (heuristicPredicted * 0.65)),
+            heuristicFloor,
+          ),
+        )
+        : safePercent(Math.max(heuristicPredicted, heuristicFloor));
+
+      return {
+        dateKey,
+        h: String(index).padStart(2, "0"),
+        xLabel: formatShortDateKey(dateKey),
+        v: predicted,
+        pct: predicted,
+        actual: null,
+        predicted,
+      };
+    });
+    if (rawPoints.length === 0) return rawPoints;
+
+    const targetAverage = safePercent(resolvedCurrentCongestion);
+    const currentAverage = safePercent(
+      Math.round(
+        rawPoints.reduce((sum, point) => sum + safePercent(point?.predicted ?? point?.v), 0) /
+          rawPoints.length,
+      ),
+    );
+    const offset = targetAverage - currentAverage;
+
+    if (offset === 0) return rawPoints;
+
+    return rawPoints.map((point) => {
+      const adjusted = safePercent((point?.predicted ?? point?.v) + offset);
+      return {
+        ...point,
+        v: adjusted,
+        pct: adjusted,
+        predicted: adjusted,
+      };
+    });
+  }, [eventPrediction?.timeline, forecastDateOptions, isPlannedEvent, plannedHeuristicBaseScore, plannedHeuristicFloorScore, plannedRangeDateKeys, resolvedCurrentCongestion]);
+
+  const plannedRelaxedDayPoint = useMemo(() => {
+    if (!isPlannedEvent || plannedDailyForecastPoints.length === 0) return null;
+    return [...plannedDailyForecastPoints].sort(
+      (left, right) =>
+        (Number(left?.predicted ?? left?.v) || 0) - (Number(right?.predicted ?? right?.v) || 0),
+    )[0];
+  }, [isPlannedEvent, plannedDailyForecastPoints]);
+
+  const plannedPeakDayPoint = useMemo(() => {
+    if (!isPlannedEvent || plannedDailyForecastPoints.length === 0) return null;
+    return [...plannedDailyForecastPoints].sort(
+      (left, right) =>
+        (Number(right?.predicted ?? right?.v) || 0) - (Number(left?.predicted ?? left?.v) || 0),
+    )[0];
+  }, [isPlannedEvent, plannedDailyForecastPoints]);
 
   const endedHourlyInsights = useMemo(() => {
     if (!isEndedEvent) {
@@ -2587,23 +3125,156 @@ function DashboardContent({ eventId }) {
       ).sort((left, right) => left.localeCompare(right));
 
     const dayHourBucketMap = new Map();
-    measuredCongestions.forEach((row) => {
-      const dateKey = toDateKey(row?.measuredAt);
-      const hour = toHour(row?.measuredAt);
-      const score = safePercent(row?.congestionPercent);
+    const pushDayHourSample = (dateKey, hour, score) => {
       if (!dateKey || !Number.isFinite(hour) || !Number.isFinite(score)) return;
-
-      const bucketKey = `${dateKey}-${normalizeHour(hour)}`;
+      const normalizedHour = normalizeHour(hour);
+      const bucketKey = `${dateKey}-${normalizedHour}`;
       const bucket = dayHourBucketMap.get(bucketKey) || {
         dateKey,
-        hour: normalizeHour(hour),
+        hour: normalizedHour,
         sum: 0,
         count: 0,
       };
       bucket.sum += score;
       bucket.count += 1;
       dayHourBucketMap.set(bucketKey, bucket);
+    };
+
+    measuredCongestions.forEach((row) => {
+      pushDayHourSample(
+        toDateKey(row?.measuredAt),
+        toHour(row?.measuredAt),
+        safePercent(row?.congestionPercent),
+      );
     });
+
+    // 1) Fallback to hourly analytics rows (hour-level real stats)
+    if (dayHourBucketMap.size === 0) {
+      const hourlySamples = toArray(hourlyRows)
+        .map((row) => ({
+          hour: Number(row?.hour ?? row?.h),
+          score: congestionLevelToPercent(
+            row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level ?? row?.congestionLevel ?? row?.congestion,
+          ),
+        }))
+        .filter((item) => Number.isFinite(item.hour) && Number.isFinite(item.score) && item.score > 0);
+
+      if (hourlySamples.length > 0) {
+        const targetDateKeys = dateKeys.length > 0
+          ? dateKeys
+          : [toDateKey(eventDetail?.endAt ?? eventDetail?.startAt) || toDateKey(new Date())];
+        targetDateKeys.forEach((dateKey) => {
+          hourlySamples.forEach((sample) => {
+            pushDayHourSample(dateKey, sample.hour, sample.score);
+          });
+        });
+      }
+    }
+
+    // 2) If there is no per-hour real data, estimate by each day's daily score around event average.
+    if (dayHourBucketMap.size === 0 && dailyCongestionPoints.length > 0) {
+      const eventAverageScore = safePercent(
+        resolvedCurrentCongestion || endedRatioCongestion || endedProgramAiAverageCongestion || 55,
+      );
+      const dailyScores = dailyCongestionPoints
+        .map((point) => ({
+          dateKey: String(point?.dateKey || ""),
+          score: Number(point?.actual ?? point?.v),
+        }))
+        .filter((point) => point.dateKey && Number.isFinite(point.score));
+
+      const dayHours = [10, 12, 14, 16, 18];
+      dailyScores.forEach((dayPoint) => {
+        const dayDelta = dayPoint.score - eventAverageScore;
+        dayHours.forEach((hour) => {
+          const hourBias = hour === 14 || hour === 16 ? 8 : hour === 12 ? 3 : hour === 18 ? 2 : -6;
+          const estimatedScore = safePercent(
+            Math.round(eventAverageScore + (dayDelta * 0.45) + hourBias),
+          );
+          pushDayHourSample(dayPoint.dateKey, hour, estimatedScore);
+        });
+      });
+    }
+
+    // 3) Last fallback: program participation density by day/hour.
+    if (dayHourBucketMap.size === 0) {
+      const demandByDayHour = new Map();
+      const pushDemandByHour = (dateKey, hour, demand) => {
+        if (!dateKey || !Number.isFinite(hour) || !Number.isFinite(demand) || demand <= 0) return;
+        const normalizedHour = normalizeHour(hour);
+        const key = `${dateKey}-${normalizedHour}`;
+        demandByDayHour.set(key, safeNumber(demandByDayHour.get(key), 0) + demand);
+      };
+
+      toArray(programRows).forEach((program) => {
+        const startDate = toValidDate(program?.startAt);
+        const endDate = toValidDate(program?.endAt);
+        if (!startDate || !endDate) return;
+
+        const demand = Math.max(
+          resolveProgramVisitorCount(program),
+          resolveProgramParticipantCount(program),
+        );
+        if (!Number.isFinite(demand) || demand <= 0) return;
+
+        const durationHours = Math.max(
+          1,
+          Math.ceil((endDate.getTime() - startDate.getTime()) / (60 * 60 * 1000)),
+        );
+        const hourlyDemand = demand / durationHours;
+
+        const cursor = new Date(startDate);
+        cursor.setMinutes(0, 0, 0);
+        while (cursor <= endDate) {
+          pushDemandByHour(toDateKey(cursor), cursor.getHours(), hourlyDemand);
+          cursor.setHours(cursor.getHours() + 1, 0, 0, 0);
+        }
+      });
+
+      const demandEntries = Array.from(demandByDayHour.entries()).map(([key, demand]) => {
+        const [dateKey, hourText] = String(key).split("-");
+        return {
+          dateKey,
+          hour: Number(hourText),
+          demand: safeNumber(demand, 0),
+        };
+      }).filter((item) => item.dateKey && Number.isFinite(item.hour) && Number.isFinite(item.demand) && item.demand > 0);
+
+      if (demandEntries.length > 0) {
+        const minDemand = Math.min(...demandEntries.map((item) => item.demand));
+        const maxDemand = Math.max(...demandEntries.map((item) => item.demand));
+        const baseScore = safePercent(
+          resolvedCurrentCongestion ||
+          endedRatioCongestion ||
+          endedProgramAiAverageCongestion ||
+          55,
+        );
+
+        demandEntries.forEach((item) => {
+          const normalizedDemand =
+            maxDemand > minDemand
+              ? (item.demand - minDemand) / (maxDemand - minDemand)
+              : 0.5;
+          const hourTrendBias = item.hour >= 14 && item.hour <= 16
+            ? 1.0
+            : item.hour >= 11 && item.hour <= 13
+              ? 0.35
+              : item.hour >= 9 && item.hour <= 10
+                ? -0.55
+                : item.hour >= 17 && item.hour <= 18
+                  ? 0.15
+                  : -0.2;
+          const estimatedScore = safePercent(
+            Math.round(
+              baseScore +
+              ((normalizedDemand - 0.5) * 16) +
+              (hourTrendBias * 10),
+            ),
+          );
+          pushDayHourSample(item.dateKey, item.hour, estimatedScore);
+        });
+      }
+    }
 
     const dayHourAverages = Array.from(dayHourBucketMap.values())
       .map((bucket) => ({
@@ -2660,19 +3331,79 @@ function DashboardContent({ eventId }) {
       }))
       .filter((item) => Number.isFinite(item.score));
 
-    const overallRelaxed = [...hourlyAverages].sort(
-      (left, right) => left.score - right.score || left.hour - right.hour,
+    if (hourlyAverages.length === 0) {
+      return {
+        overallRelaxed: null,
+        overallPeak: null,
+        relaxedByDay,
+      };
+    }
+
+    const relaxedSamples = relaxedByDay.filter(
+      (item) => Number.isFinite(item?.hour) && Number.isFinite(item?.score),
+    );
+    const overallRelaxed = relaxedSamples.length > 0
+      ? {
+        hour: normalizeHour(
+          Math.round(
+            relaxedSamples.reduce((sum, item) => sum + item.hour, 0) / relaxedSamples.length,
+          ),
+        ),
+        hourLabel: formatHourLabel(
+          normalizeHour(
+            Math.round(
+              relaxedSamples.reduce((sum, item) => sum + item.hour, 0) / relaxedSamples.length,
+            ),
+          ),
+        ),
+        score: safePercent(
+          Math.round(
+            relaxedSamples.reduce((sum, item) => sum + item.score, 0) / relaxedSamples.length,
+          ),
+        ),
+      }
+      : [...hourlyAverages].sort(
+        (left, right) => left.score - right.score || left.hour - right.hour,
+      )[0] || null;
+    const peakPoint = [...dayHourAverages].sort(
+      (left, right) =>
+        right.score - left.score ||
+        left.hour - right.hour ||
+        left.dateKey.localeCompare(right.dateKey),
     )[0] || null;
-    const overallPeak = [...hourlyAverages].sort(
+    const overallPeak = peakPoint
+      ? {
+        ...peakPoint,
+        hourLabel: formatHourLabel(peakPoint.hour),
+      }
+      : [...hourlyAverages].sort(
       (left, right) => right.score - left.score || left.hour - right.hour,
     )[0] || null;
 
+    const eventAverageScore = safePercent(
+      resolvedCurrentCongestion || endedRatioCongestion || endedProgramAiAverageCongestion || 0,
+    );
+    const relaxedCap = eventAverageScore > 0 ? eventAverageScore - 1 : 0;
+    const peakFloor = eventAverageScore < 100 ? eventAverageScore + 1 : 100;
+    const normalizedRelaxed = overallRelaxed
+      ? {
+        ...overallRelaxed,
+        score: safePercent(Math.min(safePercent(overallRelaxed.score), relaxedCap)),
+      }
+      : null;
+    const normalizedPeak = overallPeak
+      ? {
+        ...overallPeak,
+        score: safePercent(Math.max(safePercent(overallPeak.score), peakFloor)),
+      }
+      : null;
+
     return {
-      overallRelaxed,
-      overallPeak,
+      overallRelaxed: normalizedRelaxed,
+      overallPeak: normalizedPeak,
       relaxedByDay,
     };
-  }, [forecastDateOptions, isEndedEvent, measuredCongestions]);
+  }, [dailyCongestionPoints, endedProgramAiAverageCongestion, endedRatioCongestion, eventDetail?.endAt, eventDetail?.startAt, forecastDateOptions, hourlyRows, isEndedEvent, measuredCongestions, programRows, resolvedCurrentCongestion]);
 
   const handleForecastDateChange = useCallback(
     (event) => {
@@ -2751,9 +3482,21 @@ function DashboardContent({ eventId }) {
             ? startDate.getTime() <= now && now <= endDate.getTime()
             : true;
 
-        const waitCount = Math.max(0, safeNumber(program?.experienceWait?.waitCount));
-        const waitMin = Math.max(0, safeNumber(program?.experienceWait?.waitMin));
-        const hasWaitInfo = Boolean(program?.experienceWait);
+        const rawWaitCount = getFirstDefinedFiniteNumber(program?.experienceWait?.waitCount);
+        const rawWaitMin = getFirstDefinedFiniteNumber(program?.experienceWait?.waitMin);
+        const aiPredictedWaitMin = getFirstDefinedFiniteNumber(
+          program?.aiPrediction?.waitMinutes,
+          program?.aiPrediction?.predictedWaitMinutes,
+        );
+        const aiPredictedCongestion = getFirstDefinedFiniteNumber(
+          program?.aiPrediction?.avgScore,
+          program?.aiPrediction?.peakScore,
+          program?.aiPrediction?.predictedAvgScore,
+          program?.aiPrediction?.predictedPeakScore,
+        );
+        const waitCount = Math.max(0, Math.round(rawWaitCount ?? 0));
+        const waitMin = Math.max(0, Math.round((aiPredictedWaitMin ?? rawWaitMin) ?? 0));
+        const hasWaitInfo = Boolean(program?.experienceWait) || aiPredictedWaitMin !== null;
         const totalVisitorCount = resolveProgramVisitorCount(program);
         const totalParticipantCount = resolveProgramParticipantCount(program);
         const operatingMinutes =
@@ -2771,18 +3514,27 @@ function DashboardContent({ eventId }) {
           ? mappedCongestionEntry?.congestionPercent
           : null;
         const congestionPercent = safePercent(
-          mappedCongestion ?? deriveCongestionPercentFromWait(waitCount, waitMin),
+          mappedCongestion ?? aiPredictedCongestion ?? deriveCongestionPercentFromWait(waitCount, waitMin),
         );
         const rawAverageWaitMin = resolveProgramAverageWaitMin(program);
         const measuredAverageCongestion = programAverageCongestionMap.get(programId);
         const estimatedAverageWaitFromMeasured = Number.isFinite(measuredAverageCongestion)
           ? estimateWaitMinutes(measuredAverageCongestion)
           : null;
+        const estimatedAverageWaitFromTraffic = totalVisitorCount > 0
+          ? estimateWaitMinutes(safePercent(Math.round(visitorsPerHour * 5)))
+          : null;
+        const aiAverageWaitMin = Number.isFinite(aiPredictedWaitMin) && aiPredictedWaitMin > 0
+          ? Math.round(aiPredictedWaitMin)
+          : null;
         const averageWaitMin =
           rawAverageWaitMin ??
+          aiAverageWaitMin ??
           estimatedAverageWaitFromMeasured ??
+          (isEndedEvent ? estimatedAverageWaitFromTraffic : null) ??
           estimateWaitMinutes(congestionPercent);
         const tone = resolveCongestionMeta(congestionPercent);
+        const waitCategory = resolveProgramWaitCategory(waitMin);
 
         return {
           key: `program-${programId}`,
@@ -2797,14 +3549,15 @@ function DashboardContent({ eventId }) {
           operatingMinutes,
           visitorsPerHour,
           congestionPercent,
-          guideText: getProgramGuideText(congestionPercent),
+          guideText: getPetEventGuideText(waitCategory),
           tone,
+          waitCategory,
           hasWaitInfo,
           isOperatingNow,
         };
       })
       .filter(Boolean);
-  }, [programAverageCongestionMap, programCongestionMap, programRows]);
+  }, [isEndedEvent, programAverageCongestionMap, programCongestionMap, programRows]);
 
   const programNameMap = useMemo(
     () =>
@@ -2870,9 +3623,9 @@ function DashboardContent({ eventId }) {
       return [...queueProgramRows]
         .sort(
           (left, right) =>
-            right.congestionPercent - left.congestionPercent ||
             right.waitMin - left.waitMin ||
             right.waitCount - left.waitCount ||
+            right.congestionPercent - left.congestionPercent ||
             String(left.name).localeCompare(String(right.name), "ko-KR"),
         )
         .slice(0, 3);
@@ -2909,20 +3662,24 @@ function DashboardContent({ eventId }) {
       );
 
     const shortWaitCandidates = candidates.filter(
-      (program) => program.waitMin <= 15 || program.waitCount <= 2,
+      (program) => program.waitMin <= 10,
     );
 
     if (shortWaitCandidates.length > 0) {
-      return shortWaitCandidates.slice(0, 8);
+      return shortWaitCandidates;
     }
 
-    return candidates.slice(0, 8);
+    return candidates;
   }, [allProgramRows, isEndedEvent, popularTopProgramIds, queueProgramRows]);
 
   const currentVisitors = isPlannedEvent ? 0 : performance.checkin;
   const totalParticipants = Math.max(0, safeNumber(performance.approved));
 
   const currentCongestion = resolvedCurrentCongestion;
+  const plannedAverageCongestion = useMemo(() => {
+    if (!isPlannedEvent) return safePercent(currentCongestion);
+    return safePercent(currentCongestion);
+  }, [currentCongestion, isPlannedEvent]);
 
   const currentTone = useMemo(
     () => resolveCongestionMeta(currentCongestion),
@@ -2946,7 +3703,9 @@ function DashboardContent({ eventId }) {
 
   const waitKpiLabel = isEndedEvent
     ? "종료 시점 예상 대기시간"
-    : isTodayForecast && !isPlannedEvent
+    : isPlannedEvent
+      ? "가장 여유로운 행사일"
+      : isTodayForecast && !isPlannedEvent
       ? "현재 예상 대기시간"
       : "예상 대기시간";
 
@@ -3001,16 +3760,20 @@ function DashboardContent({ eventId }) {
 
     return [
       {
-        label: "현재 혼잡도",
-        value: currentCongestion,
+        label: isPlannedEvent ? "예상 혼잡도" : "현재 혼잡도",
+        value: isPlannedEvent ? plannedAverageCongestion : currentCongestion,
         unit: "%",
-        sub: congestionSummaryText,
+        sub: isPlannedEvent
+          ? `행사일 전체 예상 혼잡도 평균은 ${plannedAverageCongestion}%예요.`
+          : congestionSummaryText,
       },
       {
-        label: waitKpiLabel,
-        value: expectedWaitMinutes,
-        unit: "분",
-        sub: waitSummaryText,
+        label: isPlannedEvent ? "예상 방문자" : waitKpiLabel,
+        value: isPlannedEvent ? totalParticipants : expectedWaitMinutes,
+        unit: isPlannedEvent ? "명" : "분",
+        sub: isPlannedEvent
+          ? `사전 등록 기준 예상 방문자 수는 ${totalParticipants.toLocaleString("ko-KR")}명입니다.`
+          : waitSummaryText,
       },
       {
         label: "혼잡 상태",
@@ -3029,6 +3792,8 @@ function DashboardContent({ eventId }) {
     endedStatusSummaryText,
     expectedWaitMinutes,
     isEndedEvent,
+    isPlannedEvent,
+    plannedAverageCongestion,
     totalParticipants,
     waitKpiLabel,
     waitSummaryText,
@@ -3118,13 +3883,29 @@ function DashboardContent({ eventId }) {
         score: endedHourlyInsights.overallPeak.score,
       };
     }
+    if (isPlannedEvent) {
+      if (!plannedPeakDayPoint) return null;
+      return {
+        time: plannedPeakDayPoint.xLabel || "--.--",
+        score: safePercent(plannedPeakDayPoint.predicted ?? plannedPeakDayPoint.v),
+      };
+    }
     if (aiTimelinePreview.length === 0) return null;
     return [...aiTimelinePreview].sort(
       (left, right) => (Number(right?.score) || 0) - (Number(left?.score) || 0),
     )[0];
-  }, [aiTimelinePreview, endedHourlyInsights.overallPeak, isEndedEvent]);
+  }, [aiTimelinePreview, endedHourlyInsights.overallPeak, isEndedEvent, isPlannedEvent, plannedPeakDayPoint]);
 
   const aiCurrentScore = useMemo(() => {
+    if (isEndedEvent) {
+      return safePercent(currentCongestion);
+    }
+    if (isPlannedEvent) {
+      if (plannedRelaxedDayPoint) {
+        return safePercent(plannedRelaxedDayPoint.predicted ?? plannedRelaxedDayPoint.v);
+      }
+      return safePercent(currentCongestion);
+    }
     if (isTodayForecast && !isPlannedEvent) {
       return safePercent(currentCongestion);
     }
@@ -3142,8 +3923,10 @@ function DashboardContent({ eventId }) {
     calibratedTimeline,
     currentCongestion,
     eventPrediction?.avgScore,
+    isEndedEvent,
     isPlannedEvent,
     isTodayForecast,
+    plannedRelaxedDayPoint,
   ]);
   const aiCurrentTone = resolveCongestionMeta(aiCurrentScore);
   const aiSoonScore = safePercent(
@@ -3155,9 +3938,23 @@ function DashboardContent({ eventId }) {
   );
   const aiSoonTone = resolveCongestionMeta(aiSoonScore);
   const aiSoonWait = estimateWaitMinutes(aiSoonScore);
+  const currentWaitCategory = resolveProgramWaitCategory(expectedWaitMinutes);
+  const soonWaitCategory = resolveProgramWaitCategory(aiSoonWait);
   const endedRelaxedScore = safePercent(endedHourlyInsights?.overallRelaxed?.score ?? 0);
   const endedRelaxedTone = resolveCongestionMeta(endedRelaxedScore);
   const hasEndedRelaxedInsight = Number.isFinite(endedHourlyInsights?.overallRelaxed?.score);
+  const plannedRelaxedScore = safePercent(
+    plannedRelaxedDayPoint?.predicted ?? plannedRelaxedDayPoint?.v ?? aiCurrentScore,
+  );
+  const plannedPeakScore = safePercent(
+    plannedPeakDayPoint?.predicted ?? plannedPeakDayPoint?.v ?? aiSoonScore,
+  );
+  const plannedAverageScore = plannedAverageCongestion;
+  const plannedRelaxedDayLabel = plannedRelaxedDayPoint?.xLabel || "--.--";
+  const plannedPeakDayLabel = plannedPeakDayPoint?.xLabel || "--.--";
+  const plannedAverageTone = resolveCongestionMeta(plannedAverageScore);
+  const plannedRelaxedTone = resolveCongestionMeta(plannedRelaxedScore);
+  const plannedPeakTone = resolveCongestionMeta(plannedPeakScore);
 
   const chartGuideText = useMemo(() => {
     if (isEndedEvent) {
@@ -3174,6 +3971,20 @@ function DashboardContent({ eventId }) {
       return `행사 기간 중 ${dayLabel}에 평균 혼잡도가 가장 높았습니다.`;
     }
 
+    if (isPlannedEvent) {
+      if (plannedDailyForecastPoints.length === 0) {
+        return "행사일별 예상 혼잡도를 집계 중입니다.";
+      }
+      const mostBusyDay = [...plannedDailyForecastPoints].sort(
+        (left, right) => (Number(right?.predicted ?? right?.v) || 0) - (Number(left?.predicted ?? left?.v) || 0),
+      )[0];
+      if (!mostBusyDay) {
+        return "행사 기간 예상 혼잡도를 계산 중입니다.";
+      }
+      const dayLabel = mostBusyDay.xLabel || "--.--";
+      return `행사 기간 중 ${dayLabel} 예상 혼잡도가 가장 높아요.`;
+    }
+
     if (eventPrediction && aiSoonScore >= aiCurrentScore + 10) {
       return "지금보다 1시간 뒤 더 붐빌 수 있어요. 인기 프로그램은 조금 일찍 이동하는 것을 추천해요.";
     }
@@ -3188,9 +3999,11 @@ function DashboardContent({ eventId }) {
       return "오후 시간대 방문객이 늘어나는 경향이 있어요. 원하는 프로그램을 먼저 확인해 보세요.";
     }
     return "혼잡도가 낮은 시간대를 골라 이동하면 더 편하게 즐길 수 있어요.";
-  }, [aiCurrentScore, aiSoonScore, dailyCongestionPoints, eventPrediction, hours, isEndedEvent]);
+  }, [aiCurrentScore, aiSoonScore, dailyCongestionPoints, eventPrediction, hours, isEndedEvent, isPlannedEvent, plannedDailyForecastPoints]);
 
   const activities = useMemo(() => {
+    if (isPlannedEvent) return [];
+
     const liveItems = [...measuredCongestions]
       .sort((left, right) => {
         const leftTime = left.measuredAt ? new Date(left.measuredAt).getTime() : 0;
@@ -3215,7 +4028,7 @@ function DashboardContent({ eventId }) {
       text: `${row.placeName || "현장 프로그램"}의 실시간 혼잡 데이터를 수집 중입니다.`,
       color: "#9ca3af",
     }));
-  }, [congestionRows, measuredCongestions, programNameMap]);
+  }, [congestionRows, isPlannedEvent, measuredCongestions, programNameMap]);
 
   const timelineVisible = useStaggerIn(activities.length, 100);
 
@@ -3224,10 +4037,15 @@ function DashboardContent({ eventId }) {
   const heroVisitorSummary = isEndedEvent
     ? ""
     : `현재 방문객 ${currentVisitors.toLocaleString()}명 · ${visitorMoodText}`;
+  const heroVisitorSummaryForDisplay = isPlannedEvent && !isEndedEvent
+    ? `사전 등록자 ${totalParticipants.toLocaleString("ko-KR")}명 · ${visitorMoodText}`
+    : heroVisitorSummary;
   const endedRelaxedTimeLabel = endedHourlyInsights?.overallRelaxed?.hourLabel || "--:--";
   const soonPeakTimeLabel = isEndedEvent
     ? nextPeakPoint?.time || "가장 혼잡했던 시간대"
-    : nextPeakPoint?.time
+    : isPlannedEvent
+      ? nextPeakPoint?.time || "가장 인기있는 행사일"
+      : nextPeakPoint?.time
       ? `${formatKoreanTime(nextPeakPoint.time)} 무렵`
       : "가까운 시간대";
   const hasAnyPrograms = allProgramRows.length > 0;
@@ -3240,16 +4058,18 @@ function DashboardContent({ eventId }) {
     ? "행사 혼잡도"
     : "지금 행사장은 얼마나 붐빌까요?";
   const predictionChartModeLabel = isEndedEvent
-    ? "날짜별 실제 혼잡도"
-    : isTodayForecast
+    ? (hasEndedMeasuredCongestionData ? "날짜별 실제 혼잡도" : "날짜별 추정 혼잡도")
+    : isPlannedEvent
+      ? "행사일별 예상 혼잡도"
+      : isTodayForecast
       ? "실시간 + AI 예측"
       : isPastForecast
         ? "실제 혼잡도"
         : "AI 예측";
   const predictionTrendTitle = isEndedEvent ? "날짜별 혼잡도" : "시간대별 혼잡도";
   const predictionCardTag = isEndedEvent ? "날짜별 혼잡도" : "시간대별 혼잡도";
-  const chartPointsForDisplay = isEndedEvent ? dailyCongestionPoints : hours;
-  const showForecastCalendar = forecastDateOptions.length > 0 && !isEndedEvent;
+  const chartPointsForDisplay = isEndedEvent ? dailyCongestionPoints : isPlannedEvent ? plannedDailyForecastPoints : hours;
+  const showForecastCalendar = forecastDateOptions.length > 0 && !isEndedEvent && !isPlannedEvent;
   const showPredictedLegend = !isPastForecast && !isEndedEvent;
 
   if (loading && !eventDetail) {
@@ -3269,7 +4089,7 @@ function DashboardContent({ eventId }) {
         <div className="rt-live-header">
           <div className="rt-live-header-left">
             <div className={`rt-live-badge ${badge.className}`}>
-              {badge.showDot ? <div className="rt-live-dot" /> : null}
+              <div className={`rt-live-dot${badge.showDot ? "" : " placeholder"}`} />
               {badge.label}
             </div>
           </div>
@@ -3307,7 +4127,7 @@ function DashboardContent({ eventId }) {
                 {eventDetail?.location || "장소 정보 없음"}
               </span>
             </div>
-            {heroVisitorSummary ? <div className="rt-hero-note">{heroVisitorSummary}</div> : null}
+            {heroVisitorSummaryForDisplay ? <div className="rt-hero-note">{heroVisitorSummaryForDisplay}</div> : null}
           </div>
           <div className="rt-hero-kpi-grid">
             {heroStats.map((item) => (
@@ -3348,7 +4168,7 @@ function DashboardContent({ eventId }) {
               ))}
             </div>
           ) : (
-            <span className="rt-card-tag">지금 사람들이 몰리는 프로그램</span>
+            <span className="rt-card-tag">예상 대기시간 긴 순</span>
           )}
         </div>
 
@@ -3372,41 +4192,44 @@ function DashboardContent({ eventId }) {
           </div>
         ) : (
           <div className="rt-program-grid rt-program-grid-top3">
-            {popularTopPrograms.map((item, index) => (
-              <ProgramCrowdCard
-                key={`top3-${item.key}`}
-                item={item}
-                badgeText={isEndedEvent ? `TOP${index + 1}` : ""}
-                badgeStyle={
-                  isEndedEvent
-                    ? {
-                      color: "#991b1b",
-                      background: "#fee2e2",
-                      borderColor: "#fecaca",
-                    }
-                    : null
-                }
-                metricItems={
-                  isEndedEvent
-                    ? [
-                      {
-                        label: "시간당 방문자수",
-                        value: `${item.visitorsPerHour.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}명/시간`,
-                      },
-                      {
-                        label: "총 방문자수",
-                        value: `${item.totalVisitorCount.toLocaleString()}명`,
-                      },
-                      {
-                        label: "평균 대기시간",
-                        value: `${item.averageWaitMin}분`,
-                      },
-                    ]
-                    : null
-                }
-                guideText={isEndedEvent ? "" : undefined}
-              />
-            ))}
+            {popularTopPrograms.map((item, index) => {
+              const waitCategory = item.waitCategory ?? resolveProgramWaitCategory(item.waitMin);
+              return (
+                <ProgramCrowdCard
+                  key={`top3-${item.key}`}
+                  item={item}
+                  badgeText={isEndedEvent ? `TOP${index + 1}` : waitCategory.label}
+                  badgeStyle={
+                    isEndedEvent
+                      ? {
+                        color: "#991b1b",
+                        background: "#fee2e2",
+                        borderColor: "#fecaca",
+                      }
+                      : waitCategory.style
+                  }
+                  metricItems={
+                    isEndedEvent
+                      ? [
+                        {
+                          label: "시간당 방문자수",
+                          value: `${item.visitorsPerHour.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}명`,
+                        },
+                        {
+                          label: "총 방문자수",
+                          value: `${item.totalVisitorCount.toLocaleString()}명`,
+                        },
+                        {
+                          label: "평균 대기시간",
+                          value: `${item.averageWaitMin}분`,
+                        },
+                      ]
+                      : null
+                  }
+                  guideText={isEndedEvent ? "" : getPetEventGuideText(waitCategory)}
+                />
+              );
+            })}
           </div>
         )}
       </div>
@@ -3420,7 +4243,7 @@ function DashboardContent({ eventId }) {
               </div>
               {readyProgramSectionTitle}
             </div>
-            <span className="rt-card-tag">대기 짧은 순</span>
+            <span className="rt-card-tag">예상 대기시간 짧은 순</span>
           </div>
 
           {!hasAnyPrograms || !hasOperatingPrograms ? (
@@ -3439,19 +4262,17 @@ function DashboardContent({ eventId }) {
               현재는 인기 프로그램 쪽으로 방문이 몰리고 있어요.
             </div>
           ) : (
-            <div className="rt-program-grid rt-program-grid-top3">
+            <div className="rt-program-grid rt-program-grid-top3 rt-ready-program-scroll">
               {readyPrograms.map((item) => {
+                const waitCategory = item.waitCategory ?? resolveProgramWaitCategory(item.waitMin);
                 const readyLabel = getReadyProgramLabel(item.waitCount, item.waitMin);
                 return (
                   <ProgramCrowdCard
                     key={`ready-${item.key}`}
-                    item={{ ...item, guideText: readyLabel }}
+                    item={{ ...item, guideText: getPetEventGuideText(waitCategory) }}
                     badgeText={readyLabel}
-                    badgeStyle={{
-                      color: "#047857",
-                      background: "#ecfdf5",
-                      borderColor: "#a7f3d0",
-                    }}
+                    badgeStyle={waitCategory.style}
+                    guideText={getPetEventGuideText(waitCategory)}
                   />
                 );
               })}
@@ -3478,7 +4299,9 @@ function DashboardContent({ eventId }) {
                   <span className="rt-prediction-meta-pill">
                     집계 일수: {dailyCongestionPoints.length}일
                   </span>
-                  <span className="rt-prediction-meta-pill">기준: 실제 혼잡도</span>
+                  <span className="rt-prediction-meta-pill">
+                    기준: {hasEndedMeasuredCongestionData ? "실제 혼잡도" : "참가 데이터 추정"}
+                  </span>
                 </>
               ) : (
                 <>
@@ -3501,7 +4324,7 @@ function DashboardContent({ eventId }) {
                 </>
               )}
             </div>
-            <span className="rt-card-tag">{predictionCardTag}</span>
+            <span className="rt-card-tag">{isEndedEvent || isPlannedEvent ? "행사일별 혼잡도" : predictionCardTag}</span>
             {showForecastCalendar ? (
               <div className="rt-calendar-control">
                 <CalendarDays size={13} />
@@ -3526,19 +4349,41 @@ function DashboardContent({ eventId }) {
                 {isEndedEvent ? "행사 전반 평균 혼잡도" : isFutureForecast ? "예상 혼잡도" : "현재 혼잡도"}
               </div>
               <div className="rt-prediction-kpi-value">
-                {aiCurrentScore}
+                {isPlannedEvent ? plannedAverageScore : aiCurrentScore}
                 <span className="rt-prediction-kpi-unit">%</span>
               </div>
-              <div className="rt-prediction-kpi-desc">{aiCurrentTone.sentence}</div>
+              <div className="rt-prediction-kpi-desc">
+                {isEndedEvent
+                  ? aiCurrentTone.sentence
+                  : isPlannedEvent
+                    ? `행사일 전체 예상 혼잡도 평균은 ${plannedAverageScore}%예요.`
+                    : currentWaitCategory.guideText}
+              </div>
               <span
                 className="rt-prediction-kpi-badge"
                 style={{
-                  color: aiCurrentTone.color,
-                  background: aiCurrentTone.bg,
-                  borderColor: aiCurrentTone.border,
+                  color: isEndedEvent
+                    ? aiCurrentTone.color
+                    : isPlannedEvent
+                      ? plannedAverageTone.color
+                      : currentWaitCategory.style.color,
+                  background: isEndedEvent
+                    ? aiCurrentTone.bg
+                    : isPlannedEvent
+                      ? plannedAverageTone.bg
+                      : currentWaitCategory.style.background,
+                  borderColor: isEndedEvent
+                    ? aiCurrentTone.border
+                    : isPlannedEvent
+                      ? plannedAverageTone.border
+                      : currentWaitCategory.style.borderColor,
                 }}
               >
-                {aiCurrentTone.label}
+                {isEndedEvent
+                  ? aiCurrentTone.label
+                  : isPlannedEvent
+                    ? plannedAverageTone.label
+                    : currentWaitCategory.label}
               </span>
             </div>
 
@@ -3546,57 +4391,109 @@ function DashboardContent({ eventId }) {
               <div className="rt-prediction-kpi-label">
                 {isEndedEvent ? "가장 여유로운 시간대" : waitKpiLabel}
               </div>
-              <div className="rt-prediction-kpi-value">
-                {isEndedEvent ? endedRelaxedTimeLabel : expectedWaitMinutes}
-                {isEndedEvent ? null : <span className="rt-prediction-kpi-unit">분</span>}
+              <div className={`rt-prediction-kpi-value${isPlannedEvent && !isEndedEvent ? " with-day" : ""}`}>
+                {isEndedEvent
+                  ? endedRelaxedTimeLabel
+                  : isPlannedEvent
+                    ? (
+                      <>
+                        <span className="rt-prediction-kpi-score">{plannedRelaxedScore}%</span>
+                        <span className="rt-prediction-kpi-day">{plannedRelaxedDayLabel}</span>
+                      </>
+                    )
+                    : expectedWaitMinutes}
+                {isEndedEvent || isPlannedEvent ? null : <span className="rt-prediction-kpi-unit">분</span>}
               </div>
               <div className="rt-prediction-kpi-desc">
                 {isEndedEvent
                   ? hasEndedRelaxedInsight
                     ? `${endedRelaxedTimeLabel}에 가장 여유로웠습니다. 평균 혼잡도 ${endedRelaxedScore}%`
                     : "행사 전반 여유 시간대를 집계 중입니다."
-                  : waitSummaryText}
+                  : isPlannedEvent
+                    ? "행사일 중 가장 여유로울 것으로 예상돼요."
+                    : waitSummaryText}
               </div>
               <span
                 className="rt-prediction-kpi-badge"
                 style={{
-                  color: isEndedEvent ? endedRelaxedTone.color : aiCurrentTone.color,
-                  background: isEndedEvent ? endedRelaxedTone.bg : aiCurrentTone.bg,
-                  borderColor: isEndedEvent ? endedRelaxedTone.border : aiCurrentTone.border,
+                  color: isEndedEvent
+                    ? endedRelaxedTone.color
+                    : isPlannedEvent
+                      ? plannedRelaxedTone.color
+                      : currentWaitCategory.style.color,
+                  background: isEndedEvent
+                    ? endedRelaxedTone.bg
+                    : isPlannedEvent
+                      ? plannedRelaxedTone.bg
+                      : currentWaitCategory.style.background,
+                  borderColor: isEndedEvent
+                    ? endedRelaxedTone.border
+                    : isPlannedEvent
+                      ? plannedRelaxedTone.border
+                      : currentWaitCategory.style.borderColor,
                 }}
               >
                 {isEndedEvent
                   ? hasEndedRelaxedInsight
                     ? `${endedRelaxedTone.label} 시간대`
                     : "집계 중"
-                  : `${aiCurrentTone.label} 구간`}
+                  : isPlannedEvent
+                    ? plannedRelaxedTone.label
+                    : `${currentWaitCategory.label} 구간`}
               </span>
             </div>
 
             <div className="rt-prediction-kpi">
-              <div className="rt-prediction-kpi-label">{isEndedEvent ? "행사 전반 혼잡 피크" : "곧 예상되는 변화"}</div>
-              <div className="rt-prediction-kpi-value">
-                {isEndedEvent ? soonPeakTimeLabel : aiSoonScore}
-                {isEndedEvent ? null : <span className="rt-prediction-kpi-unit">%</span>}
+              <div className="rt-prediction-kpi-label">{isEndedEvent ? "가장 인기있는 시간대" : isPlannedEvent ? "가장 인기있는 행사" : "곧 예상되는 변화"}</div>
+              <div className={`rt-prediction-kpi-value${isPlannedEvent && !isEndedEvent ? " with-day" : ""}`}>
+                {isEndedEvent
+                  ? soonPeakTimeLabel
+                  : isPlannedEvent
+                    ? (
+                      <>
+                        <span className="rt-prediction-kpi-score">{plannedPeakScore}%</span>
+                        <span className="rt-prediction-kpi-day">{plannedPeakDayLabel}</span>
+                      </>
+                    )
+                    : aiSoonScore}
+                {isEndedEvent || isPlannedEvent ? null : <span className="rt-prediction-kpi-unit">%</span>}
               </div>
               <div className="rt-prediction-kpi-desc">
                 {isEndedEvent
                   ? nextPeakPoint
                     ? `${soonPeakTimeLabel}가 행사 전반에서 가장 혼잡했습니다. 평균 혼잡도 ${aiSoonScore}%`
                     : "행사 전반 혼잡도 데이터를 집계 중입니다."
-                  : eventPrediction
-                    ? `${soonPeakTimeLabel}에는 ${aiSoonTone.label} 예상 · 약 ${aiSoonWait}분`
+                  : isPlannedEvent
+                    ? "행사일 중 가장 인기있을 것으로 예상돼요."
+                    : eventPrediction
+                    ? `${soonPeakTimeLabel}에는 ${soonWaitCategory.label} 예상 · 약 ${aiSoonWait}분`
                     : "예측 데이터가 준비되면 다음 혼잡 변화를 안내해 드려요."}
               </div>
               <span
                 className="rt-prediction-kpi-badge"
                 style={{
-                  color: aiSoonTone.color,
-                  background: aiSoonTone.bg,
-                  borderColor: aiSoonTone.border,
+                  color: isEndedEvent
+                    ? aiSoonTone.color
+                    : isPlannedEvent
+                      ? plannedPeakTone.color
+                      : soonWaitCategory.style.color,
+                  background: isEndedEvent
+                    ? aiSoonTone.bg
+                    : isPlannedEvent
+                      ? plannedPeakTone.bg
+                      : soonWaitCategory.style.background,
+                  borderColor: isEndedEvent
+                    ? aiSoonTone.border
+                    : isPlannedEvent
+                      ? plannedPeakTone.border
+                      : soonWaitCategory.style.borderColor,
                 }}
               >
-                {isEndedEvent ? (nextPeakPoint ? aiSoonTone.label : "집계 중") : (eventPrediction ? aiSoonTone.label : "집계 중")}
+                {isEndedEvent
+                  ? (nextPeakPoint ? aiSoonTone.label : "집계 중")
+                  : isPlannedEvent
+                    ? plannedPeakTone.label
+                    : (eventPrediction ? soonWaitCategory.label : "집계 중")}
               </span>
             </div>
           </div>
@@ -3604,9 +4501,9 @@ function DashboardContent({ eventId }) {
           <div className="rt-prediction-bottom">
             <div className="rt-prediction-chart-card">
               <div className="rt-prediction-chart-head">
-                <span className="rt-prediction-chart-title">{predictionTrendTitle}</span>
+                <span className="rt-prediction-chart-title">{isEndedEvent || isPlannedEvent ? "행사일별 혼잡도" : predictionTrendTitle}</span>
                 <span className="rt-prediction-chart-sub">
-                  {isEndedEvent
+                  {isEndedEvent || isPlannedEvent
                     ? `행사 전체 기간 · ${predictionChartModeLabel}`
                     : `${selectedForecastDate || "오늘"} · ${predictionChartModeLabel}`}
                 </span>
@@ -3639,26 +4536,24 @@ function DashboardContent({ eventId }) {
                   </div>
                   현장 참고 알림
                 </div>
-                <span className="rt-card-tag">{isEndedEvent ? "종료 시점" : "자동 갱신"}</span>
-              </div>
-
-              <div className="rt-chip-list rt-prediction-alert-chip-list">
-                <span className="rt-chip">{isEndedEvent ? "종료 시점 집계" : "실시간 수집"} {measuredCongestions.length}개 지점</span>
-                <span className="rt-chip">혼잡 주의 지점 {hotBoothCount}개</span>
-                <span className="rt-chip">
-                  프로그램 데이터 {hasQueuePrograms ? "대기 정보 반영 중" : "집계 대기 중"}
-                </span>
+                <span className="rt-card-tag">{isEndedEvent ? "종료 시점" : isPlannedEvent ? "예정 행사" : "자동 갱신"}</span>
               </div>
 
               <div className="rt-timeline rt-prediction-alert-timeline">
                 {activities.length === 0 ? (
                   <div className="rt-empty">
                     <span className="rt-empty-strong">
-                      {isEndedEvent ? "종료 시점 참고 정보가 아직 없습니다" : "실시간 참고 정보가 아직 없습니다"}
+                      {isEndedEvent
+                        ? "종료 시점 참고 정보가 아직 없습니다"
+                        : isPlannedEvent
+                          ? "예정 행사 참고 정보가 아직 없습니다"
+                          : "실시간 참고 정보가 아직 없습니다"}
                     </span>
                     {isEndedEvent
                       ? "종료 시점 혼잡 반영 내역이 집계되면 표시됩니다."
-                      : "곧 최신 혼잡 반영 내역이 표시됩니다."}
+                      : isPlannedEvent
+                        ? "행사가 시작되면 현장 참고 알림이 표시됩니다."
+                        : "곧 최신 혼잡 반영 내역이 표시됩니다."}
                   </div>
                 ) : (
                   activities.slice(0, 4).map((activity, index) => (
@@ -3740,7 +4635,7 @@ export default function Dashboard() {
           onNavigate={handleNavigate}
         />
       ) : null}
-      <main className={`rt-container${eventId ? "" : " selector-mode"}`}>
+      <main className={`rt-container${eventId ? " with-event" : " selector-mode"}`}>
         {eventId ? (
           <DashboardContent eventId={eventId} />
         ) : (
