@@ -498,8 +498,8 @@ export default function PupooHeader() {
     navigate(href);
   };
 
-  const isWhiteMode = !isHome || scrolled || activeMenu !== null;
-  const isLight = isHome && !scrolled && !activeMenu;
+  const isWhiteMode = !isHome || scrolled || activeMenu !== null || searchOpen;
+  const isLight = isHome && !scrolled && !activeMenu && !searchOpen;
   const textColor = isWhiteMode ? "#222" : "#fff";
   const iconColor = isWhiteMode ? "#222" : "#fff";
 
