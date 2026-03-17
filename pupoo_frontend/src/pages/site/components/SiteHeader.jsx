@@ -489,6 +489,12 @@ export default function PupooHeader() {
   }, [location.pathname]);
 
   const handleNavClick = (menuKey) => {
+    if (menuKey === "realtime") {
+      setActiveMenu(null);
+      setSearchOpen(false);
+      navigate("/realtime/dashboard");
+      return;
+    }
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey));
     setSearchOpen(false);
   };
