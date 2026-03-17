@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogIn, UserPlus, Bell, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity } from "lucide-react";
+import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X } from "lucide-react";
 import {
   notificationApi,
   NOTIFICATION_UNREAD_COUNT_EVENT,
@@ -297,6 +297,106 @@ const DropdownCard = ({ menuData, onNavigate }) => {
 };
 
 /* ─────────────────────────────────────────────
+   SEARCH PANEL (dropdown style, below header)
+───────────────────────────────────────────── */
+const POPULAR_TAGS = ["#행사안내", "#참가신청", "#프로그램", "#체크인", "#갤러리"];
+
+const SearchPanel = ({ onClose, onSearch }) => {
+  const inputRef = useRef(null);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    setQuery("");
+    setTimeout(() => inputRef.current?.focus(), 80);
+  }, []);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (query.trim()) onSearch(query.trim());
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 92,
+        left: 0,
+        right: 0,
+        zIndex: 1001,
+        backgroundColor: "#fff",
+        borderRadius: "0 0 20px 20px",
+        padding: "48px 36px 40px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 24,
+        animation: "searchSlideDown 0.18s ease",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 720 }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 16,
+          background: "#222", borderRadius: 999,
+          padding: "0 30px", height: 64,
+        }}>
+          <Search size={22} color="#999" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="무엇이 궁금하신가요?"
+            style={{
+              flex: 1, border: "none", background: "none", outline: "none",
+              color: "#fff", fontSize: 20, fontWeight: 500,
+              fontFamily: FONT,
+            }}
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => { setQuery(""); inputRef.current?.focus(); }}
+              style={{ border: "none", background: "none", cursor: "pointer", display: "flex", padding: 0 }}
+            >
+              <X size={16} color="#999" />
+            </button>
+          )}
+        </div>
+      </form>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+        {POPULAR_TAGS.map((tag) => (
+          <button
+            key={tag}
+            type="button"
+            onClick={() => onSearch(tag.replace("#", ""))}
+            style={{
+              padding: "7px 16px", borderRadius: 999,
+              border: "1px solid #e5e7eb", background: "#fff",
+              fontSize: 13, fontWeight: 600, color: "#374151",
+              fontFamily: FONT, cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
+          >
+            {tag}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────────────────────────────────────
    MAIN HEADER
 ───────────────────────────────────────────── */
 export default function PupooHeader() {
@@ -304,6 +404,7 @@ export default function PupooHeader() {
   const { isAuthed, logout } = useAuth();
   const [activeMenu, setActiveMenu] = useState(null);
   const [scrolled, setScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const unreadCountRef = useRef(0);
   const headerRef = useRef(null);
@@ -384,10 +485,12 @@ export default function PupooHeader() {
   /* ── close on route change ── */
   useEffect(() => {
     setActiveMenu(null);
+    setSearchOpen(false);
   }, [location.pathname]);
 
   const handleNavClick = (menuKey) => {
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey));
+    setSearchOpen(false);
   };
 
   const handleMegaNavigate = (href) => {
@@ -395,8 +498,8 @@ export default function PupooHeader() {
     navigate(href);
   };
 
-  const isWhiteMode = !isHome || scrolled || activeMenu !== null;
-  const isLight = isHome && !scrolled && !activeMenu;
+  const isWhiteMode = !isHome || scrolled || activeMenu !== null || searchOpen;
+  const isLight = isHome && !scrolled && !activeMenu && !searchOpen;
   const textColor = isWhiteMode ? "#222" : "#fff";
   const iconColor = isWhiteMode ? "#222" : "#fff";
 
@@ -406,6 +509,14 @@ export default function PupooHeader() {
         @keyframes megaSlideDown {
           from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
           to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes searchFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes searchSlideDown {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
         .kakao-nav-btn {
           position: relative;
@@ -625,13 +736,14 @@ export default function PupooHeader() {
             <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
               {!isAuthed ? (
                 <>
-                  <Link
-                    to="/auth/login"
+                  <button
+                    type="button"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                    onClick={() => { setSearchOpen((v) => !v); setActiveMenu(null); }}
                   >
-                    <Bell size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">알림</span>
-                  </Link>
+                    <Search size={20} color={iconColor} strokeWidth={1.8} />
+                    <span className="ktt">검색</span>
+                  </button>
                   <Link
                     to="/auth/login"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
@@ -649,37 +761,14 @@ export default function PupooHeader() {
                 </>
               ) : (
                 <>
-                  <Link
-                    to="/mypage"
+                  <button
+                    type="button"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
-                    style={{ position: "relative" }}
+                    onClick={() => { setSearchOpen((v) => !v); setActiveMenu(null); }}
                   >
-                    <Bell size={20} color={iconColor} strokeWidth={1.8} />
-                    {unreadCount > 0 && (
-                      <span
-                        style={{
-                          position: "absolute",
-                          top: 2,
-                          right: 2,
-                          minWidth: 16,
-                          height: 16,
-                          padding: "0 4px",
-                          borderRadius: 8,
-                          backgroundColor: "#ef4444",
-                          color: "#fff",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          lineHeight: 1,
-                        }}
-                      >
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                      </span>
-                    )}
-                    <span className="ktt">{unreadCount > 0 ? `알림 ${unreadCount}건` : "알림"}</span>
-                  </Link>
+                    <Search size={20} color={iconColor} strokeWidth={1.8} />
+                    <span className="ktt">검색</span>
+                  </button>
                   <Link
                     to="/mypage"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
@@ -712,10 +801,21 @@ export default function PupooHeader() {
           />
         )}
 
+        {/* ── SEARCH PANEL ── */}
+        {searchOpen && (
+          <SearchPanel
+            onClose={() => setSearchOpen(false)}
+            onSearch={(keyword) => {
+              setSearchOpen(false);
+              navigate(`/community/freeboard?search=${encodeURIComponent(keyword)}`);
+            }}
+          />
+        )}
+
         {/* ── BACKDROP (dark overlay below header, click to close) ── */}
-        {activeMenu && (
+        {(activeMenu || searchOpen) && (
           <div
-            onClick={() => setActiveMenu(null)}
+            onClick={() => { setActiveMenu(null); setSearchOpen(false); }}
             style={{
               position: "fixed",
               top: 92,
