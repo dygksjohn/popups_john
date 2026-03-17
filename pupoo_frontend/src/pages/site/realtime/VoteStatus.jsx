@@ -751,16 +751,14 @@ export default function VoteStatus({ onNavigate: onNavigateProp }) {
     <div className="vt-root">
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
-      {eventId ? (
-        <PageHeader
-          title={null}
-          subtitle={null}
-          categories={SERVICE_CATEGORIES}
-          stickyCategories
-          currentPath={currentPath}
-          onNavigate={handleNavigate}
-        />
-      ) : null}
+      <PageHeader
+        title="투표 현황"
+        subtitle={SUBTITLE_MAP[currentPath]}
+        icon={<Trophy size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />}
+        categories={SERVICE_CATEGORIES}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
       <main className={`vt-container${eventId ? " with-event" : " selector-mode"}`}>
         <div className="vt-page-shell">
           {eventId ? (

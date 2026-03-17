@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import RealtimeEventSelector from "./RealtimeEventSelector";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, UserCheck } from "lucide-react";
 import {
   useRefresh,
   useAutoRefresh,
@@ -992,16 +992,14 @@ export default function CheckinStatus() {
     <div className="ck-root">
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
-      {eventId ? (
-        <PageHeader
-          title={null}
-          subtitle={null}
-          categories={SERVICE_CATEGORIES}
-          stickyCategories
-          currentPath={currentPath}
-          onNavigate={handleNavigate}
-        />
-      ) : null}
+      <PageHeader
+        title="체크인 현황"
+        subtitle={SUBTITLE_MAP[currentPath]}
+        icon={<UserCheck size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />}
+        categories={SERVICE_CATEGORIES}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
 
       <main className={`ck-container${eventId ? "" : " selector-mode"}`}>
         {eventId ? (
