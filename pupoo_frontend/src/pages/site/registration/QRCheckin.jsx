@@ -98,19 +98,10 @@ const css = `
 
   .qr-page-bg {
     position: relative; min-height: 100vh; overflow: hidden;
-  }
-  .qr-header-transparent { background-color: transparent !important; background: transparent !important; }
-  .qr-video-bg {
-    position: fixed; inset: 0; z-index: 0;
-    width: 100%; height: 100%; object-fit: cover;
-    pointer-events: none;
-  }
-  .qr-video-overlay {
-    position: fixed; inset: 0; z-index: 1;
-    pointer-events: none;
+    background: #fff;
   }
   .qr-page-content {
-    position: relative; z-index: 2;
+    position: relative;
   }
   .qr-root {
     box-sizing: border-box;
@@ -207,20 +198,18 @@ const css = `
   }
   .qr-ticket {
     display: flex;
-    background: rgba(255,255,255,.85);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: #fff;
     overflow: visible; position: relative;
     min-height: 520px;
     border-radius: 20px;
-    border: 1px solid rgba(255,255,255,.6);
+    border: 1px solid #f0f0f0;
   }
 
   /* ── Punch holes left & right ── */
   .qr-punch {
     position: absolute; z-index: 5;
     width: 16px; height: 16px; border-radius: 50%;
-    background: rgba(235,238,248,.9);
+    background: #f3f4f6;
     box-shadow: inset 0 0 1px rgba(0,0,0,.04);
   }
   .qr-punch.left { left: -8px; }
@@ -418,8 +407,8 @@ const css = `
   /* ── Notice — redesigned ── */
   .qr-notice {
     margin-top: 32px; padding: 28px 32px;
-    background: rgba(255,255,255,.7); backdrop-filter: blur(10px);
-    border-radius: 20px; border: 1px solid rgba(255,255,255,.6);
+    background: #f9fafb;
+    border-radius: 20px; border: 1px solid #f0f0f0;
     box-shadow: 0 2px 12px rgba(0,0,0,.03);
   }
   .qr-notice-header {
@@ -725,14 +714,8 @@ export default function QRCheckin() {
   return (
     <div className="qr-page-bg">
       <style>{css}</style>
-      <video
-        className="qr-video-bg"
-        src="https://pikaso.cdnpk.net/private/production/3597684376/45fffe3b-d79e-43b6-b9d7-c947eeb887ed-0.mp4?token=exp=1773705600~hmac=27e082266e9e6f192c1ff0b0a6a5a0d8096156943fa940f407b0522aea31c627"
-        autoPlay muted loop playsInline
-      />
-      <div className="qr-video-overlay" />
       <div className="qr-page-content">
-        <PageHeader title="QR 체크인" icon={<QrCode size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />} subtitle={SUBTITLE_MAP[currentPath]} categories={SERVICE_CATEGORIES} className="qr-header-transparent" />
+        <PageHeader title="QR 체크인" icon={<QrCode size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />} subtitle={SUBTITLE_MAP[currentPath]} categories={SERVICE_CATEGORIES} />
 
         <div className="qr-root">
           <main className="qr-container">
