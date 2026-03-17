@@ -8,10 +8,14 @@ public record AiEventPredictionRequest(
         LocalDateTime eventStartAt,
         LocalDateTime eventEndAt,
         int entryCount,
+        int checkoutCount,
         int activeApplyCount,
         int runningProgramCount,
         int totalProgramCount,
         int totalWaitCount,
-        double averageWaitMinutes
+        double averageWaitMinutes,
+        int capacityBaseline,
+        int waitBaseline,
+        int targetWaitMin
 ) {
 }
