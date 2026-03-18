@@ -167,6 +167,8 @@ jobs:
           ls -al ./artifacts/congestion
           test -f ./artifacts/congestion/event_congestion_model.joblib
           test -f ./artifacts/congestion/program_congestion_model.joblib
+          test -f ./artifacts/congestion/event_lstm_baseline.joblib
+          test -f ./artifacts/congestion/program_lstm_baseline.joblib
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

@@ -13,11 +13,15 @@ from pupoo_ai.app.features.congestion.dto.prediction_models import (
     TimelinePoint,
 )
 from pupoo_ai.app.features.congestion.inference.lightgbm_registry import LightGbmCongestionRegistry
-from pupoo_ai.app.features.congestion.inference.lstm_baseline import estimate_lstm_avg_score
+from pupoo_ai.app.features.congestion.inference.lstm_baseline import LstmCalibrationRegistry
 
 FIVE_MINUTES = timedelta(minutes=5)
 DEFAULT_THRESHOLD = 75.0
 MODEL_REGISTRY = LightGbmCongestionRegistry(
+    model_dir=settings.congestion_model_dir or None,
+    enabled=settings.congestion_model_enabled,
+)
+LSTM_REGISTRY = LstmCalibrationRegistry(
     model_dir=settings.congestion_model_dir or None,
     enabled=settings.congestion_model_enabled,
 )
@@ -591,7 +595,8 @@ def predict_event(request: EventPredictionRequest) -> PredictionResult:
             end_at=request.eventEndAt,
         ),
     )
-    lstm_avg_score = estimate_lstm_avg_score(request.inputSequence)
+    lstm_prediction = LSTM_REGISTRY.predict("EVENT", request.inputSequence)
+    lstm_avg_score = None if lstm_prediction is None else lstm_prediction.avg_score
 
     if model_prediction is None:
         avg_score = _clamp_score(base_score)
@@ -658,6 +663,8 @@ def predict_program(request: ProgramPredictionRequest) -> PredictionResult:
             end_at=request.programEndAt,
         ),
     )
+    lstm_prediction = LSTM_REGISTRY.predict("PROGRAM", request.inputSequence)
+    lstm_avg_score = None if lstm_prediction is None else lstm_prediction.avg_score
     timeline_base_score = base_score if model_prediction is None else _clamp_score(model_prediction.avg_score)
     timeline = _build_timeline(points, timeline_base_score, wait_anchor, "PROGRAM")
 
@@ -684,7 +691,7 @@ def predict_program(request: ProgramPredictionRequest) -> PredictionResult:
         predictedLevel=_level_from_score(peak_score),
         predictedWaitMinutes=max(0, int(round(sum(waits) / len(waits)))),
         confidence=confidence,
-        lstmPredictedAvgScore=None,
+        lstmPredictedAvgScore=lstm_avg_score,
         fallbackUsed=fallback_used,
         timeline=timeline,
     )

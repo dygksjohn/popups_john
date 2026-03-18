@@ -15,7 +15,7 @@ python -m uvicorn pupoo_ai.app.main:app --reload --port 8000
 ```powershell
 cd pupoo_ai
 .venv\Scripts\activate
-python -m pupoo_ai.app.features.congestion.train.train_congestion_models
+python -m app.features.congestion.train.train_congestion_models
 ```
 
 Optional arguments:
