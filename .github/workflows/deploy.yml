@@ -89,6 +89,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION }}
       EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
       EKS_NAMESPACE: ${{ vars.EKS_NAMESPACE }}
+      OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL || 'dall-e-3' }}
 
     steps:
       - name: Checkout repository
@@ -149,6 +150,31 @@ jobs:
 
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Sync backend runtime secrets
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          APP_AI_MODERATION_INTERNAL_TOKEN: ${{ secrets.APP_AI_MODERATION_INTERNAL_TOKEN }}
+        run: |
+          if [ -z "${OPENAI_API_KEY}" ]; then
+            echo "OPENAI_API_KEY secret is required"
+            exit 1
+          fi
+          if [ -z "${APP_AI_MODERATION_INTERNAL_TOKEN}" ]; then
+            echo "APP_AI_MODERATION_INTERNAL_TOKEN secret is required"
+            exit 1
+          fi
+
+          kubectl -n "${EKS_NAMESPACE:-pupoo}" patch secret pupoo-backend-secret --type merge -p "$(cat <<EOF
+          {
+            \"stringData\": {
+              \"OPENAI_API_KEY\": \"${OPENAI_API_KEY}\",
+              \"OPENAI_IMAGE_MODEL\": \"${OPENAI_IMAGE_MODEL}\",
+              \"APP_AI_MODERATION_INTERNAL_TOKEN\": \"${APP_AI_MODERATION_INTERNAL_TOKEN}\"
+            }
+          }
+          EOF
+          )"
 
       - name: Apply base manifests
         run: kubectl apply -k k8s/base
