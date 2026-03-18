@@ -97,6 +97,15 @@ const parseAmount = (value) => {
 const safePercent = (value, total) =>
   total > 0 ? Math.round((value / total) * 100) : 0;
 
+const normalizeCongestionPercent = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  if (numeric <= 5) {
+    return Math.min(Math.max(Math.round(numeric * 20), 0), 100);
+  }
+  return Math.min(Math.max(Math.round(numeric), 0), 100);
+};
+
 const formatNumber = (value) => Number(value || 0).toLocaleString("ko-KR");
 
 const formatCompactWon = (value) => {
@@ -299,7 +308,9 @@ const normalizeCongestionRows = (payload) =>
     .map((row) => ({
       hour: Number(row.hour) || 0,
       label: `${String(Number(row.hour) || 0).padStart(2, "0")}:00`,
-      value: Math.round(Number(row.avgCongestionLevel) || 0),
+      value: normalizeCongestionPercent(
+        row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level,
+      ),
     }))
     .sort((a, b) => a.hour - b.hour);
 
@@ -351,7 +362,13 @@ const summarizeCongestionLines = (lines = []) => {
 
 const summarizeRealtimeCongestionRows = (rows = []) => {
   const values = toArray(rows)
-    .map((row) => Number(row?.congestionLevel))
+    .map((row) => {
+      const rawLevel = row?.congestionLevel;
+      const hasMeasuredLevel =
+        rawLevel !== null && rawLevel !== undefined && rawLevel !== "";
+      if (!hasMeasuredLevel) return null;
+      return normalizeCongestionPercent(rawLevel);
+    })
     .filter((value) => Number.isFinite(value));
   if (values.length === 0) {
     return {
@@ -561,12 +578,20 @@ export default function HomeDashboard({ initialEventId = null }) {
         : usingDummyCongestion;
 
       const topBooths = toArray(focusBoothPayload)
-        .filter((row) => Number.isFinite(Number(row.congestionLevel)))
-        .map((row) => ({
-          ...row,
-          congestionLevel: Number(row.congestionLevel) || 0,
-          state: cong(Number(row.congestionLevel) || 0),
-        }))
+        .map((row) => {
+          const rawLevel = row?.congestionLevel;
+          const hasMeasuredLevel =
+            rawLevel !== null && rawLevel !== undefined && rawLevel !== "";
+          if (!hasMeasuredLevel) return null;
+
+          const congestionLevel = normalizeCongestionPercent(rawLevel);
+          return {
+            ...row,
+            congestionLevel,
+            state: cong(congestionLevel),
+          };
+        })
+        .filter(Boolean)
         .sort((a, b) => b.congestionLevel - a.congestionLevel)
         .slice(0, 5);
       const focusRealtimeSummary = summarizeRealtimeCongestionRows(
