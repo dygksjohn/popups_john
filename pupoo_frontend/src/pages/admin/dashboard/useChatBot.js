@@ -9,7 +9,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 const TOKEN_KEY = "pupoo_admin_token";
 
 async function getBotReply(history, userMessage) {
-  const url = buildRequestUrl(API_BASE_URL, "/internal/chatbot/chat");
+  const url = buildRequestUrl(API_BASE_URL, "/api/chatbot/chat");
   let res;
 
   try {
