@@ -1,12 +1,7 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Banknote,
-  CheckCircle2,
-  CreditCard,
-  Loader2,
-  Receipt,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CreditCard, Loader2, Inbox, CalendarDays, Wallet, Hash, ReceiptText } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { tokenStore } from "../../../app/http/tokenStore";
 
@@ -25,244 +20,245 @@ export const SUBTITLE_MAP = {
 };
 
 const styles = `
-  .pay-root {
+  .ph-root {
     box-sizing: border-box;
+    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+    background: #fff;
     min-height: 100vh;
-    background: #f5f7fb;
-    color: #0f172a;
-    font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #111;
   }
-  .pay-root *, .pay-root *::before, .pay-root *::after {
-    box-sizing: border-box;
-    font-family: inherit;
-  }
-  .pay-container {
-    width: min(920px, calc(100% - 40px));
+  .ph-root *, .ph-root *::before, .ph-root *::after { box-sizing: border-box; font-family: inherit; }
+  .ph-wrap {
+    width: min(1400px, calc(100% - 48px));
     margin: 0 auto;
-    padding: 28px 0 72px;
+    padding: 0 0 80px;
   }
-  .pay-stats {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-  .pay-stat {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 18px;
-    padding: 18px;
-    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
-  }
-  .pay-stat-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
+
+  /* ── 상단 요약 (카카오 st) ── */
+  .ph-summary {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 10px;
-  }
-  .pay-stat-icon.blue { background: #dbeafe; color: #1d4ed8; }
-  .pay-stat-icon.green { background: #dcfce7; color: #15803d; }
-  .pay-stat-icon.amber { background: #fef3c7; color: #b45309; }
-  .pay-stat-value {
-    font-size: 28px;
-    font-weight: 800;
-    line-height: 1;
-  }
-  .pay-stat-label {
-    margin-top: 8px;
-    font-size: 12px;
-    color: #64748b;
-    font-weight: 700;
-  }
-  .pay-toolbar {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
-  }
-  .pay-title {
-    font-size: 20px;
-    font-weight: 800;
-    color: #0f172a;
-  }
-  .pay-sub {
-    margin-top: 6px;
-    font-size: 13px;
-    color: #64748b;
-  }
-  .pay-list {
-    display: grid;
-    gap: 12px;
-  }
-  .pay-card {
+    gap: 0;
+    margin: 32px 0;
     background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 18px;
-    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
     overflow: hidden;
   }
-  .pay-card-body {
-    padding: 18px 20px;
+  .ph-summary-card {
+    flex: 1;
+    padding: 24px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-right: 1px solid #e5e7eb;
+  }
+  .ph-summary-card:last-child { border-right: none; }
+  .ph-summary-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #d1d5db;
+  }
+  .ph-summary-dot.dot-green { background: #16a34a; }
+  .ph-summary-dot.dot-blue { background: #2563eb; }
+  .ph-summary-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ph-summary-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #888;
+  }
+  .ph-summary-val {
+    font-size: 24px;
+    font-weight: 800;
+    color: #222;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  /* ── 툴바 ── */
+  .ph-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
+    margin-bottom: 20px;
+    gap: 12px;
   }
-  .pay-card-main {
-    display: grid;
-    gap: 8px;
-    min-width: 0;
-    flex: 1;
+  .ph-toolbar-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111;
   }
-  .pay-card-method {
-    display: inline-flex;
+  .ph-count {
+    font-size: 16px;
+    color: #9ca3af;
+    font-weight: 600;
+  }
+  .ph-count strong {
+    color: #111;
+    font-weight: 800;
+  }
+
+  /* ── 카드 리스트 ── */
+  .ph-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ph-card {
+    display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: #64748b;
+    gap: 24px;
+    padding: 28px 32px;
+    border: 1px solid #f0f0f0;
+    border-radius: 16px;
+    background: #fff;
+    transition: all 0.15s;
+  }
+  .ph-card:hover {
+    background: #f9fafb;
+  }
+  .ph-card-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    flex-shrink: 0;
+    gap: 4px;
+  }
+  .ph-status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .ph-status-label {
+    font-size: 14px;
     font-weight: 700;
   }
-  .pay-card-event {
-    font-size: 16px;
+  .ph-card-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .ph-card-title {
+    font-size: 19px;
     font-weight: 800;
-    color: #0f172a;
-    line-height: 1.45;
+    color: #111;
+    margin-bottom: 12px;
+    line-height: 1.3;
   }
-  .pay-card-meta {
+  .ph-card-meta {
     display: flex;
-    align-items: center;
-    gap: 10px;
     flex-wrap: wrap;
-    font-size: 12px;
-    color: #64748b;
+    gap: 16px;
   }
-  .pay-card-side {
-    text-align: right;
-    display: grid;
-    gap: 6px;
-    min-width: 160px;
-  }
-  .pay-card-amount {
-    font-size: 20px;
-    font-weight: 800;
-    color: #1d4ed8;
-  }
-  .pay-card-footer {
-    padding: 14px 20px;
-    border-top: 1px solid #e2e8f0;
-    background: #f8fafc;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-  .pay-status-badge {
+  .ph-meta-item {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-height: 30px;
-    padding: 0 12px;
-    border-radius: 999px;
-    background: #dcfce7;
-    color: #15803d;
-    font-size: 12px;
-    font-weight: 800;
+    font-size: 15px;
+    color: #6b7280;
+    font-weight: 500;
   }
-  .pay-footer-actions {
+  .ph-meta-item svg {
+    color: #9ca3af;
+    flex-shrink: 0;
+  }
+  .ph-card-right {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    flex-shrink: 0;
   }
-  .pay-btn {
-    height: 36px;
-    padding: 0 14px;
-    border-radius: 10px;
-    border: 1px solid #cbd5e1;
-    background: #fff;
-    color: #475569;
-    font-size: 12px;
-    font-weight: 800;
+  .ph-amount {
+    font-size: 22px;
+    font-weight: 900;
+    color: #111;
+    letter-spacing: -0.03em;
+  }
+  .ph-refund-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    cursor: pointer;
-  }
-  .pay-btn.refund {
-    border-color: #fecaca;
-    background: #fff1f2;
-    color: #b91c1c;
-  }
-  .pay-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  .pay-error {
-    margin-bottom: 14px;
-    padding: 12px 14px;
-    border-radius: 12px;
+    padding: 10px 20px;
+    border-radius: 10px;
     border: 1px solid #fecaca;
-    background: #fef2f2;
-    color: #b91c1c;
-    font-size: 13px;
-    font-weight: 700;
-  }
-  .pay-empty {
-    padding: 28px 18px;
-    text-align: center;
     background: #fff;
-    border: 1px dashed #cbd5e1;
-    border-radius: 16px;
-    color: #64748b;
-    font-size: 13px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #ef4444;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    white-space: nowrap;
   }
-  .pay-total-card {
-    margin-top: 16px;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 18px;
-    padding: 18px 20px;
+  .ph-refund-btn:hover { background: #fef2f2; }
+  .ph-refund-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── 합계 ── */
+  .ph-total {
+    margin-top: 20px;
+    padding: 24px;
+    border-radius: 16px;
+    background: #f9fafb;
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+  .ph-total-label {
+    font-size: 17px;
+    font-weight: 700;
+    color: #6b7280;
+  }
+  .ph-total-amount {
+    font-size: 30px;
+    font-weight: 900;
+    color: #111;
+    letter-spacing: -0.03em;
+  }
+
+  /* ── 빈 상태 ── */
+  .ph-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 80px 20px;
     gap: 12px;
-    flex-wrap: wrap;
+    color: #d1d5db;
   }
-  .pay-total-label {
-    font-size: 14px;
-    font-weight: 800;
-    color: #1e3a8a;
+  .ph-empty span {
+    font-size: 15px;
+    color: #9ca3af;
+    font-weight: 500;
   }
-  .pay-total-amount {
-    font-size: 26px;
-    font-weight: 800;
-    color: #1d4ed8;
-  }
+
   @media (max-width: 768px) {
-    .pay-stats {
-      grid-template-columns: 1fr;
-    }
-    .pay-container {
-      width: min(100%, calc(100% - 28px));
-      padding: 20px 0 60px;
-    }
-    .pay-card-body,
-    .pay-card-footer,
-    .pay-total-card {
+    .ph-summary { flex-direction: column; }
+    .ph-summary-card { border-right: none; border-bottom: 1px solid #e5e7eb; }
+    .ph-summary-card:last-child { border-bottom: none; }
+    .ph-card {
+      flex-direction: column;
       align-items: flex-start;
+      gap: 14px;
     }
-    .pay-card-side {
-      min-width: 0;
-      text-align: left;
+    .ph-card-status {
+      flex-direction: row;
+      width: auto;
+      gap: 8px;
     }
+    .ph-card-right {
+      flex-direction: row;
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .ph-toolbar { flex-direction: column; align-items: flex-start; }
   }
 `;
 
@@ -272,18 +268,15 @@ function toNumberAmount(amount) {
 }
 
 function formatAmount(amount) {
-  return `₩${toNumberAmount(amount).toLocaleString("ko-KR")}`;
+  const num = toNumberAmount(amount).toLocaleString("ko-KR");
+  return <>{num}<span style={{ fontSize: '0.65em', fontWeight: 600, marginLeft: 2 }}>원</span></>;
 }
 
 function formatDateTime(value) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(
-    date.getDate(),
-  ).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(
-    date.getMinutes(),
-  ).padStart(2, "0")}`;
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 function parseDate(value) {
@@ -300,45 +293,27 @@ function isAutoRefundEligible(payment) {
 
 function methodLabelOf(paymentMethod) {
   switch (String(paymentMethod || "").toUpperCase()) {
-    case "KAKAOPAY":
-      return "카카오페이";
-    case "CARD":
-      return "카드 결제";
-    case "BANK":
-      return "계좌 이체";
-    default:
-      return paymentMethod || "기타 결제";
+    case "KAKAOPAY": return "카카오페이";
+    case "CARD": return "카드";
+    case "BANK": return "계좌이체";
+    default: return paymentMethod || "기타";
   }
 }
 
 function getStatusMeta(payment) {
   const refundStatus = String(payment?.refund?.status || "").toUpperCase();
-  if (refundStatus === "REQUESTED") {
-    return { label: "환불 요청", style: { background: "#fef3c7", color: "#b45309" } };
-  }
-  if (refundStatus === "APPROVED") {
-    return { label: "환불 승인", style: { background: "#dbeafe", color: "#1d4ed8" } };
-  }
-  if (refundStatus === "REJECTED") {
-    return { label: "환불 거절", style: { background: "#fee2e2", color: "#b91c1c" } };
-  }
-  if (refundStatus === "REFUNDED") {
-    return { label: "환불 완료", style: { background: "#e5e7eb", color: "#374151" } };
-  }
+  if (refundStatus === "REQUESTED") return { label: "환불 요청", color: "#ca8a04" };
+  if (refundStatus === "APPROVED") return { label: "환불 승인", color: "#3b82f6" };
+  if (refundStatus === "REJECTED") return { label: "환불 거절", color: "#ef4444" };
+  if (refundStatus === "REFUNDED") return { label: "환불 완료", color: "#6b7280" };
 
   switch (String(payment?.status || "").toUpperCase()) {
-    case "APPROVED":
-      return { label: "결제 완료", style: undefined };
-    case "REQUESTED":
-      return { label: "결제 요청", style: { background: "#e0f2fe", color: "#0369a1" } };
-    case "FAILED":
-      return { label: "결제 실패", style: { background: "#fee2e2", color: "#b91c1c" } };
-    case "CANCELLED":
-      return { label: "취소됨", style: { background: "#fee2e2", color: "#b91c1c" } };
-    case "REFUNDED":
-      return { label: "환불 완료", style: { background: "#e5e7eb", color: "#374151" } };
-    default:
-      return { label: payment?.status || "-", style: { background: "#e5e7eb", color: "#475569" } };
+    case "APPROVED": return { label: "결제 완료", color: "#16a34a" };
+    case "REQUESTED": return { label: "결제 요청", color: "#2563eb" };
+    case "FAILED": return { label: "결제 실패", color: "#ef4444" };
+    case "CANCELLED": return { label: "취소됨", color: "#ef4444" };
+    case "REFUNDED": return { label: "환불 완료", color: "#6b7280" };
+    default: return { label: payment?.status || "-", color: "#6b7280" };
   }
 }
 
@@ -362,57 +337,36 @@ export default function PaymentHistory({ onNavigate }) {
 
     try {
       const [paymentsRes, refundsRes] = await Promise.all([
-        axiosInstance.get("/api/payments/my", {
-          params: { page: 0, size: 20, sort: "requestedAt,desc" },
-        }),
-        axiosInstance.get("/api/refunds/my", {
-          params: { page: 0, size: 200, sort: "requestedAt,desc" },
-        }),
+        axiosInstance.get("/api/payments/my", { params: { page: 0, size: 20, sort: "requestedAt,desc" } }),
+        axiosInstance.get("/api/refunds/my", { params: { page: 0, size: 200, sort: "requestedAt,desc" } }),
       ]);
-
       setPayments(paymentsRes?.data?.data?.content ?? []);
       setRefunds(refundsRes?.data?.data?.content ?? []);
     } catch (err) {
-      const message =
-        err?.response?.data?.error?.message ||
-        err?.response?.data?.message ||
-        "결제 내역을 불러오지 못했습니다.";
-      setError(message);
+      setError(err?.response?.data?.error?.message || err?.response?.data?.message || "결제 내역을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadHistory();
-  }, [loadHistory]);
+  useEffect(() => { loadHistory(); }, [loadHistory]);
 
   const refundIndex = useMemo(
-    () =>
-      refunds.reduce((acc, refund) => {
-        if (refund?.paymentId != null) {
-          acc[String(refund.paymentId)] = refund;
-        }
-        return acc;
-      }, {}),
+    () => refunds.reduce((acc, r) => { if (r?.paymentId != null) acc[String(r.paymentId)] = r; return acc; }, {}),
     [refunds],
   );
 
   const paymentRows = useMemo(
-    () =>
-      payments.map((payment) => ({
-        ...payment,
-        refund: refundIndex[String(payment?.paymentId)] || null,
-      })),
+    () => payments.map((p) => ({ ...p, refund: refundIndex[String(p?.paymentId)] || null })),
     [payments, refundIndex],
   );
 
   const stats = useMemo(() => {
-    const approvedRows = paymentRows.filter((item) => item.status === "APPROVED" && !item.refund);
+    const approved = paymentRows.filter((p) => p.status === "APPROVED" && !p.refund);
     return {
-      totalCount: paymentRows.length,
-      approvedCount: approvedRows.length,
-      totalAmount: approvedRows.reduce((sum, item) => sum + toNumberAmount(item.amount), 0),
+      total: paymentRows.length,
+      approved: approved.length,
+      amount: approved.reduce((s, p) => s + toNumberAmount(p.amount), 0),
     };
   }, [paymentRows]);
 
@@ -433,164 +387,136 @@ export default function PaymentHistory({ onNavigate }) {
       const input = window.prompt("환불 사유를 입력해주세요.", "개인 사정");
       if (input == null) return;
       reason = String(input || "").trim();
-      if (!reason) {
-        window.alert("환불 사유를 입력해주세요.");
-        return;
-      }
+      if (!reason) { window.alert("환불 사유를 입력해주세요."); return; }
     }
 
     setRefundingId(paymentId);
     try {
-      await axiosInstance.post("/api/refunds", {
-        paymentId,
-        refundAmount: toNumberAmount(payment?.amount),
-        reason,
-      });
+      await axiosInstance.post("/api/refunds", { paymentId, refundAmount: toNumberAmount(payment?.amount), reason });
       await loadHistory();
       window.alert(autoRefund ? "환불이 완료되었습니다." : "환불 요청이 접수되었습니다.");
     } catch (err) {
-      const message =
-        err?.response?.data?.error?.message ||
-        err?.response?.data?.message ||
-        "환불 처리 중 오류가 발생했습니다.";
-      window.alert(message);
+      window.alert(err?.response?.data?.error?.message || err?.response?.data?.message || "환불 처리 중 오류가 발생했습니다.");
     } finally {
       setRefundingId(null);
     }
   };
 
   return (
-    <div className="pay-root">
+    <div className="ph-root">
       <style>{styles}</style>
 
       <PageHeader
         title="결제 내역"
+        icon={<CreditCard size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />}
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
         onNavigate={onNavigate}
       />
 
-      <main className="pay-container">
-        <div className="pay-stats">
-          {[
-            {
-              icon: <CreditCard size={18} />,
-              label: "전체 결제 건수",
-              value: `${stats.totalCount}건`,
-              cls: "blue",
-            },
-            {
-              icon: <Banknote size={18} />,
-              label: "유효 결제 금액",
-              value: formatAmount(stats.totalAmount),
-              cls: "green",
-            },
-            {
-              icon: <CheckCircle2 size={18} />,
-              label: "결제 완료",
-              value: `${stats.approvedCount}건`,
-              cls: "amber",
-            },
-          ].map((item) => (
-            <div key={item.label} className="pay-stat">
-              <div className={`pay-stat-icon ${item.cls}`}>{item.icon}</div>
-              <div className="pay-stat-value">{item.value}</div>
-              <div className="pay-stat-label">{item.label}</div>
+      <div className="ph-wrap">
+        {/* 요약 */}
+        <div className="ph-summary">
+          <div className="ph-summary-card">
+            <div className="ph-summary-dot" />
+            <div className="ph-summary-text">
+              <div className="ph-summary-label">전체 결제</div>
+              <div className="ph-summary-val">{stats.total}</div>
             </div>
-          ))}
-        </div>
-
-        <div className="pay-toolbar">
-          <div>
-            <div className="pay-title">결제 및 환불 상태</div>
-            <div className="pay-sub">
-              {loading
-                ? "불러오는 중..."
-                : `총 ${stats.totalCount}건, 유효 결제 금액 ${formatAmount(stats.totalAmount)}`}
+          </div>
+          <div className="ph-summary-card">
+            <div className="ph-summary-dot dot-green" />
+            <div className="ph-summary-text">
+              <div className="ph-summary-label">결제 완료</div>
+              <div className="ph-summary-val">{stats.approved}</div>
+            </div>
+          </div>
+          <div className="ph-summary-card">
+            <div className="ph-summary-dot dot-blue" />
+            <div className="ph-summary-text">
+              <div className="ph-summary-label">유효 금액</div>
+              <div className="ph-summary-val">{formatAmount(stats.amount)}</div>
             </div>
           </div>
         </div>
 
-        {error ? <div className="pay-error">{error}</div> : null}
-
-        {!loading && !error && paymentRows.length === 0 ? (
-          <div className="pay-empty">결제 내역이 없습니다.</div>
-        ) : null}
-
-        <div className="pay-list">
-          {paymentRows.map((payment) => {
-            const statusMeta = getStatusMeta(payment);
-            const canRefund = payment.status === "APPROVED" && !payment.refund;
-            const refundLabel = isAutoRefundEligible(payment) ? "환불하기" : "환불 신청";
-
-            return (
-              <div key={payment.paymentId || payment.orderNo} className="pay-card">
-                <div className="pay-card-body">
-                  <div className="pay-card-main">
-                    <div className="pay-card-method">
-                      <CreditCard size={14} />
-                      {methodLabelOf(payment.paymentMethod)}
-                    </div>
-                    <div className="pay-card-event">{payment.eventTitle || "행사 결제"}</div>
-                    <div className="pay-card-meta">
-                      <span>결제 번호 {payment.orderNo || `PAY-${payment.paymentId}`}</span>
-                      <span>결제일 {formatDateTime(payment.requestedAt)}</span>
-                      {payment.eventStartAt ? (
-                        <span>행사 시작 {formatDateTime(payment.eventStartAt)}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="pay-card-side">
-                    <div className="pay-card-amount">{formatAmount(payment.amount)}</div>
-                    <div style={{ fontSize: 12, color: "#64748b" }}>
-                      {payment.refund?.reason ? `환불 사유: ${payment.refund.reason}` : "-"}
-                    </div>
-                  </div>
-                </div>
-                <div className="pay-card-footer">
-                  <span className="pay-status-badge" style={statusMeta.style}>
-                    <CheckCircle2 size={12} />
-                    {statusMeta.label}
-                  </span>
-                  <div className="pay-footer-actions">
-                    <button
-                      type="button"
-                      className="pay-btn"
-                      onClick={() => window.alert("영수증 기능은 추후 연결 예정입니다.")}
-                    >
-                      <Receipt size={13} />
-                      영수증
-                    </button>
-                    {canRefund ? (
-                      <button
-                        type="button"
-                        className="pay-btn refund"
-                        onClick={() => handleRefund(payment)}
-                        disabled={refundingId === payment.paymentId}
-                      >
-                        {refundingId === payment.paymentId ? (
-                          <>
-                            <Loader2 size={13} className="animate-spin" />
-                            처리 중...
-                          </>
-                        ) : (
-                          refundLabel
-                        )}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        {/* 툴바 */}
+        <div className="ph-toolbar">
+          <span className="ph-toolbar-title">결제 내역</span>
+          {!loading && <span className="ph-count"><strong>{stats.total}</strong>건</span>}
         </div>
 
-        <div className="pay-total-card">
-          <div className="pay-total-label">현재 유효 결제 금액</div>
-          <div className="pay-total-amount">{formatAmount(stats.totalAmount)}</div>
-        </div>
-      </main>
+        {/* 리스트 */}
+        {loading ? (
+          <PageLoading />
+        ) : (error || paymentRows.length === 0) ? (
+          <div className="ph-empty">
+            <Inbox size={48} strokeWidth={1.2} />
+            <span>{error || "결제 내역이 없습니다."}</span>
+          </div>
+        ) : (
+          <>
+            <div className="ph-list">
+              {paymentRows.map((payment) => {
+                const meta = getStatusMeta(payment);
+                const canRefund = payment.status === "APPROVED" && !payment.refund;
+                const refundLabel = isAutoRefundEligible(payment) ? "환불" : "환불 신청";
+
+                return (
+                  <div key={payment.paymentId || payment.orderNo} className="ph-card">
+                    {/* 상태 */}
+                    <div className="ph-card-status">
+                      <div className="ph-status-dot" style={{ background: meta.color }} />
+                      <span className="ph-status-label" style={{ color: meta.color }}>{meta.label}</span>
+                    </div>
+
+                    {/* 본문 */}
+                    <div className="ph-card-body">
+                      <div className="ph-card-title">{payment.eventTitle || "행사 결제"}</div>
+                      <div className="ph-card-meta">
+                        <span className="ph-meta-item">
+                          <Wallet size={14} />
+                          {methodLabelOf(payment.paymentMethod)}
+                        </span>
+                        <span className="ph-meta-item">
+                          <CalendarDays size={14} />
+                          {formatDateTime(payment.requestedAt)}
+                        </span>
+                        <span className="ph-meta-item">
+                          <Hash size={14} />
+                          {payment.orderNo || `PAY-${payment.paymentId}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 금액 + 환불 */}
+                    <div className="ph-card-right">
+                      <span className="ph-amount">{formatAmount(payment.amount)}</span>
+                      {canRefund && (
+                        <button
+                          type="button"
+                          className="ph-refund-btn"
+                          onClick={() => handleRefund(payment)}
+                          disabled={refundingId === payment.paymentId}
+                        >
+                          {refundingId === payment.paymentId ? <><Loader2 size={13} /> 처리 중</> : refundLabel}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 합계 */}
+            <div className="ph-total">
+              <span className="ph-total-label">유효 결제 금액</span>
+              <span className="ph-total-amount">{formatAmount(stats.amount)}</span>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

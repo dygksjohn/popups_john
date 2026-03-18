@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -40,7 +41,7 @@ public class AiCongestionAggregationQueryRepositoryImpl implements AiCongestionA
     @Override
     public List<ProgramTargetRow> findProgramTargets(LocalDateTime bucketTime) {
         String sql = """
-            select p.program_id, p.event_id, p.booth_id, p.capacity, p.start_at
+            select p.program_id, p.event_id, p.booth_id, p.capacity, p.throughput_per_min, p.start_at
             from event_program p
             where p.start_at <= :bucketTime
               and p.end_at >= :bucketTime
@@ -57,7 +58,8 @@ public class AiCongestionAggregationQueryRepositoryImpl implements AiCongestionA
                         toLong(row[1]),
                         toLong(row[2]),
                         toInteger(row[3]),
-                        toLocalDateTime(row[4])
+                        toBigDecimal(row[4]),
+                        toLocalDateTime(row[5])
                 ))
                 .toList();
     }
@@ -241,6 +243,63 @@ public class AiCongestionAggregationQueryRepositoryImpl implements AiCongestionA
 
         return rows.stream()
                 .map(row -> new EventRunningProgramCountRow(
+                        toLong(row[0]),
+                        toInt(row[1])
+                ))
+                .toList();
+    }
+
+    @Override
+    public List<EventTotalProgramCountRow> findTotalProgramCounts() {
+        String sql = """
+            select
+              p.event_id,
+              count(*) as total_program_count
+            from event_program p
+            group by p.event_id
+        """;
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery(sql).getResultList();
+
+        return rows.stream()
+                .map(row -> new EventTotalProgramCountRow(
+                        toLong(row[0]),
+                        toInt(row[1])
+                ))
+                .toList();
+    }
+
+    @Override
+    public List<ProgramCheckinCountRow> findProgramCheckinCounts(
+            Collection<Long> programIds,
+            LocalDateTime fromInclusive,
+            LocalDateTime toExclusive
+    ) {
+        if (programIds == null || programIds.isEmpty()) {
+            return List.of();
+        }
+
+        String sql = """
+            select
+              pa.program_id,
+              count(*) as checkin_count
+            from event_program_apply pa
+            where pa.program_id in (:programIds)
+              and pa.checked_in_at >= :fromInclusive
+              and pa.checked_in_at < :toExclusive
+            group by pa.program_id
+        """;
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery(sql)
+                .setParameter("programIds", programIds)
+                .setParameter("fromInclusive", fromInclusive)
+                .setParameter("toExclusive", toExclusive)
+                .getResultList();
+
+        return rows.stream()
+                .map(row -> new ProgramCheckinCountRow(
                         toLong(row[0]),
                         toInt(row[1])
                 ))

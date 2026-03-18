@@ -13,6 +13,7 @@ import {
   Search,
   Star,
   Users,
+  ArchiveX,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
@@ -342,248 +343,152 @@ function downloadResultImage(event) {
   }, "image/png");
 }
 
-/* ── Animated value hook (resets to 0 on change) ── */
-function useAnimatedValue(target, duration = 1800) {
-  const [value, setValue] = useState(0);
-  const rafRef = useRef(null);
-  const prevTarget = useRef(target);
+/* ── Donut Ring (참가자수 / 참가율) ── */
+function DonutStatCard({ icon, label, value, max, suffix = "", maxSuffix, color, bg }) {
+  const [animated, setAnimated] = useState(0);
 
   useEffect(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    const from = prevTarget.current !== target ? 0 : value;
-    prevTarget.current = target;
-    if (target === 0) { setValue(0); return; }
-    const startTime = performance.now();
-
+    setAnimated(0);
+    const start = performance.now();
+    const duration = 1000;
     const tick = (now) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(from + (target - from) * eased);
-      if (progress < 1) rafRef.current = requestAnimationFrame(tick);
+      const t = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      setAnimated(ease * value);
+      if (t < 1) requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [target]);
+    requestAnimationFrame(tick);
+  }, [value]);
 
-  return value;
-}
+  const percent = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  const animPercent = max > 0 ? Math.min(100, (animated / max) * 100) : 0;
+  const r = 66;
+  const stroke = 14;
+  const circumference = 2 * Math.PI * r;
+  const dashOffset = circumference - (circumference * animPercent) / 100;
 
-/* ── SVG Donut Chart (rounded, animated) ── */
-function DonutChart({ percent, color, label, valueLabel, helper }) {
-  const animatedPercent = useAnimatedValue(clamp(percent));
-  const size = 150;
-  const stroke = 16;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (animatedPercent / 100) * circumference;
+  const display = Math.round(animated).toLocaleString();
 
   return (
-    <div style={{ border: "1px solid #e2e8f0", borderRadius: 22, background: "#fff", padding: 22, display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#334155" }}>{label}</div>
-          <div style={{ marginTop: 4, fontSize: 12, color: "#94a3b8" }}>{helper}</div>
+    <div style={{ padding: "22px 22px 18px", borderRadius: 18, border: "1px solid #e2e8f0", background: "#fff", display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, alignSelf: "flex-start" }}>
+        <div style={{ width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: bg }}>
+          {icon}
         </div>
-        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{valueLabel}</div>
+        <div style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{label}</div>
       </div>
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", position: "relative" }}>
-        <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f1f5f9" strokeWidth={stroke} />
-          <circle
-            cx={size / 2} cy={size / 2} r={radius}
-            fill="none" stroke={color} strokeWidth={stroke}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
+      <div style={{ position: "relative", width: r * 2 + stroke, height: r * 2 + stroke, marginBottom: 12 }}>
+        <svg width={r * 2 + stroke} height={r * 2 + stroke} style={{ transform: "rotate(-90deg)" }}>
+          <circle cx={r + stroke / 2} cy={r + stroke / 2} r={r} fill="none" stroke="#f1f5f9" strokeWidth={stroke} />
+          <circle cx={r + stroke / 2} cy={r + stroke / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+            strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset}
+            style={{ transition: "stroke-dashoffset 0.05s linear" }}
           />
         </svg>
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <div style={{ fontSize: 28, fontWeight: 900, color, lineHeight: 1 }}>
-            {Math.round(animatedPercent)}%
-          </div>
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 18, fontWeight: 900, color }}>{display}{suffix}</span>
+          {maxSuffix && <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, marginTop: 2 }}>{maxSuffix}</span>}
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Infographic Cards ── */
+/* ── Star Rating (별점) ── */
+function StarRatingCard({ label, value, color, bg }) {
+  const [animated, setAnimated] = useState(0);
 
-/* 참가율: 반원 게이지 (오렌지) */
-function RateGaugeCard({ rate, avgRate }) {
-  const animatedRate = useAnimatedValue(clamp(rate));
-  const angle = (animatedRate / 100) * 180;
-  return (
-    <div style={{ border: "1px solid #e2e8f0", borderRadius: 22, background: "#fff", padding: 24, display: "flex", flexDirection: "column", gap: 0, justifyContent: "space-between", height: "100%" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>참가율</div>
-        <div style={{ fontSize: 12, color: "#94a3b8" }}>평균 {avgRate.toFixed(1)}%</div>
+  useEffect(() => {
+    setAnimated(0);
+    const start = performance.now();
+    const duration = 1000;
+    const tick = (now) => {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      setAnimated(ease * value);
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [value]);
+
+  const stars = [];
+  for (let i = 0; i < 5; i++) {
+    const fill = Math.min(1, Math.max(0, animated - i));
+    stars.push(
+      <div key={i} style={{ position: "relative", width: 28, height: 28 }}>
+        <Star size={28} color="#e2e8f0" fill="#e2e8f0" strokeWidth={0} />
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${fill * 100}%` }}>
+          <Star size={28} color={color} fill={color} strokeWidth={0} />
+        </div>
       </div>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ position: "relative", width: 180, height: 115 }}>
-          <svg width={180} height={100} viewBox="0 0 180 100">
-            <path d="M 10 95 A 80 80 0 0 1 170 95" fill="none" stroke="#f1f5f9" strokeWidth={14} strokeLinecap="round" />
-            <path d="M 10 95 A 80 80 0 0 1 170 95" fill="none" stroke="#f97316" strokeWidth={14} strokeLinecap="round"
-              strokeDasharray={`${(angle / 180) * 251.2} 251.2`}
-            />
-          </svg>
-          <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 900, color: "#f97316", lineHeight: 1 }}>{Math.round(animatedRate)}%</div>
-          </div>
-          <span style={{ position: "absolute", bottom: 0, left: 4, fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>0%</span>
-          <span style={{ position: "absolute", bottom: 0, right: 4, fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>100%</span>
+    );
+  }
+
+  return (
+    <div style={{ padding: "22px 22px 18px", borderRadius: 18, border: "1px solid #e2e8f0", background: "#fff" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: bg }}>
+          <Star size={16} color={color} />
+        </div>
+        <div style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{label}</div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: 4 }}>
+          {stars}
+        </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+          <span style={{ fontSize: 28, fontWeight: 900, color }}>{animated.toFixed(1)}</span>
+          <span style={{ fontSize: 14, color: "#94a3b8", fontWeight: 600 }}>/ 5.0</span>
         </div>
       </div>
     </div>
   );
 }
 
-/* 별점: 5개 별 채우기 */
-function StarRatingCard({ rating, avgRating }) {
-  const animatedRating = useAnimatedValue(rating);
-  const fullStars = Math.floor(animatedRating);
-  const partialFill = animatedRating - fullStars;
+/* ── Bar Card (후기수) ── */
+function BarStatCard({ icon, label, value, suffix = "", color, bg }) {
+  const [animated, setAnimated] = useState(0);
+
+  useEffect(() => {
+    setAnimated(0);
+    const start = performance.now();
+    const duration = 800;
+    const tick = (now) => {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      setAnimated(ease * value);
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [value]);
+
+  const [barWidth, setBarWidth] = useState(0);
+  useEffect(() => {
+    setBarWidth(0);
+    const timer = setTimeout(() => setBarWidth(100), 50);
+    return () => clearTimeout(timer);
+  }, [value]);
 
   return (
-    <div style={{ border: "1px solid #e2e8f0", borderRadius: 22, background: "#fff", padding: 24, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
-      <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>별점</div>
-        <div style={{ fontSize: 12, color: "#94a3b8" }}>평균 {avgRating.toFixed(1)}</div>
-      </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
-        <div style={{ display: "flex", gap: 6 }}>
-          {[0, 1, 2, 3, 4].map((i) => {
-            const fill = i < fullStars ? 1 : i === fullStars ? partialFill : 0;
-            return (
-              <div key={i} style={{ position: "relative", width: 36, height: 36 }}>
-                <svg width={36} height={36} viewBox="0 0 24 24">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#e5e7eb" />
-                </svg>
-                <div style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${fill * 100}%` }}>
-                  <svg width={36} height={36} viewBox="0 0 24 24" style={{ minWidth: 36 }}>
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#f59e0b" />
-                  </svg>
-                </div>
-              </div>
-            );
-          })}
+    <div style={{ padding: "22px 22px 18px", borderRadius: 18, border: "1px solid #e2e8f0", background: "#fff" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: bg }}>
+          {icon}
         </div>
-        <div style={{ fontSize: 36, fontWeight: 900, color: "#f59e0b", lineHeight: 1 }}>
-          {animatedRating.toFixed(1)}
-          <span style={{ fontSize: 16, color: "#64748b", fontWeight: 600 }}> / 5.0</span>
+        <div style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{label}</div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ width: "55%", height: 6, borderRadius: 3, background: "#f1f5f9", overflow: "hidden" }}>
+          <div style={{
+            height: "100%", borderRadius: 3, background: color,
+            width: `${barWidth}%`,
+            transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
+          }} />
         </div>
-      </div>
-    </div>
-  );
-}
-
-/* 참가자: 도넛 링 안에 사람 아이콘 */
-function ParticipantsCard({ participants, capacity, avgParticipants }) {
-  const animatedCount = useAnimatedValue(participants);
-  const fillRatio = capacity > 0 ? clamp((participants / capacity) * 100) : 0;
-  const animatedRatio = useAnimatedValue(fillRatio);
-  const pc = "#0ea5e9";
-  const size = 130;
-  const stroke = 14;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (animatedRatio / 100) * circumference;
-
-  return (
-    <div style={{ border: "1px solid #e2e8f0", borderRadius: 22, background: "#fff", padding: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-      <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>참가자</div>
-        <div style={{ fontSize: 12, color: "#94a3b8" }}>평균 {Math.round(avgParticipants).toLocaleString()}명</div>
-      </div>
-      <div style={{ position: "relative", width: size, height: size }}>
-        <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e8f4fd" strokeWidth={stroke} />
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={pc} strokeWidth={stroke}
-            strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} />
-        </svg>
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Users size={32} color={pc} />
+        <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+          <span style={{ fontSize: 28, fontWeight: 900, color }}>{Math.round(animated).toLocaleString()}</span>
+          <span style={{ fontSize: 14, color: "#94a3b8", fontWeight: 600 }}>{suffix}</span>
         </div>
-      </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-        <span style={{ fontSize: 36, fontWeight: 900, color: pc, lineHeight: 1 }}>{Math.round(animatedCount).toLocaleString()}</span>
-        <span style={{ fontSize: 14, color: "#64748b", fontWeight: 600 }}>/ {capacity.toLocaleString()}명</span>
-      </div>
-      <div style={{ fontSize: 13, color: "#64748b", fontWeight: 700 }}>
-        달성률 <span style={{ color: pc, fontSize: 16, fontWeight: 900 }}>{Math.round(animatedRatio)}%</span>
-      </div>
-    </div>
-  );
-}
-
-/* 후기: 말풍선 5개 채우기 인포그래픽 */
-function ReviewsCard({ reviewCount, avgReviewCount }) {
-  const animatedCount = useAnimatedValue(reviewCount);
-  const maxVal = Math.max(reviewCount, avgReviewCount, 1);
-  const ratio = clamp((reviewCount / maxVal) * 100);
-  const animatedRatio = useAnimatedValue(ratio);
-  const totalBubbles = 5;
-  const filledBubbles = (animatedRatio / 100) * totalBubbles;
-  const rc = "#7c3aed";
-  const bubbleSizes = [28, 34, 40, 34, 28];
-  const bubbleOffsets = [12, 2, -6, 2, 12];
-
-  return (
-    <div style={{ border: "1px solid #e2e8f0", borderRadius: 22, background: "#fff", padding: 24, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
-      <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>후기</div>
-        <div style={{ fontSize: 12, color: "#94a3b8" }}>평균 {Math.round(avgReviewCount).toLocaleString()}건</div>
-      </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 80, padding: "0 8px" }}>
-        {bubbleSizes.map((size, i) => {
-          const fill = i < Math.floor(filledBubbles) ? 1 : i < filledBubbles ? filledBubbles - Math.floor(filledBubbles) : 0;
-          return (
-            <div key={i} style={{ position: "relative", width: size, height: size, marginBottom: bubbleOffsets[i] }}>
-              <svg width={size} height={size} viewBox="0 0 40 40">
-                <path d="M4 4h32a4 4 0 014 4v20a4 4 0 01-4 4H18l-8 8v-8H4a4 4 0 01-4-4V8a4 4 0 014-4z" fill="#f1f0f9" />
-              </svg>
-              <div style={{ position: "absolute", inset: 0, overflow: "hidden", opacity: fill }}>
-                <svg width={size} height={size} viewBox="0 0 40 40">
-                  <path d="M4 4h32a4 4 0 014 4v20a4 4 0 01-4 4H18l-8 8v-8H4a4 4 0 01-4-4V8a4 4 0 014-4z" fill={rc} />
-                </svg>
-              </div>
-              {fill > 0.5 && (
-                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingBottom: size * 0.15 }}>
-                  <svg width={size * 0.38} height={size * 0.38} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                  </svg>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ fontSize: 36, fontWeight: 900, color: rc, lineHeight: 1 }}>
-        {Math.round(animatedCount).toLocaleString()}
-        <span style={{ fontSize: 16, color: "#64748b", fontWeight: 600 }}>건</span>
-      </div>
-      <div style={{ textAlign: "center", fontSize: 12, color: "#64748b" }}>
-        평균 대비 <span style={{ fontWeight: 800, color: rc }}>{Math.round(animatedRatio)}%</span>
-      </div>
-      </div>
-    </div>
-  );
-}
-
-function StatsCard({ icon, label, value, bg }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "20px 22px", borderRadius: 18, border: "1px solid #e2e8f0", background: "#fff" }}>
-      <div style={{ width: 46, height: 46, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: bg }}>
-        {icon}
-      </div>
-      <div>
-        <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>{label}</div>
-        <div style={{ fontSize: 24, color: "#0f172a", fontWeight: 900 }}>{value}</div>
       </div>
     </div>
   );
@@ -619,17 +524,18 @@ function MonthDropdown({ month, setMonth }) {
         }}
       >
         <Calendar size={16} color={open ? "#2563eb" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
-        <span style={{
-          position: "absolute", left: 42, top: open || hasValue ? 6 : "50%",
-          transform: open || hasValue ? "none" : "translateY(-50%)",
-          fontSize: open || hasValue ? 10 : 13,
-          color: open ? "#2563eb" : "#94a3b8",
-          fontWeight: 600, transition: "all 0.2s", pointerEvents: "none",
-        }}>월 선택</span>
+        {!open && !hasValue && (
+          <span style={{
+            position: "absolute", left: 42, top: "50%",
+            transform: "translateY(-50%)",
+            fontSize: 15,
+            color: "#94a3b8",
+            fontWeight: 600, pointerEvents: "none",
+          }}>월 선택</span>
+        )}
         <span style={{
           flex: 1, textAlign: "left",
           fontSize: 15, fontWeight: 800, color: "#0f172a",
-          marginTop: hasValue ? 8 : 0,
           opacity: hasValue ? 1 : 0, transition: "opacity 0.2s",
         }}>{label}</span>
         <ChevronDown size={16} color={open ? "#2563eb" : "#94a3b8"}
@@ -654,7 +560,7 @@ function MonthDropdown({ month, setMonth }) {
                   borderRadius: 10, border: "none",
                   background: month === val ? "#eff6ff" : "transparent",
                   color: month === val ? "#2563eb" : "#334155",
-                  fontSize: 14, fontWeight: month === val ? 800 : 600,
+                  fontSize: 16, fontWeight: month === val ? 800 : 600,
                   cursor: "pointer", textAlign: "left",
                   transition: "background 0.15s",
                 }}
@@ -680,6 +586,7 @@ export default function Closed() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [programFilter, setProgramFilter] = useState("전체");
   const [visibleCount, setVisibleCount] = useState(5);
   const [searchFocused, setSearchFocused] = useState(false);
   const [yearOpen, setYearOpen] = useState(false);
@@ -698,7 +605,7 @@ export default function Closed() {
         setSelectedId(rows[0]?.id ?? null);
       } catch (err) {
         if (mounted) {
-          setError(err?.response?.data?.message || "종료 행사 결과를 불러오지 못했습니다.");
+          setError(err?.response?.data?.message || "네트워크 연결을 확인하고 다시 시도해 주세요.");
         }
       } finally {
         if (mounted) setLoading(false);
@@ -809,6 +716,11 @@ export default function Closed() {
     }, { total: 0 });
   }, [selectedPrograms]);
 
+  const filteredPrograms = useMemo(() => {
+    if (programFilter === "전체") return selectedPrograms;
+    return selectedPrograms.filter((p) => getProgramCategoryMeta(p?.category).label === programFilter);
+  }, [selectedPrograms, programFilter]);
+
   const handleDownload = useCallback(() => {
     if (!selected || downloading) return;
     setDownloading(true);
@@ -818,24 +730,33 @@ export default function Closed() {
     }, 400);
   }, [selected, downloading]);
 
-  const handleSelectEvent = useCallback((eventId, scrollToTop = false) => {
+  const handleSelectEvent = useCallback((eventId) => {
     setSelectedId(eventId);
-    if (scrollToTop) {
-      requestAnimationFrame(() => {
-        if (topSectionRef.current) {
-          topSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-        } else {
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }
-      });
-    }
+    setProgramFilter("전체");
   }, []);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'Noto Sans KR', sans-serif" }}>
+      <style>{`
+        .closed-prog-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+        .closed-prog-scroll:hover { scrollbar-color: rgba(0,0,0,0.15) transparent; }
+        .closed-prog-scroll::-webkit-scrollbar { width: 6px; }
+        .closed-prog-scroll::-webkit-scrollbar-track { background: transparent; }
+        .closed-prog-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; transition: background 0.3s; }
+        .closed-prog-scroll:hover::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+        .closed-prog-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+        @keyframes closed-scroll-bounce {
+          0%, 100% { transform: translateY(0); opacity: 0.4; }
+          50% { transform: translateY(5px); opacity: 1; }
+        }
+        .closed-scroll-hint { animation: closed-scroll-bounce 1.8s ease-in-out infinite; }
+      `}</style>
       <PageHeader
         title="종료 행사"
         subtitle="종료된 행사 결과를 행사별 그래프로 확인하세요"
+        icon={<ArchiveX size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
         categories={SERVICE_CATEGORIES}
         currentPath="/event/closed"
         onNavigate={(path) => navigate(path)}
@@ -849,10 +770,10 @@ export default function Closed() {
         }}
       >
         {loading ? <PageLoading /> : null}
-        {!loading && error ? <EmptyState type="error" message="종료 행사를 불러오지 못했습니다" description={error} /> : null}
+        {!loading && error ? <EmptyState type="error" message="종료 행사를 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." /> : null}
         {!loading && !error ? (
           <>
-            <div style={{ display: "flex", gap: 12, alignItems: "stretch", marginBottom: 18 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "flex-end", marginBottom: 18 }}>
               {/* 연도 선택 드롭다운 */}
               <div ref={yearDropRef} style={{ position: "relative", minWidth: 180 }}>
                 <button
@@ -870,18 +791,19 @@ export default function Closed() {
                   }}
                 >
                   <Calendar size={16} color={yearOpen ? "#2563eb" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
-                  <span style={{
-                    position: "absolute", left: 42, top: yearOpen || year !== "all" ? 6 : "50%",
-                    transform: yearOpen || year !== "all" ? "none" : "translateY(-50%)",
-                    fontSize: yearOpen || year !== "all" ? 10 : 13,
-                    color: yearOpen ? "#2563eb" : "#94a3b8",
-                    fontWeight: 600, transition: "all 0.2s",
-                    pointerEvents: "none",
-                  }}>연도 선택</span>
+                  {!yearOpen && year === "all" && (
+                    <span style={{
+                      position: "absolute", left: 42, top: "50%",
+                      transform: "translateY(-50%)",
+                      fontSize: 15,
+                      color: "#94a3b8",
+                      fontWeight: 600,
+                      pointerEvents: "none",
+                    }}>연도 선택</span>
+                  )}
                   <span style={{
                     flex: 1, textAlign: "left",
                     fontSize: 15, fontWeight: 800, color: "#0f172a",
-                    marginTop: year !== "all" ? 8 : 0,
                     opacity: year !== "all" ? 1 : 0,
                     transition: "opacity 0.2s",
                   }}>
@@ -913,7 +835,7 @@ export default function Closed() {
                           borderRadius: 10, border: "none",
                           background: year === value ? "#eff6ff" : "transparent",
                           color: year === value ? "#2563eb" : "#334155",
-                          fontSize: 14, fontWeight: year === value ? 800 : 600,
+                          fontSize: 16, fontWeight: year === value ? 800 : 600,
                           cursor: "pointer", textAlign: "left",
                           transition: "background 0.15s",
                         }}
@@ -933,45 +855,118 @@ export default function Closed() {
               )}
 
               {/* 검색창 */}
-              <div style={{ position: "relative", flex: 1, minWidth: 220 }}>
+              <div style={{ position: "relative", width: 280 }}>
                 <Search
                   size={16}
                   color={searchFocused ? "#2563eb" : "#94a3b8"}
                   style={{
-                    position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
+                    position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
                     transition: "color 0.25s", zIndex: 1,
                   }}
                 />
-                <span style={{
-                  position: "absolute", left: 42,
-                  top: searchFocused || query ? 6 : "50%",
-                  transform: searchFocused || query ? "none" : "translateY(-50%)",
-                  fontSize: searchFocused || query ? 10 : 13,
-                  color: searchFocused ? "#2563eb" : "#94a3b8",
-                  fontWeight: 600,
-                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                  pointerEvents: "none", zIndex: 1,
-                  background: "#fff", padding: "0 4px",
-                }}>행사 검색</span>
+                {!searchFocused && !query && (
+                  <span style={{
+                    position: "absolute", left: 38,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    fontSize: 15,
+                    color: "#94a3b8",
+                    fontWeight: 600,
+                    pointerEvents: "none", zIndex: 1,
+                  }}>행사 검색</span>
+                )}
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
                   style={{
-                    width: "100%", height: 52,
-                    borderRadius: 14,
+                    width: "100%", height: 44,
+                    borderRadius: 12,
                     border: searchFocused ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
-                    padding: query || searchFocused ? "14px 16px 0 42px" : "0 16px 0 42px",
+                    padding: "0 14px 0 38px",
                     fontSize: 15, fontWeight: 700, color: "#0f172a",
                     background: "#fff", outline: "none",
-                    transition: "border-color 0.25s, box-shadow 0.25s, padding 0.2s",
+                    transition: "border-color 0.25s, box-shadow 0.25s",
                     boxShadow: searchFocused ? "0 0 0 3px rgba(37,99,235,0.1)" : "none",
                     fontFamily: "inherit",
                   }}
                 />
               </div>
             </div>
+
+            {/* ── 종료 행사 선택 카드 ── */}
+            {filtered.length > 0 && (
+              <section style={{ marginBottom: 28, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 20, overflow: "hidden" }}>
+                <div style={{ padding: "18px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Archive size={16} color="#94a3b8" />
+                    <span style={{ fontSize: 15, fontWeight: 700, color: "#555" }}>종료 행사</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#bbb" }}>{filtered.length}</span>
+                  </div>
+                  {selected && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, background: "#2563eb", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", opacity: 0.6 }} />
+                      {selected.title}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 0 }}>
+                  {filtered.slice(0, 8).map((event, idx) => {
+                    const active = event.id === selected?.id;
+                    return (
+                      <button
+                        key={event.id}
+                        type="button"
+                        onClick={() => handleSelectEvent(event.id)}
+                        style={{
+                          position: "relative",
+                          border: "none",
+                          borderRight: (idx % 4 !== 3) ? "1px solid #f1f5f9" : "none",
+                          borderBottom: "1px solid #f1f5f9",
+                          borderLeft: active ? "3px solid #2563eb" : "3px solid transparent",
+                          background: active ? "#eff6ff" : "#fff",
+                          padding: "20px 20px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          transition: "all 0.15s",
+                        }}
+                        onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "#fafafa"; }}
+                        onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "#fff"; }}
+                      >
+                        <div style={{
+                          fontSize: 15, fontWeight: 700, color: active ? "#2563eb" : "#555",
+                          lineHeight: 1.45,
+                          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                          marginBottom: 12,
+                        }}>
+                          {event.title}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, color: "#999" }}>
+                            <Calendar size={11} /> {event.dateLabel}
+                          </span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, color: "#999", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            <MapPin size={11} /> {event.location}
+                          </span>
+                        </div>
+                        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                          <Star size={12} fill={event.rating > 0 ? "#f59e0b" : "#e5e7eb"} color={event.rating > 0 ? "#f59e0b" : "#e5e7eb"} />
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "#aaa" }}>{event.ratingText}</span>
+                          <span style={{ fontSize: 12, color: "#ddd" }}>·</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, color: "#aaa", fontWeight: 600 }}><Users size={11} />{event.participants.toLocaleString()}명</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {filtered.length > 8 && (
+                  <div style={{ textAlign: "center", padding: "14px 0", borderTop: "1px solid #f1f5f9" }}>
+                    <span style={{ fontSize: 13, color: "#94a3b8" }}>아래 목록에서 더 많은 행사를 확인하세요</span>
+                  </div>
+                )}
+              </section>
+            )}
 
             {selected ? (
               <>
@@ -982,7 +977,7 @@ export default function Closed() {
                     ) : (
                       <div style={{ minHeight: 420, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, color: "#94a3b8", background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)" }}>
                         <ImageOff size={36} />
-                        <span style={{ fontSize: 13, fontWeight: 700 }}>행사 이미지가 없습니다.</span>
+                        <span style={{ fontSize: 15, fontWeight: 700 }}>행사 이미지가 없습니다.</span>
                       </div>
                     )}
                   </div>
@@ -990,7 +985,7 @@ export default function Closed() {
                   <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, overflow: "hidden", boxShadow: "0 18px 36px rgba(15,23,42,0.05)" }}>
                     <div style={{ padding: "26px 28px", borderBottom: "1px solid #eef2f7", background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 999, background: "#eff6ff", color: "#1d4ed8", fontSize: 12, fontWeight: 800 }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 999, background: "#eff6ff", color: "#1d4ed8", fontSize: 15, fontWeight: 500 }}>
                           <Archive size={12} /> 선택된 종료 행사
                         </div>
                         <button
@@ -1003,7 +998,7 @@ export default function Closed() {
                             background: downloading ? "#94a3b8" : "linear-gradient(135deg, #0f172a, #334155)",
                             color: "#fff",
                             display: "inline-flex", alignItems: "center", gap: 8,
-                            fontSize: 13, fontWeight: 700, cursor: downloading ? "default" : "pointer",
+                            fontSize: 15, fontWeight: 700, cursor: downloading ? "default" : "pointer",
                             transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                             transform: downloading ? "scale(0.95)" : "scale(1)",
                             opacity: downloading ? 0.8 : 1,
@@ -1020,101 +1015,169 @@ export default function Closed() {
                           {downloading ? "다운로드 중..." : "결과 이미지"}
                         </button>
                       </div>
-                      <h2 style={{ margin: "14px 0 10px", fontSize: 34, lineHeight: 1.2, fontWeight: 900, color: "#0f172a" }}>{selected.title}</h2>
-                      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", color: "#64748b", fontSize: 13 }}>
+                      <h2 style={{ margin: "14px 0 10px", fontSize: 36, lineHeight: 1.2, fontWeight: 900, color: "#0f172a" }}>{selected.title}</h2>
+                      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", color: "#64748b", fontSize: 15 }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Calendar size={14} /> {selected.dateLabel}</span>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><MapPin size={14} /> {selected.location}</span>
                       </div>
                     </div>
                     <div style={{ padding: 28 }}>
-                      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, color: "#475569" }}>
+                      <p style={{ margin: 0, fontSize: 16, lineHeight: 1.8, color: "#475569" }}>
                         {selected.description || "등록된 행사 설명이 없습니다."}
                       </p>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginTop: 22 }}>
-                        <StatsCard icon={<Users size={18} color="#2563eb" />} label="참가자수" value={`${selected.participants.toLocaleString()}명`} bg="#eff6ff" />
-                        <StatsCard icon={<Calendar size={18} color="#10b981" />} label="참가율" value={`${selected.participationRate}%`} bg="#ecfdf5" />
-                        <StatsCard icon={<Star size={18} color="#f59e0b" />} label="별점" value={selected.ratingText} bg="#fffbeb" />
-                        <StatsCard icon={<MessageSquareText size={18} color="#7c3aed" />} label="후기 수" value={`${selected.reviewCount.toLocaleString()}건`} bg="#f5f3ff" />
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14, marginTop: 22 }}>
+                        <DonutStatCard
+                          icon={<Users size={16} color="#2563eb" />}
+                          label="참가자수"
+                          value={selected.participants}
+                          max={selected.capacity}
+                          suffix="명"
+                          maxSuffix={`/ ${selected.capacity.toLocaleString()}명`}
+                          color="#2563eb"
+                          bg="#eff6ff"
+                        />
+                        <DonutStatCard
+                          icon={<Calendar size={16} color="#10b981" />}
+                          label="참가율"
+                          value={selected.participationRate}
+                          max={100}
+                          suffix="%"
+                          color="#10b981"
+                          bg="#ecfdf5"
+                        />
+                        <StarRatingCard
+                          label="별점"
+                          value={selected.rating}
+                          color="#f59e0b"
+                          bg="#fffbeb"
+                        />
+                        <BarStatCard
+                          icon={<MessageSquareText size={16} color="#7c3aed" />}
+                          label="후기 수"
+                          value={selected.reviewCount}
+                          suffix="건"
+                          color="#7c3aed"
+                          bg="#f5f3ff"
+                        />
                       </div>
                       <div style={{ marginTop: 24, paddingTop: 22, borderTop: "1px solid #eef2f7" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                          <div>
-                            <div style={{ fontSize: 18, fontWeight: 900, color: "#0f172a" }}>이 행사에 포함된 프로그램</div>
-                            <div style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>행사와 함께 운영된 프로그램을 카테고리별로 확인할 수 있습니다.</div>
-                          </div>
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            <span style={{ padding: "6px 10px", borderRadius: 999, background: "#f8fafc", color: "#334155", fontSize: 12, fontWeight: 800 }}>
+                        <div>
+                          <div style={{ fontSize: 20, fontWeight: 900, color: "#0f172a" }}>이 행사에 포함된 프로그램</div>
+                          <div style={{ marginTop: 6, fontSize: 15, color: "#64748b" }}>행사와 함께 운영된 프로그램을 카테고리별로 확인할 수 있습니다.</div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+                            <button
+                              type="button"
+                              onClick={() => setProgramFilter("전체")}
+                              style={{
+                                padding: "10px 26px", borderRadius: 999, border: "none", cursor: "pointer",
+                                background: programFilter === "전체" ? "#1e293b" : "rgb(241,241,241)",
+                                color: programFilter === "전체" ? "#fff" : "rgb(51,65,85)",
+                                fontSize: 15, fontWeight: programFilter === "전체" ? 700 : 500, transition: "all 0.2s",
+                              }}
+                            >
                               전체 {selectedProgramSummary.total || 0}개
-                            </span>
+                            </button>
                             {Object.entries(selectedProgramSummary)
                               .filter(([key]) => key !== "total")
                               .map(([key, value]) => (
-                                <span key={key} style={{ padding: "6px 10px", borderRadius: 999, background: "#eef2ff", color: "#334155", fontSize: 12, fontWeight: 800 }}>
+                                <button
+                                  type="button"
+                                  key={key}
+                                  onClick={() => setProgramFilter(key)}
+                                  style={{
+                                    padding: "10px 26px", borderRadius: 999, border: "none", cursor: "pointer",
+                                    background: programFilter === key ? "#1e293b" : "rgb(241,241,241)",
+                                    color: programFilter === key ? "#fff" : "rgb(51,65,85)",
+                                    fontSize: 15, fontWeight: programFilter === key ? 700 : 500, transition: "all 0.2s",
+                                  }}
+                                >
                                   {key} {value}개
-                                </span>
+                                </button>
                               ))}
                           </div>
                         </div>
 
                         {programLoadingId === selected.id ? (
-                          <div style={{ padding: "28px 0 10px", fontSize: 13, color: "#94a3b8" }}>프로그램 목록을 불러오는 중입니다.</div>
-                        ) : selectedPrograms.length === 0 ? (
-                          <div style={{ padding: "28px 0 10px", fontSize: 13, color: "#94a3b8" }}>연결된 프로그램이 없습니다.</div>
+                          <div style={{ padding: "28px 0 10px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                            <style>{`@keyframes cdot{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}`}</style>
+                            <div style={{ display: "inline-flex", gap: 6 }}>
+                              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#bcc3ce", animation: "cdot 1.4s ease-in-out -0.32s infinite both" }} />
+                              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#bcc3ce", animation: "cdot 1.4s ease-in-out -0.16s infinite both" }} />
+                              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#bcc3ce", animation: "cdot 1.4s ease-in-out 0s infinite both" }} />
+                            </div>
+                            <span style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>프로그램 목록을 불러오는 중입니다</span>
+                          </div>
+                        ) : filteredPrograms.length === 0 ? (
+                          <div style={{ padding: "28px 0 10px", fontSize: 15, color: "#94a3b8" }}>연결된 프로그램이 없습니다.</div>
                         ) : (
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 18 }}>
-                            {selectedPrograms.map((program, index) => {
-                              const categoryMeta = getProgramCategoryMeta(program?.category);
-                              return (
-                                <div
-                                  key={program?.programId || `${selected.id}-${index}`}
-                                  style={{
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: 18,
-                                    padding: "16px 18px",
-                                    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-                                    display: "grid",
-                                    gap: 10,
-                                  }}
-                                >
-                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                                    <div style={{ display: "grid", gap: 8 }}>
-                                      <span style={{ display: "inline-flex", width: "fit-content", padding: "5px 10px", borderRadius: 999, background: categoryMeta.bg, color: categoryMeta.color, fontSize: 12, fontWeight: 800 }}>
-                                        {categoryMeta.label}
-                                      </span>
-                                      <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", lineHeight: 1.45 }}>
-                                        {program?.programTitle || "프로그램"}
-                                      </div>
-                                    </div>
-                                    <div style={{ minWidth: 34, height: 34, borderRadius: 999, background: "#e0e7ff", color: "#4338ca", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900 }}>
-                                      {String(index + 1).padStart(2, "0")}
-                                    </div>
-                                  </div>
-                                  <div style={{ display: "grid", gap: 6, fontSize: 12, color: "#64748b" }}>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                      <Calendar size={13} />
-                                      {fmtProgramSchedule(program?.startAt, program?.endAt)}
-                                    </span>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                      <MapPin size={13} />
-                                      {program?.location || program?.boothName || "프로그램 공간"}
-                                    </span>
-                                  </div>
+                          <div style={{ marginTop: 18 }}>
+                            <div className="closed-prog-scroll" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, maxHeight: 440, overflowY: "auto", paddingRight: 4 }}>
+                              {filteredPrograms.map((program, index) => {
+                                const categoryMeta = getProgramCategoryMeta(program?.category);
+                                return (
                                   <div
+                                    key={program?.programId || `${selected.id}-${index}`}
                                     style={{
-                                      fontSize: 13,
-                                      lineHeight: 1.7,
-                                      color: "#475569",
-                                      display: "-webkit-box",
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: "vertical",
-                                      overflow: "hidden",
+                                      border: "1px solid #eee",
+                                      borderRadius: 14,
+                                      padding: "20px 20px",
+                                      background: "#fff",
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: 14,
+                                      transition: "background 0.15s",
                                     }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = "#fafafa"}
+                                    onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}
                                   >
-                                    {program?.description || "상세 설명이 없습니다."}
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: categoryMeta.color, flexShrink: 0 }} />
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: categoryMeta.color, letterSpacing: "0.02em" }}>
+                                          {categoryMeta.label}
+                                        </span>
+                                      </div>
+                                      <span style={{ fontSize: 13, fontWeight: 600, color: "#ccc" }}>
+                                        {String(index + 1).padStart(2, "0")}
+                                      </span>
+                                    </div>
+                                    <div style={{ fontSize: 17, fontWeight: 700, color: "#111", lineHeight: 1.5 }}>
+                                      {program?.programTitle || "프로그램"}
+                                    </div>
+                                    <div style={{ display: "flex", gap: 14, fontSize: 14, color: "#999" }}>
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                        <Calendar size={12} />
+                                        {fmtProgramSchedule(program?.startAt, program?.endAt)}
+                                      </span>
+                                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                        <MapPin size={12} />
+                                        {program?.location || program?.boothName || "프로그램 공간"}
+                                      </span>
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: 14.5,
+                                        lineHeight: 1.7,
+                                        color: "#888",
+                                        display: "-webkit-box",
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: "vertical",
+                                        overflow: "hidden",
+                                      }}
+                                    >
+                                      {program?.description || "상세 설명이 없습니다."}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
+                            {filteredPrograms.length > 4 && (
+                              <div style={{ textAlign: "center", padding: "24px 0 12px" }}>
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, color: "#94a3b8", fontWeight: 500, letterSpacing: "0.5px" }}>
+                                  <ChevronDown size={14} /> 스크롤하여 더보기 ({filteredPrograms.length - 4}개 더)
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1122,16 +1185,8 @@ export default function Closed() {
                   </div>
                 </section>
 
-                <section style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, marginBottom: 16 }}>
-                  <DonutChart label="참가자수 달성률" valueLabel={`${selected.participants.toLocaleString()} / ${selected.capacity.toLocaleString()}명`} percent={selectedParticipantPercent} color={METRIC_COLORS.participants} helper="행사 정원 대비 참가자수" />
-                  <RateGaugeCard rate={selected.participationRate} avgRate={avgRate} />
-                  <ParticipantsCard participants={selected.participants} capacity={selected.capacity} avgParticipants={filtered.length ? totalParticipants / filtered.length : 0} />
-                </section>
 
-                <section style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
-                  <StarRatingCard rating={selected.rating} avgRating={avgRating} />
-                  <ReviewsCard reviewCount={selected.reviewCount} avgReviewCount={avgReviewCount} />
-                </section>
+
               </>
             ) : null}
 
@@ -1148,16 +1203,16 @@ export default function Closed() {
                     {filtered.slice(0, visibleCount).map((event) => {
                       const active = event.id === selected?.id;
                       return (
-                        <div key={event.id} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 170px 110px 140px 110px", alignItems: "center", gap: 16, padding: "16px 24px", borderTop: "1px solid #f1f5f9", background: active ? "#eff6ff" : "#fff" }}>
-                          <button type="button" onClick={() => handleSelectEvent(event.id, true)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer", display: "grid", gap: 6 }}>
-                            <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>{event.title}</div>
-                            <div style={{ fontSize: 12, color: "#64748b" }}>{event.dateLabel} · {event.location}</div>
+                        <div key={event.id} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 170px 110px 140px 110px", alignItems: "center", gap: 16, padding: "16px 24px", borderTop: "1px solid #f1f5f9", background: active ? "#eff6ff" : "#f9fafb" }}>
+                          <button type="button" onClick={() => handleSelectEvent(event.id)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer", display: "grid", gap: 6 }}>
+                            <div style={{ fontSize: 15, fontWeight: 600, color: "rgb(121,121,121)" }}>{event.title}</div>
+                            <div style={{ fontSize: 12, color: "rgb(121,121,121)" }}>{event.dateLabel} · {event.location}</div>
                           </button>
                           <div style={{ display: "grid", gap: 4 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                              <Users size={13} color="#2563eb" />
-                              <span style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{event.participants.toLocaleString()}명</span>
-                              <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>/ {event.capacity.toLocaleString()}</span>
+                              <Users size={11} color="#2563eb" />
+                              <span style={{ fontSize: 13, fontWeight: 800, color: "rgb(121,121,121)" }}>{event.participants.toLocaleString()}명</span>
+                              <span style={{ fontSize: 11, color: "rgb(121,121,121)", fontWeight: 600 }}>/ {event.capacity.toLocaleString()}</span>
                             </div>
                             <div style={{ width: "100%", height: 4, borderRadius: 2, background: "#e5e7eb", overflow: "hidden" }}>
                               <div style={{ height: "100%", borderRadius: 2, background: "#2563eb", width: `${event.capacity > 0 ? clamp((event.participants / event.capacity) * 100) : 0}%`, transition: "width 0.3s" }} />
@@ -1176,7 +1231,7 @@ export default function Closed() {
                                   <circle cx={13} cy={13} r={miniR} fill="none" stroke="#e5e7eb" strokeWidth={3} />
                                   <circle cx={13} cy={13} r={miniR} fill="none" stroke={rateColor} strokeWidth={3} strokeLinecap="round" strokeDasharray={miniC} strokeDashoffset={miniOff} />
                                 </svg>
-                                <span style={{ fontSize: 13, fontWeight: 800, color: rateColor }}>{r}%</span>
+                                <span style={{ fontSize: 13, fontWeight: 800, color: "rgb(121,121,121)" }}>{r}%</span>
                               </div>
                             );
                           })()}
@@ -1196,24 +1251,24 @@ export default function Closed() {
                                 </div>
                               );
                             })}
-                            <span style={{ fontSize: 12, color: "#64748b", fontWeight: 700, marginLeft: 2 }}>{event.ratingText}</span>
+                            <span style={{ fontSize: 12, color: "rgb(121,121,121)", fontWeight: 700, marginLeft: 2 }}>{event.ratingText}</span>
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleSelectEvent(event.id, true)}
+                            onClick={() => handleSelectEvent(event.id)}
                             style={{
-                              justifySelf: "end", height: 36, padding: "0 14px", borderRadius: 999,
+                              justifySelf: "end", height: 36, padding: "5px 25px", borderRadius: 999,
                               border: "none",
-                              background: active ? "#2563eb" : "#f1f5f9",
-                              color: active ? "#fff" : "#475569",
+                              background: active ? "#1e293b" : "rgb(235,235,235)",
+                              color: active ? "#fff" : "rgb(89,89,89)",
                               fontSize: 12, fontWeight: 800, cursor: "pointer",
                               display: "inline-flex", alignItems: "center", gap: 5,
                               transition: "all 0.2s",
                             }}
-                            onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "#e0e7ff"; e.currentTarget.style.color = "#2563eb"; } }}
-                            onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = "#f1f5f9"; e.currentTarget.style.color = "#475569"; } }}
+                            onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "#d4d4d4"; } }}
+                            onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = "rgb(235,235,235)"; } }}
                           >
-                            {active ? <ChevronRight size={13} /> : null}
+                            {active ? <ChevronRight size={12} /> : null}
                             {active ? "선택됨" : "결과 보기"}
                           </button>
                         </div>
@@ -1228,7 +1283,7 @@ export default function Closed() {
                         style={{
                           width: "100%", height: 44, borderRadius: 12,
                           border: "1.5px solid #e2e8f0", background: "#f8fafc",
-                          color: "#475569", fontSize: 14, fontWeight: 700,
+                          color: "#475569", fontSize: 16, fontWeight: 700,
                           cursor: "pointer", display: "flex", alignItems: "center",
                           justifyContent: "center", gap: 8,
                           transition: "all 0.2s",

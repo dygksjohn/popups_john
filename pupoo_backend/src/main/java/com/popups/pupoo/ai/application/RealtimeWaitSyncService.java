@@ -206,14 +206,33 @@ public class RealtimeWaitSyncService {
             int recentCheckins,
             int lookbackMinutes
     ) {
-        if (configuredThroughputPerMinute != null && configuredThroughputPerMinute.doubleValue() > 0.0d) {
-            return configuredThroughputPerMinute.doubleValue();
+        Double configuredRate = (configuredThroughputPerMinute != null && configuredThroughputPerMinute.doubleValue() > 0.0d)
+                ? configuredThroughputPerMinute.doubleValue()
+                : null;
+
+        Double observedRate = recentCheckins > 0
+                ? Math.max((double) recentCheckins / lookbackMinutes, MIN_THROUGHPUT_PER_MINUTE)
+                : null;
+
+        Double capacityRate = (capacity != null && capacity > 0)
+                ? Math.max((double) capacity / 60.0d, MIN_THROUGHPUT_PER_MINUTE)
+                : null;
+
+        if (configuredRate != null) {
+            double baselineRate = observedRate != null
+                    ? observedRate
+                    : (capacityRate != null ? capacityRate : DEFAULT_FALLBACK_THROUGHPUT_PER_MINUTE);
+            // Keep configured throughput as anchor, but reflect observed/capacity baseline
+            // so wait time is not locked to queue size when seed defaults are uniform.
+            double blendedRate = (configuredRate * 0.6d) + (baselineRate * 0.4d);
+            return Math.max(blendedRate, MIN_THROUGHPUT_PER_MINUTE);
         }
-        if (recentCheckins > 0) {
-            return Math.max((double) recentCheckins / lookbackMinutes, MIN_THROUGHPUT_PER_MINUTE);
+
+        if (observedRate != null) {
+            return observedRate;
         }
-        if (capacity != null && capacity > 0) {
-            return Math.max((double) capacity / 60.0d, DEFAULT_FALLBACK_THROUGHPUT_PER_MINUTE);
+        if (capacityRate != null) {
+            return Math.max(capacityRate, DEFAULT_FALLBACK_THROUGHPUT_PER_MINUTE);
         }
         return DEFAULT_FALLBACK_THROUGHPUT_PER_MINUTE;
     }

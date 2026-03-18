@@ -1,15 +1,17 @@
 const LEVEL_LABEL_MAP = {
-  1: "Low",
-  2: "Moderate",
-  3: "Busy",
-  4: "Very Busy",
+  1: "여유",
+  2: "원활",
+  3: "보통",
+  4: "인기",
+  5: "매우 인기",
 };
 
 const LEVEL_TONE_MAP = {
   1: { color: "#047857", bg: "#ecfdf5", border: "#a7f3d0" },
   2: { color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
   3: { color: "#b45309", bg: "#fffbeb", border: "#fde68a" },
-  4: { color: "#b91c1c", bg: "#fef2f2", border: "#fecaca" },
+  4: { color: "#c2410c", bg: "#fff7ed", border: "#fdba74" },
+  5: { color: "#b91c1c", bg: "#fef2f2", border: "#fecaca" },
 };
 
 function clamp(value, min, max) {
@@ -21,14 +23,25 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function normalizeScorePercent(value) {
+  const numeric = toNumber(value, 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  // AI congestion score is provided in 0~5 scale in current backend payload.
+  if (numeric <= 5) {
+    return clamp(Math.round(numeric * 20), 0, 100);
+  }
+  return clamp(Math.round(numeric), 0, 100);
+}
+
 function resolveLevel(score, level) {
   const explicitLevel = Number(level);
-  if ([1, 2, 3, 4].includes(explicitLevel)) return explicitLevel;
+  if ([1, 2, 3, 4, 5].includes(explicitLevel)) return explicitLevel;
 
   const normalizedScore = clamp(Math.round(toNumber(score, 0)), 0, 100);
-  if (normalizedScore >= 75) return 4;
-  if (normalizedScore >= 50) return 3;
-  if (normalizedScore >= 25) return 2;
+  if (normalizedScore >= 81) return 5;
+  if (normalizedScore >= 61) return 4;
+  if (normalizedScore >= 41) return 3;
+  if (normalizedScore >= 21) return 2;
   return 1;
 }
 
@@ -44,8 +57,8 @@ export function getLevelMeta(score, level) {
 export function normalizePrediction(payload) {
   if (!payload || typeof payload !== "object") return null;
 
-  const avgScore = clamp(toNumber(payload.predictedAvgScore, 0), 0, 100);
-  const peakScore = clamp(toNumber(payload.predictedPeakScore, avgScore), 0, 100);
+  const avgScore = normalizeScorePercent(payload.predictedAvgScore);
+  const peakScore = normalizeScorePercent(payload.predictedPeakScore ?? avgScore);
   const waitMinutes = Math.max(0, Math.round(toNumber(payload.predictedWaitMinutes, 0)));
   const confidence = clamp(toNumber(payload.confidence, 0), 0, 1);
   const levelMeta = getLevelMeta(peakScore, payload.predictedLevel);
@@ -53,7 +66,7 @@ export function normalizePrediction(payload) {
   const timeline = Array.isArray(payload.timeline)
     ? payload.timeline
         .map((point) => {
-          const score = clamp(toNumber(point?.score, 0), 0, 100);
+          const score = normalizeScorePercent(point?.score);
           const pointLevel = getLevelMeta(score, point?.predictedLevel);
           return {
             time: point?.time ?? point?.timestamp ?? null,
@@ -88,7 +101,7 @@ export function normalizeRecommendation(payload) {
 
   const recommendations = Array.isArray(payload.recommendations)
     ? payload.recommendations.map((item) => {
-        const score = clamp(toNumber(item?.predictedScore, 0), 0, 100);
+        const score = normalizeScorePercent(item?.predictedScore);
         const levelMeta = getLevelMeta(score, item?.predictedLevel);
         return {
           programId: item?.programId ?? null,

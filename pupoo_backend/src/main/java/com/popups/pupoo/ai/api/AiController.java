@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/ai")
@@ -30,6 +31,11 @@ public class AiController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
     ) {
         return ApiResponse.success(aiCongestionService.predictEvent(eventId, from, to));
+    }
+
+    @GetMapping("/events/{eventId}/programs/congestion")
+    public ApiResponse<List<AiCongestionPredictionResponse>> predictProgramsCongestion(@PathVariable Long eventId) {
+        return ApiResponse.success(aiCongestionService.predictProgramsByEvent(eventId));
     }
 
     @GetMapping("/programs/{programId}/congestion/predict")

@@ -44,6 +44,12 @@ export const aiApi = {
     });
   },
 
+  // GET /api/ai/events/{eventId}/programs/congestion
+  predictProgramsCongestionByEvent: (eventId) => {
+    ensureId("predictProgramsCongestionByEvent: eventId", eventId);
+    return axiosInstance.get(`/api/ai/events/${eventId}/programs/congestion`);
+  },
+
   // GET /api/ai/programs/{programId}/congestion/predict
   predictProgramCongestion: (programId) => {
     ensureId("predictProgramCongestion: programId", programId);

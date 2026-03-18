@@ -6,34 +6,62 @@ import jakarta.persistence.*;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public class BoothCongestionQueryRepositoryImpl implements BoothCongestionQueryRepository {
 
+    private static final long REALTIME_CONGESTION_MAX_AGE_MINUTES = 30L;
+    private static final long FUTURE_TOLERANCE_MINUTES = 5L;
+
     @PersistenceContext
     private EntityManager em;
 
     @Override
     public Optional<BoothCongestionResponse> findLatestByBoothId(Long boothId) {
-
-        String sql = """
-            select
-              c.congestion_level,
-              c.measured_at,
-              c.program_id
-            from congestions c
-            join event_program p on p.program_id = c.program_id
-            where p.booth_id = :boothId
-            order by c.measured_at desc
-            limit 1
-        """;
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime freshnessFrom = now.minusMinutes(REALTIME_CONGESTION_MAX_AGE_MINUTES);
+        LocalDateTime upperBound = now.plusMinutes(FUTURE_TOLERANCE_MINUTES);
 
         @SuppressWarnings("unchecked")
-        List<Object[]> rows = em.createNativeQuery(sql)
+        List<Object[]> rows = em.createNativeQuery("""
+                    select
+                      c.congestion_level,
+                      c.measured_at,
+                      c.program_id
+                    from congestions c
+                    join event_program p on p.program_id = c.program_id
+                    where p.booth_id = :boothId
+                      and c.measured_at >= :freshnessFrom
+                      and c.measured_at <= :upperBound
+                    order by c.measured_at desc
+                    limit 1
+                """)
                 .setParameter("boothId", boothId)
+                .setParameter("freshnessFrom", freshnessFrom)
+                .setParameter("upperBound", upperBound)
                 .getResultList();
+
+        if (rows.isEmpty()) {
+            // If there is no "fresh" row (e.g. local seed data), fall back to the latest valid snapshot.
+            rows = em.createNativeQuery("""
+                        select
+                          c.congestion_level,
+                          c.measured_at,
+                          c.program_id
+                        from congestions c
+                        join event_program p on p.program_id = c.program_id
+                        where p.booth_id = :boothId
+                          and c.measured_at <= :upperBound
+                        order by c.measured_at desc
+                        limit 1
+                    """)
+                    .setParameter("boothId", boothId)
+                    .setParameter("upperBound", upperBound)
+                    .getResultList();
+        }
 
         if (rows.isEmpty()) return Optional.empty();
 

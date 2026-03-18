@@ -1,106 +1,70 @@
 import React from "react";
 import { Link } from "react-router-dom";
+const NAV_LINKS = [
+  { label: "개인정보처리방침", to: "/policy/privacypolicy" },
+  { label: "전자금융거래 기본약관", to: "/policy/eftterms" },
+  { label: "이용약관", to: "/policy/termsofservice" },
+  { label: "이용안내", to: "/policy/serviceguide" },
+  { label: "회사소개", to: "/policy/aboutus" },
+];
 
 const Footer = () => {
-  const DropLink = ({ to, children }) => (
-    <Link
-      to={to}
-      className="relative inline-block group cursor-pointer z-[1000]"
-    >
-      {/* 위에서 아래로 떨어지는 원 */}
-      <span
-        className="absolute left-1/2 bottom-5 -translate-x-1/2 -translate-y-[250%]
-                   w-2 h-2 bg-white rounded-full opacity-0
-                   transition-all duration-700
-                   ease-[cubic-bezier(0.34,1.56,0.64,1)]
-                   group-hover:-translate-y-1/2 group-hover:opacity-100
-                   pointer-events-none z-[9998]"
-      />
-
-      {/* 텍스트 */}
-      <span
-        className="relative z-[1000] text-[#8f949b] text-sm
-                   transition-colors duration-300
-                   group-hover:text-white whitespace-nowrap px-1"
-      >
-        {children}
-      </span>
-    </Link>
-  );
-
   return (
-    <footer className="bg-black w-full relative z-[1000] isolate pointer-events-auto">
-      <div className="max-w-[1400px] mx-auto px-0 py-20">
-        <div className="flex justify-between items-end mb-20">
-          <div className="text-left">
-            <div className="text-white text-xs mb-3 opacity-60">
-              이벤트도 본사 (창업문의)
-            </div>
+    <footer className="w-full relative z-[1000] isolate pointer-events-auto" style={{ backgroundColor: "#2a2a2a" }}>
+      <div className="max-w-[1712px] mx-auto px-10">
+        {/* ── 상단: 로고 | 네비게이션 | SNS 아이콘 ── */}
+        <div className="flex items-center justify-between py-8 border-b border-[#3a3a3a]">
+          {/* 로고 */}
+          <Link to="/" className="flex-shrink-0">
+            <img
+              src="/logo_white.png"
+              alt="Pupoo"
+              style={{ height: 22, width: "auto", display: "block", opacity: 0.9 }}
+            />
+          </Link>
 
-            <div className="text-white text-[35px] font-bold leading-tight mb-6 tracking-tight">
-              1588-5942
-            </div>
+          {/* 네비게이션 */}
+          <nav className="flex items-center gap-8">
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="text-[#8a8a8a] text-sm font-medium tracking-[0.08em] whitespace-nowrap transition-colors duration-200 hover:text-white"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
 
-            <div className="text-white text-sm space-y-1 opacity-60 mb-8">
-              <div>평일 09:00-17:00</div>
-              <div>점심시간 12:00-13:00</div>
-              <div>주말, 공휴일 휴무</div>
-            </div>
-
-            <div className="text-white text-xs opacity-50 space-y-1">
-              <div>
-                (주)푸푸컴퍼니 경기도 성남시 수정구 창업로42, 경기기업성장센터
-                819호
-              </div>
-              <div>사업자등록번호 456-87-00752 대표이사 : 홍길동</div>
-            </div>
+          {/* SNS 아이콘 */}
+          <div className="flex items-center gap-5 flex-shrink-0">
+            {/* YouTube */}
+            <a href="https://www.youtube.com/channel/UCmKrFZb9Dts6PyA6Wmc_zYA" target="_blank" rel="noopener noreferrer" className="block opacity-80 hover:opacity-100 transition-opacity duration-200">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff">
+                <path d="M23.498 6.186a2.994 2.994 0 0 0-2.112-2.12C19.505 3.546 12 3.546 12 3.546s-7.505 0-9.386.52A2.994 2.994 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a2.994 2.994 0 0 0 2.112 2.12c1.881.52 9.386.52 9.386.52s7.505 0 9.386-.52a2.994 2.994 0 0 0 2.112-2.12C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.546 15.568V8.432L15.818 12l-6.272 3.568z" />
+              </svg>
+            </a>
+            {/* X (Twitter) */}
+            <a href="https://x.com/pupoo_company" target="_blank" rel="noopener noreferrer" className="block opacity-80 hover:opacity-100 transition-opacity duration-200">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </a>
+            {/* Instagram */}
+            <a href="https://www.instagram.com/pupoo_company/" target="_blank" rel="noopener noreferrer" className="block opacity-80 hover:opacity-100 transition-opacity duration-200">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="#fff">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.17.054 1.97.24 2.43.403a4.088 4.088 0 0 1 1.523.99 4.088 4.088 0 0 1 .99 1.524c.163.46.349 1.26.403 2.43.058 1.265.07 1.645.07 4.849s-.012 3.584-.07 4.85c-.054 1.17-.24 1.97-.403 2.43a4.088 4.088 0 0 1-.99 1.523 4.088 4.088 0 0 1-1.524.99c-.46.163-1.26.349-2.43.403-1.265.058-1.645.07-4.849.07s-3.584-.012-4.85-.07c-1.17-.054-1.97-.24-2.43-.403a4.088 4.088 0 0 1-1.523-.99 4.088 4.088 0 0 1-.99-1.524c-.163-.46-.349-1.26-.403-2.43C2.175 15.584 2.163 15.204 2.163 12s.012-3.584.07-4.85c.054-1.17.24-1.97.403-2.43a4.088 4.088 0 0 1 .99-1.523A4.088 4.088 0 0 1 5.15 2.207c.46-.163 1.26-.349 2.43-.403C8.845 2.175 9.225 2.163 12 2.163zm0-2.163C8.741 0 8.333.014 7.053.072 5.775.13 4.902.333 4.14.63a6.21 6.21 0 0 0-2.245 1.462A6.21 6.21 0 0 0 .433 4.337C.136 5.1-.067 5.973-.125 7.25-.183 8.53-.197 8.939-.197 12.197s.014 3.668.072 4.948c.058 1.277.261 2.15.558 2.913a6.21 6.21 0 0 0 1.462 2.245 6.21 6.21 0 0 0 2.245 1.462c.763.297 1.636.5 2.913.558C8.333 24.383 8.741 24.397 12 24.397s3.668-.014 4.948-.072c1.277-.058 2.15-.261 2.913-.558a6.21 6.21 0 0 0 2.245-1.462 6.21 6.21 0 0 0 1.462-2.245c.297-.763.5-1.636.558-2.913.058-1.28.072-1.688.072-4.948s-.014-3.668-.072-4.948c-.058-1.277-.261-2.15-.558-2.913a6.21 6.21 0 0 0-1.462-2.245A6.21 6.21 0 0 0 19.86.63C19.1.333 18.225.13 16.948.072 15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z" />
+              </svg>
+            </a>
           </div>
         </div>
 
-        <div className="flex justify-between items-center border-t border-[#1a1a1a] pt-8">
-          <div className="flex items-center gap-1">
-            <DropLink to="/policy/privacypolicy">개인정보처리방침</DropLink>
-            <span className="text-[#333333] text-sm mx-1">|</span>
-            <DropLink to="/policy/eftterms">전자금융거래 기본약관</DropLink>
-            <span className="text-[#333333] text-sm mx-1">|</span>
-            <DropLink to="/policy/termsofservice">이용약관</DropLink>
-            <span className="text-[#333333] text-sm mx-1">|</span>
-            <DropLink to="/policy/serviceguide">이용안내</DropLink>
-            <span className="text-[#333333] text-sm mx-1">|</span>
-            <DropLink to="/policy/aboutus">회사소개</DropLink>
-            <span className="text-[#333333] text-sm mx-1">|</span>
-            <a
-              href="/admin/intro"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="relative inline-block group cursor-pointer px-1"
-            >
-              {/* 점 애니메이션 */}
-              <span
-                className="absolute left-1/2 bottom-5 -translate-x-1/2 -translate-y-[250%]
-               w-2 h-2 bg-[#006BF0] rounded-full opacity-0
-               transition-all duration-700
-               ease-[cubic-bezier(0.34,1.56,0.64,1)]
-               group-hover:-translate-y-1/2 group-hover:opacity-100
-               pointer-events-none"
-              />
-
-              {/* 텍스트 */}
-              {/* <span
-                className="text-[#8f949b] text-sm
-               transition-colors duration-300
-               group-hover:text-[#006BF0]
-               whitespace-nowrap"
-              >
-                관리자센터
-              </span> */}
-            </a>
-          </div>
-
-          <div>
-            <span className="text-white text-xs opacity-80">
-              © {new Date().getFullYear()} pupoo. All rights reserved.
-            </span>
+        {/* ── 하단: 저작권 + 회사정보 (좌) ── */}
+        <div className="flex items-start justify-between py-8">
+          <div className="text-[#666] text-sm leading-relaxed space-y-1">
+            <div>© {new Date().getFullYear()} pupoo. All rights reserved.</div>
+            <div>(주)푸푸컴퍼니 서울특별시 서초구 강남대로 405 통영빌딩 8층</div>
+            <div>본 서비스는 프로젝트용으로 제작되었습니다. 대표이사 : 홍길동</div>
           </div>
         </div>
       </div>
