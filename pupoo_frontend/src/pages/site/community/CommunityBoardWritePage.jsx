@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Paperclip } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, CheckCircle, Loader2, Paperclip } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { boardApi } from "../../../app/http/boardApi";
 import { fileApi } from "../../../app/http/fileApi";
@@ -8,6 +8,8 @@ import { tokenStore } from "../../../app/http/tokenStore";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 import CommunityWriteLayout from "./shared/CommunityWriteLayout";
+
+const DRAFT_KEY_PREFIX = "draft_community_board_";
 
 function ErrorBox({ message }) {
   if (!message) return null;
@@ -33,6 +35,57 @@ function ErrorBox({ message }) {
   );
 }
 
+function InProgressBox() {
+  return (
+    <div
+      style={{
+        marginBottom: 18,
+        background: "#EFF6FF",
+        border: "1px solid #BFDBFE",
+        borderRadius: 10,
+        padding: "12px 14px",
+        fontSize: 13,
+        color: "#1E40AF",
+        fontWeight: 700,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+      }}
+    >
+      <Loader2 size={14} style={{ flexShrink: 0, animation: "spin 1s linear infinite" }} />
+      등록 중입니다. 기다려 주세요.
+    </div>
+  );
+}
+
+function SuccessBox({ message }) {
+  if (!message) return null;
+  return (
+    <div
+      style={{
+        marginBottom: 18,
+        background: "#F0FDF4",
+        border: "1px solid #BBF7D0",
+        borderRadius: 10,
+        padding: "12px 14px",
+        fontSize: 13,
+        color: "#166534",
+        fontWeight: 700,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+      }}
+    >
+      <CheckCircle size={14} />
+      {message}
+    </div>
+  );
+}
+
+function getDraftKey(path) {
+  return `${DRAFT_KEY_PREFIX}${(path || "").replace(/\//g, "_")}`;
+}
+
 export default function CommunityBoardWritePage({
   pageTitle,
   pageSubtitle,
@@ -41,13 +94,22 @@ export default function CommunityBoardWritePage({
   boardType,
 }) {
   const navigate = useNavigate();
+  const isMountedRef = useRef(true);
   const [boardId, setBoardId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [file, setFile] = useState(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -114,23 +176,46 @@ export default function CommunityBoardWritePage({
       return;
     }
 
+    const draftKey = getDraftKey(currentPath);
+    try {
+      localStorage.setItem(
+        draftKey,
+        JSON.stringify({ title: title.trim(), content, boardId, fileName: file?.name ?? null }),
+      );
+    } catch (_) {}
+
     setSaving(true);
     setError("");
+    setSuccessMessage("");
+
     try {
       const created = await postApi.create({
         boardId,
         postTitle: title.trim(),
         content,
       });
+
+      if (!isMountedRef.current) return;
+
       const createdPostId = Number(created?.postId ?? created);
       if (file && createdPostId) {
         await fileApi.upload(file, "POST", createdPostId);
       }
-      navigate(createdPostId ? `${currentPath}/${createdPostId}` : currentPath);
+      if (!isMountedRef.current) return;
+
+      try {
+        localStorage.removeItem(draftKey);
+      } catch (_) {}
+
+      setSuccessMessage("등록 완료");
+      setTimeout(() => {
+        if (!isMountedRef.current) return;
+        navigate(currentPath);
+      }, 1500);
     } catch (err) {
       console.error("[CommunityBoardWritePage] create failed:", err);
+      if (!isMountedRef.current) return;
       setError(err?.response?.data?.error?.message || "글 등록에 실패했습니다.");
-    } finally {
       setSaving(false);
     }
   };
@@ -185,18 +270,31 @@ export default function CommunityBoardWritePage({
       }
     >
       <form id="community-board-write-form" onSubmit={handleSubmit}>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         <ErrorBox message={error} />
+        {saving && !successMessage ? <InProgressBox /> : null}
+        <SuccessBox message={successMessage} />
 
         {loading ? (
           <div style={{ fontSize: 14, color: "#64748b" }}>게시판 정보를 확인하는 중입니다.</div>
         ) : (
-          <div style={{ display: "grid", gap: 18 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 18,
+              position: "relative",
+              pointerEvents: saving ? "none" : undefined,
+              opacity: saving ? 0.75 : 1,
+            }}
+          >
             <label style={{ display: "grid", gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>제목</span>
               <input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="제목을 입력해 주세요"
+                disabled={saving}
+                readOnly={saving}
                 style={{
                   height: 46,
                   borderRadius: 10,
@@ -204,7 +302,7 @@ export default function CommunityBoardWritePage({
                   padding: "0 14px",
                   fontSize: 14,
                   color: "#0f172a",
-                  background: "#fff",
+                  background: saving ? "#f1f5f9" : "#fff",
                 }}
               />
             </label>
@@ -222,15 +320,16 @@ export default function CommunityBoardWritePage({
             <label
               style={{
                 display: "block",
-                cursor: "pointer",
+                cursor: saving ? "not-allowed" : "pointer",
                 border: "1px solid #e2e8f0",
                 borderRadius: 14,
                 padding: "18px 20px",
-                background: "#f8fafc",
+                background: saving ? "#f1f5f9" : "#f8fafc",
               }}
             >
               <input
                 type="file"
+                disabled={saving}
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 style={{ position: "absolute", width: 0, height: 0, opacity: 0, overflow: "hidden" }}
               />

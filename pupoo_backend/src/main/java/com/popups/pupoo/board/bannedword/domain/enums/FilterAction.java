@@ -9,7 +9,5 @@ public enum FilterAction {
     /** 마스킹: 저장 허용, 노출 시 치환 */
     MASK,
     /** 통과: 저장·노출 모두 허용 (로그만 남김) */
-    PASS,
-    /** 검토: AI가 검토 필요로 판정한 경우 (저장 허용, 로그 기록) */
-    REVIEW
+    PASS
 }

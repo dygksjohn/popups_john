@@ -54,7 +54,7 @@ export const postApi = {
         boardId: payload.boardId,
         postTitle: payload.postTitle ?? "",
         content: payload.content ?? "",
-      })
+      }, { timeout: 60000 })
       .then((res) => unwrap(res));
   },
 

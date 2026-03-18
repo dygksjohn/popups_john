@@ -9,6 +9,10 @@ import {
   createImageFallbackHandler,
   resolveImageUrl,
 } from "../../../shared/utils/publicAssetUrl";
+import {
+  buildAssetUrl,
+  getConfiguredAssetBaseUrl,
+} from "../../../shared/config/requestUrl";
 
 /* ?? ?대?吏 ?대갚 ?? */
 const DOG_IMGS = [
@@ -588,10 +592,14 @@ function NoticeSection() {
 
 // ================= MAIN =================
 export default function Home() {
+  const cdnBaseUrl = getConfiguredAssetBaseUrl(
+    import.meta.env.VITE_CDN_BASE_URL,
+    import.meta.env.VITE_ASSET_BASE_URL,
+  );
   const heroVideos = [
-    "/1.mov",
-    "/2.mov",
-    "/3.mp4",
+    buildAssetUrl(cdnBaseUrl, "/home/1.mov"),
+    buildAssetUrl(cdnBaseUrl, "/home/2.mov"),
+    buildAssetUrl(cdnBaseUrl, "/home/3.mp4"),
   ];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [fade, setFade] = useState(true);
