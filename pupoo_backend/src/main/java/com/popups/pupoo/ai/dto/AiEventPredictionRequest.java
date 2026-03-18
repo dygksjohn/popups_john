@@ -16,6 +16,9 @@ public record AiEventPredictionRequest(
         double averageWaitMinutes,
         int capacityBaseline,
         int waitBaseline,
-        int targetWaitMin
+        int targetWaitMin,
+        double registrationForecastScore,
+        double endedBaselineScore,
+        double ongoingBaselineScore
 ) {
 }

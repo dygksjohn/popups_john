@@ -22,6 +22,9 @@ class EventPredictionRequest(BaseModel):
     capacityBaseline: int = Field(default=0, ge=0)
     waitBaseline: int = Field(default=0, ge=0)
     targetWaitMin: int = Field(default=0, ge=0)
+    registrationForecastScore: float = Field(default=0.0, ge=0.0, le=100.0)
+    endedBaselineScore: float = Field(default=0.0, ge=0.0, le=100.0)
+    ongoingBaselineScore: float = Field(default=0.0, ge=0.0, le=100.0)
 
 
 class ProgramPredictionRequest(BaseModel):
