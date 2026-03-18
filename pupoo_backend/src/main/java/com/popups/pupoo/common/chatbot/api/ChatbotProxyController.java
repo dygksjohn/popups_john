@@ -25,10 +25,13 @@ import java.util.Map;
 public class ChatbotProxyController {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
+    private static final String HEADER_INTERNAL_TOKEN = "X-Internal-Token";
 
     private final WebClient webClient;
+    private final AiServiceProperties properties;
 
     public ChatbotProxyController(WebClient.Builder builder, AiServiceProperties props) {
+        this.properties = props;
         this.webClient = builder
                 .baseUrl(props.getBaseUrl())
                 .build();
@@ -41,6 +44,7 @@ public class ChatbotProxyController {
             Map<String, Object> result = webClient.post()
                     .uri("/internal/chatbot/chat")
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header(HEADER_INTERNAL_TOKEN, properties.getInternalToken())
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(Map.class)

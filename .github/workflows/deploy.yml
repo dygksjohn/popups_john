@@ -160,8 +160,11 @@ jobs:
             echo "OPENAI_API_KEY secret is required"
             exit 1
           fi
-          if [ -z "${APP_AI_MODERATION_INTERNAL_TOKEN}" ]; then
-            echo "APP_AI_MODERATION_INTERNAL_TOKEN secret is required"
+          CURRENT_AI_SERVICE_INTERNAL_TOKEN="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AI_SERVICE_INTERNAL_TOKEN}' | base64 -d)"
+          MODERATION_INTERNAL_TOKEN="${APP_AI_MODERATION_INTERNAL_TOKEN:-${CURRENT_AI_SERVICE_INTERNAL_TOKEN}}"
+
+          if [ -z "${MODERATION_INTERNAL_TOKEN}" ]; then
+            echo "APP_AI_MODERATION_INTERNAL_TOKEN is missing and existing AI_SERVICE_INTERNAL_TOKEN could not be read"
             exit 1
           fi
 
@@ -170,7 +173,7 @@ jobs:
             \"stringData\": {
               \"OPENAI_API_KEY\": \"${OPENAI_API_KEY}\",
               \"OPENAI_IMAGE_MODEL\": \"${OPENAI_IMAGE_MODEL}\",
-              \"APP_AI_MODERATION_INTERNAL_TOKEN\": \"${APP_AI_MODERATION_INTERNAL_TOKEN}\"
+              \"APP_AI_MODERATION_INTERNAL_TOKEN\": \"${MODERATION_INTERNAL_TOKEN}\"
             }
           }
           EOF
