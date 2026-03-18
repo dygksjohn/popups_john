@@ -116,6 +116,58 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Load datasource env for AI training
+        run: |
+          NS="${EKS_NAMESPACE:-pupoo}"
+          DS_URL="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_URL}' | base64 -d)"
+          DS_USER="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_USERNAME}' | base64 -d)"
+          DS_PASSWORD="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_PASSWORD}' | base64 -d)"
+
+          if [ -z "${DS_URL}" ] || [ -z "${DS_USER}" ] || [ -z "${DS_PASSWORD}" ]; then
+            echo "SPRING_DATASOURCE_* is missing in pupoo-backend-secret"
+            exit 1
+          fi
+
+          {
+            echo "PUPOO_AI_TRAIN_DB_URL=${DS_URL}"
+            echo "PUPOO_AI_TRAIN_DB_USER=${DS_USER}"
+            echo "PUPOO_AI_TRAIN_DB_PASSWORD=${DS_PASSWORD}"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up Python 3.12 for AI training
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install AI training dependencies
+        working-directory: pupoo_ai
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Train congestion models
+        working-directory: pupoo_ai
+        run: |
+          python -m app.features.congestion.train.train_congestion_models \
+            --validation-ratio 0.2 \
+            --min-rows 200 \
+            --output-dir ./artifacts/congestion
+
+      - name: Verify trained model artifacts
+        working-directory: pupoo_ai
+        run: |
+          ls -al ./artifacts/congestion
+          test -f ./artifacts/congestion/event_congestion_model.joblib
+          test -f ./artifacts/congestion/program_congestion_model.joblib
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -142,14 +194,6 @@ jobs:
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:${{ github.sha }}
             ${{ steps.ecr.outputs.registry }}/${{ vars.AI_ECR_REPOSITORY }}:latest
-
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: latest
-
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
 
       - name: Sync backend runtime secrets
         env:
