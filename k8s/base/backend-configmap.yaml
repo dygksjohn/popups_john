@@ -9,6 +9,7 @@ data:
   AI_SERVICE_BASE_URL: "http://pupoo-ai:80"
   APP_AI_MODERATION_BASE_URL: "http://pupoo-ai:80"
   STORAGE_MODE: "S3"
+  STORAGE_S3_BUCKET: "pupoo-storage"
   STORAGE_S3_REGION: "ap-northeast-2"
   STORAGE_S3_KEY_PREFIX: "uploads"
   APP_STORAGE_CDN_BASE_URL: "https://cdn.pupoo.site"
