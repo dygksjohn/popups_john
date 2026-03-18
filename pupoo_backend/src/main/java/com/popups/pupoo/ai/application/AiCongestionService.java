@@ -13,6 +13,7 @@ import com.popups.pupoo.ai.dto.AiProgramRecommendationRequest;
 import com.popups.pupoo.ai.dto.AiProgramRecommendationResponse;
 import com.popups.pupoo.ai.dto.AiRecommendationProgramInput;
 import com.popups.pupoo.ai.dto.AiTimelinePoint;
+import com.popups.pupoo.ai.persistence.AiEventCongestionBaselineQueryRepository;
 import com.popups.pupoo.ai.persistence.AiPredictionLogRepository;
 import com.popups.pupoo.ai.persistence.EventCongestionPolicyRepository;
 import com.popups.pupoo.booth.domain.model.Booth;
@@ -41,6 +42,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -73,6 +75,7 @@ public class AiCongestionService {
     private final BoothRepository boothRepository;
     private final BoothWaitRepository boothWaitRepository;
     private final EventCongestionPolicyRepository eventCongestionPolicyRepository;
+    private final AiEventCongestionBaselineQueryRepository aiEventCongestionBaselineQueryRepository;
     private final AiInferenceClient aiInferenceClient;
     private final AiPredictionLogRepository aiPredictionLogRepository;
 
@@ -86,6 +89,7 @@ public class AiCongestionService {
             BoothRepository boothRepository,
             BoothWaitRepository boothWaitRepository,
             EventCongestionPolicyRepository eventCongestionPolicyRepository,
+            AiEventCongestionBaselineQueryRepository aiEventCongestionBaselineQueryRepository,
             AiInferenceClient aiInferenceClient,
             AiPredictionLogRepository aiPredictionLogRepository
     ) {
@@ -98,6 +102,7 @@ public class AiCongestionService {
         this.boothRepository = boothRepository;
         this.boothWaitRepository = boothWaitRepository;
         this.eventCongestionPolicyRepository = eventCongestionPolicyRepository;
+        this.aiEventCongestionBaselineQueryRepository = aiEventCongestionBaselineQueryRepository;
         this.aiInferenceClient = aiInferenceClient;
         this.aiPredictionLogRepository = aiPredictionLogRepository;
     }
@@ -113,6 +118,7 @@ public class AiCongestionService {
         List<Program> programs = programRepository.findByEventId(eventId, Pageable.unpaged()).getContent();
         EventCongestionPolicy policy = findEventPolicy(eventId);
         TimeWindow predictionWindow = resolveEventPredictionWindow(event, from, to);
+        HistoricalBaseline historicalBaseline = collectHistoricalEventBaseline(baseTime);
 
         int entryCount = countEventFlowCount(eventId, QrCheckType.CHECKIN, baseTime);
         int checkoutCount = countEventFlowCount(eventId, QrCheckType.CHECKOUT, baseTime);
@@ -123,6 +129,11 @@ public class AiCongestionService {
         int capacityBaseline = resolveEventCapacityBaseline(policy, activeApplyCount);
         int waitBaseline = resolvePositive(policy == null ? null : policy.getWaitBaseline(), DEFAULT_WAIT_BASELINE);
         int targetWaitMin = resolvePositive(policy == null ? null : policy.getTargetWaitMin(), DEFAULT_TARGET_WAIT_MIN);
+        double registrationForecastScore = estimatePlannedRegistrationScore(
+                activeApplyCount,
+                event.getStartAt(),
+                event.getEndAt()
+        );
 
         AiEventPredictionRequest request = new AiEventPredictionRequest(
                 event.getEventId(),
@@ -138,7 +149,10 @@ public class AiCongestionService {
                 waitAggregate.averageWaitMinutes(),
                 capacityBaseline,
                 waitBaseline,
-                targetWaitMin
+                targetWaitMin,
+                registrationForecastScore,
+                historicalBaseline.endedScore(),
+                historicalBaseline.ongoingScore()
         );
 
         AiCongestionPredictionResponse response = aiInferenceClient.predictEvent(request)
@@ -403,13 +417,17 @@ public class AiCongestionService {
         double baseScore = estimateEventBaseScore(
                 request.entryCount(),
                 request.checkoutCount(),
+                request.activeApplyCount(),
                 request.runningProgramCount(),
                 request.totalProgramCount(),
                 request.totalWaitCount(),
                 request.averageWaitMinutes(),
                 request.capacityBaseline(),
                 request.waitBaseline(),
-                request.targetWaitMin()
+                request.targetWaitMin(),
+                request.registrationForecastScore(),
+                request.endedBaselineScore(),
+                request.ongoingBaselineScore()
         );
         List<AiTimelinePoint> timeline = buildTimeline(request.eventStartAt(), request.eventEndAt(), baseScore);
         return buildPredictionResponse("EVENT", event.getEventId(), null, baseTime, timeline, baseScore, true);
@@ -640,6 +658,69 @@ public class AiCongestionService {
         return resolvePositive(policy.getCapacityBaseline(), fallback);
     }
 
+    private HistoricalBaseline collectHistoricalEventBaseline(LocalDateTime baseTime) {
+        LocalDateTime endedFrom = baseTime.minusDays(90);
+        LocalDateTime ongoingFrom = baseTime.minusMinutes(30);
+        LocalDateTime ongoingTo = baseTime.plusMinutes(5);
+
+        Double endedScore = aiEventCongestionBaselineQueryRepository.findEndedAverageScorePercent(endedFrom, baseTime);
+        Double ongoingScore = aiEventCongestionBaselineQueryRepository.findOngoingAverageScorePercent(ongoingFrom, ongoingTo);
+
+        double normalizedEnded = endedScore == null ? 0.0 : clampScore(endedScore);
+        double normalizedOngoing = ongoingScore == null ? 0.0 : clampScore(ongoingScore);
+        return new HistoricalBaseline(normalizedEnded, normalizedOngoing);
+    }
+
+    private double estimatePlannedRegistrationScore(
+            int activeApplyCount,
+            LocalDateTime startAt,
+            LocalDateTime endAt
+    ) {
+        if (activeApplyCount <= 0) {
+            return 0.0;
+        }
+
+        int operationDays = 1;
+        if (startAt != null && endAt != null && !endAt.isBefore(startAt)) {
+            long inclusiveDays = ChronoUnit.DAYS.between(startAt.toLocalDate(), endAt.toLocalDate()) + 1L;
+            operationDays = (int) Math.max(1L, inclusiveDays);
+        }
+
+        double registrationsPerDay = activeApplyCount / (double) operationDays;
+        double estimatedScore = Math.round((registrationsPerDay / 300.0) * 100.0);
+        double bounded = Math.max(5.0, Math.min(85.0, estimatedScore));
+        return clampScore(bounded);
+    }
+
+    private double blendPlannedForecastScore(
+            double registrationForecastScore,
+            double endedBaselineScore,
+            double ongoingBaselineScore
+    ) {
+        double weightedSum = 0.0;
+        double totalWeight = 0.0;
+
+        if (registrationForecastScore > 0.0) {
+            weightedSum += registrationForecastScore * 0.65;
+            totalWeight += 0.65;
+        }
+        if (ongoingBaselineScore > 0.0) {
+            weightedSum += ongoingBaselineScore * 0.20;
+            totalWeight += 0.20;
+        }
+        if (endedBaselineScore > 0.0) {
+            weightedSum += endedBaselineScore * 0.15;
+            totalWeight += 0.15;
+        }
+
+        if (totalWeight <= 0.0) {
+            return 0.0;
+        }
+
+        double blended = weightedSum / totalWeight;
+        return Math.min(90.0, Math.max(5.0, blended));
+    }
+
     private String resolveProgramZone(Program program) {
         if (program.getBoothId() == null) {
             return null;
@@ -689,13 +770,17 @@ public class AiCongestionService {
     private double estimateEventBaseScore(
             int entryCount,
             int checkoutCount,
+            int activeApplyCount,
             int runningProgramCount,
             int totalProgramCount,
             int totalWaitCount,
             double averageWaitMinutes,
             int capacityBaseline,
             int waitBaseline,
-            int targetWaitMin
+            int targetWaitMin,
+            double registrationForecastScore,
+            double endedBaselineScore,
+            double ongoingBaselineScore
     ) {
         int netEntryCount = Math.max(entryCount - checkoutCount, 0);
         double waitBaselinePerProgram = runningProgramCount <= 0
@@ -715,7 +800,33 @@ public class AiCongestionService {
                 + (0.30 * waitTimePressure)
                 - (0.05 * operationRelief);
 
-        return clampScore(eventUnitScore * 100.0);
+        double liveScore = eventUnitScore * 100.0;
+        boolean forecastMode = netEntryCount <= 0
+                && runningProgramCount <= 0
+                && totalWaitCount <= 0
+                && averageWaitMinutes <= 0.0;
+
+        if (forecastMode) {
+            double plannedForecastScore = blendPlannedForecastScore(
+                    registrationForecastScore,
+                    endedBaselineScore,
+                    ongoingBaselineScore
+            );
+
+            if (plannedForecastScore > 0.0) {
+                return clampScore(plannedForecastScore);
+            }
+
+            if (activeApplyCount > 0) {
+                return clampScore(estimatePlannedRegistrationScore(
+                        activeApplyCount,
+                        null,
+                        null
+                ));
+            }
+        }
+
+        return clampScore(liveScore);
     }
 
     private double estimateProgramBaseScore(
@@ -896,6 +1007,9 @@ public class AiCongestionService {
     }
 
     private record TimeWindow(LocalDateTime startAt, LocalDateTime endAt) {
+    }
+
+    private record HistoricalBaseline(double endedScore, double ongoingScore) {
     }
 
     private record WaitAggregate(int totalWaitCount, double averageWaitMinutes) {

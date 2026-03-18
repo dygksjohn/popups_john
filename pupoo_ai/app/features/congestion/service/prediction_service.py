@@ -172,7 +172,45 @@ def _event_base_score(request: EventPredictionRequest) -> float:
         - (0.05 * operation_relief)
     )
 
-    return _clamp_score(event_unit_score * 100.0)
+    live_score = event_unit_score * 100.0
+    forecast_mode = (
+        net_entry_count <= 0
+        and running_programs <= 0
+        and request.totalWaitCount <= 0
+        and request.averageWaitMinutes <= 0
+    )
+    if forecast_mode:
+        forecast_score = _planned_event_forecast_score(request)
+        if forecast_score > 0.0:
+            return forecast_score
+
+    return _clamp_score(live_score)
+
+
+def _planned_event_forecast_score(request: EventPredictionRequest) -> float:
+    registration_score = _clamp100(request.registrationForecastScore)
+    ongoing_baseline = _clamp100(request.ongoingBaselineScore)
+    ended_baseline = _clamp100(request.endedBaselineScore)
+
+    weighted_sum = 0.0
+    total_weight = 0.0
+
+    if registration_score > 0.0:
+        weighted_sum += registration_score * 0.65
+        total_weight += 0.65
+    if ongoing_baseline > 0.0:
+        weighted_sum += ongoing_baseline * 0.20
+        total_weight += 0.20
+    if ended_baseline > 0.0:
+        weighted_sum += ended_baseline * 0.15
+        total_weight += 0.15
+
+    if total_weight <= 0.0:
+        return 0.0
+
+    blended = weighted_sum / total_weight
+    bounded = max(5.0, min(90.0, blended))
+    return _clamp_score(bounded)
 
 
 def _program_base_score(request: ProgramPredictionRequest) -> float:
