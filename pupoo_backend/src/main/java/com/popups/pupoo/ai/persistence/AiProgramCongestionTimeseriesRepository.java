@@ -15,6 +15,10 @@ import java.util.Optional;
 public interface AiProgramCongestionTimeseriesRepository extends JpaRepository<AiProgramCongestionTimeseries, Long> {
 
     Optional<AiProgramCongestionTimeseries> findByProgramIdAndTimestampMinute(Long programId, LocalDateTime timestampMinute);
+    List<AiProgramCongestionTimeseries> findTop60ByProgramIdAndTimestampMinuteLessThanEqualOrderByTimestampMinuteDesc(
+            Long programId,
+            LocalDateTime timestampMinute
+    );
 
     List<AiProgramCongestionTimeseries> findByTimestampMinuteAndProgramIdIn(
             LocalDateTime timestampMinute,

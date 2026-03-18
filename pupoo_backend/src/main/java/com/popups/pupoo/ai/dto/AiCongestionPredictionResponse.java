@@ -13,6 +13,7 @@ public record AiCongestionPredictionResponse(
         int predictedLevel,
         int predictedWaitMinutes,
         double confidence,
+        Double lstmPredictedAvgScore,
         boolean fallbackUsed,
         List<AiTimelinePoint> timeline
 ) {

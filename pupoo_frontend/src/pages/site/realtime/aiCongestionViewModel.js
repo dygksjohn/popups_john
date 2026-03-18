@@ -101,7 +101,7 @@ export function resolveUnifiedAverageCongestion({
   })();
 
   if (isPlannedEvent) {
-    if (ai > 0 && !aiFallbackUsed) {
+    if (ai > 0) {
       return ai;
     }
     return estimateUpcomingCongestionPercent(approvedCount, startAt, endAt);
@@ -148,6 +148,11 @@ export function normalizePrediction(payload) {
 
   const avgScore = normalizeScorePercent(payload.predictedAvgScore);
   const peakScore = normalizeScorePercent(payload.predictedPeakScore ?? avgScore);
+  const lstmAvgScoreRaw = payload.lstmPredictedAvgScore;
+  const lstmAvgScore =
+    lstmAvgScoreRaw === null || lstmAvgScoreRaw === undefined
+      ? null
+      : normalizeScorePercent(lstmAvgScoreRaw);
   const waitMinutes = Math.max(0, Math.round(toNumber(payload.predictedWaitMinutes, 0)));
   const confidence = clamp(toNumber(payload.confidence, 0), 0, 1);
   const levelMeta = getLevelMeta(peakScore, payload.predictedLevel);
@@ -180,6 +185,7 @@ export function normalizePrediction(payload) {
     levelTone: levelMeta.tone,
     waitMinutes,
     confidence,
+    lstmAvgScore,
     fallbackUsed: Boolean(payload.fallbackUsed),
     timeline,
   };

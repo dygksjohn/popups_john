@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     db_read_timeout: int = 10
     db_write_timeout: int = 10
     db_ssl_ca: str = ""
+    congestion_model_enabled: bool = True
+    congestion_model_dir: str = ""
 
     # watsonx.ai 설정 (RAG용)
     watsonx_api_key: str = ""

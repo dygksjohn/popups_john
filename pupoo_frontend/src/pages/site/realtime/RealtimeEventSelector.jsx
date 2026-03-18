@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useRef } from "react";
 import {
   Radio,
   Signal,
@@ -173,7 +174,7 @@ const selectorStyles = `
     border-radius: 14px;
     padding: 20px 24px;
     display: grid;
-    grid-template-columns: 74px minmax(220px, 1fr) 240px minmax(320px, 420px);
+    grid-template-columns: 74px minmax(220px, 1fr) 290px minmax(320px, 420px);
     align-items: center;
     gap: 20px;
     cursor: pointer;
@@ -290,12 +291,12 @@ const selectorStyles = `
   }
   .rte-metrics {
     display: flex;
-    gap: 12px;
+    gap: 14px;
     align-items: center;
   }
   .rte-metric {
     text-align: center;
-    min-width: 56px;
+    min-width: 72px;
   }
   .rte-metric-value {
     font-size: 18px;
@@ -461,6 +462,15 @@ const resolveEventAiRangeParams = (event, status) => {
     return {};
   }
 
+  if (status === "pending") {
+    const fallbackStart = toValidDate(event?.startAt);
+    const fallbackEnd = toValidDate(event?.endAt);
+    if (fallbackStart && fallbackEnd && fallbackEnd >= fallbackStart) {
+      return { from: fallbackStart, to: fallbackEnd };
+    }
+    return {};
+  }
+
   const todayKey = toDateKey(new Date());
   const selectedDateKey = (() => {
     if (status === "active" && dateOptions.includes(todayKey)) {
@@ -486,6 +496,47 @@ const resolveEventAiRangeParams = (event, status) => {
     from: operationRange.startAt,
     to: operationRange.endAt,
   };
+};
+
+const summarizePlannedTimelineAverage = (prediction, startAt, endAt) => {
+  const fallback = (() => {
+    const score = Number(prediction?.avgScore);
+    if (!Number.isFinite(score) || score <= 0) return null;
+    return Math.max(0, Math.min(100, Math.round(score)));
+  })();
+
+  const dateKeys = buildDateKeysFromRange(startAt, endAt);
+  if (dateKeys.length === 0) return fallback;
+
+  const bucketMap = new Map();
+  toArray(prediction?.timeline).forEach((point) => {
+    const dateKey = toDateKey(point?.time);
+    const score = Number(point?.score);
+    if (!dateKey || !Number.isFinite(score)) return;
+    const bucket = bucketMap.get(dateKey) || { sum: 0, count: 0 };
+    bucket.sum += score;
+    bucket.count += 1;
+    bucketMap.set(dateKey, bucket);
+  });
+
+  const dailyScores = dateKeys
+    .map((dateKey) => {
+      const bucket = bucketMap.get(dateKey);
+      if (bucket && bucket.count > 0) {
+        return Math.max(0, Math.min(100, Math.round(bucket.sum / bucket.count)));
+      }
+      return fallback;
+    })
+    .filter((score) => Number.isFinite(score));
+
+  if (dailyScores.length === 0) return fallback;
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(dailyScores.reduce((sum, score) => sum + score, 0) / dailyScores.length),
+    ),
+  );
 };
 
 const congestionLevelToPercent = (value) => {
@@ -687,6 +738,7 @@ const sortRealtimeEventsByPriority = (events = []) =>
   [...(Array.isArray(events) ? events : [])].sort(compareRealtimeEventsByPriority);
 
 const FILTER_VALUES = new Set(["all", "live", "upcoming", "ended"]);
+const AUTO_REFRESH_INTERVAL_MS = 15_000;
 
 const normalizeFilterValue = (value) =>
   FILTER_VALUES.has(String(value)) ? String(value) : "all";
@@ -696,9 +748,15 @@ async function fetchAdminData(url, params, fallback) {
     const response = await axiosInstance.get(url, {
       params,
     });
-    return unwrapData(response, fallback);
+    return {
+      data: unwrapData(response, fallback),
+      hasError: false,
+    };
   } catch {
-    return fallback;
+    return {
+      data: fallback,
+      hasError: true,
+    };
   }
 }
 
@@ -712,6 +770,7 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
   );
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const previousCongestionByEventRef = useRef(new Map());
 
   const currentRealtimePath = useMemo(() => {
     const pathname = String(location.pathname || "");
@@ -747,19 +806,22 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
 
   useEffect(() => {
     let mounted = true;
+    let inFlight = false;
 
-    const load = async () => {
-      setLoading(true);
+    const load = async ({ preserveLoading = false } = {}) => {
+      if (inFlight) return;
+      inFlight = true;
+      if (!preserveLoading) setLoading(true);
 
       try {
-        const [eventsResponse, performanceRows] = await Promise.all([
+        const [eventsResponse, performanceResult] = await Promise.all([
           eventApi.getEvents({ page: 0, size: 120, sort: "startAt,asc" }),
           fetchAdminData("/api/analytics/events", { page: 0, size: 200 }, []),
         ]);
 
         const rawEvents = toArray(unwrapData(eventsResponse, { content: [] }));
         const performanceMap = new Map(
-          toArray(performanceRows).map((row) => [Number(row.eventId), row]),
+          toArray(performanceResult?.data).map((row) => [Number(row.eventId), row]),
         );
 
         const sortedEvents = sortRealtimeEventsByPriority(
@@ -809,46 +871,63 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
           congestionTargets.map(async (event) => {
             const eventId = Number(event.eventId);
             const status = String(event.status).toLowerCase();
+            const previousCongestion =
+              previousCongestionByEventRef.current.get(eventId) || {};
             let realtimeMeasuredCongestion = null;
             let hourlyMeasuredCongestion = null;
             let aiAverageCongestion = null;
+            let aiLstmCongestion = null;
             let aiFallbackUsed = false;
             let endedProgramAiAverageCongestion = null;
 
             if (status === "active") {
-              const payload = await fetchAdminData(
+              const payloadResult = await fetchAdminData(
                 `/api/dashboard/realtime/events/${event.eventId}/congestions`,
                 { limit: 200 },
                 [],
               );
-              const realtimePercent = summarizeRealtimeCongestionPercent(payload);
-              if (realtimePercent != null) {
-                realtimeMeasuredCongestion = realtimePercent;
+              if (payloadResult?.hasError) {
+                const preserved = previousCongestion?.realtimeMeasuredCongestion;
+                if (Number.isFinite(preserved)) {
+                  realtimeMeasuredCongestion = preserved;
+                }
+              } else {
+                const realtimePercent = summarizeRealtimeCongestionPercent(payloadResult?.data);
+                if (realtimePercent != null) {
+                  realtimeMeasuredCongestion = realtimePercent;
+                }
               }
             }
 
             if (status === "ended") {
-              const hourlyPayload = await fetchAdminData(
+              const hourlyResult = await fetchAdminData(
                 `/api/analytics/events/${event.eventId}/congestion-by-hour`,
                 {},
                 [],
               );
-              const hourlyValues = toArray(hourlyPayload)
-                .map((row) =>
-                  congestionLevelToPercent(
-                    row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level,
-                  ),
-                )
-                .filter((value) => Number.isFinite(value) && value > 0);
-              const hourlyAverage = hourlyValues.length
-                ? Math.round(
-                    hourlyValues.reduce((sum, value) => sum + value, 0) /
-                      hourlyValues.length,
+              if (hourlyResult?.hasError) {
+                const preserved = previousCongestion?.hourlyMeasuredCongestion;
+                if (Number.isFinite(preserved)) {
+                  hourlyMeasuredCongestion = preserved;
+                }
+              } else {
+                const hourlyValues = toArray(hourlyResult?.data)
+                  .map((row) =>
+                    congestionLevelToPercent(
+                      row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level,
+                    ),
                   )
-                : null;
+                  .filter((value) => Number.isFinite(value) && value > 0);
+                const hourlyAverage = hourlyValues.length
+                  ? Math.round(
+                      hourlyValues.reduce((sum, value) => sum + value, 0) /
+                        hourlyValues.length,
+                    )
+                  : null;
 
-              if (hourlyAverage != null) {
-                hourlyMeasuredCongestion = hourlyAverage;
+                if (hourlyAverage != null) {
+                  hourlyMeasuredCongestion = hourlyAverage;
+                }
               }
             }
 
@@ -867,7 +946,10 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
                   );
                 }
               } catch {
-                endedProgramAiAverageCongestion = null;
+                const preserved = previousCongestion?.endedProgramAiAverageCongestion;
+                endedProgramAiAverageCongestion = Number.isFinite(preserved)
+                  ? preserved
+                  : null;
               }
             }
 
@@ -880,14 +962,33 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
                 const aiAverage = aiPrediction
                   ? Math.round(Number(aiPrediction.avgScore) || 0)
                   : null;
+                const aiPlannedAverage = status === "pending"
+                  ? summarizePlannedTimelineAverage(aiPrediction, event?.startAt, event?.endAt)
+                  : null;
+                const aiLstm = aiPrediction
+                  ? Math.round(Number(aiPrediction.lstmAvgScore) || 0)
+                  : null;
                 aiAverageCongestion =
-                  Number.isFinite(aiAverage) && aiAverage > 0
-                    ? aiAverage
+                  Number.isFinite(aiPlannedAverage) && aiPlannedAverage > 0
+                    ? aiPlannedAverage
+                    : (Number.isFinite(aiAverage) && aiAverage > 0
+                      ? aiAverage
+                      : null);
+                aiLstmCongestion =
+                  Number.isFinite(aiLstm) && aiLstm > 0
+                    ? aiLstm
                     : null;
                 aiFallbackUsed = Boolean(aiPrediction?.fallbackUsed);
               } catch {
-                aiAverageCongestion = null;
-                aiFallbackUsed = false;
+                const preservedAiAverage = previousCongestion?.aiAverageCongestion;
+                const preservedAiLstm = previousCongestion?.aiLstmCongestion;
+                aiAverageCongestion = Number.isFinite(preservedAiAverage)
+                  ? preservedAiAverage
+                  : null;
+                aiLstmCongestion = Number.isFinite(preservedAiLstm)
+                  ? preservedAiLstm
+                  : null;
+                aiFallbackUsed = Boolean(previousCongestion?.aiFallbackUsed);
               }
             }
 
@@ -895,13 +996,58 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
               realtimeMeasuredCongestion,
               hourlyMeasuredCongestion,
               aiAverageCongestion,
+              aiLstmCongestion,
               aiFallbackUsed,
               endedProgramAiAverageCongestion,
             }];
           }),
         );
 
-        const congestionMap = new Map(congestionEntries);
+        const mergedCongestionMap = new Map(previousCongestionByEventRef.current);
+        congestionEntries.forEach(([eventId, nextInfo]) => {
+          const previousInfo = mergedCongestionMap.get(eventId) || {};
+          mergedCongestionMap.set(eventId, {
+            realtimeMeasuredCongestion: Number.isFinite(nextInfo?.realtimeMeasuredCongestion)
+              ? nextInfo.realtimeMeasuredCongestion
+              : (Number.isFinite(previousInfo?.realtimeMeasuredCongestion)
+                ? previousInfo.realtimeMeasuredCongestion
+                : null),
+            hourlyMeasuredCongestion: Number.isFinite(nextInfo?.hourlyMeasuredCongestion)
+              ? nextInfo.hourlyMeasuredCongestion
+              : (Number.isFinite(previousInfo?.hourlyMeasuredCongestion)
+                ? previousInfo.hourlyMeasuredCongestion
+                : null),
+            aiAverageCongestion: Number.isFinite(nextInfo?.aiAverageCongestion)
+              ? nextInfo.aiAverageCongestion
+              : (Number.isFinite(previousInfo?.aiAverageCongestion)
+                ? previousInfo.aiAverageCongestion
+                : null),
+            aiLstmCongestion: Number.isFinite(nextInfo?.aiLstmCongestion)
+              ? nextInfo.aiLstmCongestion
+              : (Number.isFinite(previousInfo?.aiLstmCongestion)
+                ? previousInfo.aiLstmCongestion
+                : null),
+            aiFallbackUsed:
+              Number.isFinite(nextInfo?.aiAverageCongestion) || Number.isFinite(nextInfo?.aiLstmCongestion)
+                ? Boolean(nextInfo?.aiFallbackUsed)
+                : Boolean(previousInfo?.aiFallbackUsed),
+            endedProgramAiAverageCongestion: Number.isFinite(nextInfo?.endedProgramAiAverageCongestion)
+              ? nextInfo.endedProgramAiAverageCongestion
+              : (Number.isFinite(previousInfo?.endedProgramAiAverageCongestion)
+                ? previousInfo.endedProgramAiAverageCongestion
+                : null),
+          });
+        });
+        const visibleEventIds = new Set(
+          visibleEvents.map((event) => Number(event.eventId)).filter((eventId) => Number.isFinite(eventId)),
+        );
+        Array.from(mergedCongestionMap.keys()).forEach((eventId) => {
+          if (!visibleEventIds.has(eventId)) {
+            mergedCongestionMap.delete(eventId);
+          }
+        });
+        previousCongestionByEventRef.current = mergedCongestionMap;
+        const congestionMap = mergedCongestionMap;
 
         if (!mounted) return;
 
@@ -923,6 +1069,7 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
             const hourlyMeasuredCongestion =
               congestionInfo?.hourlyMeasuredCongestion;
             const aiAverageCongestion = congestionInfo?.aiAverageCongestion;
+            const aiLstmCongestion = congestionInfo?.aiLstmCongestion;
             const aiFallbackUsed = Boolean(congestionInfo?.aiFallbackUsed);
             const endedProgramAiAverageCongestion =
               congestionInfo?.endedProgramAiAverageCongestion;
@@ -948,6 +1095,12 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
               registrations,
               checkedIn,
               congestion,
+              lgbmCongestion: Number.isFinite(aiAverageCongestion)
+                ? aiAverageCongestion
+                : null,
+              lstmCongestion: Number.isFinite(aiLstmCongestion)
+                ? aiLstmCongestion
+                : null,
               delay: index * 60,
             };
           }),
@@ -956,15 +1109,21 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
         console.error("[RealtimeEventSelector] load failed:", error);
         if (mounted) setEvents([]);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted && !preserveLoading) setLoading(false);
+        inFlight = false;
       }
     };
 
-    load();
+    void load();
+    const intervalId = setInterval(() => {
+      void load({ preserveLoading: true });
+    }, AUTO_REFRESH_INTERVAL_MS);
+
     return () => {
       mounted = false;
+      clearInterval(intervalId);
     };
-  }, []);
+  }, [programCategory]);
 
   const filtered = useMemo(() => {
     return events.filter((event) => {
@@ -1058,6 +1217,20 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
           ) : (
             filtered.map((event) => {
               const statusConfig = STATUS_CONFIG[event.status] || STATUS_CONFIG.upcoming;
+              const isPlannedLike =
+                event.rawStatus === "PLANNED" ||
+                event.status === "upcoming" ||
+                event.status === "pending";
+              const displayedCongestion = isPlannedLike
+                ? (
+                  Number.isFinite(event.lgbmCongestion)
+                    ? event.lgbmCongestion
+                    : null
+                )
+                : event.congestion;
+              const congestionText = displayedCongestion != null
+                ? `${displayedCongestion}%`
+                : "-";
               return (
                 <div
                   key={event.id}
@@ -1115,10 +1288,12 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
                       <div
                         className="rte-metric-value"
                         style={{
-                          color: getCongestionValueColor(event.congestion),
+                          color: getCongestionValueColor(
+                            displayedCongestion,
+                          ),
                         }}
                       >
-                        {event.congestion != null ? `${event.congestion}%` : "-"}
+                        {congestionText}
                       </div>
                       <div className="rte-metric-label">
                         {event.rawStatus === "PLANNED" ||

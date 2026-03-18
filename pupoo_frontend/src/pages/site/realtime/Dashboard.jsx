@@ -1449,6 +1449,21 @@ const resolveProgramVisitorCount = (program) => Math.max(
   ),
 );
 
+const resolveEndedProgramVisitorCount = (program) => Math.max(
+  0,
+  Math.round(
+    getFirstPositiveNumber(
+      program?.checkinCount,
+      program?.checkedInCount,
+      program?.approvedCount,
+      program?.visitorCount,
+      program?.visitCount,
+      program?.attendeeCount,
+      program?.attendanceCount,
+    ),
+  ),
+);
+
 const resolveProgramParticipantCount = (program) => Math.max(
   0,
   Math.round(
@@ -1750,16 +1765,22 @@ const isCheckedInApply = (apply) => {
   return Boolean(apply?.checkedInAt) || status === "CHECKED_IN";
 };
 
+const isApprovedLikeApply = (apply) => {
+  const status = String(apply?.status ?? "").toUpperCase();
+  return status === "APPROVED" || status === "CHECKED_IN";
+};
+
 async function fetchProgramApplyStats(
   programId,
   { scanAll = false, pageSize = 200, maxPages = 100 } = {},
 ) {
-  if (!programId) return { totalApply: 0, checkedIn: 0 };
+  if (!programId) return { totalApply: 0, approved: 0, checkedIn: 0 };
 
   const fetchWithPaging = async (fetchPage) => {
     let page = 0;
     let isLast = false;
     let totalApply = 0;
+    let approved = 0;
     let checkedIn = 0;
     let hasTotalFromPayload = false;
     const size = scanAll ? pageSize : 1;
@@ -1777,8 +1798,19 @@ async function fetchProgramApplyStats(
       }
 
       if (scanAll) {
+        approved += rows.filter((row) => isApprovedLikeApply(row)).length;
         checkedIn += rows.filter((row) => isCheckedInApply(row)).length;
       } else {
+        approved = Math.max(
+          approved,
+          Math.round(
+            getFirstPositiveNumber(
+              payload?.approvedCount,
+              payload?.approveCount,
+              payload?.approvedRegistrationCount,
+            ),
+          ),
+        );
         checkedIn = Math.max(
           checkedIn,
           Math.round(
@@ -1800,6 +1832,7 @@ async function fetchProgramApplyStats(
 
     return {
       totalApply: Math.max(0, Math.round(totalApply)),
+      approved: Math.max(0, Math.round(approved)),
       checkedIn: Math.max(0, Math.round(checkedIn)),
     };
   };
@@ -1816,7 +1849,7 @@ async function fetchProgramApplyStats(
     });
   } catch (error) {
     if (!isUnauthorizedError(error)) {
-      return { totalApply: 0, checkedIn: 0 };
+      return { totalApply: 0, approved: 0, checkedIn: 0 };
     }
   }
 
@@ -1826,7 +1859,7 @@ async function fetchProgramApplyStats(
       return unwrapData(response, {});
     });
   } catch {
-    return { totalApply: 0, checkedIn: 0 };
+    return { totalApply: 0, approved: 0, checkedIn: 0 };
   }
 }
 
@@ -2280,7 +2313,20 @@ function DashboardContent({ eventId }) {
           if (settled?.status !== "fulfilled") return program;
 
           const totalApply = Math.max(0, Math.round(safeNumber(settled.value?.totalApply)));
+          const approved = Math.max(0, Math.round(safeNumber(settled.value?.approved)));
           const checkedIn = Math.max(0, Math.round(safeNumber(settled.value?.checkedIn)));
+          const existingVisitor = Math.max(
+            0,
+            Math.round(
+              getFirstPositiveNumber(
+                program?.visitorCount,
+                program?.visitCount,
+                program?.attendeeCount,
+                program?.attendanceCount,
+              ),
+            ),
+          );
+          const endedVisitorCount = Math.max(checkedIn, approved, existingVisitor);
 
           return {
             ...program,
@@ -2290,11 +2336,20 @@ function DashboardContent({ eventId }) {
             appliedCount: Math.max(totalApply, Math.round(safeNumber(program?.appliedCount))),
             participantCount: Math.max(totalApply, Math.round(safeNumber(program?.participantCount))),
             participants: Math.max(totalApply, Math.round(safeNumber(program?.participants))),
+            approvedCount: Math.max(approved, Math.round(safeNumber(program?.approvedCount))),
+            approvedRegistrationCount: Math.max(
+              approved,
+              Math.round(safeNumber(program?.approvedRegistrationCount)),
+            ),
             checkinCount: Math.max(checkedIn, Math.round(safeNumber(program?.checkinCount))),
+            checkedInCount: Math.max(checkedIn, Math.round(safeNumber(program?.checkedInCount))),
             visitorCount: Math.max(
-              checkedIn,
-              totalApply,
+              endedVisitorCount,
               Math.round(safeNumber(program?.visitorCount)),
+            ),
+            visitCount: Math.max(
+              endedVisitorCount,
+              Math.round(safeNumber(program?.visitCount)),
             ),
           };
         });
@@ -2439,18 +2494,6 @@ function DashboardContent({ eventId }) {
     () => buildDateKeysFromRange(eventDetail?.startAt, eventDetail?.endAt),
     [eventDetail?.endAt, eventDetail?.startAt],
   );
-  const plannedHeuristicBaseScore = useMemo(() => {
-    if (!isPlannedEvent) return 0;
-    return estimatePlannedBaseCongestion({
-      registrationCount: plannedParticipantCount,
-      dayCount: plannedRangeDateKeys.length || 1,
-      programCount: toArray(programRows).length,
-    });
-  }, [isPlannedEvent, plannedParticipantCount, plannedRangeDateKeys.length, programRows]);
-  const plannedHeuristicFloorScore = useMemo(() => {
-    if (!isPlannedEvent || plannedHeuristicBaseScore <= 0) return 0;
-    return safePercent(Math.max(12, Math.round(plannedHeuristicBaseScore * 0.8)));
-  }, [isPlannedEvent, plannedHeuristicBaseScore]);
   const endedRatioCongestion = useMemo(() => {
     if (!isEndedEvent) return 0;
     const approvedCount = Math.max(0, safeNumber(performance?.approved));
@@ -2842,7 +2885,7 @@ function DashboardContent({ eventId }) {
         const dateKey = toDateKey(program?.startAt ?? program?.endAt);
         if (!dateKey) return;
         const demand = Math.max(
-          resolveProgramVisitorCount(program),
+          isEndedEvent ? resolveEndedProgramVisitorCount(program) : resolveProgramVisitorCount(program),
           resolveProgramParticipantCount(program),
         );
         if (!Number.isFinite(demand) || demand <= 0) return;
@@ -2970,6 +3013,9 @@ function DashboardContent({ eventId }) {
       ? forecastDateOptions
       : plannedRangeDateKeys;
     if (dateKeys.length === 0) return [];
+    const fallbackDailyScore = Number.isFinite(Number(eventPrediction?.avgScore))
+      ? safePercent(Number(eventPrediction?.avgScore))
+      : null;
 
     const bucketMap = new Map();
     timeline.forEach((point) => {
@@ -2986,61 +3032,20 @@ function DashboardContent({ eventId }) {
       const bucket = bucketMap.get(dateKey);
       const aiPredicted = bucket && bucket.count > 0
         ? safePercent(Math.round(bucket.sum / bucket.count))
-        : null;
-      const heuristicPredicted = estimatePlannedDayCongestion({
-        dateKey,
-        index,
-        totalDays: dateKeys.length,
-        baseScore: plannedHeuristicBaseScore,
-      });
-      const heuristicFloor = safePercent(
-        Math.max(
-          plannedHeuristicFloorScore,
-          Math.round(heuristicPredicted * 0.85),
-        ),
-      );
-      const predicted = Number.isFinite(aiPredicted)
-        ? safePercent(
-          Math.max(
-            Math.round((aiPredicted * 0.35) + (heuristicPredicted * 0.65)),
-            heuristicFloor,
-          ),
-        )
-        : safePercent(Math.max(heuristicPredicted, heuristicFloor));
+        : fallbackDailyScore;
 
       return {
         dateKey,
         h: String(index).padStart(2, "0"),
         xLabel: formatShortDateKey(dateKey),
-        v: predicted,
-        pct: predicted,
+        v: Number.isFinite(aiPredicted) ? aiPredicted : 0,
+        pct: Number.isFinite(aiPredicted) ? aiPredicted : 0,
         actual: null,
-        predicted,
+        predicted: Number.isFinite(aiPredicted) ? aiPredicted : null,
       };
     });
-    if (rawPoints.length === 0) return rawPoints;
-
-    const targetAverage = safePercent(resolvedCurrentCongestion);
-    const currentAverage = safePercent(
-      Math.round(
-        rawPoints.reduce((sum, point) => sum + safePercent(point?.predicted ?? point?.v), 0) /
-          rawPoints.length,
-      ),
-    );
-    const offset = targetAverage - currentAverage;
-
-    if (offset === 0) return rawPoints;
-
-    return rawPoints.map((point) => {
-      const adjusted = safePercent((point?.predicted ?? point?.v) + offset);
-      return {
-        ...point,
-        v: adjusted,
-        pct: adjusted,
-        predicted: adjusted,
-      };
-    });
-  }, [eventPrediction?.timeline, forecastDateOptions, isPlannedEvent, plannedHeuristicBaseScore, plannedHeuristicFloorScore, plannedRangeDateKeys, resolvedCurrentCongestion]);
+    return rawPoints.filter((point) => Number.isFinite(point?.predicted));
+  }, [eventPrediction?.avgScore, eventPrediction?.timeline, forecastDateOptions, isPlannedEvent, plannedRangeDateKeys]);
 
   const plannedRelaxedDayPoint = useMemo(() => {
     if (!isPlannedEvent || plannedDailyForecastPoints.length === 0) return null;
@@ -3165,7 +3170,7 @@ function DashboardContent({ eventId }) {
         if (!startDate || !endDate) return;
 
         const demand = Math.max(
-          resolveProgramVisitorCount(program),
+          isEndedEvent ? resolveEndedProgramVisitorCount(program) : resolveProgramVisitorCount(program),
           resolveProgramParticipantCount(program),
         );
         if (!Number.isFinite(demand) || demand <= 0) return;
@@ -3450,7 +3455,9 @@ function DashboardContent({ eventId }) {
         const waitCount = Math.max(0, Math.round(rawWaitCount ?? 0));
         const waitMin = Math.max(0, Math.round((aiPredictedWaitMin ?? rawWaitMin) ?? 0));
         const hasWaitInfo = Boolean(program?.experienceWait) || aiPredictedWaitMin !== null;
-        const totalVisitorCount = resolveProgramVisitorCount(program);
+        const totalVisitorCount = isEndedEvent
+          ? resolveEndedProgramVisitorCount(program)
+          : resolveProgramVisitorCount(program);
         const totalParticipantCount = resolveProgramParticipantCount(program);
         const operatingMinutes =
           startDate && endDate && endDate.getTime() > startDate.getTime()
@@ -3629,10 +3636,26 @@ function DashboardContent({ eventId }) {
   const totalParticipants = Math.max(0, safeNumber(performance.approved));
 
   const currentCongestion = resolvedCurrentCongestion;
+  const plannedDailyAverageScore = useMemo(() => {
+    if (!isPlannedEvent) return null;
+    const samples = plannedDailyForecastPoints
+      .map((point) => Number(point?.predicted ?? point?.v))
+      .filter((score) => Number.isFinite(score));
+    if (samples.length === 0) return null;
+    const sum = samples.reduce((acc, score) => acc + score, 0);
+    return safePercent(Math.round(sum / samples.length));
+  }, [isPlannedEvent, plannedDailyForecastPoints]);
+  const plannedLightGbmScore = useMemo(() => {
+    const score = safeNumber(eventPrediction?.avgScore, NaN);
+    if (!Number.isFinite(score) || score <= 0) return null;
+    return safePercent(score);
+  }, [eventPrediction?.avgScore]);
   const plannedAverageCongestion = useMemo(() => {
     if (!isPlannedEvent) return safePercent(currentCongestion);
+    if (Number.isFinite(plannedDailyAverageScore)) return plannedDailyAverageScore;
+    if (Number.isFinite(plannedLightGbmScore)) return plannedLightGbmScore;
     return safePercent(currentCongestion);
-  }, [currentCongestion, isPlannedEvent]);
+  }, [currentCongestion, isPlannedEvent, plannedDailyAverageScore, plannedLightGbmScore]);
 
   const currentTone = useMemo(
     () => resolveCongestionMeta(currentCongestion),
@@ -3716,8 +3739,9 @@ function DashboardContent({ eventId }) {
         label: isPlannedEvent ? "예상 혼잡도" : "현재 혼잡도",
         value: isPlannedEvent ? plannedAverageCongestion : currentCongestion,
         unit: "%",
+        valueTooltip: "",
         sub: isPlannedEvent
-          ? `행사일 전체 예상 혼잡도 평균은 ${plannedAverageCongestion}%예요.`
+          ? "행사 당일에는 다소 혼잡할 수 있어요. 여유 있게 방문해 주세요."
           : congestionSummaryText,
       },
       {
@@ -4086,7 +4110,10 @@ function DashboardContent({ eventId }) {
             {heroStats.map((item) => (
               <div key={item.label} className="rt-hero-kpi">
                 <div className="rt-hero-kpi-label">{item.label}</div>
-                <div className={`rt-hero-kpi-value${item.textOnly ? " text" : ""}`}>
+                <div
+                  className={`rt-hero-kpi-value${item.textOnly ? " text" : ""}`}
+                  title={item.valueTooltip || undefined}
+                >
                   {item.value}
                   {item.unit ? <span className="rt-hero-kpi-unit">{item.unit}</span> : null}
                 </div>
@@ -4302,14 +4329,23 @@ function DashboardContent({ eventId }) {
                 {isEndedEvent ? "행사 전반 평균 혼잡도" : isFutureForecast ? "예상 혼잡도" : "현재 혼잡도"}
               </div>
               <div className="rt-prediction-kpi-value">
-                {isPlannedEvent ? plannedAverageScore : aiCurrentScore}
-                <span className="rt-prediction-kpi-unit">%</span>
+                {isPlannedEvent ? (
+                  <>
+                    {plannedAverageScore}
+                    <span className="rt-prediction-kpi-unit">%</span>
+                  </>
+                ) : (
+                  <>
+                    {aiCurrentScore}
+                    <span className="rt-prediction-kpi-unit">%</span>
+                  </>
+                )}
               </div>
               <div className="rt-prediction-kpi-desc">
                 {isEndedEvent
                   ? aiCurrentTone.sentence
                   : isPlannedEvent
-                    ? `행사일 전체 예상 혼잡도 평균은 ${plannedAverageScore}%예요.`
+                    ? "행사 당일에는 다소 혼잡할 수 있어요. 여유 있게 방문해 주세요."
                     : currentWaitCategory.guideText}
               </div>
               <span

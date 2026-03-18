@@ -1,6 +1,7 @@
 package com.popups.pupoo.ai.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record AiEventPredictionRequest(
         Long eventId,
@@ -19,6 +20,18 @@ public record AiEventPredictionRequest(
         int targetWaitMin,
         double registrationForecastScore,
         double endedBaselineScore,
-        double ongoingBaselineScore
+        double ongoingBaselineScore,
+        double locationDemandScore,
+        String eventLocation,
+        double applicationTrendScore,
+        double applyConversionScore,
+        double queueOperationScore,
+        double zoneDensityScore,
+        double stayTimeScore,
+        double manualCongestionScore,
+        double revisitScore,
+        double voteHeatScore,
+        double paymentIntentScore,
+        List<Double> inputSequence
 ) {
 }

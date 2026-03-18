@@ -25,6 +25,18 @@ class EventPredictionRequest(BaseModel):
     registrationForecastScore: float = Field(default=0.0, ge=0.0, le=100.0)
     endedBaselineScore: float = Field(default=0.0, ge=0.0, le=100.0)
     ongoingBaselineScore: float = Field(default=0.0, ge=0.0, le=100.0)
+    locationDemandScore: float = Field(default=0.0, ge=0.0, le=100.0)
+    eventLocation: str | None = None
+    applicationTrendScore: float = Field(default=50.0, ge=0.0, le=100.0)
+    applyConversionScore: float = Field(default=50.0, ge=0.0, le=100.0)
+    queueOperationScore: float = Field(default=50.0, ge=0.0, le=100.0)
+    zoneDensityScore: float = Field(default=50.0, ge=0.0, le=100.0)
+    stayTimeScore: float = Field(default=50.0, ge=0.0, le=100.0)
+    manualCongestionScore: float = Field(default=50.0, ge=0.0, le=100.0)
+    revisitScore: float = Field(default=50.0, ge=0.0, le=100.0)
+    voteHeatScore: float = Field(default=50.0, ge=0.0, le=100.0)
+    paymentIntentScore: float = Field(default=50.0, ge=0.0, le=100.0)
+    inputSequence: list[float] = Field(default_factory=list)
 
 
 class ProgramPredictionRequest(BaseModel):
@@ -43,6 +55,7 @@ class ProgramPredictionRequest(BaseModel):
     category: str | None = None
     target: str | None = None
     zone: str | None = None
+    inputSequence: list[float] = Field(default_factory=list)
 
 
 class RecommendationProgramInput(BaseModel):
@@ -84,6 +97,7 @@ class PredictionResult(BaseModel):
     predictedLevel: int
     predictedWaitMinutes: int
     confidence: float
+    lstmPredictedAvgScore: float | None = None
     fallbackUsed: bool = False
     timeline: list[TimelinePoint] = Field(default_factory=list)
 
