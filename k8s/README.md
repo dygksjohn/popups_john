@@ -7,7 +7,7 @@ Production shape:
 
 - `frontend`: S3 + CloudFront
 - `backend`: EKS Deployment + Service + ALB Ingress
-- `ai`: EKS Deployment + ClusterIP Service (temporarily exposed through ALB `/ai` for the current admin chatbot)
+- `ai`: EKS Deployment + ClusterIP Service
 - `db`: RDS MySQL
 - `file`: S3
 - `cache`: Redis / ElastiCache
@@ -29,10 +29,9 @@ For frontend-only environment notes, see `docs/frontend_s3_cloudfront_deploy.md`
 
 ### Important note
 
-The current frontend still contains direct AI calls for the admin chatbot path.
-To keep production working, the ingress exposes `/ai` to the AI service today.
-That is a temporary compromise. The safer long-term shape is to move chatbot traffic
-behind the backend or another authenticated server-side gateway and remove the public AI path.
+The admin chatbot now goes through the backend API instead of calling the AI service directly.
+The public `/ai` ingress remains available for current production compatibility, but the preferred
+shape is server-side proxying through authenticated backend routes.
 
 ### Apply order
 

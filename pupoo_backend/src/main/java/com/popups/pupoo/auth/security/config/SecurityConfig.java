@@ -185,9 +185,9 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.PATCH, "/api/galleries/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
             .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
 
-            .requestMatchers("/internal/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
-
             .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+            .requestMatchers("/api/chatbot/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+            .requestMatchers("/internal/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 
             .requestMatchers("/api/users/me/**").hasAnyRole("USER", "SUPER_ADMIN")
             .requestMatchers("/api/payments/**").hasAnyRole("USER", "SUPER_ADMIN")

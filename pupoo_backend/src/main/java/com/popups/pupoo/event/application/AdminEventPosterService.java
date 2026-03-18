@@ -48,7 +48,8 @@ public class AdminEventPosterService {
 
     private static final String STORAGE_BUCKET_UNUSED = "local";
     private static final int POSTER_IMAGE_COUNT = 1;
-    private static final String POSTER_IMAGE_SIZE = "1024x1792";
+    // DALL-E 3 only supports 1024x1024, 1024x1536, and 1536x1024.
+    private static final String POSTER_IMAGE_SIZE = "1024x1536";
     private static final int POSTER_OUTPUT_WIDTH = 400;
     private static final int POSTER_OUTPUT_HEIGHT = 847;
     private static final String[] POSTER_FONT_CANDIDATES = {
@@ -155,6 +156,9 @@ public class AdminEventPosterService {
                     ErrorCode.INTERNAL_ERROR,
                     "AI poster generation failed: " + e.getStatusCode().value()
             );
+        } catch (Exception e) {
+            log.error("AI poster generation request crashed", e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AI poster generation request crashed");
         }
     }
 
