@@ -33,6 +33,95 @@ function normalizeScorePercent(value) {
   return clamp(Math.round(numeric), 0, 100);
 }
 
+function toValidDate(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function estimateUpcomingCongestionPercent(registrations, startAt, endAt) {
+  const totalRegistrations = Math.max(0, Number(registrations) || 0);
+  if (totalRegistrations <= 0) return 0;
+
+  const startDate = toValidDate(startAt);
+  const endDate = toValidDate(endAt);
+  let operationDays = 1;
+
+  if (startDate && endDate && endDate >= startDate) {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    operationDays = Math.max(1, Math.ceil((endDay.getTime() - startDay.getTime() + dayMs) / dayMs));
+  }
+
+  const registrationsPerDay = totalRegistrations / operationDays;
+  const estimated = Math.round((registrationsPerDay / 300) * 100);
+  return clamp(estimated, 5, 85);
+}
+
+export function resolveUnifiedAverageCongestion({
+  status,
+  measuredAverage,
+  hourlyAverage,
+  endedRatio,
+  endedProgramAiAverage,
+  aiAverage,
+  aiFallbackUsed = false,
+  approvedCount = 0,
+  checkinCount = 0,
+  startAt = null,
+  endAt = null,
+} = {}) {
+  const normalizedStatus = String(status ?? "").toUpperCase();
+  const isPlannedEvent =
+    normalizedStatus === "PLANNED" ||
+    normalizedStatus === "PENDING" ||
+    normalizedStatus === "UPCOMING";
+  const isEndedLikeEvent =
+    normalizedStatus === "ENDED" ||
+    normalizedStatus === "CANCELLED";
+
+  const measured = normalizeScorePercent(measuredAverage);
+  const hourly = normalizeScorePercent(hourlyAverage);
+  const ai = normalizeScorePercent(aiAverage);
+  const endedProgramAi = normalizeScorePercent(endedProgramAiAverage);
+
+  const resolvedEndedRatio = (() => {
+    const explicitEndedRatio = Number(endedRatio);
+    if (Number.isFinite(explicitEndedRatio)) {
+      return clamp(Math.round(explicitEndedRatio), 0, 100);
+    }
+
+    const approved = Math.max(0, toNumber(approvedCount, 0));
+    const checkin = Math.max(0, toNumber(checkinCount, 0));
+    if (approved <= 0 && checkin <= 0) return 0;
+
+    const denominator = approved > 0 ? approved : checkin;
+    return clamp(Math.round((checkin / Math.max(denominator, 1)) * 100), 0, 100);
+  })();
+
+  if (isPlannedEvent) {
+    if (ai > 0 && !aiFallbackUsed) {
+      return ai;
+    }
+    return estimateUpcomingCongestionPercent(approvedCount, startAt, endAt);
+  }
+
+  if (isEndedLikeEvent) {
+    if (hourly > 0) return hourly;
+    if (measured > 0) return measured;
+    if (resolvedEndedRatio > 0) return resolvedEndedRatio;
+    if (endedProgramAi > 0) return endedProgramAi;
+    if (ai > 0) return ai;
+    return 0;
+  }
+
+  if (measured > 0) return measured;
+  if (ai > 0) return ai;
+  if (hourly > 0) return hourly;
+  return ai > 0 ? ai : 0;
+}
+
 function resolveLevel(score, level) {
   const explicitLevel = Number(level);
   if ([1, 2, 3, 4, 5].includes(explicitLevel)) return explicitLevel;

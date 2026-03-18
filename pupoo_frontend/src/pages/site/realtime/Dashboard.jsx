@@ -24,6 +24,7 @@ import { aiApi } from "../../../app/http/aiApi";
 import {
   formatKoreanTime,
   normalizePrediction,
+  resolveUnifiedAverageCongestion,
 } from "./aiCongestionViewModel";
 
 const styles = `
@@ -1484,26 +1485,6 @@ const resolveProgramAverageWaitMin = (program) => {
 };
 
 const safePercent = (value) => clamp(Math.round(Number(value) || 0), 0, 100);
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-const estimateUpcomingCongestionPercent = (registrations, startAt, endAt) => {
-  const totalRegistrations = Math.max(0, Number(registrations) || 0);
-  if (totalRegistrations <= 0) return 0;
-
-  const startDate = toValidDate(startAt);
-  const endDate = toValidDate(endAt);
-  let operationDays = 1;
-
-  if (startDate && endDate && endDate >= startDate) {
-    const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-    const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-    operationDays = Math.max(1, Math.ceil((endDay.getTime() - startDay.getTime() + DAY_MS) / DAY_MS));
-  }
-
-  const registrationsPerDay = totalRegistrations / operationDays;
-  const estimated = Math.round((registrationsPerDay / 300) * 100);
-  return Math.max(5, Math.min(85, estimated));
-};
 
 const estimatePlannedBaseCongestion = ({
   registrationCount,
@@ -2498,47 +2479,19 @@ function DashboardContent({ eventId }) {
   }, [isEndedEvent, programRows]);
 
   const resolvedCurrentCongestion = useMemo(() => {
-    const aiAverage = Number(eventPrediction?.avgScore);
-    if (isPlannedEvent) {
-      const canUseAiAverage = Number.isFinite(aiAverage) && aiAverage > 0 && !eventPrediction?.fallbackUsed;
-      if (canUseAiAverage) {
-        return safePercent(aiAverage);
-      }
-      return estimateUpcomingCongestionPercent(
-        plannedParticipantCount,
-        eventDetail?.startAt,
-        eventDetail?.endAt,
-      );
-    }
-    if (isEndedEvent) {
-      // Ended events should show full-event average congestion, not the final snapshot.
-      if (hourlyAverageCongestion > 0) {
-        return hourlyAverageCongestion;
-      }
-      if (measuredCongestions.length > 0) {
-        return safePercent(averageCongestion);
-      }
-      if (endedRatioCongestion > 0) {
-        return endedRatioCongestion;
-      }
-      if (endedProgramAiAverageCongestion > 0) {
-        return endedProgramAiAverageCongestion;
-      }
-      if (Number.isFinite(aiAverage) && aiAverage > 0) {
-        return safePercent(aiAverage);
-      }
-      return 0;
-    }
-    if (measuredCongestions.length > 0) {
-      return safePercent(averageCongestion);
-    }
-    if (Number.isFinite(aiAverage) && aiAverage > 0) {
-      return safePercent(aiAverage);
-    }
-    if (hourlyAverageCongestion > 0) {
-      return hourlyAverageCongestion;
-    }
-    return safePercent(aiAverage || 0);
+    return resolveUnifiedAverageCongestion({
+      status: eventStatus,
+      measuredAverage: measuredCongestions.length > 0 ? averageCongestion : null,
+      hourlyAverage: hourlyAverageCongestion,
+      endedRatio: endedRatioCongestion,
+      endedProgramAiAverage: endedProgramAiAverageCongestion,
+      aiAverage: eventPrediction?.avgScore,
+      aiFallbackUsed: eventPrediction?.fallbackUsed,
+      approvedCount: plannedParticipantCount,
+      checkinCount: performance?.checkin,
+      startAt: eventDetail?.startAt,
+      endAt: eventDetail?.endAt,
+    });
   }, [
     averageCongestion,
     eventPrediction?.avgScore,
@@ -2551,9 +2504,9 @@ function DashboardContent({ eventId }) {
     eventDetail?.endAt,
     eventDetail?.startAt,
     eventPrediction?.fallbackUsed,
+    eventStatus,
+    performance?.checkin,
     plannedParticipantCount,
-    plannedHeuristicBaseScore,
-    plannedHeuristicFloorScore,
   ]);
 
   const forecastDateOptions = useMemo(() => {
