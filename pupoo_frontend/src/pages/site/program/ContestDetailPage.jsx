@@ -174,7 +174,6 @@ export default function ContestDetailPage() {
       setErrorMsg(
         error?.response?.data?.message ||
           error?.response?.data?.error?.message ||
-          error?.message ||
           "콘테스트 상세 정보를 불러오지 못했습니다.",
       );
     } finally {
@@ -243,6 +242,25 @@ export default function ContestDetailPage() {
     navigate(`/program/contest/${eventId}?apply=${programId}`);
   };
 
+  const handleCategoryNavigate = (path) => {
+    if (!eventId) {
+      navigate(path);
+      return;
+    }
+
+    const match = String(path || "").match(/^([^?#]*)(.*)$/);
+    const pathname = (match?.[1] || "").replace(/\/+$/, "");
+    const suffix = match?.[2] || "";
+    const lastSegment = pathname.split("/").filter(Boolean).at(-1);
+
+    if (lastSegment && /^\d+$/.test(lastSegment)) {
+      navigate(`${pathname}${suffix}`);
+      return;
+    }
+
+    navigate(`${pathname}/${eventId}${suffix}`);
+  };
+
   return (
     <div className="cd-root">
       <style>{styles}</style>
@@ -251,7 +269,7 @@ export default function ContestDetailPage() {
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
-        onNavigate={(path) => navigate(eventId ? `${path}/${eventId}` : path)}
+        onNavigate={handleCategoryNavigate}
       />
 
       <main className="cd-container">

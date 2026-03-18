@@ -17,17 +17,31 @@ DEFAULT_THRESHOLD = 75.0
 
 
 def _clamp_score(value: float) -> float:
-    return round(max(0.0, min(100.0, value)), 1)
+    return round(_clamp100(value), 1)
+
+
+def _safe_div(a: float, b: float) -> float:
+    return 0.0 if b <= 0.0 else (a / b)
+
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, value))
+
+
+def _clamp100(value: float) -> float:
+    return max(0.0, min(100.0, value))
 
 
 def _level_from_score(score: float) -> int:
-    if score <= 24.0:
+    if score <= 20.0:
         return 1
-    if score <= 49.0:
+    if score <= 40.0:
         return 2
-    if score <= 74.0:
+    if score <= 60.0:
         return 3
-    return 4
+    if score <= 80.0:
+        return 4
+    return 5
 
 
 def _to_wait_minutes(score: float) -> int:
@@ -129,40 +143,55 @@ def _build_time_points(start_at: datetime, end_at: datetime) -> list[datetime]:
 
 
 def _event_base_score(request: EventPredictionRequest) -> float:
-    total_apply = max(request.activeApplyCount, 1)
+    net_entry_count = max(request.entryCount - request.checkoutCount, 0)
     running_programs = max(request.runningProgramCount, 0)
     total_programs = max(request.totalProgramCount, 1)
 
-    entry_pressure = min(request.entryCount / total_apply, 1.2) / 1.2
-    wait_pressure = min(request.totalWaitCount / total_apply, 1.5) / 1.5
-    wait_density = request.totalWaitCount / max(running_programs, 1)
-    wait_density_pressure = min(wait_density / 30.0, 1.0)
-    wait_time_pressure = min(request.averageWaitMinutes / 40.0, 1.0)
-    operation_rate = running_programs / total_programs
+    capacity_baseline = max(request.capacityBaseline, 1)
+    wait_baseline = max(request.waitBaseline, 1)
+    target_wait_min = max(request.targetWaitMin, 1)
 
-    unit_score = (
-        (entry_pressure * 0.35)
-        + (wait_pressure * 0.25)
-        + (wait_density_pressure * 0.25)
-        + (wait_time_pressure * 0.20)
-        - (operation_rate * 0.05)
+    wait_baseline_per_program = (
+        float(wait_baseline)
+        if running_programs <= 0
+        else max(wait_baseline / max(running_programs, 1), 1.0)
     )
 
-    return _clamp_score(max(0.0, min(1.0, unit_score)) * 100.0)
+    entry_pressure = _clamp01(_safe_div(net_entry_count, max(capacity_baseline * 0.08, 1.0)))
+    wait_pressure = _clamp01(_safe_div(request.totalWaitCount, max(wait_baseline, 1)))
+    avg_wait_per_running_program = _safe_div(request.totalWaitCount, max(running_programs, 1))
+    wait_density_pressure = _clamp01(_safe_div(avg_wait_per_running_program, max(wait_baseline_per_program, 1.0)))
+    wait_time_pressure = _clamp01(_safe_div(request.averageWaitMinutes, max(target_wait_min, 1)))
+    operation_relief = _clamp01(_safe_div(running_programs, max(total_programs, 1)))
+
+    event_unit_score = (
+        (0.22 * entry_pressure)
+        + (0.30 * wait_pressure)
+        + (0.23 * wait_density_pressure)
+        + (0.30 * wait_time_pressure)
+        - (0.05 * operation_relief)
+    )
+
+    return _clamp_score(event_unit_score * 100.0)
 
 
 def _program_base_score(request: ProgramPredictionRequest) -> float:
-    total_apply = max(request.activeApplyCount, 1)
-    checkin_pressure = min(request.checkinCount / total_apply, 1.2) / 1.2
-    queue_pressure = min(request.waitCount / total_apply, 1.5) / 1.5
-    wait_time_pressure = min(request.waitMinutes / 40.0, 1.0)
+    program_capacity = max(request.programCapacity, 1)
+    throughput_per_min = max(request.throughputPerMin, 1.0)
+    target_wait_min = max(request.targetWaitMin, 1)
 
-    unit_score = (
-        (checkin_pressure * 0.30)
-        + (queue_pressure * 0.45)
-        + (wait_time_pressure * 0.25)
+    checkin_pressure = _clamp01(_safe_div(request.checkinCount, max(throughput_per_min, 1.0)))
+    queue_pressure = _clamp01(_safe_div(request.waitCount, max(program_capacity, 1)))
+    wait_time_pressure = _clamp01(_safe_div(request.waitMinutes, max(target_wait_min, 1)))
+    apply_backlog_pressure = _clamp01(_safe_div(request.activeApplyCount, max(program_capacity * 2.0, 1.0)))
+
+    program_unit_score = (
+        (0.20 * checkin_pressure)
+        + (0.40 * queue_pressure)
+        + (0.30 * wait_time_pressure)
+        + (0.10 * apply_backlog_pressure)
     )
-    return _clamp_score(max(0.0, min(1.0, unit_score)) * 100.0)
+    return _clamp_score(program_unit_score * 100.0)
 
 
 def _confidence_from_data(volume: float) -> float:

@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, List } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "../communityConfig";
@@ -15,16 +15,40 @@ const styles = {
   backButton: {
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
     marginBottom: 32,
-    border: "none",
-    background: "none",
-    padding: 0,
+    border: "1px solid #d1d5db",
+    background: "#fff",
+    padding: "10px 20px",
+    borderRadius: 8,
     fontSize: 14,
-    fontWeight: 500,
-    color: "#64748b",
+    fontWeight: 600,
+    color: "#374151",
     cursor: "pointer",
-    transition: "color .15s",
+    transition: "all .15s",
+  },
+  bottomButtons: {
+    display: "flex",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 40,
+    paddingTop: 32,
+    borderTop: "1px solid #e5e7eb",
+  },
+  listButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    border: "1px solid #d1d5db",
+    background: "#fff",
+    padding: "12px 28px",
+    borderRadius: 8,
+    fontSize: 15,
+    fontWeight: 700,
+    color: "#374151",
+    cursor: "pointer",
+    transition: "all .15s",
+    fontFamily: "'Noto Sans KR', sans-serif",
   },
   card: {
     background: "#fff",
@@ -80,7 +104,7 @@ const styles = {
   },
   content: {
     color: "#374151",
-    fontSize: 15.5,
+    fontSize: 17.5,
     lineHeight: 2,
     wordBreak: "keep-all",
   },
@@ -111,17 +135,6 @@ export default function CommunityDetailLayout({
         onNavigate={(path) => navigate(path)}
       />
       <main style={styles.main}>
-        <button
-          type="button"
-          style={styles.backButton}
-          onClick={() => navigate(currentPath)}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#111827"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#64748b"; }}
-        >
-          <ArrowLeft size={16} />
-          목록으로
-        </button>
-
         <article style={styles.card}>
           <header style={styles.head}>
             <div style={styles.badgeRow}>
@@ -152,6 +165,29 @@ export default function CommunityDetailLayout({
           </div>
           {children}
         </article>
+
+        <div style={styles.bottomButtons}>
+          <button
+            type="button"
+            style={styles.listButton}
+            onClick={() => navigate(currentPath)}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6"; e.currentTarget.style.borderColor = "#9ca3af"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#d1d5db"; }}
+          >
+            <List size={18} />
+            목록
+          </button>
+          <button
+            type="button"
+            style={{ ...styles.listButton, background: "#111827", color: "#fff", borderColor: "#111827" }}
+            onClick={() => navigate(-1)}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.85"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+          >
+            <ArrowLeft size={18} />
+            뒤로가기
+          </button>
+        </div>
       </main>
     </>
   );

@@ -1,484 +1,400 @@
-import { useEffect, useRef } from "react";
-import PageHeader from "../components/PageHeader";
-import {
-  QrCode,
-  PawPrint,
-  Map,
-  Trash2,
-  Dog,
-  Syringe,
-  ShieldCheck,
-  Ban,
-  ParkingCircle,
-  Stethoscope,
-  AlertTriangle,
-  Sparkles,
-  ArrowDown,
-} from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
-/* ────────────────────────────────────
-   Scroll reveal
-   ──────────────────────────────────── */
-function useReveal(ref) {
+function useReveal(th = 0.1) {
+  const ref = useRef(null);
+  const [v, setV] = useState(false);
   useEffect(() => {
-    if (!ref.current) return;
-    const els = ref.current.querySelectorAll("[data-reveal]");
-    const ob = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.style.opacity = 1;
-            e.target.style.transform = "translateY(0) scale(1)";
-            ob.unobserve(e.target);
-          }
-        }),
-      { threshold: 0.12 },
-    );
-    els.forEach((el) => ob.observe(el));
-    return () => ob.disconnect();
-  }, [ref]);
+    const el = ref.current;
+    if (!el) return;
+    const o = new IntersectionObserver(([e]) => { if (e.isIntersecting) setV(true); }, { threshold: th });
+    o.observe(el);
+    return () => o.disconnect();
+  }, [th]);
+  return { ref, v };
 }
 
-/* ────────────────────────────────────
-   3D Badge component
-   ──────────────────────────────────── */
-function Badge3D({ Icon, bg, color, shadow, size = 120, iconSize = 52, float = true, className = "" }) {
+function F({ children, delay = 0 }) {
+  const { ref, v } = useReveal();
   return (
-    <div
-      className={`badge3d ${float ? "badge3d-float" : ""} ${className}`}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size * 0.3,
-        background: bg,
-        boxShadow: `0 ${size * 0.06}px ${size * 0.25}px ${shadow}, 0 ${size * 0.02}px ${size * 0.06}px rgba(0,0,0,.04), inset 0 -${size * 0.03}px ${size * 0.06}px rgba(0,0,0,.06), inset 0 ${size * 0.03}px ${size * 0.06}px rgba(255,255,255,.5)`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
-        transform: "perspective(600px) rotateX(6deg) rotateY(-4deg)",
-        flexShrink: 0,
-      }}
-    >
-      <Icon size={iconSize} style={{ color, position: "relative", zIndex: 1 }} strokeWidth={1.8} />
-      <div style={{
-        position: "absolute", inset: 0, borderRadius: size * 0.3,
-        background: "linear-gradient(135deg, rgba(255,255,255,.35) 0%, transparent 50%)",
-        pointerEvents: "none",
-      }} />
+    <div ref={ref} style={{
+      opacity: v ? 1 : 0, transform: v ? "none" : "translateY(40px)",
+      transition: `opacity .9s ease ${delay}s, transform .9s ease ${delay}s`,
+    }}>{children}</div>
+  );
+}
+
+/* Horizontal scroll gallery: vertical scroll → horizontal translateX
+   outer has tall height so page scrolls through it.
+   inner is sticky (pinned to viewport). translateX moves the track. */
+function HScrollGallery({ images }) {
+  const outerRef = useRef(null);
+  const trackRef = useRef(null);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    const update = () => {
+      const outer = outerRef.current;
+      const track = trackRef.current;
+      if (!outer || !track) return;
+      const rect = outer.getBoundingClientRect();
+      const scrollRange = outer.offsetHeight - window.innerHeight;
+      if (scrollRange <= 0) return;
+      const progress = Math.min(Math.max(-rect.top / scrollRange, 0), 1);
+      const maxShift = track.scrollWidth - window.innerWidth;
+      track.style.transform = `translateX(${-progress * Math.max(maxShift, 0)}px)`;
+    };
+
+    const onScroll = () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(update);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    update();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  /* outer height: 100vh viewport + extra to scroll through all cards */
+  const totalCards = images.length;
+  const outerH = `${100 + totalCards * 18}vh`;
+
+  return (
+    <div ref={outerRef} className="op-hscroll-outer" style={{ height: outerH }}>
+      <div className="op-hscroll-sticky">
+        <div ref={trackRef} className="op-hscroll-track">
+          {images.map((img, i) => (
+            <div key={i} className="op-hscroll-card">
+              <div className="op-hscroll-img" style={{ background: img.bg }}>
+                {img.label && <span>{img.label}</span>}
+              </div>
+              {img.caption && <div className="op-hscroll-caption">{img.caption}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
-/* ────────────────────────────────────
-   Data
-   ──────────────────────────────────── */
+const css = `
+.op{color:#1d1d1f;margin-top:80px;font-family:inherit;overflow-x:clip}
+
+/* ── HERO (white) ── */
+.op-hero{
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;
+  padding:120px 24px;
+  background:#fff;
+}
+.op-hero-over{
+  font-size:17px;font-weight:600;color:#6e6e73;
+  letter-spacing:-.01em;margin-bottom:16px;
+}
+.op-hero h1{
+  font-size:clamp(48px,8vw,96px);font-weight:900;
+  letter-spacing:-.04em;line-height:1.05;margin:0;
+  color:#1d1d1f;
+}
+.op-hero p{
+  font-size:clamp(17px,2vw,21px);font-weight:400;
+  color:#86868b;line-height:1.5;margin:20px 0 0;
+  max-width:500px;
+}
+.op-scroll-hint{
+  margin-top:48px;display:flex;flex-direction:column;align-items:center;gap:8px;
+  animation:op-bounce 2s ease infinite;
+}
+.op-scroll-hint span{font-size:13px;font-weight:500;color:#aeaeb2;letter-spacing:.02em}
+.op-scroll-hint svg{color:#aeaeb2}
+@keyframes op-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+
+/* ── DARK SECTION ── */
+.op-dark{
+  background:#000;color:#f5f5f7;
+}
+
+/* ── HORIZONTAL SCROLL GALLERY ── */
+.op-hscroll-outer{
+  position:relative;
+}
+.op-hscroll-sticky{
+  position:sticky;top:0;
+  height:100vh;
+  display:flex;align-items:center;
+  overflow:hidden;
+}
+.op-hscroll-track{
+  display:flex;gap:24px;
+  padding:0 clamp(24px,5vw,80px);
+  will-change:transform;
+  transition:transform .15s cubic-bezier(.25,.1,.25,1);
+}
+.op-hscroll-card{
+  flex-shrink:0;
+  width:clamp(320px,42vw,620px);
+}
+.op-hscroll-img{
+  width:100%;
+  height:clamp(360px,48vw,560px);
+  border-radius:20px;
+  overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;color:#666;font-weight:500;
+}
+.op-hscroll-caption{
+  margin-top:16px;
+  font-size:clamp(13px,1.1vw,15px);
+  color:#86868b;line-height:1.6;
+  max-width:90%;
+}
+
+/* ── SECTION: text block on dark ── */
+.op-section{
+  max-width:980px;margin:0 auto;
+  padding:clamp(100px,14vw,180px) clamp(24px,5vw,80px);
+  text-align:center;
+}
+.op-section h2{
+  font-size:clamp(40px,6vw,80px);font-weight:900;
+  letter-spacing:-.04em;line-height:1.08;margin:0 0 24px;
+  color:#f5f5f7;
+}
+.op-section .op-sub{
+  font-size:clamp(15px,1.6vw,19px);font-weight:400;
+  color:#86868b;line-height:1.7;margin:0 auto;
+  max-width:600px;
+}
+.op-section .op-sub strong{color:#f5f5f7;font-weight:600}
+
+/* ── STATS ROW ── */
+.op-stats{
+  max-width:980px;margin:0 auto;
+  padding:0 clamp(24px,5vw,80px) clamp(80px,10vw,140px);
+  display:flex;justify-content:center;gap:clamp(32px,6vw,80px);
+  flex-wrap:wrap;
+}
+.op-stat{text-align:center}
+.op-stat-label{
+  font-size:13px;font-weight:500;color:#86868b;
+  margin-bottom:8px;letter-spacing:.02em;
+}
+.op-stat-val{
+  font-size:clamp(36px,5vw,64px);font-weight:900;
+  letter-spacing:-.04em;color:#f5f5f7;line-height:1.1;
+}
+.op-stat-desc{
+  font-size:clamp(13px,1.1vw,15px);font-weight:400;
+  color:#86868b;line-height:1.5;margin-top:8px;
+  max-width:200px;
+}
+
+/* ── STEPS (dark cards) ── */
+.op-steps{
+  max-width:1120px;margin:0 auto;
+  padding:0 clamp(24px,5vw,80px) clamp(80px,10vw,140px);
+  display:grid;grid-template-columns:1fr 1fr;gap:20px;
+}
+.op-step{
+  background:#1d1d1f;border-radius:24px;
+  padding:clamp(36px,4vw,52px) clamp(32px,3vw,44px);
+}
+.op-step-num{
+  font-size:12px;font-weight:600;color:#86868b;
+  letter-spacing:.08em;margin-bottom:16px;text-transform:uppercase;
+}
+.op-step-title{
+  font-size:clamp(24px,2.8vw,36px);font-weight:800;
+  letter-spacing:-.03em;color:#f5f5f7;margin-bottom:12px;
+}
+.op-step-desc{
+  font-size:clamp(14px,1.2vw,17px);font-weight:400;
+  color:#86868b;line-height:1.7;
+}
+
+/* ── RULES ── */
+.op-rules{
+  max-width:980px;margin:0 auto;
+  padding:clamp(80px,10vw,160px) clamp(24px,5vw,80px);
+}
+.op-rules h2{
+  font-size:clamp(40px,6vw,72px);font-weight:900;
+  letter-spacing:-.04em;margin:0 0 clamp(40px,5vw,72px);
+  color:#f5f5f7;text-align:center;
+}
+.op-rule{
+  padding:clamp(20px,2.5vw,32px) 0;
+  border-top:1px solid #333;
+  display:flex;gap:clamp(20px,4vw,56px);align-items:baseline;
+}
+.op-rule:last-child{border-bottom:1px solid #333}
+.op-rule-t{
+  font-size:clamp(16px,1.4vw,21px);font-weight:700;
+  color:#f5f5f7;min-width:clamp(120px,14vw,200px);flex-shrink:0;
+}
+.op-rule-d{
+  font-size:clamp(14px,1.2vw,17px);font-weight:400;
+  color:#86868b;line-height:1.7;
+}
+
+/* ── NOTICE ── */
+.op-notice{
+  max-width:980px;margin:0 auto;
+  padding:0 clamp(24px,5vw,80px) clamp(100px,14vw,200px);
+  text-align:center;
+}
+.op-notice p{
+  font-size:clamp(14px,1.2vw,17px);font-weight:400;
+  color:#555;line-height:1.8;max-width:500px;margin:0 auto;
+}
+
+@media(max-width:734px){
+  .op-steps{grid-template-columns:1fr}
+  .op-stats{gap:24px}
+  .op-rule{flex-direction:column;gap:6px}
+  .op-rule-t{min-width:0}
+  .op-hscroll-card{width:80vw}
+}
+`;
+
+const GALLERY_1 = [
+  { bg: "linear-gradient(135deg,#1a1a2e 0%,#16213e 100%)", label: "QR 체크인 현장", caption: "QR 코드 하나로 빠르게 입장. 모바일과 출력물 모두 가능합니다." },
+  { bg: "linear-gradient(135deg,#0f3460 0%,#533483 100%)", label: "접종 서류 확인", caption: "등록증과 접종 증명서를 현장에서 빠르게 확인합니다." },
+  { bg: "linear-gradient(135deg,#2c3e50 0%,#3498db 100%)", label: "부스 프로그램", caption: "다양한 부스와 프로그램에 자유롭게 참여하세요." },
+  { bg: "linear-gradient(135deg,#1a1a2e 0%,#e94560 100%)", label: "반려동물 놀이터", caption: "안전한 공간에서 반려동물과 함께 즐기세요." },
+];
+
+const GALLERY_2 = [
+  { bg: "linear-gradient(135deg,#2d3436 0%,#636e72 100%)", label: "안전 관리", caption: "목줄과 하네스 착용은 필수입니다." },
+  { bg: "linear-gradient(135deg,#0c0c0c 0%,#434343 100%)", label: "응급 부스", caption: "응급 상황 대비 부스가 상시 운영됩니다." },
+  { bg: "linear-gradient(135deg,#1e272e 0%,#57606f 100%)", label: "클린 존", caption: "배변 봉투 무료 제공. 깨끗한 현장을 함께 만들어요." },
+  { bg: "linear-gradient(135deg,#2c2c54 0%,#474787 100%)", label: "안내 데스크", caption: "궁금한 점은 안내 스태프에게 문의하세요." },
+];
+
 const STEPS = [
-  {
-    Icon: QrCode, bg: "#EEF1FF", color: "#4F6AFF", shadow: "rgba(79,106,255,.22)",
-    img: "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&h=600&fit=crop",
-    title: "QR 코드 제시",
-    desc: "신청 완료 후 발급된 QR 코드를 준비해 주세요.\n입장 게이트에서 스태프에게 QR을 보여주시면 빠르게 입장하실 수 있습니다.",
-  },
-  {
-    Icon: PawPrint, bg: "#FFF3E0", color: "#F59E0B", shadow: "rgba(245,158,11,.22)",
-    img: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=800&h=600&fit=crop",
-    title: "반려동물 등록 확인",
-    desc: "현장 데스크에서 반려동물 등록증 또는 예방접종 증명서를 확인합니다.\n서류가 준비되지 않으면 입장이 제한될 수 있으니 꼭 지참해 주세요.",
-  },
-  {
-    Icon: Map, bg: "#ECFDF5", color: "#10B981", shadow: "rgba(16,185,129,.22)",
-    img: "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&h=600&fit=crop",
-    title: "프로그램 참여",
-    desc: "안내 지도를 수령한 후 원하시는 부스 및 프로그램에 자유롭게 참여하세요.\n다양한 체험과 이벤트가 준비되어 있습니다!",
-  },
-  {
-    Icon: Trash2, bg: "#F3F0FF", color: "#8B5CF6", shadow: "rgba(139,92,246,.22)",
-    img: "https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=800&h=600&fit=crop",
-    title: "매너 있는 관람",
-    desc: "반려동물 배변 봉투는 현장에서 무료 제공됩니다.\n지정 배변 구역을 이용해 깨끗한 행사장을 함께 만들어 주세요.",
-  },
+  { title: "QR 코드 제시", desc: "발급된 QR을 게이트에서 보여주세요.\n모바일과 출력물 모두 가능합니다." },
+  { title: "서류 확인", desc: "등록증과 접종 증명서를 확인합니다.\n미지참 시 입장이 불가합니다." },
+  { title: "프로그램 참여", desc: "부스와 프로그램에 자유롭게 참여하세요.\n부스 지도는 현장에서 배부합니다." },
+  { title: "매너 관람", desc: "배변 봉투를 무료 제공합니다.\n깨끗한 현장을 함께 만들어 주세요." },
 ];
 
 const RULES = [
-  { Icon: Dog, bg: "#EEF1FF", color: "#4F6AFF", shadow: "rgba(79,106,255,.22)", title: "동반 가능 동물", desc: "개, 고양이, 소형 소동물 (케이지 지참 시)\n공격성 있는 동물은 입장이 제한됩니다." },
-  { Icon: Syringe, bg: "#ECFDF5", color: "#10B981", shadow: "rgba(16,185,129,.22)", title: "필수 서류", desc: "광견병 등 기본 예방접종 완료 증명서\n미지참 시 현장 입장이 거부될 수 있습니다." },
-  { Icon: ShieldCheck, bg: "#EEF2FF", color: "#6366F1", shadow: "rgba(99,102,241,.22)", title: "목줄 / 하네스", desc: "행사장 내 모든 반려동물은\n항상 목줄 또는 하네스를 착용해야 합니다." },
-  { Icon: Ban, bg: "#FEF2F2", color: "#EF4444", shadow: "rgba(239,68,68,.22)", title: "금지 사항", desc: "타인 동물 무단 접촉, 무단 급여\n지정 구역 외 배변은 금지됩니다." },
-  { Icon: ParkingCircle, bg: "#F3F0FF", color: "#8B5CF6", shadow: "rgba(139,92,246,.22)", title: "주차 안내", desc: "주차 공간이 제한적입니다.\n대중교통 이용을 권장합니다." },
-  { Icon: Stethoscope, bg: "#F0FDFA", color: "#14B8A6", shadow: "rgba(20,184,166,.22)", title: "응급 처치", desc: "동물 응급 처치 부스 운영\n긴급 시 안내 데스크로 문의하세요." },
+  { t: "동반 가능 동물", d: "개 · 고양이 · 소형 소동물 (케이지 지참)" },
+  { t: "필수 서류", d: "예방접종 완료 증명서 · 미지참 시 입장 불가" },
+  { t: "목줄 / 하네스", d: "행사장 내 항상 착용 필수" },
+  { t: "금지 사항", d: "무단 접촉 · 무단 급여 · 구역 외 배변" },
+  { t: "주차", d: "주차 공간 제한 · 대중교통 권장" },
+  { t: "응급 처치", d: "응급 부스 상시 운영 · 안내 데스크 문의" },
 ];
 
-/* ────────────────────────────────────
-   Styles
-   ──────────────────────────────────── */
-const css = `
-  .gop *{box-sizing:border-box}
-  .gop{
-    font-family:'Pretendard Variable','Pretendard',-apple-system,sans-serif;
-    overflow:hidden;
-  }
-
-  /* 3D badge float */
-  @keyframes badgeFloat{
-    0%,100%{transform:perspective(600px) rotateX(6deg) rotateY(-4deg) translateY(0)}
-    50%{transform:perspective(600px) rotateX(6deg) rotateY(-4deg) translateY(-12px)}
-  }
-  .badge3d-float{animation:badgeFloat 4s ease-in-out infinite}
-
-  /* ── HERO ── */
-  .gop-hero{
-    background:linear-gradient(160deg,#EEF1FF 0%,#F5F0FF 40%,#FFF8EB 100%);
-    padding:80px 32px 96px;
-    text-align:center;
-    position:relative;
-    overflow:hidden;
-  }
-  .gop-hero-deco1{
-    position:absolute;width:500px;height:500px;border-radius:50%;
-    background:radial-gradient(circle,rgba(79,106,255,.08) 0%,transparent 65%);
-    top:-200px;left:-100px;pointer-events:none;
-  }
-  .gop-hero-deco2{
-    position:absolute;width:400px;height:400px;border-radius:50%;
-    background:radial-gradient(circle,rgba(245,158,11,.06) 0%,transparent 65%);
-    bottom:-150px;right:-80px;pointer-events:none;
-  }
-  .gop-hero-badges{
-    display:flex;justify-content:center;gap:24px;
-    margin-bottom:40px;position:relative;z-index:1;
-  }
-  .gop-hero h2{
-    font-size:36px;font-weight:900;color:#111;
-    line-height:1.45;margin:0 0 16px;letter-spacing:-.5px;
-    position:relative;z-index:1;
-  }
-  .gop-hero h2 em{
-    font-style:normal;
-    background:linear-gradient(135deg,#4F6AFF,#8B5CF6);
-    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-    background-clip:text;
-  }
-  .gop-hero-sub{
-    font-size:16px;color:#6B7280;line-height:1.7;margin:0 0 36px;
-    position:relative;z-index:1;
-  }
-  .gop-scroll-hint{
-    display:inline-flex;flex-direction:column;align-items:center;gap:6px;
-    font-size:12px;font-weight:700;color:#b0b5c3;letter-spacing:1px;
-    text-transform:uppercase;position:relative;z-index:1;
-  }
-  @keyframes bounceDown{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
-  .gop-scroll-hint svg{animation:bounceDown 1.8s ease-in-out infinite}
-
-  /* ── STEP SECTION (alternating) ── */
-  .gop-step{
-    display:flex;align-items:center;gap:64px;
-    max-width:1400px;margin:0 auto;
-    padding:88px 32px;
-  }
-  .gop-step.reverse{flex-direction:row-reverse}
-  .gop-step-visual{
-    flex:0 0 46%;position:relative;
-  }
-  .gop-step-img{
-    width:100%;aspect-ratio:4/3;
-    border-radius:28px;
-    object-fit:cover;
-    box-shadow:0 24px 64px rgba(0,0,0,.10),0 4px 16px rgba(0,0,0,.04);
-  }
-  .gop-step-badge{
-    position:absolute;
-    bottom:-28px;right:-20px;
-    z-index:2;
-    filter:drop-shadow(0 8px 24px rgba(0,0,0,.10));
-  }
-  .gop-step.reverse .gop-step-badge{
-    right:auto;left:-20px;
-  }
-  .gop-step-body{flex:1;min-width:0}
-  .gop-step-num{
-    display:inline-flex;align-items:center;gap:8px;
-    font-size:13px;font-weight:800;letter-spacing:2px;
-    text-transform:uppercase;
-    margin-bottom:16px;padding:6px 16px;
-    border-radius:999px;
-  }
-  .gop-step-title{
-    font-size:28px;font-weight:900;color:#111;
-    margin:0 0 16px;letter-spacing:-.3px;line-height:1.35;
-  }
-  .gop-step-desc{
-    font-size:16px;color:#6B7280;line-height:1.85;
-    white-space:pre-line;
-  }
-
-  /* step bg alternation */
-  .gop-step-wrap:nth-child(odd){background:#fff}
-  .gop-step-wrap:nth-child(even){background:#F8F9FC}
-
-  /* ── RULES SECTION ── */
-  .gop-rules{
-    background:linear-gradient(180deg,#F8F9FC 0%,#fff 100%);
-    padding:88px 32px;
-  }
-  .gop-rules-inner{max-width:1400px;margin:0 auto}
-  .gop-rules-head{text-align:center;margin-bottom:56px}
-  .gop-rules-tag{
-    display:inline-flex;align-items:center;gap:6px;
-    font-size:12px;font-weight:800;letter-spacing:1.5px;
-    text-transform:uppercase;color:#4F6AFF;
-    background:#EEF1FF;border-radius:999px;
-    padding:8px 20px;margin-bottom:16px;
-  }
-  .gop-rules-title{
-    font-size:32px;font-weight:900;color:#111;
-    line-height:1.4;margin:0;letter-spacing:-.3px;
-  }
-  .gop-rules-title em{
-    font-style:normal;
-    background:linear-gradient(135deg,#4F6AFF,#8B5CF6);
-    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-    background-clip:text;
-  }
-  .gop-rules-grid{
-    display:grid;grid-template-columns:repeat(3,1fr);
-    gap:24px;
-  }
-  .gop-rcard{
-    background:#fff;
-    border-radius:28px;
-    padding:36px 28px 32px;
-    text-align:center;
-    border:1px solid #f0f0f0;
-    transition:all .4s cubic-bezier(.16,1,.3,1);
-  }
-  .gop-rcard:hover{
-    transform:translateY(-10px);
-    box-shadow:0 24px 56px rgba(0,0,0,.08);
-    border-color:transparent;
-  }
-  .gop-rcard .badge3d{
-    margin:0 auto 24px;
-  }
-  .gop-rcard:hover .badge3d{
-    animation-play-state:paused;
-    transform:perspective(600px) rotateX(0) rotateY(0) scale(1.05);
-  }
-  .gop-rcard-title{
-    font-size:18px;font-weight:800;color:#111;
-    margin-bottom:12px;
-  }
-  .gop-rcard-desc{
-    font-size:14px;color:#6B7280;line-height:1.75;
-    white-space:pre-line;
-  }
-
-  /* ── NOTICE ── */
-  .gop-alert{
-    max-width:1400px;margin:0 auto;
-    padding:0 32px 88px;
-  }
-  .gop-alert-box{
-    background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);
-    border-radius:28px;
-    padding:44px 48px;
-    display:flex;align-items:center;gap:28px;
-    position:relative;overflow:hidden;
-  }
-  .gop-alert-box::before{
-    content:'';position:absolute;
-    width:300px;height:300px;border-radius:50%;
-    background:radial-gradient(circle,rgba(251,191,36,.12) 0%,transparent 65%);
-    top:-100px;right:-60px;pointer-events:none;
-  }
-  .gop-alert-icon{
-    width:64px;height:64px;border-radius:20px;
-    background:rgba(251,191,36,.12);
-    display:flex;align-items:center;justify-content:center;
-    flex-shrink:0;color:#FBBF24;
-  }
-  .gop-alert-body{flex:1}
-  .gop-alert-title{font-size:18px;font-weight:800;color:#fff;margin-bottom:10px}
-  .gop-alert-text{font-size:15px;color:rgba(255,255,255,.5);line-height:1.85}
-
-  /* ── RESPONSIVE ── */
-  @media(max-width:860px){
-    .gop-hero h2{font-size:28px}
-    .gop-hero-badges .badge3d{width:80px!important;height:80px!important;border-radius:24px!important}
-    .gop-hero-badges .badge3d svg{width:36px!important;height:36px!important}
-    .gop-step{flex-direction:column!important;gap:36px;padding:56px 24px}
-    .gop-step-visual{flex:none;width:100%}
-    .gop-step-badge{bottom:-20px;right:8px!important;left:auto!important}
-    .gop-step-badge .badge3d{width:72px!important;height:72px!important;border-radius:22px!important}
-    .gop-step-badge .badge3d svg{width:32px!important;height:32px!important}
-    .gop-step-title{font-size:24px}
-    .gop-rules{padding:56px 24px}
-    .gop-rules-title{font-size:26px}
-    .gop-rules-grid{grid-template-columns:repeat(2,1fr);gap:16px}
-    .gop-alert{padding:0 24px 56px}
-    .gop-alert-box{padding:32px 28px;flex-direction:column;align-items:flex-start;gap:20px}
-  }
-  @media(max-width:560px){
-    .gop-hero{padding:56px 20px 64px}
-    .gop-hero h2{font-size:24px}
-    .gop-hero-badges{gap:16px}
-    .gop-hero-badges .badge3d{width:64px!important;height:64px!important;border-radius:20px!important}
-    .gop-hero-badges .badge3d svg{width:28px!important;height:28px!important}
-    .gop-step{padding:40px 20px}
-    .gop-step-title{font-size:22px}
-    .gop-step-desc{font-size:15px}
-    .gop-rules-grid{grid-template-columns:1fr;gap:14px}
-    .gop-rules-title{font-size:22px}
-    .gop-alert{padding:0 20px 48px}
-    .gop-alert-box{padding:28px 24px}
-  }
-`;
-
-/* ────────────────────────────────────
-   Reveal helper
-   ──────────────────────────────────── */
-const rv = (delay = 0) => ({
-  "data-reveal": true,
-  style: {
-    opacity: 0,
-    transform: "translateY(48px) scale(.96)",
-    transition: `opacity .75s cubic-bezier(.16,1,.3,1) ${delay}s, transform .75s cubic-bezier(.16,1,.3,1) ${delay}s`,
-  },
-});
-
-/* ────────────────────────────────────
-   Page
-   ──────────────────────────────────── */
 export default function Operation() {
-  const rootRef = useRef(null);
-  useReveal(rootRef);
-
   return (
-    <div>
-      <PageHeader
-        title="현장 운영 안내"
-        subtitle="원활하고 즐거운 행사 참여를 위해 아래 안내 사항을 미리 확인해 주세요"
-        categories={[{ label: "현장 운영 안내", path: "/guide/operation" }]}
-        currentPath="/guide/operation"
-      />
+    <div className="op">
+      <style>{css}</style>
 
-      <div className="gop" ref={rootRef}>
-        <style>{css}</style>
-
-        {/* ════════ HERO ════════ */}
-        <section className="gop-hero">
-          <div className="gop-hero-deco1" />
-          <div className="gop-hero-deco2" />
-
-          <div {...rv(0)}>
-            <div className="gop-hero-badges">
-              <Badge3D Icon={QrCode} bg="#EEF1FF" color="#4F6AFF" shadow="rgba(79,106,255,.25)" size={100} iconSize={44} />
-              <Badge3D Icon={PawPrint} bg="#FFF3E0" color="#F59E0B" shadow="rgba(245,158,11,.25)" size={110} iconSize={48} />
-              <Badge3D Icon={Map} bg="#ECFDF5" color="#10B981" shadow="rgba(16,185,129,.25)" size={100} iconSize={44} />
-            </div>
+      {/* ── HERO (white) ── */}
+      <section className="op-hero">
+        <F>
+          <div className="op-hero-over">현장 운영 안내</div>
+          <h1>입장부터<br />퇴장까지</h1>
+          <p>반려동물과 함께하는 행사, 알아야 할 모든 것을 준비했습니다.</p>
+          <div className="op-scroll-hint">
+            <span>Scroll</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
           </div>
+        </F>
+      </section>
 
-          <div {...rv(0.15)}>
-            <h2>
-              한눈에 살펴보세요!<br />
-              <em>현장 운영 안내</em> 모음 zip.
-            </h2>
-            <p className="gop-hero-sub">
-              입장부터 퇴장까지, 즐겁고 안전한 행사 참여를 위한 가이드입니다.
+      {/* ── DARK ZONE ── */}
+      <div className="op-dark">
+
+        {/* ── SECTION 1 ── */}
+        <section className="op-section">
+          <F>
+            <h2>간편한 입장.<br />빠른 체크인.</h2>
+            <p className="op-sub">
+              QR 코드 하나로 빠르게 입장하고, 다양한 프로그램에 자유롭게 참여하세요.<br />
+              <strong> 4단계 절차</strong>로 누구나 쉽고 빠르게 입장할 수 있습니다.
             </p>
-          </div>
-
-          <div {...rv(0.3)} className="gop-scroll-hint">
-            scroll
-            <ArrowDown size={16} />
-          </div>
+          </F>
         </section>
 
-        {/* ════════ ENTRY STEPS (alternating image + text) ════════ */}
-        {STEPS.map((step, i) => (
-          <div key={i} className="gop-step-wrap">
-            <div className={`gop-step ${i % 2 === 1 ? "reverse" : ""}`}>
-              <div className="gop-step-visual" {...rv(0)}>
-                <img
-                  className="gop-step-img"
-                  src={step.img}
-                  alt={step.title}
-                  loading="lazy"
-                  onError={(e) => { e.target.style.background = "#e5e7eb"; }}
-                />
-                <div className="gop-step-badge">
-                  <Badge3D
-                    Icon={step.Icon}
-                    bg={step.bg}
-                    color={step.color}
-                    shadow={step.shadow}
-                    size={88}
-                    iconSize={40}
-                  />
-                </div>
-              </div>
-              <div className="gop-step-body" {...rv(0.12)}>
-                <div
-                  className="gop-step-num"
-                  style={{ background: step.bg, color: step.color }}
-                >
-                  <Sparkles size={13} />
-                  Step {i + 1}
-                </div>
-                <h3 className="gop-step-title">{step.title}</h3>
-                <p className="gop-step-desc">{step.desc}</p>
-              </div>
-            </div>
-          </div>
-        ))}
+        {/* ── HORIZONTAL SCROLL GALLERY 1 ── */}
+        <HScrollGallery images={GALLERY_1} />
 
-        {/* ════════ RULES GRID ════════ */}
-        <section className="gop-rules">
-          <div className="gop-rules-inner">
-            <div className="gop-rules-head" {...rv(0)}>
-              <div className="gop-rules-tag">
-                <ShieldCheck size={13} /> Guide
+        {/* ── STATS ── */}
+        <div className="op-stats">
+          <F delay={0}>
+            <div className="op-stat">
+              <div className="op-stat-label">입장 소요</div>
+              <div className="op-stat-val">30초</div>
+              <div className="op-stat-desc">QR 스캔으로<br />빠른 게이트 통과</div>
+            </div>
+          </F>
+          <F delay={0.1}>
+            <div className="op-stat">
+              <div className="op-stat-label">운영</div>
+              <div className="op-stat-val">4단계</div>
+              <div className="op-stat-desc">간편한 절차로<br />누구나 쉬운 입장</div>
+            </div>
+          </F>
+          <F delay={0.2}>
+            <div className="op-stat">
+              <div className="op-stat-label">현장 지원</div>
+              <div className="op-stat-val">상시</div>
+              <div className="op-stat-desc">응급 부스 및<br />안내 데스크 운영</div>
+            </div>
+          </F>
+        </div>
+
+        {/* ── STEPS ── */}
+        <div className="op-steps">
+          {STEPS.map((s, i) => (
+            <F key={i} delay={i * 0.08}>
+              <div className="op-step">
+                <div className="op-step-num">STEP {String(i + 1).padStart(2, "0")}</div>
+                <div className="op-step-title">{s.title}</div>
+                <div className="op-step-desc" style={{ whiteSpace: "pre-line" }}>{s.desc}</div>
               </div>
-              <h3 className="gop-rules-title">
-                <em>운영 가이드</em>를 확인하고<br />
-                즐겁게 참여하세요!
-              </h3>
-            </div>
-            <div className="gop-rules-grid">
-              {RULES.map((r, i) => (
-                <div key={r.title} className="gop-rcard" {...rv(0.06 * (i % 3))}>
-                  <Badge3D
-                    Icon={r.Icon}
-                    bg={r.bg}
-                    color={r.color}
-                    shadow={r.shadow}
-                    size={96}
-                    iconSize={42}
-                  />
-                  <div className="gop-rcard-title">{r.title}</div>
-                  <div className="gop-rcard-desc">{r.desc}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+            </F>
+          ))}
+        </div>
+
+        {/* ── SECTION 2 ── */}
+        <section className="op-section">
+          <F>
+            <h2>확인 사항.<br />꼭 지켜주세요.</h2>
+            <p className="op-sub">
+              반려동물과 모든 참가자가<br /> <strong> 안전하고 즐거운 행사 </strong>를 만들기 위해
+              아래 규정을 반드시 확인해 주세요.
+            </p>
+          </F>
         </section>
 
-        {/* ════════ NOTICE ════════ */}
-        <section className="gop-alert">
-          <div className="gop-alert-box" {...rv(0)}>
-            <div className="gop-alert-icon">
-              <AlertTriangle size={28} />
-            </div>
-            <div className="gop-alert-body">
-              <div className="gop-alert-title">운영자 안내</div>
-              <div className="gop-alert-text">
-                행사장 내 안내 스태프의 지시에 따라 주시기 바랍니다.
-                반복적인 규정 위반 시 퇴장 조치될 수 있으며, 이로 인한 불이익은 주최 측에서 책임지지 않습니다.
+        {/* ── HORIZONTAL SCROLL GALLERY 2 ── */}
+        <HScrollGallery images={GALLERY_2} />
+
+        {/* ── RULES ── */}
+        <section className="op-rules">
+          {RULES.map((r, i) => (
+            <F key={i} delay={i * 0.04}>
+              <div className="op-rule">
+                <div className="op-rule-t">{r.t}</div>
+                <div className="op-rule-d">{r.d}</div>
               </div>
-            </div>
-          </div>
+            </F>
+          ))}
         </section>
+
+        {/* ── NOTICE ── */}
+        <section className="op-notice">
+          <F>
+            <p>행사장 내 안내 스태프의 지시에 따라 주시기 바랍니다.<br />반복적인 규정 위반 시 퇴장 조치될 수 있습니다.</p>
+          </F>
+        </section>
+
       </div>
     </div>
   );

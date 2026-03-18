@@ -5,6 +5,7 @@ import com.popups.pupoo.program.domain.enums.ProgramCategory;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -46,6 +47,12 @@ public class Program {
 	@Column(name = "booth_id")
 	private Long boothId;
 
+	@Column(name = "capacity")
+	private Integer capacity;
+
+	@Column(name = "throughput_per_min")
+	private BigDecimal throughputPerMin;
+
 	// TODO(step-01-storage-policy): keep the legacy column name for now, but store a storage key instead of a full URL.
 	@Column(name = "image_url")
 	private String imageUrl;
@@ -79,6 +86,14 @@ public class Program {
 
 	public void updateBoothId(Long boothId) {
 		this.boothId = boothId;
+	}
+
+	public void updateCapacity(Integer capacity) {
+		this.capacity = capacity;
+	}
+
+	public void updateThroughputPerMin(BigDecimal throughputPerMin) {
+		this.throughputPerMin = throughputPerMin;
 	}
 
 	/** ★ 추가: 이미지 URL 수정 */

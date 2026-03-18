@@ -47,7 +47,6 @@ export default function PaymentApprove() {
       const msg =
         e?.response?.data?.error?.message ||
         e?.response?.data?.message ||
-        e?.message ||
         "결제 승인에 실패했습니다.";
       setError(msg);
     } finally {

@@ -35,10 +35,19 @@ const css = `
   }
   .pe-wrap {
     max-width: 1100px; margin: 0 auto;
-    padding: 80px 0 120px;
+    padding: 150px 0 120px;
     font-family: 'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
     color: #333; font-size: 16px;
   }
+  .pe-back-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px;
+    cursor: pointer;
+    font-size: 15px; font-weight: 700; color: #374151;
+    padding: 10px 20px; margin-bottom: 28px;
+    font-family: inherit; transition: all 0.15s;
+  }
+  .pe-back-btn:hover { background: #e5e7eb; color: #111; }
   .pe-title {
     font-size: 38px; font-weight: 800; color: #111;
     text-align: center; margin-bottom: 8px; letter-spacing: -0.5px;
@@ -330,6 +339,13 @@ export default function MypageProfileEdit() {
       <div className="pe-outer">
         <div className="pe-inner">
           <div className="pe-wrap">
+            <button
+              type="button"
+              className="pe-back-btn"
+              onClick={() => navigate("/mypage")}
+            >
+              <ArrowLeft size={20} /> 뒤로가기
+            </button>
             <h1 className="pe-title">프로필 수정</h1>
             <p className="pe-desc">회원 정보를 확인하고 수정할 수 있습니다</p>
 

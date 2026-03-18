@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import EmptyState from "../components/EmptyState";
+import EventDetailModal from "./EventDetailModal";
 import { eventApi } from "../../../app/http/eventApi";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 
@@ -45,7 +46,7 @@ const styles = `
   }
   .es-cal-header-left { display: flex; align-items: center; gap: 6px; }
   .es-cal-title {
-    font-size: 20px; font-weight: 700; color: #111827;
+    font-size: 14px; font-weight: 700; color: #111827;
     letter-spacing: -0.3px; min-width: 160px; text-align: center;
   }
   .es-cal-nav {
@@ -65,7 +66,7 @@ const styles = `
     display: flex; align-items: center; gap: 20px;
     padding: 0 28px 16px; border-bottom: 1px solid #f0f0f0;
   }
-  .es-cal-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #6b7280; }
+  .es-cal-legend-item { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: #6b7280; }
   .es-cal-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
 
   /* ── Calendar Grid ── */
@@ -76,7 +77,7 @@ const styles = `
     border-bottom: 1px solid #e8e8e8;
   }
   .es-cal-weekday {
-    padding: 12px 0; font-size: 12px; color: #9ca3af;
+    padding: 12px 0; font-size: 14px; color: #9ca3af;
     font-weight: 600; text-align: center; letter-spacing: 0.5px;
   }
   .es-cal-weekday:last-child { color: #f87171; }
@@ -92,8 +93,8 @@ const styles = `
   .es-cal-day.outside { background: #fafafa; }
   .es-cal-day.outside .es-cal-day-num { color: #d4d4d8; }
   .es-cal-day-num {
-    font-size: 13px; font-weight: 600; color: #52525b;
-    margin-bottom: 5px; width: 26px; height: 26px;
+    font-size: 12px; font-weight: 600; color: #52525b;
+    margin-bottom: 5px; width: 30px; height: 30px;
     display: flex; align-items: center; justify-content: center; border-radius: 50%;
   }
   .es-cal-day:nth-child(7) .es-cal-day-num { color: #f87171; }
@@ -110,10 +111,10 @@ const styles = `
   .es-cell-evt:hover { background: #f3f4f6; }
   .es-cell-evt-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
   .es-cell-evt-name {
-    font-size: 11px; font-weight: 600; color: #374151;
+    font-size: 13px; font-weight: 600; color: #374151;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4;
   }
-  .es-cell-more { font-size: 10px; color: #a1a1aa; font-weight: 600; padding: 1px 5px; }
+  .es-cell-more { font-size: 12px; color: #a1a1aa; font-weight: 600; padding: 1px 5px; }
 
   /* ═══ Sidebar ═══ */
   .es-sidebar { display: flex; flex-direction: column; gap: 16px; }
@@ -131,7 +132,7 @@ const styles = `
   .es-search-inner:focus-within { background: #fff; box-shadow: 0 0 0 2px #3b82f6; }
   .es-search-input {
     flex: 1; border: none; outline: none; background: transparent;
-    font-size: 13.5px; font-weight: 400; color: #111827; font-family: inherit;
+    font-size: 15.5px; font-weight: 400; color: #111827; font-family: inherit;
     min-width: 0;
   }
   .es-search-input::placeholder { color: #b0b5bd; }
@@ -150,7 +151,7 @@ const styles = `
   .es-mini-head {
     display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
   }
-  .es-mini-title { font-size: 14px; font-weight: 700; color: #111827; }
+  .es-mini-title { font-size: 16px; font-weight: 700; color: #111827; }
   .es-mini-navs { display: flex; gap: 2px; }
   .es-mini-nav {
     width: 26px; height: 26px; border-radius: 6px; border: none;
@@ -160,13 +161,13 @@ const styles = `
   .es-mini-nav:hover { background: #f3f4f6; color: #374151; }
   .es-mini-wds { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
   .es-mini-wd {
-    text-align: center; font-size: 11px; font-weight: 600; color: #b0b5bd; padding: 3px 0;
+    text-align: center; font-size: 13px; font-weight: 600; color: #b0b5bd; padding: 3px 0;
   }
   .es-mini-wd:nth-child(6) { color: #93c5fd; }
   .es-mini-wd:last-child { color: #fca5a5; }
   .es-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
   .es-mini-day {
-    text-align: center; font-size: 12px; font-weight: 500; color: #52525b;
+    text-align: center; font-size: 14px; font-weight: 500; color: #52525b;
     padding: 5px 0; border-radius: 8px; cursor: pointer;
     transition: all 0.1s; border: none; background: transparent; font-family: inherit;
   }
@@ -186,11 +187,11 @@ const styles = `
     background: #fff; border: 1px solid #e8e8e8; border-radius: 14px; padding: 16px;
   }
   .es-list-title {
-    font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 12px;
+    font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 12px;
     display: flex; align-items: center; justify-content: space-between;
   }
   .es-list-count {
-    font-size: 12px; font-weight: 600; color: #9ca3af;
+    font-size: 14px; font-weight: 600; color: #9ca3af;
   }
   .es-list-scroll {
     display: flex; flex-direction: column; gap: 6px;
@@ -207,15 +208,15 @@ const styles = `
   .es-list-bar { width: 3px; border-radius: 2px; flex-shrink: 0; }
   .es-list-body { flex: 1; min-width: 0; }
   .es-list-name {
-    font-size: 13px; font-weight: 700; color: #111827;
+    font-size: 15px; font-weight: 700; color: #111827;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
   }
   .es-list-meta {
-    font-size: 11px; color: #9ca3af; font-weight: 500;
+    font-size: 13px; color: #9ca3af; font-weight: 500;
     display: flex; align-items: center; gap: 4px;
   }
   .es-list-empty {
-    font-size: 12.5px; color: #d1d5db; text-align: center; padding: 20px 0;
+    font-size: 14.5px; color: #d1d5db; text-align: center; padding: 20px 0;
   }
 
   /* ── Responsive ── */
@@ -284,12 +285,20 @@ function buildMiniDays(year, month) {
   return { days, monthStart: ms, monthEnd: me };
 }
 
+function getEventDetailPath(evt) {
+  const status = evt?.statusLabel;
+  if (status === "ONGOING") return `/program/current/${evt.eventId}`;
+  if (status === "UPCOMING") return `/program/upcoming/${evt.eventId}`;
+  return `/program/closed/${evt.eventId}`;
+}
+
 export default function EventSchedule() {
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const currentMonthKey = formatMonthKey(new Date());
   const [selectedMonthKey, setSelectedMonthKey] = useState(currentMonthKey);
   const [miniYear, setMiniYear] = useState(() => new Date().getFullYear());
@@ -322,7 +331,7 @@ export default function EventSchedule() {
         setEvents(mapped);
       } catch (err) {
         if (!mounted) return;
-        setEvents([]); setError(err?.response?.data?.message || err?.message || "행사 일정을 불러오지 못했습니다.");
+        setEvents([]); setError(err?.response?.data?.message || "네트워크 연결을 확인하고 다시 시도해 주세요.");
       } finally { if (mounted) setLoading(false); }
     };
     load();
@@ -383,6 +392,9 @@ export default function EventSchedule() {
       <PageHeader
         title="행사 일정 안내"
         subtitle="조회할 월을 선택하면 해당 월 일정만 달력에 표시됩니다."
+        icon={<CalendarDays size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
         categories={EVENT_CATEGORIES}
       />
 
@@ -406,7 +418,7 @@ export default function EventSchedule() {
               </div>
             </div>
 
-            {loading ? <PageLoading /> : error ? <EmptyState type="error" message="일정을 불러오지 못했습니다" description={error} /> : (
+            {loading ? <PageLoading /> : error ? <EmptyState type="error" message="일정을 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." /> : (
               <div className="es-cal-grid-wrap">
                 <div className="es-cal-grid">
                   <div className="es-cal-weekdays">
@@ -422,13 +434,12 @@ export default function EventSchedule() {
                             <div className="es-cal-day-num">{day.getDate()}</div>
                             {dayEvents.length > 0 && (
                               <div className="es-cell-events">
-                                {dayEvents.slice(0, 3).map((evt) => (
-                                  <button key={evt.eventId} type="button" className="es-cell-evt" title={evt.eventName} onClick={() => navigate(`/program/all/${evt.eventId}`)}>
+                                {dayEvents.map((evt) => (
+                                  <button key={evt.eventId} type="button" className="es-cell-evt" title={evt.eventName} onClick={() => setSelectedEvent(evt)}>
                                     <span className="es-cell-evt-dot" style={{ background: (STATUS_META[evt.statusLabel] || STATUS_META.UPCOMING).color }} />
                                     <span className="es-cell-evt-name">{evt.eventName}</span>
                                   </button>
                                 ))}
-                                {dayEvents.length > 3 && <span className="es-cell-more">+{dayEvents.length - 3}개 더</span>}
                               </div>
                             )}
                           </div>
@@ -496,7 +507,7 @@ export default function EventSchedule() {
                   filteredMonthEvents.map((evt) => {
                     const meta = STATUS_META[evt.statusLabel] || STATUS_META.UPCOMING;
                     return (
-                      <div key={evt.eventId} className="es-list-item" onClick={() => navigate(`/program/all/${evt.eventId}`)}>
+                      <div key={evt.eventId} className="es-list-item" onClick={() => setSelectedEvent(evt)}>
                         <div className="es-list-bar" style={{ background: meta.color }} />
                         <div className="es-list-body">
                           <div className="es-list-name">{evt.eventName}</div>
@@ -517,6 +528,12 @@ export default function EventSchedule() {
           </aside>
         </div>
       </main>
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+        />
+      )}
     </div>
   );
 }

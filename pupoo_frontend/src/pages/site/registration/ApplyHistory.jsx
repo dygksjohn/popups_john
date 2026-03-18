@@ -1,15 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Calendar,
-  CheckCircle2,
-  ClipboardList,
-  FileText,
-  MapPin,
-  XCircle,
-  Clock3,
-} from "lucide-react";
+import { ClipboardList, QrCode, Inbox, CalendarDays, MapPin, Clock } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import PageLoading from "../components/PageLoading";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { tokenStore } from "../../../app/http/tokenStore";
@@ -29,127 +22,270 @@ const SUBTITLE_MAP = {
 };
 
 const STATUS_META = {
-  APPLIED: {
-    label: "신청 완료",
-    bg: "#DCFCE7",
-    color: "#15803D",
-    dot: "#16A34A",
-  },
-  APPROVED: {
-    label: "승인 완료",
-    bg: "#DBEAFE",
-    color: "#1D4ED8",
-    dot: "#2563EB",
-  },
-  CANCELLED: {
-    label: "신청 취소",
-    bg: "#FEE2E2",
-    color: "#DC2626",
-    dot: "#EF4444",
-  },
-  REJECTED: {
-    label: "승인 거절",
-    bg: "#F3F4F6",
-    color: "#6B7280",
-    dot: "#9CA3AF",
-  },
+  APPLIED: { label: "신청 완료", bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+  APPROVED: { label: "승인 완료", bg: "#eff6ff", color: "#2563eb", border: "#bfdbfe" },
+  CANCELLED: { label: "신청 취소", bg: "#fef2f2", color: "#ef4444", border: "#fecaca" },
+  REJECTED: { label: "승인 거절", bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" },
 };
 
 const FILTERS = [
   { key: "all", label: "전체" },
-  { key: "APPROVED", label: "승인 완료" },
-  { key: "CANCELLED", label: "신청 취소" },
-  { key: "REJECTED", label: "승인 거절" },
+  { key: "APPLIED", label: "신청" },
+  { key: "APPROVED", label: "승인" },
+  { key: "CANCELLED", label: "취소" },
+  { key: "REJECTED", label: "거절" },
 ];
 
 const styles = `
-  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
-
-  .hist-root {
+  .ah-root {
     box-sizing: border-box;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    background: #F5F6FA;
+    background: #fff;
     min-height: 100vh;
+    color: #111;
   }
-  .hist-root *, .hist-root *::before, .hist-root *::after { box-sizing: border-box; font-family: inherit; }
-  .hist-container { max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; }
-
-  .hist-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
-  .hist-stat {
-    background: #fff; border: 1px solid #EBEBEB; border-radius: 16px;
-    padding: 18px 16px; display: flex; flex-direction: column; gap: 4px;
+  .ah-root *, .ah-root *::before, .ah-root *::after { box-sizing: border-box; font-family: inherit; }
+  .ah-wrap {
+    width: min(1400px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: 0 0 80px;
   }
-  .hist-stat-icon-wrap {
-    width: 36px; height: 36px; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center; margin-bottom: 6px;
+
+  /* ── 상단 요약 (카카오 st) ── */
+  .ah-summary {
+    display: flex;
+    gap: 0;
+    margin: 32px 0;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
   }
-  .hist-stat-icon-wrap.blue  { background: #EEF2FF; color: #1B50D9; }
-  .hist-stat-icon-wrap.green { background: #DCFCE7; color: #15803D; }
-  .hist-stat-icon-wrap.amber { background: #FEF3C7; color: #B45309; }
-  .hist-stat-icon-wrap.red   { background: #FEE2E2; color: #DC2626; }
-  .hist-stat-value { font-size: 24px; font-weight: 800; color: #111827; letter-spacing: -1px; line-height: 1; }
-  .hist-stat-label { font-size: 12px; color: #9CA3AF; font-weight: 500; margin-top: 2px; }
+  .ah-summary-card {
+    flex: 1;
+    padding: 24px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-right: 1px solid #e5e7eb;
+  }
+  .ah-summary-card:last-child { border-right: none; }
+  .ah-summary-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #d1d5db;
+  }
+  .ah-summary-dot.dot-blue { background: #2563eb; }
+  .ah-summary-dot.dot-red { background: #ef4444; }
+  .ah-summary-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ah-summary-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #888;
+  }
+  .ah-summary-val {
+    font-size: 24px;
+    font-weight: 800;
+    color: #222;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
 
-  .hist-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-  .hist-title { font-size: 17px; font-weight: 800; color: #111827; letter-spacing: -0.3px; }
-  .hist-sub { font-size: 13px; color: #9CA3AF; margin-top: 3px; }
+  /* ── 필터 + 건수 (한 줄) ── */
+  .ah-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 12px;
+  }
+  .ah-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .ah-toolbar-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111;
+  }
+  .ah-count {
+    font-size: 14px;
+    color: #9ca3af;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .ah-count strong {
+    color: #111;
+    font-weight: 800;
+  }
+  .ah-filters {
+    display: inline-flex;
+    background: #f3f4f6;
+    border-radius: 999px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .ah-filter {
+    border: 1px solid transparent;
+    background: transparent;
+    color: #9ca3af;
+    padding: 8px 20px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  .ah-filter:hover { color: #374151; }
+  .ah-filter.active {
+    background: #1f2937;
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
 
-  .hist-filter-bar { display: flex; gap: 7px; margin-bottom: 16px; flex-wrap: wrap; }
-  .hist-filter-btn {
-    padding: 7px 16px; border-radius: 100px; font-size: 13px; font-weight: 600;
-    cursor: pointer; border: 1.5px solid #EBEBEB; background: #fff; color: #6B7280;
+  /* ── 카드 리스트 ── */
+  .ah-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ah-card {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 28px 32px;
+    border: 1px solid #f0f0f0;
+    border-radius: 16px;
+    background: #fff;
     transition: all 0.15s;
+    cursor: pointer;
   }
-  .hist-filter-btn:hover { border-color: #C7D2FA; color: #1B50D9; }
-  .hist-filter-btn.active { background: #EEF2FF; border-color: #1B50D9; color: #1B50D9; }
-
-  .hist-list { display: flex; flex-direction: column; gap: 10px; }
-
-  .hist-card {
-    background: #fff; border: 1px solid #EBEBEB; border-radius: 16px;
-    overflow: hidden; transition: box-shadow 0.2s;
+  .ah-card:hover {
+    background: #f9fafb;
   }
-  .hist-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.07); }
-
-  .hist-card-top {
-    padding: 18px 20px 14px;
-    display: flex; gap: 12px; align-items: flex-start;
+  .ah-card-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    flex-shrink: 0;
+    gap: 4px;
   }
-  .hist-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
-  .hist-card-main { flex: 1; min-width: 0; }
-  .hist-event-name { font-size: 15px; font-weight: 700; color: #111827; line-height: 1.4; }
-  .hist-status-badge {
-    padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: 700;
-    flex-shrink: 0; letter-spacing: 0.02em;
+  .ah-status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .ah-status-label {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .ah-card-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .ah-card-title {
+    font-size: 19px;
+    font-weight: 800;
+    color: #111;
+    margin-bottom: 12px;
+    line-height: 1.3;
+  }
+  .ah-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .ah-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    color: #6b7280;
+    font-weight: 500;
+  }
+  .ah-meta-item svg {
+    color: #9ca3af;
+    flex-shrink: 0;
+  }
+  .ah-card-actions {
+    display: flex;
+    flex-shrink: 0;
+  }
+  .ah-qr-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 28px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg, #3b6df5 0%, #6c63ff 100%);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(59, 109, 245, 0.25);
+  }
+  .ah-qr-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(59, 109, 245, 0.35);
+  }
+  .ah-qr-btn:active {
+    transform: translateY(0);
+  }
+  .ah-qr-btn svg {
+    flex-shrink: 0;
   }
 
-  .hist-card-meta {
-    display: flex; flex-wrap: wrap; gap: 16px;
-    padding: 13px 20px; background: #FAFAFA; border-top: 1px solid #F3F4F6;
-    font-size: 13px; color: #6B7280;
+  /* ── 빈 상태 ── */
+  .ah-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 80px 20px;
+    gap: 12px;
+    color: #d1d5db;
   }
-  .hist-meta-item { display: flex; align-items: center; gap: 5px; }
-
-  .hist-btn {
-    padding: 8px 16px; font-size: 13px; font-weight: 600; border-radius: 10px;
-    cursor: pointer; transition: all 0.15s;
-    display: flex; align-items: center; gap: 6px;
+  .ah-empty span {
+    font-size: 15px;
+    color: #9ca3af;
+    font-weight: 500;
   }
-  .hist-btn-outline { border: 1.5px solid #EBEBEB; background: #fff; color: #374151; }
-  .hist-btn-outline:hover { border-color: #9CA3AF; }
-  .hist-btn-primary { border: none; background: #1B50D9; color: #fff; }
-  .hist-btn-primary:hover { background: #1640B8; }
-  .hist-top-actions { margin-left: auto; display: flex; gap: 8px; align-self: center; }
-  .hist-top-action { white-space: nowrap; }
 
-  .hist-empty { text-align: center; padding: 60px 24px; background: #fff; border: 1px solid #EBEBEB; border-radius: 16px; }
-  .hist-empty-icon { display: flex; justify-content: center; margin-bottom: 16px; color: #E5E7EB; }
-  .hist-empty-title { font-size: 16px; font-weight: 700; color: #374151; margin-bottom: 6px; }
-  .hist-empty-desc { font-size: 14px; color: #9CA3AF; }
-
-  @media (max-width: 640px) {
-    .hist-stats { grid-template-columns: repeat(2, 1fr); }
-    .hist-container { padding: 20px 16px 64px; }
+  @media (max-width: 768px) {
+    .ah-summary { flex-direction: column; }
+    .ah-summary-card { border-right: none; border-bottom: 1px solid #e5e7eb; }
+    .ah-summary-card:last-child { border-bottom: none; }
+    .ah-card {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .ah-card-status {
+      flex-direction: row;
+      width: auto;
+      gap: 8px;
+    }
+    .ah-card-actions {
+      width: 100%;
+    }
+    .ah-qr-btn { width: 100%; justify-content: center; }
+    .ah-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .ah-filter { padding: 7px 14px; font-size: 12px; }
   }
 `;
 
@@ -157,7 +293,6 @@ function formatDateTime(value) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   const dd = String(date.getDate()).padStart(2, "0");
@@ -170,18 +305,7 @@ function formatDate(value) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${yyyy}.${mm}.${dd}`;
-}
-
-function formatDateRange(startAt, endAt) {
-  if (!startAt && !endAt) return "일정 정보 없음";
-  const start = formatDate(startAt);
-  const end = formatDate(endAt);
-  return `${start} ~ ${end}`;
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
 }
 
 export default function ApplyHistory() {
@@ -208,11 +332,7 @@ export default function ApplyHistory() {
 
       try {
         const res = await axiosInstance.get("/api/users/me/event-registrations", {
-          params: {
-            page: 0,
-            size: 200,
-            sort: "appliedAt,desc",
-          },
+          params: { page: 0, size: 200, sort: "appliedAt,desc" },
         });
 
         const rawItems = res?.data?.data?.content ?? [];
@@ -241,7 +361,7 @@ export default function ApplyHistory() {
             appliedAt: item.appliedAt,
             startAt: detail.startAt,
             endAt: detail.endAt,
-            location: detail.location || "장소 정보 없음",
+            location: detail.location || "장소 미정",
           };
         });
 
@@ -249,175 +369,144 @@ export default function ApplyHistory() {
         setRecords(mapped);
       } catch (e) {
         if (!mounted) return;
-        const message =
+        setError(
           e?.response?.data?.error?.message ||
           e?.response?.data?.message ||
-          "신청 내역을 불러오지 못했습니다.";
-        setError(message);
+          "신청 내역을 불러오지 못했습니다."
+        );
       } finally {
         if (mounted) setLoading(false);
       }
     };
 
     fetchHistory();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const filtered = useMemo(() => {
     if (filter === "all") return records;
-    return records.filter((record) => record.status === filter);
+    return records.filter((r) => r.status === filter);
   }, [filter, records]);
 
-  const stats = useMemo(() => {
-    const count = (status) => records.filter((r) => r.status === status).length;
-    return [
-      {
-        icon: <ClipboardList size={18} />,
-        label: "전체 신청",
-        value: `${records.length}`,
-        cls: "blue",
-      },
-      {
-        icon: <CheckCircle2 size={18} />,
-        label: "신청/승인",
-        value: `${count("APPLIED") + count("APPROVED")}`,
-        cls: "green",
-      },
-      {
-        icon: <Clock3 size={18} />,
-        label: "승인 대기",
-        value: `${count("APPLIED")}`,
-        cls: "amber",
-      },
-      {
-        icon: <XCircle size={18} />,
-        label: "취소/거절",
-        value: `${count("CANCELLED") + count("REJECTED")}`,
-        cls: "red",
-      },
-    ];
+  const counts = useMemo(() => {
+    const c = (s) => records.filter((r) => r.status === s).length;
+    return { total: records.length, approved: c("APPLIED") + c("APPROVED"), cancelled: c("CANCELLED") + c("REJECTED") };
   }, [records]);
 
   return (
-    <div className="hist-root">
+    <div className="ah-root">
       <style>{styles}</style>
 
       <PageHeader
         title="신청 내역 조회"
+        icon={<ClipboardList size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />}
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
       />
 
-      <main className="hist-container">
-        <div className="hist-stats">
-          {stats.map((s) => (
-            <div key={s.label} className="hist-stat">
-              <div className={`hist-stat-icon-wrap ${s.cls}`}>{s.icon}</div>
-              <div className="hist-stat-value">{s.value}</div>
-              <div className="hist-stat-label">{s.label}</div>
+      <div className="ah-wrap">
+        {/* 요약 */}
+        <div className="ah-summary">
+          <div className="ah-summary-card">
+            <div className="ah-summary-dot" />
+            <div className="ah-summary-text">
+              <div className="ah-summary-label">전체 신청</div>
+              <div className="ah-summary-val">{counts.total}</div>
             </div>
-          ))}
-        </div>
-
-        <div className="hist-toolbar">
-          <div>
-            <div className="hist-title">신청 내역</div>
-            <div className="hist-sub">
-              {loading ? "불러오는 중..." : `총 ${filtered.length}건`}
+          </div>
+          <div className="ah-summary-card">
+            <div className="ah-summary-dot dot-blue" />
+            <div className="ah-summary-text">
+              <div className="ah-summary-label">승인 / 신청</div>
+              <div className="ah-summary-val">{counts.approved}</div>
+            </div>
+          </div>
+          <div className="ah-summary-card">
+            <div className="ah-summary-dot dot-red" />
+            <div className="ah-summary-text">
+              <div className="ah-summary-label">취소 / 거절</div>
+              <div className="ah-summary-val">{counts.cancelled}</div>
             </div>
           </div>
         </div>
 
-        <div className="hist-filter-bar">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              className={`hist-filter-btn${filter === f.key ? " active" : ""}`}
-              onClick={() => setFilter(f.key)}
-              type="button"
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* 필터 + 건수 */}
+        <div className="ah-toolbar">
+          <div className="ah-toolbar-left">
+            <span className="ah-toolbar-title">신청 내역</span>
+            {!loading && <span className="ah-count"><strong>{filtered.length}</strong>건</span>}
+          </div>
+          <div className="ah-filters">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                className={`ah-filter${filter === f.key ? " active" : ""}`}
+                onClick={() => setFilter(f.key)}
+                type="button"
+              >{f.label}</button>
+            ))}
+          </div>
         </div>
 
-        {error ? <div style={{ marginBottom: 12, color: "#b91c1c" }}>{error}</div> : null}
-
-        <div className="hist-list">
-          {!loading && filtered.length === 0 ? (
-            <div className="hist-empty">
-              <div className="hist-empty-icon">
-                <FileText size={48} />
-              </div>
-              <div className="hist-empty-title">신청 내역이 없습니다</div>
-              <div className="hist-empty-desc">선택한 조건에 해당하는 신청 기록이 없습니다.</div>
-            </div>
-          ) : (
-            filtered.map((record) => {
-              const statusMeta = STATUS_META[record.status] || {
-                label: record.status,
-                bg: "#F3F4F6",
-                color: "#6B7280",
-                dot: "#9CA3AF",
-              };
-
+        {/* 리스트 */}
+        {loading ? (
+          <PageLoading />
+        ) : (error || filtered.length === 0) ? (
+          <div className="ah-empty">
+            <Inbox size={48} strokeWidth={1.2} />
+            <span>{error || "신청 내역이 없습니다."}</span>
+          </div>
+        ) : (
+          <div className="ah-list">
+            {filtered.map((record) => {
+              const meta = STATUS_META[record.status] || { label: record.status, bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" };
               return (
-                <div key={record.id} className="hist-card">
-                  <div className="hist-card-top">
-                    <div className="hist-dot" style={{ background: statusMeta.dot }} />
-                    <div className="hist-card-main">
-                      <div className="hist-event-name">{record.eventName}</div>
-                      <span
-                        className="hist-status-badge"
-                        style={{
-                          background: statusMeta.bg,
-                          color: statusMeta.color,
-                          marginTop: 6,
-                          display: "inline-flex",
-                        }}
-                      >
-                        {statusMeta.label}
+                <div
+                  key={record.id}
+                  className="ah-card"
+                  onClick={() => navigate(`/program/all/${record.eventId}`)}
+                >
+                  {/* 상태 */}
+                  <div className="ah-card-status">
+                    <div className="ah-status-dot" style={{ background: meta.color }} />
+                    <span className="ah-status-label" style={{ color: meta.color }}>{meta.label}</span>
+                  </div>
+
+                  {/* 본문 */}
+                  <div className="ah-card-body">
+                    <div className="ah-card-title">{record.eventName}</div>
+                    <div className="ah-card-meta">
+                      <span className="ah-meta-item">
+                        <CalendarDays size={14} />
+                        {formatDate(record.startAt)} ~ {formatDate(record.endAt)}
                       </span>
-                    </div>
-                    <div className="hist-top-actions">
-                      <button
-                        type="button"
-                        className="hist-btn hist-btn-primary hist-top-action"
-                        onClick={() =>
-                          navigate(`/registration/qrcheckin?eventId=${record.eventId}`)
-                        }
-                      >
-                        QR 발급/조회
-                      </button>
-                      <button
-                        type="button"
-                        className="hist-btn hist-btn-outline hist-top-action"
-                        onClick={() => navigate(`/program/all/${record.eventId}`)}
-                      >
-                        상세보기
-                      </button>
+                      <span className="ah-meta-item">
+                        <MapPin size={14} />
+                        {record.location}
+                      </span>
+                      <span className="ah-meta-item">
+                        <Clock size={14} />
+                        신청 {formatDateTime(record.appliedAt)}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="hist-card-meta">
-                    <span className="hist-meta-item">
-                      <Calendar size={13} /> {formatDateRange(record.startAt, record.endAt)}
-                    </span>
-                    <span className="hist-meta-item">
-                      <FileText size={13} /> 신청일 {formatDateTime(record.appliedAt)}
-                    </span>
-                    <span className="hist-meta-item">
-                      <MapPin size={13} /> {record.location}
-                    </span>
+                  {/* 액션 */}
+                  <div className="ah-card-actions" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="ah-qr-btn"
+                      type="button"
+                      onClick={() => navigate(`/registration/qrcheckin?eventId=${record.eventId}`)}
+                    >
+                      <QrCode size={18} /> QR 체크인
+                    </button>
                   </div>
                 </div>
               );
-            })
-          )}
-        </div>
-      </main>
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -6,7 +6,6 @@ import {
   ListOrdered,
   RefreshCw,
   Timer,
-  Users,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import RealtimeEventSelector from "./RealtimeEventSelector";
@@ -19,6 +18,7 @@ import {
   useStaggerIn,
 } from "./useRealtimeAnimations";
 import { formatKoreanTime } from "./aiCongestionViewModel";
+import { aiApi } from "../../../app/http/aiApi";
 import { boothApi } from "../../../app/http/boothApi";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
@@ -33,19 +33,43 @@ const styles = `
   }
   .wt-root *, .wt-root *::before, .wt-root *::after { box-sizing: border-box; font-family: inherit; }
   .wt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
+  .wt-container.with-event { padding-top: 92px; }
   .wt-container.selector-mode { padding-top: 104px; }
   .wt-page-shell { max-width: 1120px; margin: 0 auto; }
 
-  .wt-live-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  .wt-live-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 10px; margin-bottom: 10px; }
   .wt-live-header-left { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
   .wt-live-badge {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 4px 12px; border-radius: 999px; margin-bottom: 0;
     font-size: 11px; font-weight: 700; color: #ef4444;
     border: 1px solid #fecaca; background: #fff0f0;
+    line-height: 1;
+  }
+  .wt-live-badge.planned {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #2563eb;
+    justify-content: center;
+    gap: 0;
+  }
+  .wt-live-badge.ended {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #6b7280;
+    justify-content: center;
+    gap: 0;
+  }
+  .wt-live-badge.cancelled {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+    justify-content: center;
+    gap: 0;
   }
   .wt-live-meta { display: none; }
   .wt-live-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: wt-pulse 1.4s ease-in-out infinite; }
+  .wt-live-dot.placeholder { visibility: hidden; animation: none; width: 0; margin: 0; }
   @keyframes wt-pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: 0.5; transform: scale(0.8);} }
   .wt-live-title { margin: 0; font-size: 28px; line-height: 1.05; letter-spacing: -0.03em; font-weight: 900; color: #111827; }
   .wt-live-header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
@@ -282,6 +306,7 @@ const styles = `
   }
   @media (max-width: 700px) {
     .wt-container { padding: 20px 16px 48px; }
+    .wt-container.with-event { padding-top: 80px; }
     .wt-container.selector-mode { padding-top: 88px; }
     .wt-live-header { flex-direction: column; align-items: flex-start; }
     .wt-live-title { font-size: 22px; }
@@ -375,16 +400,25 @@ function getCongestionStatus(waitCount, waitMin) {
   const count = toNumberOrNull(waitCount);
   const minutes = toNumberOrNull(waitMin);
 
-  if (count === null || minutes === null) {
+  if (count === null && minutes === null) {
     return { label: "집계 중", tone: "pending" };
   }
-  if (count === 0 && minutes === 0) {
+  if ((minutes !== null && minutes === 0) || (minutes === null && count === 0)) {
     return { label: "여유", tone: "relaxed" };
   }
-  if (minutes < 10) {
+  if (minutes !== null && minutes < 10) {
     return { label: "보통", tone: "normal" };
   }
-  if (minutes < 20) {
+  if (minutes !== null && minutes < 20) {
+    return { label: "혼잡", tone: "busy" };
+  }
+  if (minutes !== null) {
+    return { label: "매우 혼잡", tone: "critical" };
+  }
+  if (count < 10) {
+    return { label: "보통", tone: "normal" };
+  }
+  if (count < 20) {
     return { label: "혼잡", tone: "busy" };
   }
   return { label: "매우 혼잡", tone: "critical" };
@@ -394,8 +428,8 @@ function getStatusText(waitCount, waitMin) {
   const count = toNumberOrNull(waitCount);
   const minutes = toNumberOrNull(waitMin);
 
-  if (count === null || minutes === null) return "집계 중";
-  if (count === 0 && minutes === 0) return "즉시 참여 가능";
+  if (count === null && minutes === null) return "집계 중";
+  if ((minutes !== null && minutes === 0) || (minutes === null && count === 0)) return "즉시 참여 가능";
   if (minutes === 0) return "대기 거의 없음";
   if (count > 0 || minutes > 0) return "대기 발생";
   return "집계 중";
@@ -404,15 +438,17 @@ function getStatusText(waitCount, waitMin) {
 function getWaitCountDisplay(waitCount, waitMin) {
   const count = toNumberOrNull(waitCount);
   const minutes = toNumberOrNull(waitMin);
-  if (count === null || minutes === null) return "집계 중";
-  if (count === 0 && minutes === 0) return "즉시 참여 가능";
+  if (count === null && minutes === null) return "집계 중";
+  if ((minutes !== null && minutes === 0) || (minutes === null && count === 0)) return "즉시 참여 가능";
+  if (count === null) return "대기 팀 집계 중";
   return `대기 ${count}팀`;
 }
 
 function getWaitMinuteDisplay(waitMin, waitCount) {
   const minutes = toNumberOrNull(waitMin);
   const count = toNumberOrNull(waitCount);
-  if (minutes === null || count === null) return "집계 중";
+  if (minutes === null && count === null) return "집계 중";
+  if (minutes === null) return count === 0 ? "대기 없음" : "예상시간 집계 중";
   if (minutes === 0) return "대기 없음";
   return `약 ${minutes}분`;
 }
@@ -475,11 +511,15 @@ function mapBoothWait(detail) {
   };
 }
 
-function mapProgramWait(detail) {
+function mapProgramWait(detail, aiPrediction = null) {
   if (!detail) return null;
 
-  const waitCount = toNumberOrNull(detail.experienceWait?.waitCount);
-  const waitMin = toNumberOrNull(detail.experienceWait?.waitMin);
+  const rawWaitCount = toNumberOrNull(detail.experienceWait?.waitCount);
+  const rawWaitMin = toNumberOrNull(detail.experienceWait?.waitMin);
+  const aiWaitMin = toNumberOrNull(aiPrediction?.predictedWaitMinutes);
+  const resolvedWaitMin = aiWaitMin ?? rawWaitMin;
+  const waitCount = rawWaitCount;
+  const waitMin = resolvedWaitMin;
   const congestion = getCongestionStatus(waitCount, waitMin);
 
   return {
@@ -582,25 +622,35 @@ function WaitingContent({ eventId }) {
       if (!preserveLoading) setLoading(true);
 
       try {
-        const [eventResponse, booths, programListResponse] = await Promise.all([
+        const [eventResponse, booths, programListResponse, aiProgramPredictionResponse] = await Promise.all([
           eventApi.getEventDetail(numericEventId),
           getAllBoothsByEvent(numericEventId),
           programApi.getAllProgramsByEvent({
             eventId: numericEventId,
-            category: "EXPERIENCE",
             sort: "startAt,asc",
             pageSize: 200,
           }),
+          aiApi.predictProgramsCongestionByEvent(numericEventId).catch(() => null),
         ]);
 
         const programs = toArray(programListResponse);
+        const aiProgramPredictionMap = new Map(
+          toArray(unwrapData(aiProgramPredictionResponse, []))
+            .map((item) => [Number(item?.programId), item])
+            .filter(([programId]) => Number.isFinite(programId)),
+        );
+
+        const now = new Date();
+        const operatingPrograms = programs.filter((program) =>
+          isProgramOperatingNow(program?.startAt, program?.endAt, now),
+        );
 
         const [boothDetails, programDetails] = await Promise.all([
           Promise.allSettled(
             booths.map((booth) => boothApi.getBoothDetail(booth.boothId)),
           ),
           Promise.allSettled(
-            programs.map((program) => programApi.getProgramDetail(program.programId)),
+            operatingPrograms.map((program) => programApi.getProgramDetail(program.programId)),
           ),
         ]);
 
@@ -613,14 +663,22 @@ function WaitingContent({ eventId }) {
           .filter(Boolean)
           .sort(compareBoothRows);
 
-        const now = new Date();
-        const nextProgramRows = programDetails
-          .map((result) => {
-            if (result.status !== "fulfilled") return null;
-            const detail = unwrapData(result.value, null);
-            if (!detail) return null;
-            if (!isProgramOperatingNow(detail.startAt, detail.endAt, now)) return null;
-            return mapProgramWait(detail);
+        const programDetailMap = new Map(
+          programDetails
+            .filter((result) => result.status === "fulfilled")
+            .map((result) => unwrapData(result.value, null))
+            .filter(Boolean)
+            .map((detail) => [Number(detail?.programId), detail])
+            .filter(([programId]) => Number.isFinite(programId)),
+        );
+
+        const nextProgramRows = operatingPrograms
+          .map((program) => {
+            const programId = Number(program?.programId);
+            if (!Number.isFinite(programId)) return null;
+            const detail = programDetailMap.get(programId) ?? program;
+            const aiPrediction = aiProgramPredictionMap.get(programId) ?? null;
+            return mapProgramWait(detail, aiPrediction);
           })
           .filter(Boolean)
           .sort(compareProgramRows);
@@ -697,12 +755,13 @@ function WaitingContent({ eventId }) {
   }, [congestionView, sortedBoothRows.length, sortedProgramRows.length]);
   const measuredProgramRows = useMemo(
     () =>
-      sortedProgramRows.filter((row) => row.waitCount !== null && row.waitMin !== null),
+      sortedProgramRows.filter((row) => row.waitMin !== null),
     [sortedProgramRows],
   );
 
   const summary = useMemo(() => {
     const operatingProgramCount = sortedProgramRows.length;
+    const operatingBoothCount = sortedBoothRows.length;
     const waitingProgramRows = sortedProgramRows.filter(
       (row) => toNumberOrNull(row.waitMin) !== null && safeNumber(row.waitMin) > 0,
     );
@@ -715,6 +774,11 @@ function WaitingContent({ eventId }) {
     const maxWaitMin = waitingProgramRows.length
       ? Math.max(...waitingProgramRows.map((row) => safeNumber(row.waitMin)))
       : 0;
+    const waitingBoothRows = sortedBoothRows.filter(
+      (row) => toNumberOrNull(row.waitMin) !== null && safeNumber(row.waitMin) > 0,
+    );
+    const waitingBoothCount = waitingBoothRows.length;
+    const busiestBooth = waitingBoothRows[0] ?? sortedBoothRows[0] ?? null;
 
     const stats = [
       {
@@ -723,13 +787,6 @@ function WaitingContent({ eventId }) {
         unit: "개",
         icon: <ListOrdered size={19} color="#1d4ed8" />,
         bg: "#eff6ff",
-      },
-      {
-        label: "즉시 참여 가능",
-        rawValue: immediateProgramCount,
-        unit: "개",
-        icon: <Users size={19} color="#0f766e" />,
-        bg: "#ecfeff",
       },
       {
         label: "가장 인기있는 프로그램",
@@ -747,14 +804,24 @@ function WaitingContent({ eventId }) {
         bg: "#eef2ff",
       },
       {
-        label: "대기 중 최대 예상시간",
-        rawValue: waitingProgramCount > 0 ? maxWaitMin : null,
-        unit: waitingProgramCount > 0 ? "분" : "",
-        textValue: waitingProgramCount > 0 ? null : "대기 없음",
-        sub:
-          waitingProgramCount > 0
-            ? `${waitingProgramCount}개 프로그램 대기 중`
-            : "대기 발생 프로그램 없음",
+        label: "운영중인 부스 수",
+        rawValue: operatingBoothCount,
+        unit: "개",
+        icon: <Activity size={19} color="#0f766e" />,
+        bg: "#ecfeff",
+      },
+      {
+        label: "가장 인기있는 부스",
+        rawValue: null,
+        textValue:
+          waitingBoothCount > 0
+            ? busiestBooth?.boothTitle || "집계 중"
+            : "현재 대기 없음",
+        sub: busiestBooth
+          ? waitingBoothCount > 0
+            ? `${getWaitMinuteDisplay(busiestBooth.waitMin, busiestBooth.waitCount)} · ${getWaitCountDisplay(busiestBooth.waitCount, busiestBooth.waitMin)}`
+            : "모든 부스 바로 참여 가능"
+          : "부스 대기 정보 집계 중",
         icon: <Clock size={19} color="#9333ea" />,
         bg: "#f3e8ff",
       },
@@ -762,15 +829,19 @@ function WaitingContent({ eventId }) {
 
     return {
       operatingProgramCount,
+      operatingBoothCount,
       waitingProgramRows,
       waitingProgramCount,
       immediateProgramRows,
       immediateProgramCount,
       maxWaitMin,
       busiestProgram,
+      waitingBoothRows,
+      waitingBoothCount,
+      busiestBooth,
       stats,
     };
-  }, [measuredProgramRows, sortedProgramRows]);
+  }, [sortedBoothRows, sortedProgramRows]);
 
   const topBusyPrograms = useMemo(
     () => measuredProgramRows.slice(0, 8),
@@ -840,6 +911,62 @@ function WaitingContent({ eventId }) {
 
   const eventName =
     eventDetail?.eventName || eventDetail?.title || `행사 ${numericEventId}`;
+  const statusBadge = useMemo(() => {
+    const statusCandidates = [
+      eventDetail?.status,
+      eventDetail?.eventStatus,
+      eventDetail?.realtimeStatus,
+      eventDetail?.state,
+    ]
+      .map((value) => String(value ?? "").trim().toUpperCase())
+      .filter(Boolean);
+    const status = statusCandidates[0] ?? "";
+
+    if (
+      status === "PLANNED" ||
+      status === "PENDING" ||
+      status === "UPCOMING" ||
+      status === "SCHEDULED"
+    ) {
+      return { className: "planned", label: "예정", showDot: false };
+    }
+    if (
+      status === "ONGOING" ||
+      status === "LIVE" ||
+      status === "IN_PROGRESS" ||
+      status === "RUNNING"
+    ) {
+      return { className: "", label: "LIVE", showDot: true };
+    }
+    if (status === "ENDED") {
+      return { className: "ended", label: "종료", showDot: false };
+    }
+    if (status === "CANCELLED") {
+      return { className: "cancelled", label: "취소", showDot: false };
+    }
+
+    const startAt =
+      toDateOrNull(eventDetail?.startAt) ??
+      toDateOrNull(eventDetail?.eventStartAt) ??
+      toDateOrNull(eventDetail?.startDate);
+    const endAt =
+      toDateOrNull(eventDetail?.endAt) ??
+      toDateOrNull(eventDetail?.eventEndAt) ??
+      toDateOrNull(eventDetail?.endDate);
+    const now = Date.now();
+
+    if (startAt && now < startAt.getTime()) {
+      return { className: "planned", label: "예정", showDot: false };
+    }
+    if (endAt && now > endAt.getTime()) {
+      return { className: "ended", label: "종료", showDot: false };
+    }
+    if (startAt && endAt && now >= startAt.getTime() && now <= endAt.getTime()) {
+      return { className: "", label: "LIVE", showDot: true };
+    }
+
+    return { className: "planned", label: "예정", showDot: false };
+  }, [eventDetail]);
 
   const heroProgram =
     summary.waitingProgramCount > 0 ? summary.busiestProgram : null;
@@ -905,9 +1032,9 @@ function WaitingContent({ eventId }) {
       <div className="wt-page-shell">
       <div className="wt-live-header">
         <div className="wt-live-header-left">
-          <div className="wt-live-badge anim-glow">
-            <div className="wt-live-dot" />
-            LIVE
+          <div className={`wt-live-badge ${statusBadge.className} anim-glow`.trim()}>
+            <div className={`wt-live-dot${statusBadge.showDot ? "" : " placeholder"}`} />
+            {statusBadge.label}
           </div>
           <div className="wt-live-meta">
             <span>{eventName}</span>
@@ -999,14 +1126,14 @@ function WaitingContent({ eventId }) {
                   className={`wt-sort-btn ${congestionSortOrder === "busy" ? "active" : ""}`}
                   onClick={() => setCongestionSortOrder("busy")}
                 >
-                  인기 체험
+                  {isBoothCongestionView ? "인기 부스" : "인기 체험"}
                 </button>
                 <button
                   type="button"
                   className={`wt-sort-btn ${congestionSortOrder === "relaxed" ? "active" : ""}`}
                   onClick={() => setCongestionSortOrder("relaxed")}
                 >
-                  바로 참여 가능 체험
+                  {isBoothCongestionView ? "대기 짧은 부스" : "대기 짧은 체험"}
                 </button>
               </div>
             ) : null}
@@ -1271,11 +1398,24 @@ export default function WaitingStatus({ onNavigate: onNavigateProp }) {
   };
 
   const handleNavigate = (path) => {
-    if (eventId) {
-      navigate(`${path}/${eventId}`);
-    } else {
+    if (!eventId) {
       navigate(path);
+      onNavigateProp?.(path);
+      return;
     }
+
+    const match = String(path || "").match(/^([^?#]*)(.*)$/);
+    const pathname = (match?.[1] || "").replace(/\/+$/, "");
+    const suffix = match?.[2] || "";
+    const lastSegment = pathname.split("/").filter(Boolean).at(-1);
+
+    if (lastSegment && /^\d+$/.test(lastSegment)) {
+      navigate(`${pathname}${suffix}`);
+      onNavigateProp?.(path);
+      return;
+    }
+
+    navigate(`${pathname}/${eventId}${suffix}`);
     onNavigateProp?.(path);
   };
 
@@ -1293,7 +1433,7 @@ export default function WaitingStatus({ onNavigate: onNavigateProp }) {
           onNavigate={handleNavigate}
         />
       ) : null}
-      <main className={`wt-container${eventId ? "" : " selector-mode"}`}>
+      <main className={`wt-container${eventId ? " with-event" : " selector-mode"}`}>
         {eventId ? (
           <WaitingContent eventId={eventId} />
         ) : (

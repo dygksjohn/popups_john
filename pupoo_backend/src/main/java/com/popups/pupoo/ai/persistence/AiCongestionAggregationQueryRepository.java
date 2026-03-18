@@ -2,6 +2,7 @@ package com.popups.pupoo.ai.persistence;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface AiCongestionAggregationQueryRepository {
@@ -24,6 +25,14 @@ public interface AiCongestionAggregationQueryRepository {
 
     List<EventRunningProgramCountRow> findRunningProgramCounts(LocalDateTime bucketTime);
 
+    List<EventTotalProgramCountRow> findTotalProgramCounts();
+
+    List<ProgramCheckinCountRow> findProgramCheckinCounts(
+            Collection<Long> programIds,
+            LocalDateTime fromInclusive,
+            LocalDateTime toExclusive
+    );
+
     record EventTargetRow(Long eventId, LocalDateTime startAt) {
     }
 
@@ -32,6 +41,7 @@ public interface AiCongestionAggregationQueryRepository {
             Long eventId,
             Long boothId,
             Integer capacity,
+            BigDecimal throughputPerMin,
             LocalDateTime startAt
     ) {
     }
@@ -55,5 +65,11 @@ public interface AiCongestionAggregationQueryRepository {
     }
 
     record EventRunningProgramCountRow(Long eventId, int runningProgramCount) {
+    }
+
+    record EventTotalProgramCountRow(Long eventId, int totalProgramCount) {
+    }
+
+    record ProgramCheckinCountRow(Long programId, int checkinCount) {
     }
 }

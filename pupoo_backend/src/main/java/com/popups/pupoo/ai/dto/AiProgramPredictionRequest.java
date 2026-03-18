@@ -12,6 +12,9 @@ public record AiProgramPredictionRequest(
         int checkinCount,
         int waitCount,
         double waitMinutes,
+        int programCapacity,
+        double throughputPerMin,
+        int targetWaitMin,
         String category,
         String target,
         String zone

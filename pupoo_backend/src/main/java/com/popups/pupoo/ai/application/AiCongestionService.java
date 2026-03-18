@@ -3,6 +3,7 @@ package com.popups.pupoo.ai.application;
 import com.popups.pupoo.ai.client.AiInferenceClient;
 import com.popups.pupoo.ai.domain.enums.AiPredictionSourceType;
 import com.popups.pupoo.ai.domain.enums.AiPredictionTargetType;
+import com.popups.pupoo.ai.domain.model.EventCongestionPolicy;
 import com.popups.pupoo.ai.domain.model.AiPredictionLog;
 import com.popups.pupoo.ai.dto.AiCongestionPredictionResponse;
 import com.popups.pupoo.ai.dto.AiEventPredictionRequest;
@@ -13,6 +14,7 @@ import com.popups.pupoo.ai.dto.AiProgramRecommendationResponse;
 import com.popups.pupoo.ai.dto.AiRecommendationProgramInput;
 import com.popups.pupoo.ai.dto.AiTimelinePoint;
 import com.popups.pupoo.ai.persistence.AiPredictionLogRepository;
+import com.popups.pupoo.ai.persistence.EventCongestionPolicyRepository;
 import com.popups.pupoo.booth.domain.model.Booth;
 import com.popups.pupoo.booth.domain.model.BoothWait;
 import com.popups.pupoo.booth.persistence.BoothRepository;
@@ -30,6 +32,7 @@ import com.popups.pupoo.program.domain.model.Program;
 import com.popups.pupoo.program.persistence.ExperienceWaitRepository;
 import com.popups.pupoo.program.persistence.ProgramRepository;
 import com.popups.pupoo.qr.persistence.QrCheckinRepository;
+import com.popups.pupoo.qr.domain.enums.QrCheckType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
@@ -53,6 +56,8 @@ public class AiCongestionService {
     private static final double RECOMMEND_THRESHOLD = 75.0;
     private static final String MODEL_VERSION_AI = "mock-v1";
     private static final String MODEL_VERSION_FALLBACK = "rule-v1";
+    private static final int DEFAULT_WAIT_BASELINE = 50;
+    private static final int DEFAULT_TARGET_WAIT_MIN = 15;
     private static final Set<ApplyStatus> PROGRAM_ACTIVE_STATUSES = EnumSet.of(
             ApplyStatus.APPLIED,
             ApplyStatus.WAITING,
@@ -67,6 +72,7 @@ public class AiCongestionService {
     private final ExperienceWaitRepository experienceWaitRepository;
     private final BoothRepository boothRepository;
     private final BoothWaitRepository boothWaitRepository;
+    private final EventCongestionPolicyRepository eventCongestionPolicyRepository;
     private final AiInferenceClient aiInferenceClient;
     private final AiPredictionLogRepository aiPredictionLogRepository;
 
@@ -79,6 +85,7 @@ public class AiCongestionService {
             ExperienceWaitRepository experienceWaitRepository,
             BoothRepository boothRepository,
             BoothWaitRepository boothWaitRepository,
+            EventCongestionPolicyRepository eventCongestionPolicyRepository,
             AiInferenceClient aiInferenceClient,
             AiPredictionLogRepository aiPredictionLogRepository
     ) {
@@ -90,6 +97,7 @@ public class AiCongestionService {
         this.experienceWaitRepository = experienceWaitRepository;
         this.boothRepository = boothRepository;
         this.boothWaitRepository = boothWaitRepository;
+        this.eventCongestionPolicyRepository = eventCongestionPolicyRepository;
         this.aiInferenceClient = aiInferenceClient;
         this.aiPredictionLogRepository = aiPredictionLogRepository;
     }
@@ -103,13 +111,18 @@ public class AiCongestionService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.EVENT_NOT_FOUND));
         LocalDateTime baseTime = LocalDateTime.now();
         List<Program> programs = programRepository.findByEventId(eventId, Pageable.unpaged()).getContent();
+        EventCongestionPolicy policy = findEventPolicy(eventId);
         TimeWindow predictionWindow = resolveEventPredictionWindow(event, from, to);
 
-        int entryCount = countEventEntryCount(eventId);
+        int entryCount = countEventFlowCount(eventId, QrCheckType.CHECKIN, baseTime);
+        int checkoutCount = countEventFlowCount(eventId, QrCheckType.CHECKOUT, baseTime);
         int activeApplyCount = countEventActiveApplies(eventId);
         int runningProgramCount = (int) programs.stream().filter(this::isRunningNow).count();
         int totalProgramCount = programs.size();
         WaitAggregate waitAggregate = collectEventWaitMetrics(eventId, programs);
+        int capacityBaseline = resolveEventCapacityBaseline(policy, activeApplyCount);
+        int waitBaseline = resolvePositive(policy == null ? null : policy.getWaitBaseline(), DEFAULT_WAIT_BASELINE);
+        int targetWaitMin = resolvePositive(policy == null ? null : policy.getTargetWaitMin(), DEFAULT_TARGET_WAIT_MIN);
 
         AiEventPredictionRequest request = new AiEventPredictionRequest(
                 event.getEventId(),
@@ -117,11 +130,15 @@ public class AiCongestionService {
                 predictionWindow.startAt(),
                 predictionWindow.endAt(),
                 entryCount,
+                checkoutCount,
                 activeApplyCount,
                 runningProgramCount,
                 totalProgramCount,
                 waitAggregate.totalWaitCount(),
-                waitAggregate.averageWaitMinutes()
+                waitAggregate.averageWaitMinutes(),
+                capacityBaseline,
+                waitBaseline,
+                targetWaitMin
         );
 
         AiCongestionPredictionResponse response = aiInferenceClient.predictEvent(request)
@@ -139,9 +156,22 @@ public class AiCongestionService {
         Program program = programRepository.findById(programId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROGRAM_NOT_FOUND));
         LocalDateTime baseTime = LocalDateTime.now();
+        EventCongestionPolicy policy = findEventPolicy(program.getEventId());
         WaitAggregate waitAggregate = collectProgramWaitMetrics(programId);
         int activeApplyCount = countProgramActiveApplies(programId);
-        int checkinCount = countProgramCheckins(programId);
+        int checkinCount = countProgramCheckins(programId, baseTime);
+        int programCapacity = resolvePositive(
+                program.getCapacity(),
+                Math.max(activeApplyCount + waitAggregate.totalWaitCount(), 1)
+        );
+        double throughputPerMin = resolvePositive(
+                program.getThroughputPerMin() == null ? null : program.getThroughputPerMin().doubleValue(),
+                Math.max(programCapacity / 60.0, 1.0)
+        );
+        int targetWaitMin = resolvePositive(
+                policy == null ? null : policy.getTargetWaitMin(),
+                DEFAULT_TARGET_WAIT_MIN
+        );
 
         AiProgramPredictionRequest request = new AiProgramPredictionRequest(
                 program.getEventId(),
@@ -153,6 +183,9 @@ public class AiCongestionService {
                 checkinCount,
                 waitAggregate.totalWaitCount(),
                 waitAggregate.averageWaitMinutes(),
+                programCapacity,
+                throughputPerMin,
+                targetWaitMin,
                 toUpperText(program.getCategory() == null ? null : program.getCategory().name()),
                 null,
                 resolveProgramZone(program)
@@ -197,7 +230,7 @@ public class AiCongestionService {
             );
         }
 
-        List<AiRecommendationProgramInput> candidates = buildCandidateInputs(currentProgram);
+        List<AiRecommendationProgramInput> candidates = buildCandidateInputs(currentProgram, baseTime);
         AiProgramRecommendationRequest request = new AiProgramRecommendationRequest(
                 currentProgram.getEventId(),
                 currentProgram.getProgramId(),
@@ -222,10 +255,15 @@ public class AiCongestionService {
         return result;
     }
 
-    private List<AiRecommendationProgramInput> buildCandidateInputs(Program currentProgram) {
+    private List<AiRecommendationProgramInput> buildCandidateInputs(Program currentProgram, LocalDateTime baseTime) {
         List<Program> programs = programRepository
                 .findByEventId(currentProgram.getEventId(), Pageable.unpaged())
                 .getContent();
+        EventCongestionPolicy policy = findEventPolicy(currentProgram.getEventId());
+        int targetWaitMin = resolvePositive(
+                policy == null ? null : policy.getTargetWaitMin(),
+                DEFAULT_TARGET_WAIT_MIN
+        );
         List<AiRecommendationProgramInput> candidates = new ArrayList<>();
 
         for (Program candidate : programs) {
@@ -234,12 +272,23 @@ public class AiCongestionService {
             }
             WaitAggregate waitAggregate = collectProgramWaitMetrics(candidate.getProgramId());
             int activeApplyCount = countProgramActiveApplies(candidate.getProgramId());
-            int checkinCount = countProgramCheckins(candidate.getProgramId());
+            int checkinCount = countProgramCheckins(candidate.getProgramId(), baseTime);
+            int programCapacity = resolvePositive(
+                    candidate.getCapacity(),
+                    Math.max(activeApplyCount + waitAggregate.totalWaitCount(), 1)
+            );
+            double throughputPerMin = resolvePositive(
+                    candidate.getThroughputPerMin() == null ? null : candidate.getThroughputPerMin().doubleValue(),
+                    Math.max(programCapacity / 60.0, 1.0)
+            );
             double score = estimateProgramBaseScore(
                     activeApplyCount,
                     checkinCount,
                     waitAggregate.totalWaitCount(),
-                    waitAggregate.averageWaitMinutes()
+                    waitAggregate.averageWaitMinutes(),
+                    programCapacity,
+                    throughputPerMin,
+                    targetWaitMin
             );
             candidates.add(new AiRecommendationProgramInput(
                     candidate.getProgramId(),
@@ -353,11 +402,14 @@ public class AiCongestionService {
     ) {
         double baseScore = estimateEventBaseScore(
                 request.entryCount(),
-                request.activeApplyCount(),
+                request.checkoutCount(),
                 request.runningProgramCount(),
                 request.totalProgramCount(),
                 request.totalWaitCount(),
-                request.averageWaitMinutes()
+                request.averageWaitMinutes(),
+                request.capacityBaseline(),
+                request.waitBaseline(),
+                request.targetWaitMin()
         );
         List<AiTimelinePoint> timeline = buildTimeline(request.eventStartAt(), request.eventEndAt(), baseScore);
         return buildPredictionResponse("EVENT", event.getEventId(), null, baseTime, timeline, baseScore, true);
@@ -372,7 +424,10 @@ public class AiCongestionService {
                 request.activeApplyCount(),
                 request.checkinCount(),
                 request.waitCount(),
-                request.waitMinutes()
+                request.waitMinutes(),
+                request.programCapacity(),
+                request.throughputPerMin(),
+                request.targetWaitMin()
         );
         LocalDateTime horizonStart = baseTime.isAfter(program.getStartAt()) ? baseTime : program.getStartAt();
         List<AiTimelinePoint> timeline = buildTimeline(horizonStart, program.getEndAt(), baseScore);
@@ -547,9 +602,15 @@ public class AiCongestionService {
         return Math.toIntExact(applied + approved);
     }
 
-    private int countEventEntryCount(Long eventId) {
-        long checkins = qrCheckinRepository.countByQrCode_Event_EventId(eventId);
-        return Math.toIntExact(checkins);
+    private int countEventFlowCount(Long eventId, QrCheckType checkType, LocalDateTime baseTime) {
+        LocalDateTime fromInclusive = baseTime.minusMinutes(1);
+        long count = qrCheckinRepository.countByQrCode_Event_EventIdAndCheckTypeAndCheckedAtBetween(
+                eventId,
+                checkType,
+                fromInclusive,
+                baseTime
+        );
+        return Math.toIntExact(count);
     }
 
     private int countProgramActiveApplies(Long programId) {
@@ -557,9 +618,26 @@ public class AiCongestionService {
         return Math.toIntExact(active);
     }
 
-    private int countProgramCheckins(Long programId) {
-        long checkedIn = programApplyRepository.countByProgramIdAndCheckedInAtIsNotNull(programId);
+    private int countProgramCheckins(Long programId, LocalDateTime baseTime) {
+        LocalDateTime fromInclusive = baseTime.minusMinutes(1);
+        long checkedIn = programApplyRepository.countByProgramIdAndCheckedInAtBetween(
+                programId,
+                fromInclusive,
+                baseTime
+        );
         return Math.toIntExact(checkedIn);
+    }
+
+    private EventCongestionPolicy findEventPolicy(Long eventId) {
+        return eventCongestionPolicyRepository.findById(eventId).orElse(null);
+    }
+
+    private int resolveEventCapacityBaseline(EventCongestionPolicy policy, int activeApplyCount) {
+        int fallback = Math.max(activeApplyCount, 1);
+        if (policy == null) {
+            return fallback;
+        }
+        return resolvePositive(policy.getCapacityBaseline(), fallback);
     }
 
     private String resolveProgramZone(Program program) {
@@ -582,51 +660,88 @@ public class AiCongestionService {
         return value == null ? 0 : Math.max(0, value);
     }
 
+    private int resolvePositive(Integer value, int fallback) {
+        if (value == null || value <= 0) {
+            return fallback;
+        }
+        return value;
+    }
+
+    private double resolvePositive(Double value, double fallback) {
+        if (value == null || value <= 0.0) {
+            return fallback;
+        }
+        return value;
+    }
+
+    private double safeDiv(double a, double b) {
+        return b <= 0.0 ? 0.0 : (a / b);
+    }
+
+    private double clamp01(double value) {
+        return Math.max(0.0, Math.min(1.0, value));
+    }
+
+    private double clamp100(double value) {
+        return Math.max(0.0, Math.min(100.0, value));
+    }
+
     private double estimateEventBaseScore(
             int entryCount,
-            int activeApplyCount,
+            int checkoutCount,
             int runningProgramCount,
             int totalProgramCount,
             int totalWaitCount,
-            double averageWaitMinutes
+            double averageWaitMinutes,
+            int capacityBaseline,
+            int waitBaseline,
+            int targetWaitMin
     ) {
-        double totalApplyBase = Math.max(activeApplyCount, 1);
-        double entryPressure = Math.min(entryCount / totalApplyBase, 1.2) / 1.2;
-        double waitPressure = Math.min(totalWaitCount / totalApplyBase, 1.5) / 1.5;
-        double waitDensity = totalWaitCount / (double) Math.max(runningProgramCount, 1);
-        double waitDensityPressure = Math.min(waitDensity / 30.0, 1.0);
-        double waitTimePressure = Math.min(averageWaitMinutes / 40.0, 1.0);
-        double operationRate = runningProgramCount / (double) Math.max(totalProgramCount, 1);
+        int netEntryCount = Math.max(entryCount - checkoutCount, 0);
+        double waitBaselinePerProgram = runningProgramCount <= 0
+                ? waitBaseline
+                : Math.max(waitBaseline / (double) runningProgramCount, 1.0);
 
-        double score = (entryPressure * 0.35)
-                + (waitPressure * 0.25)
-                + (waitDensityPressure * 0.25)
-                + (waitTimePressure * 0.20)
-                - (operationRate * 0.05);
+        double entryPressure = clamp01(safeDiv(netEntryCount, Math.max(capacityBaseline * 0.08, 1.0)));
+        double waitPressure = clamp01(safeDiv(totalWaitCount, Math.max(waitBaseline, 1)));
+        double avgWaitPerRunningProgram = safeDiv(totalWaitCount, Math.max(runningProgramCount, 1));
+        double waitDensityPressure = clamp01(safeDiv(avgWaitPerRunningProgram, Math.max(waitBaselinePerProgram, 1.0)));
+        double waitTimePressure = clamp01(safeDiv(averageWaitMinutes, Math.max(targetWaitMin, 1)));
+        double operationRelief = clamp01(safeDiv(runningProgramCount, Math.max(totalProgramCount, 1)));
 
-        return clampScore(Math.max(0.0, Math.min(1.0, score)) * 100.0);
+        double eventUnitScore = (0.22 * entryPressure)
+                + (0.30 * waitPressure)
+                + (0.23 * waitDensityPressure)
+                + (0.30 * waitTimePressure)
+                - (0.05 * operationRelief);
+
+        return clampScore(eventUnitScore * 100.0);
     }
 
     private double estimateProgramBaseScore(
             int activeApplyCount,
             int checkinCount,
             int waitCount,
-            double waitMinutes
+            double waitMinutes,
+            int programCapacity,
+            double throughputPerMin,
+            int targetWaitMin
     ) {
-        double applyBase = Math.max(activeApplyCount, 1);
-        double checkinPressure = Math.min(checkinCount / applyBase, 1.2) / 1.2;
-        double queuePressure = Math.min(waitCount / applyBase, 1.5) / 1.5;
-        double waitTimePressure = Math.min(waitMinutes / 40.0, 1.0);
+        double checkinPressure = clamp01(safeDiv(checkinCount, Math.max(throughputPerMin, 1.0)));
+        double queuePressure = clamp01(safeDiv(waitCount, Math.max(programCapacity, 1)));
+        double waitTimePressure = clamp01(safeDiv(waitMinutes, Math.max(targetWaitMin, 1)));
+        double applyBacklogPressure = clamp01(safeDiv(activeApplyCount, Math.max(programCapacity * 2.0, 1.0)));
 
-        double score = (checkinPressure * 0.30)
-                + (queuePressure * 0.45)
-                + (waitTimePressure * 0.25);
+        double programUnitScore = (0.20 * checkinPressure)
+                + (0.40 * queuePressure)
+                + (0.30 * waitTimePressure)
+                + (0.10 * applyBacklogPressure);
 
-        return clampScore(Math.max(0.0, Math.min(1.0, score)) * 100.0);
+        return clampScore(programUnitScore * 100.0);
     }
 
     private double clampScore(double value) {
-        return roundOneDecimal(Math.max(0.0, Math.min(100.0, value)));
+        return roundOneDecimal(clamp100(value));
     }
 
     private double roundOneDecimal(double value) {
@@ -634,16 +749,19 @@ public class AiCongestionService {
     }
 
     private int levelFromScore(double score) {
-        if (score <= 24.0) {
+        if (score <= 20.0) {
             return 1;
         }
-        if (score <= 49.0) {
+        if (score <= 40.0) {
             return 2;
         }
-        if (score <= 74.0) {
+        if (score <= 60.0) {
             return 3;
         }
-        return 4;
+        if (score <= 80.0) {
+            return 4;
+        }
+        return 5;
     }
 
     private int waitFromScore(double score) {
