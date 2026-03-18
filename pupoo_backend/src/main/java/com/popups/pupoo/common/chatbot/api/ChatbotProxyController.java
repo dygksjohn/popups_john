@@ -1,6 +1,6 @@
 package com.popups.pupoo.common.chatbot.api;
 
-import com.popups.pupoo.board.bannedword.config.ModerationProperties;
+import com.popups.pupoo.ai.config.AiServiceProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -17,18 +17,21 @@ import java.util.Map;
 /**
  * 프론트엔드 챗봇 요청을 pupoo_ai FastAPI 서버로 프록시.
  *
- * 프론트엔드 → POST /internal/chatbot/chat → (이 컨트롤러) → pupoo_ai:8000
+ * 프론트엔드 → POST /api/chatbot/chat → (이 컨트롤러) → pupoo_ai:8000
  */
 @Slf4j
 @RestController
-@RequestMapping("/internal/chatbot")
+@RequestMapping("/api/chatbot")
 public class ChatbotProxyController {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
+    private static final String HEADER_INTERNAL_TOKEN = "X-Internal-Token";
 
     private final WebClient webClient;
+    private final AiServiceProperties properties;
 
-    public ChatbotProxyController(WebClient.Builder builder, ModerationProperties props) {
+    public ChatbotProxyController(WebClient.Builder builder, AiServiceProperties props) {
+        this.properties = props;
         this.webClient = builder
                 .baseUrl(props.getBaseUrl())
                 .build();
@@ -41,6 +44,7 @@ public class ChatbotProxyController {
             Map<String, Object> result = webClient.post()
                     .uri("/internal/chatbot/chat")
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header(HEADER_INTERNAL_TOKEN, properties.getInternalToken())
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(Map.class)

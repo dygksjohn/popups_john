@@ -2,6 +2,15 @@ import { buildAssetUrl, getConfiguredAssetBaseUrl } from "../config/requestUrl";
 
 const ABSOLUTE_URL_RE = /^https?:\/\//i;
 const SPECIAL_URL_RE = /^(data|blob):/i;
+const LEGACY_UPLOAD_PREFIXES = [
+  "experience",
+  "gallery",
+  "gallery_thumb",
+  "home",
+  "program",
+  "program_apply",
+  "speaker",
+];
 
 export const DEFAULT_IMAGE_FALLBACK_URL = "/logo_gray.png";
 
@@ -19,9 +28,36 @@ function shouldUseCdnBase(raw) {
   );
 }
 
+function normalizeLegacyUploadPath(rawUrl) {
+  const raw = String(rawUrl || "").trim();
+  if (!raw) return "";
+
+  if (ABSOLUTE_URL_RE.test(raw) || SPECIAL_URL_RE.test(raw)) {
+    return raw;
+  }
+
+  const normalized = raw.startsWith("/") ? raw : `/${raw}`;
+  if (
+    normalized.startsWith("/uploads/") ||
+    normalized.startsWith("/static/")
+  ) {
+    return normalized;
+  }
+
+  const matchedPrefix = LEGACY_UPLOAD_PREFIXES.find((prefix) =>
+    normalized.startsWith(`/${prefix}/`),
+  );
+
+  if (!matchedPrefix) {
+    return normalized;
+  }
+
+  return `/uploads${normalized}`;
+}
+
 export function toPublicAssetUrl(rawUrl) {
   if (!rawUrl) return "";
-  const raw = String(rawUrl).trim();
+  const raw = normalizeLegacyUploadPath(rawUrl);
   if (!raw) return "";
 
   if (ABSOLUTE_URL_RE.test(raw)) {
@@ -30,10 +66,6 @@ export function toPublicAssetUrl(rawUrl) {
 
   if (SPECIAL_URL_RE.test(raw)) {
     return raw;
-  }
-
-  if (!raw.startsWith("/")) {
-    return "";
   }
 
   if (!shouldUseCdnBase(raw)) {
@@ -47,7 +79,7 @@ export function resolveImageUrl(
   rawUrl,
   fallbackUrl = DEFAULT_IMAGE_FALLBACK_URL,
 ) {
-  const raw = String(rawUrl || "").trim();
+  const raw = normalizeLegacyUploadPath(rawUrl);
 
   if (ABSOLUTE_URL_RE.test(raw) || SPECIAL_URL_RE.test(raw)) {
     return raw;
