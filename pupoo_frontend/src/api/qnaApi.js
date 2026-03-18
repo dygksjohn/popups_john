@@ -31,7 +31,7 @@ export const qnaApi = {
     axiosInstance.post("/api/qnas", {
       title: data.title,
       content: data.content,
-    }),
+    }, { timeout: 60000 }),
 
   update: (qnaId, data) =>
     axiosInstance.patch(`/api/qnas/${qnaId}`, {

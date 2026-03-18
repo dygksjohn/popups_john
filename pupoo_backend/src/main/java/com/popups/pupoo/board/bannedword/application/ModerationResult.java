@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ModerationResult {
 
-    /** PASS | REVIEW | BLOCK */
+    /** PASS | BLOCK */
     private String action;
     private Float aiScore;
     private String reason;
@@ -22,9 +22,5 @@ public class ModerationResult {
 
     public boolean isBlock() {
         return "BLOCK".equalsIgnoreCase(action);
-    }
-
-    public boolean isReview() {
-        return "REVIEW".equalsIgnoreCase(action);
     }
 }

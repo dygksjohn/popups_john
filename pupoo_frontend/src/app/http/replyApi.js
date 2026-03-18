@@ -40,7 +40,7 @@ export const replyApi = {
         targetType: payload.targetType,
         targetId: payload.targetId,
         content: payload.content.trim(),
-      })
+      }, { timeout: 60000 })
       .then((res) => unwrap(res));
   },
 

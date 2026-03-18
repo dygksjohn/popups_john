@@ -2,6 +2,7 @@
 package com.popups.pupoo.reply.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.bannedword.application.ModerationClient;
 import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
@@ -87,11 +88,22 @@ public class ReplyService {
             boardIdForModeration = null;
         }
 
-        bannedWordService.validate(boardIdForModeration, request.getContent());
-        ModerationResult modResult = moderationClient.moderate(request.getContent() != null ? request.getContent() : "", boardIdForModeration, "COMMENT");
-        if (modResult != null && modResult.isBlock()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                    modResult.getReason() != null ? modResult.getReason() : "댓글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+        ModerationResult modResult = null;
+        if (!bannedWordService.shouldSkipModeration(userId) && boardIdForModeration != null) {
+            modResult = moderationClient.moderate(request.getContent() != null ? request.getContent() : "", boardIdForModeration, "COMMENT");
+            if (modResult != null && modResult.isBlock()) {
+                // 생성 단계에서 BLOCK 된 댓글도 로그에 남긴다 (contentId는 아직 없음).
+                bannedWordService.logAiModeration(
+                        boardIdForModeration,
+                        null,
+                        BannedLogContentType.COMMENT,
+                        userId,
+                        modResult
+                );
+                // 댓글 작성 실패 시 사용자 메시지 통일
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "댓글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+            }
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -109,10 +121,6 @@ public class ReplyService {
                     .updatedAt(now)
                     .deleted(false)
                     .build());
-
-            if (modResult != null && modResult.isReview()) {
-                bannedWordService.logAiModeration(boardId, saved.getCommentId(), BannedLogContentType.COMMENT, userId, modResult);
-            }
             return toResponse(saved, ReplyTargetType.POST, request.getTargetId(), boardId);
         }
 
@@ -129,10 +137,6 @@ public class ReplyService {
                     .updatedAt(now)
                     .deleted(false)
                     .build());
-
-            if (modResult != null && modResult.isReview()) {
-                bannedWordService.logAiModeration(reviewBoardId, saved.getCommentId(), BannedLogContentType.COMMENT, userId, modResult);
-            }
             return toResponse(saved, ReplyTargetType.REVIEW, request.getTargetId(), reviewBoardId);
         }
 
