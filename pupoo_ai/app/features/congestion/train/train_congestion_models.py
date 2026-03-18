@@ -18,6 +18,8 @@ import pymysql
 from lightgbm import LGBMRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+from app.features.congestion.inference.lstm_baseline import train_lstm_calibration_artifact
+
 SEQUENCE_LENGTH = 60
 SUPPORTED_TARGET_TYPES = ("EVENT", "PROGRAM")
 MIN_HISTORY_POINTS = 12
@@ -659,12 +661,17 @@ def _train_and_evaluate(
 def _save_outputs(
     output_dir: Path,
     artifacts: dict[str, dict[str, Any]],
+    lstm_artifacts: dict[str, dict[str, Any]],
     report: dict[str, Any],
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     for target_type, artifact_payload in artifacts.items():
         file_path = output_dir / f"{target_type.lower()}_congestion_model.joblib"
+        joblib.dump(artifact_payload, file_path)
+
+    for target_type, artifact_payload in lstm_artifacts.items():
+        file_path = output_dir / f"{target_type.lower()}_lstm_baseline.joblib"
         joblib.dump(artifact_payload, file_path)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -739,6 +746,7 @@ def main() -> None:
     }
 
     trained_artifacts: dict[str, dict[str, Any]] = {}
+    trained_lstm_artifacts: dict[str, dict[str, Any]] = {}
 
     for target_type in SUPPORTED_TARGET_TYPES:
         sample_count = int(sequence_data[target_type].shape[0])
@@ -760,24 +768,43 @@ def main() -> None:
             validation_ratio=args.validation_ratio,
             random_seed=args.random_seed,
         )
+        lstm_artifact_payload, lstm_metrics = train_lstm_calibration_artifact(
+            sequence_matrix=sequence_data[target_type],
+            target_avg=avg_data[target_type],
+            target_type=target_type,
+            validation_ratio=args.validation_ratio,
+            random_seed=args.random_seed,
+        )
         trained_artifacts[target_type] = artifact_payload
+        trained_lstm_artifacts[target_type] = lstm_artifact_payload
         report["targets"][target_type] = {
             "trained": True,
             "metrics": metrics,
+            "lstmMetrics": lstm_metrics,
         }
 
     if not trained_artifacts:
         raise RuntimeError("No model trained. Check min_rows or dataset quality.")
 
     report["finishedAt"] = datetime.now().isoformat()
-    _save_outputs(output_dir=output_dir, artifacts=trained_artifacts, report=report)
+    _save_outputs(
+        output_dir=output_dir,
+        artifacts=trained_artifacts,
+        lstm_artifacts=trained_lstm_artifacts,
+        report=report,
+    )
 
     print(f"[train] completed. output={output_dir}")
     for target_type, payload in trained_artifacts.items():
         metrics = payload["metrics"]
+        lstm_metrics = trained_lstm_artifacts[target_type]["metrics"]
         print(
             f"[train] {target_type} avg_mae={metrics['avgMae']:.3f} peak_mae={metrics['peakMae']:.3f} "
             f"avg_rmse={metrics['avgRmse']:.3f} peak_rmse={metrics['peakRmse']:.3f}"
+        )
+        print(
+            f"[train] {target_type} lstm_avg_mae={lstm_metrics['avgMae']:.3f} "
+            f"lstm_avg_rmse={lstm_metrics['avgRmse']:.3f}"
         )
 
 

@@ -8,6 +8,8 @@ __pycache__
 .gitignore
 .vscode
 tests
-artifacts
+artifacts/*
+!artifacts/congestion/
+!artifacts/congestion/**
 data
 run_server.bat
