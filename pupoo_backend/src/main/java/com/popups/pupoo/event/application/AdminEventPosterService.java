@@ -135,6 +135,7 @@ public class AdminEventPosterService {
         payload.put("response_format", "b64_json");
 
         try {
+            log.info("AI poster generation started. model={}, size={}, eventName={}", model, POSTER_IMAGE_SIZE, request.eventName());
             OpenAiImageGenerationResponse response = restClient.post()
                     .uri("/v1/images/generations")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -148,7 +149,9 @@ public class AdminEventPosterService {
             }
 
             byte[] imageBytes = extractImageBytes(response.data().get(0));
+            log.info("AI poster generation received image bytes. bytes={}", imageBytes.length);
             imageBytes = normalizePosterImage(imageBytes);
+            log.info("AI poster generation normalized image. bytes={}", imageBytes.length);
             return storeImage(imageBytes, "png");
         } catch (RestClientResponseException e) {
             log.warn("AI poster generation failed: status={} body={}", e.getStatusCode().value(), e.getResponseBodyAsString());
@@ -230,9 +233,11 @@ public class AdminEventPosterService {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AI poster generation returned no image data");
         }
         if (StringUtils.hasText(imageData.b64Json())) {
+            log.info("AI poster generation using b64_json response");
             return Base64.getDecoder().decode(imageData.b64Json());
         }
         if (StringUtils.hasText(imageData.url())) {
+            log.info("AI poster generation using URL response");
             byte[] downloaded = RestClient.create()
                     .get()
                     .uri(imageData.url())
@@ -393,7 +398,9 @@ public class AdminEventPosterService {
     private AdminEventPosterAssetResponse storeImage(byte[] bytes, String extension) {
         String key = storageKeyGenerator.generateStandaloneKey("event", "poster." + extension);
         String storedName = key.substring(key.lastIndexOf('/') + 1);
+        log.info("AI poster generation storing image. key={}, contentType={}, bytes={}", key, contentTypeForExtension(extension), bytes.length);
         objectStoragePort.putObject(STORAGE_BUCKET_UNUSED, key, bytes, contentTypeForExtension(extension));
+        log.info("AI poster generation stored image successfully. key={}", key);
         return new AdminEventPosterAssetResponse(
                 storageUrlResolver.toPublicUrlFromKey(key),
                 storedName
