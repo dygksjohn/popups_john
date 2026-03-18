@@ -2,6 +2,7 @@
 package com.popups.pupoo.board.qna.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.bannedword.application.ModerationClient;
 import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
@@ -51,6 +52,14 @@ public class QnaService {
             String textToModerate = (request.getTitle() != null ? request.getTitle() : "") + " " + (request.getContent() != null ? request.getContent() : "");
             modResult = moderationClient.moderate(textToModerate.trim(), qnaBoard.getBoardId(), "POST");
             if (modResult != null && modResult.isBlock()) {
+                // 생성 단계에서 BLOCK 된 QnA도 로그에 남긴다 (contentId는 아직 없음).
+                bannedWordService.logAiModeration(
+                        qnaBoard.getBoardId(),
+                        null,
+                        BannedLogContentType.POST,
+                        userId,
+                        modResult
+                );
                 // QnA 작성 실패 시 사용자 메시지 통일
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
                         "QnA 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
