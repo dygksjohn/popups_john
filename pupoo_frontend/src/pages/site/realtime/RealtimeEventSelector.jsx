@@ -11,7 +11,10 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { aiApi } from "../../../app/http/aiApi";
-import { normalizePrediction } from "./aiCongestionViewModel";
+import {
+  normalizePrediction,
+  resolveUnifiedAverageCongestion,
+} from "./aiCongestionViewModel";
 
 const STATUS_CONFIG = {
   live: {
@@ -511,27 +514,6 @@ const summarizeRealtimeCongestionPercent = (rows) => {
   );
 };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-const estimateUpcomingCongestionPercent = (registrations, startAt, endAt) => {
-  const totalRegistrations = Math.max(0, Number(registrations) || 0);
-  if (totalRegistrations <= 0) return 0;
-
-  const startDate = toValidDate(startAt);
-  const endDate = toValidDate(endAt);
-  let operationDays = 1;
-
-  if (startDate && endDate && endDate >= startDate) {
-    const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-    const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-    operationDays = Math.max(1, Math.ceil((endDay.getTime() - startDay.getTime() + DAY_MS) / DAY_MS));
-  }
-
-  const registrationsPerDay = totalRegistrations / operationDays;
-  const estimated = Math.round((registrationsPerDay / 300) * 100);
-  return Math.max(5, Math.min(85, estimated));
-};
-
 const hexToRgb = (hex) => {
   const value = String(hex || "").replace("#", "");
   if (value.length !== 6) return { r: 0, g: 0, b: 0 };
@@ -827,6 +809,11 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
           congestionTargets.map(async (event) => {
             const eventId = Number(event.eventId);
             const status = String(event.status).toLowerCase();
+            let realtimeMeasuredCongestion = null;
+            let hourlyMeasuredCongestion = null;
+            let aiAverageCongestion = null;
+            let aiFallbackUsed = false;
+            let endedProgramAiAverageCongestion = null;
 
             if (status === "active") {
               const payload = await fetchAdminData(
@@ -836,7 +823,7 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
               );
               const realtimePercent = summarizeRealtimeCongestionPercent(payload);
               if (realtimePercent != null) {
-                return [eventId, realtimePercent];
+                realtimeMeasuredCongestion = realtimePercent;
               }
             }
 
@@ -861,27 +848,56 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
                 : null;
 
               if (hourlyAverage != null) {
-                return [eventId, hourlyAverage];
+                hourlyMeasuredCongestion = hourlyAverage;
               }
             }
 
-            // For active/pending/ended events: realtime/hourly fallback (or primary for pending) with AI prediction.
-            try {
-              const aiRangeParams = resolveEventAiRangeParams(event, status);
-              const aiResponse = await aiApi.predictEventCongestion(eventId, aiRangeParams);
-              const aiPrediction = normalizePrediction(unwrapData(aiResponse, null));
-              const aiAverage = aiPrediction
-                ? Math.round(Number(aiPrediction.avgScore) || 0)
-                : null;
-              const shouldUseAiAverage =
-                Number.isFinite(aiAverage) &&
-                // Active rows can use AI fallback if measured data is missing.
-                // Pending/ended rows should avoid uniform fallback AI values.
-                (status === "active" || !aiPrediction?.fallbackUsed);
-              return [eventId, shouldUseAiAverage ? aiAverage : null];
-            } catch {
-              return [eventId, null];
+            if (status === "ended" && hourlyMeasuredCongestion == null) {
+              try {
+                const aiProgramsResponse = await aiApi.predictProgramsCongestionByEvent(eventId);
+                const aiProgramSamples = toArray(unwrapData(aiProgramsResponse, []))
+                  .map((item) => normalizePrediction(item))
+                  .map((prediction) => Number(prediction?.avgScore))
+                  .filter((score) => Number.isFinite(score) && score > 0);
+
+                if (aiProgramSamples.length > 0) {
+                  endedProgramAiAverageCongestion = Math.round(
+                    aiProgramSamples.reduce((sum, score) => sum + score, 0) /
+                      aiProgramSamples.length,
+                  );
+                }
+              } catch {
+                endedProgramAiAverageCongestion = null;
+              }
             }
+
+            // For active/pending/ended events: fallback with event-level AI prediction.
+            if (status !== "ended" || hourlyMeasuredCongestion == null) {
+              try {
+                const aiRangeParams = resolveEventAiRangeParams(event, status);
+                const aiResponse = await aiApi.predictEventCongestion(eventId, aiRangeParams);
+                const aiPrediction = normalizePrediction(unwrapData(aiResponse, null));
+                const aiAverage = aiPrediction
+                  ? Math.round(Number(aiPrediction.avgScore) || 0)
+                  : null;
+                aiAverageCongestion =
+                  Number.isFinite(aiAverage) && aiAverage > 0
+                    ? aiAverage
+                    : null;
+                aiFallbackUsed = Boolean(aiPrediction?.fallbackUsed);
+              } catch {
+                aiAverageCongestion = null;
+                aiFallbackUsed = false;
+              }
+            }
+
+            return [eventId, {
+              realtimeMeasuredCongestion,
+              hourlyMeasuredCongestion,
+              aiAverageCongestion,
+              aiFallbackUsed,
+              endedProgramAiAverageCongestion,
+            }];
           }),
         );
 
@@ -901,23 +917,27 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
               ) || 0;
             const checkedInRaw = Number(performance?.checkinCount) || 0;
             const checkedIn = rawStatus === "PLANNED" ? 0 : checkedInRaw;
-            const measuredCongestion = congestionMap.get(Number(event.eventId));
-            const endedRatioCongestion =
-              selectorStatus === "ended" && registrations > 0
-                ? Math.max(0, Math.min(100, Math.round((checkedInRaw / registrations) * 100)))
-                : null;
-            const upcomingEstimatedCongestion =
-              selectorStatus === "upcoming"
-                ? estimateUpcomingCongestionPercent(registrations, event.startAt, event.endAt)
-                : null;
-            const congestion =
-              measuredCongestion != null
-                ? measuredCongestion
-                : selectorStatus === "ended"
-                  ? endedRatioCongestion
-                  : selectorStatus === "upcoming"
-                    ? upcomingEstimatedCongestion
-                  : null;
+            const congestionInfo = congestionMap.get(Number(event.eventId)) || {};
+            const realtimeMeasuredCongestion =
+              congestionInfo?.realtimeMeasuredCongestion;
+            const hourlyMeasuredCongestion =
+              congestionInfo?.hourlyMeasuredCongestion;
+            const aiAverageCongestion = congestionInfo?.aiAverageCongestion;
+            const aiFallbackUsed = Boolean(congestionInfo?.aiFallbackUsed);
+            const endedProgramAiAverageCongestion =
+              congestionInfo?.endedProgramAiAverageCongestion;
+            const congestion = resolveUnifiedAverageCongestion({
+              status: rawStatus,
+              measuredAverage: realtimeMeasuredCongestion,
+              hourlyAverage: hourlyMeasuredCongestion,
+              endedProgramAiAverage: endedProgramAiAverageCongestion,
+              aiAverage: aiAverageCongestion,
+              aiFallbackUsed,
+              approvedCount: registrations,
+              checkinCount: checkedInRaw,
+              startAt: event.startAt,
+              endAt: event.endAt,
+            });
             return {
               id: event.eventId,
               name: event.eventName,
