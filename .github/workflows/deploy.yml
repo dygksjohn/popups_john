@@ -168,11 +168,16 @@ jobs:
             exit 1
           fi
 
-          kubectl -n "${EKS_NAMESPACE:-pupoo}" create secret generic pupoo-backend-secret \
-            --from-literal=OPENAI_API_KEY="${OPENAI_API_KEY}" \
-            --from-literal=OPENAI_IMAGE_MODEL="${OPENAI_IMAGE_MODEL}" \
-            --from-literal=APP_AI_MODERATION_INTERNAL_TOKEN="${MODERATION_INTERNAL_TOKEN}" \
-            --dry-run=client -o yaml | kubectl apply -f -
+          cat > /tmp/pupoo-backend-secret-patch.yaml <<EOF
+          stringData:
+            OPENAI_API_KEY: "${OPENAI_API_KEY}"
+            OPENAI_IMAGE_MODEL: "${OPENAI_IMAGE_MODEL}"
+            APP_AI_MODERATION_INTERNAL_TOKEN: "${MODERATION_INTERNAL_TOKEN}"
+          EOF
+
+          kubectl -n "${EKS_NAMESPACE:-pupoo}" patch secret pupoo-backend-secret \
+            --type merge \
+            --patch-file /tmp/pupoo-backend-secret-patch.yaml
 
       - name: Apply base manifests
         run: kubectl apply -k k8s/base
