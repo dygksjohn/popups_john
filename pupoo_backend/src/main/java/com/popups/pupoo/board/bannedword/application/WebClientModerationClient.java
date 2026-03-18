@@ -30,7 +30,12 @@ public class WebClientModerationClient implements ModerationClient {
     @Override
     public ModerationResult moderate(String text, Long boardId, String contentType) {
         if (!properties.isEnabled()) {
-            return ModerationResult.builder().action("PASS").stack("disabled").build();
+            // 필터링 기능이 비활성화된 경우에도, 정책상 검사가 완료되지 않은 것으로 보고 BLOCK 처리한다.
+            return ModerationResult.builder()
+                    .action("BLOCK")
+                    .reason("AI 모더레이션이 비활성화되어 요청을 차단했습니다.")
+                    .stack("disabled")
+                    .build();
         }
         try {
             Map<String, Object> body = new HashMap<>(Map.of("text", text != null ? text : ""));
@@ -47,7 +52,12 @@ public class WebClientModerationClient implements ModerationClient {
                     .block(Duration.ofSeconds(properties.getTimeoutSeconds()));
 
             if (response == null) {
-                return ModerationResult.builder().action("PASS").reason("AI 서버 응답 없음").stack("error").build();
+                // 응답을 받지 못한 경우에도 검사가 완료되지 않은 것으로 간주하고 BLOCK 처리
+                return ModerationResult.builder()
+                        .action("BLOCK")
+                        .reason("AI 서버 응답 없음으로 인해 요청을 차단했습니다.")
+                        .stack("error")
+                        .build();
             }
             String action = (String) response.get("action");
             Object score = response.get("ai_score");
@@ -61,10 +71,20 @@ public class WebClientModerationClient implements ModerationClient {
                     .build();
         } catch (WebClientResponseException e) {
             log.warn("AI moderation API error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
-            return ModerationResult.builder().action("PASS").reason("AI 서버 오류: " + e.getStatusCode()).stack("error").build();
+            // HTTP 오류 역시 필터링 미완료로 간주하여 BLOCK 처리
+            return ModerationResult.builder()
+                    .action("BLOCK")
+                    .reason("AI 서버 오류(" + e.getStatusCode() + ")로 인해 요청을 차단했습니다.")
+                    .stack("error")
+                    .build();
         } catch (Exception e) {
             log.warn("AI moderation call failed", e);
-            return ModerationResult.builder().action("PASS").reason("AI 서버 연결 실패").stack("error").build();
+            // 네트워크 등 기타 예외 발생 시에도 BLOCK 처리
+            return ModerationResult.builder()
+                    .action("BLOCK")
+                    .reason("AI 서버 연결 실패로 인해 요청을 차단했습니다.")
+                    .stack("error")
+                    .build();
         }
     }
 }

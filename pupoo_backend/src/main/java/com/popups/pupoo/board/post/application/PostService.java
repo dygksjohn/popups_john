@@ -2,6 +2,7 @@
 package com.popups.pupoo.board.post.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.bannedword.application.ModerationClient;
 import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
@@ -154,6 +155,14 @@ public class PostService {
             String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
             modResult = moderationClient.moderate(textToModerate.trim(), req.getBoardId(), "POST");
             if (modResult != null && modResult.isBlock()) {
+                // 생성 단계에서 BLOCK 된 요청도 로그에 남긴다 (contentId는 아직 없음).
+                bannedWordService.logAiModeration(
+                        req.getBoardId(),
+                        null,
+                        BannedLogContentType.POST,
+                        userId,
+                        modResult
+                );
                 // 자유게시판 등 게시글 전반: 사용자에게는 항상 동일한 안내만 노출
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
                         "게시글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
@@ -191,8 +200,20 @@ public class PostService {
             String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
             ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), post.getBoard().getBoardId(), "POST");
             if (modResult != null && modResult.isBlock()) {
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        modResult.getReason() != null ? modResult.getReason() : "게시글 내용이 정책에 위반될 수 있어 수정할 수 없습니다.");
+                // BLOCK된 요청은 로그에 남긴다.
+                bannedWordService.logAiModeration(
+                        post.getBoard().getBoardId(),
+                        post.getPostId(),
+                        BannedLogContentType.POST,
+                        userId,
+                        modResult
+                );
+                throw new BusinessException(
+                        ErrorCode.VALIDATION_FAILED,
+                        modResult.getReason() != null
+                                ? modResult.getReason()
+                                : "게시글 내용이 정책에 위반될 수 있어 수정할 수 없습니다."
+                );
             }
             post.updateTitleAndContent(req.getPostTitle(), req.getContent());
         } else {
