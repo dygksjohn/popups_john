@@ -11,14 +11,25 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 
 public interface AiEventCongestionTimeseriesRepository extends JpaRepository<AiEventCongestionTimeseries, Long> {
 
     Optional<AiEventCongestionTimeseries> findByEventIdAndTimestampMinute(Long eventId, LocalDateTime timestampMinute);
+    List<AiEventCongestionTimeseries> findTop60ByEventIdAndTimestampMinuteLessThanEqualOrderByTimestampMinuteDesc(
+            Long eventId,
+            LocalDateTime timestampMinute
+    );
 
     List<AiEventCongestionTimeseries> findByTimestampMinuteAndEventIdIn(
             LocalDateTime timestampMinute,
             Collection<Long> eventIds
+    );
+
+    List<AiEventCongestionTimeseries> findByEventIdInAndTimestampMinuteLessThanEqualOrderByTimestampMinuteDesc(
+            Collection<Long> eventIds,
+            LocalDateTime timestampMinute,
+            Pageable pageable
     );
 
     @Modifying

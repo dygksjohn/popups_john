@@ -1,6 +1,7 @@
 package com.popups.pupoo.ai.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record AiProgramPredictionRequest(
         Long eventId,
@@ -17,6 +18,7 @@ public record AiProgramPredictionRequest(
         int targetWaitMin,
         String category,
         String target,
-        String zone
+        String zone,
+        List<Double> inputSequence
 ) {
 }

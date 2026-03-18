@@ -3,6 +3,8 @@ package com.popups.pupoo.ai.application;
 import com.popups.pupoo.ai.client.AiInferenceClient;
 import com.popups.pupoo.ai.domain.enums.AiPredictionSourceType;
 import com.popups.pupoo.ai.domain.enums.AiPredictionTargetType;
+import com.popups.pupoo.ai.domain.model.AiEventCongestionTimeseries;
+import com.popups.pupoo.ai.domain.model.AiProgramCongestionTimeseries;
 import com.popups.pupoo.ai.domain.model.EventCongestionPolicy;
 import com.popups.pupoo.ai.domain.model.AiPredictionLog;
 import com.popups.pupoo.ai.dto.AiCongestionPredictionResponse;
@@ -14,7 +16,10 @@ import com.popups.pupoo.ai.dto.AiProgramRecommendationResponse;
 import com.popups.pupoo.ai.dto.AiRecommendationProgramInput;
 import com.popups.pupoo.ai.dto.AiTimelinePoint;
 import com.popups.pupoo.ai.persistence.AiEventCongestionBaselineQueryRepository;
+import com.popups.pupoo.ai.persistence.AiEventCongestionTimeseriesRepository;
 import com.popups.pupoo.ai.persistence.AiPredictionLogRepository;
+import com.popups.pupoo.ai.persistence.AiProgramCongestionTimeseriesRepository;
+import com.popups.pupoo.ai.persistence.EventCongestionSignalQueryRepository;
 import com.popups.pupoo.ai.persistence.EventCongestionPolicyRepository;
 import com.popups.pupoo.booth.domain.model.Booth;
 import com.popups.pupoo.booth.domain.model.BoothWait;
@@ -22,6 +27,7 @@ import com.popups.pupoo.booth.persistence.BoothRepository;
 import com.popups.pupoo.booth.persistence.BoothWaitRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.event.domain.enums.EventStatus;
 import com.popups.pupoo.event.domain.enums.RegistrationStatus;
 import com.popups.pupoo.event.domain.model.Event;
 import com.popups.pupoo.event.persistence.EventRegistrationRepository;
@@ -36,6 +42,7 @@ import com.popups.pupoo.qr.persistence.QrCheckinRepository;
 import com.popups.pupoo.qr.domain.enums.QrCheckType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -46,10 +53,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 
 @Service
 public class AiCongestionService {
@@ -60,6 +70,10 @@ public class AiCongestionService {
     private static final String MODEL_VERSION_FALLBACK = "rule-v1";
     private static final int DEFAULT_WAIT_BASELINE = 50;
     private static final int DEFAULT_TARGET_WAIT_MIN = 15;
+    private static final int MODEL_SEQUENCE_LENGTH = 60;
+    private static final double DEFAULT_SEQUENCE_FALLBACK_SCORE = 10.0;
+    private static final int PLANNED_REFERENCE_MIN_SAMPLE_SIZE = MODEL_SEQUENCE_LENGTH * 6;
+    private static final int PLANNED_REFERENCE_MAX_SAMPLE_SIZE = MODEL_SEQUENCE_LENGTH * 30;
     private static final Set<ApplyStatus> PROGRAM_ACTIVE_STATUSES = EnumSet.of(
             ApplyStatus.APPLIED,
             ApplyStatus.WAITING,
@@ -76,6 +90,9 @@ public class AiCongestionService {
     private final BoothWaitRepository boothWaitRepository;
     private final EventCongestionPolicyRepository eventCongestionPolicyRepository;
     private final AiEventCongestionBaselineQueryRepository aiEventCongestionBaselineQueryRepository;
+    private final AiEventCongestionTimeseriesRepository aiEventCongestionTimeseriesRepository;
+    private final AiProgramCongestionTimeseriesRepository aiProgramCongestionTimeseriesRepository;
+    private final EventCongestionSignalQueryRepository eventCongestionSignalQueryRepository;
     private final AiInferenceClient aiInferenceClient;
     private final AiPredictionLogRepository aiPredictionLogRepository;
 
@@ -90,6 +107,9 @@ public class AiCongestionService {
             BoothWaitRepository boothWaitRepository,
             EventCongestionPolicyRepository eventCongestionPolicyRepository,
             AiEventCongestionBaselineQueryRepository aiEventCongestionBaselineQueryRepository,
+            AiEventCongestionTimeseriesRepository aiEventCongestionTimeseriesRepository,
+            AiProgramCongestionTimeseriesRepository aiProgramCongestionTimeseriesRepository,
+            EventCongestionSignalQueryRepository eventCongestionSignalQueryRepository,
             AiInferenceClient aiInferenceClient,
             AiPredictionLogRepository aiPredictionLogRepository
     ) {
@@ -103,6 +123,9 @@ public class AiCongestionService {
         this.boothWaitRepository = boothWaitRepository;
         this.eventCongestionPolicyRepository = eventCongestionPolicyRepository;
         this.aiEventCongestionBaselineQueryRepository = aiEventCongestionBaselineQueryRepository;
+        this.aiEventCongestionTimeseriesRepository = aiEventCongestionTimeseriesRepository;
+        this.aiProgramCongestionTimeseriesRepository = aiProgramCongestionTimeseriesRepository;
+        this.eventCongestionSignalQueryRepository = eventCongestionSignalQueryRepository;
         this.aiInferenceClient = aiInferenceClient;
         this.aiPredictionLogRepository = aiPredictionLogRepository;
     }
@@ -134,6 +157,28 @@ public class AiCongestionService {
                 event.getStartAt(),
                 event.getEndAt()
         );
+        double eventBaseScore = estimateEventBaseScore(
+                entryCount,
+                checkoutCount,
+                activeApplyCount,
+                runningProgramCount,
+                totalProgramCount,
+                waitAggregate.totalWaitCount(),
+                waitAggregate.averageWaitMinutes(),
+                capacityBaseline,
+                waitBaseline,
+                targetWaitMin,
+                registrationForecastScore,
+                historicalBaseline.endedScore(),
+                historicalBaseline.ongoingScore()
+        );
+        List<Double> eventInputSequence = buildEventInputSequence(
+                event,
+                baseTime,
+                eventBaseScore
+        );
+        EventCongestionSignalQueryRepository.EventSignalSnapshot signalSnapshot =
+                eventCongestionSignalQueryRepository.collectEventSignalSnapshot(eventId, baseTime);
 
         AiEventPredictionRequest request = new AiEventPredictionRequest(
                 event.getEventId(),
@@ -152,7 +197,19 @@ public class AiCongestionService {
                 targetWaitMin,
                 registrationForecastScore,
                 historicalBaseline.endedScore(),
-                historicalBaseline.ongoingScore()
+                historicalBaseline.ongoingScore(),
+                resolveLocationDemandScore(event.getLocation()),
+                event.getLocation(),
+                signalSnapshot.applicationTrendScore(),
+                signalSnapshot.applyConversionScore(),
+                signalSnapshot.queueOperationScore(),
+                signalSnapshot.zoneDensityScore(),
+                signalSnapshot.stayTimeScore(),
+                signalSnapshot.manualCongestionScore(),
+                signalSnapshot.revisitScore(),
+                signalSnapshot.voteHeatScore(),
+                signalSnapshot.paymentIntentScore(),
+                eventInputSequence
         );
 
         AiCongestionPredictionResponse response = aiInferenceClient.predictEvent(request)
@@ -186,6 +243,20 @@ public class AiCongestionService {
                 policy == null ? null : policy.getTargetWaitMin(),
                 DEFAULT_TARGET_WAIT_MIN
         );
+        double programBaseScore = estimateProgramBaseScore(
+                activeApplyCount,
+                checkinCount,
+                waitAggregate.totalWaitCount(),
+                waitAggregate.averageWaitMinutes(),
+                programCapacity,
+                throughputPerMin,
+                targetWaitMin
+        );
+        List<Double> programInputSequence = buildProgramInputSequence(
+                program.getProgramId(),
+                baseTime,
+                programBaseScore
+        );
 
         AiProgramPredictionRequest request = new AiProgramPredictionRequest(
                 program.getEventId(),
@@ -202,7 +273,8 @@ public class AiCongestionService {
                 targetWaitMin,
                 toUpperText(program.getCategory() == null ? null : program.getCategory().name()),
                 null,
-                resolveProgramZone(program)
+                resolveProgramZone(program),
+                programInputSequence
         );
 
         AiCongestionPredictionResponse response = aiInferenceClient.predictProgram(request)
@@ -487,6 +559,7 @@ public class AiCongestionService {
                 levelFromScore(peakScore),
                 Math.max(0, predictedWaitMinutes),
                 0.62,
+                null,
                 fallbackUsed,
                 timeline
         );
@@ -721,6 +794,143 @@ public class AiCongestionService {
         return Math.min(90.0, Math.max(5.0, blended));
     }
 
+    private List<Double> buildEventInputSequence(Event event, LocalDateTime baseTime, double fallbackScore) {
+        if (event.getStatus() == EventStatus.PLANNED) {
+            List<Double> referenceSequence = buildPlannedReferenceEventSequence(
+                    event.getEventId(),
+                    baseTime,
+                    fallbackScore
+            );
+            if (!referenceSequence.isEmpty()) {
+                return referenceSequence;
+            }
+        }
+
+        return buildSingleEventInputSequence(event.getEventId(), baseTime, fallbackScore);
+    }
+
+    private List<Double> buildSingleEventInputSequence(Long eventId, LocalDateTime baseTime, double fallbackScore) {
+        List<AiEventCongestionTimeseries> snapshots = aiEventCongestionTimeseriesRepository
+                .findTop60ByEventIdAndTimestampMinuteLessThanEqualOrderByTimestampMinuteDesc(eventId, baseTime);
+        List<Double> sequence = new ArrayList<>();
+        for (int index = snapshots.size() - 1; index >= 0; index--) {
+            BigDecimal score = snapshots.get(index).getCongestionScore();
+            if (score == null) {
+                continue;
+            }
+            sequence.add(clampScore(score.doubleValue()));
+        }
+        return normalizeInputSequence(sequence, fallbackScore);
+    }
+
+    private List<Double> buildPlannedReferenceEventSequence(
+            Long targetEventId,
+            LocalDateTime baseTime,
+            double fallbackScore
+    ) {
+        List<Long> referenceEventIds = collectReferenceEventIdsForPlanned(targetEventId);
+        if (referenceEventIds.isEmpty()) {
+            return List.of();
+        }
+
+        int sampleSize = resolvePlannedReferenceSampleSize(referenceEventIds.size());
+        List<AiEventCongestionTimeseries> snapshots = aiEventCongestionTimeseriesRepository
+                .findByEventIdInAndTimestampMinuteLessThanEqualOrderByTimestampMinuteDesc(
+                        referenceEventIds,
+                        baseTime,
+                        PageRequest.of(0, sampleSize)
+                );
+        if (snapshots.isEmpty()) {
+            return List.of();
+        }
+
+        Map<LocalDateTime, double[]> minuteAggregate = new TreeMap<>();
+        for (AiEventCongestionTimeseries snapshot : snapshots) {
+            BigDecimal score = snapshot.getCongestionScore();
+            LocalDateTime timestampMinute = snapshot.getTimestampMinute();
+            if (score == null || timestampMinute == null) {
+                continue;
+            }
+            double[] stat = minuteAggregate.computeIfAbsent(timestampMinute, ignored -> new double[2]);
+            stat[0] += clampScore(score.doubleValue());
+            stat[1] += 1.0;
+        }
+
+        if (minuteAggregate.isEmpty()) {
+            return List.of();
+        }
+
+        List<Double> sequence = new ArrayList<>(minuteAggregate.size());
+        for (double[] stat : minuteAggregate.values()) {
+            if (stat[1] <= 0.0) {
+                continue;
+            }
+            sequence.add(clampScore(stat[0] / stat[1]));
+        }
+        return normalizeInputSequence(sequence, fallbackScore);
+    }
+
+    private List<Long> collectReferenceEventIdsForPlanned(Long targetEventId) {
+        Set<Long> referenceEventIds = new LinkedHashSet<>();
+        eventRepository.findByStatus(EventStatus.ENDED)
+                .stream()
+                .map(Event::getEventId)
+                .filter(eventId -> !eventId.equals(targetEventId))
+                .forEach(referenceEventIds::add);
+        eventRepository.findByStatus(EventStatus.ONGOING)
+                .stream()
+                .map(Event::getEventId)
+                .filter(eventId -> !eventId.equals(targetEventId))
+                .forEach(referenceEventIds::add);
+        return new ArrayList<>(referenceEventIds);
+    }
+
+    private int resolvePlannedReferenceSampleSize(int referenceEventCount) {
+        int scaled = MODEL_SEQUENCE_LENGTH * Math.max(referenceEventCount, 1);
+        int bounded = Math.max(PLANNED_REFERENCE_MIN_SAMPLE_SIZE, scaled);
+        return Math.min(PLANNED_REFERENCE_MAX_SAMPLE_SIZE, bounded);
+    }
+
+    private List<Double> buildProgramInputSequence(Long programId, LocalDateTime baseTime, double fallbackScore) {
+        List<AiProgramCongestionTimeseries> snapshots = aiProgramCongestionTimeseriesRepository
+                .findTop60ByProgramIdAndTimestampMinuteLessThanEqualOrderByTimestampMinuteDesc(programId, baseTime);
+        List<Double> sequence = new ArrayList<>();
+        for (int index = snapshots.size() - 1; index >= 0; index--) {
+            BigDecimal score = snapshots.get(index).getCongestionScore();
+            if (score == null) {
+                continue;
+            }
+            sequence.add(clampScore(score.doubleValue()));
+        }
+        return normalizeInputSequence(sequence, fallbackScore);
+    }
+
+    private List<Double> normalizeInputSequence(List<Double> raw, double fallbackScore) {
+        List<Double> normalized = new ArrayList<>();
+        if (raw != null) {
+            for (Double value : raw) {
+                if (value == null) {
+                    continue;
+                }
+                normalized.add(clampScore(value));
+            }
+        }
+
+        if (normalized.size() > MODEL_SEQUENCE_LENGTH) {
+            normalized = new ArrayList<>(
+                    normalized.subList(normalized.size() - MODEL_SEQUENCE_LENGTH, normalized.size())
+            );
+        }
+
+        double basePad = normalized.isEmpty()
+                ? clampScore(Math.max(DEFAULT_SEQUENCE_FALLBACK_SCORE, fallbackScore))
+                : normalized.get(0);
+        while (normalized.size() < MODEL_SEQUENCE_LENGTH) {
+            normalized.add(0, basePad);
+        }
+        return normalized;
+    }
+
     private String resolveProgramZone(Program program) {
         if (program.getBoothId() == null) {
             return null;
@@ -735,6 +945,51 @@ public class AiCongestionService {
             return null;
         }
         return value.toUpperCase(Locale.ROOT);
+    }
+
+    private double resolveLocationDemandScore(String location) {
+        if (location == null || location.isBlank()) {
+            return 94.0;
+        }
+
+        String normalized = location.toLowerCase(Locale.ROOT);
+        if (normalized.contains("서울")) {
+            return 100.0;
+        }
+        if (normalized.contains("경기")) {
+            return 99.0;
+        }
+        if (normalized.contains("인천")) {
+            return 98.0;
+        }
+        if (normalized.contains("부산")) {
+            return 97.0;
+        }
+        if (normalized.contains("대전")) {
+            return 96.0;
+        }
+        if (normalized.contains("대구")) {
+            return 95.0;
+        }
+        if (normalized.contains("광주")) {
+            return 94.0;
+        }
+        if (normalized.contains("충청")) {
+            return 93.0;
+        }
+        if (normalized.contains("울산")) {
+            return 92.0;
+        }
+        if (normalized.contains("세종")) {
+            return 90.0;
+        }
+        if (normalized.contains("강원")) {
+            return 89.0;
+        }
+        if (normalized.contains("제주")) {
+            return 88.0;
+        }
+        return 94.0;
     }
 
     private int safeInt(Integer value) {
@@ -921,6 +1176,7 @@ public class AiCongestionService {
                 response.predictedLevel(),
                 normalizedWait,
                 response.confidence(),
+                response.lstmPredictedAvgScore(),
                 response.fallbackUsed(),
                 normalizedTimeline
         );
