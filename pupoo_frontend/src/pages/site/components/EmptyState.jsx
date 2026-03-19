@@ -23,7 +23,7 @@ const styles = `
     font-weight: 500;
     color: #adb5bd;
     margin-bottom: 6px;
-    font-family: 'Kakao Big Sans', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    font-family: 'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   }
   .empty-state-desc {
     font-size: 14px;
@@ -31,7 +31,7 @@ const styles = `
     font-weight: 500;
     text-align: center;
     line-height: 1.5;
-    font-family: 'Kakao Big Sans', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    font-family: 'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   }
 `;
 

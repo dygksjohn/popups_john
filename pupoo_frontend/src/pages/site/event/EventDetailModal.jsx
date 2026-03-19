@@ -82,7 +82,7 @@ const modalStyles = `
   }
   .evm-poster-fallback {
     width: 100%; height: 100%;
-    background: linear-gradient(135deg, #1a4fd6 0%, #6366f1 100%);
+    background: linear-gradient(135deg, #02A17E 0%, #6366f1 100%);
     display: flex; align-items: center; justify-content: center;
     font-size: 80px;
   }
@@ -251,7 +251,7 @@ const modalStyles = `
   }
   .evm-guide-day-item:hover { border-color: #90b3ff; }
   .evm-guide-day-item.active {
-    border-color: #1a4fd6;
+    border-color: #02A17E;
     background: #f5f8ff;
     box-shadow: 0 0 0 2px rgba(26,79,214,0.08) inset;
   }
@@ -269,11 +269,11 @@ const modalStyles = `
     font-weight: 800;
   }
   .evm-guide-day-item.active .evm-guide-date-chip {
-    background: #1a4fd6;
+    background: #02A17E;
     color: #fff;
   }
   .evm-guide-date-day { font-size: 12px; font-weight: 600; line-height: 1; opacity: 0.7; }
-  .evm-guide-date-week { font-size: 17px; font-weight: 500; margin-top: 2px; }
+  .evm-guide-date-week { font-size: 12px; font-weight: 500; margin-top: 2px; }
   .evm-guide-day-info { flex: 1; min-width: 0; }
   .evm-guide-day-title {
     font-size: 14px;
@@ -294,7 +294,7 @@ const modalStyles = `
     padding: 3px 10px;
     border-radius: 999px;
     background: #eff4ff;
-    color: #1a4fd6;
+    color: #02A17E;
     font-size: 11px;
     font-weight: 700;
     margin-bottom: 8px;
@@ -328,7 +328,7 @@ const modalStyles = `
   }
   .evm-guide-program-dot.done { background: #9ca3af; }
   .evm-guide-program-dot.live { background: #10b981; }
-  .evm-guide-program-dot.upcoming { background: #1a4fd6; }
+  .evm-guide-program-dot.upcoming { background: #02A17E; }
   .evm-guide-program-body { flex: 1; min-width: 0; }
   .evm-guide-program-name {
     font-size: 13.5px;
@@ -385,7 +385,7 @@ const modalStyles = `
   }
   .evm-speaker-name { font-size: 13.5px; font-weight: 700; color: #111827; }
   .evm-speaker-role { font-size: 11.5px; color: #6b7280; margin-top: 1px; }
-  .evm-speaker-topic { font-size: 11px; color: #1a4fd6; font-weight: 600; margin-top: 4px; }
+  .evm-speaker-topic { font-size: 11px; color: #02A17E; font-weight: 600; margin-top: 4px; }
 
   /* Participants bar */
   .evm-participants-bar {
@@ -400,7 +400,7 @@ const modalStyles = `
   }
   .evm-part-count span { font-size: 14px; font-weight: 500; color: #9ca3af; }
   .evm-part-pct {
-    font-size: 14px; font-weight: 700; color: #1a4fd6;
+    font-size: 14px; font-weight: 700; color: #02A17E;
   }
   .evm-part-track {
     height: 8px; background: #e5e7eb; border-radius: 100px;
@@ -408,14 +408,14 @@ const modalStyles = `
   }
   .evm-part-fill {
     height: 100%; border-radius: 100px;
-    background: linear-gradient(90deg, #1a4fd6, #6366f1);
+    background: linear-gradient(90deg, #02A17E, #6366f1);
     transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
   }
   .evm-part-note {
     font-size: 13px; color: #6b7280; font-weight: 500;
     margin-top: 4px;
   }
-  .evm-part-note strong { color: #1a4fd6; font-weight: 800; }
+  .evm-part-note strong { color: #02A17E; font-weight: 800; }
 
   /* Location */
   .evm-map-placeholder {
@@ -460,8 +460,8 @@ const modalStyles = `
     transition: all 0.15s ease;
   }
   .evm-map-link:hover {
-    border-color: #1a4fd6;
-    color: #1a4fd6;
+    border-color: #02A17E;
+    color: #02A17E;
     background: #f8fbff;
   }
   .evm-map-organizer {
@@ -508,26 +508,26 @@ const modalStyles = `
   /* CTA */
   .evm-cta-bar {
     background: #fff; border-top: 1px solid #e9ecef;
-    padding: 16px 28px;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 20px 28px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
     flex-shrink: 0;
   }
-  .evm-cta-price-label { font-size: 14px; color: #9ca3af; }
-  .evm-cta-price { font-size: 19px; font-weight: 800; color: #111827; }
-  .evm-cta-actions { display: flex; gap: 8px; }
+  .evm-cta-price-label { font-size: 13px; color: #9ca3af; font-weight: 500; }
+  .evm-cta-price { font-size: 26px; font-weight: 900; color: #111827; letter-spacing: -0.02em; line-height: 1.2; }
+  .evm-cta-actions { display: flex; gap: 10px; }
   .evm-btn-secondary {
-    height: 42px; padding: 0 18px; border-radius: 10px;
+    height: 48px; padding: 0 22px; border-radius: 12px;
     border: 1px solid #e2e8f0; background: #fff;
-    font-size: 13px; font-weight: 600; color: #374151;
+    font-size: 14px; font-weight: 700; color: #374151;
     cursor: pointer; font-family: inherit;
     display: flex; align-items: center; gap: 6px;
     transition: all 0.15s;
   }
-  .evm-btn-secondary:hover { background: #f8f9fc; }
+  .evm-btn-secondary:hover { background: #f8f9fc; border-color: #d1d5db; }
   .evm-btn-primary {
-    height: 42px; padding: 0 28px; border-radius: 10px;
-    border: none; background: #1a4fd6; color: #fff;
-    font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+    height: 48px; padding: 0 32px; border-radius: 12px;
+    border: none; background: #02A17E; color: #fff;
+    font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
     display: flex; align-items: center; gap: 6px;
     transition: all 0.15s;
     box-shadow: 0 2px 12px rgba(26,79,214,0.25);
@@ -543,7 +543,7 @@ const modalStyles = `
     transition: all 0.15s ease;
   }
   .evm-inline-link-btn:hover {
-    border-color: #1a4fd6; color: #1a4fd6; background: #f8fbff;
+    border-color: #02A17E; color: #02A17E; background: #f8fbff;
   }
 
   /* Responsive */
@@ -1445,7 +1445,7 @@ export default function EventDetailModal({ event, onClose }) {
             <div className="evm-quick-info">
               <div className="evm-qi-item">
                 <div className="evm-qi-icon" style={{ background: "#eff4ff" }}>
-                  <Calendar size={17} color="#1a4fd6" />
+                  <Calendar size={17} color="#02A17E" />
                 </div>
                 <div>
                   <div className="evm-qi-label">일시</div>
@@ -1479,7 +1479,7 @@ export default function EventDetailModal({ event, onClose }) {
                   className="evm-section-icon"
                   style={{ background: "#eff4ff" }}
                 >
-                  <Building2 size={15} color="#1a4fd6" />
+                  <Building2 size={15} color="#02A17E" />
                 </div>
                 <div className="evm-section-title">행사 소개</div>
               </div>
@@ -1498,14 +1498,6 @@ export default function EventDetailModal({ event, onClose }) {
                   </div>
                   <div className="evm-section-title">프로그램 안내</div>
                 </div>
-                <button
-                  type="button"
-                  className="evm-inline-link-btn"
-                  onClick={handleViewAllPrograms}
-                >
-                  전체 프로그램 조회
-                  <ChevronRight size={13} />
-                </button>
               </div>
               <div className="evm-guide-grid">
                 <div className="evm-guide-panel">
@@ -1718,7 +1710,7 @@ export default function EventDetailModal({ event, onClose }) {
               </div>
 
               <div className="evm-address">
-                <MapPin size={14} color="#1a4fd6" />
+                <MapPin size={14} color="#02A17E" />
                 {loc}
               </div>
               {hasValidLocation && (
@@ -1753,7 +1745,7 @@ export default function EventDetailModal({ event, onClose }) {
                     className="evm-transport-icon"
                     style={{ background: "#eff4ff" }}
                   >
-                    <Train size={14} color="#1a4fd6" />
+                    <Train size={14} color="#02A17E" />
                   </div>
                   <div>
                     <strong style={{ fontSize: "12px" }}>지하철</strong>
@@ -1837,7 +1829,7 @@ export default function EventDetailModal({ event, onClose }) {
               <div className="evm-contact-grid">
                 <div className="evm-contact-item">
                   <div className="evm-contact-icon">
-                    <Phone size={14} color="#1a4fd6" />
+                    <Phone size={14} color="#02A17E" />
                   </div>
                   <div>
                     <div className="evm-contact-label">전화</div>
@@ -1848,7 +1840,7 @@ export default function EventDetailModal({ event, onClose }) {
                 </div>
                 <div className="evm-contact-item">
                   <div className="evm-contact-icon">
-                    <Mail size={14} color="#1a4fd6" />
+                    <Mail size={14} color="#02A17E" />
                   </div>
                   <div>
                     <div className="evm-contact-label">이메일</div>

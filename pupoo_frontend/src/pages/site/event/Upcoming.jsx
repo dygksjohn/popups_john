@@ -63,7 +63,7 @@ const styles = `
     cursor: pointer; font-family: inherit; transition: all 0.15s;
   }
   .up-nav-btn:hover { background: #f3f4f6; color: #111827; }
-  .up-nav-btn.active { background: #1a4fd6; color: #fff; font-weight: 600; }
+  .up-nav-btn.active { background: #02A17E; color: #fff; font-weight: 600; }
 
   .up-container { width: min(1400px, calc(100% - 40px)); margin: 0 auto; padding: 32px 0 64px; }
 
@@ -74,8 +74,8 @@ const styles = `
     font-size: 16px; font-weight: 700; color: #111827;
     white-space: nowrap; flex-shrink: 0;
   }
-  .up-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #2563eb; animation: up-pulse 1.4s ease-in-out infinite; }
-  .up-status-count { color: #2563eb; font-weight: 800; }
+  .up-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #02A17E; animation: up-pulse 1.4s ease-in-out infinite; }
+  .up-status-count { color: #02A17E; font-weight: 800; }
   @keyframes up-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 
   .up-filter-btn {
@@ -84,8 +84,8 @@ const styles = `
     cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: inherit;
     transition: all 0.15s; white-space: nowrap;
   }
-  .up-filter-btn:hover { border-color: #2563eb; color: #2563eb; }
-  .up-filter-btn.active { border-color: #2563eb; background: #eff6ff; color: #2563eb; font-weight: 700; }
+  .up-filter-btn:hover { border-color: #02A17E; color: #02A17E; }
+  .up-filter-btn.active { border-color: #02A17E; background: #E6F7F2; color: #02A17E; font-weight: 700; }
 
   /* Card grid */
   .up-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
@@ -98,14 +98,14 @@ const styles = `
 
   .up-thumb {
     width: 180px; flex-shrink: 0;
-    overflow: hidden; background: #eef2ff; position: relative;
+    overflow: hidden; background: #E6F7F2; position: relative;
   }
   .up-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s; }
   .up-event-card:hover .up-thumb img { transform: scale(1.03); }
   .up-thumb-fallback {
     width: 100%; height: 100%; min-height: 200px;
     display: flex; align-items: center; justify-content: center; font-size: 36px;
-    background: linear-gradient(135deg, #1a4fd6 0%, #6366f1 100%);
+    background: linear-gradient(135deg, #02A17E 0%, #6366f1 100%);
   }
   .up-d-badge {
     position: absolute; top: 12px; right: 12px;
@@ -131,12 +131,12 @@ const styles = `
     transition: all 0.15s;
   }
   .up-alarm-btn.off { border: 1px solid #e2e8f0; background: #fff; color: #374151; }
-  .up-alarm-btn.off:hover { border-color: #2563eb; color: #2563eb; }
-  .up-alarm-btn.on { border: 1px solid #2563eb; background: #eff6ff; color: #2563eb; }
+  .up-alarm-btn.off:hover { border-color: #02A17E; color: #02A17E; }
+  .up-alarm-btn.on { border: 1px solid #02A17E; background: #E6F7F2; color: #02A17E; }
   .up-pre-btn {
     height: 34px; padding: 0 14px; border-radius: 8px; border: none;
     font-size: 14.5px; font-weight: 700; cursor: pointer; font-family: inherit;
-    background: #1a4fd6; color: #fff; transition: all 0.15s;
+    background: #02A17E; color: #fff; transition: all 0.15s;
   }
   .up-pre-btn:hover { background: #1640b8; }
   .up-pre-btn:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -151,7 +151,7 @@ const styles = `
 `;
 
 const CATEGORY_COLORS = {
-  컨퍼런스: { bg: "#eff4ff", color: "#1a4fd6" },
+  컨퍼런스: { bg: "#eff4ff", color: "#02A17E" },
   워크샵: { bg: "#f5f3ff", color: "#7c3aed" },
   세미나: { bg: "#ecfdf5", color: "#059669" },
   포럼: { bg: "#fff7ed", color: "#d97706" },
@@ -252,13 +252,7 @@ function mapEvent(raw) {
     time: startAt || endAt ? formatTime(startAt, endAt) : "시간 미정",
     sortKey: Number.isNaN(sortTime) ? Number.POSITIVE_INFINITY : sortTime,
     capacity: Number(raw?.capacity ?? raw?.maxParticipants ?? 0),
-    registered: Number(
-      raw?.preRegistrationCount ??
-      raw?.appliedCount ??
-      raw?.participants ??
-      raw?.registered ??
-      0,
-    ),
+    registered: Number(raw?.participants ?? raw?.appliedCount ?? raw?.registered ?? 0),
     baseFee: raw?.baseFee ?? raw?.participationFee ?? raw?.fee ?? 0,
     organizer: raw?.organizer ?? "정보 없음",
     organizerPhone: raw?.organizerPhone ?? null,
@@ -397,7 +391,7 @@ export default function Upcoming() {
       <PageHeader
         title="예정 행사"
         subtitle={SUBTITLE_MAP[currentPath]}
-        icon={<CalendarClock size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        icon={<CalendarClock size={42} color="#02A17E" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={SERVICE_CATEGORIES}
@@ -432,7 +426,7 @@ export default function Upcoming() {
             <div style={{ position: "relative", width: 280 }}>
               <Search
                 size={16}
-                color={searchFocused ? "#2563eb" : "#94a3b8"}
+                color={searchFocused ? "#02A17E" : "#94a3b8"}
                 style={{
                   position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
                   transition: "color 0.25s", zIndex: 1,
@@ -457,7 +451,7 @@ export default function Upcoming() {
                 style={{
                   width: "100%", height: 44,
                   borderRadius: 12,
-                  border: searchFocused ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+                  border: searchFocused ? "2px solid #02A17E" : "1.5px solid #e2e8f0",
                   padding: "0 14px 0 38px",
                   fontSize: 15, fontWeight: 700, color: "#0f172a",
                   background: "#fff", outline: "none",
@@ -529,7 +523,7 @@ export default function Upcoming() {
                   </div>
                   <div className="up-event-footer">
                     <div className="up-participants">
-                      사전 등록&nbsp;&nbsp;<strong>{Number(ev.registered || 0).toLocaleString()}</strong>명
+                      사전 등록&nbsp;&nbsp;<strong>{Number(ev.registered || 0).toLocaleString()}</strong> / {Number(ev.capacity || 0).toLocaleString()}명
                     </div>
                     <div className="up-action-row">
                       <button

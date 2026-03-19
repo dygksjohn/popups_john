@@ -41,7 +41,7 @@ const ds = {
   r: 14,
   rs: 8,
   rx: 18,
-  ff: "'DM Sans', 'Pretendard Variable', -apple-system, 'Noto Sans KR', sans-serif",
+  ff: "'A2z', 'Pretendard Variable', -apple-system, 'Noto Sans KR', sans-serif",
 };
 
 export default ds;

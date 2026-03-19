@@ -134,7 +134,7 @@ export default function CommunityFaq() {
       <PageHeader
         title="자주 묻는 질문"
         subtitle="자주 문의하는 내용을 빠르게 확인할 수 있는 안내 게시판입니다."
-        icon={<HelpCircle size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        icon={<HelpCircle size={42} color="#02A17E" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}

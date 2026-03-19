@@ -697,8 +697,8 @@ export default function ContestApply() {
 
             <div
               style={{
-                background: "#EFF6FF",
-                border: "1px solid #BFDBFE",
+                background: "#E6F7F2",
+                border: "1px solid #CCF0E4",
                 borderRadius: 14,
                 padding: "14px 16px",
               }}
@@ -706,7 +706,7 @@ export default function ContestApply() {
               <div
                 style={{
                   fontSize: 12,
-                  color: "#1D4ED8",
+                  color: "#028A6C",
                   fontWeight: 700,
                   marginBottom: 6,
                 }}
@@ -718,7 +718,7 @@ export default function ContestApply() {
                   margin: 0,
                   paddingLeft: 16,
                   fontSize: 12,
-                  color: "#3B82F6",
+                  color: "#3DBFA0",
                   lineHeight: 2,
                 }}
               >

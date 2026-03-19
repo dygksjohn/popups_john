@@ -108,7 +108,7 @@ function buttonStyle(kind = "neutral") {
       padding: "0 18px",
       borderRadius: 10,
       border: "none",
-      background: "#1d4ed8",
+      background: "#028A6C",
       fontSize: 14,
       fontWeight: 800,
       color: "#fff",
@@ -261,8 +261,8 @@ function GalleryWriteModal({
                 style={{
                   minHeight: 100,
                   borderRadius: 14,
-                  border: `2px dashed ${dragOver ? "#1d4ed8" : "#93c5fd"}`,
-                  background: dragOver ? "#eff6ff" : "#f8fafc",
+                  border: `2px dashed ${dragOver ? "#028A6C" : "#5CCDB2"}`,
+                  background: dragOver ? "#E6F7F2" : "#f8fafc",
                   padding: 20,
                   cursor: "pointer",
                   display: "flex",
@@ -273,8 +273,8 @@ function GalleryWriteModal({
                   transition: "background 0.15s, border-color 0.15s",
                 }}
               >
-                <Upload size={24} color="#1d4ed8" />
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#1d4ed8" }}>
+                <Upload size={24} color="#028A6C" />
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#028A6C" }}>
                   {dragOver ? "여기에 놓으세요" : "클릭하여 파일 선택 또는 이미지를 여기에 드래그"}
                 </span>
                 <input
@@ -319,7 +319,7 @@ function GalleryWriteModal({
                         flexShrink: 0,
                         borderRadius: 12,
                         overflow: "hidden",
-                        border: dragIndex === index ? "2px solid #1d4ed8" : dropIndex === index ? "2px solid #93c5fd" : "1px solid #e2e8f0",
+                        border: dragIndex === index ? "2px solid #028A6C" : dropIndex === index ? "2px solid #5CCDB2" : "1px solid #e2e8f0",
                         background: "#fff",
                         boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
                         position: "relative",
@@ -330,7 +330,7 @@ function GalleryWriteModal({
                       <div style={{ aspectRatio: "1", position: "relative", background: "#f1f5f9" }}>
                         <img src={previewUrls[index]} alt={file.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                         {index === 0 ? (
-                          <span style={{ position: "absolute", top: 6, left: 6, padding: "4px 8px", borderRadius: 6, background: "#1d4ed8", color: "#fff", fontSize: 11, fontWeight: 800 }}>
+                          <span style={{ position: "absolute", top: 6, left: 6, padding: "4px 8px", borderRadius: 6, background: "#028A6C", color: "#fff", fontSize: 11, fontWeight: 800 }}>
                             대표
                           </span>
                         ) : null}
@@ -428,7 +428,7 @@ function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, liked
 
             {/* Content */}
             <div style={{ padding: "12px 28px 28px", flex: 1, display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#1d4ed8", marginBottom: 12 }}>{eventName}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#028A6C", marginBottom: 12 }}>{eventName}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", lineHeight: 1.35, marginBottom: 12 }}>{item.title}</div>
               {item.description && <div style={{ fontSize: 14, lineHeight: 1.8, color: "#6b7280", whiteSpace: "pre-wrap", marginBottom: 20 }}>{item.description}</div>}
 
@@ -708,7 +708,7 @@ export default function EventGallery() {
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Noto Sans KR', sans-serif" }}>
       <style>{`.board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
-      <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" icon={<Images size={42} color="#1a4fd6" strokeWidth={1.6} />} titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }} subtitleStyle={{ fontSize: 20 }} categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
+      <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" icon={<Images size={42} color="#02A17E" strokeWidth={1.6} />} titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }} subtitleStyle={{ fontSize: 20 }} categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
       <main
         style={{
           width: "min(1400px, calc(100% - 40px))",
@@ -793,7 +793,7 @@ export default function EventGallery() {
               </div>
             </div>
 
-            {isAuthed ? <button type="button" onClick={() => { setWriteError(""); setWriteForm({ eventId: selectedEventId || "", title: "", description: "", files: [] }); setWriteOpen(true); }} style={{ height: 42, padding: "0 18px", borderRadius: 999, border: "none", background: "#1d4ed8", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 800, cursor: "pointer", flexShrink: 0 }}><Plus size={16} /> 글쓰기</button> : null}
+            {isAuthed ? <button type="button" onClick={() => { setWriteError(""); setWriteForm({ eventId: selectedEventId || "", title: "", description: "", files: [] }); setWriteOpen(true); }} style={{ height: 42, padding: "0 18px", borderRadius: 999, border: "none", background: "#028A6C", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 800, cursor: "pointer", flexShrink: 0 }}><Plus size={16} /> 글쓰기</button> : null}
           </div>
           {reportNotice ? (
             <div style={{ padding: "16px 0 0" }}>

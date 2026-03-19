@@ -53,17 +53,17 @@ const PAGE_CONFIG = {
   current: {
     title: "현재 진행 프로그램",
     subtitle: "현재 진행 행사에 속한 프로그램을 확인하세요",
-    icon: <Zap size={42} color="#1a4fd6" strokeWidth={1.6} />,
+    icon: <Zap size={42} color="#02A17E" strokeWidth={1.6} />,
   },
   upcoming: {
     title: "예정 프로그램",
     subtitle: "예정 행사에 속한 프로그램을 미리 확인하세요",
-    icon: <CalendarClock size={42} color="#1a4fd6" strokeWidth={1.6} />,
+    icon: <CalendarClock size={42} color="#02A17E" strokeWidth={1.6} />,
   },
   closed: {
     title: "종료 프로그램",
     subtitle: "종료 행사에 속한 프로그램 이력을 확인하세요",
-    icon: <ArchiveX size={42} color="#1a4fd6" strokeWidth={1.6} />,
+    icon: <ArchiveX size={42} color="#02A17E" strokeWidth={1.6} />,
   },
 };
 
@@ -71,19 +71,38 @@ const styles = `
   .ps-root { background:#f8f9fc; min-height:100vh; }
   .ps-wrap { max-width:1400px; margin:0 auto; padding:32px 0px 64px; }
 
+  .ps-sub-tabs {
+    display:flex; gap:8px; margin-bottom:24px;
+    background:#f3f4f6; border-radius:999px; padding:4px; width:fit-content;
+  }
+  .ps-sub-tab {
+    padding:10px 24px; border-radius:999px; border:none;
+    background:transparent; color:#9ca3af; font-size:15px; font-weight:600;
+    cursor:pointer; transition:all 0.15s; white-space:nowrap;
+  }
+  .ps-sub-tab:hover { color:#374151; }
+  .ps-sub-tab.active {
+    background:#1f2937; color:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,0.12);
+  }
+
   .ps-toolbar {
     display:flex; align-items:center; justify-content:space-between; gap:14px;
     flex-wrap:wrap; margin-bottom:18px;
   }
   .ps-toolbar-left {
     display:flex; align-items:center; gap:0;
-    background:#f3f4f6; border-radius:999px; height:46px;
-    min-width:0; flex:1 1 auto; max-width:560px;
+    background:#fff; border:1px solid #e2e5ea; border-radius:12px; height:48px;
+    min-width:0; flex:0 0 auto; width:420px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .ps-toolbar-left:focus-within {
+    border-color:#111827; box-shadow:0 0 0 2px rgba(17,24,39,0.08);
   }
   .ps-dropdown { position:relative; flex:0 0 auto; }
   .ps-dropdown-btn {
-    height:46px; padding:0 36px 0 16px; border-radius:999px 0 0 999px;
-    border:none; background:transparent; color:#9ca3af; font-size:13px; font-weight:500;
+    height:48px; padding:0 36px 0 18px; border-radius:12px 0 0 12px;
+    border:none; background:transparent; color:#9ca3af; font-size:14px; font-weight:500;
     cursor:pointer; text-align:left; outline:none; font-family:inherit;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
@@ -111,38 +130,37 @@ const styles = `
   .ps-dropdown-item.active { color:#111827; font-weight:600; }
   .ps-dropdown-item .dd-icon { color:#9ca3af; flex-shrink:0; }
   .ps-search-wrap {
-    position:relative; flex:1 1 auto; min-width:0;
+    position:relative; width:100%; height:100%;
   }
   .ps-search-input {
-    width:100%; height:46px; padding:0 16px 0 40px; border-radius:0 999px 999px 0;
-    border:none; background:transparent; color:#111827; font-size:13px; font-weight:500;
-    outline:none;
+    width:100%; height:100%; padding:0 16px 0 40px; border-radius:0 12px 12px 0;
+    border:none; background:transparent; color:#111827; font-size:14px; font-weight:500;
+    outline:none; font-family:inherit;
   }
   .ps-search-input::placeholder { color:#9ca3af; }
   .ps-search-icon {
     position:absolute; left:14px; top:50%; transform:translateY(-50%);
     color:#9ca3af; pointer-events:none;
   }
-  .ps-filter { display:inline-flex; background:#f3f4f6; border-radius:999px; padding:4px; gap:4px; }
+  .ps-filter { display:inline-flex; gap:0; }
   .ps-filter button {
-    border:1px solid transparent; background:transparent; color:#9ca3af;
-    padding:8px 20px; border-radius:999px; font-size:13px; font-weight:600; cursor:pointer;
-    transition:all .15s ease;
+    border:1px solid #e2e5ea; background:#fff; color:#9ca3af;
+    padding:12px 24px; border-radius:0; font-size:15px; font-weight:700; cursor:pointer;
+    transition:all .15s ease; margin-left:-1px; font-family:inherit;
   }
-  .ps-filter button:hover { color:#374151; }
-  .ps-filter button.active { background:#1f2937; border-color:transparent; color:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.12); }
-
-  .ps-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
-  .ps-stat {
-    background:#fff; border:1px solid #e9ecef; border-radius:14px; padding:18px 20px;
-    display:flex; align-items:center; gap:12px;
+  .ps-filter button:first-child { border-radius:12px 0 0 12px; margin-left:0; }
+  .ps-filter button:last-child { border-radius:0 12px 12px 0; }
+  .ps-filter button:hover { color:#374151; background:#f9fafb; }
+  .ps-filter button.active { background:#111827; border-color:#111827; color:#fff; z-index:1; position:relative; }
+  .ps-filter-badge {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:20px; height:20px; border-radius:99px; padding:0 6px;
+    font-size:11px; font-weight:800; margin-left:8px;
+    background:#e5e7eb; color:#6b7280;
   }
-  .ps-stat-icon {
-    width:42px; height:42px; border-radius:11px; display:flex; align-items:center; justify-content:center;
-    flex-shrink:0;
+  .ps-filter button.active .ps-filter-badge {
+    background:rgba(255,255,255,0.2); color:#fff;
   }
-  .ps-stat-label { font-size:12px; color:#6b7280; }
-  .ps-stat-value { font-size:22px; font-weight:800; color:#111827; }
 
   /* ── Current: 4-column vertical cards (matching ev-) ── */
   .ps-grid-current { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
@@ -152,7 +170,7 @@ const styles = `
     display:flex; flex-direction:column;
   }
   .ps-card-current:hover { box-shadow:0 6px 18px rgba(0,0,0,0.06); transform:translateY(-3px); }
-  .ps-card-current:hover .ps-card-current-btn { background:#1a4fd6; color:#fff; border-color:#1a4fd6; }
+  .ps-card-current:hover .ps-card-current-btn { background:#02A17E; color:#fff; border-color:#02A17E; }
   .ps-card-current-thumb { position:relative; overflow:hidden; background:#f1f5f9; }
   .ps-card-current-thumb img { width:100%; display:block; transition:transform 0.4s ease; }
   .ps-card-current:hover .ps-card-current-thumb img { transform:scale(1.03); }
@@ -164,10 +182,10 @@ const styles = `
   }
   .ps-card-current-thumb-fallback {
     width:100%; aspect-ratio:3/4; display:flex; align-items:center; justify-content:center;
-    font-size:48px; background:linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%); color:#bfccdf;
+    font-size:48px; background:linear-gradient(135deg, #E6F7F2 0%, #f8fafc 100%); color:#bfccdf;
   }
   .ps-card-current-body { padding:16px 18px 18px; flex:1; display:flex; flex-direction:column; }
-  .ps-card-current-category { font-size:13px; font-weight:700; color:#1a4fd6; margin-bottom:6px; letter-spacing:0.3px; }
+  .ps-card-current-category { font-size:13px; font-weight:700; color:#02A17E; margin-bottom:6px; letter-spacing:0.3px; }
   .ps-card-current-title { font-size:16.5px; font-weight:700; color:#111827; margin-bottom:10px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .ps-card-current-meta { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; }
   .ps-card-current-meta-row { display:flex; align-items:center; gap:6px; font-size:14px; color:#6b7280; }
@@ -175,13 +193,13 @@ const styles = `
   .ps-card-current-progress-wrap { margin-bottom:10px; }
   .ps-card-current-progress-label { display:flex; justify-content:space-between; font-size:13px; color:#9ca3af; margin-bottom:5px; }
   .ps-card-current-progress-track { height:6px; background:#f1f3f5; border-radius:100px; overflow:hidden; }
-  .ps-card-current-progress-fill { height:100%; border-radius:100px; background:linear-gradient(90deg, #1a4fd6, #6366f1); transition:width 0.6s ease; }
+  .ps-card-current-progress-fill { height:100%; border-radius:100px; background:linear-gradient(90deg, #02A17E, #6366f1); transition:width 0.6s ease; }
   .ps-card-current-btn {
     width:100%; height:42px; border:1px solid #e2e8f0; border-radius:10px; background:#fff;
     font-size:15px; font-weight:700; color:#374151; cursor:pointer; display:flex;
     align-items:center; justify-content:center; gap:4px; font-family:inherit; transition:all 0.15s;
   }
-  .ps-card-current-btn:hover { background:#1a4fd6; color:#fff; border-color:#1a4fd6; }
+  .ps-card-current-btn:hover { background:#02A17E; color:#fff; border-color:#02A17E; }
 
   /* ── Upcoming: 2-column horizontal cards (matching up-) ── */
   .ps-grid-upcoming { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
@@ -192,14 +210,14 @@ const styles = `
   }
   .ps-card-upcoming:hover { box-shadow:0 12px 36px rgba(0,0,0,0.08); transform:translateY(-2px); }
   .ps-card-upcoming-thumb {
-    width:180px; flex-shrink:0; overflow:hidden; background:#eef2ff; position:relative;
+    width:180px; flex-shrink:0; overflow:hidden; background:#E6F7F2; position:relative;
   }
   .ps-card-upcoming-thumb img { width:100%; height:100%; object-fit:cover; display:block; transition:transform 0.4s; }
   .ps-card-upcoming:hover .ps-card-upcoming-thumb img { transform:scale(1.03); }
   .ps-card-upcoming-thumb-fallback {
     width:100%; height:100%; min-height:200px;
     display:flex; align-items:center; justify-content:center; font-size:36px;
-    background:linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%); color:#bfccdf;
+    background:linear-gradient(135deg, #E6F7F2 0%, #f8fafc 100%); color:#bfccdf;
   }
   .ps-card-upcoming-d-badge {
     position:absolute; top:12px; right:12px;
@@ -219,7 +237,7 @@ const styles = `
   .ps-card-upcoming-detail-btn {
     height:34px; padding:0 14px; border-radius:8px; border:none;
     font-size:14.5px; font-weight:700; cursor:pointer; font-family:inherit;
-    background:#1a4fd6; color:#fff; transition:all 0.15s; flex-shrink:0;
+    background:#02A17E; color:#fff; transition:all 0.15s; flex-shrink:0;
     display:flex; align-items:center; gap:4px;
   }
   .ps-card-upcoming-detail-btn:hover { background:#1640b8; }
@@ -302,7 +320,7 @@ const styles = `
 `;
 
 const CATEGORY_COLORS = {
-  SESSION: { bg: "#eff6ff", color: "#2563eb" },
+  SESSION: { bg: "#E6F7F2", color: "#02A17E" },
   EXPERIENCE: { bg: "#ecfdf5", color: "#059669" },
   CONTEST: { bg: "#fff7ed", color: "#ea580c" },
   ETC: { bg: "#f3f4f6", color: "#374151" },
@@ -541,7 +559,7 @@ function CurrentCard({ program, onClick }) {
           <div className="ps-card-current-progress-wrap">
             <div className="ps-card-current-progress-label">
               <span>참가자 {participants.toLocaleString()}명 / {capacity.toLocaleString()}명</span>
-              <span style={{ fontWeight: 700, color: pct >= 80 ? "#ef4444" : "#1a4fd6" }}>{pct}%</span>
+              <span style={{ fontWeight: 700, color: pct >= 80 ? "#ef4444" : "#02A17E" }}>{pct}%</span>
             </div>
             <div className="ps-card-current-progress-track">
               <div className="ps-card-current-progress-fill" style={{ width: `${pct}%` }} />
@@ -986,6 +1004,7 @@ export default function ProgramStatus({ statusKey = "current" }) {
       />
 
       <main className="ps-wrap">
+
         <div className="ps-toolbar">
           <div className="ps-toolbar-left">
             <div className="ps-dropdown" ref={ddRef}>
@@ -1030,61 +1049,26 @@ export default function ProgramStatus({ statusKey = "current" }) {
                 className="ps-search-input"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="프로그램명, 행사명, 장소 검색"
+                placeholder="어떤 프로그램을 찾고 계세요?"
               />
             </div>
           </div>
 
           <div className="ps-filter">
-            {CATEGORY_FILTERS.map((row) => (
-              <button
-                key={row.key}
-                className={categoryFilter === row.key ? "active" : ""}
-                onClick={() => setCategoryFilter(row.key)}
-                type="button"
-              >
-                {row.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="ps-stats">
-          <div className="ps-stat">
-            <div className="ps-stat-icon" style={{ background: "#eff4ff" }}>
-              <Layers3 size={18} color="#1a4fd6" />
-            </div>
-            <div>
-              <div className="ps-stat-label">전체 프로그램</div>
-              <div className="ps-stat-value">{statPrograms.length}개</div>
-            </div>
-          </div>
-          <div className="ps-stat">
-            <div className="ps-stat-icon" style={{ background: "#f3e8ff" }}>
-              <Sparkles size={18} color="#7c3aed" />
-            </div>
-            <div>
-              <div className="ps-stat-label">세션/강연</div>
-              <div className="ps-stat-value">{sessionCount}개</div>
-            </div>
-          </div>
-          <div className="ps-stat">
-            <div className="ps-stat-icon" style={{ background: "#ecfeff" }}>
-              <CalendarCheck size={18} color="#0891b2" />
-            </div>
-            <div>
-              <div className="ps-stat-label">체험존</div>
-              <div className="ps-stat-value">{experienceCount}개</div>
-            </div>
-          </div>
-          <div className="ps-stat">
-            <div className="ps-stat-icon" style={{ background: "#fff7ed" }}>
-              <CalendarX size={18} color="#ea580c" />
-            </div>
-            <div>
-              <div className="ps-stat-label">콘테스트</div>
-              <div className="ps-stat-value">{contestCount}개</div>
-            </div>
+            {CATEGORY_FILTERS.map((row) => {
+              const countMap = { ALL: statPrograms.length, SESSION: sessionCount, EXPERIENCE: experienceCount, CONTEST: contestCount };
+              return (
+                <button
+                  key={row.key}
+                  className={categoryFilter === row.key ? "active" : ""}
+                  onClick={() => setCategoryFilter(row.key)}
+                  type="button"
+                >
+                  {row.label}
+                  <span className="ps-filter-badge">{countMap[row.key] ?? 0}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

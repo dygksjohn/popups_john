@@ -105,7 +105,7 @@ export default function Notice() {
       <PageHeader
         title="공지사항"
         subtitle="중요한 행사와 서비스 소식을 확인해 보세요."
-        icon={<Megaphone size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        icon={<Megaphone size={42} color="#02A17E" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}

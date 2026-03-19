@@ -285,7 +285,7 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
               padding: "11px 0",
               borderRadius: 8,
               border: "none",
-              background: "#4a7cf7",
+              background: "#2EB893",
               color: "#fff",
               fontSize: 14,
               fontWeight: 700,
@@ -439,7 +439,7 @@ function DetailModal({
                 alignItems: "center",
                 gap: 6,
                 fontSize: 13,
-                color: "#1D4ED8",
+                color: "#028A6C",
                 textDecoration: "none",
                 fontWeight: 600,
               }}
@@ -851,7 +851,7 @@ export default function InfoBoard() {
       <PageHeader
         title="정보게시판"
         subtitle="행사와 반려생활 관련 주요 정보를 확인하는 게시판입니다."
-        icon={<BookOpen size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        icon={<BookOpen size={42} color="#02A17E" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}
@@ -960,7 +960,7 @@ export default function InfoBoard() {
                 padding: "8px 16px",
                 borderRadius: 999,
                 border: "none",
-                background: "#4a7cf7",
+                background: "#2EB893",
                 color: "#fff",
                 fontSize: 13,
                 fontWeight: 700,

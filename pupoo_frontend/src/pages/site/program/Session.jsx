@@ -44,7 +44,7 @@ const styles = `
     border:1px solid #e5e7eb; background:#fff; color:#6b7280;
     padding:7px 14px; border-radius:999px; font-size:12px; font-weight:700; cursor:pointer;
   }
-  .pg-filter button.active { background:#1a4fd6; border-color:#1a4fd6; color:#fff; }
+  .pg-filter button.active { background:#02A17E; border-color:#02A17E; color:#fff; }
 
   .pg-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
   .pg-card {
@@ -54,7 +54,7 @@ const styles = `
   .pg-card.live { border-color:#10b981; background:#f0fdf9; }
   .pg-thumb {
     width:100%; aspect-ratio: 16/10;
-    background: linear-gradient(135deg,#eef2ff 0%, #f8fafc 100%);
+    background: linear-gradient(135deg,#E6F7F2 0%, #f8fafc 100%);
     position: relative; overflow: hidden;
   }
   .pg-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -77,7 +77,7 @@ const styles = `
   .pg-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:8px; border-top:1px solid #f1f3f5; }
   .pg-cat { font-size:11px; font-weight:700; color:#8b5cf6; background:#f3e8ff; border-radius:999px; padding:3px 9px; }
   .pg-host { font-size:12px; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .pg-detail { border:0; background:transparent; color:#1a4fd6; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; }
+  .pg-detail { border:0; background:transparent; color:#02A17E; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; }
   .pg-card.done-card {
     opacity: 0.52; pointer-events: none; filter: grayscale(0.4);
     border-color: #e9ecef; background: #fafafa;
