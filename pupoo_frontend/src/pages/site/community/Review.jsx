@@ -230,7 +230,7 @@ export default function Review() {
       <PageHeader
         title="행사후기"
         subtitle="행사에 참여한 사용자의 후기와 별점을 확인하세요"
-        icon={<Award size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        icon={<Award size={42} color="#02A17E" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}
@@ -371,7 +371,7 @@ export default function Review() {
                 padding: "8px 16px",
                 borderRadius: 999,
                 border: "none",
-                background: "#4a7cf7",
+                background: "#2EB893",
                 color: "#fff",
                 fontSize: 13,
                 fontWeight: 700,

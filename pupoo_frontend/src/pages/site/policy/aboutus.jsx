@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-const FONT = "'Kakao Big Sans', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+const FONT = "'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
 
 /* ── scroll reveal hook ── */
 function useReveal(threshold = 0.15) {

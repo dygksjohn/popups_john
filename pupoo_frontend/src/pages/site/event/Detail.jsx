@@ -58,7 +58,7 @@ const styles = `
     cursor: pointer; font-family: inherit; transition: all 0.15s;
   }
   .dt-nav-btn:hover { background: #f3f4f6; color: #111827; }
-  .dt-nav-btn.active { background: #1a4fd6; color: #fff; font-weight: 600; }
+  .dt-nav-btn.active { background: #02A17E; color: #fff; font-weight: 600; }
 
   .dt-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
 
@@ -68,10 +68,10 @@ const styles = `
     padding: 10px 20px; border: 1px solid #e2e8f0; border-radius: 10px;
     background: #fff; cursor: pointer; transition: all 0.15s; text-align: left;
   }
-  .dt-event-tab:hover { border-color: #1a4fd6; }
-  .dt-event-tab.active { border-color: #1a4fd6; background: #eff4ff; }
+  .dt-event-tab:hover { border-color: #02A17E; }
+  .dt-event-tab.active { border-color: #02A17E; background: #eff4ff; }
   .dt-event-tab-name { font-size: 13px; font-weight: 700; color: #111827; }
-  .dt-event-tab.active .dt-event-tab-name { color: #1a4fd6; }
+  .dt-event-tab.active .dt-event-tab-name { color: #02A17E; }
   .dt-event-tab-date { font-size: 11px; color: #9ca3af; margin-top: 2px; }
 
   /* Hero banner */
@@ -93,7 +93,7 @@ const styles = `
   }
   .dt-hero-btn.white { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.4); }
   .dt-hero-btn.white:hover { background: rgba(255,255,255,0.35); }
-  .dt-hero-btn.solid { background: #fff; color: #1a4fd6; border: none; font-weight: 700; }
+  .dt-hero-btn.solid { background: #fff; color: #02A17E; border: none; font-weight: 700; }
   .dt-hero-btn.solid:hover { opacity: 0.92; }
 
   /* Layout */
@@ -113,7 +113,7 @@ const styles = `
     border-bottom: 1px solid #f1f3f5; cursor: pointer;
   }
   .dt-tl-item:last-child { border-bottom: none; }
-  .dt-tl-item:hover .dt-tl-title { color: #1a4fd6; }
+  .dt-tl-item:hover .dt-tl-title { color: #02A17E; }
   .dt-tl-time { flex-shrink: 0; width: 80px; font-size: 12px; font-weight: 600; color: #9ca3af; padding-top: 2px; }
   .dt-tl-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; }
   .dt-tl-body { flex: 1; min-width: 0; }
@@ -149,7 +149,7 @@ const styles = `
 
   .dt-cta-btn {
     width: 100%; height: 46px; border: none; border-radius: 10px;
-    background: #1a4fd6; color: #fff; font-size: 14px; font-weight: 700;
+    background: #02A17E; color: #fff; font-size: 14px; font-weight: 700;
     cursor: pointer; font-family: inherit; display: flex; align-items: center;
     justify-content: center; gap: 8px; margin-top: 20px; transition: background 0.15s;
   }
@@ -186,7 +186,7 @@ const EVENTS = [
     location: "코엑스 컨벤션홀 A·B동, 서울 강남구",
     capacity: 1200,
     registered: 748,
-    gradient: "linear-gradient(135deg, #1a4fd6 0%, #6366f1 100%)",
+    gradient: "linear-gradient(135deg, #02A17E 0%, #6366f1 100%)",
     organizer: "한국클라우드산업협회",
     contact: "summit@kcca.or.kr",
     website: "https://cloudtech2026.kr",
@@ -204,7 +204,7 @@ const EVENTS = [
         title: "개막식 및 키노트",
         speaker: "이승현 회장 · 한국클라우드산업협회",
         type: "keynote",
-        color: "#1a4fd6",
+        color: "#02A17E",
         desc: "2026 클라우드 시장 전망과 국내외 동향을 발표합니다.",
       },
       {
@@ -255,7 +255,7 @@ const EVENTS = [
         org: "한국클라우드산업협회",
         emoji: "👤",
         bg: "#eff4ff",
-        color: "#1a4fd6",
+        color: "#02A17E",
       },
       {
         name: "박민준",
@@ -381,7 +381,7 @@ export default function Detail() {
       <PageHeader
         title="행사 일정 안내"
         subtitle={SUBTITLE_MAP[currentPath]}
-        icon={<CalendarDays size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        icon={<CalendarDays size={42} color="#02A17E" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={SERVICE_CATEGORIES}
@@ -454,7 +454,7 @@ export default function Detail() {
               <div className="dt-card-header">
                 <div className="dt-card-title">
                   <div className="dt-card-title-icon">
-                    <CalendarDays size={14} color="#1a4fd6" />
+                    <CalendarDays size={14} color="#02A17E" />
                   </div>
                   세부 일정
                 </div>
@@ -513,7 +513,7 @@ export default function Detail() {
               <div className="dt-card-header">
                 <div className="dt-card-title">
                   <div className="dt-card-title-icon">
-                    <Mic size={14} color="#1a4fd6" />
+                    <Mic size={14} color="#02A17E" />
                   </div>
                   연사 소개
                 </div>
@@ -544,7 +544,7 @@ export default function Detail() {
               <div className="dt-card-header">
                 <div className="dt-card-title">
                   <div className="dt-card-title-icon">
-                    <Info size={14} color="#1a4fd6" />
+                    <Info size={14} color="#02A17E" />
                   </div>
                   행사 정보
                 </div>

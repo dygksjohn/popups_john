@@ -167,7 +167,7 @@ const css = `
     background: #f3f4f6; display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; color: #9ca3af; transition: all .12s;
   }
-  .qr-dropdown-item.selected .qr-dd-icon { background: #eef0ff; color: #3b6df5; }
+  .qr-dropdown-item.selected .qr-dd-icon { background: #eef0ff; color: #02A17E; }
   .qr-dd-text { flex: 1; min-width: 0; }
   .qr-dd-title {
     font-size: 14px; font-weight: 500; color: #555;
@@ -184,12 +184,12 @@ const css = `
     display: flex; align-items: center; gap: 5px;
     padding: 0 20px; height: 44px;
     border-radius: 999px; border: none;
-    background: #4a7cf7; color: #fff;
+    background: #2EB893; color: #fff;
     font-size: 13px; font-weight: 700;
     cursor: pointer; font-family: inherit;
     transition: background .15s; white-space: nowrap; flex-shrink: 0;
   }
-  .qr-btn-refresh:hover { background: #3666e0; }
+  .qr-btn-refresh:hover { background: #028A6C; }
   .qr-btn-refresh:disabled { opacity: .5; cursor: not-allowed; }
 
   /* ── Ticket ── */
@@ -235,7 +235,7 @@ const css = `
   .qr-svg { width: 100%; height: 100%; }
   .qr-img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
   .qr-code-id {
-    font-size: 20px; font-weight: 800; color: #3b6df5;
+    font-size: 20px; font-weight: 800; color: #02A17E;
     font-family: 'Courier New', monospace; letter-spacing: 3px; margin-bottom: 6px;
   }
 
@@ -247,7 +247,7 @@ const css = `
     margin-top: 16px;
   }
   .qr-safety-label { font-size: 11px; font-weight: 600; color: #6b7280; }
-  .qr-safety-number { font-size: 22px; font-weight: 900; color: #3b6df5; letter-spacing: 3px; font-family: 'Courier New', monospace; }
+  .qr-safety-number { font-size: 22px; font-weight: 900; color: #02A17E; letter-spacing: 3px; font-family: 'Courier New', monospace; }
 
   /* Timer with refresh icon */
   .qr-timer {
@@ -259,12 +259,12 @@ const css = `
     border: 1.5px solid #dde3ee; background: #fff;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; transition: all .2s; flex-shrink: 0;
-    color: #3b6df5;
+    color: #02A17E;
   }
-  .qr-refresh-btn:hover { border-color: #3b6df5; background: #f0f4ff; }
+  .qr-refresh-btn:hover { border-color: #02A17E; background: #f0f4ff; }
   .qr-refresh-btn .refresh-icon { transition: transform .3s ease; }
   .qr-timer-text { font-size: 12.5px; color: #888; line-height: 1.4; }
-  .qr-timer-text strong { font-weight: 800; color: #3b6df5; font-size: 14px; }
+  .qr-timer-text strong { font-weight: 800; color: #02A17E; font-size: 14px; }
   .qr-timer-text.warning strong { color: #f59e0b; }
   .qr-timer-text.danger strong { color: #ef4444; }
 
@@ -275,7 +275,7 @@ const css = `
     display: flex; align-items: center; gap: 6px;
     font-family: inherit; transition: all .15s;
   }
-  .qr-btn-enlarge:hover { border-color: #3b6df5; color: #3b6df5; }
+  .qr-btn-enlarge:hover { border-color: #02A17E; color: #02A17E; }
 
   /* Enlarge Modal */
   .qr-modal-overlay {
@@ -304,10 +304,10 @@ const css = `
   .qr-modal-timer { font-size: 13px; color: #9ca3af; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .qr-modal-close {
     padding: 12px 40px; border-radius: 12px; border: none;
-    background: #3b6df5; color: #fff; font-size: 15px; font-weight: 700;
+    background: #02A17E; color: #fff; font-size: 15px; font-weight: 700;
     cursor: pointer; font-family: inherit; transition: background .15s;
   }
-  .qr-modal-close:hover { background: #2b57d4; }
+  .qr-modal-close:hover { background: #028A6C; }
   @keyframes qr-fade-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes qr-scale-in { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
   @keyframes qr-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -345,7 +345,7 @@ const css = `
   /* ── Admission Card (입장 가능) — gradient glassmorphism ── */
   .qr-admission-card {
     position: relative; overflow: hidden;
-    background: linear-gradient(135deg, #6c63ff 0%, #3b6df5 50%, #38b2ff 100%);
+    background: linear-gradient(135deg, #3DBFA0 0%, #02A17E 50%, #5CCDB2 100%);
     border-radius: 16px; padding: 24px 28px;
     margin-bottom: 24px; color: #fff;
   }
@@ -400,8 +400,8 @@ const css = `
   }
   .qr-action-outline { border: 1.5px solid #e0e0e0; background: #fff; color: #374151; }
   .qr-action-outline:hover { border-color: #999; }
-  .qr-action-primary { border: none; background: #3b6df5; color: #fff; }
-  .qr-action-primary:hover { background: #2b57d4; }
+  .qr-action-primary { border: none; background: #02A17E; color: #fff; }
+  .qr-action-primary:hover { background: #028A6C; }
   .qr-action-btn:disabled { opacity: .45; cursor: not-allowed; }
 
   /* ── Notice — redesigned ── */
@@ -432,7 +432,7 @@ const css = `
   }
   .qr-notice-bullet {
     width: 6px; height: 6px; border-radius: 50%;
-    background: linear-gradient(135deg, #6c63ff, #3b6df5);
+    background: linear-gradient(135deg, #3DBFA0, #02A17E);
     flex-shrink: 0; margin-top: 10px;
   }
 
@@ -457,10 +457,10 @@ const css = `
   .qr-expired-refresh {
     display: flex; align-items: center; gap: 6px;
     padding: 10px 28px; border-radius: 999px; border: none;
-    background: #3b6df5; color: #fff; font-size: 14px; font-weight: 700;
+    background: #02A17E; color: #fff; font-size: 14px; font-weight: 700;
     cursor: pointer; font-family: inherit; transition: background .15s;
   }
-  .qr-expired-refresh:hover { background: #2b57d4; }
+  .qr-expired-refresh:hover { background: #028A6C; }
 
   /* ── Error banner ── */
   .qr-error-banner {
@@ -715,7 +715,7 @@ export default function QRCheckin() {
     <div className="qr-page-bg">
       <style>{css}</style>
       <div className="qr-page-content">
-        <PageHeader title="QR 체크인" icon={<QrCode size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />} subtitle={SUBTITLE_MAP[currentPath]} categories={SERVICE_CATEGORIES} />
+        <PageHeader title="QR 체크인" icon={<QrCode size={40} strokeWidth={1.8} style={{ color: "#2EB893" }} />} subtitle={SUBTITLE_MAP[currentPath]} categories={SERVICE_CATEGORIES} />
 
         <div className="qr-root">
           <main className="qr-container">
@@ -929,7 +929,7 @@ export default function QRCheckin() {
           <div className="qr-notice">
             <div className="qr-notice-header">
               <div className="qr-notice-icon">
-                <Info size={18} color="#3b6df5" />
+                <Info size={18} color="#02A17E" />
               </div>
               <div className="qr-notice-title">안내사항</div>
             </div>
@@ -978,7 +978,7 @@ export default function QRCheckin() {
                   >
                     <RefreshCw size={16} className="refresh-icon" />
                   </button>
-                  <span><strong style={{ fontWeight: 800, color: "#3b6df5", fontSize: 14 }}>{countdown}</strong>초 후 자동 새로고침</span>
+                  <span><strong style={{ fontWeight: 800, color: "#02A17E", fontSize: 14 }}>{countdown}</strong>초 후 자동 새로고침</span>
                 </div>
 
                 <button className="qr-modal-close" onClick={() => setShowEnlarge(false)}>닫기</button>

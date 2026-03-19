@@ -10,7 +10,7 @@ export default function KakaoOtp() {
   const location = useLocation();
   const { login } = useAuth();
 
-  // 기능: 라우터 state가 사라져도 카카오 가입 OTP 단계가 이어지도록 sessionStorage 백업을 읽는다.
+  // ✅ state 유실 대비: sessionStorage 백업 사용
   const ctx = useMemo(() => {
     const s = location.state || {};
     const fallback = JSON.parse(sessionStorage.getItem("kakao_signup_ctx") || "{}");
@@ -22,11 +22,11 @@ export default function KakaoOtp() {
     };
   }, [location.state]);
 
-  const [otp, setOtp] = useState("");
+  const [otp, setOtp] = useState(ctx.devOtp || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 기능: signupKey 없이 진입한 경우에는 가입 세션이 없는 비정상 상태로 본다.
+  // signupKey 없으면 진입 자체가 비정상
   useEffect(() => {
     if (!ctx.signupKey) {
       setError("signupKey가 없습니다. 카카오 가입을 다시 시작해주세요.");
@@ -52,8 +52,7 @@ export default function KakaoOtp() {
     try {
       setLoading(true);
 
-      // 기능: OTP 검증과 가입 완료를 순서대로 묶어 카카오 가입을 마무리한다.
-      // 설명: signupKey와 phone이 모두 유효해야 하며, verify 성공 전에는 access token을 저장하지 않는다.
+      // 1) OTP 검증
       const phoneToUse = (ctx.phone || "").replace(/[^0-9]/g, "");
 
       if (phoneToUse.length < 10) {
@@ -67,6 +66,7 @@ export default function KakaoOtp() {
       otpCode: otpNum,
       });
 
+      // 2) 가입 완료 + 토큰 발급
       const completeRes = await authApi.signupComplete({
         signupKey: ctx.signupKey,
       });
@@ -80,8 +80,13 @@ export default function KakaoOtp() {
       tokenStore.setAccess(accessToken);
       login();
 
-      // 기능: 가입 완료 후 카카오 가입용 임시 세션 데이터를 정리한다.
+      // ✅ 카카오 가입 임시 데이터 제거
       sessionStorage.removeItem("kakao_signup_ctx");
+
+      // 선택: provider 정보도 가입 완료 후 지워도 됨
+      // sessionStorage.removeItem("kakao_provider_uid");
+      // sessionStorage.removeItem("kakao_email");
+      // sessionStorage.removeItem("kakao_nickname");
 
       navigate("/", { replace: true });
     } catch (e) {

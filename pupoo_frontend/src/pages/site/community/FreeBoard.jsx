@@ -285,7 +285,7 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
               padding: "11px 0",
               borderRadius: 8,
               border: "none",
-              background: "#4a7cf7",
+              background: "#2EB893",
               color: "#fff",
               fontSize: 14,
               fontWeight: 700,
@@ -439,7 +439,7 @@ function DetailModal({
                 alignItems: "center",
                 gap: 6,
                 fontSize: 13,
-                color: "#1D4ED8",
+                color: "#028A6C",
                 textDecoration: "none",
                 fontWeight: 600,
               }}
@@ -487,7 +487,7 @@ function DetailModal({
                 style={{
                   border: "none",
                   borderRadius: 8,
-                  background: "#1D4ED8",
+                  background: "#028A6C",
                   color: "#fff",
                   padding: "8px 14px",
                   fontSize: 13,
@@ -851,7 +851,7 @@ export default function FreeBoard() {
       <PageHeader
         title="자유게시판"
         subtitle="자유롭게 의견을 나누는 커뮤니티 공간입니다."
-        icon={<MessageSquareText size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        icon={<MessageSquareText size={42} color="#02A17E" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}
@@ -960,7 +960,7 @@ export default function FreeBoard() {
                 padding: "8px 16px",
                 borderRadius: 999,
                 border: "none",
-                background: "#4a7cf7",
+                background: "#2EB893",
                 color: "#fff",
                 fontSize: 13,
                 fontWeight: 700,

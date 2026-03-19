@@ -204,7 +204,7 @@ const styles = `
     padding: 8px 18px;
     border: none;
     border-radius: 10px;
-    background: #3b82f6;
+    background: #3DBFA0;
     color: #fff;
     font-size: 13px;
     font-weight: 700;
@@ -215,8 +215,8 @@ const styles = `
     align-items: center;
     gap: 5px;
   }
-  .reg-card-apply:hover { background: #2563eb; }
-  .reg-card-apply:active { background: #1d4ed8; transform: scale(0.97); }
+  .reg-card-apply:hover { background: #02A17E; }
+  .reg-card-apply:active { background: #028A6C; transform: scale(0.97); }
   .reg-card-apply:disabled { opacity: 0.35; cursor: not-allowed; }
   .reg-card-apply.secondary {
     background: #f3f4f6;
@@ -420,7 +420,7 @@ export default function Apply() {
 
       <PageHeader
         title="행사 참가 신청"
-        icon={<TicketCheck size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />}
+        icon={<TicketCheck size={40} strokeWidth={1.8} style={{ color: "#2EB893" }} />}
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
       />

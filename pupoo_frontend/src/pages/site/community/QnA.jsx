@@ -300,7 +300,7 @@ function WriteModal({ item, onSave, onClose, saving }) {
               boxSizing: "border-box",
               fontFamily: "'Noto Sans KR', sans-serif",
             }}
-            onFocus={(e) => (e.target.style.borderColor = "#4a7cf7")}
+            onFocus={(e) => (e.target.style.borderColor = "#2EB893")}
             onBlur={(e) => (e.target.style.borderColor = "#ddd")}
           />
         </div>
@@ -352,7 +352,7 @@ function WriteModal({ item, onSave, onClose, saving }) {
               padding: "11px 0",
               borderRadius: 8,
               border: "none",
-              background: "#4a7cf7",
+              background: "#2EB893",
               color: "#fff",
               fontSize: 14,
               fontWeight: 700,
@@ -555,7 +555,7 @@ export default function ServicePage() {
       <PageHeader
         title="질문/답변"
         subtitle="서비스 이용과 관련한 문의사항을 등록하고 답변을 확인할 수 있습니다."
-        icon={<CircleHelp size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        icon={<CircleHelp size={42} color="#02A17E" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}
@@ -695,7 +695,7 @@ export default function ServicePage() {
                 padding: "8px 16px",
                 borderRadius: 999,
                 border: "none",
-                background: "#4a7cf7",
+                background: "#2EB893",
                 color: "#fff",
                 fontSize: 13,
                 fontWeight: 700,
@@ -707,7 +707,7 @@ export default function ServicePage() {
                 (e.currentTarget.style.background = "#3a6ce7")
               }
               onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "#4a7cf7")
+                (e.currentTarget.style.background = "#2EB893")
               }
             >
               <Plus size={14} strokeWidth={2.5} /> 질문하기
@@ -788,8 +788,8 @@ export default function ServicePage() {
                         style={{
                           fontSize: 11,
                           fontWeight: 600,
-                          color: isClosed ? "#4a7cf7" : "#999",
-                          border: `1px solid ${isClosed ? "#4a7cf7" : "#ccc"}`,
+                          color: isClosed ? "#2EB893" : "#999",
+                          border: `1px solid ${isClosed ? "#2EB893" : "#ccc"}`,
                           borderRadius: 20,
                           padding: "2px 9px",
                           marginLeft: 8,
@@ -850,7 +850,7 @@ export default function ServicePage() {
                             padding: "14px 16px",
                             background: "#eef3ff",
                             borderRadius: 8,
-                            borderLeft: "3px solid #4a7cf7",
+                            borderLeft: "3px solid #2EB893",
                             marginBottom: 16,
                           }}
                         >
@@ -858,7 +858,7 @@ export default function ServicePage() {
                             style={{
                               fontSize: 12,
                               fontWeight: 700,
-                              color: "#4a7cf7",
+                              color: "#2EB893",
                               marginBottom: 6,
                               display: "flex",
                               alignItems: "center",
@@ -900,7 +900,7 @@ export default function ServicePage() {
                           justifyContent: "flex-end",
                           gap: 8,
                           paddingTop: 8,
-                          borderTop: "1px solid #eef2ff",
+                          borderTop: "1px solid #E6F7F2",
                         }}
                       >
                         <button

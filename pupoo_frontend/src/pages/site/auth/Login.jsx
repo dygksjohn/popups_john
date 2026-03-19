@@ -4,7 +4,7 @@ import { authApi } from "./api/authApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { useAuth } from "./AuthProvider";
 
-// 기능: 공통 SNS 버튼 모양과 hover 상태를 재사용한다.
+// ?? Social button (reusable) ??????????????????????????????????????????????????
 const SocialButton = ({ onClick, style, children }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -35,7 +35,7 @@ const SocialButton = ({ onClick, style, children }) => {
   );
 };
 
-// 기능: 로그인 화면에서 사용하는 SNS 아이콘을 로컬 컴포넌트로 고정한다.
+// ?? SVG icons ?????????????????????????????????????????????????????????????????
 const KakaoIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24">
     <path
@@ -75,7 +75,7 @@ const AppleIcon = () => (
   </svg>
 );
 
-// 기능: 로그인 좌측 안내 패널의 배경 장식을 렌더링한다.
+// ?? Animated geometric shapes for the left panel ?????????????????????????????
 const FloatingShape = ({ style }) => (
   <div
     style={{
@@ -88,6 +88,7 @@ const FloatingShape = ({ style }) => (
   />
 );
 
+// ?? Main LoginPage component ??????????????????????????????????????????????????
 const LoginPage = ({ leftBgImage = null }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -97,8 +98,6 @@ const LoginPage = ({ leftBgImage = null }) => {
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
   const KAKAO_REDIRECT_URI =
     import.meta.env.VITE_KAKAO_REDIRECT_URI || defaultKakaoRedirectUri;
-  // 기능: 로그인 성공 후 돌아갈 목적지를 인증 화면이 아닌 경로로 정리한다.
-  // 설명: 보호 라우트에서 튕겨온 경로와 세션에 저장한 redirect 후보를 우선 사용하고, 인증 화면이면 홈으로 보정한다.
   const resolvePostLoginRedirect = () => {
     const target =
       location.state?.from ||
@@ -113,8 +112,10 @@ const LoginPage = ({ leftBgImage = null }) => {
       return;
     }
 
-    // 기능: 카카오 인증 전 현재 사용자가 돌아와야 할 화면을 sessionStorage에 보관한다.
-    // 설명: 외부 OAuth 페이지를 거치면 react state가 사라질 수 있어 브라우저 저장소에 redirect 목적지를 백업한다.
+    // ??濡쒓렇???깃났 ???뚯븘媛?寃쎈줈 ???
+    // 1?쒖쐞: ProtectedRoute媛 ?섍꺼以 from
+    // 2?쒖쐞: 吏곸쟾 ???媛?
+    // 3?쒖쐞: 湲곕낯 ??
     const redirectTo = resolvePostLoginRedirect();
     sessionStorage.setItem("post_login_redirect", redirectTo);
 
@@ -173,9 +174,6 @@ const LoginPage = ({ leftBgImage = null }) => {
 
     setLoading(true);
     try {
-      // 기능: 일반 로그인 성공 시 access token 저장 후 즉시 보호 화면 접근을 연다.
-      // 설명: authApi.login은 실제 로그인 API 호출만 담당하고, 화면 이동과 토큰 저장은 여기서 마무리한다.
-      // 흐름: 입력 검증 -> login API 호출 -> tokenStore 저장 -> redirect 경로 이동.
       const res = await authApi.login({ email, password });
       const accessToken = res?.accessToken;
 
@@ -220,7 +218,9 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   return (
     <>
-      {/* 기능: 로그인 화면은 좌측 안내 패널과 우측 입력 패널로 나뉜다. */}
+      {/* Google Fonts */}
+
+      {/* ?? Page wrapper ?? */}
       <div
         style={{
           minHeight: "100vh",
@@ -233,6 +233,7 @@ const LoginPage = ({ leftBgImage = null }) => {
         }}
       >
         <div style={{ width: "100%", maxWidth: 860 }}>
+          {/* ?? Card ?? */}
           <div
             className="login-card card-enter"
             style={{
@@ -246,7 +247,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               marginTop: 100,
             }}
           >
-            {/* 기능: 좌측 패널은 서비스 소개와 로그인 유도 메시지를 보여준다. */}
+            {/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 LEFT PANEL ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */}
             <div
               className="left-panel"
               style={{
@@ -264,6 +265,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 borderRadius: "20px 0 0 20px",
               }}
             >
+              {/* Geometric decorative shapes */}
               <FloatingShape
                 style={{
                   width: 140,
@@ -319,6 +321,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 }}
               />
 
+              {/* Overlay gradient for text legibility */}
               <div
                 style={{
                   position: "absolute",
@@ -329,6 +332,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 }}
               />
 
+              {/* Text content */}
               <div style={{ position: "relative", zIndex: 2 }}>
                 <h1
                   style={{
@@ -363,7 +367,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               </div>
             </div>
 
-            {/* 기능: 우측 패널은 실제 로그인 입력과 인증 진입 동작을 담당한다. */}
+            {/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 RIGHT PANEL ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */}
             <div
               className="right-panel"
               style={{
@@ -533,7 +537,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 <div style={{ flex: 1, height: 1, background: "#E8EDF5" }} />
               </div>
 
-              {/* 기능: 카카오 로그인은 실제 OAuth로 연결하고, 나머지는 준비 상태만 안내한다. */}
+              {/* Social buttons */}
               <div
                 style={{ display: "flex", flexDirection: "column", gap: 10 }}
               >

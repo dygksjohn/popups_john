@@ -13,7 +13,7 @@ const isDuplicateCode = (code) => {
     const parsed = JSON.parse(raw);
     const lastCode = parsed?.code;
     const ts = Number(parsed?.ts || 0);
-    // 기능: 같은 인가 코드로 callback effect가 중복 실행되는 상황만 짧게 막는다.
+    // StrictMode/중복 렌더 구간에서만 막고, 일정 시간이 지나면 다시 허용
     return lastCode === code && Date.now() - ts < 60_000;
   } catch {
     return false;
@@ -47,17 +47,12 @@ export default function KakaoCallback() {
   const redirectUri =
     import.meta.env.VITE_KAKAO_REDIRECT_URI ||
     `${window.location.origin}/auth/kakao/callback`;
-
-  // 기능: 카카오 로그인 성공 후에도 사용자가 원래 가려던 화면으로 복귀시킨다.
   const resolvePostLoginRedirect = () => {
     const target = sessionStorage.getItem("post_login_redirect") || "/";
     return target.startsWith("/auth/") ? "/" : target;
   };
 
   useEffect(() => {
-    // 기능: 카카오 callback 페이지는 인가 코드를 받아 기존회원 로그인과 신규회원 가입 분기를 처리한다.
-    // 설명: callback 진입 한 번으로 토큰 저장 또는 가입용 세션 저장까지 끝내고, 이후 화면을 각각 다른 페이지로 보낸다.
-    // 흐름: code 확인 -> kakaoLogin API 호출 -> 기존회원은 로그인 완료, 신규회원은 가입 폼 이동.
     const run = async () => {
       const params = new URLSearchParams(location.search);
       const code = params.get("code");
@@ -79,12 +74,14 @@ export default function KakaoCallback() {
         return;
       }
 
+      // 개발 StrictMode에서 callback effect가 중복 실행되어
+      // 같은 인가코드(code)로 로그인 API가 2회 호출되는 문제를 방지한다.
       if (isDuplicateCode(code)) {
         return;
       }
       markCodeGuard(code);
 
-      // 기능: 새 카카오 callback을 시작할 때 이전 가입 중간 상태를 먼저 비운다.
+      // ✅ 이전 카카오 가입 세션 값 초기화(꼬임 방지)
       sessionStorage.removeItem("kakao_provider_uid");
       sessionStorage.removeItem("kakao_email");
       sessionStorage.removeItem("kakao_nickname");
@@ -101,7 +98,7 @@ export default function KakaoCallback() {
           return;
         }
 
-        // 기능: 기존회원이면 access token 저장 후 일반 로그인과 같은 상태를 만든다.
+        // ✅ 기존회원: 즉시 로그인
         if (!data.newUser) {
           console.log("EXISTING USER BRANCH");
 
@@ -123,7 +120,7 @@ export default function KakaoCallback() {
           return;
         }
 
-        // 기능: 신규회원이면 callback에서 받은 식별자만 저장하고 가입 화면으로 넘긴다.
+        // ✅ 신규회원: 카카오 가입 페이지로 이동 (정책 A: 이메일이 없으면 KakaoJoin에서 직접 입력)
         console.log("NEW USER BRANCH");
 
         const uid = data.socialProviderUid ?? "";
