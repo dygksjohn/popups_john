@@ -165,10 +165,59 @@ jobs:
         working-directory: pupoo_ai
         run: |
           ls -al ./artifacts/congestion
-          test -f ./artifacts/congestion/event_congestion_model.joblib
-          test -f ./artifacts/congestion/program_congestion_model.joblib
-          test -f ./artifacts/congestion/event_lstm_baseline.joblib
-          test -f ./artifacts/congestion/program_lstm_baseline.joblib
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          output_dir = Path("./artifacts/congestion")
+          report_path = output_dir / "training_report_latest.json"
+
+          if not report_path.exists():
+              print("::error::training_report_latest.json is missing")
+              sys.exit(1)
+
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          targets = report.get("targets", {})
+
+          def verify_target(target_name: str, required: bool) -> bool:
+              target = targets.get(target_name, {})
+              status = target.get("status") or ("trained" if target.get("trained") else "skipped")
+              reason = target.get("reason", "")
+              artifacts = target.get("artifacts") or [
+                  f"{target_name.lower()}_congestion_model.joblib",
+                  f"{target_name.lower()}_lstm_baseline.joblib",
+              ]
+
+              print(f"[verify] {target_name}: status={status}")
+              if reason:
+                  print(f"[verify] {target_name}: reason={reason}")
+
+              if status != "trained":
+                  if required:
+                      print(f"::error::{target_name} target was not trained. reason={reason or 'unknown'}")
+                      return False
+                  print(f"::warning::{target_name} target skipped. reason={reason or 'unknown'}")
+                  return True
+
+              missing = [name for name in artifacts if not (output_dir / name).exists()]
+              if missing:
+                  level = "error" if required else "warning"
+                  print(f"::{level}::{target_name} trained but missing artifacts: {', '.join(missing)}")
+                  return not required
+
+              print(f"[verify] {target_name}: artifacts OK -> {', '.join(artifacts)}")
+              return True
+
+          event_ok = verify_target("EVENT", required=True)
+          program_ok = verify_target("PROGRAM", required=False)
+
+          if not event_ok:
+              sys.exit(1)
+
+          if not program_ok:
+              print("::warning::PROGRAM artifacts are incomplete, but deployment continues because EVENT artifacts are available.")
+          PY
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

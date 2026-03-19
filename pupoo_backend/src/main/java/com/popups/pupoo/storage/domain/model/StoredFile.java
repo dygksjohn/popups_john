@@ -1,11 +1,20 @@
 // file: src/main/java/com/popups/pupoo/storage/domain/model/StoredFile.java
 package com.popups.pupoo.storage.domain.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
+/**
+ * 업로드 파일 메타데이터 엔티티다.
+ * 실제 오브젝트 삭제는 지연 배치로 처리하므로 soft delete 시점과 오브젝트 삭제 시점을 따로 기록한다.
+ */
 @Getter
 @Entity
 @Table(name = "files")
@@ -19,11 +28,15 @@ public class StoredFile {
     @Column(name = "original_name", nullable = false, length = 255)
     private String originalName;
 
-    // TODO(step-01-storage-policy): keep the legacy column name for now, but store the full storage key instead of only a file name.
+    /**
+     * legacy 컬럼명은 `stored_name`이지만 현재는 파일명 대신 전체 스토리지 키를 저장할 수 있다.
+     */
     @Column(name = "stored_name", nullable = false, length = 255, unique = true)
     private String storedName;
 
-    /** 업로더(작성자) 사용자 ID */
+    /**
+     * 업로더 사용자 ID다.
+     */
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
@@ -33,7 +46,9 @@ public class StoredFile {
     @Column(name = "notice_id")
     private Long noticeId;
 
-    /** Soft delete */
+    /**
+     * soft delete 시각이다.
+     */
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -43,7 +58,9 @@ public class StoredFile {
     @Column(name = "delete_reason", length = 255)
     private String deleteReason;
 
-    /** 지연삭제 배치가 실제 오브젝트 삭제를 완료한 시각 */
+    /**
+     * 배치가 실제 오브젝트 삭제까지 마친 시각이다.
+     */
     @Column(name = "object_deleted_at")
     private LocalDateTime objectDeletedAt;
 
@@ -70,7 +87,7 @@ public class StoredFile {
     }
 
     public void markDeleted(Long deletedBy, String reason) {
-        if (this.deletedAt != null) return; // 멱등
+        if (this.deletedAt != null) return;
         this.deletedAt = LocalDateTime.now();
         this.deletedBy = deletedBy;
         this.deleteReason = reason;

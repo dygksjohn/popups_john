@@ -34,16 +34,15 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 
 /**
- * 알림 서비스
+ * 인앱 알림 조회와 관리자 발행을 함께 담당한다.
  *
- * v1.0 정책
- * - notification: 알림 원문(타입/제목/내용)
- * - notification_inbox: 수신자별 인박스(미열람) 적재
- * - notification_send: 발신/채널 로그(로컬에서는 로그/DB 적재로 대체)
- * - 읽음 처리: 클릭 시 inbox row 삭제
+ * - notification: 발행 원문
+ * - notification_inbox: 사용자별 미열람 인앱 알림
+ * - notification_send: 채널별 발행 이력
+ *
+ * 현재 읽음 정책은 inbox 행 삭제 방식이다.
  */
 @Service
 @Transactional(readOnly = true)
@@ -70,10 +69,6 @@ public class NotificationService {
         this.notificationSender = notificationSender;
     }
 
-    /* =========================================================
-     * 1) 인박스 조회
-     * ========================================================= */
-
     public NotificationListResponse getMyInbox(Long userId, Pageable pageable) {
         Page<NotificationInbox> page = notificationInboxRepository.findMyInbox(userId, pageable);
         List<NotificationInboxResponse> items = page.getContent().stream()
@@ -90,30 +85,23 @@ public class NotificationService {
     }
 
     /**
-     * 읽지 않은 알림 수(인박스 건수). 종 모양 배지 등에 사용.
+     * 아직 읽지 않은 인앱 알림 개수를 반환한다.
+     * 헤더 배지 표시에 사용된다.
      */
     public long getUnreadCount(Long userId) {
         return notificationInboxRepository.countByUserId(userId);
     }
-
-    /* =========================================================
-     * 2) 클릭(읽음 처리)
-     * ========================================================= */
 
     @Transactional
     public NotificationResponse click(Long userId, Long inboxId) {
         NotificationInbox inbox = notificationInboxRepository.findByInboxIdAndUserId(inboxId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        // 읽음 정책: 클릭 시 삭제
+        // 인앱 알림은 읽는 시점에 inbox 행을 제거한다.
         notificationInboxRepository.delete(inbox);
 
         return new NotificationResponse(inbox.getTargetType(), inbox.getTargetId());
     }
-
-    /* =========================================================
-     * 3) 설정 조회/수정
-     * ========================================================= */
 
     public NotificationSettingsResponse getSettings(Long userId) {
         NotificationSettings settings = notificationSettingsRepository.findById(userId)
@@ -131,12 +119,8 @@ public class NotificationService {
         return NotificationSettingsResponse.from(settings);
     }
 
-        /**
-     * 이벤트 관심(구독) 기반 알림 발행 (v1.0)
-     *
-     * - EventAdminService 등 도메인 서비스에서 사용하는 경량 API.
-     * - 로컬/운영 공통: notification 저장 + notification_inbox fan-out 수행.
-     * - SMS/EMAIL 실발송은 Admin 알림 발행(API)에서만 수행한다.
+    /**
+     * 이벤트 관심 등록자 대상 인앱 알림을 발행한다.
      */
     @Transactional
     public void publishEventInterestNotification(Long eventId,
@@ -148,14 +132,13 @@ public class NotificationService {
         Notification notification = Notification.create(type, title, content);
         notificationRepository.save(notification);
 
-        // INAPP fan-out only
         fanoutInbox(eventId, notification.getNotificationId(), targetType, targetId, RecipientScope.INTEREST_SUBSCRIBERS);
     }
 
-/* =========================================================
-     * 4) 관리자/시스템 알림 발행
-     * ========================================================= */
-
+    /**
+     * 관리자 이벤트 알림은 채널별로 fan-out 전략이 다르다.
+     * APP은 inbox row를 만들고, EMAIL/SMS는 실제 수신 대상을 해석해 바로 전송한다.
+     */
     @Transactional
     public AdminNotificationPublishResult publishAdminEventNotification(Long adminUserId, NotificationCreateRequest request) {
         Notification notification = Notification.create(request.getType(), request.getTitle(), request.getContent());
@@ -165,15 +148,12 @@ public class NotificationService {
         List<RecipientScope> scopes = normalizeRecipientScopes(request);
         int targetCount = countAdminEventRecipients(request.getEventId(), scopes);
 
-        // 1) INAPP fan-out
         if (channels.contains(NotificationChannel.APP)) {
             fanoutInbox(request.getEventId(), notification, request.getTargetType(), request.getTargetId(), scopes);
             notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.APP));
             notificationSender.send(new NotificationSender.SendCommand(notification.getNotificationId(), null, adminUserId, SenderType.ADMIN, NotificationChannel.APP));
         }
 
-        // 2) EMAIL/SMS/PUSH는 v1.0에서는 로컬 로그/DB 적재로 대체
-        // - 구독(allow_email/allow_sms) 정책을 DB로부터 fan-out하는 쿼리를 통해 수신자 범위를 확정한다.
         if (channels.contains(NotificationChannel.EMAIL)) {
             fanoutSendOnly(request.getEventId(), notification.getNotificationId(), scopes, NotificationChannel.EMAIL);
             notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.EMAIL));
@@ -224,10 +204,6 @@ public class NotificationService {
         return new AdminNotificationPublishResult(notification.getNotificationId(), targetCount);
     }
 
-    /* =========================================================
-     * 5) 내부 유틸
-     * ========================================================= */
-
     private List<NotificationChannel> normalizeChannels(List<NotificationChannel> channels) {
         if (channels == null || channels.isEmpty()) {
             return List.of(NotificationChannel.APP);
@@ -235,8 +211,6 @@ public class NotificationService {
 
         EnumSet<NotificationChannel> set = EnumSet.noneOf(NotificationChannel.class);
         set.addAll(channels);
-
-        // DB(v1.0) ENUM과 정합성 유지
         return new ArrayList<>(set);
     }
 
@@ -297,13 +271,9 @@ public class NotificationService {
         notificationInboxRepository.saveAll(inboxes);
     }
 
-
     /**
-     * EMAIL/SMS 전송 대상 산정 및 전송 호출.
-     *
-     * 로컬 테스트 정책
-     * - 실제 외부 발송(SMS/Email)은 하지 않고, Sender 구현체에서 로그/DB(notification_send)로 대체한다.
-     * - 대상자 필터(allow_email/allow_sms)는 DB 조회로 강제한다.
+     * 이메일과 SMS는 사용자 설정과 대상 범위를 모두 반영해 실제 수신 대상을 해석한다.
+     * 인앱과 달리 inbox row는 만들지 않는다.
      */
     private void fanoutSendOnly(Long eventId,
                                 Long notificationId,

@@ -7,6 +7,7 @@ import com.popups.pupoo.auth.dto.PasswordResetRequestResponse;
 import com.popups.pupoo.auth.dto.PasswordResetVerifyRequest;
 import com.popups.pupoo.auth.persistence.PasswordResetTokenRepository;
 import com.popups.pupoo.auth.persistence.RefreshTokenRepository;
+import com.popups.pupoo.auth.port.EmailVerificationSenderPort;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.util.HashUtil;
@@ -22,6 +23,11 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 비밀번호 재설정 전용 서비스다.
+ * 이메일과 휴대폰 번호를 모두 확인한 뒤 재설정 코드를 발급하고,
+ * 최종 확정 시 기존 refresh token을 모두 제거해 기존 세션을 종료한다.
+ */
 @Service
 public class PasswordResetService {
 
@@ -32,7 +38,7 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
-
+    private final EmailVerificationSenderPort emailVerificationSenderPort;
     private final String hashSalt;
     private final int tokenTtlMinutes;
 
@@ -41,6 +47,7 @@ public class PasswordResetService {
             PasswordResetTokenRepository passwordResetTokenRepository,
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
+            EmailVerificationSenderPort emailVerificationSenderPort,
             @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
             @Value("${verification.password-reset.ttl-minutes:30}") int tokenTtlMinutes
     ) {
@@ -48,10 +55,15 @@ public class PasswordResetService {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
+        this.emailVerificationSenderPort = emailVerificationSenderPort;
         this.hashSalt = hashSalt;
         this.tokenTtlMinutes = tokenTtlMinutes;
     }
 
+    /**
+     * 비밀번호 재설정 코드를 발급한다.
+     * 같은 사용자에게 남아 있던 미사용 토큰은 모두 사용 처리해 가장 최근 코드만 유효하게 만든다.
+     */
     @Transactional
     public PasswordResetRequestResponse requestPasswordReset(PasswordResetRequest request) {
         validateHashSalt();
@@ -73,17 +85,28 @@ public class PasswordResetService {
         LocalDateTime expiresAt = now.plusMinutes(tokenTtlMinutes);
 
         passwordResetTokenRepository.save(new PasswordResetToken(user.getUserId(), tokenHash, expiresAt));
+        emailVerificationSenderPort.sendPasswordResetEmail(user.getEmail(), verificationCode);
 
         return new PasswordResetRequestResponse(expiresAt, verificationCode);
     }
 
+    /**
+     * 재설정 코드를 선검증한다.
+     * 가장 최근의 미사용 토큰만 확인하며, 성공 시 별도 상태 변경은 하지 않는다.
+     */
     @Transactional(readOnly = true)
     public void verifyPasswordResetCode(PasswordResetVerifyRequest request) {
-        resolveVerifiedContext(request == null ? null : request.getEmail(),
+        resolveVerifiedContext(
+                request == null ? null : request.getEmail(),
                 request == null ? null : request.getPhone(),
-                request == null ? null : request.getVerificationCode());
+                request == null ? null : request.getVerificationCode()
+        );
     }
 
+    /**
+     * 검증된 코드로 비밀번호를 실제 변경한다.
+     * 비밀번호 변경 후에는 기존 refresh token을 모두 삭제해 다른 기기 세션도 함께 무효화한다.
+     */
     @Transactional
     public void confirmPasswordReset(PasswordResetConfirmRequest request) {
         if (request == null || request.getNewPassword() == null || request.getNewPassword().isBlank()) {
@@ -105,6 +128,9 @@ public class PasswordResetService {
         passwordResetTokenRepository.save(context.token());
     }
 
+    /**
+     * 이메일, 휴대폰 번호, 인증 코드가 모두 맞는 재설정 컨텍스트만 반환한다.
+     */
     private PasswordResetContext resolveVerifiedContext(String email, String phone, String verificationCode) {
         validateHashSalt();
 
@@ -137,11 +163,11 @@ public class PasswordResetService {
         String normalizedPhone = normalizePhone(phone);
 
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "일치하는 회원 정보를 찾지 못했습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "일치하는 회원 정보를 찾을 수 없습니다."));
 
         UserStatus status = user.getStatus();
         if (status != UserStatus.ACTIVE || !normalizePhone(user.getPhone()).equals(normalizedPhone)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "일치하는 회원 정보를 찾지 못했습니다.");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "일치하는 회원 정보를 찾을 수 없습니다.");
         }
 
         return user;

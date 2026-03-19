@@ -8,12 +8,17 @@ import com.popups.pupoo.user.application.UserService;
 import com.popups.pupoo.user.dto.UserMeResponse;
 import com.popups.pupoo.user.dto.UserUpdateRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 사용자 리소스 전용 컨트롤러
- * - 인증/토큰 발급은 AuthController에서 처리한다.
- * - 여기서는 로그인된 사용자 정보 조회/수정/탈퇴만 담당한다.
+ * 로그인한 사용자의 내 정보 API를 제공한다.
+ * 인증은 모두 필요하며, 토큰 발급은 담당하지 않고 조회/수정/탈퇴만 `UserService`에 위임한다.
  */
 @RequiredArgsConstructor
 @RestController
@@ -24,7 +29,7 @@ public class UserController {
     private final SecurityUtil securityUtil;
 
     /**
-     * 현재 로그인 사용자 정보 조회
+     * 현재 로그인 사용자의 프로필을 조회한다.
      */
     @GetMapping("/me")
     public ApiResponse<UserMeResponse> getMe() {
@@ -32,14 +37,17 @@ public class UserController {
         return ApiResponse.success(userService.getMe(userId));
     }
 
+    /**
+     * 닉네임 중복 여부를 즉시 확인한다.
+     */
     @GetMapping("/check-nickname")
     public ApiResponse<Boolean> checkNickname(@RequestParam("nickname") String nickname) {
         return ApiResponse.success(userService.isNicknameAvailable(nickname));
     }
 
     /**
-     * 현재 로그인 사용자 정보 수정
-     * - phone은 본인인증 후 별도 플로우에서만 변경 가능하므로 여기서는 수정하지 않는다.
+     * 현재 로그인 사용자의 프로필을 부분 수정한다.
+     * 휴대폰 번호 변경은 본인 인증 흐름과 분리되어 있으므로 여기서는 허용하지 않는다.
      */
     @PatchMapping("/me")
     public ApiResponse<UserMeResponse> updateMe(@RequestBody UserUpdateRequest req) {
@@ -48,8 +56,8 @@ public class UserController {
     }
 
     /**
-     * 현재 로그인 사용자 탈퇴 처리
-     * - 정책: soft delete (status 변경)
+     * 현재 사용자를 soft delete 처리한다.
+     * 실제 행 삭제 대신 `users.status=DELETED`로 전환한다.
      */
     @DeleteMapping("/me")
     public ApiResponse<MessageResponse> deleteMe() {

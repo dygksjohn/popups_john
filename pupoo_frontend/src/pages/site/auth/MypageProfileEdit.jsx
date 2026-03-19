@@ -187,11 +187,15 @@ export default function MypageProfileEdit() {
   const [emailVerifyInput, setEmailVerifyInput] = useState("");
   const [emailChanging, setEmailChanging] = useState(false);
   const [emailConfirming, setEmailConfirming] = useState(false);
+  const [emailChangeRequested, setEmailChangeRequested] = useState(false);
+  const [emailStatusMessage, setEmailStatusMessage] = useState("");
 
   const [phoneVerifyCode, setPhoneVerifyCode] = useState("");
   const [phoneCodeInput, setPhoneCodeInput] = useState("");
   const [phoneChanging, setPhoneChanging] = useState(false);
   const [phoneConfirming, setPhoneConfirming] = useState(false);
+  const [phoneChangeRequested, setPhoneChangeRequested] = useState(false);
+  const [phoneStatusMessage, setPhoneStatusMessage] = useState("");
 
   const [form, setForm] = useState({
     email: "", phone: "", nickname: "",
@@ -206,6 +210,8 @@ export default function MypageProfileEdit() {
     [form.nickname, initialNickname],
   );
 
+  // 기능: 인증 정보 변경이 완료된 뒤 최신 사용자 정보를 다시 받아 화면 상태를 원본과 맞춘다.
+  // 설명: 이메일과 휴대폰 변경은 confirm 성공 후 서버 값이 바뀌므로, refreshMe로 현재 사용자 정보를 재조회해야 입력창과 상단 정보가 일치한다.
   const refreshMe = async () => {
     const me = await mypageApi.getMe();
     setForm((prev) => ({
@@ -221,6 +227,7 @@ export default function MypageProfileEdit() {
   };
 
   useEffect(() => {
+    // 기능: 프로필 수정 화면 첫 진입 시 현재 사용자 정보를 기준 상태로 채운다.
     let mounted = true;
     const run = async () => {
       try {
@@ -277,6 +284,7 @@ export default function MypageProfileEdit() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // 기능: 닉네임이 실제로 바뀐 경우에만 중복 확인을 강제한 뒤 기본 프로필 저장을 진행한다.
       setSaving(true); setGlobalError(""); setFieldErrors({});
       if (nicknameChanged && !nicknameChecked) {
         const ok = await checkNickname();
@@ -331,6 +339,90 @@ export default function MypageProfileEdit() {
       await refreshMe();
     } catch (error) { setGlobalError(resolveErrorMessage(error, "휴대전화 변경 확인에 실패했습니다.")); }
     finally { setPhoneConfirming(false); }
+  };
+
+  const handleEmailChangeRequest = async () => {
+    try {
+      // 기능: 이메일 변경은 요청 단계와 최종 확정 단계를 분리한다.
+      // 설명: 인증 요청 성공은 메일 발송 완료만 의미하며, 실제 이메일 변경은 confirm 성공 이후에만 반영한다.
+      // 흐름: 새 이메일 입력 -> request 성공 -> 토큰 입력 대기 -> confirm 성공 후 내 정보 재조회.
+      setEmailChanging(true);
+      setGlobalError("");
+      setEmailStatusMessage("");
+      const res = await authApi.requestEmailChange({ newEmail: (form.nextEmail || "").trim() });
+      setEmailVerifyToken(String(res?.devToken || ""));
+      setEmailChangeRequested(true);
+      setEmailStatusMessage("인증 요청이 접수되었습니다. 메일로 받은 토큰을 확인한 뒤 변경을 확정해주세요.");
+    } catch (error) {
+      setGlobalError(resolveErrorMessage(error, "이메일 인증 요청에 실패했습니다."));
+    } finally {
+      setEmailChanging(false);
+    }
+  };
+
+  const handleEmailChangeConfirm = async () => {
+    try {
+      // 기능: 이메일 변경 최종 저장 조건을 백엔드 confirm 성공 응답으로 제한한다.
+      // 설명: 토큰 검증이 끝나기 전에는 현재 이메일과 사용자 정보가 갱신되지 않는다.
+      // 흐름: 토큰 전달 -> confirm 성공 -> 입력 상태 초기화 -> 내 정보 재조회.
+      setEmailConfirming(true);
+      setGlobalError("");
+      setEmailStatusMessage("");
+      await authApi.confirmEmailChange({ token: (emailVerifyInput || emailVerifyToken || "").trim() });
+      setEmailVerifyToken("");
+      setEmailVerifyInput("");
+      setEmailChangeRequested(false);
+      setEmailStatusMessage("이메일 변경이 완료되었습니다.");
+      setForm((prev) => ({ ...prev, nextEmail: "" }));
+      await refreshMe();
+    } catch (error) {
+      setGlobalError(resolveErrorMessage(error, "이메일 변경 확인에 실패했습니다."));
+    } finally {
+      setEmailConfirming(false);
+    }
+  };
+
+  const handlePhoneChangeRequest = async () => {
+    try {
+      // 기능: 휴대폰 변경도 인증 요청과 확정 단계를 분리해 관리한다.
+      // 설명: OTP 발송 성공만으로는 변경 완료가 아니며, confirm 성공 이후에만 실제 값이 반영된다.
+      // 흐름: 새 번호 입력 -> request 성공 -> 코드 입력 대기 -> confirm 성공 후 내 정보 재조회.
+      setPhoneChanging(true);
+      setGlobalError("");
+      setPhoneStatusMessage("");
+      const res = await authApi.requestPhoneChange({ phone: (form.nextPhone || "").trim() });
+      setPhoneVerifyCode(String(res?.devCode || ""));
+      setPhoneChangeRequested(true);
+      setPhoneStatusMessage("인증번호를 발송했습니다. 받은 코드를 입력한 뒤 변경을 확정해주세요.");
+    } catch (error) {
+      setGlobalError(resolveErrorMessage(error, "휴대폰 인증 요청에 실패했습니다."));
+    } finally {
+      setPhoneChanging(false);
+    }
+  };
+
+  const handlePhoneChangeConfirm = async () => {
+    try {
+      // 기능: 휴대폰 변경은 request에서 받은 코드 또는 사용자가 입력한 값을 confirm에 보내 최종 반영한다.
+      // 설명: confirm 성공 전까지는 현재 휴대폰 표시값을 바꾸지 않고, 성공 후 refreshMe로 최신 값을 다시 읽는다.
+      setPhoneConfirming(true);
+      setGlobalError("");
+      setPhoneStatusMessage("");
+      await authApi.confirmPhoneChange({
+        phone: (form.nextPhone || "").trim(),
+        code: (phoneCodeInput || phoneVerifyCode || "").trim(),
+      });
+      setPhoneVerifyCode("");
+      setPhoneCodeInput("");
+      setPhoneChangeRequested(false);
+      setPhoneStatusMessage("휴대폰 번호 변경이 완료되었습니다.");
+      setForm((prev) => ({ ...prev, nextPhone: "" }));
+      await refreshMe();
+    } catch (error) {
+      setGlobalError(resolveErrorMessage(error, "휴대폰 변경 확인에 실패했습니다."));
+    } finally {
+      setPhoneConfirming(false);
+    }
   };
 
   return (
@@ -462,6 +554,8 @@ export default function MypageProfileEdit() {
                   <div className="pe-verify-title">
                     <Mail size={16} /> 이메일 변경
                   </div>
+                  <div className="pe-field-helper">현재 이메일: {form.email || "-"}</div>
+                  <div className="pe-field-helper">인증 요청 이후 토큰 확인에 성공해야 최종 이메일이 변경됩니다.</div>
                   <div className="pe-verify-row">
                     <input
                       className="pe-fi"
@@ -471,7 +565,7 @@ export default function MypageProfileEdit() {
                       placeholder="새 이메일 주소"
                       disabled={emailChanging || emailConfirming}
                     />
-                    <button type="button" className="pe-btn-check" onClick={requestEmailChange} disabled={emailChanging || emailConfirming}>
+                    <button type="button" className="pe-btn-check" onClick={handleEmailChangeRequest} disabled={emailChanging || emailConfirming}>
                       인증요청
                     </button>
                   </div>
@@ -483,10 +577,14 @@ export default function MypageProfileEdit() {
                       placeholder="인증 토큰 입력"
                       disabled={emailChanging || emailConfirming}
                     />
-                    <button type="button" className="pe-btn-check" onClick={confirmEmailChange} disabled={emailChanging || emailConfirming}>
+                    <button type="button" className="pe-btn-check" onClick={handleEmailChangeConfirm} disabled={emailChanging || emailConfirming}>
                       변경확인
                     </button>
                   </div>
+                  {emailStatusMessage ? <div className="pe-field-msg success">{emailStatusMessage}</div> : null}
+                  {emailChangeRequested ? (
+                    <div className="pe-field-helper">인증 확인 전에는 실제 이메일이 저장되지 않습니다.</div>
+                  ) : null}
                   {emailVerifyToken && <div className="pe-dev-token">devToken: {emailVerifyToken}</div>}
                 </div>
 
@@ -504,10 +602,11 @@ export default function MypageProfileEdit() {
                       placeholder="새 휴대전화번호"
                       disabled={phoneChanging || phoneConfirming}
                     />
-                    <button type="button" className="pe-btn-check" onClick={requestPhoneChange} disabled={phoneChanging || phoneConfirming}>
+                    <button type="button" className="pe-btn-check" onClick={handlePhoneChangeRequest} disabled={phoneChanging || phoneConfirming}>
                       인증요청
                     </button>
                   </div>
+                  <div className="pe-field-helper">현재 휴대폰 번호: {form.phone || "-"}</div>
                   <div className="pe-verify-row">
                     <input
                       className="pe-fi"
@@ -516,10 +615,14 @@ export default function MypageProfileEdit() {
                       placeholder="인증번호 입력"
                       disabled={phoneChanging || phoneConfirming}
                     />
-                    <button type="button" className="pe-btn-check" onClick={confirmPhoneChange} disabled={phoneChanging || phoneConfirming}>
+                    <button type="button" className="pe-btn-check" onClick={handlePhoneChangeConfirm} disabled={phoneChanging || phoneConfirming}>
                       변경확인
                     </button>
                   </div>
+                  {phoneStatusMessage ? <div className="pe-field-msg success">{phoneStatusMessage}</div> : null}
+                  {phoneChangeRequested ? (
+                    <div className="pe-field-helper">인증번호 확인 전에는 실제 휴대폰 번호가 저장되지 않습니다.</div>
+                  ) : null}
                   {phoneVerifyCode && <div className="pe-dev-token">devCode: {phoneVerifyCode}</div>}
                 </div>
               </div>

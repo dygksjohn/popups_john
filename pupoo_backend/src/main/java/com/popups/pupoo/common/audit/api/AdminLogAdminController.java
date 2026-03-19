@@ -13,6 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Locale;
 
+/**
+ * 관리자 감사 로그 조회 API다.
+ * 관리자 인증이 전제되며, 검색어와 대상 타입 필터를 `AdminLogQueryService`에 전달한다.
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/logs")
@@ -20,6 +24,10 @@ public class AdminLogAdminController {
 
     private final AdminLogQueryService adminLogQueryService;
 
+    /**
+     * 관리자 감사 로그를 페이지 단위로 조회한다.
+     * `targetType=ALL` 또는 잘못된 값은 필터 없음으로 처리한다.
+     */
     @GetMapping
     public ApiResponse<PageResponse<AdminLogListResponse>> list(
             @RequestParam(required = false) String keyword,

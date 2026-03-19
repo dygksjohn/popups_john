@@ -2,12 +2,9 @@
 package com.popups.pupoo.board.qna.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
-import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.bannedword.application.ModerationClient;
 import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
-import com.popups.pupoo.common.exception.BusinessException;
-import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.domain.model.Board;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
@@ -15,17 +12,25 @@ import com.popups.pupoo.board.post.domain.enums.PostStatus;
 import com.popups.pupoo.board.post.domain.model.Post;
 import com.popups.pupoo.board.post.persistence.PostRepository;
 import com.popups.pupoo.board.qna.domain.enums.QnaStatus;
-import com.popups.pupoo.board.qna.dto.*;
+import com.popups.pupoo.board.qna.dto.QnaCreateRequest;
+import com.popups.pupoo.board.qna.dto.QnaResponse;
+import com.popups.pupoo.board.qna.dto.QnaUpdateRequest;
 import com.popups.pupoo.board.qna.persistence.QnaRepository;
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.time.LocalDateTime;
 
+/**
+ * 사용자 QnA 게시글 생성과 공개 조회를 담당한다.
+ * 답변 여부는 answeredAt 존재 여부를 기준으로 WAITING/ANSWERED로 계산한다.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -38,6 +43,10 @@ public class QnaService {
     private final UserRepository userRepository;
     private final PostRepository postRepository;
 
+    /**
+     * QNA 게시판에 공개 상태의 질문 글을 생성한다.
+     * 차단 정책에 걸리면 저장하지 않고 moderation 로그만 남긴다.
+     */
     @Transactional
     public QnaResponse create(Long userId, QnaCreateRequest request) {
         if (!userRepository.existsById(userId)) {
@@ -52,7 +61,6 @@ public class QnaService {
             String textToModerate = (request.getTitle() != null ? request.getTitle() : "") + " " + (request.getContent() != null ? request.getContent() : "");
             modResult = moderationClient.moderate(textToModerate.trim(), qnaBoard.getBoardId(), "POST");
             if (modResult != null && modResult.isBlock()) {
-                // 생성 단계에서 BLOCK 된 QnA도 로그에 남긴다 (contentId는 아직 없음).
                 bannedWordService.logAiModeration(
                         qnaBoard.getBoardId(),
                         null,
@@ -60,9 +68,8 @@ public class QnaService {
                         userId,
                         modResult
                 );
-                // QnA 작성 실패 시 사용자 메시지 통일
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "QnA 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+                        "QnA 내용이 정책을 위반하여 등록할 수 없습니다.");
             }
         }
 
@@ -84,6 +91,9 @@ public class QnaService {
         return toResponse(saved);
     }
 
+    /**
+     * 사용자 QnA 상세 조회는 공개 상태 글만 허용하고 조회수 증가를 함께 수행한다.
+     */
     @Transactional
     public QnaResponse get(Long qnaId) {
         Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
@@ -99,9 +109,12 @@ public class QnaService {
         return list(page, size, null);
     }
 
+    /**
+     * WAITING/ANSWERED 필터는 answeredAt 존재 여부 기준으로 해석한다.
+     */
     public Page<QnaResponse> list(int page, int size, String statusFilter) {
         validatePageRequest(page, size);
-        Boolean answeredOnly = null; // ALL
+        Boolean answeredOnly = null;
         if (statusFilter != null && !statusFilter.isBlank()) {
             if ("ANSWERED".equalsIgnoreCase(statusFilter)) {
                 answeredOnly = true;
@@ -115,6 +128,9 @@ public class QnaService {
         return result.map(this::toResponse);
     }
 
+    /**
+     * 수정은 작성자 본인만 허용하며, 현재 구현에서는 공개 상태 질문만 수정 가능하다.
+     */
     @Transactional
     public QnaResponse update(Long userId, Long qnaId, QnaUpdateRequest request) {
         Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
@@ -130,6 +146,9 @@ public class QnaService {
         return toResponse(saved);
     }
 
+    /**
+     * 삭제는 숨김 처리 후 deleted 플래그를 세우는 soft delete 흐름이다.
+     */
     @Transactional
     public void delete(Long userId, Long qnaId) {
         Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
@@ -144,6 +163,9 @@ public class QnaService {
         qnaRepository.save(post);
     }
 
+    /**
+     * close는 삭제와 달리 질문을 유지한 채 추가 답변 흐름만 종료한다.
+     */
     @Transactional
     public void close(Long userId, Long qnaId) {
         Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
@@ -157,11 +179,8 @@ public class QnaService {
         qnaRepository.save(post);
     }
 
-    
-
     /**
-     * 운영 환경에서 과도한 페이징 요청으로 DB 부하가 커지는 것을 방지하기 위해,
-     * page/size 범위를 서비스 레이어에서 한번 더 제한한다.
+     * 과도한 페이지 요청으로 인한 조회 부하를 막기 위해 범위를 제한한다.
      */
     private void validatePageRequest(int page, int size) {
         if (page < 0) {

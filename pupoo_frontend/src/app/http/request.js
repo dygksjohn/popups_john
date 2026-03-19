@@ -1,18 +1,13 @@
 import { axiosInstance } from "./axiosInstance";
 import { buildFormData } from "../../shared/utils/buildFormData";
 
-// ✅ /api prefix 자동 보정
+// 기능: 호출부가 `/api`를 생략해도 공통 HTTP 계층에서 같은 경로 규칙으로 맞춘다.
+// 설명: 이미 `/api`가 붙은 주소와 절대 URL은 유지하고, 나머지 상대 경로만 `/api` 기준으로 보정한다.
+// 흐름: 전달된 url 검사 -> 절대 주소/기존 `/api`는 유지 -> 아니면 `/api` 접두어 추가.
 function withApiPrefix(url = "") {
-  // 절대 URL이면 그대로
   if (/^https?:\/\//i.test(url)) return url;
-
-  // 앞에 슬래시 보정
   const u = url.startsWith("/") ? url : `/${url}`;
-
-  // 이미 /api 로 시작하면 그대로
   if (u === "/api" || u.startsWith("/api/")) return u;
-
-  // 아니면 /api 붙이기
   return `/api${u}`;
 }
 

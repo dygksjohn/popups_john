@@ -16,10 +16,10 @@ export default function KakaoJoin() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // ✅ StrictMode 2회 실행 방지
+  // 기능: callback 직후 초기 진입 검증은 StrictMode 중복 실행 없이 한 번만 처리한다.
   const didInitRef = useRef(false);
 
-  // ✅ 콜백에서 세션에 저장해 둔 카카오 정보
+  // 기능: callback 단계에서 저장한 카카오 식별 정보를 가입 폼 초기값으로 복원한다.
   const kakaoSession = useMemo(() => {
     return {
       providerUid: sessionStorage.getItem("kakao_provider_uid") ?? "",
@@ -28,39 +28,38 @@ export default function KakaoJoin() {
     };
   }, []);
 
-  // 입력값(신규회원)
+  // 기능: 신규회원이 추가 입력해야 하는 필드만 별도 상태로 관리한다.
   const [providerUid] = useState(kakaoSession.providerUid);
   const [email, setEmail] = useState(kakaoSession.email);
   const [nickname, setNickname] = useState(kakaoSession.nickname);
   const [phone, setPhone] = useState("");
 
-  // 플로우 상태
+  // 기능: 카카오 가입 화면은 초기 검증 -> 정보 입력 -> OTP 확인 3단계로 나뉜다.
   const [step, setStep] = useState(STEP.INIT);
 
   const [signupKey, setSignupKey] = useState("");
   const [otpCode, setOtpCode] = useState("");
+  const [devOtpHint, setDevOtpHint] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // ✅ 소셜 가입용 임시 비밀번호(사용자 입력 X)
-  // - 백엔드가 SOCIAL도 password 필수라서 자동 생성해서 보낸다.
+  // 기능: 소셜 가입에서도 password 필수 API 조건을 맞추기 위해 임시 비밀번호를 내부에서만 생성한다.
   const [tempPassword] = useState(() => {
     const key = "kakao_temp_password";
     const existing = sessionStorage.getItem(key);
     if (existing) return existing;
 
-    // 간단/충분히 랜덤한 임시 비밀번호 생성(최소 12자)
     const rand = `${crypto.randomUUID()}-${Math.random().toString(36).slice(2)}`;
     const pwd = rand.replace(/-/g, "").slice(0, 16) + "aA1!";
     sessionStorage.setItem(key, pwd);
     return pwd;
   });
 
-  // ✅ 카카오 이메일이 있으면 수정 불가(정책 A)
+  // 기능: 카카오에서 이메일이 내려온 경우 동일 값으로 가입을 이어가도록 입력을 잠근다.
   const hasKakaoEmail = !!(kakaoSession.email || "").trim();
 
-  // ✅ 버튼 활성화 조건(정책 A: 이메일 필수)
+  // 기능: 단계별 버튼 활성화 조건을 한곳에서 계산해 잘못된 요청을 막는다.
   const emailTrim = (email || "").trim();
   const nickTrim = (nickname || "").trim() || "kakao_user";
   const phoneDigits = normalizeDigits(phone);
@@ -69,7 +68,7 @@ export default function KakaoJoin() {
     !loading &&
     step === STEP.FORM &&
     !!providerUid &&
-    !!emailTrim && // ✅ 정책 A: 이메일 필수
+    !!emailTrim &&
     phoneDigits.length >= 10;
 
   const canVerify =
@@ -79,11 +78,8 @@ export default function KakaoJoin() {
     phoneDigits.length >= 10 &&
     (otpCode || "").trim().length >= 4;
 
-  /**
-   * ✅ 페이지 진입 시 신규회원 전용 진입 검증
-   * - providerUid 없으면 잘못된 진입(새로고침/직접 접근) -> 로그인으로 복귀
-   */
   useEffect(() => {
+    // 기능: providerUid가 없는 비정상 진입은 로그인 화면으로 되돌린다.
     if (didInitRef.current) return;
     didInitRef.current = true;
 
@@ -95,7 +91,6 @@ export default function KakaoJoin() {
     setStep(STEP.FORM);
   }, [navigate, providerUid]);
 
-  // 1) 신규회원: OTP 발송 (signup/start)
   const sendOtp = async () => {
     if (!canSendOtp) return;
 
@@ -103,6 +98,9 @@ export default function KakaoJoin() {
     setLoading(true);
 
     try {
+      // 기능: 카카오 신규회원 가입은 기본 정보 저장과 OTP 발송을 signupStart 한 번으로 시작한다.
+      // 설명: 이 단계 성공이 곧 가입 완료는 아니며, 응답으로 받은 signupKey가 다음 OTP 검증 단계의 기준이 된다.
+      // 흐름: 이메일과 전화 입력 -> signupStart 호출 -> signupKey 저장 -> OTP 단계 전환.
       const res = await authApi.signupStart({
         signupType: "SOCIAL",
         socialProvider: "KAKAO",
@@ -125,7 +123,8 @@ export default function KakaoJoin() {
       setStep(STEP.OTP);
 
       if (res?.devOtp) {
-        setOtpCode(String(res.devOtp));
+        // 기능: 개발 환경 보조 OTP는 확인용으로만 저장한다.
+        setDevOtpHint(String(res.devOtp));
       }
     } catch (e) {
       console.error(e);
@@ -135,7 +134,6 @@ export default function KakaoJoin() {
     }
   };
 
-  // 2) 신규회원: OTP 검증 + 가입 완료(자동 로그인)
   const verifyOtpAndComplete = async () => {
     if (!canVerify) return;
 
@@ -143,6 +141,9 @@ export default function KakaoJoin() {
     setLoading(true);
 
     try {
+      // 기능: 카카오 가입은 OTP 검증 성공 직후 signupComplete까지 이어서 호출한다.
+      // 설명: 이 화면에서는 별도 완료 플래그를 두지 않고, verify 성공 여부를 바로 가입 완료 조건으로 사용한다.
+      // 흐름: OTP 입력 -> verify-otp 성공 -> signupComplete 호출 -> access token 저장 후 로그인.
       await authApi.signupVerifyOtp({
         signupKey,
         phone: phoneDigits,
@@ -161,6 +162,7 @@ export default function KakaoJoin() {
       tokenStore.setAccess(accessToken);
       login();
 
+      // 기능: 가입 완료 후 카카오 가입 중간 상태를 정리해 다음 로그인 흐름과 섞이지 않게 한다.
       sessionStorage.removeItem("kakao_temp_password");
       sessionStorage.removeItem("kakao_provider_uid");
       sessionStorage.removeItem("kakao_email");
@@ -176,7 +178,6 @@ export default function KakaoJoin() {
     }
   };
 
-  // ───────── UI ─────────
   if (step === STEP.INIT) {
     return <div style={{ padding: 24 }}>카카오 인증 확인 중...</div>;
   }
@@ -191,7 +192,7 @@ export default function KakaoJoin() {
         (신규 회원 전용) 카카오 UID: {providerUid || "(없음)"}
       </div>
 
-      {/* FORM */}
+      {/* 기능: FORM 단계는 추가 정보 입력과 OTP 발송 시작 버튼을 보여준다. */}
       {step === STEP.FORM && (
         <div style={{ marginTop: 16 }}>
           <input
@@ -284,10 +285,15 @@ export default function KakaoJoin() {
         </div>
       )}
 
-      {/* OTP */}
+      {/* 기능: OTP 단계는 signupKey를 유지한 채 인증번호 확인과 가입 완료를 한 번에 처리한다. */}
       {step === STEP.OTP && (
         <>
           <div style={{ marginTop: 12 }}>
+            {devOtpHint ? (
+              <div style={{ marginBottom: 8, fontSize: 12, color: "#666" }}>
+                개발 환경 확인용 OTP: <b>{devOtpHint}</b>
+              </div>
+            ) : null}
             <input
               value={otpCode}
               onChange={(e) =>

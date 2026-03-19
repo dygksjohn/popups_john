@@ -38,6 +38,14 @@ import java.util.Objects;
 
 @Service
 @Transactional(readOnly = true)
+/**
+ * 기능: QR 발급, 이미지 생성, 방문 이력 집계를 담당한다.
+ * 설명: controller에서 전달된 사용자와 이벤트 정보를 바탕으로 QR 데이터와 방문 로그를 조합한다.
+ * 흐름: 사용자/이벤트 검증 -> repository 조회 및 생성 -> DTO 변환 순서로 처리한다.
+ */
+// 기능: QR 발급, 이미지 생성, 방문 이력 집계를 담당한다.
+// 설명: 사용자와 이벤트 정보를 바탕으로 QR 데이터와 방문 로그를 조합한다.
+// 흐름: 사용자/이벤트 검증 -> repository 조회 및 생성 -> DTO 변환.
 public class QrService {
     private static final int QR_IMAGE_SIZE = 512;
 
@@ -63,7 +71,15 @@ public class QrService {
     // =========================
     // 1) 내 QR 조회/발급
     // =========================
+    /**
+     * 기능: 사용자와 이벤트 기준 QR을 조회하거나 신규 발급한다.
+     * 설명: 유효한 QR이 있으면 그대로 반환하고, 없으면 만료일을 계산해 새 QR을 저장한다.
+     * 흐름: 사용자 조회 -> 이벤트 조회 -> 기존 QR 탐색 -> 없으면 생성 후 반환.
+     */
     @Transactional
+    // 기능: 사용자와 이벤트 기준 QR을 조회하거나 신규 발급한다.
+    // 설명: 유효한 QR이 있으면 그대로 반환하고, 없으면 만료일을 계산해 새 QR을 저장한다.
+    // 흐름: 사용자 조회 -> 이벤트 조회 -> 기존 QR 탐색 -> 없으면 생성 후 반환.
     public QrIssueResponse getMyQrOrIssue(Long userId, Long eventId) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -99,10 +115,23 @@ public class QrService {
                 });
     }
 
+    /**
+     * 기능: QR 원본 URL을 생성한다.
+     * 설명: 사용자와 이벤트 조합으로 고유한 QR 경로를 만든다.
+     * 흐름: userId/eventId 조합 -> 서비스 도메인 URL 문자열 반환.
+     */
     private String buildQrUrl(Long userId, Long eventId) {
         return "https://pupoo.io/qr/" + userId + "/" + eventId;
     }
 
+    /**
+     * 기능: 사용자 QR을 PNG 파일로 내려주기 위한 데이터로 변환한다.
+     * 설명: QR 원본 URL을 이미지 바이트로 생성하고 파일명과 content type을 함께 묶는다.
+     * 흐름: QR 확보 -> 원본 URL 검증 -> PNG 생성 -> 다운로드 DTO 반환.
+     */
+    // 기능: 사용자 QR을 다운로드용 데이터로 변환한다.
+    // 설명: QR 원본 URL을 이미지 바이트로 생성하고 파일명과 content type을 함께 묶는다.
+    // 흐름: QR 확보 -> 원본 URL 검증 -> PNG 생성 -> 다운로드 DTO 반환.
     public QrDownloadResult downloadMyQr(Long userId, Long eventId) {
         QrIssueResponse qr = getMyQrOrIssue(userId, eventId);
         String originalUrl = qr.getOriginalUrl();
@@ -118,6 +147,11 @@ public class QrService {
         }
     }
 
+    /**
+     * 기능: QR 텍스트를 PNG 바이트 배열로 변환한다.
+     * 설명: ZXing을 사용해 화면 및 다운로드에 공통으로 사용할 이미지를 생성한다.
+     * 흐름: 힌트 설정 -> 비트맵 생성 -> PNG stream 변환.
+     */
     private byte[] generateQrPng(String content) throws WriterException, IOException {
         Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
         hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
@@ -144,12 +178,25 @@ public class QrService {
     // =========================
     // 2) 내 부스 방문 목록 (이벤트별 그룹)
     // =========================
+    /**
+     * 기능: 전체 이벤트 기준 사용자 방문 요약을 묶어서 반환한다.
+     * 설명: repository 결과를 이벤트 단위 그룹으로 재구성한다.
+     * 흐름: 방문 요약 조회 -> 이벤트별 그룹화 -> DTO 목록 반환.
+     */
+    // 기능: 전체 이벤트 기준 사용자 방문 요약을 반환한다.
+    // 설명: repository 결과를 이벤트 단위 그룹으로 재구성한다.
+    // 흐름: 방문 요약 조회 -> 이벤트별 그룹화 -> DTO 목록 반환.
     public List<QrHistoryResponse.EventBoothVisits> getMyBoothVisitsGroupedByEvent(Long userId) {
         List<BoothVisitSummaryRow> rows = qrCheckinRepository.findMyBoothVisitSummaryRows(userId, null);
         return toEventGroups(rows);
     }
 
     // 2-1) 내 부스 방문 목록 (특정 이벤트 1개) - eventName 포함
+    /**
+     * 기능: 특정 이벤트의 사용자 방문 요약을 반환한다.
+     * 설명: 조회 결과가 없더라도 빈 구조를 반환해 프론트가 일관된 형태로 처리하도록 한다.
+     * 흐름: 이벤트 필터 조회 -> 그룹 변환 -> 첫 결과 또는 빈 DTO 반환.
+     */
     public QrHistoryResponse.EventBoothVisits getMyBoothVisitsEvent(Long userId, Long eventId) {
         List<BoothVisitSummaryRow> rows = qrCheckinRepository.findMyBoothVisitSummaryRows(userId, eventId);
         List<QrHistoryResponse.EventBoothVisits> grouped = toEventGroups(rows);
@@ -208,6 +255,11 @@ public class QrService {
     // =========================
     // 3) 내 부스 방문 로그
     // =========================
+    /**
+     * 기능: 특정 부스의 사용자 방문 로그를 반환한다.
+     * 설명: 부스가 해당 이벤트 소속인지 검증한 뒤 체크인 로그를 DTO로 변환한다.
+     * 흐름: 부스 조회 및 이벤트 검증 -> 로그 조회 -> VisitLog 목록 변환.
+     */
     public List<QrHistoryResponse.VisitLog> getMyBoothVisitLogs(Long userId, Long eventId, Long boothId) {
 
         Booth booth = boothRepository.findById(boothId)

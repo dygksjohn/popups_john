@@ -5,31 +5,32 @@ import com.popups.pupoo.auth.domain.model.EmailVerificationToken;
 import com.popups.pupoo.auth.dto.EmailChangeRequest;
 import com.popups.pupoo.auth.dto.EmailVerificationRequestResponse;
 import com.popups.pupoo.auth.persistence.EmailVerificationTokenRepository;
+import com.popups.pupoo.auth.port.EmailVerificationSenderPort;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.util.HashUtil;
-import com.popups.pupoo.notification.port.NotificationSender;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.persistence.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.Base64;
-import java.util.List;
 import java.util.UUID;
 
+/**
+ * 계정 이메일 인증과 이메일 변경 인증을 전담한다.
+ * 이메일 발송은 Port로 분리하고, 토큰 저장과 검증 정책은 이 서비스가 직접 관리한다.
+ */
 @Service
 public class EmailVerificationService {
 
     private final UserRepository userRepository;
     private final EmailVerificationTokenRepository tokenRepository;
-    private final NotificationSender notificationSender;
-
+    private final EmailVerificationSenderPort emailVerificationSenderPort;
     private final String hashSalt;
-    private final String baseUrl;
     private final int tokenTtlHours;
     private final int requestCooldownSeconds;
     private final boolean exposeDevToken;
@@ -37,36 +38,28 @@ public class EmailVerificationService {
     public EmailVerificationService(
             UserRepository userRepository,
             EmailVerificationTokenRepository tokenRepository,
-            NotificationSender notificationSender,
+            EmailVerificationSenderPort emailVerificationSenderPort,
             @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
-            @Value("${verification.email.base-url:http://3.38.233.224:8080}") String baseUrl,
             @Value("${verification.email.ttl-hours:24}") int tokenTtlHours,
             @Value("${verification.request.cooldown-seconds:60}") int requestCooldownSeconds,
             @Value("${verification.dev.expose:true}") boolean exposeDevToken
     ) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
-        this.notificationSender = notificationSender;
+        this.emailVerificationSenderPort = emailVerificationSenderPort;
         this.hashSalt = hashSalt;
-        this.baseUrl = baseUrl;
         this.tokenTtlHours = tokenTtlHours;
         this.requestCooldownSeconds = requestCooldownSeconds;
         this.exposeDevToken = exposeDevToken;
     }
 
     /**
-     * 이메일 인증 메일 발송(재발송 포함)
-     *
-     * 정책
-     * - local(email/password) 가입 사용자 대상.
-     * - email_verified=true면 멱등 처리 대신 409로 응답한다.
-     * - 토큰은 SHA-256 해시만 저장하고, 원문은 반환하지 않는다(운영).
+     * 계정 이메일 인증 링크용 토큰을 발급한다.
+     * 이미 인증된 계정은 차단하고, 최근 요청이 있으면 쿨다운 정책으로 재발급을 제한한다.
      */
     @Transactional
     public EmailVerificationRequestResponse requestEmailVerification(Long userId) {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        validateHashSalt();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_PROFILE_NOT_FOUND));
@@ -84,25 +77,21 @@ public class EmailVerificationService {
 
         String token = UUID.randomUUID().toString().replace("-", "");
         String tokenHash = HashUtil.sha256Hex(token + hashSalt);
-
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(tokenTtlHours);
+
         tokenRepository.save(new EmailVerificationToken(userId, tokenHash, expiresAt));
-
-        String verifyUrl = baseUrl + "/api/auth/email/verification/confirm?token=" + token;
-        String subject = "POPUPS 이메일 인증";
-        String body = "이메일 인증을 완료하려면 아래 링크를 클릭하세요.\n\n" + verifyUrl + "\n\n" +
-                "이 링크는 " + tokenTtlHours + "시간 동안 유효합니다.";
-
-        notificationSender.sendEmail(List.of(user.getEmail()), subject, body);
+        emailVerificationSenderPort.sendAccountVerificationEmail(user.getEmail(), token);
 
         return new EmailVerificationRequestResponse(expiresAt, exposeDevToken ? token : null);
     }
 
+    /**
+     * 이메일 변경용 인증 토큰을 새 이메일로 보낸다.
+     * 현재 이메일과 같거나 이미 다른 계정이 사용 중인 이메일은 허용하지 않는다.
+     */
     @Transactional
     public EmailVerificationRequestResponse requestEmailChange(Long userId, EmailChangeRequest request) {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        validateHashSalt();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_PROFILE_NOT_FOUND));
@@ -127,38 +116,32 @@ public class EmailVerificationService {
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(tokenTtlHours);
 
         tokenRepository.save(new EmailVerificationToken(userId, tokenHash, expiresAt));
-
-        String subject = "POPUPS 이메일 변경 인증";
-        String body = "아래 토큰으로 이메일 변경 인증을 완료해 주세요.\n\n" + token + "\n\n" +
-                "토큰 만료: " + expiresAt;
-        notificationSender.sendEmail(List.of(newEmail), subject, body);
+        emailVerificationSenderPort.sendEmailChangeVerificationEmail(newEmail, token, expiresAt);
 
         return new EmailVerificationRequestResponse(expiresAt, exposeDevToken ? token : null);
     }
 
     /**
-     * 이메일 인증 토큰 검증 및 사용자 상태 갱신
+     * 계정 이메일 인증 토큰을 확정한다.
+     * 토큰이 유효하면 `users.email_verified`를 true로 바꾸고 토큰은 사용 처리한다.
      */
     @Transactional
     public void confirmEmailVerification(String token) {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        validateHashSalt();
 
         if (token == null || token.isBlank()) {
             throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_INVALID);
         }
 
         String tokenHash = HashUtil.sha256Hex(token + hashSalt);
-
-        EmailVerificationToken evt = tokenRepository.findByTokenHashAndUsedAtIsNull(tokenHash)
+        EmailVerificationToken emailVerificationToken = tokenRepository.findByTokenHashAndUsedAtIsNull(tokenHash)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_INVALID));
 
-        if (evt.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (emailVerificationToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_EXPIRED);
         }
 
-        User user = userRepository.findById(evt.getUserId())
+        User user = userRepository.findById(emailVerificationToken.getUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_PROFILE_NOT_FOUND));
 
         if (!user.isEmailVerified()) {
@@ -166,27 +149,30 @@ public class EmailVerificationService {
             userRepository.save(user);
         }
 
-        evt.markUsed(LocalDateTime.now());
-        tokenRepository.save(evt);
+        emailVerificationToken.markUsed(LocalDateTime.now());
+        tokenRepository.save(emailVerificationToken);
     }
 
+    /**
+     * 이메일 변경 토큰을 확정하고 계정 이메일을 바꾼다.
+     * 토큰에 인코딩된 새 이메일을 꺼내 중복 여부를 확인한 뒤 `email_verified`까지 true로 유지한다.
+     */
     @Transactional
     public void confirmEmailChange(Long userId, String token) {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        validateHashSalt();
+
         if (token == null || token.isBlank()) {
             throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_INVALID);
         }
 
         String tokenHash = HashUtil.sha256Hex(token + hashSalt);
-        EmailVerificationToken evt = tokenRepository.findByTokenHashAndUsedAtIsNull(tokenHash)
+        EmailVerificationToken emailVerificationToken = tokenRepository.findByTokenHashAndUsedAtIsNull(tokenHash)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_INVALID));
 
-        if (!evt.getUserId().equals(userId)) {
+        if (!emailVerificationToken.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
-        if (evt.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (emailVerificationToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_TOKEN_EXPIRED);
         }
 
@@ -202,8 +188,14 @@ public class EmailVerificationService {
         user.setEmailVerified(true);
         userRepository.save(user);
 
-        evt.markUsed(LocalDateTime.now());
-        tokenRepository.save(evt);
+        emailVerificationToken.markUsed(LocalDateTime.now());
+        tokenRepository.save(emailVerificationToken);
+    }
+
+    private void validateHashSalt() {
+        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
+        }
     }
 
     private String normalizeEmail(String email) {
