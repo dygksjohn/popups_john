@@ -39,6 +39,8 @@ public class ProgramApplyService {
 
     private static final EnumSet<ApplyStatus> ACTIVE_STATUSES =
             EnumSet.of(ApplyStatus.APPLIED, ApplyStatus.WAITING, ApplyStatus.APPROVED);
+    private static final EnumSet<ApplyStatus> CHECKIN_CANDIDATE_STATUSES =
+            EnumSet.of(ApplyStatus.APPLIED, ApplyStatus.WAITING, ApplyStatus.APPROVED);
 
     private final ProgramApplyRepository programApplyRepository;
     private final ProgramRepository programRepository;
@@ -59,7 +61,11 @@ public class ProgramApplyService {
 
     @Transactional(readOnly = true)
     public PageResponse<ProgramApplyResponse> getApprovedCandidates(Long programId, Pageable pageable) {
-        Page<ProgramApply> page = programApplyRepository.findByProgramIdAndStatus(programId, ApplyStatus.APPROVED, pageable);
+        Page<ProgramApply> page = programApplyRepository.findByProgramIdAndStatusIn(
+                programId,
+                CHECKIN_CANDIDATE_STATUSES,
+                pageable
+        );
 
         var petIds = page.getContent().stream()
                 .map(ProgramApply::getPetId)

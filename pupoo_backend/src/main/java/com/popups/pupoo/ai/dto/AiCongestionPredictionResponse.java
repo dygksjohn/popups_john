@@ -15,6 +15,7 @@ public record AiCongestionPredictionResponse(
         double confidence,
         Double lstmPredictedAvgScore,
         boolean fallbackUsed,
-        List<AiTimelinePoint> timeline
+        List<AiTimelinePoint> timeline,
+        List<AiTimelinePoint> lstmTimeline
 ) {
 }
