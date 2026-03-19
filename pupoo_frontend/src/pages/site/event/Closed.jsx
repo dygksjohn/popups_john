@@ -32,7 +32,7 @@ const SERVICE_CATEGORIES = [
 ];
 
 const METRIC_COLORS = {
-  participants: "#02A17E",
+  participants: "#2563eb",
   rate: "#10b981",
   rating: "#f59e0b",
 };
@@ -72,7 +72,7 @@ function clamp(value, min = 0, max = 100) {
 function getProgramCategoryMeta(category) {
   const normalized = String(category || "").toUpperCase();
   if (normalized.includes("SESSION")) {
-    return { label: "세션/강연", bg: "#E6F7F2", color: "#02A17E" };
+    return { label: "세션/강연", bg: "#eff6ff", color: "#2563eb" };
   }
   if (normalized.includes("EXPERIENCE")) {
     return { label: "체험존", bg: "#ecfdf5", color: "#059669" };
@@ -86,7 +86,9 @@ function getProgramCategoryMeta(category) {
 function mapEvent(raw) {
   const participants = Number(raw?.participantCount ?? 0);
   const capacity = Number(raw?.capacity ?? 0);
-  const participationRate = Number(raw?.participationRate ?? 0);
+  const participationRate = capacity > 0
+    ? Math.round((participants / capacity) * 100)
+    : Number(raw?.participationRate ?? 0);
   const rating = Number(raw?.averageRating ?? 0);
 
   return {
@@ -197,8 +199,8 @@ function downloadResultImage(event) {
 
   /* ── 4 metric cards ── */
   const metrics = [
-    { label: "참가자", value: `${event.participants.toLocaleString()}명`, sub: `/ ${event.capacity.toLocaleString()}`, color: "#02A17E", bg: "#E6F7F2" },
-    { label: "참가율", value: `${event.participationRate}%`, sub: "", color: "#10b981", bg: "#ecfdf5" },
+    { label: "참가자", value: `${event.participants.toLocaleString()}명`, sub: "", color: "#2563eb", bg: "#eff6ff" },
+    { label: "출석률(총참가자/사전등록자)", value: `${event.participationRate}%`, sub: "", color: "#10b981", bg: "#ecfdf5" },
     { label: "별점", value: `${event.ratingText}`, sub: "/ 5.0", color: "#f59e0b", bg: "#fffbeb" },
     { label: "후기", value: `${event.reviewCount.toLocaleString()}건`, sub: "", color: "#7c3aed", bg: "#f5f3ff" },
   ];
@@ -254,18 +256,18 @@ function downloadResultImage(event) {
   ctx.fillStyle = "#334155"; ctx.font = "800 14px sans-serif";
   ctx.fillText("참가자 달성률", d1x + 20, btmY + 30);
 
-  const pct1 = event.capacity > 0 ? clamp((event.participants / event.capacity) * 100) : 0;
+  const pct1 = 100;
   const donutCx1 = d1x + colW / 2;
   const donutCy1 = btmY + btmH / 2 + 8;
   const donutR1 = Math.min(colW, btmH) * 0.28;
-  drawDonut(donutCx1, donutCy1, donutR1, 14, pct1, "#D6F2EA", "#02A17E");
+  drawDonut(donutCx1, donutCy1, donutR1, 14, pct1, "#e8f4fd", "#2563eb");
 
-  ctx.fillStyle = "#02A17E"; ctx.font = "900 32px sans-serif"; ctx.textAlign = "center";
+  ctx.fillStyle = "#2563eb"; ctx.font = "900 32px sans-serif"; ctx.textAlign = "center";
   ctx.fillText(`${Math.round(pct1)}%`, donutCx1, donutCy1 + 12);
   ctx.textAlign = "left";
 
   ctx.fillStyle = "#64748b"; ctx.font = "600 13px sans-serif"; ctx.textAlign = "center";
-  ctx.fillText(`${event.participants.toLocaleString()} / ${event.capacity.toLocaleString()}명`, donutCx1, btmY + btmH - 20);
+  ctx.fillText(`${event.participants.toLocaleString()}명`, donutCx1, btmY + btmH - 20);
   ctx.textAlign = "left";
 
   /* --- 별점 stars --- */
@@ -293,7 +295,7 @@ function downloadResultImage(event) {
   ctx.fillText("/ 5.0", d2x + colW / 2 + ctx.measureText(event.ratingText).width / 2 + 38, starCy + 48);
   ctx.textAlign = "left";
 
-  /* --- 참가율 gauge --- */
+  /* --- 출석률 gauge --- */
   const d3x = 48 + (colW + 16) * 2;
   ctx.fillStyle = "#ffffff";
   roundRect(d3x, btmY, colW, btmH, 16); ctx.fill();
@@ -301,7 +303,7 @@ function downloadResultImage(event) {
   roundRect(d3x, btmY, colW, btmH, 16); ctx.stroke();
 
   ctx.fillStyle = "#334155"; ctx.font = "800 14px sans-serif";
-  ctx.fillText("참가율", d3x + 20, btmY + 30);
+  ctx.fillText("출석률(총참가자/사전등록자)", d3x + 20, btmY + 30);
 
   const gaugeCx = d3x + colW / 2;
   const gaugeCy = btmY + btmH / 2 + 20;
@@ -343,7 +345,7 @@ function downloadResultImage(event) {
   }, "image/png");
 }
 
-/* ── Donut Ring (참가자수 / 참가율) ── */
+/* ── Donut Ring (참가자수 / 출석률) ── */
 function DonutStatCard({ icon, label, value, max, suffix = "", maxSuffix, color, bg }) {
   const [animated, setAnimated] = useState(0);
 
@@ -515,7 +517,7 @@ function MonthDropdown({ month, setMonth }) {
         style={{
           width: "100%", height: 52, padding: "0 16px",
           borderRadius: 14,
-          border: open ? "2px solid #02A17E" : "1.5px solid #e2e8f0",
+          border: open ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
           background: "#fff", cursor: "pointer",
           display: "flex", alignItems: "center", gap: 10,
           transition: "border-color 0.25s, box-shadow 0.25s",
@@ -523,7 +525,7 @@ function MonthDropdown({ month, setMonth }) {
           position: "relative",
         }}
       >
-        <Calendar size={16} color={open ? "#02A17E" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
+        <Calendar size={16} color={open ? "#2563eb" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
         {!open && !hasValue && (
           <span style={{
             position: "absolute", left: 42, top: "50%",
@@ -538,7 +540,7 @@ function MonthDropdown({ month, setMonth }) {
           fontSize: 15, fontWeight: 800, color: "#0f172a",
           opacity: hasValue ? 1 : 0, transition: "opacity 0.2s",
         }}>{label}</span>
-        <ChevronDown size={16} color={open ? "#02A17E" : "#94a3b8"}
+        <ChevronDown size={16} color={open ? "#2563eb" : "#94a3b8"}
           style={{ transition: "transform 0.25s, color 0.25s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
         />
       </button>
@@ -558,8 +560,8 @@ function MonthDropdown({ month, setMonth }) {
                 style={{
                   width: "100%", padding: "10px 14px",
                   borderRadius: 10, border: "none",
-                  background: month === val ? "#E6F7F2" : "transparent",
-                  color: month === val ? "#02A17E" : "#334155",
+                  background: month === val ? "#eff6ff" : "transparent",
+                  color: month === val ? "#2563eb" : "#334155",
                   fontSize: 16, fontWeight: month === val ? 800 : 600,
                   cursor: "pointer", textAlign: "left",
                   transition: "background 0.15s",
@@ -662,10 +664,6 @@ export default function Closed() {
   const avgRating = filtered.length ? filtered.reduce((sum, event) => sum + event.rating, 0) / filtered.length : 0;
   const avgReviewCount = filtered.length ? filtered.reduce((sum, event) => sum + event.reviewCount, 0) / filtered.length : 0;
 
-  const selectedParticipantPercent = selected?.capacity
-    ? clamp((selected.participants / selected.capacity) * 100)
-    : 0;
-
   useEffect(() => {
     if (!selected?.id || programMap[selected.id]) return;
 
@@ -754,7 +752,7 @@ export default function Closed() {
       <PageHeader
         title="종료 행사"
         subtitle="종료된 행사 결과를 행사별 그래프로 확인하세요"
-        icon={<ArchiveX size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<ArchiveX size={42} color="#1a4fd6" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={SERVICE_CATEGORIES}
@@ -782,7 +780,7 @@ export default function Closed() {
                   style={{
                     width: "100%", height: 52, padding: "0 16px",
                     borderRadius: 14,
-                    border: yearOpen ? "2px solid #02A17E" : "1.5px solid #e2e8f0",
+                    border: yearOpen ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
                     background: "#fff", cursor: "pointer",
                     display: "flex", alignItems: "center", gap: 10,
                     transition: "border-color 0.25s, box-shadow 0.25s",
@@ -790,7 +788,7 @@ export default function Closed() {
                     position: "relative",
                   }}
                 >
-                  <Calendar size={16} color={yearOpen ? "#02A17E" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
+                  <Calendar size={16} color={yearOpen ? "#2563eb" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
                   {!yearOpen && year === "all" && (
                     <span style={{
                       position: "absolute", left: 42, top: "50%",
@@ -810,7 +808,7 @@ export default function Closed() {
                     {year === "all" ? "" : `${year}년`}
                   </span>
                   <ChevronDown
-                    size={16} color={yearOpen ? "#02A17E" : "#94a3b8"}
+                    size={16} color={yearOpen ? "#2563eb" : "#94a3b8"}
                     style={{
                       transition: "transform 0.25s, color 0.25s",
                       transform: yearOpen ? "rotate(180deg)" : "rotate(0deg)",
@@ -833,8 +831,8 @@ export default function Closed() {
                         style={{
                           width: "100%", padding: "10px 14px",
                           borderRadius: 10, border: "none",
-                          background: year === value ? "#E6F7F2" : "transparent",
-                          color: year === value ? "#02A17E" : "#334155",
+                          background: year === value ? "#eff6ff" : "transparent",
+                          color: year === value ? "#2563eb" : "#334155",
                           fontSize: 16, fontWeight: year === value ? 800 : 600,
                           cursor: "pointer", textAlign: "left",
                           transition: "background 0.15s",
@@ -858,7 +856,7 @@ export default function Closed() {
               <div style={{ position: "relative", width: 280 }}>
                 <Search
                   size={16}
-                  color={searchFocused ? "#02A17E" : "#94a3b8"}
+                  color={searchFocused ? "#2563eb" : "#94a3b8"}
                   style={{
                     position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
                     transition: "color 0.25s", zIndex: 1,
@@ -883,7 +881,7 @@ export default function Closed() {
                   style={{
                     width: "100%", height: 44,
                     borderRadius: 12,
-                    border: searchFocused ? "2px solid #02A17E" : "1.5px solid #e2e8f0",
+                    border: searchFocused ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
                     padding: "0 14px 0 38px",
                     fontSize: 15, fontWeight: 700, color: "#0f172a",
                     background: "#fff", outline: "none",
@@ -905,7 +903,7 @@ export default function Closed() {
                     <span style={{ fontSize: 14, fontWeight: 600, color: "#bbb" }}>{filtered.length}</span>
                   </div>
                   {selected && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, background: "#02A17E", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, background: "#2563eb", color: "#fff", fontSize: 13, fontWeight: 700 }}>
                       <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", opacity: 0.6 }} />
                       {selected.title}
                     </span>
@@ -924,8 +922,8 @@ export default function Closed() {
                           border: "none",
                           borderRight: (idx % 4 !== 3) ? "1px solid #f1f5f9" : "none",
                           borderBottom: "1px solid #f1f5f9",
-                          borderLeft: active ? "3px solid #02A17E" : "3px solid transparent",
-                          background: active ? "#E6F7F2" : "#fff",
+                          borderLeft: active ? "3px solid #2563eb" : "3px solid transparent",
+                          background: active ? "#eff6ff" : "#fff",
                           padding: "20px 20px",
                           cursor: "pointer",
                           textAlign: "left",
@@ -935,7 +933,7 @@ export default function Closed() {
                         onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "#fff"; }}
                       >
                         <div style={{
-                          fontSize: 15, fontWeight: 700, color: active ? "#02A17E" : "#555",
+                          fontSize: 15, fontWeight: 700, color: active ? "#2563eb" : "#555",
                           lineHeight: 1.45,
                           display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
                           marginBottom: 12,
@@ -975,7 +973,7 @@ export default function Closed() {
                     {selected.image ? (
                       <img src={resolveImageUrl(selected.image)} alt={selected.title} style={{ width: "100%", height: "100%", minHeight: 420, objectFit: "cover", display: "block" }} />
                     ) : (
-                      <div style={{ minHeight: 420, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, color: "#94a3b8", background: "linear-gradient(180deg, #f8fafc 0%, #E6F7F2 100%)" }}>
+                      <div style={{ minHeight: 420, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, color: "#94a3b8", background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)" }}>
                         <ImageOff size={36} />
                         <span style={{ fontSize: 15, fontWeight: 700 }}>행사 이미지가 없습니다.</span>
                       </div>
@@ -985,7 +983,7 @@ export default function Closed() {
                   <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, overflow: "hidden", boxShadow: "0 18px 36px rgba(15,23,42,0.05)" }}>
                     <div style={{ padding: "26px 28px", borderBottom: "1px solid #eef2f7", background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 999, background: "#E6F7F2", color: "#028A6C", fontSize: 15, fontWeight: 500 }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 999, background: "#eff6ff", color: "#1d4ed8", fontSize: 15, fontWeight: 500 }}>
                           <Archive size={12} /> 선택된 종료 행사
                         </div>
                         <button
@@ -1027,18 +1025,17 @@ export default function Closed() {
                       </p>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14, marginTop: 22 }}>
                         <DonutStatCard
-                          icon={<Users size={16} color="#02A17E" />}
+                          icon={<Users size={16} color="#2563eb" />}
                           label="참가자수"
                           value={selected.participants}
-                          max={selected.capacity}
+                          max={Math.max(selected.participants || 0, 1)}
                           suffix="명"
-                          maxSuffix={`/ ${selected.capacity.toLocaleString()}명`}
-                          color="#02A17E"
-                          bg="#E6F7F2"
+                          color="#2563eb"
+                          bg="#eff6ff"
                         />
                         <DonutStatCard
                           icon={<Calendar size={16} color="#10b981" />}
-                          label="참가율"
+                          label="출석률(총참가자/사전등록자)"
                           value={selected.participationRate}
                           max={100}
                           suffix="%"
@@ -1203,19 +1200,18 @@ export default function Closed() {
                     {filtered.slice(0, visibleCount).map((event) => {
                       const active = event.id === selected?.id;
                       return (
-                        <div key={event.id} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 170px 110px 140px 110px", alignItems: "center", gap: 16, padding: "16px 24px", borderTop: "1px solid #f1f5f9", background: active ? "#E6F7F2" : "#f9fafb" }}>
+                        <div key={event.id} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 170px 110px 140px 110px", alignItems: "center", gap: 16, padding: "16px 24px", borderTop: "1px solid #f1f5f9", background: active ? "#eff6ff" : "#f9fafb" }}>
                           <button type="button" onClick={() => handleSelectEvent(event.id)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer", display: "grid", gap: 6 }}>
                             <div style={{ fontSize: 15, fontWeight: 600, color: "rgb(121,121,121)" }}>{event.title}</div>
                             <div style={{ fontSize: 12, color: "rgb(121,121,121)" }}>{event.dateLabel} · {event.location}</div>
                           </button>
                           <div style={{ display: "grid", gap: 4 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                              <Users size={11} color="#02A17E" />
+                              <Users size={11} color="#2563eb" />
                               <span style={{ fontSize: 13, fontWeight: 800, color: "rgb(121,121,121)" }}>{event.participants.toLocaleString()}명</span>
-                              <span style={{ fontSize: 11, color: "rgb(121,121,121)", fontWeight: 600 }}>/ {event.capacity.toLocaleString()}</span>
                             </div>
                             <div style={{ width: "100%", height: 4, borderRadius: 2, background: "#e5e7eb", overflow: "hidden" }}>
-                              <div style={{ height: "100%", borderRadius: 2, background: "#02A17E", width: `${event.capacity > 0 ? clamp((event.participants / event.capacity) * 100) : 0}%`, transition: "width 0.3s" }} />
+                              <div style={{ height: "100%", borderRadius: 2, background: "#2563eb", width: `${clamp((event.participants / Math.max(event.capacity || 0, event.participants || 0, 1)) * 100)}%`, transition: "width 0.3s" }} />
                             </div>
                           </div>
                           {(() => {
@@ -1288,7 +1284,7 @@ export default function Closed() {
                           justifyContent: "center", gap: 8,
                           transition: "all 0.2s",
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "#E6F7F2"; e.currentTarget.style.borderColor = "#02A17E"; e.currentTarget.style.color = "#02A17E"; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.borderColor = "#2563eb"; e.currentTarget.style.color = "#2563eb"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#475569"; }}
                       >
                         <ChevronDown size={16} />

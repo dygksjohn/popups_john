@@ -3,6 +3,8 @@ package com.popups.pupoo.qr.application;
 
 import com.popups.pupoo.booth.domain.model.Booth;
 import com.popups.pupoo.booth.persistence.BoothRepository;
+import com.popups.pupoo.common.exception.BusinessException;
+import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.qr.domain.enums.QrCheckType;
 import com.popups.pupoo.qr.domain.model.QrCheckin;
 import com.popups.pupoo.qr.domain.model.QrCode;
@@ -164,6 +166,13 @@ public class QrAdminService {
 
         // 4) 상태 정책
         // - 참여 확정은 APPROVED 또는 WAITING(현장 확정)까지 허용
+        if (program.getStartAt() != null && now.isBefore(program.getStartAt())) {
+            throw new BusinessException(
+                    ErrorCode.PROGRAM_APPLY_INVALID_STATUS,
+                    "Program has not started yet"
+            );
+        }
+
         if (!(apply.getStatus() == ApplyStatus.APPROVED || apply.getStatus() == ApplyStatus.WAITING)) {
             throw new IllegalStateException("PROGRAM_APPLY_STATUS_NOT_CONFIRMABLE");
         }

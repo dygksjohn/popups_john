@@ -33,6 +33,41 @@ function normalizeScorePercent(value) {
   return clamp(Math.round(numeric), 0, 100);
 }
 
+function smoothTimelineScores(points = []) {
+  if (!Array.isArray(points) || points.length <= 2) return points;
+
+  const withMovingAverage = points.map((point, index) => {
+    const window = [points[index - 1], point, points[index + 1]]
+      .map((item) => Number(item?.score))
+      .filter((value) => Number.isFinite(value));
+    if (window.length === 0) return point;
+    const averaged = Math.round(window.reduce((sum, value) => sum + value, 0) / window.length);
+    return { ...point, score: clamp(averaged, 0, 100) };
+  });
+
+  const emaAlpha = 0.6;
+  const maxStepDelta = 6;
+  let prev = Number(withMovingAverage[0]?.score);
+  if (!Number.isFinite(prev)) return withMovingAverage;
+
+  const stabilized = withMovingAverage.map((point, index) => {
+    if (index === 0) return point;
+    const current = Number(point?.score);
+    if (!Number.isFinite(current)) return point;
+
+    let nextScore = Math.round((emaAlpha * current) + ((1 - emaAlpha) * prev));
+    const delta = nextScore - prev;
+    if (Math.abs(delta) > maxStepDelta) {
+      nextScore = prev + (Math.sign(delta) * maxStepDelta);
+    }
+    nextScore = clamp(nextScore, 0, 100);
+    prev = nextScore;
+    return { ...point, score: nextScore };
+  });
+
+  return stabilized;
+}
+
 function toValidDate(value) {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
@@ -157,7 +192,7 @@ export function normalizePrediction(payload) {
   const confidence = clamp(toNumber(payload.confidence, 0), 0, 1);
   const levelMeta = getLevelMeta(peakScore, payload.predictedLevel);
 
-  const timeline = Array.isArray(payload.timeline)
+  const timelineRaw = Array.isArray(payload.timeline)
     ? payload.timeline
         .map((point) => {
           const score = normalizeScorePercent(point?.score);
@@ -172,6 +207,7 @@ export function normalizePrediction(payload) {
         })
         .filter((point) => point.time)
     : [];
+  const timeline = smoothTimelineScores(timelineRaw);
 
   return {
     targetType: String(payload.targetType ?? ""),

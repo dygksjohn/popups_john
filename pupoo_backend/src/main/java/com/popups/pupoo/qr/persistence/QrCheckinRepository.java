@@ -112,7 +112,34 @@ public interface QrCheckinRepository extends JpaRepository<QrCheckin, Long> {
             @Param("checkType") QrCheckType checkType
     );
 
+    @Query("""
+        select count(distinct l.qrCode.user.userId)
+        from QrCheckin l
+        where l.qrCode.event.eventId = :eventId
+          and l.checkType = :checkType
+          and l.checkedAt between :fromInclusive and :toInclusive
+    """)
+    long countDistinctUsersByEventIdAndCheckTypeAndCheckedAtBetween(
+            @Param("eventId") Long eventId,
+            @Param("checkType") QrCheckType checkType,
+            @Param("fromInclusive") LocalDateTime fromInclusive,
+            @Param("toInclusive") LocalDateTime toInclusive
+    );
+
     default long countDistinctCheckinUsersByEventId(Long eventId) {
         return countDistinctUsersByEventIdAndCheckType(eventId, QrCheckType.CHECKIN);
+    }
+
+    default long countDistinctCheckinUsersByEventIdBetween(
+            Long eventId,
+            LocalDateTime fromInclusive,
+            LocalDateTime toInclusive
+    ) {
+        return countDistinctUsersByEventIdAndCheckTypeAndCheckedAtBetween(
+                eventId,
+                QrCheckType.CHECKIN,
+                fromInclusive,
+                toInclusive
+        );
     }
 }

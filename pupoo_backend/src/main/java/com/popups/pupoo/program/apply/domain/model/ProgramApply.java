@@ -69,7 +69,7 @@ public class ProgramApply {
                 .programId(programId)
                 .petId(petId)
                 .imageUrl(imageUrl)
-                .status(ApplyStatus.APPLIED)
+                .status(ApplyStatus.APPROVED)
                 .ticketNo(null)
                 .etaMin(null)
                 .notifiedAt(null)

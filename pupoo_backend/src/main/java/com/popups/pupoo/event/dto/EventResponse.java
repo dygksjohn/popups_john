@@ -22,6 +22,9 @@ public class EventResponse {
     private EventStatus status;
     private Integer roundNo;
     private BigDecimal baseFee;
+    private Long todayCheckinCount;
+    private Long totalParticipantCount;
+    private Long preRegistrationCount;
 
     public static EventResponse from(Event event, String imageUrl) {
         EventResponse response = new EventResponse();
@@ -54,7 +57,13 @@ public class EventResponse {
     public EventStatus getStatus() { return status; }
     public Integer getRoundNo() { return roundNo; }
     public BigDecimal getBaseFee() { return baseFee; }
+    public Long getTodayCheckinCount() { return todayCheckinCount; }
+    public Long getTotalParticipantCount() { return totalParticipantCount; }
+    public Long getPreRegistrationCount() { return preRegistrationCount; }
 
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public void setStatus(EventStatus status) { this.status = status; }
+    public void setTodayCheckinCount(Long todayCheckinCount) { this.todayCheckinCount = todayCheckinCount; }
+    public void setTotalParticipantCount(Long totalParticipantCount) { this.totalParticipantCount = totalParticipantCount; }
+    public void setPreRegistrationCount(Long preRegistrationCount) { this.preRegistrationCount = preRegistrationCount; }
 }
