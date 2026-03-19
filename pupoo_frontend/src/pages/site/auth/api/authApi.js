@@ -1,5 +1,6 @@
 // src/pages/site/auth/api/authApi.js
 import { axiosInstance } from "../../../../app/http/axiosInstance";
+export { normalizeApiError } from "../../../../features/shared/api/apiClient";
 
 // ApiResponse<T> 래핑 해제
 function unwrap(apiResponse) {
