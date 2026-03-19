@@ -754,8 +754,10 @@ def main() -> None:
 
         if sample_count < args.min_rows:
             report["targets"][target_type] = {
+                "status": "skipped",
                 "trained": False,
                 "reason": f"not enough rows ({sample_count} < {args.min_rows})",
+                "artifacts": [],
             }
             continue
 
@@ -778,9 +780,14 @@ def main() -> None:
         trained_artifacts[target_type] = artifact_payload
         trained_lstm_artifacts[target_type] = lstm_artifact_payload
         report["targets"][target_type] = {
+            "status": "trained",
             "trained": True,
             "metrics": metrics,
             "lstmMetrics": lstm_metrics,
+            "artifacts": [
+                f"{target_type.lower()}_congestion_model.joblib",
+                f"{target_type.lower()}_lstm_baseline.joblib",
+            ],
         }
 
     if not trained_artifacts:
@@ -810,4 +817,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
