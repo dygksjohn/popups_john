@@ -5,15 +5,10 @@ import {
   Users,
   Clock3,
   ArrowLeft,
-  BarChart3,
   Heart,
-  PawPrint,
+  List,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import {
-  SERVICE_CATEGORIES,
-  SUBTITLE_MAP,
-} from "../constants/programConstants";
 import { programApi } from "../../../app/http/programApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { authApi } from "../auth/api/authApi";
@@ -25,72 +20,161 @@ import {
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
 
-  .cd-root { box-sizing: border-box; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; background: #f8f9fc; min-height: 100vh; }
+  .cd-root { box-sizing: border-box; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; background: #f0f4fa; min-height: 100vh; flex: 1; }
   .cd-root *, .cd-root *::before, .cd-root *::after { box-sizing: border-box; font-family: inherit; }
-  .cd-container { width: min(1400px, calc(100% - 40px)); margin: 0 auto; padding: 28px 0 64px; }
+  .cd-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
 
-  .cd-back {
-    height: 36px; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff;
-    padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: #374151; font-weight: 700;
-    margin-bottom: 14px;
+  .cd-bottom-btns {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    padding-top: 32px; margin-top: 32px; border-top: 1px solid #e5e7eb;
   }
+  .cd-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid #d1d5db; background: #fff;
+    padding: 12px 28px; border-radius: 8px;
+    font-size: 15px; font-weight: 700; color: #374151;
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+  }
+  .cd-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+  .cd-btn-dark {
+    background: #111827; color: #fff; border-color: #111827;
+  }
+  .cd-btn-dark:hover { opacity: 0.85; background: #111827; border-color: #111827; }
 
-  .cd-title-card { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 18px 20px; margin-bottom: 14px; }
-  .cd-title { font-size: 20px; font-weight: 800; color: #111827; margin: 0 0 6px; }
-  .cd-sub { font-size: 13px; color: #6b7280; margin: 0; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; row-gap: 6px; }
+  /* ── 히어로 ── */
+  .cd-hero {
+    border: 1px solid #e2e8f0; border-radius: 20px;
+    padding: 40px 44px; margin-bottom: 20px;
+    background: linear-gradient(135deg, #fff 0%, #fafbff 100%);
+    position: relative; overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  }
+  .cd-hero::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, #6366f1, #a78bfa, #6366f1);
+    background-size: 200% 100%;
+    animation: cd-hero-bar 3s ease infinite;
+  }
+  @keyframes cd-hero-bar {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .cd-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+  .cd-hero-main { min-width: 0; flex: 1 1 auto; }
+  .cd-title { margin: 0; font-size: 32px; line-height: 1.15; letter-spacing: -0.03em; font-weight: 900; color: #111827; }
+  .cd-sub { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 16px; font-size: 15px; color: #9ca3af; }
   .cd-sub span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-  .cd-top-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .cd-hero-divider { margin: 16px 0; border: none; border-top: 1px solid #f0f0f0; }
+  .cd-hero-summary { display: flex; align-items: center; gap: 10px; font-size: 15px; color: #9ca3af; font-weight: 500; }
+  .cd-hero-summary strong { font-weight: 800; color: #111827; font-size: 16px; }
+  .cd-hero-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #6366f1; box-shadow: 0 0 6px rgba(99,102,241,0.4);
+    animation: cd-pulse 1.6s ease-in-out infinite; flex-shrink: 0;
+  }
+  @keyframes cd-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.75); } }
+
+  .cd-hero-kpi-grid {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px; width: min(540px, 100%); margin-left: auto; flex-shrink: 0;
+  }
+  .cd-hero-kpi {
+    border: 1px solid #ebebeb; border-radius: 16px;
+    background: #fff; padding: 24px 26px;
+  }
+  .cd-hero-kpi-label { font-size: 14px; color: #6b7280; font-weight: 700; margin-bottom: 12px; }
+  .cd-hero-kpi-value { font-size: 38px; line-height: 1; font-weight: 900; color: #111827; letter-spacing: -0.02em; }
+  .cd-hero-kpi-unit { font-size: 18px; color: #9ca3af; font-weight: 700; margin-left: 4px; }
+
+  .cd-hero-footer {
+    display: flex; align-items: center; justify-content: flex-end;
+    margin-top: 20px; padding-top: 14px; border-top: 1px solid #f0f0f0;
+  }
   .cd-top-btn {
-    height: 38px; padding: 0 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px;
+    height: 48px; padding: 0 24px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px; font-family: inherit; transition: all 0.15s;
   }
   .cd-top-btn.primary {
-    border: none; background: linear-gradient(135deg,#f59e0b,#f97316); color: #fff;
-    box-shadow: 0 4px 14px rgba(245,158,11,0.28);
+    border: none; background: #111827; color: #fff;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
   }
+  .cd-top-btn.primary:hover { background: #1f2937; }
   .cd-top-btn.primary:disabled { background: #e5e7eb; color: #9ca3af; box-shadow: none; cursor: not-allowed; }
-  .cd-top-btn.outline { border: 1px solid #e5e7eb; background: #fff; color: #374151; }
+  .cd-top-btn.outline {
+    border: 1px solid #e2e5ea; background: #fff; color: #374151;
+  }
+  .cd-top-btn.outline:hover { background: #f9fafb; border-color: #d1d5db; }
 
-  .cd-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; }
-  .cd-card { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 18px 20px; }
-  .cd-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #f1f3f6; }
-  .cd-card-title { margin: 0; font-size: 15px; font-weight: 800; color: #111827; display: flex; align-items: center; gap: 8px; }
-  .cd-tag { font-size: 11px; font-weight: 700; color: #6b7280; background: #f3f4f6; border-radius: 999px; padding: 4px 10px; }
+  /* ── 카드 ── */
+  .cd-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
+  .cd-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+    padding: 28px 32px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  }
+  .cd-card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f0;
+  }
+  .cd-card-title { margin: 0; font-size: 18px; font-weight: 800; color: #111827; display: flex; align-items: center; gap: 8px; }
+  .cd-tag { font-size: 13px; font-weight: 600; color: #9ca3af; }
 
-  .cd-candidate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .cd-candidate-card { border: 1px solid #eceef3; border-radius: 12px; overflow: hidden; background: #fff; }
+  /* ── 참가견 카드 ── */
+  .cd-candidate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .cd-candidate-card {
+    border: 1px solid #eef0f4; border-radius: 14px; overflow: hidden; background: #fff;
+    transition: all 0.2s ease;
+  }
+  .cd-candidate-card:hover { border-color: #d1d5db; box-shadow: 0 4px 16px rgba(0,0,0,0.06); transform: translateY(-2px); }
   .cd-candidate-thumb { width: 100%; aspect-ratio: 1 / 1; background: #f8f9fb; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .cd-candidate-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .cd-candidate-body { padding: 10px 12px 12px; }
-  .cd-candidate-name { font-size: 14px; font-weight: 800; color: #111827; }
-  .cd-candidate-owner { margin-top: 4px; font-size: 12px; color: #6b7280; }
-  .cd-candidate-votes { margin-top: 8px; font-size: 12px; font-weight: 700; color: #7c3aed; }
-  .cd-candidate-actions { margin-top: 10px; }
+  .cd-candidate-body { padding: 16px 18px 18px; }
+  .cd-candidate-name { font-size: 16px; font-weight: 800; color: #111827; }
+  .cd-candidate-owner { margin-top: 4px; font-size: 13px; color: #9ca3af; }
+  .cd-candidate-votes { margin-top: 10px; font-size: 14px; font-weight: 800; color: #6366f1; }
+  .cd-candidate-actions { margin-top: 14px; }
   .cd-vote-btn {
-    width: 100%; height: 36px; border-radius: 9px; border: none;
-    background: linear-gradient(135deg,#f59e0b,#f97316); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer;
-    box-shadow: 0 3px 10px rgba(245,158,11,0.3); transition: all 0.15s;
+    width: 100%; height: 44px; border-radius: 12px; border: none;
+    background: #111827; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: all 0.15s; font-family: inherit;
   }
-  .cd-vote-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(245,158,11,0.4); }
-  .cd-vote-btn:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; box-shadow: none; }
-  .cd-vote-btn.done { background: linear-gradient(135deg,#ecfdf5,#d1fae5); color: #059669; border: 1px solid #a7f3d0; box-shadow: none; }
+  .cd-vote-btn:hover:not(:disabled) { background: #1f2937; }
+  .cd-vote-btn:disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
+  .cd-vote-btn.done { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
 
-  .cd-list { display: flex; flex-direction: column; gap: 8px; }
-  .cd-item { border: 1px solid #eceef3; border-radius: 10px; padding: 12px 14px; background: #fff; }
-  .cd-item-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-  .cd-name { font-size: 14px; font-weight: 700; color: #111827; }
-  .cd-votes { font-size: 13px; font-weight: 800; color: #7c3aed; }
-  .cd-progress { height: 6px; border-radius: 999px; background: #f1f3f6; overflow: hidden; }
-  .cd-progress-fill { height: 100%; border-radius: 999px; background: #8b5cf6; }
-  .cd-meta { margin-top: 6px; font-size: 12px; color: #9ca3af; }
+  /* ── 투표 순위 ── */
+  .cd-list { display: flex; flex-direction: column; gap: 12px; }
+  .cd-item {
+    border: 1px solid #eef0f4; border-radius: 14px; padding: 20px 22px; background: #fff;
+    transition: all 0.15s;
+  }
+  .cd-item:hover { border-color: #e2e5ea; background: #f9fafb; }
+  .cd-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+  .cd-rank { font-size: 13px; font-weight: 700; color: #9ca3af; margin-right: 6px; }
+  .cd-rank.top { color: #6366f1; }
+  .cd-name { font-size: 17px; font-weight: 800; color: #111827; }
+  .cd-votes { font-size: 20px; font-weight: 900; color: #6366f1; letter-spacing: -0.02em; }
+  .cd-progress { height: 10px; border-radius: 99px; background: #f0f0f0; overflow: hidden; }
+  .cd-progress-fill { height: 100%; border-radius: 99px; background: #818cf8; transition: width 0.5s ease; }
+  .cd-meta { margin-top: 10px; font-size: 14px; color: #9ca3af; }
 
-  .cd-empty { color: #9ca3af; font-size: 13px; padding: 20px 0; text-align: center; }
+  .cd-empty { color: #c5c9cf; font-size: 14px; padding: 44px 0; text-align: center; font-weight: 500; }
 
   @media (max-width: 980px) {
     .cd-grid { grid-template-columns: 1fr; }
+    .cd-hero-top { flex-direction: column; align-items: flex-start; }
+    .cd-hero-kpi-grid { width: 100%; margin-left: 0; margin-top: 14px; }
+    .cd-hero { padding: 28px 24px; }
+    .cd-hero-title { font-size: 26px; }
+    .cd-card { padding: 24px 22px; }
   }
   @media (max-width: 680px) {
     .cd-candidate-grid { grid-template-columns: 1fr; }
+    .cd-container { padding: 20px 16px 48px; }
+    .cd-hero { padding: 22px 18px; }
+    .cd-title { font-size: 22px; }
+    .cd-hero-kpi-grid { grid-template-columns: 1fr; }
+    .cd-hero-kpi-value { font-size: 26px; }
   }
 `;
 
@@ -118,7 +202,6 @@ function contestPhase(program) {
 export default function ContestDetailPage() {
   const navigate = useNavigate();
   const { eventId, programId } = useParams();
-  const currentPath = "/program/contest";
 
   const [program, setProgram] = useState(null);
   const [rows, setRows] = useState([]);
@@ -242,78 +325,59 @@ export default function ContestDetailPage() {
     navigate(`/program/contest/${eventId}?apply=${programId}`);
   };
 
-  const handleCategoryNavigate = (path) => {
-    if (!eventId) {
-      navigate(path);
-      return;
-    }
-
-    const match = String(path || "").match(/^([^?#]*)(.*)$/);
-    const pathname = (match?.[1] || "").replace(/\/+$/, "");
-    const suffix = match?.[2] || "";
-    const lastSegment = pathname.split("/").filter(Boolean).at(-1);
-
-    if (lastSegment && /^\d+$/.test(lastSegment)) {
-      navigate(`${pathname}${suffix}`);
-      return;
-    }
-
-    navigate(`${pathname}/${eventId}${suffix}`);
-  };
-
   return (
     <div className="cd-root">
       <style>{styles}</style>
       <PageHeader
         title="콘테스트 상세"
-        subtitle={SUBTITLE_MAP[currentPath]}
-        categories={SERVICE_CATEGORIES}
-        currentPath={currentPath}
-        onNavigate={handleCategoryNavigate}
+        subtitle="진행 중인 콘테스트의 투표 현황을 확인합니다"
+        icon={<Trophy size={42} color="#02A17E" strokeWidth={1.6} />}
+        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
+        subtitleStyle={{ fontSize: 20 }}
       />
 
       <main className="cd-container">
-        <button
-          className="cd-back"
-          type="button"
-          onClick={() => navigate(`/program/contest/${eventId}`)}
-        >
-          <ArrowLeft size={14} />
-          목록으로
-        </button>
 
-        <div className="cd-top-actions">
-          <button
-            type="button"
-            className="cd-top-btn primary"
-            onClick={handleApply}
-            disabled={contestPhase(program) === "ended"}
-          >
-            <Heart size={14} />
-            {contestPhase(program) === "ended" ? "참가 마감" : "참가하기"}
-          </button>
-          <button
-            type="button"
-            className="cd-top-btn outline"
-            onClick={() => navigate(`/program/contest/${eventId}`)}
-          >
-            콘테스트 목록 보기
-          </button>
-        </div>
-
-        <section className="cd-title-card">
-          <h2 className="cd-title">{program?.programTitle || `콘테스트 #${programId}`}</h2>
-          <p className="cd-sub">
-            <span>
-              <Clock3 size={13} /> {formatTimeRange(program?.startAt, program?.endAt)}
-            </span>
-            <span>
-              <Users size={13} /> 참가견 {rows.length}마리
-            </span>
-            <span>
-              <BarChart3 size={13} /> 총 {totalVotes.toLocaleString()}표
-            </span>
-          </p>
+        <section className="cd-hero">
+          <div className="cd-hero-top">
+            <div className="cd-hero-main">
+              <h1 className="cd-title">{program?.programTitle || `콘테스트 #${programId}`}</h1>
+              <p className="cd-sub">
+                <span><Clock3 size={14} /> {formatTimeRange(program?.startAt, program?.endAt)}</span>
+                <span><Users size={14} /> 참가견 {rows.length}마리</span>
+              </p>
+              <hr className="cd-hero-divider" />
+              <div className="cd-hero-summary">
+                <span className="cd-hero-dot" />
+                총 투표 <strong>{totalVotes.toLocaleString()}</strong>표
+              </div>
+            </div>
+            <div className="cd-hero-kpi-grid">
+              <div className="cd-hero-kpi">
+                <div className="cd-hero-kpi-label">참가견</div>
+                <div><span className="cd-hero-kpi-value">{rows.length}</span><span className="cd-hero-kpi-unit">마리</span></div>
+              </div>
+              <div className="cd-hero-kpi">
+                <div className="cd-hero-kpi-label">총 투표</div>
+                <div><span className="cd-hero-kpi-value">{totalVotes.toLocaleString()}</span><span className="cd-hero-kpi-unit">표</span></div>
+              </div>
+              <div className="cd-hero-kpi">
+                <div className="cd-hero-kpi-label">1위 득표</div>
+                <div><span className="cd-hero-kpi-value">{rows[0]?.votes?.toLocaleString() ?? 0}</span><span className="cd-hero-kpi-unit">표</span></div>
+              </div>
+            </div>
+          </div>
+          <div className="cd-hero-footer">
+            <button
+              type="button"
+              className="cd-top-btn primary"
+              onClick={handleApply}
+              disabled={contestPhase(program) === "ended"}
+            >
+              <Heart size={15} />
+              {contestPhase(program) === "ended" ? "참가 마감" : "참가하기"}
+            </button>
+          </div>
         </section>
 
         {loading ? <div className="cd-empty">투표 결과를 불러오는 중입니다.</div> : null}
@@ -394,7 +458,8 @@ export default function ContestDetailPage() {
                   <div key={`rank-${row.id}`} className="cd-item">
                     <div className="cd-item-top">
                       <div className="cd-name">
-                        {index + 1}위 {row.name}
+                        <span className={`cd-rank${index === 0 ? " top" : ""}`}>{index + 1}위</span>
+                        {row.name}
                       </div>
                       <div className="cd-votes">
                         {totalVotes > 0 ? Math.round((row.votes / totalVotes) * 100) : 0}%
@@ -416,6 +481,17 @@ export default function ContestDetailPage() {
             </article>
           </section>
         ) : null}
+
+        <div className="cd-bottom-btns">
+          <button type="button" className="cd-btn" onClick={() => navigate("/program/current")}>
+            <List size={18} />
+            목록
+          </button>
+          <button type="button" className="cd-btn cd-btn-dark" onClick={() => navigate(-1)}>
+            <ArrowLeft size={18} />
+            뒤로가기
+          </button>
+        </div>
       </main>
     </div>
   );

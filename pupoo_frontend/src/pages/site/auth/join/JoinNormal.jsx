@@ -291,7 +291,7 @@ const styles = `
     width: 58px; height: 64px; border: 1.5px solid #ddd;
     border-radius: 12px; background: #fafafa;
     text-align: center; font-size: 28px; font-weight: 700;
-    color: #4a7cf7; caret-color: #6c5ce7;
+    color: #2EB893; caret-color: #6c5ce7;
     outline: none; transition: border-color .15s, box-shadow .15s;
   }
   .otp-digit-box:focus {

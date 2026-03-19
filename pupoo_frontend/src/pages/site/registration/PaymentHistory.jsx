@@ -61,7 +61,7 @@ const styles = `
     background: #d1d5db;
   }
   .ph-summary-dot.dot-green { background: #16a34a; }
-  .ph-summary-dot.dot-blue { background: #2563eb; }
+  .ph-summary-dot.dot-blue { background: #02A17E; }
   .ph-summary-text {
     display: flex;
     flex-direction: column;
@@ -85,8 +85,13 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
     gap: 12px;
+  }
+  .ph-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
   }
   .ph-toolbar-title {
     font-size: 18px;
@@ -94,9 +99,10 @@ const styles = `
     color: #111;
   }
   .ph-count {
-    font-size: 16px;
+    font-size: 14px;
     color: #9ca3af;
     font-weight: 600;
+    white-space: nowrap;
   }
   .ph-count strong {
     color: #111;
@@ -303,13 +309,13 @@ function methodLabelOf(paymentMethod) {
 function getStatusMeta(payment) {
   const refundStatus = String(payment?.refund?.status || "").toUpperCase();
   if (refundStatus === "REQUESTED") return { label: "환불 요청", color: "#ca8a04" };
-  if (refundStatus === "APPROVED") return { label: "환불 승인", color: "#3b82f6" };
+  if (refundStatus === "APPROVED") return { label: "환불 승인", color: "#3DBFA0" };
   if (refundStatus === "REJECTED") return { label: "환불 거절", color: "#ef4444" };
   if (refundStatus === "REFUNDED") return { label: "환불 완료", color: "#6b7280" };
 
   switch (String(payment?.status || "").toUpperCase()) {
     case "APPROVED": return { label: "결제 완료", color: "#16a34a" };
-    case "REQUESTED": return { label: "결제 요청", color: "#2563eb" };
+    case "REQUESTED": return { label: "결제 요청", color: "#02A17E" };
     case "FAILED": return { label: "결제 실패", color: "#ef4444" };
     case "CANCELLED": return { label: "취소됨", color: "#ef4444" };
     case "REFUNDED": return { label: "환불 완료", color: "#6b7280" };
@@ -408,7 +414,7 @@ export default function PaymentHistory({ onNavigate }) {
 
       <PageHeader
         title="결제 내역"
-        icon={<CreditCard size={40} strokeWidth={1.8} style={{ color: "#4F6AFF" }} />}
+        icon={<CreditCard size={40} strokeWidth={1.8} style={{ color: "#2EB893" }} />}
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
@@ -443,8 +449,10 @@ export default function PaymentHistory({ onNavigate }) {
 
         {/* 툴바 */}
         <div className="ph-toolbar">
-          <span className="ph-toolbar-title">결제 내역</span>
-          {!loading && <span className="ph-count"><strong>{stats.total}</strong>건</span>}
+          <div className="ph-toolbar-left">
+            <span className="ph-toolbar-title">결제 내역</span>
+            {!loading && <span className="ph-count"><strong>{stats.total}</strong>건</span>}
+          </div>
         </div>
 
         {/* 리스트 */}

@@ -318,7 +318,7 @@ export default function CommunityPostDetailPage({
                 href={fileApi.getDownloadUrl(attachment.fileId)}
                 target="_blank"
                 rel="noreferrer"
-                style={{ color: "#1d4ed8", fontSize: 14, fontWeight: 700, textDecoration: "none" }}
+                style={{ color: "#028A6C", fontSize: 14, fontWeight: 700, textDecoration: "none" }}
               >
                 {attachment.originalName || "첨부파일 다운로드"}
               </a>

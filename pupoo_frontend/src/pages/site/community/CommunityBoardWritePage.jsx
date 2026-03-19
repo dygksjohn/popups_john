@@ -40,8 +40,8 @@ function InProgressBox() {
     <div
       style={{
         marginBottom: 18,
-        background: "#EFF6FF",
-        border: "1px solid #BFDBFE",
+        background: "#E6F7F2",
+        border: "1px solid #CCF0E4",
         borderRadius: 10,
         padding: "12px 14px",
         fontSize: 13,
@@ -256,7 +256,7 @@ export default function CommunityBoardWritePage({
               padding: "0 18px",
               borderRadius: 10,
               border: "none",
-              background: "#1d4ed8",
+              background: "#028A6C",
               fontSize: 14,
               fontWeight: 800,
               color: "#fff",

@@ -18,6 +18,8 @@ import {
   ArrowRight,
   Upload,
   ImagePlus,
+  Sparkles,
+  Wand2,
 } from "lucide-react";
 import ds, { cardStyle, statusMap } from "../shared/designTokens";
 import { Pill, DataTable, Td } from "../shared/Components";
@@ -45,6 +47,9 @@ const styles = `
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
 @keyframes rowFadeOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(-30px)}}
+@keyframes aiShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes aiPulse{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes aiSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .row-removing{animation:rowFadeOut .3s ease forwards}
 .em-date-input::-webkit-calendar-picker-indicator{opacity:0;position:absolute;inset:0;width:100%;cursor:pointer}
 `;
@@ -797,8 +802,9 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
           position: "fixed",
           inset: 0,
           zIndex: 4999,
-          background: visible ? "rgba(15,16,23,0.45)" : "rgba(15,16,23,0)",
-          transition: "background .3s ease",
+          background: visible ? "rgba(10,10,18,0.6)" : "rgba(10,10,18,0)",
+          backdropFilter: visible ? "blur(4px)" : "none",
+          transition: "all .35s ease",
         }}
       />
 
@@ -818,295 +824,104 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
         <div
           style={{
             pointerEvents: "auto",
-            width: 580,
-            maxWidth: "95vw",
-            maxHeight: "90vh",
+            width: 960,
+            maxWidth: "96vw",
+            maxHeight: "min(680px, 85vh)",
             background: ds.card,
-            borderRadius: 20,
+            borderRadius: 24,
             boxShadow:
-              "0 32px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.1)",
+              "0 40px 100px rgba(0,0,0,0.3), 0 12px 36px rgba(0,0,0,0.15)",
             display: "flex",
-            flexDirection: "column",
+            flexDirection: "row",
             overflow: "hidden",
             transform: visible
               ? "translateY(0) scale(1)"
-              : "translateY(24px) scale(0.97)",
+              : "translateY(20px) scale(0.98)",
             opacity: visible ? 1 : 0,
-            transition: "all .35s cubic-bezier(.16,1,.3,1)",
+            transition: "all .4s cubic-bezier(.16,1,.3,1)",
           }}
         >
-          {/* 헤더 */}
-          <div
-            style={{
-              padding: "22px 28px",
-              borderBottom: `1px solid ${ds.line}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexShrink: 0,
-            }}
-          >
-            <div>
-              <h3
-                style={{
-                  fontSize: 18,
-                  fontWeight: 800,
-                  color: ds.ink,
-                  margin: 0,
-                  letterSpacing: -0.3,
-                }}
-              >
-                {isEdit ? "행사 수정" : "새 행사 등록"}
-              </h3>
-              <p style={{ fontSize: 12, color: ds.ink4, margin: "4px 0 0" }}>
-                {isEdit ? "행사 정보를 수정합니다" : "새로운 행사를 등록합니다"}
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                border: `1px solid ${ds.line}`,
-                background: ds.card,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "background .15s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = ds.bg)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = ds.card)}
-            >
-              <X size={15} color={ds.ink4} />
-            </button>
-          </div>
-
-          {/* 본문 (스크롤 영역) */}
-          <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
-            {err && (
-              <div
-                style={{
-                  background: ds.redSoft,
-                  border: `1px solid ${ds.red}33`,
-                  borderRadius: 10,
-                  padding: "10px 14px",
-                  fontSize: 12.5,
-                  color: ds.red,
-                  marginBottom: 18,
-                  fontWeight: 600,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <AlertTriangle size={14} /> {err}
-              </div>
-            )}
-
-            {/* ── 이미지 업로드 ── */}
-            <Field label="행사 포스터">
-              {!imagePreview ? (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  style={{
-                    border: `2px dashed ${dragOver ? ds.brand : ds.line}`,
-                    borderRadius: 14,
-                    padding: "32px 20px",
-                    textAlign: "center",
-                    cursor: "pointer",
-                    background: dragOver ? `${ds.brand}08` : ds.bg,
-                    transition: "all .2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!dragOver) {
-                      e.currentTarget.style.borderColor = ds.line;
-                      e.currentTarget.style.background = ds.bg;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!dragOver) {
-                      e.currentTarget.style.borderColor = ds.line;
-                      e.currentTarget.style.background = ds.bg;
-                    }
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 12,
-                      background: `${ds.brand}10`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "0 auto 12px",
-                    }}
-                  >
-                    <ImagePlus size={22} color={ds.brand} />
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      color: ds.ink2,
-                      marginBottom: 4,
-                    }}
-                  >
-                    클릭하거나 이미지를 드래그하세요
-                  </div>
-                  <div style={{ fontSize: 11.5, color: ds.ink4 }}>
-                    JPG, PNG, GIF, WEBP · 최대 10MB
-                  </div>
-                </div>
-              ) : (
-                <div
-                  style={{
-                    position: "relative",
-                    borderRadius: 14,
-                    overflow: "hidden",
-                  }}
-                >
-                  <img
-                    src={imagePreview}
-                    alt="미리보기"
-                    style={{
-                      width: "100%",
-                      maxHeight: 200,
-                      objectFit: "cover",
-                      borderRadius: 14,
-                      display: "block",
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 8,
-                      right: 8,
-                      display: "flex",
-                      gap: 6,
-                    }}
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        fileInputRef.current?.click();
-                      }}
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 8,
-                        border: "none",
-                        background: "rgba(0,0,0,0.55)",
-                        color: "#fff",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backdropFilter: "blur(4px)",
-                      }}
-                      title="이미지 변경"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeImage();
-                      }}
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 8,
-                        border: "none",
-                        background: "rgba(239,68,68,0.8)",
-                        color: "#fff",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backdropFilter: "blur(4px)",
-                      }}
-                      title="이미지 삭제"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={(e) => handleImageFile(e.target.files?.[0])}
-              />
-              <div
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "minmax(0, 1fr) auto",
-                  gap: 10,
-                  alignItems: "center",
-                }}
-              >
-                <input
-                  type="text"
-                  value={posterPrompt}
-                  maxLength={1000}
-                  disabled={isGeneratingPoster}
-                  onChange={(e) => setPosterPrompt(e.target.value)}
-                  onFocus={inputFocus}
-                  onBlur={inputBlur}
-                  placeholder={"\uCD94\uAC00 \uD504\uB86C\uD504\uD2B8\uB97C \uC785\uB825\uD558\uC138\uC694. \uC608) \uBD04 \uBC9A\uAF43 \uD14C\uB9C8, \uBBF8\uB2C8\uBA40 \uD3EC\uC2A4\uD130"}
-                  style={{
-                    ...inputStyle,
-                    minWidth: 0,
-                    padding: "9px 14px",
-                    fontSize: 12.5,
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleGeneratePoster}
-                  disabled={isGeneratingPoster}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "9px 14px",
-                    borderRadius: 10,
-                    border: `1px solid ${ds.brand}22`,
-                    background: `${ds.brand}10`,
-                    color: ds.brand,
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    fontFamily: ds.ff,
-                    cursor: isGeneratingPoster ? "wait" : "pointer",
-                    opacity: isGeneratingPoster ? 0.7 : 1,
-                  }}
-                >
-                  <Upload size={14} />
-                  {isGeneratingPoster ? "생성 중..." : "AI 생성하기"}
-                </button>
-              </div>
-            </Field>
-
-            {/* ── 2열 레이아웃: 행사명 / 장소 ── */}
+          {/* ═══ 왼쪽 패널: 행사 정보 입력 ═══ */}
+          <div style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
+          }}>
+            {/* 헤더 */}
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 14,
+                padding: "24px 32px",
+                borderBottom: `1px solid ${ds.line}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexShrink: 0,
               }}
             >
+              <div>
+                <h3
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 800,
+                    color: ds.ink,
+                    margin: 0,
+                    letterSpacing: -0.4,
+                  }}
+                >
+                  {isEdit ? "행사 수정" : "새 행사 등록"}
+                </h3>
+                <p style={{ fontSize: 13, color: ds.ink4, margin: "5px 0 0" }}>
+                  {isEdit ? "행사 정보를 수정합니다" : "행사 정보를 입력하고 AI 포스터를 만들어보세요"}
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  border: `1px solid ${ds.line}`,
+                  background: ds.card,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background .15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = ds.bg)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = ds.card)}
+              >
+                <X size={16} color={ds.ink4} />
+              </button>
+            </div>
+
+            {/* 본문 (스크롤 영역) */}
+            <div style={{ flex: 1, overflow: "auto", padding: "22px 32px" }}>
+              {err && (
+                <div
+                  style={{
+                    background: ds.redSoft,
+                    border: `1px solid ${ds.red}33`,
+                    borderRadius: 12,
+                    padding: "12px 16px",
+                    fontSize: 13,
+                    color: ds.red,
+                    marginBottom: 22,
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <AlertTriangle size={15} /> {err}
+                </div>
+              )}
+
+              {/* ── 행사명 ── */}
               <Field label="행사명" required>
                 <input
-                  style={inputStyle}
+                  style={{ ...inputStyle, padding: "12px 16px", fontSize: 14 }}
                   value={form.name}
                   onChange={(e) => set("name", e.target.value)}
                   onFocus={inputFocus}
@@ -1115,9 +930,11 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
                   autoFocus
                 />
               </Field>
+
+              {/* ── 장소 ── */}
               <Field label="장소" required>
                 <input
-                  style={inputStyle}
+                  style={{ ...inputStyle, padding: "12px 16px", fontSize: 14 }}
                   value={form.location}
                   onChange={(e) => set("location", e.target.value)}
                   onFocus={inputFocus}
@@ -1125,156 +942,398 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
                   placeholder="올림픽 공원"
                 />
               </Field>
-            </div>
 
-            {/* ── 행사 일정 ── */}
-            <Field label="행사 일정" required>
-              <DateRangeInput
-                startDate={form.dateStart}
-                endDate={form.dateEnd}
-                onStartChange={(v) => set("dateStart", v)}
-                onEndChange={(v) => set("dateEnd", v)}
-              />
-            </Field>
-
-            {/* ── 2열: 정원 / 상태 ── */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 14,
-              }}
-            >
-              <Field label="참가 정원">
-                <input
-                  type="number"
-                  style={inputStyle}
-                  value={form.capacity || ""}
-                  onChange={(e) => set("capacity", +e.target.value)}
-                  onFocus={inputFocus}
-                  onBlur={inputBlur}
-                  placeholder="500"
+              {/* ── 행사 일정 ── */}
+              <Field label="행사 일정" required>
+                <DateRangeInput
+                  startDate={form.dateStart}
+                  endDate={form.dateEnd}
+                  onStartChange={(v) => set("dateStart", v)}
+                  onEndChange={(v) => set("dateEnd", v)}
                 />
               </Field>
-              <Field label="상태 (일정 기준 자동)">
-                {(() => {
-                  const auto = calcAutoStatus(
-                    `${form.dateStart} ~ ${form.dateEnd}`,
-                  );
-                  const map = {
-                    pending: {
-                      l: "대기",
-                      c: ds.amber,
-                      bg: ds.amberSoft,
-                      icon: "⏳",
-                    },
-                    active: {
-                      l: "진행중",
-                      c: ds.green,
-                      bg: ds.greenSoft,
-                      icon: "🟢",
-                    },
-                    ended: {
-                      l: "종료",
-                      c: ds.ink4,
-                      bg: ds.lineSoft,
-                      icon: "⏹",
-                    },
-                  };
-                  const s = map[auto] || map.pending;
-                  return (
-                    <div
-                      style={{
-                        ...inputStyle,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        background: s.bg,
-                        borderColor: s.bg,
-                        cursor: "default",
-                      }}
-                    >
-                      <span style={{ fontSize: 14 }}>{s.icon}</span>
-                      <span
-                        style={{ fontSize: 13.5, fontWeight: 700, color: s.c }}
+
+              {/* ── 2열: 정원 / 상태 ── */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 16,
+                }}
+              >
+                <Field label="참가 정원">
+                  <input
+                    type="number"
+                    style={{ ...inputStyle, padding: "12px 16px", fontSize: 14 }}
+                    value={form.capacity || ""}
+                    onChange={(e) => set("capacity", +e.target.value)}
+                    onFocus={inputFocus}
+                    onBlur={inputBlur}
+                    placeholder="500"
+                  />
+                </Field>
+                <Field label="상태">
+                  {(() => {
+                    const auto = calcAutoStatus(
+                      `${form.dateStart} ~ ${form.dateEnd}`,
+                    );
+                    const map = {
+                      pending: { l: "대기", c: ds.amber },
+                      active:  { l: "진행중", c: ds.green },
+                      ended:   { l: "종료", c: ds.ink4 },
+                    };
+                    const s = map[auto] || map.pending;
+                    return (
+                      <div
+                        style={{
+                          padding: "12px 16px",
+                          borderRadius: 9,
+                          background: ds.bg,
+                          border: `1.5px solid ${ds.line}`,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          cursor: "default",
+                          boxSizing: "border-box",
+                        }}
                       >
-                        {s.l}
-                      </span>
-                    </div>
-                  );
-                })()}
+                        <div style={{
+                          width: 8, height: 8, borderRadius: "50%",
+                          background: s.c, boxShadow: `0 0 6px ${s.c}60`, flexShrink: 0,
+                        }} />
+                        <span style={{ fontSize: 14, fontWeight: 700, color: s.c }}>{s.l}</span>
+                        <span style={{ fontSize: 11, color: ds.ink4, marginLeft: "auto", fontWeight: 500 }}>
+                          일정 기준 자동
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </Field>
+              </div>
+
+              {/* ── 설명 ── */}
+              <Field label="설명">
+                <textarea
+                  rows={3}
+                  style={{ ...inputStyle, resize: "vertical", padding: "12px 16px", fontSize: 14 }}
+                  value={form.description || ""}
+                  onChange={(e) => set("description", e.target.value)}
+                  onFocus={inputFocus}
+                  onBlur={inputBlur}
+                  placeholder="행사에 대한 간단한 설명을 입력하세요"
+                />
               </Field>
             </div>
 
-            {/* ── 설명 ── */}
-            <Field label="설명">
-              <textarea
-                rows={3}
-                style={{ ...inputStyle, resize: "vertical" }}
-                value={form.description || ""}
-                onChange={(e) => set("description", e.target.value)}
-                onFocus={inputFocus}
-                onBlur={inputBlur}
-                placeholder="행사에 대한 간단한 설명"
-              />
-            </Field>
+            {/* 하단 버튼 */}
+            <div
+              style={{
+                padding: "18px 32px",
+                borderTop: `1px solid ${ds.line}`,
+                display: "flex",
+                gap: 12,
+                flexShrink: 0,
+              }}
+            >
+              <button
+                onClick={onClose}
+                style={{
+                  padding: "13px 24px",
+                  borderRadius: 12,
+                  border: `1px solid ${ds.line}`,
+                  background: ds.card,
+                  fontSize: 14.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: ds.ff,
+                  color: ds.ink3,
+                  transition: "background .15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = ds.bg)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = ds.card)}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isGeneratingPoster}
+                style={{
+                  flex: 1,
+                  padding: "13px 0",
+                  borderRadius: 12,
+                  border: "none",
+                  background: isGeneratingPoster
+                    ? ds.ink4
+                    : `linear-gradient(135deg, ${ds.brand} 0%, ${ds.brandDark} 100%)`,
+                  color: "#fff",
+                  fontSize: 14.5,
+                  fontWeight: 700,
+                  cursor: isGeneratingPoster ? "not-allowed" : "pointer",
+                  fontFamily: ds.ff,
+                  boxShadow: isGeneratingPoster ? "none" : `0 4px 14px ${ds.brand}40`,
+                  transition: "all .15s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                }}
+                onMouseDown={(e) => {
+                  if (!isGeneratingPoster) e.currentTarget.style.transform = "scale(0.98)";
+                }}
+                onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              >
+                <Check size={16} />
+                {isEdit ? "수정 완료" : "행사 등록하기"}
+              </button>
+            </div>
           </div>
 
-          {/* 하단 버튼 */}
+          {/* ═══ 오른쪽 패널: AI 포스터 ═══ */}
           <div
             style={{
-              padding: "16px 28px",
-              borderTop: `1px solid ${ds.line}`,
-              display: "flex",
-              gap: 10,
+              width: 380,
               flexShrink: 0,
+              background: "linear-gradient(160deg, #2a1520 0%, #1e1018 40%, #1a0c14 100%)",
+              display: "flex",
+              flexDirection: "column",
+              position: "relative",
+              overflow: "hidden",
+              borderLeft: `1px solid ${ds.line}`,
             }}
           >
-            <button
-              onClick={onClose}
-              style={{
-                flex: 1,
-                padding: "12px 0",
-                borderRadius: 10,
-                border: `1px solid ${ds.line}`,
-                background: ds.card,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: ds.ff,
-                color: ds.ink3,
-                transition: "background .15s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = ds.bg)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = ds.card)}
-            >
-              취소
-            </button>
-            <button
-              onClick={handleSave}
-              style={{
-                flex: 1,
-                padding: "12px 0",
-                borderRadius: 10,
-                border: "none",
-                background: ds.brand,
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: ds.ff,
-                transition: "background .15s, transform .1s",
-              }}
-              onMouseDown={(e) =>
-                (e.currentTarget.style.transform = "scale(0.98)")
-              }
-              onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.transform = "scale(1)")
-              }
-            >
-              {isEdit ? "수정 완료" : "등록하기"}
-            </button>
+            {/* 배경 글로우 */}
+            <div style={{
+              position: "absolute", top: -60, right: -60, width: 200, height: 200, borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(232,80,91,0.15) 0%, transparent 70%)", pointerEvents: "none",
+            }} />
+            <div style={{
+              position: "absolute", bottom: -40, left: -40, width: 160, height: 160, borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(232,80,91,0.08) 0%, transparent 70%)", pointerEvents: "none",
+            }} />
+
+            {/* 헤더 */}
+            <div style={{ padding: "22px 24px 0", flexShrink: 0, position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 12,
+                  background: `linear-gradient(135deg, ${ds.brand} 0%, ${ds.brandDark} 100%)`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: `0 6px 20px ${ds.brand}50`,
+                }}>
+                  <ImagePlus size={20} color="#fff" />
+                </div>
+                <div>
+                  <div style={{
+                    fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: -0.3,
+                  }}>
+                    행사 포스터
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 3 }}>
+                    직접 올리거나, AI로 만들 수 있어요
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 이미지 프리뷰 / 업로드 / 로딩 영역 */}
+            <div style={{ flex: 1, padding: "16px 24px", overflow: "auto", display: "flex", flexDirection: "column" }}>
+              {isGeneratingPoster ? (
+                /* ── 로딩 UI ── */
+                <div style={{
+                  flex: 1, minHeight: 160, borderRadius: 16, display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center",
+                  background: "rgba(232,80,91,0.06)", border: `1px solid ${ds.brand}20`,
+                  position: "relative", overflow: "hidden",
+                }}>
+                  {/* 시머 효과 */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: `linear-gradient(90deg, transparent 0%, ${ds.brand}08 50%, transparent 100%)`,
+                    backgroundSize: "200% 100%",
+                    animation: "aiShimmer 2s ease infinite",
+                  }} />
+                  <div style={{
+                    width: 56, height: 56, borderRadius: "50%",
+                    border: `3px solid ${ds.brand}20`, borderTopColor: ds.brand,
+                    animation: "aiSpin 1s linear infinite", marginBottom: 20,
+                  }} />
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 6 }}>
+                    AI가 포스터를 만들고 있어요
+                  </div>
+                  <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.4)", textAlign: "center", lineHeight: 1.5 }}>
+                    행사 정보를 분석하고 디자인하는 중...<br />최대 3분 정도 걸릴 수 있어요
+                  </div>
+                </div>
+              ) : !imagePreview ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  style={{
+                    flex: 1, minHeight: 160,
+                    border: `2px dashed ${dragOver ? ds.brand : `${ds.brand}40`}`,
+                    borderRadius: 16, display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center", cursor: "pointer",
+                    background: dragOver ? `${ds.brand}12` : "rgba(255,255,255,0.02)",
+                    transition: "all .25s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!dragOver) { e.currentTarget.style.borderColor = `${ds.brand}66`; e.currentTarget.style.background = `${ds.brand}08`; }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!dragOver) { e.currentTarget.style.borderColor = `${ds.brand}40`; e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }
+                  }}
+                >
+                  <div style={{
+                    width: 56, height: 56, borderRadius: 16, background: `${ds.brand}18`,
+                    display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16,
+                  }}>
+                    <ImagePlus size={26} color={ds.brand} />
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>
+                    직접 이미지 올리기
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
+                    클릭 또는 드래그 · JPG, PNG, GIF, WEBP · 최대 10MB
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  flex: 1, position: "relative", borderRadius: 16, overflow: "hidden",
+                  border: `1px solid ${ds.brand}25`, minHeight: 160,
+                }}>
+                  <img src={imagePreview} alt="미리보기" style={{
+                    width: "100%", height: "100%", minHeight: 160, maxHeight: 240,
+                    objectFit: "cover", display: "block",
+                  }} />
+                  <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 6 }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                      style={{
+                        width: 34, height: 34, borderRadius: 10, border: "none",
+                        background: "rgba(0,0,0,0.6)", color: "#fff", cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)",
+                      }}
+                      title="이미지 변경"
+                    ><Pencil size={14} /></button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeImage(); }}
+                      style={{
+                        width: 34, height: 34, borderRadius: 10, border: "none",
+                        background: "rgba(239,68,68,0.75)", color: "#fff", cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)",
+                      }}
+                      title="이미지 삭제"
+                    ><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              )}
+              <input
+                ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
+                onChange={(e) => handleImageFile(e.target.files?.[0])}
+              />
+            </div>
+
+            {/* AI 프롬프트 영역 — 하단 고정 */}
+            <div style={{
+              padding: "0 24px 22px", flexShrink: 0, position: "relative",
+              display: "flex", flexDirection: "column", gap: 12,
+            }}>
+              {/* 구분선 */}
+              <div style={{
+                display: "flex", alignItems: "center", gap: 12,
+              }}>
+                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "4px 12px", borderRadius: 20,
+                  background: `${ds.brand}15`, border: `1px solid ${ds.brand}20`,
+                }}>
+                  <Wand2 size={12} color={ds.brand} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: ds.brand }}>
+                    AI로 만들기
+                  </span>
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, color: ds.brand,
+                    background: `${ds.brand}20`, padding: "1px 6px", borderRadius: 10,
+                    letterSpacing: 0.3,
+                  }}>BETA</span>
+                </div>
+                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.4)" }}>
+                  어떤 분위기로 만들까요?
+                </span>
+              </div>
+              <textarea
+                value={posterPrompt}
+                maxLength={1000}
+                disabled={isGeneratingPoster}
+                onChange={(e) => setPosterPrompt(e.target.value)}
+                onFocus={(e) => {
+                  e.target.style.borderColor = ds.brand;
+                  e.target.style.boxShadow = `0 0 0 3px ${ds.brand}25`;
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = `${ds.brand}40`;
+                  e.target.style.boxShadow = "none";
+                }}
+                rows={3}
+                placeholder={"원하는 분위기를 자유롭게 적어주세요\n예) 봄 벚꽃이 흩날리는 따뜻한 분위기, 미니멀한 레이아웃, 파스텔톤 색감..."}
+                style={{
+                  width: "100%", padding: "16px 18px", borderRadius: 14,
+                  border: `1.5px solid ${ds.brand}40`, fontSize: 14.5, fontFamily: ds.ff,
+                  color: "#fff", outline: "none", boxSizing: "border-box",
+                  transition: "border-color .15s, box-shadow .15s",
+                  background: `${ds.brand}0a`, resize: "none", lineHeight: 1.6,
+                  opacity: isGeneratingPoster ? 0.5 : 1,
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleGeneratePoster}
+                disabled={isGeneratingPoster}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+                  gap: 10, padding: "15px 0", borderRadius: 14, border: "none",
+                  background: isGeneratingPoster
+                    ? `linear-gradient(135deg, ${ds.brandDark} 0%, #b8353f 100%)`
+                    : `linear-gradient(135deg, ${ds.brand} 0%, ${ds.brandDark} 100%)`,
+                  color: "#fff", fontSize: 15.5, fontWeight: 800, fontFamily: ds.ff,
+                  cursor: isGeneratingPoster ? "not-allowed" : "pointer",
+                  boxShadow: `0 4px 20px ${ds.brand}50`, transition: "all .2s ease", letterSpacing: -0.2,
+                  opacity: isGeneratingPoster ? 0.6 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isGeneratingPoster) {
+                    e.currentTarget.style.boxShadow = `0 6px 28px ${ds.brand}66`;
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = `0 4px 20px ${ds.brand}50`;
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
+                {isGeneratingPoster ? (
+                  <>
+                    <div style={{
+                      width: 18, height: 18, border: "2.5px solid rgba(255,255,255,0.3)",
+                      borderTopColor: "#fff", borderRadius: "50%", animation: "aiSpin .8s linear infinite",
+                    }} />
+                    만드는 중...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 size={19} />
+                    포스터 만들기
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>

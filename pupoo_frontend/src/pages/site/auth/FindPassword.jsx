@@ -158,7 +158,7 @@ export default function FindPassword() {
               height: 46,
               border: "none",
               borderRadius: 8,
-              background: requestingCode ? "#93C5FD" : "#3B82F6",
+              background: requestingCode ? "#5CCDB2" : "#3DBFA0",
               color: "#fff",
               fontSize: 15,
               fontWeight: 600,
@@ -194,7 +194,7 @@ export default function FindPassword() {
                 height: 46,
                 border: "none",
                 borderRadius: 8,
-                background: verifyingCode ? "#93C5FD" : "#111827",
+                background: verifyingCode ? "#5CCDB2" : "#111827",
                 color: "#fff",
                 fontSize: 15,
                 fontWeight: 600,
@@ -207,7 +207,7 @@ export default function FindPassword() {
         ) : null}
 
         {successMessage ? (
-          <p style={{ marginTop: 12, color: "#2563EB", fontSize: 13 }}>
+          <p style={{ marginTop: 12, color: "#02A17E", fontSize: 13 }}>
             {successMessage}
           </p>
         ) : null}

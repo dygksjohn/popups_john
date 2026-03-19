@@ -169,7 +169,7 @@ function EventSection() {
   const leftItems = events.slice(0, 3);
   const rightItems = events.length > 3 ? events.slice(3, 6) : events.slice(0, Math.min(3, events.length));
   const sides = [
-    { items: leftItems, color: { bg: "bg-gradient-to-r from-blue-50 to-blue-100/50", text: "text-blue-700" } },
+    { items: leftItems, color: { bg: "bg-gradient-to-r from-[#E6F7F2] to-[#EDF9F5]", text: "text-[#02A17E]" } },
     { items: rightItems, color: { bg: "bg-gradient-to-r from-emerald-50 to-teal-100/50", text: "text-teal-700" } },
   ];
   const groupDate = (items) => {
@@ -184,7 +184,7 @@ function EventSection() {
           <div className="text-center mb-10">
             <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">진행 중인 행사 안내</p>
             <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">현재 진행 중인 행사</h2>
-            <button onClick={() => navigate("/event/current")} className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300">자세히 보기</button>
+            <button onClick={() => navigate("/event/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#02A17E" }}>자세히 보기</button>
           </div>
         </RevealSection>
         <RevealSection delay={0.15}>
@@ -229,7 +229,7 @@ function EventCard({ event, isHovered, onHover, onLeave, onClick }) {
           <p className="text-[13px] text-gray-600 leading-tight">{event.time}</p>
           <p className="text-[13px] text-gray-600 leading-tight">{event.location}</p>
           <div className={`overflow-hidden transition-all duration-300 ease-out ${isHovered ? "max-h-16 mt-3" : "max-h-0 mt-0"}`}>
-            <button type="button" onClick={(e) => { e.stopPropagation(); onClick?.(); }} className="bg-blue-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full">자세히 보기</button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); onClick?.(); }} className="text-white text-xs font-semibold px-4 py-1.5 rounded-full" style={{ background: "#02A17E" }}>자세히 보기</button>
           </div>
         </div>
       </div>
@@ -348,7 +348,7 @@ function SessionLineup() {
           <div className="text-center mb-10">
             <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">PuPoo Session</p>
             <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">현재 행사에서 운영 중인 프로그램</h2>
-            <button onClick={() => navigate("/program/current")} className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300">전체 프로그램 보기</button>
+            <button onClick={() => navigate("/program/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#02A17E" }}>전체 프로그램 보기</button>
           </div>
         </RevealSection>
         <RevealSection delay={0.12}>
@@ -366,7 +366,7 @@ function SessionLineup() {
                           <img
                             src={resolveImageUrl(s.image, dogImg(s.id))}
                             alt={s.title}
-                            className={`w-full h-full object-cover transition-all duration-700 ease-out ${isH ? "scale-105 grayscale-0" : "scale-100 grayscale"}`}
+                            className={`w-full h-full object-cover transition-all duration-700 ease-out ${isH ? "scale-105" : "scale-100"}`}
                             draggable={false}
                             onError={createImageFallbackHandler(dogImg(s.id))}
                           />
@@ -381,7 +381,7 @@ function SessionLineup() {
                           </div>
                         </div>
                         <div className="mt-3">
-                          <span className="inline-block text-[11px] font-bold bg-blue-600 text-white px-2.5 py-1 rounded-md">{catLabel(s.category)}</span>
+                          <span className="inline-block text-[11px] font-bold text-white px-2.5 py-1 rounded-md" style={{ background: "#02A17E" }}>{catLabel(s.category)}</span>
                           <span className="inline-block text-[11px] font-medium bg-gray-200 text-gray-600 px-2.5 py-1 rounded-md ml-1.5">{s.eventName}</span>
                         </div>
                       </div>
@@ -589,9 +589,9 @@ function NoticeSection() {
 // ================= MAIN =================
 export default function Home() {
   const heroVideos = [
-    resolveImageUrl("/home/1.mov"),
-    resolveImageUrl("/home/2.mov"),
-    resolveImageUrl("/home/3.mp4"),
+    "/1.mov",
+    "/2.mov",
+    "/3.mp4",
   ];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [fade, setFade] = useState(true);
@@ -658,7 +658,7 @@ export default function Home() {
         <div className="max-w-[1400px] mx-auto px-[25px]">
           <RevealSection>
             <h2 className="text-2xl md:text-3xl font-extrabold mb-8">
-                <span className="text-blue-600">당신이</span> 좋아할 만한 추천 행사
+                <span className="text-[#02A17E]">당신이</span> 좋아할 만한 추천 행사
             </h2>
           </RevealSection>
           <RevealSection delay={0.08}>

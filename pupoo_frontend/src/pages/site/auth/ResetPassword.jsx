@@ -102,7 +102,7 @@ export default function ResetPassword() {
         </p>
 
         {loading ? (
-          <p style={{ margin: "12px 0 0", color: "#2563EB", fontSize: 13 }}>
+          <p style={{ margin: "12px 0 0", color: "#02A17E", fontSize: 13 }}>
             인증 상태를 확인하는 중입니다.
           </p>
         ) : null}
@@ -143,7 +143,7 @@ export default function ResetPassword() {
                 height: 46,
                 border: "none",
                 borderRadius: 8,
-                background: submitting ? "#93C5FD" : "#3B82F6",
+                background: submitting ? "#5CCDB2" : "#3DBFA0",
                 color: "#fff",
                 fontSize: 15,
                 fontWeight: 600,
@@ -157,7 +157,7 @@ export default function ResetPassword() {
         ) : null}
 
         {successMessage ? (
-          <p style={{ marginTop: 12, color: "#2563EB", fontSize: 13 }}>
+          <p style={{ marginTop: 12, color: "#02A17E", fontSize: 13 }}>
             {successMessage}
           </p>
         ) : null}

@@ -61,7 +61,7 @@ const styles = `
   }
   .ex-search-wrap input { border:none; outline:none; font-size:13px; color:#374151; background:transparent; width:100%; font-family:inherit; }
   .ex-filter-btn { padding:8px 16px; border:1px solid #e2e5ea; border-radius:100px; background:#fff; font-size:12px; font-weight:600; color:#6b7280; cursor:pointer; transition:all 0.15s; font-family:inherit; }
-  .ex-filter-btn.active { background:#1a4fd6; border-color:#1a4fd6; color:#fff; }
+  .ex-filter-btn.active { background:#02A17E; border-color:#02A17E; color:#fff; }
   .ex-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
   .ex-stat { background:#fff; border:1px solid #e9ecef; border-radius:12px; padding:16px 18px; display:flex; align-items:center; gap:12px; }
   .ex-stat-ico { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -79,7 +79,7 @@ const styles = `
   .ex-event-badge { position:absolute; top:12px; right:12px; z-index:2; padding:4px 10px; border-radius:100px; background:rgba(0,0,0,0.45); backdrop-filter:blur(6px); font-size:10px; font-weight:600; color:#fff; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .ex-body { padding:16px 18px 18px; display:flex; flex-direction:column; gap:10px; flex:1; }
   .ex-card-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-  .ex-type-tag { font-size:10px; font-weight:700; background:#eff4ff; color:#1a4fd6; padding:3px 9px; border-radius:100px; }
+  .ex-type-tag { font-size:10px; font-weight:700; background:#eff4ff; color:#02A17E; padding:3px 9px; border-radius:100px; }
   .ex-name { font-size:16px; font-weight:800; color:#111827; line-height:1.35; }
   .ex-desc { font-size:12.5px; color:#6b7280; line-height:1.45; }
   .ex-meta { display:flex; flex-direction:column; gap:6px; font-size:12px; color:#6b7280; }
@@ -215,7 +215,7 @@ export default function Experience() {
             {
               label: "전체 체험존",
               value: booths.length,
-              ico: <Store size={18} color="#1a4fd6" />,
+              ico: <Store size={18} color="#02A17E" />,
               bg: "#eff4ff",
             },
             {

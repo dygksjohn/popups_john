@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X } from "lucide-react";
+import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX } from "lucide-react";
 import {
   notificationApi,
   NOTIFICATION_UNREAD_COUNT_EVENT,
   emitNotificationUnreadCount,
 } from "../../../app/http/notificationApi";
+import { eventApi } from "../../../app/http/eventApi";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
-const FONT = "'Kakao Big Sans', Pretendard, 'Apple SD Gothic Neo', sans-serif";
+const FONT = "'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', sans-serif";
 
 /* ─────────────────────────────────────────────
    NAV DATA
@@ -114,7 +116,7 @@ const navItems = [
   { label: "행사", menuKey: "events" },
   { label: "커뮤니티", menuKey: "community" },
   { label: "참가신청", menuKey: "registration" },
-  { label: "실시간현황", menuKey: "realtime" },
+  { label: "실시간현황", href: "/realtime/dashboard" },
 ];
 
 /* ─────────────────────────────────────────────
@@ -153,7 +155,7 @@ const MegaLink = ({ item, onNavigate }) => {
    PROMO ICON MAP
 ───────────────────────────────────────────── */
 const PROMO_ICONS = {
-  event: { Icon: CalendarHeart, bg: "#eff4ff", color: "#1a4fd6" },
+  event: { Icon: CalendarHeart, bg: "#eff4ff", color: "#02A17E" },
   community: { Icon: MessageCircleHeart, bg: "#fef3f2", color: "#e04545" },
   registration: { Icon: TicketCheck, bg: "#ecfdf5", color: "#059669" },
   realtime: { Icon: Activity, bg: "#fef9ee", color: "#ea580c" },
@@ -299,11 +301,21 @@ const DropdownCard = ({ menuData, onNavigate }) => {
 /* ─────────────────────────────────────────────
    SEARCH PANEL (dropdown style, below header)
 ───────────────────────────────────────────── */
-const POPULAR_TAGS = ["#행사안내", "#참가신청", "#프로그램", "#체크인", "#갤러리"];
+const POPULAR_TAGS = [
+  { label: "#행사안내", to: "/event/current" },
+  { label: "#참가신청", to: "/registration/apply" },
+  { label: "#프로그램", to: "/program/current" },
+  { label: "#체크인", to: "/registration/qrcheckin" },
+  { label: "#갤러리", to: "/gallery/eventgallery" },
+];
 
-const SearchPanel = ({ onClose, onSearch }) => {
+const SearchPanel = ({ onClose, onSearch, onNavigate }) => {
   const inputRef = useRef(null);
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef(null);
 
   useEffect(() => {
     setQuery("");
@@ -318,9 +330,52 @@ const SearchPanel = ({ onClose, onSearch }) => {
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
+  /* 디바운스 검색 */
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+    setLoading(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await eventApi.getEvents({ keyword: trimmed, size: 5 });
+        const data = res.data?.data?.content || res.data?.content || [];
+        setResults(data);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearched(true);
+        setLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [query]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (query.trim()) onSearch(query.trim());
+  };
+
+  const formatDate = (start, end) => {
+    if (!start) return "";
+    const fmt = (d) => {
+      const dt = new Date(d);
+      return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
+    };
+    return end ? `${fmt(start)} ~ ${fmt(end)}` : fmt(start);
+  };
+
+  const statusLabel = (s) => {
+    const m = { PLANNED: "예정", ONGOING: "진행중", ENDED: "종료" };
+    return m[s] || s;
+  };
+  const statusColor = (s) => {
+    const m = { PLANNED: "#F59E0B", ONGOING: "#22C55E", ENDED: "#9496A6" };
+    return m[s] || "#9496A6";
   };
 
   return (
@@ -353,7 +408,7 @@ const SearchPanel = ({ onClose, onSearch }) => {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="무엇이 궁금하신가요?"
+            placeholder="어떤 행사를 찾고 계세요?"
             style={{
               flex: 1, border: "none", background: "none", outline: "none",
               color: "#fff", fontSize: 20, fontWeight: 500,
@@ -372,26 +427,154 @@ const SearchPanel = ({ onClose, onSearch }) => {
         </div>
       </form>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-        {POPULAR_TAGS.map((tag) => (
-          <button
-            key={tag}
-            type="button"
-            onClick={() => onSearch(tag.replace("#", ""))}
-            style={{
-              padding: "7px 16px", borderRadius: 999,
-              border: "1px solid #e5e7eb", background: "#fff",
-              fontSize: 13, fontWeight: 600, color: "#374151",
-              fontFamily: FONT, cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
-          >
-            {tag}
-          </button>
-        ))}
-      </div>
+      {/* 검색 결과 or 인기 태그 */}
+      {searched && query.trim() ? (
+        <div style={{ width: "100%", maxWidth: 720 }}>
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "20px 0", color: "#999", fontSize: 14, fontFamily: FONT }}>
+              검색 중...
+            </div>
+          ) : results.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#aaa", marginBottom: 8, fontFamily: FONT }}>
+                검색 결과 {results.length}건
+              </div>
+              {results.map((evt) => (
+                <button
+                  key={evt.eventId}
+                  type="button"
+                  onClick={() => { onClose(); onNavigate(`/event/eventschedule?eventId=${evt.eventId}`); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 16,
+                    padding: "14px 16px", borderRadius: 14,
+                    border: "none", background: "#fff", cursor: "pointer",
+                    textAlign: "left", fontFamily: FONT, width: "100%",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f7f8fa")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+                >
+                  {/* 썸네일 */}
+                  <div style={{
+                    width: 56, height: 56, borderRadius: 12, flexShrink: 0, overflow: "hidden",
+                    background: "#f0f0f0",
+                  }}>
+                    {evt.imageUrl ? (
+                      <img
+                        src={toPublicAssetUrl(evt.imageUrl)}
+                        alt=""
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: "100%", height: "100%", display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                      }}>
+                        <CalendarHeart size={22} color="#ccc" />
+                      </div>
+                    )}
+                  </div>
+                  {/* 정보 */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 15, fontWeight: 700, color: "#222",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {evt.eventName}
+                    </div>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 12,
+                      marginTop: 4, fontSize: 13, color: "#999",
+                    }}>
+                      {evt.location && (
+                        <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                          <MapPin size={12} /> {evt.location}
+                        </span>
+                      )}
+                      {evt.startAt && (
+                        <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                          <Calendar size={12} /> {formatDate(evt.startAt, evt.endAt)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {/* 상태 */}
+                  {evt.status && (
+                    <div style={{
+                      fontSize: 12, fontWeight: 700, color: statusColor(evt.status),
+                      background: `${statusColor(evt.status)}18`,
+                      padding: "4px 10px", borderRadius: 20, flexShrink: 0,
+                    }}>
+                      {statusLabel(evt.status)}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          ) : (
+            /* 결과 없음 */
+            <div style={{
+              textAlign: "center", padding: "32px 0",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+            }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: "50%", background: "#f5f5f5",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <SearchX size={24} color="#ccc" />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#444", fontFamily: FONT }}>
+                '{query.trim()}'에 대한 검색 결과가 없어요
+              </div>
+              <div style={{ fontSize: 13, color: "#aaa", fontFamily: FONT, lineHeight: 1.5 }}>
+                다른 키워드로 검색하거나, 아래 태그를 눌러보세요
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 8 }}>
+                {POPULAR_TAGS.map((tag) => (
+                  <button
+                    key={tag.label}
+                    type="button"
+                    onClick={() => { onClose(); onNavigate(tag.to); }}
+                    style={{
+                      padding: "7px 16px", borderRadius: 999,
+                      border: "1px solid #e5e7eb", background: "#fff",
+                      fontSize: 14, fontWeight: 600, color: "rgb(161,161,161)",
+                      fontFamily: FONT, cursor: "pointer", transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
+                  >
+                    {tag.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* 기본: 인기 태그 */
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+          {POPULAR_TAGS.map((tag) => (
+            <button
+              key={tag.label}
+              type="button"
+              onClick={() => { onClose(); onNavigate(tag.to); }}
+              style={{
+                padding: "7px 16px", borderRadius: 999,
+                border: "1px solid #e5e7eb", background: "#fff",
+                fontSize: 14, fontWeight: 600, color: "rgb(161,161,161)",
+                letterSpacing: "0px",
+                fontFamily: FONT, cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
+            >
+              {tag.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -489,12 +672,6 @@ export default function PupooHeader() {
   }, [location.pathname]);
 
   const handleNavClick = (menuKey) => {
-    if (menuKey === "realtime") {
-      setActiveMenu(null);
-      setSearchOpen(false);
-      navigate("/realtime/dashboard");
-      return;
-    }
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey));
     setSearchOpen(false);
   };
@@ -598,7 +775,7 @@ export default function PupooHeader() {
           border-radius: 8px;
           background: #222;
           color: #fff;
-          font-family: 'Kakao Big Sans', Pretendard, sans-serif;
+          font-family: 'JeonjuCraftGothic', Pretendard, sans-serif;
           font-size: 11px;
           font-weight: 600;
           letter-spacing: -0.02em;
@@ -637,9 +814,9 @@ export default function PupooHeader() {
           gap: 6px;
           padding: 8px 18px;
           border-radius: 999px;
-          background: #2563eb;
+          background: #02A17E;
           color: #fff;
-          font-family: 'Kakao Big Sans', Pretendard, sans-serif;
+          font-family: 'JeonjuCraftGothic', Pretendard, sans-serif;
           font-size: 13px;
           font-weight: 700;
           letter-spacing: -0.02em;
@@ -651,7 +828,7 @@ export default function PupooHeader() {
           margin-right: 8px;
         }
         .kakao-cta:hover {
-          background: #1d4ed8;
+          background: #028A6C;
           transform: scale(1.04);
           box-shadow: 0 4px 20px rgba(37,99,235,0.4);
         }
@@ -660,7 +837,7 @@ export default function PupooHeader() {
         }
         .kakao-cta.light {
           background: #fff;
-          color: #2563eb;
+          color: #02A17E;
           box-shadow: 0 2px 12px rgba(0,0,0,0.1);
         }
         .kakao-cta.light:hover {
@@ -680,7 +857,7 @@ export default function PupooHeader() {
             height: 92,
             display: "flex",
             alignItems: "center",
-            zIndex: 1000,
+            zIndex: 1002,
             backgroundColor: isWhiteMode ? "#fff" : "transparent",
             borderBottom: isWhiteMode ? "1px solid #f0f0f0" : "none",
             transition: "background-color 0.3s ease",
@@ -709,7 +886,7 @@ export default function PupooHeader() {
               }}
             >
               <img
-                src={isLight ? "/logo_white.png" : "/logo_blue.png"}
+                src={isLight ? "/logo_white2.png" : "/logo_olive.png"}
                 alt="Pupoo"
                 style={{ height: 28, width: "auto", display: "block" }}
               />
@@ -728,9 +905,9 @@ export default function PupooHeader() {
             >
               {navItems.map((item) => (
                 <button
-                  key={item.menuKey}
+                  key={item.menuKey || item.href}
                   className={`kakao-nav-btn ${isLight ? "light" : "dark"} ${activeMenu === item.menuKey ? "active" : ""}`}
-                  onClick={() => handleNavClick(item.menuKey)}
+                  onClick={() => item.href ? handleMegaNavigate(item.href) : handleNavClick(item.menuKey)}
                   type="button"
                 >
                   {item.label}
@@ -813,8 +990,9 @@ export default function PupooHeader() {
             onClose={() => setSearchOpen(false)}
             onSearch={(keyword) => {
               setSearchOpen(false);
-              navigate(`/community/freeboard?search=${encodeURIComponent(keyword)}`);
+              navigate(`/event/current?search=${encodeURIComponent(keyword)}`);
             }}
+            onNavigate={(path) => { setSearchOpen(false); navigate(path); }}
           />
         )}
 

@@ -27,20 +27,20 @@ const styles = `
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: #3b82f6;
+    background: #3DBFA0;
   }
   .pl-circle:nth-child(2) { animation-delay: 240ms; }
-  .pl-circle:nth-child(2)::after { background: #60a5fa; }
+  .pl-circle:nth-child(2)::after { background: #5CCDB2; }
   .pl-circle:nth-child(3) { animation-delay: 480ms; }
   .pl-circle:nth-child(3)::after { background: #93bbfd; }
   .pl-circle:nth-child(4) { animation-delay: 720ms; }
-  .pl-circle:nth-child(4)::after { background: #bfdbfe; }
+  .pl-circle:nth-child(4)::after { background: #CCF0E4; }
   .pl-circle:nth-child(5) { animation-delay: 960ms; }
-  .pl-circle:nth-child(5)::after { background: #dbeafe; }
+  .pl-circle:nth-child(5)::after { background: #CCF0E4; }
   .page-loading-text {
     margin-top: 36px;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 500;
     color: #9ca3af;
     letter-spacing: -0.02em;
     font-family: inherit;
