@@ -69,7 +69,7 @@ const styles = `
     padding: 16px 18px; border: 1px solid #e9ecef; border-radius: 10px;
     background: #fff; transition: all 0.15s; cursor: pointer;
   }
-  .bt-booth-item:hover { border-color: #1a4fd6; background: #f8faff; }
+  .bt-booth-item:hover { border-color: #02A17E; background: #f8faff; }
   .bt-booth-item.popular { border-color: #fbbf24; background: #fffdf5; }
   .bt-booth-icon {
     width: 44px; height: 44px; border-radius: 10px;
@@ -110,7 +110,7 @@ const styles = `
   .bt-rank-name { flex: 1; font-size: 13px; font-weight: 600; color: #111827; }
   .bt-rank-visitors { font-size: 12px; color: #9ca3af; font-weight: 500; }
   .bt-rank-bar-bg { flex: 1; height: 6px; background: #f1f3f5; border-radius: 3px; overflow: hidden; margin-left: 8px; }
-  .bt-rank-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #1a4fd6, #3b82f6); }
+  .bt-rank-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #02A17E, #3DBFA0); }
 
   @media (max-width: 900px) {
     .bt-main-grid { grid-template-columns: 1fr; }
@@ -127,7 +127,7 @@ const STATUS_LABEL = {
 };
 
 const BOOTH_COLORS = [
-  { bg: "#eff4ff", color: "#1a4fd6" },
+  { bg: "#eff4ff", color: "#02A17E" },
   { bg: "#ecfdf5", color: "#10b981" },
   { bg: "#fef3c7", color: "#d97706" },
   { bg: "#fce7f3", color: "#ec4899" },
@@ -187,7 +187,7 @@ function BoothContent({ booths, loading, errorMsg }) {
           {
             label: "전체 부스",
             value: `${booths.length}개`,
-            icon: <Store size={20} color="#1a4fd6" />,
+            icon: <Store size={20} color="#02A17E" />,
             bg: "#eff4ff",
           },
           {
@@ -344,7 +344,7 @@ export default function Booth() {
             status: toEventStatus(evt?.status, evt?.startAt, evt?.endAt),
             participants: 0,
             thumbnail: null,
-            color: "#1a4fd6",
+            color: "#02A17E",
           })),
         );
       } catch {

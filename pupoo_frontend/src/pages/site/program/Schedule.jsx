@@ -38,7 +38,7 @@ const styles = `
     border:1px solid #e5e7eb; background:#fff; color:#6b7280;
     padding:7px 14px; border-radius:999px; font-size:12px; font-weight:700; cursor:pointer;
   }
-  .pg-filter button.active { background:#1a4fd6; border-color:#1a4fd6; color:#fff; }
+  .pg-filter button.active { background:#02A17E; border-color:#02A17E; color:#fff; }
 
   .pg-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
   .pg-card {
@@ -50,7 +50,7 @@ const styles = `
   .pg-thumb {
     width:100%;
     aspect-ratio: 16/10;
-    background: linear-gradient(135deg,#eef2ff 0%, #f8fafc 100%);
+    background: linear-gradient(135deg,#E6F7F2 0%, #f8fafc 100%);
     position: relative;
     overflow: hidden;
   }
@@ -91,9 +91,9 @@ const styles = `
   .pg-meta-row { display:flex; align-items:center; gap:6px; }
 
   .pg-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:8px; border-top:1px solid #f1f3f5; }
-  .pg-cat { font-size:11px; font-weight:700; color:#1a4fd6; background:#eff4ff; border-radius:999px; padding:3px 9px; }
+  .pg-cat { font-size:11px; font-weight:700; color:#02A17E; background:#eff4ff; border-radius:999px; padding:3px 9px; }
   .pg-host { font-size:12px; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .pg-detail { border:0; background:transparent; color:#1a4fd6; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; }
+  .pg-detail { border:0; background:transparent; color:#02A17E; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; }
 
   .pg-card.done-card {
     opacity: 0.52;
@@ -380,7 +380,7 @@ export default function Schedule() {
         <div className="pg-stats">
           <div className="pg-stat">
             <div className="pg-stat-ico" style={{ background: "#eff4ff" }}>
-              <CalendarDays size={18} color="#1a4fd6" />
+              <CalendarDays size={18} color="#02A17E" />
             </div>
             <div>
               <div className="pg-stat-lb">전체 프로그램</div>

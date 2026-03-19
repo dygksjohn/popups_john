@@ -64,13 +64,13 @@ const styles = `
     padding: 16px 18px; border: 1px solid #e9ecef; border-radius: 10px;
     background: #fff; cursor: pointer; transition: all 0.15s;
   }
-  .sc-day-item:hover { border-color: #1a4fd6; }
-  .sc-day-item.active { border-color: #1a4fd6; background: #f5f8ff; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
+  .sc-day-item:hover { border-color: #02A17E; }
+  .sc-day-item.active { border-color: #02A17E; background: #f5f8ff; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
   .sc-day-icon {
     width: 44px; height: 44px; border-radius: 10px; background: #f3f4f6;
     display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .sc-day-icon.active { background: #1a4fd6; }
+  .sc-day-icon.active { background: #02A17E; }
   .sc-day-icon .sc-day-d { font-size: 16px; font-weight: 900; color: #111827; line-height: 1; }
   .sc-day-icon.active .sc-day-d { color: #fff; }
   .sc-day-icon .sc-day-w { font-size: 9px; font-weight: 600; color: #9ca3af; }
@@ -79,7 +79,7 @@ const styles = `
   .sc-day-title { font-size: 14px; font-weight: 700; color: #111827; }
   .sc-day-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
   .sc-day-count {
-    font-size: 11px; font-weight: 700; color: #1a4fd6; background: #eff4ff;
+    font-size: 11px; font-weight: 700; color: #02A17E; background: #eff4ff;
     padding: 3px 10px; border-radius: 100px;
   }
 
@@ -87,7 +87,7 @@ const styles = `
   .sc-timeline { display: flex; flex-direction: column; gap: 0; }
   .sc-time-group { margin-bottom: 20px; }
   .sc-time-label {
-    font-size: 12px; font-weight: 700; color: #1a4fd6; background: #eff4ff;
+    font-size: 12px; font-weight: 700; color: #02A17E; background: #eff4ff;
     display: inline-flex; padding: 3px 10px; border-radius: 100px; margin-bottom: 10px;
   }
   .sc-event-list { display: flex; flex-direction: column; gap: 8px; }
@@ -96,7 +96,7 @@ const styles = `
     padding: 16px 18px; border: 1px solid #e9ecef; border-radius: 10px;
     background: #fff; transition: all 0.15s; cursor: pointer;
   }
-  .sc-event-item:hover { border-color: #1a4fd6; background: #f8faff; }
+  .sc-event-item:hover { border-color: #02A17E; background: #f8faff; }
   .sc-event-item.active { border-color: #10b981; background: #f0fdf9; }
   .sc-event-item.done { opacity: 0.55; }
   .sc-event-dot { margin-top: 4px; flex-shrink: 0; }
@@ -108,7 +108,7 @@ const styles = `
   .sc-event-tag {
     font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 100px;
   }
-  .sc-event-tag.session { background: #eff4ff; color: #1a4fd6; }
+  .sc-event-tag.session { background: #eff4ff; color: #02A17E; }
   .sc-event-tag.contest { background: #fef3c7; color: #d97706; }
   .sc-event-tag.experience { background: #fce7f3; color: #ec4899; }
   .sc-event-tag.ceremony { background: #f5f3ff; color: #8b5cf6; }
@@ -330,7 +330,7 @@ function ScheduleContent({ eventDetail, programs, loading, error }) {
           {
             label: "행사 기간",
             value: `${days.length}일`,
-            icon: <CalendarDays size={20} color="#1a4fd6" />,
+            icon: <CalendarDays size={20} color="#02A17E" />,
             bg: "#eff4ff",
           },
           {
@@ -530,7 +530,7 @@ export default function ProgramAll() {
               Number(evt?.participantCount ?? evt?.participants ?? 0) || 0,
             imageUrl: imgById[String(evt?.eventId)] || evt?.imageUrl || null,
             thumbnail: imgById[String(evt?.eventId)] || evt?.imageUrl || null,
-            color: "#1a4fd6",
+            color: "#02A17E",
           })),
         );
       } catch (e) {

@@ -52,7 +52,7 @@ const BG_SVG = makeBgSvg();
 
 const BRAND = "#E8505B";
 const BRAND_DARK = "#D43F4A";
-const FF = "'DM Sans','Pretendard Variable',-apple-system,'Noto Sans KR',sans-serif";
+const FF = "'A2z','Pretendard Variable',-apple-system,'Noto Sans KR',sans-serif";
 
 const ADMIN_ACCOUNT = { email: "admin@pupoo.com", pw: "admin1234" };
 
