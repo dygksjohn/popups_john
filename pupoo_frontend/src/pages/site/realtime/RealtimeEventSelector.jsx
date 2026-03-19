@@ -1,10 +1,13 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useRef } from "react";
+import PageLoading from "../components/PageLoading";
+import EmptyState from "../components/EmptyState";
 import {
   Radio,
   Signal,
   CalendarDays,
+  ChevronDown,
+  ChevronRight,
   MapPin,
   Search,
 } from "lucide-react";
@@ -12,10 +15,7 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { aiApi } from "../../../app/http/aiApi";
-import {
-  normalizePrediction,
-  resolveUnifiedAverageCongestion,
-} from "./aiCongestionViewModel";
+import { normalizePrediction } from "./aiCongestionViewModel";
 
 const STATUS_CONFIG = {
   live: {
@@ -26,9 +26,9 @@ const STATUS_CONFIG = {
   },
   upcoming: {
     label: "\uC608\uC815",
-    color: "#2563eb",
-    bg: "#eff6ff",
-    border: "#bfdbfe",
+    color: "#02A17E",
+    bg: "#E6F7F2",
+    border: "#CCF0E4",
   },
   ended: {
     label: "\uC885\uB8CC",
@@ -45,10 +45,10 @@ const STATUS_CONFIG = {
 };
 
 const EVENT_VIEW_BUTTONS = [
-  { key: "dashboard", label: "\uD1B5\uD569 \uD604\uD669", path: "/realtime/dashboard" },
-  { key: "waiting", label: "\uB300\uAE30 \uD604\uD669", path: "/realtime/waitingstatus" },
-  { key: "checkin", label: "\uCCB4\uD06C\uC778 \uD604\uD669", path: "/realtime/checkinstatus" },
-  { key: "vote", label: "\uD22C\uD45C \uD604\uD669", path: "/realtime/votestatus" },
+  { key: "dashboard", label: "통합현황", path: "/realtime/dashboard", color: "#02A17E" },
+  { key: "waiting", label: "대기현황", path: "/realtime/waitingstatus", color: "#e67e22" },
+  { key: "checkin", label: "체크인현황", path: "/realtime/checkinstatus", color: "#0ea5e9" },
+  { key: "vote", label: "투표현황", path: "/realtime/votestatus", color: "#8b5cf6" },
 ];
 
 const selectorStyles = `
@@ -58,104 +58,131 @@ const selectorStyles = `
     max-width: 1400px;
     margin: 0 auto;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+    --rte-accent: #02A17E;
+    --rte-accent-light: rgba(78,86,231,0.08);
+    --rte-live-dot: #ef4444;
+    --rte-upcoming-dot: #02A17E;
   }
   .rte-selector *, .rte-selector *::before, .rte-selector *::after {
     box-sizing: border-box;
     font-family: inherit;
   }
-  .rte-topbar {
+
+  /* ── 툴바 (필터탭 + 검색 한 줄) ── */
+  .rte-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
-    gap: 16px;
+    gap: 14px;
     flex-wrap: wrap;
+    margin-bottom: 18px;
   }
-  .rte-topbar-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  .rte-toolbar-left {
+    position: relative;
+    flex: 0 0 auto;
+    min-width: 0;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    height: 42px;
+    width: 280px;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .rte-monitor-icon {
-    width: 38px; height: 38px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #1e293b, #334155);
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 8px rgba(30,41,59,0.18);
+  .rte-toolbar-left:focus-within {
+    border-color: #111827;
+    box-shadow: 0 0 0 2px rgba(17,24,39,0.08);
   }
-  .rte-topbar-title {
-    font-size: 15px; font-weight: 700; color: #111827;
-    line-height: 1.3;
+  .rte-dropdown { position: relative; flex: 0 0 auto; }
+  .rte-dropdown-btn {
+    height: 46px; padding: 0 35px 0 22px; border-radius: 999px 0 0 999px;
+    border: none; background: transparent; color: rgb(156, 163, 175); font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: inherit;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .rte-topbar-desc {
-    font-size: 12px; color: #9ca3af; margin-top: 1px;
+  .rte-dropdown-arrow {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    color: #9ca3af; pointer-events: none; transition: transform .15s ease;
   }
+  .rte-dropdown-arrow.open { transform: translateY(-50%) rotate(180deg); }
+  .rte-dropdown-divider {
+    width: 1px; height: 20px; background: #dbe2ea; flex-shrink: 0;
+  }
+  .rte-dropdown-list {
+    position: absolute; top: calc(100% + 8px); left: 0; min-width: 280px;
+    background: #fff; border-radius: 16px; padding: 8px 0;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12); z-index: 50;
+    max-height: 280px; overflow-y: auto;
+  }
+  .rte-dropdown-item {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 11px 16px; border: none; background: none;
+    font-size: 13px; font-weight: 400; color: #6b7280; cursor: pointer;
+    text-align: left; transition: background .1s ease; font-family: inherit;
+  }
+  .rte-dropdown-item:hover { background: #f9fafb; }
+  .rte-dropdown-item.active { color: #111827; font-weight: 600; }
+  .rte-dropdown-item .dd-icon { color: #9ca3af; flex-shrink: 0; }
   .rte-search-wrap {
     position: relative;
-    width: 260px;
+    width: 100%;
+    height: 100%;
   }
   .rte-search-input {
     width: 100%;
-    height: 38px;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 0 14px 0 36px;
+    height: 100%;
+    padding: 0 16px 0 40px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: #111827;
     font-size: 13px;
-    color: #374151;
-    background: #fff;
+    font-weight: 500;
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
   }
-  .rte-search-input::placeholder { color: #c4c9d4; }
-  .rte-search-input:focus {
-    border-color: #1a4fd6;
-    box-shadow: 0 0 0 3px rgba(26,79,214,0.08);
-  }
+  .rte-search-input::placeholder { color: #9ca3af; }
   .rte-search-icon {
     position: absolute;
-    left: 12px;
+    left: 14px;
     top: 50%;
     transform: translateY(-50%);
-    color: #c4c9d4;
+    color: #9ca3af;
     pointer-events: none;
   }
-  .rte-filters {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-  }
+
+  /* ── 필터 (ps-filter 스타일) ── */
   .rte-filter-tabs {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    min-width: 0;
+    display: inline-flex;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    padding: 4px;
+    gap: 4px;
   }
   .rte-filter-tab {
-    padding: 6px 14px;
-    border-radius: 8px;
-    border: 1px solid #e9ecef;
-    background: #fff;
-    font-size: 12.5px;
+    padding: 8px 28px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: transparent;
+    font-size: 14px;
     font-weight: 600;
-    color: #6b7280;
+    color: #9ca3af;
     cursor: pointer;
     transition: all 0.15s;
-    display: flex; align-items: center; gap: 5px;
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap;
   }
-  .rte-filter-tab:hover { border-color: #cbd5e1; background: #f8fafc; }
+  .rte-filter-tab:hover { color: #374151; }
   .rte-filter-tab.active {
-    background: #1e293b;
-    border-color: #1e293b;
+    background: #1f2937;
     color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
   }
   .rte-filter-count {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
-    min-width: 18px;
-    height: 18px;
+    min-width: 20px;
+    height: 20px;
     border-radius: 100px;
     display: flex; align-items: center; justify-content: center;
     background: rgba(0,0,0,0.06);
@@ -163,193 +190,325 @@ const selectorStyles = `
   .rte-filter-tab.active .rte-filter-count {
     background: rgba(255,255,255,0.2);
   }
+
+  /* ── 리스트 ── */
   .rte-event-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
   }
-  .rte-event-row {
+
+  /* ── 행 (카드) ── */
+  .rte-row {
+    display: flex;
+    flex-direction: column;
+    padding: 32px 36px;
     background: #fff;
-    border: 1.5px solid #e9ecef;
-    border-radius: 14px;
-    padding: 20px 24px;
-    display: grid;
-    grid-template-columns: 74px minmax(220px, 1fr) 290px minmax(320px, 420px);
-    align-items: center;
-    gap: 20px;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     opacity: 0;
-    transform: translateY(12px);
-    animation: rte-row-in 0.4s ease forwards;
+    transform: translateY(4px);
+    animation: rte-row-in 0.3s ease forwards;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+    position: relative;
   }
-  .rte-event-row::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 0;
-    background: linear-gradient(135deg, #1e293b, #334155);
-    transition: width 0.25s ease;
-    border-radius: 14px 0 0 14px;
+
+  /* ── 종료 행사 ── */
+  .rte-row.ended {
+    background: #e8eaed;
+    border-color: #d1d5db;
+    cursor: default;
+    box-shadow: none;
   }
-  .rte-event-row:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-    transform: translateY(-1px);
+  .rte-row.ended .rte-status-label { color: #9ca3af !important; }
+  .rte-row.ended .rte-name { color: #9ca3af; }
+  .rte-row.ended .rte-meta-text { color: #c5c9cf; }
+  .rte-row.ended:hover {
+    background: #e8eaed;
+    border-color: #d1d5db;
   }
-  .rte-event-row:hover::before {
-    width: 4px;
+
+  /* ── hover 시 효과 (부드러운 다크 전환) ── */
+  .rte-row:not(.ended):hover {
+    background: #222a4e;
+    border-color: transparent;
+    box-shadow: 0 8px 32px rgba(30,37,72,0.22);
+    transform: translateY(-2px);
   }
-  .rte-event-row.live-row {
-    border-color: #fecaca;
-    background: linear-gradient(135deg, #fffbfb, #fff);
+  .rte-row:not(.ended):hover .rte-status-label { color: rgba(255,255,255,0.7) !important; }
+  .rte-row:not(.ended):hover .rte-live-dot { box-shadow: 0 0 12px rgba(255,255,255,0.5); }
+  .rte-row:not(.ended):hover .rte-upcoming-dot { box-shadow: 0 0 12px rgba(255,255,255,0.4); }
+  .rte-row:not(.ended):hover .rte-name { color: #fff; }
+  .rte-row:not(.ended):hover .rte-new-badge { background: rgba(255,255,255,0.2); }
+  .rte-row:not(.ended):hover .rte-meta-text { color: rgba(255,255,255,0.45); }
+  .rte-row:not(.ended):hover .rte-metric-card {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.1);
   }
-  .rte-event-row.live-row:hover {
-    border-color: #f87171;
-    box-shadow: 0 4px 24px rgba(239,68,68,0.1);
+  .rte-row:not(.ended):hover .rte-metric-card-num { color: #fff !important; }
+  .rte-row:not(.ended):hover .rte-metric-card-label { color: rgba(255,255,255,0.5); }
+  .rte-row:not(.ended):hover .rte-metric-card-unit { color: rgba(255,255,255,0.4); }
+  .rte-row:not(.ended):hover .rte-metric-bar { background: rgba(255,255,255,0.1); }
+  .rte-row:not(.ended):hover .rte-metric-bar-fill { opacity: 0.85; }
+
+  /* ── 뷰 버튼 (카드 하단) ── */
+  .rte-view-links {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 22px;
+    padding-top: 20px;
+    border-top: 1px solid #f0f0f0;
   }
-  .rte-event-row.live-row::before {
-    width: 4px;
-    background: linear-gradient(180deg, #ef4444, #dc2626);
-  }
-  .rte-status-badge {
-    display: inline-flex;
+  .rte-view-link {
+    display: flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 100px;
-    font-size: 11px;
+    gap: 8px;
+    padding: 13px 10px;
+    border-radius: 12px;
+    border: 1px solid #e2e5ea;
+    background: #f7f8fa;
+    font-size: 14px;
     font-weight: 700;
+    color: #4b5563;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
     white-space: nowrap;
-    border: 1px solid;
-    min-width: 54px;
   }
-  .rte-live-pulse {
-    width: 6px; height: 6px;
+  .rte-view-link .rte-vl-dot {
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    background: #ef4444;
-    animation: rte-pulse 1.4s ease-in-out infinite;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+  }
+  .rte-view-link .rte-vl-arrow {
+    color: #c5c9cf;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+  .rte-view-link:hover {
+    background: #111827;
+    color: #fff;
+    border-color: #111827;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+  }
+  .rte-view-link:hover .rte-vl-dot { background: #fff !important; }
+  .rte-view-link:hover .rte-vl-arrow { color: rgba(255,255,255,0.6); transform: translateX(2px); }
+  .rte-view-link:active { transform: translateY(0); }
+  .rte-row:not(.ended):hover .rte-view-links { border-top-color: rgba(255,255,255,0.12); }
+  .rte-row:not(.ended):hover .rte-view-link {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.18);
+    color: rgba(255,255,255,0.75);
+  }
+  .rte-row:not(.ended):hover .rte-view-link .rte-vl-arrow { color: rgba(255,255,255,0.3); }
+  .rte-row:not(.ended):hover .rte-view-link:hover {
+    background: rgba(255,255,255,0.22);
+    border-color: rgba(255,255,255,0.4);
+    color: #fff;
+    box-shadow: none;
+    transform: translateY(-1px);
+  }
+  .rte-row:not(.ended):hover .rte-view-link:hover .rte-vl-dot { background: #fff !important; }
+  .rte-row:not(.ended):hover .rte-view-link:hover .rte-vl-arrow { color: #fff; }
+  .rte-row.ended .rte-view-links { opacity: 0.35; pointer-events: none; }
+
+  /* ── 상단: 상태 + 이름 ── */
+  .rte-left {
+    flex: 1;
+    min-width: 0;
+  }
+  .rte-status-label {
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.03em;
+  }
+  .rte-live-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--rte-live-dot);
+    box-shadow: 0 0 8px var(--rte-live-dot);
+    animation: rte-pulse 1.6s ease-in-out infinite;
+  }
+  .rte-upcoming-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--rte-upcoming-dot);
+    box-shadow: 0 0 8px var(--rte-upcoming-dot);
+    animation: rte-blink 2.4s ease-in-out infinite;
   }
   @keyframes rte-pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(0.7); }
+    50% { opacity: 0.5; transform: scale(0.75); }
   }
-  .rte-event-info { min-width: 0; }
-  .rte-event-name {
-    font-size: 15px;
-    font-weight: 700;
+  @keyframes rte-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .rte-name {
+    font-size: 28px;
+    font-weight: 900;
     color: #111827;
-    margin-bottom: 6px;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-  .rte-event-meta {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-  .rte-meta-item {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: #9ca3af;
+    gap: 12px;
   }
-  .rte-event-actions {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
-    width: 100%;
-  }
-  .rte-event-action-btn {
-    height: 34px;
-    border-radius: 9px;
-    border: 1px solid #dbe2ea;
-    background: #fff;
-    color: #475569;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    padding: 0 10px;
-    white-space: nowrap;
-  }
-  .rte-event-action-btn:hover {
-    border-color: #94a3b8;
-    color: #1e293b;
-    background: #f8fafc;
-  }
-  .rte-event-action-btn.active {
-    background: #1e293b;
-    border-color: #1e293b;
+  .rte-new-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--rte-live-dot);
     color: #fff;
-  }
-  .rte-metrics {
-    display: flex;
-    gap: 14px;
-    align-items: center;
-  }
-  .rte-metric {
-    text-align: center;
-    min-width: 72px;
-  }
-  .rte-metric-value {
-    font-size: 18px;
+    font-size: 11px;
     font-weight: 800;
-    color: #111827;
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    letter-spacing: 0.04em;
   }
-  .rte-metric-label {
-    font-size: 10.5px;
+  .rte-meta-line {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 10px;
+    font-size: 15px;
     color: #9ca3af;
-    margin-top: 4px;
     font-weight: 500;
   }
-  .rte-metric-divider {
-    width: 1px;
-    height: 28px;
-    background: #f1f3f5;
+  .rte-meta-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
   }
-  .rte-empty {
-    text-align: center;
-    padding: 60px 20px;
+
+  /* ── 지표 그리드 ── */
+  .rte-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .rte-metric-card {
+    border: 1px solid #ebebeb;
+    border-radius: 14px;
+    background: #fff;
+    padding: 18px 20px;
+  }
+  .rte-metric-card.has-ring {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .rte-metric-card-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .rte-metric-card-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #9ca3af;
+    margin-bottom: 6px;
+  }
+  .rte-metric-card-row {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+  .rte-metric-card.has-ring .rte-metric-card-row { justify-content: flex-start; }
+  .rte-metric-card:not(.has-ring) .rte-metric-card-row { justify-content: center; }
+  .rte-metric-card-num {
+    font-size: 28px;
+    font-weight: 900;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .rte-metric-card-unit {
+    font-size: 14px;
+    font-weight: 700;
     color: #9ca3af;
   }
+  .rte-metric-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: #f0f1f3;
+    margin-top: 10px;
+    overflow: hidden;
+  }
+  .rte-metric-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.8s ease;
+  }
+
+  /* ── 중간: 태그 (hidden - merged into meta) ── */
+  .rte-tags { display: none; }
+
+  .rte-row.ended .rte-metric-card {
+    background: #dcdfe3;
+    border-color: #c5c9cf;
+  }
+  .rte-row.ended .rte-metric-card-num { color: #9ca3af; }
+  .rte-row.ended .rte-metric-card-unit { color: #c5c9cf; }
+  .rte-row.ended .rte-metric-card-label { color: #c5c9cf; }
+  .rte-row.ended .rte-metric-bar { background: #e5e5e5; }
+  .rte-row.ended .rte-metric-bar-fill { background: #c5c9cf !important; }
+
+  /* ── legacy (hidden) ── */
+  .rte-metrics { display: none; }
+
+  /* ── 빈 상태 ── */
+  .rte-empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: #9ca3af;
+    border-top: 1px solid #ebebeb;
+    border-bottom: 1px solid #ebebeb;
+  }
   .rte-empty-icon {
-    width: 48px; height: 48px;
-    border-radius: 12px;
+    width: 52px; height: 52px;
+    border-radius: 14px;
     background: #f3f4f6;
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 12px;
+    margin: 0 auto 14px;
   }
-  .rte-empty-text { font-size: 14px; font-weight: 600; color: #6b7280; }
-  .rte-empty-sub { font-size: 12px; margin-top: 4px; }
+  .rte-empty-text { font-size: 15px; font-weight: 700; color: #6b7280; }
+  .rte-empty-sub { font-size: 13px; margin-top: 6px; }
+
   @keyframes rte-row-in {
     to { opacity: 1; transform: translateY(0); }
   }
   @media (max-width: 900px) {
-    .rte-event-row {
-      grid-template-columns: auto 1fr;
-      gap: 14px;
-    }
-    .rte-event-actions {
-      grid-column: 1 / -1;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .rte-metrics { display: none; }
+    .rte-row { padding: 28px 24px; }
+    .rte-name { font-size: 22px; }
+    .rte-metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .rte-view-links { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 640px) {
-    .rte-topbar { flex-direction: column; align-items: flex-start; }
-    .rte-filters { flex-direction: column; align-items: stretch; }
-    .rte-filter-tabs { width: 100%; }
-    .rte-search-wrap { width: 100%; }
-    .rte-event-row { padding: 16px 18px; }
+    .rte-toolbar { flex-direction: column; align-items: stretch; }
+    .rte-toolbar-left { max-width: 100%; width: 100%; }
+    .rte-row { padding: 22px 18px; }
+    .rte-name { font-size: 20px; }
+    .rte-metrics-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .rte-metric-card { padding: 14px 12px; }
+    .rte-metric-card-num { font-size: 22px; }
+    .rte-view-links { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .rte-view-link { font-size: 13px; padding: 12px 10px; }
   }
 `;
 
@@ -462,15 +621,6 @@ const resolveEventAiRangeParams = (event, status) => {
     return {};
   }
 
-  if (status === "pending") {
-    const fallbackStart = toValidDate(event?.startAt);
-    const fallbackEnd = toValidDate(event?.endAt);
-    if (fallbackStart && fallbackEnd && fallbackEnd >= fallbackStart) {
-      return { from: fallbackStart, to: fallbackEnd };
-    }
-    return {};
-  }
-
   const todayKey = toDateKey(new Date());
   const selectedDateKey = (() => {
     if (status === "active" && dateOptions.includes(todayKey)) {
@@ -498,47 +648,6 @@ const resolveEventAiRangeParams = (event, status) => {
   };
 };
 
-const summarizePlannedTimelineAverage = (prediction, startAt, endAt) => {
-  const fallback = (() => {
-    const score = Number(prediction?.avgScore);
-    if (!Number.isFinite(score) || score <= 0) return null;
-    return Math.max(0, Math.min(100, Math.round(score)));
-  })();
-
-  const dateKeys = buildDateKeysFromRange(startAt, endAt);
-  if (dateKeys.length === 0) return fallback;
-
-  const bucketMap = new Map();
-  toArray(prediction?.timeline).forEach((point) => {
-    const dateKey = toDateKey(point?.time);
-    const score = Number(point?.score);
-    if (!dateKey || !Number.isFinite(score)) return;
-    const bucket = bucketMap.get(dateKey) || { sum: 0, count: 0 };
-    bucket.sum += score;
-    bucket.count += 1;
-    bucketMap.set(dateKey, bucket);
-  });
-
-  const dailyScores = dateKeys
-    .map((dateKey) => {
-      const bucket = bucketMap.get(dateKey);
-      if (bucket && bucket.count > 0) {
-        return Math.max(0, Math.min(100, Math.round(bucket.sum / bucket.count)));
-      }
-      return fallback;
-    })
-    .filter((score) => Number.isFinite(score));
-
-  if (dailyScores.length === 0) return fallback;
-  return Math.max(
-    0,
-    Math.min(
-      100,
-      Math.round(dailyScores.reduce((sum, score) => sum + score, 0) / dailyScores.length),
-    ),
-  );
-};
-
 const congestionLevelToPercent = (value) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) return 0;
@@ -547,13 +656,7 @@ const congestionLevelToPercent = (value) => {
 
 const summarizeRealtimeCongestionPercent = (rows) => {
   const values = toArray(rows)
-    .map((row) => {
-      const rawLevel = row?.congestionLevel;
-      const hasMeasuredLevel = rawLevel !== null && rawLevel !== undefined && rawLevel !== "";
-      const congestionLevel = hasMeasuredLevel ? Number(rawLevel) : NaN;
-      if (!Number.isFinite(congestionLevel)) return null;
-      return congestionLevelToPercent(congestionLevel);
-    })
+    .map((row) => congestionLevelToPercent(row?.congestionLevel))
     .filter((value) => Number.isFinite(value));
   if (values.length === 0) return null;
   return Math.max(
@@ -738,7 +841,6 @@ const sortRealtimeEventsByPriority = (events = []) =>
   [...(Array.isArray(events) ? events : [])].sort(compareRealtimeEventsByPriority);
 
 const FILTER_VALUES = new Set(["all", "live", "upcoming", "ended"]);
-const AUTO_REFRESH_INTERVAL_MS = 15_000;
 
 const normalizeFilterValue = (value) =>
   FILTER_VALUES.has(String(value)) ? String(value) : "all";
@@ -748,19 +850,82 @@ async function fetchAdminData(url, params, fallback) {
     const response = await axiosInstance.get(url, {
       params,
     });
-    return {
-      data: unwrapData(response, fallback),
-      hasError: false,
-    };
+    return unwrapData(response, fallback);
   } catch {
-    return {
-      data: fallback,
-      hasError: true,
-    };
+    return fallback;
   }
 }
 
-export default function RealtimeEventSelector({ onSelectEvent, pageTitle, programCategory }) {
+const THEME_CONFIGS = {
+  dashboard: { accent: "#02A17E", liveDot: "#ef4444", upcomingDot: "#02A17E" },
+  waiting:   { accent: "#e67e22", liveDot: "#e67e22", upcomingDot: "#f59e0b" },
+  checkin:   { accent: "#0ea5e9", liveDot: "#0ea5e9", upcomingDot: "#38bdf8" },
+  vote:      { accent: "#8b5cf6", liveDot: "#8b5cf6", upcomingDot: "#a78bfa" },
+};
+
+const MiniRing = ({ percent, color, size = 52 }) => {
+  const sw = 5;
+  const r = (size - sw) / 2;
+  const c = 2 * Math.PI * r;
+  const p = Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0;
+  const offset = c * (1 - p / 100);
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f0f1f3" strokeWidth={sw} />
+      {p > 0 && (
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color || "#02A17E"} strokeWidth={sw}
+          strokeDasharray={c} strokeDashoffset={offset}
+          strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: "stroke-dashoffset 0.8s ease" }} />
+      )}
+    </svg>
+  );
+};
+
+const getMetricBarFill = (key, event) => {
+  switch (key) {
+    case "checkedIn": return event.registrations > 0 ? Math.min(100, Math.round(event.checkedIn / event.registrations * 100)) : 0;
+    case "registrations": return Math.min(100, Math.max(8, Math.round(Math.sqrt(event.registrations) * 4)));
+    case "avgWait": return event.avgWaitMin != null ? Math.min(100, Math.round(event.avgWaitMin * 3.3)) : 0;
+    case "voteCount": return event.registrations > 0 && event.voteCount != null ? Math.min(100, Math.round(event.voteCount / event.registrations * 100)) : 0;
+    case "programCount": return event.programCount != null ? Math.min(100, Math.max(8, Math.round(event.programCount * 5))) : 0;
+    default: return 0;
+  }
+};
+
+const METRIC_BAR_COLORS = {
+  registrations: "#02A17E",
+  checkedIn: "#22c55e",
+  avgWait: "#f59e0b",
+  voteCount: "#8b5cf6",
+  programCount: "#0ea5e9",
+};
+
+const METRIC_CONFIGS = {
+  dashboard: [
+    { key: "registrations", label: "사전등록", unit: "명", format: (e) => e.registrations.toLocaleString(), hideUpcoming: false },
+    { key: "checkedIn", label: "체크인", unit: "명", format: (e) => e.status === "upcoming" ? "-" : e.checkedIn.toLocaleString(), hideUnit: (e) => e.status === "upcoming" },
+    { key: "congestion", label: "혼잡도", unit: "%", format: (e) => e.congestion != null ? e.congestion : "-", hideUnit: (e) => e.congestion == null, color: (e) => e.congestion != null ? getCongestionValueColor(e.congestion) : undefined },
+  ],
+  waiting: [
+    { key: "registrations", label: "대기자", unit: "명", format: (e) => e.waitingCount != null ? e.waitingCount.toLocaleString() : e.registrations.toLocaleString() },
+    { key: "avgWait", label: "평균대기", unit: "분", format: (e) => e.avgWaitMin != null ? e.avgWaitMin : "-", hideUnit: (e) => e.avgWaitMin == null },
+    { key: "congestion", label: "혼잡도", unit: "%", format: (e) => e.congestion != null ? e.congestion : "-", hideUnit: (e) => e.congestion == null, color: (e) => e.congestion != null ? getCongestionValueColor(e.congestion) : undefined },
+  ],
+  checkin: [
+    { key: "registrations", label: "사전등록", unit: "명", format: (e) => e.registrations.toLocaleString() },
+    { key: "checkedIn", label: "체크인", unit: "명", format: (e) => e.status === "upcoming" ? "-" : e.checkedIn.toLocaleString(), hideUnit: (e) => e.status === "upcoming" },
+    { key: "checkinRate", label: "체크인율", unit: "%", format: (e) => e.registrations > 0 && e.status !== "upcoming" ? Math.round((e.checkedIn / e.registrations) * 100) : "-", hideUnit: (e) => e.registrations <= 0 || e.status === "upcoming", color: (e) => { if (e.registrations <= 0 || e.status === "upcoming") return undefined; const rate = Math.round((e.checkedIn / e.registrations) * 100); return rate >= 70 ? "#22c55e" : rate >= 40 ? "#f59e0b" : "#ef4444"; } },
+  ],
+  vote: [
+    { key: "voteCount", label: "투표수", unit: "건", format: (e) => e.voteCount != null ? e.voteCount.toLocaleString() : "-", hideUnit: (e) => e.voteCount == null },
+    { key: "voteRate", label: "참여율", unit: "%", format: (e) => e.voteRate != null ? e.voteRate : "-", hideUnit: (e) => e.voteRate == null },
+    { key: "programCount", label: "프로그램", unit: "개", format: (e) => e.programCount != null ? e.programCount.toLocaleString() : "-", hideUnit: (e) => e.programCount == null },
+  ],
+};
+
+export default function RealtimeEventSelector({ onSelectEvent, pageTitle, programCategory, onCountsReady, metricType = "dashboard" }) {
+  const theme = THEME_CONFIGS[metricType] || THEME_CONFIGS.dashboard;
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -770,7 +935,24 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
   );
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const previousCongestionByEventRef = useRef(new Map());
+  const [ddOpen, setDdOpen] = useState(false);
+  const [selectedDropdownFilter, setSelectedDropdownFilter] = useState("all");
+  const ddRef = useRef(null);
+
+  const DROPDOWN_FILTERS = [
+    { key: "all", label: "전체 행사" },
+    { key: "live", label: "진행중 행사" },
+    { key: "upcoming", label: "예정 행사" },
+    { key: "ended", label: "종료 행사" },
+  ];
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ddRef.current && !ddRef.current.contains(e.target)) setDdOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const currentRealtimePath = useMemo(() => {
     const pathname = String(location.pathname || "");
@@ -806,22 +988,19 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
 
   useEffect(() => {
     let mounted = true;
-    let inFlight = false;
 
-    const load = async ({ preserveLoading = false } = {}) => {
-      if (inFlight) return;
-      inFlight = true;
-      if (!preserveLoading) setLoading(true);
+    const load = async () => {
+      setLoading(true);
 
       try {
-        const [eventsResponse, performanceResult] = await Promise.all([
+        const [eventsResponse, performanceRows] = await Promise.all([
           eventApi.getEvents({ page: 0, size: 120, sort: "startAt,asc" }),
           fetchAdminData("/api/analytics/events", { page: 0, size: 200 }, []),
         ]);
 
         const rawEvents = toArray(unwrapData(eventsResponse, { content: [] }));
         const performanceMap = new Map(
-          toArray(performanceResult?.data).map((row) => [Number(row.eventId), row]),
+          toArray(performanceRows).map((row) => [Number(row.eventId), row]),
         );
 
         const sortedEvents = sortRealtimeEventsByPriority(
@@ -871,183 +1050,60 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
           congestionTargets.map(async (event) => {
             const eventId = Number(event.eventId);
             const status = String(event.status).toLowerCase();
-            const previousCongestion =
-              previousCongestionByEventRef.current.get(eventId) || {};
-            let realtimeMeasuredCongestion = null;
-            let hourlyMeasuredCongestion = null;
-            let aiAverageCongestion = null;
-            let aiLstmCongestion = null;
-            let aiFallbackUsed = false;
-            let endedProgramAiAverageCongestion = null;
 
             if (status === "active") {
-              const payloadResult = await fetchAdminData(
+              const payload = await fetchAdminData(
                 `/api/dashboard/realtime/events/${event.eventId}/congestions`,
                 { limit: 200 },
                 [],
               );
-              if (payloadResult?.hasError) {
-                const preserved = previousCongestion?.realtimeMeasuredCongestion;
-                if (Number.isFinite(preserved)) {
-                  realtimeMeasuredCongestion = preserved;
-                }
-              } else {
-                const realtimePercent = summarizeRealtimeCongestionPercent(payloadResult?.data);
-                if (realtimePercent != null) {
-                  realtimeMeasuredCongestion = realtimePercent;
-                }
+              const realtimePercent = summarizeRealtimeCongestionPercent(payload);
+              if (realtimePercent != null) {
+                return [eventId, realtimePercent];
               }
             }
 
             if (status === "ended") {
-              const hourlyResult = await fetchAdminData(
+              const hourlyPayload = await fetchAdminData(
                 `/api/analytics/events/${event.eventId}/congestion-by-hour`,
                 {},
                 [],
               );
-              if (hourlyResult?.hasError) {
-                const preserved = previousCongestion?.hourlyMeasuredCongestion;
-                if (Number.isFinite(preserved)) {
-                  hourlyMeasuredCongestion = preserved;
-                }
-              } else {
-                const hourlyValues = toArray(hourlyResult?.data)
-                  .map((row) =>
-                    congestionLevelToPercent(
-                      row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level,
-                    ),
+              const hourlyValues = toArray(hourlyPayload)
+                .map((row) =>
+                  congestionLevelToPercent(
+                    row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level,
+                  ),
+                )
+                .filter((value) => Number.isFinite(value) && value > 0);
+              const hourlyAverage = hourlyValues.length
+                ? Math.round(
+                    hourlyValues.reduce((sum, value) => sum + value, 0) /
+                      hourlyValues.length,
                   )
-                  .filter((value) => Number.isFinite(value) && value > 0);
-                const hourlyAverage = hourlyValues.length
-                  ? Math.round(
-                      hourlyValues.reduce((sum, value) => sum + value, 0) /
-                        hourlyValues.length,
-                    )
-                  : null;
+                : null;
 
-                if (hourlyAverage != null) {
-                  hourlyMeasuredCongestion = hourlyAverage;
-                }
+              if (hourlyAverage != null) {
+                return [eventId, hourlyAverage];
               }
             }
 
-            if (status === "ended" && hourlyMeasuredCongestion == null) {
-              try {
-                const aiProgramsResponse = await aiApi.predictProgramsCongestionByEvent(eventId);
-                const aiProgramSamples = toArray(unwrapData(aiProgramsResponse, []))
-                  .map((item) => normalizePrediction(item))
-                  .map((prediction) => Number(prediction?.avgScore))
-                  .filter((score) => Number.isFinite(score) && score > 0);
-
-                if (aiProgramSamples.length > 0) {
-                  endedProgramAiAverageCongestion = Math.round(
-                    aiProgramSamples.reduce((sum, score) => sum + score, 0) /
-                      aiProgramSamples.length,
-                  );
-                }
-              } catch {
-                const preserved = previousCongestion?.endedProgramAiAverageCongestion;
-                endedProgramAiAverageCongestion = Number.isFinite(preserved)
-                  ? preserved
-                  : null;
-              }
+            // For active/pending/ended events: realtime/hourly fallback (or primary for pending) with AI prediction.
+            try {
+              const aiRangeParams = resolveEventAiRangeParams(event, status);
+              const aiResponse = await aiApi.predictEventCongestion(eventId, aiRangeParams);
+              const aiPrediction = normalizePrediction(unwrapData(aiResponse, null));
+              const aiAverage = aiPrediction
+                ? Math.round(Number(aiPrediction.avgScore) || 0)
+                : null;
+              return [eventId, Number.isFinite(aiAverage) ? aiAverage : null];
+            } catch {
+              return [eventId, null];
             }
-
-            // For active/pending/ended events: fallback with event-level AI prediction.
-            if (status !== "ended" || hourlyMeasuredCongestion == null) {
-              try {
-                const aiRangeParams = resolveEventAiRangeParams(event, status);
-                const aiResponse = await aiApi.predictEventCongestion(eventId, aiRangeParams);
-                const aiPrediction = normalizePrediction(unwrapData(aiResponse, null));
-                const aiAverage = aiPrediction
-                  ? Math.round(Number(aiPrediction.avgScore) || 0)
-                  : null;
-                const aiPlannedAverage = status === "pending"
-                  ? summarizePlannedTimelineAverage(aiPrediction, event?.startAt, event?.endAt)
-                  : null;
-                const aiLstm = aiPrediction
-                  ? Math.round(Number(aiPrediction.lstmAvgScore) || 0)
-                  : null;
-                aiAverageCongestion =
-                  Number.isFinite(aiPlannedAverage) && aiPlannedAverage > 0
-                    ? aiPlannedAverage
-                    : (Number.isFinite(aiAverage) && aiAverage > 0
-                      ? aiAverage
-                      : null);
-                aiLstmCongestion =
-                  Number.isFinite(aiLstm) && aiLstm > 0
-                    ? aiLstm
-                    : null;
-                aiFallbackUsed = Boolean(aiPrediction?.fallbackUsed);
-              } catch {
-                const preservedAiAverage = previousCongestion?.aiAverageCongestion;
-                const preservedAiLstm = previousCongestion?.aiLstmCongestion;
-                aiAverageCongestion = Number.isFinite(preservedAiAverage)
-                  ? preservedAiAverage
-                  : null;
-                aiLstmCongestion = Number.isFinite(preservedAiLstm)
-                  ? preservedAiLstm
-                  : null;
-                aiFallbackUsed = Boolean(previousCongestion?.aiFallbackUsed);
-              }
-            }
-
-            return [eventId, {
-              realtimeMeasuredCongestion,
-              hourlyMeasuredCongestion,
-              aiAverageCongestion,
-              aiLstmCongestion,
-              aiFallbackUsed,
-              endedProgramAiAverageCongestion,
-            }];
           }),
         );
 
-        const mergedCongestionMap = new Map(previousCongestionByEventRef.current);
-        congestionEntries.forEach(([eventId, nextInfo]) => {
-          const previousInfo = mergedCongestionMap.get(eventId) || {};
-          mergedCongestionMap.set(eventId, {
-            realtimeMeasuredCongestion: Number.isFinite(nextInfo?.realtimeMeasuredCongestion)
-              ? nextInfo.realtimeMeasuredCongestion
-              : (Number.isFinite(previousInfo?.realtimeMeasuredCongestion)
-                ? previousInfo.realtimeMeasuredCongestion
-                : null),
-            hourlyMeasuredCongestion: Number.isFinite(nextInfo?.hourlyMeasuredCongestion)
-              ? nextInfo.hourlyMeasuredCongestion
-              : (Number.isFinite(previousInfo?.hourlyMeasuredCongestion)
-                ? previousInfo.hourlyMeasuredCongestion
-                : null),
-            aiAverageCongestion: Number.isFinite(nextInfo?.aiAverageCongestion)
-              ? nextInfo.aiAverageCongestion
-              : (Number.isFinite(previousInfo?.aiAverageCongestion)
-                ? previousInfo.aiAverageCongestion
-                : null),
-            aiLstmCongestion: Number.isFinite(nextInfo?.aiLstmCongestion)
-              ? nextInfo.aiLstmCongestion
-              : (Number.isFinite(previousInfo?.aiLstmCongestion)
-                ? previousInfo.aiLstmCongestion
-                : null),
-            aiFallbackUsed:
-              Number.isFinite(nextInfo?.aiAverageCongestion) || Number.isFinite(nextInfo?.aiLstmCongestion)
-                ? Boolean(nextInfo?.aiFallbackUsed)
-                : Boolean(previousInfo?.aiFallbackUsed),
-            endedProgramAiAverageCongestion: Number.isFinite(nextInfo?.endedProgramAiAverageCongestion)
-              ? nextInfo.endedProgramAiAverageCongestion
-              : (Number.isFinite(previousInfo?.endedProgramAiAverageCongestion)
-                ? previousInfo.endedProgramAiAverageCongestion
-                : null),
-          });
-        });
-        const visibleEventIds = new Set(
-          visibleEvents.map((event) => Number(event.eventId)).filter((eventId) => Number.isFinite(eventId)),
-        );
-        Array.from(mergedCongestionMap.keys()).forEach((eventId) => {
-          if (!visibleEventIds.has(eventId)) {
-            mergedCongestionMap.delete(eventId);
-          }
-        });
-        previousCongestionByEventRef.current = mergedCongestionMap;
-        const congestionMap = mergedCongestionMap;
+        const congestionMap = new Map(congestionEntries);
 
         if (!mounted) return;
 
@@ -1063,28 +1119,21 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
               ) || 0;
             const checkedInRaw = Number(performance?.checkinCount) || 0;
             const checkedIn = rawStatus === "PLANNED" ? 0 : checkedInRaw;
-            const congestionInfo = congestionMap.get(Number(event.eventId)) || {};
-            const realtimeMeasuredCongestion =
-              congestionInfo?.realtimeMeasuredCongestion;
-            const hourlyMeasuredCongestion =
-              congestionInfo?.hourlyMeasuredCongestion;
-            const aiAverageCongestion = congestionInfo?.aiAverageCongestion;
-            const aiLstmCongestion = congestionInfo?.aiLstmCongestion;
-            const aiFallbackUsed = Boolean(congestionInfo?.aiFallbackUsed);
-            const endedProgramAiAverageCongestion =
-              congestionInfo?.endedProgramAiAverageCongestion;
-            const congestion = resolveUnifiedAverageCongestion({
-              status: rawStatus,
-              measuredAverage: realtimeMeasuredCongestion,
-              hourlyAverage: hourlyMeasuredCongestion,
-              endedProgramAiAverage: endedProgramAiAverageCongestion,
-              aiAverage: aiAverageCongestion,
-              aiFallbackUsed,
-              approvedCount: registrations,
-              checkinCount: checkedInRaw,
-              startAt: event.startAt,
-              endAt: event.endAt,
-            });
+            const measuredCongestion = congestionMap.get(Number(event.eventId));
+            const congestion =
+              measuredCongestion != null
+                ? measuredCongestion
+                : selectorStatus === "ended"
+                  ? 0
+                  : null;
+            const checkinRate = registrations > 0 && selectorStatus !== "upcoming"
+              ? Math.round((checkedIn / registrations) * 100) : null;
+            const waitingCount = Number(performance?.waitingCount) || 0;
+            const avgWaitMin = Number(performance?.avgWaitingMinutes ?? performance?.avgWaitMin) || null;
+            const voteCount = Number(performance?.voteCount ?? performance?.totalVotes) || null;
+            const programCount = Number(performance?.programCount ?? performance?.totalPrograms) || null;
+            const voteRate = registrations > 0 && voteCount != null
+              ? Math.round((voteCount / registrations) * 100) : null;
             return {
               id: event.eventId,
               name: event.eventName,
@@ -1094,13 +1143,13 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
               status: selectorStatus,
               registrations,
               checkedIn,
+              checkinRate,
               congestion,
-              lgbmCongestion: Number.isFinite(aiAverageCongestion)
-                ? aiAverageCongestion
-                : null,
-              lstmCongestion: Number.isFinite(aiLstmCongestion)
-                ? aiLstmCongestion
-                : null,
+              waitingCount,
+              avgWaitMin,
+              voteCount,
+              voteRate,
+              programCount,
               delay: index * 60,
             };
           }),
@@ -1109,21 +1158,15 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
         console.error("[RealtimeEventSelector] load failed:", error);
         if (mounted) setEvents([]);
       } finally {
-        if (mounted && !preserveLoading) setLoading(false);
-        inFlight = false;
+        if (mounted) setLoading(false);
       }
     };
 
-    void load();
-    const intervalId = setInterval(() => {
-      void load({ preserveLoading: true });
-    }, AUTO_REFRESH_INTERVAL_MS);
-
+    load();
     return () => {
       mounted = false;
-      clearInterval(intervalId);
     };
-  }, [programCategory]);
+  }, []);
 
   const filtered = useMemo(() => {
     return events.filter((event) => {
@@ -1137,9 +1180,13 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
         filter === "all" ||
         event.status === filter ||
         (filter === "ended" && event.status === "cancelled");
-      return matchSearch && matchFilter;
+      const matchDropdown =
+        selectedDropdownFilter === "all" ||
+        event.status === selectedDropdownFilter ||
+        (selectedDropdownFilter === "ended" && event.status === "cancelled");
+      return matchSearch && matchFilter && matchDropdown;
     });
-  }, [events, filter, search]);
+  }, [events, filter, search, selectedDropdownFilter]);
 
   const counts = {
     all: events.length,
@@ -1148,177 +1195,153 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
     ended: events.filter((event) => event.status === "ended" || event.status === "cancelled").length,
   };
 
+  useEffect(() => {
+    if (onCountsReady) onCountsReady(counts);
+  }, [counts.all, counts.live, counts.upcoming, counts.ended]);
+
   return (
     <>
       <style>{selectorStyles}</style>
-      <div className="rte-selector">
-        <div className="rte-topbar">
-          <div className="rte-topbar-left">
-            <div className="rte-monitor-icon">
-              <Signal size={18} color="#fff" />
-            </div>
-            <div>
-              <div className="rte-topbar-title">
-                {"\uBAA8\uB2C8\uD130\uB9C1\uD560 \uD589\uC0AC\uB97C \uC120\uD0DD\uD558\uC138\uC694"}
-              </div>
-              <div className="rte-topbar-desc">
-                {pageTitle} {"\uD654\uBA74\uC73C\uB85C \uC774\uB3D9\uD569\uB2C8\uB2E4"}
-              </div>
-            </div>
-          </div>        </div>
-
-        <div className="rte-filters">
+      <div
+        className="rte-selector"
+        style={{
+          "--rte-accent": theme.accent,
+          "--rte-live-dot": theme.liveDot,
+          "--rte-upcoming-dot": theme.upcomingDot,
+        }}
+      >
+        <div className="rte-toolbar">
+          {/* 필터 탭 */}
           <div className="rte-filter-tabs">
             {[
-              { key: "all", label: "\uC804\uCCB4" },
-              { key: "live", label: "\uC9C4\uD589\uC911" },
-              { key: "upcoming", label: "\uC608\uC815" },
-              { key: "ended", label: "\uC885\uB8CC" },
-            ].map((item) => (
+              { key: "all", label: "전체 행사" },
+              { key: "live", label: "진행중 행사" },
+              { key: "upcoming", label: "예정 행사" },
+              { key: "ended", label: "종료 행사" },
+            ].map((tab) => (
               <button
-                key={item.key}
-                className={`rte-filter-tab ${filter === item.key ? "active" : ""}`}
-                onClick={() => handleFilterChange(item.key)}
+                key={tab.key}
+                className={`rte-filter-tab${filter === tab.key ? " active" : ""}`}
+                onClick={() => handleFilterChange(tab.key)}
+                type="button"
               >
-                {item.label}
-                <span className="rte-filter-count">{counts[item.key]}</span>
+                {tab.label}
+                <span className="rte-filter-count">{counts[tab.key] ?? 0}</span>
               </button>
             ))}
           </div>
-          <div className="rte-search-wrap">
-            <Search size={14} className="rte-search-icon" />
-            <input
-              className="rte-search-input"
-              type="text"
-              placeholder={"\uD589\uC0AC\uBA85 \uB610\uB294 \uC7A5\uC18C \uAC80\uC0C9..."}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
+
+          {/* 검색 */}
+          <div className="rte-toolbar-left">
+            <div className="rte-search-wrap">
+              <Search size={15} className="rte-search-icon" />
+              <input
+                className="rte-search-input"
+                type="text"
+                placeholder="행사명, 장소 검색"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
           </div>
         </div>
 
         <div className="rte-event-list">
           {loading ? (
-            <div className="rte-empty">
-              <div className="rte-empty-icon">
-                <Radio size={20} color="#9ca3af" />
-              </div>
-              <div className="rte-empty-text">{"\uD589\uC0AC \uBAA9\uB85D\uC744 \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4"}</div>
-              <div className="rte-empty-sub">{"\uC2E4\uC81C \uD589\uC0AC \uB370\uC774\uD130\uB97C \uC5F0\uACB0\uD558\uACE0 \uC788\uC2B5\uB2C8\uB2E4"}</div>
-            </div>
+            <PageLoading message="행사 목록을 불러오는 중입니다" />
           ) : filtered.length === 0 ? (
-            <div className="rte-empty">
-              <div className="rte-empty-icon">
-                <Search size={20} color="#9ca3af" />
-              </div>
-              <div className="rte-empty-text">{"\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4"}</div>
-              <div className="rte-empty-sub">{"\uB2E4\uB978 \uAC80\uC0C9\uC5B4\uB098 \uD544\uD130\uB97C \uC2DC\uB3C4\uD574\uBCF4\uC138\uC694"}</div>
-            </div>
+            events.length === 0
+              ? <EmptyState message="등록된 행사가 없습니다" description="행사가 등록되면 이곳에 표시됩니다" />
+              : <EmptyState message="조건에 맞는 행사가 없습니다" description="다른 검색어나 필터를 시도해보세요" />
           ) : (
             filtered.map((event) => {
               const statusConfig = STATUS_CONFIG[event.status] || STATUS_CONFIG.upcoming;
-              const isPlannedLike =
-                event.rawStatus === "PLANNED" ||
-                event.status === "upcoming" ||
-                event.status === "pending";
-              const displayedCongestion = isPlannedLike
-                ? (
-                  Number.isFinite(event.lgbmCongestion)
-                    ? event.lgbmCongestion
-                    : null
-                )
-                : event.congestion;
-              const congestionText = displayedCongestion != null
-                ? `${displayedCongestion}%`
-                : "-";
+              const rowClass = event.status === "live" ? "live"
+                : event.status === "upcoming" ? "upcoming" : "ended";
+              const isEnded = rowClass === "ended";
               return (
                 <div
                   key={event.id}
-                  className={`rte-event-row ${event.status === "live" ? "live-row" : ""}`}
+                  className={`rte-row ${rowClass}`}
                   style={{ animationDelay: `${event.delay}ms` }}
-                  onClick={() => onSelectEvent?.(event.id)}
                 >
-                  <div
-                    className="rte-status-badge"
-                    style={{
-                      color: statusConfig.color,
-                      background: statusConfig.bg,
-                      borderColor: statusConfig.border,
-                    }}
-                  >
-                    {event.status === "live" ? <span className="rte-live-pulse" /> : null}
-                    {statusConfig.label}
-                  </div>
-
-                  <div className="rte-event-info">
-                    <div className="rte-event-name">{event.name}</div>
-                    <div className="rte-event-meta">
-                      <span className="rte-meta-item">
-                        <CalendarDays size={12} />
-                        {event.date}
-                      </span>
-                      <span className="rte-meta-item">
-                        <MapPin size={12} />
+                  {/* 상단: 상태 + 행사명 */}
+                  <div className="rte-left">
+                    <div className="rte-status-label" style={{ color: event.status === "live" ? theme.liveDot : event.status === "upcoming" ? theme.upcomingDot : statusConfig.color }}>
+                      {event.status === "live" && <span className="rte-live-dot" />}
+                      {event.status === "upcoming" && <span className="rte-upcoming-dot" />}
+                      {statusConfig.label}
+                    </div>
+                    <div className="rte-name">
+                      {event.name}
+                      {event.status === "live" && <span className="rte-new-badge">NEW</span>}
+                    </div>
+                    <div className="rte-meta-line">
+                      <span className="rte-meta-text">
+                        <MapPin size={14} />
                         {event.location}
                       </span>
+                      <span className="rte-meta-text">
+                        <CalendarDays size={14} />
+                        {event.date}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="rte-metrics">
-                    <div className="rte-metric">
-                      <div className="rte-metric-value">
-                        {event.registrations.toLocaleString()}
-                      </div>
-                      <div className="rte-metric-label">{"\uC0AC\uC804\uB4F1\uB85D"}</div>
-                    </div>
-                    <div className="rte-metric-divider" />
-                    <div className="rte-metric">
-                      <div
-                        className="rte-metric-value"
-                        style={{
-                          color: event.checkedIn > 0 ? "#10b981" : "#d1d5db",
-                        }}
-                      >
-                        {event.status === "upcoming" ? "-" : event.checkedIn.toLocaleString()}
-                      </div>
-                      <div className="rte-metric-label">{"\uCCB4\uD06C\uC778"}</div>
-                    </div>
-                    <div className="rte-metric-divider" />
-                    <div className="rte-metric">
-                      <div
-                        className="rte-metric-value"
-                        style={{
-                          color: getCongestionValueColor(
-                            displayedCongestion,
-                          ),
-                        }}
-                      >
-                        {congestionText}
-                      </div>
-                      <div className="rte-metric-label">
-                        {event.rawStatus === "PLANNED" ||
-                        event.status === "upcoming" ||
-                        event.status === "pending"
-                          ? "\uC608\uC0C1 \uD63C\uC7A1\uB3C4"
-                          : event.status === "live"
-                            ? "\uC2E4\uC2DC\uAC04 \uD63C\uC7A1\uB3C4"
-                            : "\uD3C9\uADE0 \uD63C\uC7A1\uB3C4"}
-                      </div>
-                    </div>
+                  {/* 지표 그리드 */}
+                  <div className="rte-metrics-grid">
+                    {(METRIC_CONFIGS[metricType] || METRIC_CONFIGS.dashboard).map((m) => {
+                      const val = m.format(event);
+                      const showUnit = m.hideUnit ? !m.hideUnit(event) : val !== "-";
+                      const isEnded = event.status === "ended";
+                      const numColor = isEnded ? "#9ca3af" : (m.color ? m.color(event) : undefined);
+                      const isPercent = m.unit === "%";
+                      const rawPercent = isPercent ? (typeof val === "number" ? val : parseFloat(val)) : null;
+                      const hasRing = isPercent && Number.isFinite(rawPercent);
+                      const barFill = !isPercent && val !== "-" ? getMetricBarFill(m.key, event) : null;
+                      const barColor = isEnded ? "#c5c9cf" : (METRIC_BAR_COLORS[m.key] || numColor || "#02A17E");
+                      const ringColor = isEnded ? "#c5c9cf" : (numColor || "#02A17E");
+                      return (
+                        <div className={`rte-metric-card${hasRing ? " has-ring" : ""}`} key={m.key}>
+                          {hasRing && (
+                            <MiniRing percent={rawPercent} color={ringColor} />
+                          )}
+                          <div className="rte-metric-card-info">
+                            <div className="rte-metric-card-label">{m.label}</div>
+                            <div className="rte-metric-card-row">
+                              <span
+                                className="rte-metric-card-num"
+                                style={numColor ? { color: numColor } : undefined}
+                              >
+                                {val}
+                              </span>
+                              {showUnit && <span className="rte-metric-card-unit">{m.unit}</span>}
+                            </div>
+                            {barFill != null && barFill > 0 && (
+                              <div className="rte-metric-bar">
+                                <div className="rte-metric-bar-fill" style={{ width: `${barFill}%`, background: barColor }} />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  <div className="rte-event-actions">
-                    {EVENT_VIEW_BUTTONS.map((view) => (
-                      <button
-                        key={`${event.id}-${view.key}`}
-                        type="button"
-                        className={`rte-event-action-btn${currentRealtimePath === view.path ? " active" : ""}`}
-                        onClick={(clickEvent) =>
-                          handleSelectEventView(event.id, view.path, clickEvent)
-                        }
-                      >
-                        {view.label}
-                      </button>
+                  {/* 하단: 뷰 버튼 */}
+                  <div className="rte-view-links">
+                    {EVENT_VIEW_BUTTONS.map((btn) => (
+                        <button
+                          key={btn.key}
+                          className="rte-view-link"
+                          style={{ "--btn-color": btn.color }}
+                          onClick={(e) => handleSelectEventView(event.id, btn.path, e)}
+                          type="button"
+                        >
+                          <span className="rte-vl-dot" style={{ background: btn.color }} />
+                          {btn.label}
+                          <ChevronRight size={14} className="rte-vl-arrow" />
+                        </button>
                     ))}
                   </div>
                 </div>

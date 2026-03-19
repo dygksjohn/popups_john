@@ -117,9 +117,6 @@ import EventGallery from "./pages/site/gallery/eventgallery";
 import Operation from "./pages/site/guide/Operation";
 import LocationPage from "./pages/site/guide/Location";
 
-// 기능: 임시 미구현 화면을 공통 표시한다.
-// 설명: 관리자 placeholder 라우트에서 동일한 안내 화면을 재사용한다.
-// 흐름: 라우트 매칭 -> ComingSoon 렌더링 -> 준비 중 메시지 표시.
 function ComingSoon() {
   return (
     <div
@@ -152,8 +149,6 @@ function PublicOnly({ children }) {
   const { isAuthed } = useAuth();
   const location = useLocation();
 
-  // 기능: 이미 로그인한 사용자가 로그인/회원가입 화면으로 다시 들어오는 것을 막는다.
-  // 설명: 공개 인증 화면은 비로그인 전용으로 유지하고, 로그인 상태면 메인으로 되돌린다.
   if (isAuthed) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
   }
@@ -161,9 +156,6 @@ function PublicOnly({ children }) {
   return children;
 }
 
-// 기능: 관리자 전용 라우트 접근을 보호한다.
-// 설명: 관리자 토큰 유효성을 검사하고 실패 시 로그인 화면으로 이동시킨다.
-// 흐름: 토큰 확인 -> admin API 검증 -> 성공 시 children 렌더링, 실패 시 redirect.
 function RequireAdmin({ children }) {
   const location = useLocation();
   const [checking, setChecking] = useState(true);
@@ -214,9 +206,6 @@ function RequireAdmin({ children }) {
   return children;
 }
 
-// 기능: 레거시 프로그램 경로를 현재 경로로 전달한다.
-// 설명: 이전 URL을 유지하되 실제 화면은 새로운 canonical 경로에서 렌더링한다.
-// 흐름: eventId 추출 -> target 조합 -> Navigate redirect.
 function LegacyProgramRedirect({ target }) {
   const { eventId } = useParams();
   return <Navigate to={eventId ? `${target}/${eventId}` : target} replace />;
@@ -227,9 +216,6 @@ export default function App() {
     <>
       <ScrollToTop />
       <Routes>
-        {/* 기능: 관리자 라우트 정의
-            설명: 관리자 로그인과 대시보드 하위 관리 화면을 보호된 경로로 구성한다.
-            흐름: 경로 진입 -> RequireAdmin 검사 -> 각 관리자 페이지 렌더링 */}
         {/* admin */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
@@ -413,9 +399,6 @@ export default function App() {
           }
         />
 
-        {/* 기능: 사용자 사이트 라우트 정의
-            설명: 인증, 행사, 프로그램, 결제, 커뮤니티, 정책 페이지를 한 곳에서 관리한다.
-            흐름: 경로 매칭 -> 공개/인증 조건 확인 -> 해당 페이지 또는 redirect 렌더링 */}
         {/* site */}
         <Route element={<SiteLayout />}>
           <Route path="/" element={<Home />} />
@@ -439,6 +422,7 @@ export default function App() {
           <Route path="/auth/mypage" element={<Mypage />} />
           <Route path="/auth/mypage/qr" element={<MypageQr />} />
           <Route path="/auth/mypage/profile" element={<MypageProfileEdit />} />
+          <Route path="/auth/mypage/pjrofile" element={<MypageProfileEdit />} />
           <Route path="/auth/mypage/pets/new" element={<MypagePetEditor />} />
           <Route
             path="/auth/mypage/pets/:petId/edit"
@@ -447,6 +431,7 @@ export default function App() {
           <Route path="/mypage" element={<Mypage />} />
           <Route path="/mypage/qr" element={<MypageQr />} />
           <Route path="/mypage/profile" element={<MypageProfileEdit />} />
+          <Route path="/mypage/pjrofile" element={<MypageProfileEdit />} />
           <Route path="/mypage/pets/new" element={<MypagePetEditor />} />
           <Route
             path="/mypage/pets/:petId/edit"

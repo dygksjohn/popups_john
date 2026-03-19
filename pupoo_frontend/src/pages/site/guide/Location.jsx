@@ -87,7 +87,7 @@ const styles = `
   .loc-map-visual {
     position: relative;
     height: 240px;
-    background: linear-gradient(135deg, #EEF2FF 0%, #DBEAFE 50%, #E0E7FF 100%);
+    background: linear-gradient(135deg, #E6F7F2 0%, #CCF0E4 50%, #CCF0E4 100%);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 12px;
     overflow: hidden;
@@ -103,14 +103,14 @@ const styles = `
   .loc-map-pin {
     width: 56px; height: 56px;
     border-radius: 50%;
-    background: #1B50D9;
+    background: #028A6C;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 6px 24px rgba(27,80,217,0.3), 0 0 0 8px rgba(27,80,217,0.12);
     position: relative; z-index: 1;
   }
   .loc-map-label {
     font-size: 14px; font-weight: 700;
-    color: #1B50D9; background: #fff;
+    color: #028A6C; background: #fff;
     padding: 7px 16px; border-radius: 100px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     position: relative; z-index: 1;
@@ -134,7 +134,7 @@ const styles = `
   .loc-map-cta {
     display: inline-flex; align-items: center; gap: 7px;
     padding: 10px 20px; border-radius: 10px;
-    background: #1B50D9; color: #fff;
+    background: #028A6C; color: #fff;
     font-size: 13px; font-weight: 700;
     border: none; cursor: pointer;
     font-family: inherit; transition: all 0.15s;
@@ -152,8 +152,8 @@ const styles = `
     background: #fff; font-size: 13px; font-weight: 600; color: #6B7280;
     cursor: pointer; font-family: inherit; transition: all 0.15s;
   }
-  .loc-transport-tab:hover { border-color: #1B50D9; color: #1B50D9; }
-  .loc-transport-tab.active { background: #1B50D9; color: #fff; border-color: #1B50D9; }
+  .loc-transport-tab:hover { border-color: #028A6C; color: #028A6C; }
+  .loc-transport-tab.active { background: #028A6C; color: #fff; border-color: #028A6C; }
   .loc-addr-wrap { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
   .loc-copy-btn {
     display: inline-flex; align-items: center; gap: 6px;
@@ -161,7 +161,7 @@ const styles = `
     background: #fff; font-size: 12px; font-weight: 600; color: #6B7280;
     cursor: pointer; font-family: inherit; transition: all 0.15s; flex-shrink: 0;
   }
-  .loc-copy-btn:hover { border-color: #1B50D9; color: #1B50D9; }
+  .loc-copy-btn:hover { border-color: #028A6C; color: #028A6C; }
   .loc-toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
     padding: 10px 20px; border-radius: 10px; background: #111827; color: #fff;
@@ -192,7 +192,7 @@ const styles = `
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
-  .loc-info-card-icon.blue   { background: #EEF2FF; color: #1B50D9; }
+  .loc-info-card-icon.blue   { background: #E6F7F2; color: #028A6C; }
   .loc-info-card-icon.amber  { background: #FEF3C7; color: #92400E; }
   .loc-info-card-icon.slate  { background: #F3F4F6; color: #374151; }
   .loc-info-card-title {
@@ -220,7 +220,7 @@ const styles = `
     font-size: 12px; color: #9CA3AF; margin-top: 2px;
   }
   .loc-detail-highlight {
-    font-weight: 700; color: #1B50D9;
+    font-weight: 700; color: #028A6C;
   }
 
   /* ── 섹션 헤더 ── */
@@ -230,9 +230,9 @@ const styles = `
   }
   .loc-sec-num {
     font-size: 13px; font-weight: 800;
-    color: #1B50D9;
+    color: #028A6C;
     width: 32px; height: 32px;
-    background: #EEF2FF;
+    background: #E6F7F2;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
   }
@@ -260,7 +260,7 @@ const styles = `
     content: '';
     position: absolute; top: 0; left: 0;
     width: 100%; height: 3px;
-    background: #1B50D9;
+    background: #028A6C;
     opacity: 0; transition: opacity 0.2s;
   }
   .loc-tr-card:hover {
@@ -276,7 +276,7 @@ const styles = `
     display: flex; align-items: center; justify-content: center;
     margin-bottom: 16px;
   }
-  .loc-tr-icon.subway { background: #EEF2FF; color: #1B50D9; }
+  .loc-tr-icon.subway { background: #E6F7F2; color: #028A6C; }
   .loc-tr-icon.bus    { background: #D1FAE5; color: #065F46; }
   .loc-tr-icon.car    { background: #FEF3C7; color: #92400E; }
 
@@ -296,7 +296,7 @@ const styles = `
     font-size: 10px; font-weight: 800;
     flex-shrink: 0; margin-top: 1px;
   }
-  .loc-tr-badge.dark   { background: #1B50D9; color: #fff; }
+  .loc-tr-badge.dark   { background: #028A6C; color: #fff; }
   .loc-tr-badge.green  { background: #059669; color: #fff; }
   .loc-tr-badge.orange { background: #D97706; color: #fff; }
   .loc-tr-text {
@@ -528,7 +528,7 @@ export default function Location({ onNavigate }) {
               <div className={`loc-map-visual ${mapLoaded ? "has-map" : ""} ${mapError ? "loc-map-error" : ""}`}>
                 <div ref={mapContainerRef} className="loc-map-inner" />
                 {!mapLoaded && (
-                  <div className="loc-map-loading" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "linear-gradient(135deg, #EEF2FF 0%, #DBEAFE 50%, #E0E7FF 100%)" }}>
+                  <div className="loc-map-loading" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "linear-gradient(135deg, #E6F7F2 0%, #CCF0E4 50%, #CCF0E4 100%)" }}>
                     {mapError ? (
                       <>
                         <div className="loc-map-sublabel" style={{ color: "#6B7280", fontWeight: 600, marginBottom: 4 }}>지도를 불러올 수 없습니다</div>

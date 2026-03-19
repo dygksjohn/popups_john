@@ -19,7 +19,7 @@ const WEEKDAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 const MINI_WD = ["월", "화", "수", "목", "금", "토", "일"];
 const STATUS_META = {
   ONGOING: { label: "진행 중", color: "#22c55e", soft: "#f0fdf4" },
-  UPCOMING: { label: "예정", color: "#3b82f6", soft: "#eff6ff" },
+  UPCOMING: { label: "예정", color: "#3DBFA0", soft: "#E6F7F2" },
   ENDED: { label: "종료", color: "#9ca3af", soft: "#f9fafb" },
 };
 
@@ -81,7 +81,7 @@ const styles = `
     font-weight: 600; text-align: center; letter-spacing: 0.5px;
   }
   .es-cal-weekday:last-child { color: #f87171; }
-  .es-cal-weekday:nth-child(6) { color: #60a5fa; }
+  .es-cal-weekday:nth-child(6) { color: #5CCDB2; }
   .es-cal-week-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .es-cal-day {
     border-right: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6;
@@ -98,20 +98,20 @@ const styles = `
     display: flex; align-items: center; justify-content: center; border-radius: 50%;
   }
   .es-cal-day:nth-child(7) .es-cal-day-num { color: #f87171; }
-  .es-cal-day:nth-child(6) .es-cal-day-num { color: #60a5fa; }
+  .es-cal-day:nth-child(6) .es-cal-day-num { color: #5CCDB2; }
   .es-cal-day.outside:nth-child(7) .es-cal-day-num,
   .es-cal-day.outside:nth-child(6) .es-cal-day-num { color: #d4d4d8; }
-  .es-cal-day.today .es-cal-day-num { background: #3b82f6; color: #fff !important; font-weight: 700; }
+  .es-cal-day.today .es-cal-day-num { background: #3DBFA0; color: #fff !important; font-weight: 700; }
   .es-cell-events { display: flex; flex-direction: column; gap: 2px; }
   .es-cell-evt {
-    display: flex; align-items: center; gap: 5px; padding: 2.5px 5px;
+    display: flex; align-items: center; gap: 5px; padding: 9.5px 5px;
     border-radius: 4px; cursor: pointer; transition: background 0.12s;
     border: none; background: transparent; width: 100%; text-align: left; font-family: inherit;
   }
   .es-cell-evt:hover { background: #f3f4f6; }
   .es-cell-evt-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
   .es-cell-evt-name {
-    font-size: 13px; font-weight: 600; color: #374151;
+    font-size: 14px; font-weight: 500; color: #4b4b4b;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4;
   }
   .es-cell-more { font-size: 12px; color: #a1a1aa; font-weight: 600; padding: 1px 5px; }
@@ -129,7 +129,7 @@ const styles = `
     background: #f3f4f6; border-radius: 10px; padding: 0 12px; height: 40px;
     transition: all 0.2s;
   }
-  .es-search-inner:focus-within { background: #fff; box-shadow: 0 0 0 2px #3b82f6; }
+  .es-search-inner:focus-within { background: #fff; box-shadow: 0 0 0 2px #3DBFA0; }
   .es-search-input {
     flex: 1; border: none; outline: none; background: transparent;
     font-size: 15.5px; font-weight: 400; color: #111827; font-family: inherit;
@@ -163,7 +163,7 @@ const styles = `
   .es-mini-wd {
     text-align: center; font-size: 13px; font-weight: 600; color: #b0b5bd; padding: 3px 0;
   }
-  .es-mini-wd:nth-child(6) { color: #93c5fd; }
+  .es-mini-wd:nth-child(6) { color: #5CCDB2; }
   .es-mini-wd:last-child { color: #fca5a5; }
   .es-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
   .es-mini-day {
@@ -173,12 +173,12 @@ const styles = `
   }
   .es-mini-day:hover { background: #f3f4f6; }
   .es-mini-day.out { color: #d4d4d8; }
-  .es-mini-day.today { background: #3b82f6; color: #fff; font-weight: 700; }
+  .es-mini-day.today { background: #3DBFA0; color: #fff; font-weight: 700; }
 
   .es-mini-day.has-evt { font-weight: 700; color: #111827; position: relative; }
   .es-mini-day.has-evt::after {
     content: ""; display: block; width: 4px; height: 4px;
-    border-radius: 50%; background: #3b82f6; margin: 1px auto 0;
+    border-radius: 50%; background: #3DBFA0; margin: 1px auto 0;
   }
   .es-mini-day.today.has-evt::after { background: #fff; }
 
@@ -392,7 +392,7 @@ export default function EventSchedule() {
       <PageHeader
         title="행사 일정 안내"
         subtitle="조회할 월을 선택하면 해당 월 일정만 달력에 표시됩니다."
-        icon={<CalendarDays size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        icon={<CalendarDays size={42} color="#02A17E" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={EVENT_CATEGORIES}
