@@ -19,6 +19,7 @@ public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long
     Page<ProgramApply> findByUserId(Long userId, Pageable pageable);
 
     Page<ProgramApply> findByProgramIdAndStatus(Long programId, ApplyStatus status, Pageable pageable);
+    Page<ProgramApply> findByProgramIdAndStatusIn(Long programId, Collection<ApplyStatus> statuses, Pageable pageable);
 
     /**
      *  관리자용 — 모든 상태의 신청자 목록 (상태 무관)

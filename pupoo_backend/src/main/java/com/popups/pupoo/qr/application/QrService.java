@@ -21,6 +21,7 @@ import com.popups.pupoo.qr.persistence.projection.BoothVisitSummaryRow;
 import com.popups.pupoo.qr.persistence.QrCodeRepository;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.persistence.UserRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -88,7 +89,7 @@ public class QrService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("행사 없음"));
 
-        return qrCodeRepository.findValidLatest(userId, eventId, now)
+        return qrCodeRepository.findLatest(userId, eventId)
                 .map(QrIssueResponse::from)
                 .orElseGet(() -> {
                     LocalDateTime expiredAt = event.getEndAt().plusDays(1);
@@ -103,8 +104,14 @@ public class QrService {
                             .expiredAt(expiredAt)
                             .build();
 
-                    QrCode saved = qrCodeRepository.save(issued);
-                    return QrIssueResponse.from(saved);
+                    try {
+                        QrCode saved = qrCodeRepository.save(issued);
+                        return QrIssueResponse.from(saved);
+                    } catch (DataIntegrityViolationException e) {
+                        return qrCodeRepository.findLatest(userId, eventId)
+                                .map(QrIssueResponse::from)
+                                .orElseThrow(() -> e);
+                    }
                 });
     }
 

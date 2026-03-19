@@ -13,8 +13,6 @@ import {
   Wallet,
 } from "lucide-react";
 import {
-  Area,
-  AreaChart,
   CartesianGrid,
   Cell,
   Line,
@@ -70,7 +68,7 @@ const MULTI_EVENT_COLORS = [
   "#3b82f6",
   "#1e3a8a",
   "#7c3aed",
-  "#f8fafc",
+  "#14b8a6",
   "#38bdf8",
   "#ec4899",
 ];
@@ -133,6 +131,165 @@ const formatDateRange = (startAt, endAt) => {
   }
   const target = start || end;
   return `${target.getMonth() + 1}.${target.getDate()}`;
+};
+
+const toDateInputValue = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const buildDateKeysFromRange = (startAt, endAt, maxDays = 90) => {
+  const start = startAt ? new Date(startAt) : null;
+  const end = endAt ? new Date(endAt) : null;
+  if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    return [];
+  }
+
+  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  const keys = [];
+  while (cursor <= last && keys.length < maxDays) {
+    keys.push(toDateInputValue(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return keys;
+};
+
+const formatShortDateLabel = (dateKey) => {
+  if (!dateKey) return "";
+  const date = new Date(`${dateKey}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dateKey;
+  return `${date.getMonth() + 1}-${date.getDate()}`;
+};
+
+const toDateTimeInputValue = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+};
+
+const clampDateToEventRange = (dateValue, event) => {
+  const selected = toDateInputValue(dateValue);
+  const start = toDateInputValue(event?.startAt);
+  const end = toDateInputValue(event?.endAt);
+
+  if (!selected) return start || end || "";
+  if (start && selected < start) return start;
+  if (end && selected > end) return end;
+  return selected;
+};
+
+const buildEventDayWindowParams = (dateValue, event) => {
+  const day = toDateInputValue(dateValue);
+  if (!day) return {};
+
+  const eventStart = event?.startAt ? new Date(event.startAt) : null;
+  const eventEnd = event?.endAt ? new Date(event.endAt) : null;
+  const hasEventWindow =
+    eventStart &&
+    eventEnd &&
+    !Number.isNaN(eventStart.getTime()) &&
+    !Number.isNaN(eventEnd.getTime());
+
+  const dayStart = new Date(`${day}T00:00:00`);
+  const dayEnd = new Date(`${day}T23:59:59`);
+  let fromDate = dayStart;
+  let toDate = dayEnd;
+
+  if (hasEventWindow) {
+    fromDate = new Date(dayStart);
+    fromDate.setHours(
+      eventStart.getHours(),
+      eventStart.getMinutes(),
+      eventStart.getSeconds(),
+      0,
+    );
+    toDate = new Date(dayStart);
+    toDate.setHours(
+      eventEnd.getHours(),
+      eventEnd.getMinutes(),
+      eventEnd.getSeconds(),
+      0,
+    );
+
+    if (toDate < fromDate) {
+      toDate = new Date(dayEnd);
+    }
+
+    if (fromDate < eventStart) fromDate = eventStart;
+    if (toDate > eventEnd) toDate = eventEnd;
+  }
+
+  if (fromDate < dayStart) fromDate = dayStart;
+  if (toDate > dayEnd) toDate = dayEnd;
+  if (fromDate > toDate) fromDate = toDate;
+
+  return {
+    from: toDateTimeInputValue(fromDate),
+    to: toDateTimeInputValue(toDate),
+  };
+};
+
+const normalizeCongestionPercentPrecise = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  const scaled = numeric <= 5 ? numeric * 20 : numeric;
+  const clamped = Math.min(Math.max(scaled, 0), 100);
+  return Math.round(clamped * 10) / 10;
+};
+
+const normalizeAiPredictionRows = (predictionPayload) => {
+  const timeline = Array.isArray(predictionPayload?.timeline)
+    ? predictionPayload.timeline
+    : [];
+  const lstmTimeline = Array.isArray(predictionPayload?.lstmTimeline)
+    ? predictionPayload.lstmTimeline
+    : [];
+  const lstmByTime = new Map(
+    lstmTimeline
+      .map((point) => {
+        const time = point?.time ? new Date(point.time) : null;
+        if (!time || Number.isNaN(time.getTime())) return null;
+        return [time.getTime(), normalizeCongestionPercentPrecise(point?.score)];
+      })
+      .filter(Boolean),
+  );
+  const lstmScore = predictionPayload?.lstmPredictedAvgScore;
+  const normalizedLstm = Number.isFinite(Number(lstmScore))
+    ? normalizeCongestionPercentPrecise(lstmScore)
+    : null;
+
+  const normalizedRows = timeline
+    .map((point) => {
+      const time = point?.time ? new Date(point.time) : null;
+      if (!time || Number.isNaN(time.getTime())) return null;
+      const epoch = time.getTime();
+      const lstmAtTime = lstmByTime.has(epoch)
+        ? lstmByTime.get(epoch)
+        : normalizedLstm;
+      return {
+        time,
+        label: `${String(time.getHours()).padStart(2, "0")}:${String(time.getMinutes()).padStart(2, "0")}`,
+        lightgbm: normalizeCongestionPercentPrecise(point?.score),
+        lstm: lstmAtTime,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.time.getTime() - right.time.getTime());
+
+  return normalizedRows;
 };
 
 const formatRelativeTime = (value) => {
@@ -316,9 +473,8 @@ const normalizeCongestionRows = (payload) =>
 
 const buildCongestionLine = (event, payload, color) => {
   const rawRows = normalizeCongestionRows(payload);
-  const useDummy =
-    rawRows.length === 0 || !rawRows.some((row) => Number(row.value) > 0);
-  const rows = useDummy ? buildDummyCongestionRows(event) : rawRows;
+  const useDummy = false;
+  const rows = rawRows;
   return {
     eventId: Number(event?.eventId) || 0,
     eventName: event?.eventName || `행사 ${event?.eventId}`,
@@ -469,6 +625,7 @@ export default function HomeDashboard({ initialEventId = null }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [selectedEventId, setSelectedEventId] = useState(initialEventId ? String(initialEventId) : "ALL");
+  const [selectedCongestionDate, setSelectedCongestionDate] = useState("");
   const [eventSearch, setEventSearch] = useState("");
 
   useEffect(() => {
@@ -513,6 +670,11 @@ export default function HomeDashboard({ initialEventId = null }) {
       const selectedEvent = selectedEventId !== "ALL"
         ? allEvents.find((event) => String(event.eventId) === String(selectedEventId)) || null
         : null;
+      const selectedEventIsPlanned =
+        selectedEvent?.status === "PLANNED";
+      const selectedEventDate = selectedEventIsPlanned
+        ? clampDateToEventRange(selectedCongestionDate, selectedEvent)
+        : "";
       const focusEvent = selectedEvent || graphEvents[0] || liveEvents[0] || allEvents[0] || null;
       const isAllEventCongestionView = !selectedEvent && graphEvents.length > 0;
       const allEventGraphMeta = {
@@ -555,10 +717,78 @@ export default function HomeDashboard({ initialEventId = null }) {
             )
           : Promise.resolve([]),
       ]);
+      const selectedEventWindowParams = buildEventDayWindowParams(
+        selectedEventDate,
+        selectedEvent,
+      );
+      const [selectedEventPredictionPayload, selectedEventDailyPredictionRows] =
+        selectedEventIsPlanned
+          ? await Promise.all([
+              safePayload(
+                `/api/admin/ai/events/${selectedEvent.eventId}/congestion/predict`,
+                selectedEventWindowParams,
+                null,
+              ),
+              (async () => {
+                const dateKeys = buildDateKeysFromRange(
+                  selectedEvent?.startAt,
+                  selectedEvent?.endAt,
+                );
+                if (!dateKeys.length) return [];
 
-      const focusLine = focusEvent
+                const dailyPayloads = await Promise.all(
+                  dateKeys.map((dateKey) =>
+                    safePayload(
+                      `/api/admin/ai/events/${selectedEvent.eventId}/congestion/predict`,
+                      buildEventDayWindowParams(dateKey, selectedEvent),
+                      null,
+                    ).then((payload) => ({ dateKey, payload })),
+                  ),
+                );
+
+                return dailyPayloads
+                  .map(({ dateKey, payload }) => {
+                    const lightgbm = normalizeCongestionPercentPrecise(payload?.predictedAvgScore);
+                    let lstm = null;
+                    if (payload?.lstmPredictedAvgScore !== null && payload?.lstmPredictedAvgScore !== undefined) {
+                      lstm = normalizeCongestionPercentPrecise(payload.lstmPredictedAvgScore);
+                    } else if (Array.isArray(payload?.lstmTimeline) && payload.lstmTimeline.length > 0) {
+                      const scores = payload.lstmTimeline
+                        .map((point) => normalizeCongestionPercentPrecise(point?.score))
+                        .filter((score) => Number.isFinite(score));
+                      if (scores.length > 0) {
+                        lstm = Math.round((scores.reduce((sum, score) => sum + score, 0) / scores.length) * 10) / 10;
+                      }
+                    }
+                    return {
+                      dateKey,
+                      label: formatShortDateLabel(dateKey),
+                      lightgbm,
+                      lstm,
+                    };
+                  })
+                  .filter((row) => Number.isFinite(Number(row.lightgbm)))
+                  .sort((left, right) => left.dateKey.localeCompare(right.dateKey));
+              })(),
+            ])
+          : [null, []];
+      const selectedPredictionRows = normalizeAiPredictionRows(
+        selectedEventPredictionPayload,
+      );
+      const realtimeFocusLine = focusEvent
         ? buildCongestionLine(focusEvent, focusCongestionPayload, ds.amber)
         : { rows: [], useDummy: false };
+      const focusLine = selectedEventIsPlanned
+        ? { rows: selectedPredictionRows, useDummy: false, isPrediction: true }
+        : {
+            rows: realtimeFocusLine.rows.map((row) => ({
+              ...row,
+              lightgbm: row.value,
+              lstm: null,
+            })),
+            useDummy: realtimeFocusLine.useDummy,
+            isPrediction: false,
+          };
       const usingDummyCongestion = Boolean(focusLine.useDummy);
       const focusCongestion = focusLine.rows;
       const allEventCongestionLines = isAllEventCongestionView
@@ -717,6 +947,11 @@ export default function HomeDashboard({ initialEventId = null }) {
         allEvents,
         liveEvents,
         focusEvent,
+        selectedCongestionDate: selectedEventIsPlanned
+          ? selectedEventDate || null
+          : null,
+        isPredictionCongestionView: Boolean(focusLine.isPrediction),
+        plannedDailyCongestion: selectedEventDailyPredictionRows,
         focusCongestion,
         usingDummyCongestion: usingAnyDummyCongestion,
         isAllEventCongestionView,
@@ -753,7 +988,7 @@ export default function HomeDashboard({ initialEventId = null }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedEventId]);
+  }, [selectedCongestionDate, selectedEventId]);
 
   useEffect(() => {
     loadDashboard();
@@ -772,6 +1007,22 @@ export default function HomeDashboard({ initialEventId = null }) {
       setSelectedEventId("ALL");
     }
   }, [snapshot?.allEvents, selectedEventId]);
+
+  useEffect(() => {
+    if (!snapshot?.focusEvent || selectedEventId === "ALL") return;
+    const defaultDate = clampDateToEventRange(
+      selectedCongestionDate || snapshot.selectedCongestionDate,
+      snapshot.focusEvent,
+    );
+    if (defaultDate && defaultDate !== selectedCongestionDate) {
+      setSelectedCongestionDate(defaultDate);
+    }
+  }, [
+    selectedCongestionDate,
+    selectedEventId,
+    snapshot?.focusEvent,
+    snapshot?.selectedCongestionDate,
+  ]);
 
   const filteredEvents = useMemo(() => {
     if (!snapshot?.allEvents?.length) return [];
@@ -803,6 +1054,9 @@ export default function HomeDashboard({ initialEventId = null }) {
   }
 
   const selectedScope = selectedEventId !== "ALL" && snapshot.focusEvent;
+  const isSelectedPlannedEvent =
+    selectedScope && snapshot.focusEvent?.status === "PLANNED";
+  const showPlannedPrediction = isSelectedPlannedEvent;
   const isAllEventCongestionView =
     !selectedScope &&
     snapshot.isAllEventCongestionView &&
@@ -814,9 +1068,26 @@ export default function HomeDashboard({ initialEventId = null }) {
   const hasTrendData = snapshot.operationsTrend.some(
     (row) => row.eventCount || row.approvedRegistrationCount || row.refundRequestCount,
   );
+  const focusEventStartDate = toDateInputValue(snapshot.focusEvent?.startAt);
+  const focusEventEndDate = toDateInputValue(snapshot.focusEvent?.endAt);
+  const effectiveCongestionDate = selectedScope
+    ? clampDateToEventRange(
+        selectedCongestionDate || snapshot.selectedCongestionDate,
+        snapshot.focusEvent,
+      )
+    : "";
   const congestionGraphScope = describeCongestionGraphScope(
     snapshot.allEventGraphMeta,
   );
+  const congestionSubtitle = isAllEventCongestionView
+    ? `${congestionGraphScope}의 시간대별 실시간 혼잡도`
+    : snapshot.focusEvent
+      ? showPlannedPrediction
+        ? `${snapshot.focusEvent.eventName} · ${effectiveCongestionDate || "선택일"} 시간대별 예상 혼잡도`
+        : isSelectedPlannedEvent
+          ? `${snapshot.focusEvent.eventName} · 일별 혼잡도 예측 대기`
+          : `${snapshot.focusEvent.eventName} 행사 기준 시간대별 실시간 혼잡도`
+      : "행사를 선택하면 시간대별 혼잡 추이를 보여줍니다.";
 
   return (
     <div style={{ display: "flex", gap: 20 }}>
@@ -908,18 +1179,43 @@ export default function HomeDashboard({ initialEventId = null }) {
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 14, marginBottom: 14 }}>
         <SectionCard
           title="실시간 혼잡 추이"
-          subtitle={isAllEventCongestionView
-              ? `${congestionGraphScope}의 시간대별 실시간 혼잡도`
-              : snapshot.focusEvent
-                ? `${snapshot.focusEvent.eventName} 행사 기준 시간대별 실시간 혼잡도`
-                : "행사를 선택하면 시간대별 혼잡 추이를 보여줍니다."}
-            action={isAllEventCongestionView ? (
-              <Pill color={ds.green} bg={ds.greenSoft}>
-                {congestionGraphScope}
-              </Pill>
-            ) : topBooth ? (
-              <Pill color={topBooth.state.c} bg={topBooth.state.bg}>최고 혼잡 {topBooth.placeName} {topBooth.congestionLevel}%</Pill>
-            ) : null}
+          subtitle={congestionSubtitle}
+            action={(
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                {isSelectedPlannedEvent ? (
+                  <>
+                    <input
+                      type="date"
+                      value={effectiveCongestionDate}
+                      min={focusEventStartDate || undefined}
+                      max={focusEventEndDate || undefined}
+                      onChange={(event) => {
+                        setSelectedCongestionDate(event.target.value);
+                      }}
+                      style={{
+                        height: 30,
+                        padding: "0 8px",
+                        borderRadius: 8,
+                        border: `1px solid ${ds.line}`,
+                        background: ds.card,
+                        color: ds.ink,
+                        fontSize: 12,
+                        fontFamily: ds.ff,
+                      }}
+                    />
+                  </>
+                ) : null}
+                {isAllEventCongestionView ? (
+                  <Pill color={ds.green} bg={ds.greenSoft}>
+                    {congestionGraphScope}
+                  </Pill>
+                ) : topBooth ? (
+                  <Pill color={topBooth.state.c} bg={topBooth.state.bg}>
+                    최고 혼잡 {topBooth.placeName} {topBooth.congestionLevel}%
+                  </Pill>
+                ) : null}
+              </div>
+            )}
           >
             {isAllEventCongestionView ? (
               <>
@@ -954,13 +1250,15 @@ export default function HomeDashboard({ initialEventId = null }) {
                         {snapshot.allEventCongestionLines.map((line) => (
                           <Line
                             key={line.eventId}
-                            type="monotone"
+                            type="monotoneX"
                             dataKey={`event_${line.eventId}`}
                             name={line.eventName}
                             stroke={line.color}
-                            strokeWidth={2.4}
-                            dot={{ r: 2.6, fill: line.color, stroke: "#fff", strokeWidth: 1.5 }}
-                            activeDot={{ r: 4.4, fill: line.color, stroke: "#fff", strokeWidth: 2 }}
+                            strokeWidth={2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            dot={false}
+                            activeDot={{ r: 3.2, fill: line.color, stroke: line.color, strokeWidth: 0 }}
                             connectNulls
                           />
                         ))}
@@ -995,38 +1293,131 @@ export default function HomeDashboard({ initialEventId = null }) {
               </>
             ) : snapshot.focusCongestion.length > 0 ? (
               <>
+                {showPlannedPrediction && snapshot.plannedDailyCongestion?.length > 0 ? (
+                  <div style={{ marginBottom: 16, padding: "12px 14px", borderRadius: 10, background: ds.bg, border: `1px solid ${ds.lineSoft}` }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: ds.ink3, marginBottom: 8 }}>
+                      행사 기간 일별 평균 혼잡도
+                    </div>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <LineChart data={snapshot.plannedDailyCongestion}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={ds.lineSoft} vertical={false} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fontSize: 11, fill: ds.ink4 }}
+                          axisLine={false}
+                          tickLine={false}
+                          interval="preserveStartEnd"
+                          minTickGap={18}
+                        />
+                        <YAxis tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} width={34} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                        <Tooltip content={<ChartTip suffix="%" light showName />} />
+                        <Line
+                          type="monotoneX"
+                          dataKey="lightgbm"
+                          name="LightGBM"
+                          stroke={ds.amber}
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          dot={false}
+                          activeDot={{ r: 3, fill: ds.amber, stroke: ds.amber, strokeWidth: 0 }}
+                          connectNulls
+                        />
+                        <Line
+                          type="monotoneX"
+                          dataKey="lstm"
+                          name="LSTM"
+                          stroke={ds.amber}
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeDasharray="4 4"
+                          dot={false}
+                          activeDot={false}
+                          connectNulls
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : null}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
-                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>실시간 혼잡도</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>{formatNumber(snapshot.focusRealtimeSummary.current || average(snapshot.focusCongestion))}%</div>
+                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>
+                      {snapshot.isPredictionCongestionView ? "예상 평균 혼잡도" : "평균 혼잡도"}
+                    </div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
+                      {formatNumber(average(snapshot.focusCongestion.map((row) => ({ value: row.lightgbm ?? 0 }))))}%
+                    </div>
                   </div>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
-                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>실시간 최대 혼잡도</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>{formatNumber(snapshot.focusRealtimeSummary.peak || Math.max(...snapshot.focusCongestion.map((row) => row.value)))}%</div>
+                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>
+                      {snapshot.isPredictionCongestionView ? "예상 최대 혼잡도" : "최고 혼잡도"}
+                    </div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
+                      {formatNumber(Math.max(...snapshot.focusCongestion.map((row) => Number(row.lightgbm) || 0)))}%
+                    </div>
                   </div>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
-                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>실시간 집계 지점</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>{formatNumber(snapshot.focusRealtimeSummary.pointCount || snapshot.topBooths.length)}</div>
+                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>
+                      {snapshot.isPredictionCongestionView ? "예측 시간 포인트" : "집계 시간 포인트"}
+                    </div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
+                      {formatNumber(snapshot.focusCongestion.length)}
+                    </div>
                   </div>
                 </div>
                 <ResponsiveContainer width="100%" height={240}>
-                  <AreaChart data={snapshot.focusCongestion}>
-                    <defs>
-                      <linearGradient id="homeCongestion" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={ds.amber} stopOpacity={0.32} />
-                        <stop offset="100%" stopColor={ds.amber} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
+                  <LineChart data={snapshot.focusCongestion}>
                     <CartesianGrid strokeDasharray="3 3" stroke={ds.lineSoft} vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: ds.ink4 }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval="preserveStartEnd"
+                      minTickGap={18}
+                    />
                     <YAxis tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} width={34} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                    <Tooltip content={<ChartTip suffix="%" light />} />
-                    <Area type="monotone" dataKey="value" stroke={ds.amber} strokeWidth={2.8} fill="url(#homeCongestion)" activeDot={{ r: 4, fill: ds.amber, stroke: "#fff", strokeWidth: 2 }} />
-                  </AreaChart>
+                    <Tooltip content={<ChartTip suffix="%" light showName />} />
+                    <Line
+                      type="monotoneX"
+                      dataKey="lightgbm"
+                      name={snapshot.isPredictionCongestionView ? "LightGBM" : "혼잡도"}
+                      stroke={ds.amber}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      dot={false}
+                      activeDot={{ r: 3.2, fill: ds.amber, stroke: ds.amber, strokeWidth: 0 }}
+                      connectNulls
+                    />
+                    {snapshot.isPredictionCongestionView ? (
+                      <Line
+                        type="monotoneX"
+                        dataKey="lstm"
+                        name="LSTM"
+                        stroke={ds.amber}
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeDasharray="4 4"
+                        dot={false}
+                        activeDot={false}
+                        connectNulls
+                      />
+                    ) : null}
+                  </LineChart>
                 </ResponsiveContainer>
               </>
             ) : (
-              <ChartEmpty title="표시할 혼잡 추이가 없습니다." description="행사를 선택하면 자동으로 반영됩니다." />
+              <ChartEmpty
+                title="표시할 혼잡 추이가 없습니다."
+                description={
+                  isSelectedPlannedEvent && !showPlannedPrediction
+                    ? "좌측의 일별 혼잡도 예측 버튼을 눌러 행사일 기준 예측을 조회해 주세요."
+                    : "행사를 선택하면 자동으로 반영됩니다."
+                }
+              />
             )}
           </SectionCard>
 
