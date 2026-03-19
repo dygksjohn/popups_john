@@ -595,6 +595,19 @@ function toDateKey(value) {
   return `${m[1]}-${m[2]}-${m[3]}`;
 }
 
+function toLocalDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseDateTime(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function toDateFromKey(key) {
   if (!key) return null;
   const d = new Date(`${key}T00:00:00`);
@@ -659,12 +672,30 @@ function normalizeScheduleItem(item, idx, fallbackDateKey) {
     item?.boothName ??
     (item?.boothId ? `부스 ${item.boothId}` : "장소 미정");
   const rawStatus = String(item?.status ?? "").toUpperCase();
-  const status =
+  let status =
     rawStatus.includes("DONE") || rawStatus.includes("END")
       ? "done"
       : rawStatus.includes("LIVE") || rawStatus.includes("ONGOING")
         ? "live"
         : "upcoming";
+  const todayKey = toLocalDateKey();
+  if (status === "upcoming" && dateKey && dateKey < todayKey) {
+    status = "done";
+  }
+  if (dateKey === todayKey) {
+    const now = new Date();
+    const start = parseDateTime(startAt);
+    const end = parseDateTime(endAt);
+    if (start && end) {
+      if (now > end) status = "done";
+      else if (now >= start) status = "live";
+      else status = "upcoming";
+    } else if (start) {
+      status = now >= start ? "live" : "upcoming";
+    } else if (end) {
+      status = now > end ? "done" : "upcoming";
+    }
+  }
 
   const minuteMatch = String(timeText).match(/(\d{1,2}):(\d{2})/);
   const minutes = minuteMatch
@@ -845,6 +876,7 @@ export default function EventDetailModal({ event, onClose }) {
   });
   const overlayRef = useRef(null);
   const dayListRef = useRef(null);
+  const dayItemRefs = useRef({});
   const scrollDayList = (dir) => {
     if (dayListRef.current) dayListRef.current.scrollLeft += dir * 160;
   };
@@ -1077,10 +1109,61 @@ export default function EventDetailModal({ event, onClose }) {
       ? String(detail.roundNo)
       : "-";
 
-  const safeParticipants = event?.participants ?? 0;
-  const safeCapacity = event?.capacity || 1;
-  const pct = Math.round((safeParticipants / safeCapacity) * 100);
-  const remaining = safeCapacity - safeParticipants;
+  const todayParticipantCount = Number(
+    detail?.todayCheckinCount ??
+      event?.todayCheckinCount ??
+      event?.participants ??
+      0,
+  );
+  const totalParticipantCount = Number(
+    detail?.totalParticipantCount ??
+      event?.totalParticipantCount ??
+      detail?.todayCheckinCount ??
+      event?.todayCheckinCount ??
+      event?.participants ??
+      0,
+  );
+  const preregistrationCount = Number(
+    detail?.preRegistrationCount ??
+      detail?.appliedCount ??
+      event?.preRegistrationCount ??
+      event?.appliedCount ??
+      event?.participants ??
+      0,
+  );
+  const eventStart = parseDateTime(detail?.startAt ?? event?.startAt);
+  const eventEnd = parseDateTime(detail?.endAt ?? event?.endAt);
+  const eventDayCount =
+    eventStart && eventEnd
+      ? Math.max(
+          1,
+          Math.floor(
+            (new Date(
+              eventEnd.getFullYear(),
+              eventEnd.getMonth(),
+              eventEnd.getDate(),
+            ).getTime() -
+              new Date(
+                eventStart.getFullYear(),
+                eventStart.getMonth(),
+                eventStart.getDate(),
+              ).getTime()) /
+              (24 * 60 * 60 * 1000),
+          ) + 1,
+        )
+      : 1;
+  const dailyBaseline =
+    preregistrationCount > 0 ? preregistrationCount / eventDayCount : 0;
+  const dailyBaselineDisplay = Math.max(0, Math.round(dailyBaseline));
+  const dailyProgressPct =
+    dailyBaseline > 0
+      ? Math.round((todayParticipantCount / dailyBaseline) * 100)
+      : 0;
+  const dailyProgressBarPct = Math.max(0, Math.min(100, dailyProgressPct));
+  const cumulativePct =
+    preregistrationCount > 0
+      ? Math.round((totalParticipantCount / preregistrationCount) * 100)
+      : 0;
   const canCancel =
     regStatus === RegistrationStatus.APPLIED ||
     regStatus === RegistrationStatus.APPROVED;
@@ -1102,11 +1185,25 @@ export default function EventDetailModal({ event, onClose }) {
       count,
     };
   });
+  const todayKey = toLocalDateKey();
+  const isOngoingEvent =
+    String(detail?.status ?? event?.status ?? "").toUpperCase() === "ONGOING";
 
   const effectiveDateKey =
     (selectedDateKey && dayList.some((d) => d.key === selectedDateKey)
       ? selectedDateKey
-      : dayList.find((d) => d.count > 0)?.key || dayList[0]?.key) || "";
+      : (isOngoingEvent && dayList.some((d) => d.key === todayKey)
+          ? todayKey
+          : dayList.find((d) => d.count > 0)?.key || dayList[0]?.key)) || "";
+
+  useEffect(() => {
+    if (!effectiveDateKey) return;
+    const target = dayItemRefs.current[effectiveDateKey];
+    if (target && typeof target.scrollIntoView === "function") {
+      target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [effectiveDateKey, dayList.length]);
+
   const selectedPrograms = normalizedPrograms.filter(
     (item) => item.dateKey === effectiveDateKey,
   );
@@ -1421,13 +1518,16 @@ export default function EventDetailModal({ event, onClose }) {
                       총 {dayList.length}일 {totalProgramCount}개 프로그램
                     </span>
                   </div>
-                  <div className="evm-guide-day-list">
+                  <div className="evm-guide-day-list" ref={dayListRef}>
                     {dayList.length === 0 ? (
                       <div className="evm-guide-empty">선택 가능한 일자가 없습니다.</div>
                     ) : (
                       dayList.map((day) => (
                         <button
                           key={day.key}
+                          ref={(el) => {
+                            if (el) dayItemRefs.current[day.key] = el;
+                          }}
                           type="button"
                           className={`evm-guide-day-item${effectiveDateKey === day.key ? " active" : ""}`}
                           onClick={() => setSelectedDateKey(day.key)}
@@ -1561,29 +1661,30 @@ export default function EventDetailModal({ event, onClose }) {
                 >
                   <Users size={15} color="#10b981" />
                 </div>
-                <div className="evm-section-title">참가 현황</div>
+                <div className="evm-section-title">일일 참가 현황</div>
               </div>
               <div className="evm-participants-bar">
                 <div className="evm-part-header">
-                  <div className="evm-part-count">
-                    {(safeParticipants ?? 0).toLocaleString()}
-                    <span> / {(safeCapacity ?? 0).toLocaleString()}명</span>
-                  </div>
-                  <div className="evm-part-pct">{pct}%</div>
+                  <div className="evm-part-count">{(todayParticipantCount ?? 0).toLocaleString()}명<span>/{dailyBaselineDisplay.toLocaleString()}명(사전등록자/행사일)</span></div>
+                  <div className="evm-part-pct">{dailyProgressPct}%</div>
                 </div>
                 <div className="evm-part-track">
-                  <div className="evm-part-fill" style={{ width: `${pct}%` }} />
+                  <div className="evm-part-fill" style={{ width: `${dailyProgressBarPct}%` }} />
                 </div>
-                <div className="evm-part-note">
-                  {remaining > 0 ? (
-                    <>
-                      <strong>{(remaining ?? 0).toLocaleString()}명</strong> 참가 가능
-                    </>
-                  ) : (
-                    <>
-                      참가 접수가 <strong>마감</strong>되었습니다
-                    </>
-                  )}
+                <div
+                  className="evm-part-note"
+                  style={{
+                    marginTop: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                  }}
+                >
+                  <span>누적 참여 현황</span>
+                  <span>
+                    {(totalParticipantCount ?? 0).toLocaleString()}명/{(preregistrationCount ?? 0).toLocaleString()}명(총 참가자/사전등록자) {cumulativePct}%
+                  </span>
                 </div>
               </div>
             </div>

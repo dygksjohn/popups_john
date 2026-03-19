@@ -12,6 +12,8 @@ import com.popups.pupoo.event.dto.EventResponse;
 import com.popups.pupoo.event.persistence.EventRegistrationRepository;
 import com.popups.pupoo.event.persistence.EventRepository;
 import com.popups.pupoo.program.persistence.ProgramRepository;
+import com.popups.pupoo.qr.domain.enums.QrCheckType;
+import com.popups.pupoo.qr.persistence.QrCheckinRepository;
 import com.popups.pupoo.storage.support.StorageUrlResolver;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -21,31 +23,33 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
 public class EventService {
-
-    private static final int DEFAULT_EVENT_CAPACITY = 500;
 
     private final EventRepository eventRepository;
     private final ProgramRepository programRepository;
     private final EventRegistrationRepository eventRegistrationRepository;
     private final ReviewRepository reviewRepository;
     private final StorageUrlResolver storageUrlResolver;
+    private final QrCheckinRepository qrCheckinRepository;
 
     public EventService(
             EventRepository eventRepository,
             ProgramRepository programRepository,
             EventRegistrationRepository eventRegistrationRepository,
             ReviewRepository reviewRepository,
-            StorageUrlResolver storageUrlResolver
+            StorageUrlResolver storageUrlResolver,
+            QrCheckinRepository qrCheckinRepository
     ) {
         this.eventRepository = eventRepository;
         this.programRepository = programRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
         this.reviewRepository = reviewRepository;
         this.storageUrlResolver = storageUrlResolver;
+        this.qrCheckinRepository = qrCheckinRepository;
     }
 
     public Page<EventResponse> getEvents(
@@ -109,10 +113,53 @@ public class EventService {
     private EventResponse toEventResponse(Event event, LocalDate today) {
         EventResponse response = EventResponse.from(event, storageUrlResolver.toPublicUrl(event.getImageUrl()));
         response.setStatus(resolvePublicStatus(event, today));
+        response.setTodayCheckinCount(countTodayCheckins(event.getEventId(), today));
+        response.setTotalParticipantCount(countTotalParticipants(event));
+        response.setPreRegistrationCount(countActivePreRegistrations(event.getEventId()));
         if (response.getImageUrl() == null) {
             response.setImageUrl(resolveEventThumbnail(event.getEventId()));
         }
         return response;
+    }
+
+    private long countTodayCheckins(Long eventId, LocalDate today) {
+        if (eventId == null) {
+            return 0L;
+        }
+        LocalDateTime from = LocalDateTime.of(today, LocalTime.MIN);
+        LocalDateTime to = LocalDateTime.of(today, LocalTime.MAX);
+        return qrCheckinRepository.countByQrCode_Event_EventIdAndCheckTypeAndCheckedAtBetween(
+                eventId,
+                QrCheckType.CHECKIN,
+                from,
+                to
+        );
+    }
+
+    private long countActivePreRegistrations(Long eventId) {
+        if (eventId == null) {
+            return 0L;
+        }
+        long applied = eventRegistrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.APPLIED);
+        long approved = eventRegistrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.APPROVED);
+        return applied + approved;
+    }
+
+    private long countTotalParticipants(Event event) {
+        if (event == null || event.getEventId() == null) {
+            return 0L;
+        }
+        LocalDateTime from = event.getStartAt();
+        if (from == null) {
+            return qrCheckinRepository.countDistinctCheckinUsersByEventId(event.getEventId());
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime to = now.isBefore(from) ? from : now;
+        return qrCheckinRepository.countDistinctCheckinUsersByEventIdBetween(
+                event.getEventId(),
+                from,
+                to
+        );
     }
 
     private String resolveEventThumbnail(Long eventId) {
@@ -126,13 +173,12 @@ public class EventService {
 
     private ClosedEventAnalyticsResponse toClosedEventAnalyticsResponse(Event event) {
         EventResponse eventResponse = toEventResponse(event);
-        long participantCount = eventRegistrationRepository.countByEventIdAndStatus(
-                event.getEventId(),
-                RegistrationStatus.APPROVED
-        );
-        int participationRate = participantCount <= 0
-                ? 0
-                : Math.min((int) Math.round((participantCount * 100.0) / DEFAULT_EVENT_CAPACITY), 100);
+        long participantCount = countTotalParticipants(event);
+        long preRegistrationCount = countActivePreRegistrations(event.getEventId());
+        int denominator = (int) Math.max(0L, Math.min(Integer.MAX_VALUE, preRegistrationCount));
+        int participationRate = denominator > 0
+                ? (int) Math.round((participantCount * 100.0) / denominator)
+                : 0;
         Double averageRating = reviewRepository.findAverageRatingByEventIdAndReviewStatus(
                 event.getEventId(),
                 ReviewStatus.PUBLIC
@@ -144,7 +190,7 @@ public class EventService {
         return ClosedEventAnalyticsResponse.from(
                 eventResponse,
                 participantCount,
-                DEFAULT_EVENT_CAPACITY,
+                denominator,
                 participationRate,
                 averageRating == null ? 0.0 : Math.round(averageRating * 10.0) / 10.0,
                 reviewCount

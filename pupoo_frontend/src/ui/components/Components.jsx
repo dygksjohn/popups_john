@@ -43,8 +43,25 @@ export function ChartTip({ active, payload, label, suffix = "", light = false, s
     <div style={{ background, color: textColor, padding: "8px 14px", borderRadius: 10, fontSize: 12, fontWeight: 600, fontFamily: ds.ff, boxShadow: ds.sh2, border: light ? `1px solid ${ds.line}` : "none" }}>
       <div style={{ color: labelColor, fontSize: 11, marginBottom: 2 }}>{label}</div>
       {payload.map((p, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, color: labelColor }}>
-          <span style={{ width: 6, height: 6, borderRadius: 2, background: p.color || p.stroke }} />
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, color: labelColor }}>
+          {showName ? (
+            <span
+              style={{
+                width: 24,
+                height: 0,
+                borderTopWidth: 2,
+                borderTopStyle:
+                  /lstm/i.test(String(p?.name || "")) ||
+                  (typeof p?.strokeDasharray === "string" && p.strokeDasharray.trim().length > 0)
+                    ? "dashed"
+                    : "solid",
+                borderTopColor: p.color || p.stroke,
+                flexShrink: 0,
+              }}
+            />
+          ) : (
+            <span style={{ width: 6, height: 6, borderRadius: 2, background: p.color || p.stroke, flexShrink: 0 }} />
+          )}
           {showName && p.name ? <span>{p.name}</span> : null}
           <span>{p.value?.toLocaleString()}{suffix}</span>
         </div>

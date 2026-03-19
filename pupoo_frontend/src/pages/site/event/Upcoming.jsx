@@ -252,7 +252,13 @@ function mapEvent(raw) {
     time: startAt || endAt ? formatTime(startAt, endAt) : "시간 미정",
     sortKey: Number.isNaN(sortTime) ? Number.POSITIVE_INFINITY : sortTime,
     capacity: Number(raw?.capacity ?? raw?.maxParticipants ?? 0),
-    registered: Number(raw?.participants ?? raw?.appliedCount ?? raw?.registered ?? 0),
+    registered: Number(
+      raw?.preRegistrationCount ??
+      raw?.appliedCount ??
+      raw?.participants ??
+      raw?.registered ??
+      0,
+    ),
     baseFee: raw?.baseFee ?? raw?.participationFee ?? raw?.fee ?? 0,
     organizer: raw?.organizer ?? "정보 없음",
     organizerPhone: raw?.organizerPhone ?? null,
@@ -523,7 +529,7 @@ export default function Upcoming() {
                   </div>
                   <div className="up-event-footer">
                     <div className="up-participants">
-                      사전 등록&nbsp;&nbsp;<strong>{Number(ev.registered || 0).toLocaleString()}</strong> / {Number(ev.capacity || 0).toLocaleString()}명
+                      사전 등록&nbsp;&nbsp;<strong>{Number(ev.registered || 0).toLocaleString()}</strong>명
                     </div>
                     <div className="up-action-row">
                       <button

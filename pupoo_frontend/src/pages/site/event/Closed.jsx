@@ -86,7 +86,9 @@ function getProgramCategoryMeta(category) {
 function mapEvent(raw) {
   const participants = Number(raw?.participantCount ?? 0);
   const capacity = Number(raw?.capacity ?? 0);
-  const participationRate = Number(raw?.participationRate ?? 0);
+  const participationRate = capacity > 0
+    ? Math.round((participants / capacity) * 100)
+    : Number(raw?.participationRate ?? 0);
   const rating = Number(raw?.averageRating ?? 0);
 
   return {
@@ -197,8 +199,8 @@ function downloadResultImage(event) {
 
   /* ── 4 metric cards ── */
   const metrics = [
-    { label: "참가자", value: `${event.participants.toLocaleString()}명`, sub: `/ ${event.capacity.toLocaleString()}`, color: "#2563eb", bg: "#eff6ff" },
-    { label: "참가율", value: `${event.participationRate}%`, sub: "", color: "#10b981", bg: "#ecfdf5" },
+    { label: "참가자", value: `${event.participants.toLocaleString()}명`, sub: "", color: "#2563eb", bg: "#eff6ff" },
+    { label: "출석률(총참가자/사전등록자)", value: `${event.participationRate}%`, sub: "", color: "#10b981", bg: "#ecfdf5" },
     { label: "별점", value: `${event.ratingText}`, sub: "/ 5.0", color: "#f59e0b", bg: "#fffbeb" },
     { label: "후기", value: `${event.reviewCount.toLocaleString()}건`, sub: "", color: "#7c3aed", bg: "#f5f3ff" },
   ];
@@ -254,7 +256,7 @@ function downloadResultImage(event) {
   ctx.fillStyle = "#334155"; ctx.font = "800 14px sans-serif";
   ctx.fillText("참가자 달성률", d1x + 20, btmY + 30);
 
-  const pct1 = event.capacity > 0 ? clamp((event.participants / event.capacity) * 100) : 0;
+  const pct1 = 100;
   const donutCx1 = d1x + colW / 2;
   const donutCy1 = btmY + btmH / 2 + 8;
   const donutR1 = Math.min(colW, btmH) * 0.28;
@@ -265,7 +267,7 @@ function downloadResultImage(event) {
   ctx.textAlign = "left";
 
   ctx.fillStyle = "#64748b"; ctx.font = "600 13px sans-serif"; ctx.textAlign = "center";
-  ctx.fillText(`${event.participants.toLocaleString()} / ${event.capacity.toLocaleString()}명`, donutCx1, btmY + btmH - 20);
+  ctx.fillText(`${event.participants.toLocaleString()}명`, donutCx1, btmY + btmH - 20);
   ctx.textAlign = "left";
 
   /* --- 별점 stars --- */
@@ -293,7 +295,7 @@ function downloadResultImage(event) {
   ctx.fillText("/ 5.0", d2x + colW / 2 + ctx.measureText(event.ratingText).width / 2 + 38, starCy + 48);
   ctx.textAlign = "left";
 
-  /* --- 참가율 gauge --- */
+  /* --- 출석률 gauge --- */
   const d3x = 48 + (colW + 16) * 2;
   ctx.fillStyle = "#ffffff";
   roundRect(d3x, btmY, colW, btmH, 16); ctx.fill();
@@ -301,7 +303,7 @@ function downloadResultImage(event) {
   roundRect(d3x, btmY, colW, btmH, 16); ctx.stroke();
 
   ctx.fillStyle = "#334155"; ctx.font = "800 14px sans-serif";
-  ctx.fillText("참가율", d3x + 20, btmY + 30);
+  ctx.fillText("출석률(총참가자/사전등록자)", d3x + 20, btmY + 30);
 
   const gaugeCx = d3x + colW / 2;
   const gaugeCy = btmY + btmH / 2 + 20;
@@ -343,7 +345,7 @@ function downloadResultImage(event) {
   }, "image/png");
 }
 
-/* ── Donut Ring (참가자수 / 참가율) ── */
+/* ── Donut Ring (참가자수 / 출석률) ── */
 function DonutStatCard({ icon, label, value, max, suffix = "", maxSuffix, color, bg }) {
   const [animated, setAnimated] = useState(0);
 
@@ -661,10 +663,6 @@ export default function Closed() {
   const avgRate = filtered.length ? filtered.reduce((sum, event) => sum + event.participationRate, 0) / filtered.length : 0;
   const avgRating = filtered.length ? filtered.reduce((sum, event) => sum + event.rating, 0) / filtered.length : 0;
   const avgReviewCount = filtered.length ? filtered.reduce((sum, event) => sum + event.reviewCount, 0) / filtered.length : 0;
-
-  const selectedParticipantPercent = selected?.capacity
-    ? clamp((selected.participants / selected.capacity) * 100)
-    : 0;
 
   useEffect(() => {
     if (!selected?.id || programMap[selected.id]) return;
@@ -1030,15 +1028,14 @@ export default function Closed() {
                           icon={<Users size={16} color="#2563eb" />}
                           label="참가자수"
                           value={selected.participants}
-                          max={selected.capacity}
+                          max={Math.max(selected.participants || 0, 1)}
                           suffix="명"
-                          maxSuffix={`/ ${selected.capacity.toLocaleString()}명`}
                           color="#2563eb"
                           bg="#eff6ff"
                         />
                         <DonutStatCard
                           icon={<Calendar size={16} color="#10b981" />}
-                          label="참가율"
+                          label="출석률(총참가자/사전등록자)"
                           value={selected.participationRate}
                           max={100}
                           suffix="%"
@@ -1212,10 +1209,9 @@ export default function Closed() {
                             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                               <Users size={11} color="#2563eb" />
                               <span style={{ fontSize: 13, fontWeight: 800, color: "rgb(121,121,121)" }}>{event.participants.toLocaleString()}명</span>
-                              <span style={{ fontSize: 11, color: "rgb(121,121,121)", fontWeight: 600 }}>/ {event.capacity.toLocaleString()}</span>
                             </div>
                             <div style={{ width: "100%", height: 4, borderRadius: 2, background: "#e5e7eb", overflow: "hidden" }}>
-                              <div style={{ height: "100%", borderRadius: 2, background: "#2563eb", width: `${event.capacity > 0 ? clamp((event.participants / event.capacity) * 100) : 0}%`, transition: "width 0.3s" }} />
+                              <div style={{ height: "100%", borderRadius: 2, background: "#2563eb", width: `${clamp((event.participants / Math.max(event.capacity || 0, event.participants || 0, 1)) * 100)}%`, transition: "width 0.3s" }} />
                             </div>
                           </div>
                           {(() => {

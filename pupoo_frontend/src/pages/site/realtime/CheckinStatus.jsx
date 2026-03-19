@@ -1,5 +1,5 @@
 ﻿import PageHeader from "../components/PageHeader";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import RealtimeEventSelector from "./RealtimeEventSelector";
 import { RefreshCw } from "lucide-react";
@@ -13,7 +13,6 @@ import { tokenStore } from "../../../app/http/tokenStore";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import MyCheckinStatusCard from "../../../components/checkin/MyCheckinStatusCard";
-import ProgramCheckinProgressCard from "../../../components/checkin/ProgramCheckinProgressCard";
 import MyProgramList from "../../../components/checkin/MyProgramList";
 
 export const SERVICE_CATEGORIES = [
@@ -241,11 +240,71 @@ const styles = `
     font-weight: 600;
     color: #6b7280;
   }
+  .ck-my-status-program-desc {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #4b5563;
+    font-weight: 500;
+    white-space: pre-line;
+  }
   .ck-my-checkin-grid {
     margin-top: 14px;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+  }
+  .ck-my-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 14px;
+    align-items: stretch;
+  }
+  .ck-my-right {
+    border: 1px solid #e9eef5;
+    border-radius: 12px;
+    background: #fafcff;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .ck-my-qr-box {
+    width: 188px;
+    height: 188px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .ck-my-qr-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .ck-my-qr-fallback {
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 700;
+  }
+  .ck-my-qr-id {
+    font-size: 12px;
+    color: #4b5563;
+    font-weight: 700;
+    font-family: "Courier New", monospace;
+    letter-spacing: 0.2px;
+  }
+  .ck-my-qr-note {
+    font-size: 11px;
+    color: #6b7280;
+    text-align: center;
+    font-weight: 600;
+    line-height: 1.3;
   }
   .ck-my-checkin-item {
     border: 1px solid #e9eef5;
@@ -421,6 +480,7 @@ const styles = `
 
   @media (max-width: 900px) {
     .ck-my-checkin-grid { grid-template-columns: 1fr; }
+    .ck-my-split { grid-template-columns: 1fr; }
     .ck-my-program-item { grid-template-columns: 1fr; }
     .ck-my-program-right {
       align-items: flex-start;
@@ -530,6 +590,27 @@ const formatTime = (value) => {
   });
 };
 
+const formatDateWithWeekday = (value) => {
+  const date = toValidDate(value);
+  if (!date) return "";
+  return date.toLocaleDateString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+  });
+};
+
+const isFutureDateButNotToday = (value) => {
+  const date = toValidDate(value);
+  if (!date) return false;
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const targetStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.floor((targetStart.getTime() - todayStart.getTime()) / (24 * 60 * 60 * 1000));
+  return diffDays > 0;
+};
+
 const normalizeApplyState = (apply) => {
   const status = String(apply?.status ?? "").toUpperCase();
   if (apply?.checkedInAt || status === "CHECKED_IN") return "done";
@@ -547,16 +628,25 @@ const MY_STATUS = {
 
 const resolveMyProgramStatus = (apply, program) => {
   const status = String(apply?.status ?? "").toUpperCase();
+  const now = Date.now();
+  const startAt = toValidDate(program?.startAt)?.getTime() ?? null;
+
+  // 운영 정책:
+  // - 프로그램 시작 전에는 상태를 항상 "시작 전"으로 고정한다.
+  // - 시작 이후에만 체크인 대기/체크인 완료/참여 취소를 노출한다.
+  if (startAt && now < startAt) return MY_STATUS.NOT_STARTED;
+
   if (apply?.checkedInAt || status === "CHECKED_IN") return MY_STATUS.CHECKED_IN;
   if (status === "CANCELLED" || status === "REJECTED" || status === "CANCELED") {
     return MY_STATUS.CANCELED;
   }
 
-  const now = Date.now();
-  const startAt = toValidDate(program?.startAt)?.getTime() ?? null;
-  if (startAt && now < startAt) return MY_STATUS.NOT_STARTED;
-
   return MY_STATUS.WAITING;
+};
+
+const isCanceledOrRejectedApply = (apply) => {
+  const status = String(apply?.status ?? "").toUpperCase();
+  return status === "CANCELLED" || status === "REJECTED" || status === "CANCELED";
 };
 
 const buildDisplayName = (apply) => {
@@ -574,17 +664,41 @@ const buildDisplayName = (apply) => {
 const formatProgramTimeRange = (startAt, endAt) => {
   const start = formatTime(startAt);
   const end = formatTime(endAt);
+  const datePrefix = isFutureDateButNotToday(startAt)
+    ? `${formatDateWithWeekday(startAt)} `
+    : "";
   if (start === "-" && end === "-") return "운영 시간 정보 없음";
-  if (start !== "-" && end !== "-") return `${start} ~ ${end}`;
-  return start !== "-" ? `${start} 시작` : `${end} 종료`;
+  if (start !== "-" && end !== "-") return `${datePrefix}${start} ~ ${end}`;
+  return start !== "-" ? `${datePrefix}${start} 시작` : `${datePrefix}${end} 종료`;
 };
 
-const buildMyPrograms = (programs, programApplies) => {
+const resolveProgramLocation = (program) =>
+  String(
+    program?.location
+    || program?.place
+    || program?.placeName
+    || program?.zone
+    || program?.boothName
+    || (Number.isFinite(Number(program?.boothId)) ? `부스 ${program.boothId}` : "")
+    || "",
+  ).trim();
+
+const resolveProgramDescription = (program) =>
+  String(
+    program?.description
+    || program?.programDescription
+    || program?.summary
+    || program?.content
+    || "",
+  ).trim();
+
+const buildMyPrograms = (programs, programApplies, eventById = new Map()) => {
   const programById = new Map(
     programs.map((program) => [Number(program?.programId), program]),
   );
 
   return programApplies
+    .filter((apply) => !isCanceledOrRejectedApply(apply))
     .map((apply) => {
       const program = programById.get(Number(apply?.programId));
       const status = resolveMyProgramStatus(apply, program);
@@ -592,13 +706,19 @@ const buildMyPrograms = (programs, programApplies) => {
       const createdAt = apply?.createdAt ?? null;
       const startAt = program?.startAt ?? null;
       const endAt = program?.endAt ?? null;
+      const event = eventById.get(Number(program?.eventId));
+      const eventStartAt = event?.startAt ?? null;
+      const eventEndAt = event?.endAt ?? null;
+      const location = resolveProgramLocation(program);
+      const description = resolveProgramDescription(program);
 
       return {
         programApplyId: apply?.programApplyId ?? null,
         programId: Number(apply?.programId),
+        eventId: Number(program?.eventId),
         programName:
           program?.programTitle || program?.name || `프로그램 ${apply?.programId ?? "-"}`,
-        time: formatProgramTimeRange(startAt, endAt),
+        time: formatProgramTimeRange(eventStartAt, eventEndAt),
         status,
         requestNo: apply?.ticketNo || `PA-${apply?.programApplyId ?? "-"}`,
         participantName: buildDisplayName(apply),
@@ -606,19 +726,11 @@ const buildMyPrograms = (programs, programApplies) => {
         checkedInAt,
         createdAt,
         startAt,
+        location,
+        description,
       };
     })
     .sort((left, right) => {
-      const statusPriority = {
-        [MY_STATUS.WAITING]: 0,
-        [MY_STATUS.NOT_STARTED]: 1,
-        [MY_STATUS.CHECKED_IN]: 2,
-        [MY_STATUS.CANCELED]: 3,
-      };
-      const leftPriority = statusPriority[left.status] ?? 3;
-      const rightPriority = statusPriority[right.status] ?? 3;
-      if (leftPriority !== rightPriority) return leftPriority - rightPriority;
-
       const leftStart = toValidDate(left.startAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
       const rightStart = toValidDate(right.startAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
       if (leftStart !== rightStart) return leftStart - rightStart;
@@ -631,11 +743,10 @@ const buildMyPrograms = (programs, programApplies) => {
     });
 };
 
-const estimateCheckinTime = (position) => {
+const estimateWaitTime = (position) => {
   if (!Number.isFinite(position) || position <= 0) return "집계 중";
-
-  const estimated = new Date(Date.now() + Math.max(position - 1, 0) * 2 * 60 * 1000);
-  return formatTime(estimated);
+  const waitMinutes = Math.max(position - 1, 0) * 2;
+  return `${waitMinutes}분`;
 };
 
 const buildProgramCheckinStats = (programApplies, myPrograms) => {
@@ -675,18 +786,14 @@ const buildProgramCheckinStats = (programApplies, myPrograms) => {
     checkedIn,
     waiting,
     myPosition,
-    estimatedCheckinTime: estimateCheckinTime(myPosition),
+    estimatedWaitTime: estimateWaitTime(myPosition),
   };
 };
 
 const pickPrimaryProgram = (myPrograms) => {
   if (!myPrograms.length) return null;
-  return (
-    myPrograms.find((item) => item.status === MY_STATUS.WAITING) ||
-    myPrograms.find((item) => item.status === MY_STATUS.NOT_STARTED) ||
-    myPrograms.find((item) => item.status === MY_STATUS.CHECKED_IN) ||
-    myPrograms[0]
-  );
+  // myPrograms is already sorted by startAt asc, so the first item is the earliest program.
+  return myPrograms[0];
 };
 
 const buildMyCheckin = (primaryProgram, stats) => {
@@ -695,19 +802,18 @@ const buildMyCheckin = (primaryProgram, stats) => {
   const isWaiting = primaryProgram.status === MY_STATUS.WAITING;
   const myPosition = isWaiting ? Number(stats?.myPosition ?? 0) : 0;
   const waitingCount = isWaiting ? Math.max(myPosition - 1, 0) : 0;
-  const estimatedCheckinTime = isWaiting
-    ? stats?.estimatedCheckinTime || "집계 중"
-    : primaryProgram.status === MY_STATUS.CHECKED_IN
-      ? primaryProgram.checkedInTimeText
-      : "-";
+  const estimatedWaitTime = isWaiting ? stats?.estimatedWaitTime || "집계 중" : "-";
 
   return {
     programName: primaryProgram.programName,
+    programDescription: primaryProgram.description || "",
     programTime: primaryProgram.time,
+    programLocation: primaryProgram.location || "",
     status: primaryProgram.status,
     myPosition,
+    totalApply: Number(stats?.totalApply ?? 0),
     waitingCount,
-    estimatedCheckinTime,
+    estimatedWaitTime,
   };
 };
 
@@ -829,6 +935,40 @@ async function fetchProgramsByEvent(eventId) {
   }
 }
 
+async function fetchProgramsByIds(programIds) {
+  const normalizedIds = [...new Set(programIds.map(Number).filter(Number.isFinite))];
+  if (!normalizedIds.length) return [];
+
+  const settled = await Promise.allSettled(
+    normalizedIds.map(async (programId) => {
+      const response = await programApi.getProgramDetail(programId);
+      return unwrapData(response, null);
+    }),
+  );
+
+  return settled
+    .filter((result) => result.status === "fulfilled")
+    .map((result) => result.value)
+    .filter(Boolean);
+}
+
+async function fetchEventsByIds(eventIds) {
+  const normalizedIds = [...new Set(eventIds.map(Number).filter(Number.isFinite))];
+  if (!normalizedIds.length) return [];
+
+  const settled = await Promise.allSettled(
+    normalizedIds.map(async (eventId) => {
+      const response = await eventApi.getEventDetail(eventId);
+      return unwrapData(response, null);
+    }),
+  );
+
+  return settled
+    .filter((result) => result.status === "fulfilled")
+    .map((result) => result.value)
+    .filter(Boolean);
+}
+
 function CheckinContent({ eventId }) {
   const numericEventId = Number(eventId);
   const { tick } = useAutoRefresh(15000);
@@ -837,9 +977,27 @@ function CheckinContent({ eventId }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [eventDetail, setEventDetail] = useState(null);
   const [myPrograms, setMyPrograms] = useState([]);
+  const [participatedEvents, setParticipatedEvents] = useState([]);
   const [myCheckin, setMyCheckin] = useState(null);
+  const [myQrInfo, setMyQrInfo] = useState(null);
+  const [myQrImageUrl, setMyQrImageUrl] = useState("");
+  const [myQrLoading, setMyQrLoading] = useState(false);
   const [programCheckinStatus, setProgramCheckinStatus] = useState(null);
   const [lastLoadedAt, setLastLoadedAt] = useState(new Date());
+  const myQrImageUrlRef = useRef("");
+  const myQrKeyRef = useRef("");
+
+  useEffect(() => {
+    myQrImageUrlRef.current = myQrImageUrl;
+  }, [myQrImageUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (myQrImageUrlRef.current && String(myQrImageUrlRef.current).startsWith("blob:")) {
+        URL.revokeObjectURL(myQrImageUrlRef.current);
+      }
+    };
+  }, []);
   const statusBadge = useMemo(() => {
     const status = String(eventDetail?.status ?? "").toUpperCase();
     if (status === "PLANNED" || status === "PENDING" || status === "UPCOMING") {
@@ -859,7 +1017,12 @@ function CheckinContent({ eventId }) {
       if (!numericEventId || Number.isNaN(numericEventId)) {
         setErrorMsg("잘못된 행사 경로입니다.");
         setMyPrograms([]);
+        setParticipatedEvents([]);
         setMyCheckin(null);
+        setMyQrInfo(null);
+        setMyQrImageUrl("");
+        setMyQrLoading(false);
+        myQrKeyRef.current = "";
         setProgramCheckinStatus(null);
         setLoading(false);
         return;
@@ -890,14 +1053,59 @@ function CheckinContent({ eventId }) {
 
         const eventPayload = unwrapData(eventResponse, null);
         const programs = toArray(programsResponse);
-        const eventProgramIds = new Set(
+        const allMyApplies = toArray(myProgramApplies);
+        const allApplyProgramIds = [...new Set(
+          allMyApplies.map((apply) => Number(apply?.programId)).filter(Number.isFinite),
+        )];
+        const knownProgramIds = new Set(
           programs.map((program) => Number(program?.programId)).filter(Number.isFinite),
         );
-        const filteredMyApplies = toArray(myProgramApplies).filter((apply) =>
-          eventProgramIds.has(Number(apply?.programId)),
-        );
+        const missingProgramIds = allApplyProgramIds.filter((programId) => !knownProgramIds.has(programId));
+        const missingPrograms = await fetchProgramsByIds(missingProgramIds);
+        const mergedPrograms = [...programs, ...missingPrograms];
 
-        const nextMyPrograms = buildMyPrograms(programs, filteredMyApplies);
+        const programById = new Map(
+          mergedPrograms.map((program) => [Number(program?.programId), program]),
+        );
+        const myEventIds = [...new Set(
+          allMyApplies
+            .map((apply) => {
+              const program = programById.get(Number(apply?.programId));
+              return Number(program?.eventId);
+            })
+            .filter(Number.isFinite),
+        )];
+        const eventRows = await fetchEventsByIds(myEventIds);
+        const eventById = new Map(
+          eventRows
+            .map((event) => [Number(event?.eventId), event])
+            .filter(([eventId]) => Number.isFinite(eventId)),
+        );
+        const eventPayloadEventId = Number(eventPayload?.eventId);
+        if (Number.isFinite(eventPayloadEventId) && eventPayload) {
+          eventById.set(eventPayloadEventId, eventPayload);
+        }
+
+        const nextMyPrograms = buildMyPrograms(mergedPrograms, allMyApplies, eventById);
+        const checkedInEventIds = [...new Set(
+          nextMyPrograms
+            .filter((item) => String(item.status).toUpperCase() === MY_STATUS.CHECKED_IN)
+            .map((item) => Number(item.eventId))
+            .filter(Number.isFinite),
+        )];
+        const nextParticipatedEvents = checkedInEventIds
+          .map((eventId) => eventById.get(eventId))
+          .filter(Boolean)
+          .map((event) => ({
+            eventId: Number(event?.eventId),
+            eventName: String(event?.eventName || event?.title || `행사 ${event?.eventId}`),
+            startAt: event?.startAt ?? null,
+          }))
+          .sort((left, right) => {
+            const leftStart = toValidDate(left.startAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            const rightStart = toValidDate(right.startAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            return leftStart - rightStart;
+          });
         const myProgramMap = new Map();
         nextMyPrograms.forEach((programItem) => {
           const key = Number(programItem.programId);
@@ -920,19 +1128,87 @@ function CheckinContent({ eventId }) {
         const primaryStats = primaryProgram
           ? programStatsMap.get(Number(primaryProgram.programId))
           : null;
+        const primaryEventId = Number(primaryProgram?.eventId);
+        let nextMyQrInfo = null;
+        let nextMyQrImageUrl = "";
+        let nextMyQrKey = "";
+        if (
+          hasUsableUserAccessToken()
+          && Number.isFinite(primaryEventId)
+          && primaryEventId > 0
+        ) {
+          try {
+            const qrResponse = await axiosInstance.get("/api/qr/me", {
+              params: { eventId: primaryEventId },
+            });
+            nextMyQrInfo = unwrapData(qrResponse, null);
+            const qrId = Number(nextMyQrInfo?.qrId);
+            if (Number.isFinite(qrId) && qrId > 0) {
+              nextMyQrKey = `${primaryEventId}:${qrId}`;
+              if (
+                nextMyQrKey === myQrKeyRef.current
+                && myQrImageUrlRef.current
+              ) {
+                nextMyQrImageUrl = myQrImageUrlRef.current;
+              } else {
+                setMyQrLoading(true);
+                try {
+                  const qrImageResponse = await axiosInstance.get("/api/qr/me/download", {
+                    params: { eventId: primaryEventId },
+                    responseType: "blob",
+                  });
+                  if (qrImageResponse?.data) {
+                    nextMyQrImageUrl = URL.createObjectURL(qrImageResponse.data);
+                  }
+                } catch (qrImageError) {
+                  console.error("[Realtime Checkin] qr image load failed:", qrImageError);
+                } finally {
+                  setMyQrLoading(false);
+                }
+              }
+            }
+          } catch (qrError) {
+            if (!isUnauthorizedError(qrError)) {
+              console.error("[Realtime Checkin] qr load failed:", qrError);
+            }
+            setMyQrLoading(false);
+          }
+        } else {
+          setMyQrLoading(false);
+        }
         const nextMyCheckin = buildMyCheckin(primaryProgram, primaryStats);
         const nextProgramCheckinStatus = buildProgramCheckinStatus(primaryProgram, primaryStats);
 
         setEventDetail(eventPayload);
         setMyPrograms(nextMyPrograms);
+        setParticipatedEvents(nextParticipatedEvents);
         setMyCheckin(nextMyCheckin);
+        setMyQrImageUrl((prev) => {
+          if (nextMyQrImageUrl === prev) return prev;
+          if (prev && String(prev).startsWith("blob:")) {
+            URL.revokeObjectURL(prev);
+          }
+          return nextMyQrImageUrl;
+        });
+        myQrKeyRef.current = nextMyQrKey;
+        setMyQrInfo(nextMyQrInfo);
         setProgramCheckinStatus(nextProgramCheckinStatus);
         setErrorMsg(myProgramNotice);
         setLastLoadedAt(new Date());
       } catch (error) {
         console.error("[Realtime Checkin] load failed:", error);
         setMyPrograms([]);
+        setParticipatedEvents([]);
         setMyCheckin(null);
+        setMyQrInfo(null);
+        setMyQrImageUrl((prev) => {
+          if (prev && String(prev).startsWith("blob:")) {
+            URL.revokeObjectURL(prev);
+          }
+          return "";
+        });
+        setMyQrLoading(false);
+        myQrKeyRef.current = "";
         setProgramCheckinStatus(null);
         setEventDetail(null);
         if (isUnauthorizedError(error)) {
@@ -996,12 +1272,17 @@ function CheckinContent({ eventId }) {
         {errorMsg ? <div className="ck-notice">{errorMsg}</div> : null}
 
         <div className="checkin-page">
-          <MyCheckinStatusCard myCheckin={myCheckin} />
-          <ProgramCheckinProgressCard
-            programCheckinStatus={programCheckinStatus}
+          <MyCheckinStatusCard
+            myCheckin={myCheckin}
+            qrInfo={myQrInfo}
+            qrImageUrl={myQrImageUrl}
+            qrLoading={myQrLoading}
+          />
+          <MyProgramList
+            myPrograms={myPrograms}
+            participatedEvents={participatedEvents}
             loading={loading}
           />
-          <MyProgramList myPrograms={myPrograms} loading={loading} />
         </div>
       </div>
     </>
