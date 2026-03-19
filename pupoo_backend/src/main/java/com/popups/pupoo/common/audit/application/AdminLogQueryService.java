@@ -19,6 +19,10 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 관리자 감사 로그 조회 전용 서비스다.
+ * 관리자 계정 정보를 함께 조합해 화면용 응답으로 변환하고, 페이지 크기는 서비스 단에서 제한한다.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -30,6 +34,9 @@ public class AdminLogQueryService {
     private final AdminLogRepository adminLogRepository;
     private final UserRepository userRepository;
 
+    /**
+     * 감사 로그를 조건 검색 후 페이지 응답으로 변환한다.
+     */
     public PageResponse<AdminLogListResponse> list(String keyword, AdminTargetType targetType, int page, int size) {
         Pageable pageable = PageRequest.of(
                 Math.max(page, 0),
@@ -62,6 +69,9 @@ public class AdminLogQueryService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    /**
+     * 과도한 조회를 막기 위해 페이지 크기를 100 이하로 제한한다.
+     */
     private int normalizeSize(int size) {
         if (size <= 0) {
             return DEFAULT_SIZE;

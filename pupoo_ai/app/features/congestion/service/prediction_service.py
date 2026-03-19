@@ -1,3 +1,13 @@
+"""혼잡도 예측 서비스.
+
+기능:
+- 행사/프로그램 혼잡도 점수, 대기 시간, 추천 후보를 계산한다.
+
+설명:
+- 이 모듈은 API 라우터가 직접 호출하는 핵심 계산 레이어다.
+- score는 0~100 혼잡도 점수이고, threshold는 추천 전환 기준 점수다.
+"""
+
 import math
 from datetime import date, datetime, timedelta
 
@@ -16,6 +26,8 @@ from pupoo_ai.app.features.congestion.inference.lightgbm_registry import LightGb
 from pupoo_ai.app.features.congestion.inference.lstm_baseline import LstmCalibrationRegistry
 
 FIVE_MINUTES = timedelta(minutes=5)
+# 기능: 추천 후보 전환 판단에 사용하는 기본 혼잡도 임계치다.
+# 설명: 요청값이 없으면 이 값을 사용해 현재 프로그램이 충분히 혼잡한지 판정한다.
 DEFAULT_THRESHOLD = 75.0
 MODEL_REGISTRY = LightGbmCongestionRegistry(
     model_dir=settings.congestion_model_dir or None,
@@ -52,6 +64,7 @@ _FIXED_SOLAR_HOLIDAYS = {
 
 
 def _clamp_score(value: float) -> float:
+    # 기능: 내부 계산 점수를 0~100 범위로 제한하고 소수 첫째 자리까지 정리한다.
     return round(_clamp100(value), 1)
 
 
@@ -80,7 +93,8 @@ def _level_from_score(score: float) -> int:
 
 
 def _to_wait_minutes(score: float) -> int:
-    # Human-facing wait conversion should be conservative for low congestion scores.
+    # 기능: 혼잡도 점수를 사용자 표시용 대기 시간으로 변환한다.
+    # 설명: 낮은 점수 구간에서는 과장된 대기 시간이 나오지 않도록 보수적으로 계산한다.
     normalized = max(0.0, min(100.0, score))
     if normalized < 25.0:
         return 0
@@ -111,6 +125,8 @@ def _time_profile_multiplier(point_time: datetime) -> float:
 
 
 def _event_wait_anchor(request: EventPredictionRequest) -> float:
+    # 기능: 행사 단위 대기 시간 계산의 기준점(anchor)을 만든다.
+    # 설명: 평균 대기, 총 대기, 입장 압력을 함께 반영해 timeline 대기 시간 계산에 사용한다.
     if request.totalWaitCount <= 0 and request.averageWaitMinutes <= 0:
         return 0.0
 
@@ -125,6 +141,8 @@ def _event_wait_anchor(request: EventPredictionRequest) -> float:
 
 
 def _program_wait_anchor(request: ProgramPredictionRequest) -> float:
+    # 기능: 프로그램 단위 대기 시간 계산의 기준점(anchor)을 만든다.
+    # 설명: 줄 수, 대기 분, 체크인 압력을 함께 반영한다.
     if request.waitCount <= 0 and request.waitMinutes <= 0:
         return 0.0
 
@@ -550,6 +568,8 @@ def _build_timeline(
     target_type: str,
     daily_base_scores: dict[date, float] | None = None,
 ) -> list[TimelinePoint]:
+    # 기능: 시간대별 혼잡도 timeline을 생성한다.
+    # 설명: 시간 포인트별 점수 흐름과 대기 시간을 계산해 예측 응답의 기반 데이터를 만든다.
     if not points:
         return []
 
@@ -582,7 +602,16 @@ def _build_timeline(
     return result
 
 
+# 기능: 행사 단위 혼잡도 예측 결과를 계산한다.
+# 설명: 실측 신호, 보정 모델, 타임라인 생성 로직을 결합해 행사 수준 결과를 만든다.
+# 흐름: 점수 계산 -> 모델 보정 -> 타임라인 생성 -> PredictionResult 반환.
 def predict_event(request: EventPredictionRequest) -> PredictionResult:
+    # 기능: 행사 단위 혼잡도 예측 결과를 계산한다.
+    # 설명: 점수 계산, ML 보정, timeline 생성, 평균 대기 시간 계산을 한 번에 수행한다.
+    # 흐름: 기준 점수 계산 -> 모델 보정 -> timeline 생성 -> PredictionResult 반환.
+    # 기능: 행사 단위 혼잡도 예측 결과를 계산한다.
+    # 설명: 실측 신호, 보정 모델, 타임라인 생성 로직을 결합해 행사 수준 결과를 만든다.
+    # 흐름: 점수 계산 -> 모델 보정 -> 타임라인 생성 -> PredictionResult 반환.
     points = _build_time_points(request.eventStartAt, request.eventEndAt)
     base_score = _event_base_score(request)
     wait_anchor = _event_wait_anchor(request)
@@ -649,7 +678,16 @@ def predict_event(request: EventPredictionRequest) -> PredictionResult:
     )
 
 
+# 기능: 프로그램 단위 혼잡도 예측 결과를 계산한다.
+# 설명: 프로그램별 입력값을 기준으로 평균/피크 점수와 예상 대기 시간을 산출한다.
+# 흐름: 점수 계산 -> 모델 보정 -> 타임라인 생성 -> PredictionResult 반환.
 def predict_program(request: ProgramPredictionRequest) -> PredictionResult:
+    # 기능: 프로그램 단위 혼잡도 예측 결과를 계산한다.
+    # 설명: 현재 프로그램의 평균/피크 혼잡도와 예상 대기 시간을 계산한다.
+    # 흐름: horizon 설정 -> 점수 계산 -> 모델 보정 -> timeline 생성 -> PredictionResult 반환.
+    # 기능: 프로그램 단위 혼잡도 예측 결과를 계산한다.
+    # 설명: 프로그램별 입력값을 기준으로 평균/피크 점수와 예상 대기 시간을 산출한다.
+    # 흐름: 점수 계산 -> 모델 보정 -> 타임라인 생성 -> PredictionResult 반환.
     horizon_start = max(request.baseTime, request.programStartAt)
     points = _build_time_points(horizon_start, request.programEndAt)
     base_score = _program_base_score(request)
@@ -721,6 +759,7 @@ def _recommendation_sort_key(
 
 
 def _build_recommend_reason(candidate: RecommendationProgramInput, current: RecommendationProgramInput) -> str:
+    # 기능: 추천 후보를 선택한 이유를 사용자 메시지로 만든다.
     reasons: list[str] = []
     if (candidate.category or "").upper() == (current.category or "").upper():
         reasons.append("동일 카테고리")
@@ -730,7 +769,16 @@ def _build_recommend_reason(candidate: RecommendationProgramInput, current: Reco
     return ", ".join(reasons)
 
 
+# 기능: 현재 혼잡한 프로그램의 대체 후보를 추천한다.
+# 설명: 임계치와 시간 조건을 만족하는 후보만 추려 우선순위를 매긴다.
+# 흐름: 임계치 확인 -> 후보 필터링 -> 정렬 -> RecommendationResult 반환.
 def recommend_programs(request: ProgramRecommendationRequest) -> RecommendationResult:
+    # 기능: 현재 프로그램을 대체할 추천 후보를 정렬해 반환한다.
+    # 설명: threshold는 추천 시작 기준 점수이며, 현재 점수가 이 값 미만이면 추천을 만들지 않는다.
+    # 흐름: threshold 판정 -> 후보 필터링 -> 정렬 -> 상위 추천 결과 반환.
+    # 기능: 현재 혼잡한 프로그램의 대체 후보를 추천한다.
+    # 설명: 임계치와 시간 조건을 만족하는 후보만 추려 우선순위를 매긴다.
+    # 흐름: 임계치 확인 -> 후보 필터링 -> 정렬 -> RecommendationResult 반환.
     threshold = request.thresholdScore or DEFAULT_THRESHOLD
     current = request.currentProgram
 

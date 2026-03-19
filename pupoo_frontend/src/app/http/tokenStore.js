@@ -9,6 +9,7 @@ function emitAuthChange() {
 }
 
 export const tokenStore = {
+  // 기능: 메모리 대신 localStorage에 저장된 access token을 공통 조회한다.
   getAccess() {
     return localStorage.getItem(ACCESS_KEY);
   },
@@ -19,6 +20,8 @@ export const tokenStore = {
     return localStorage.getItem(SESSION_HINT_KEY) === "1";
   },
 
+  // 기능: access token 저장과 동시에 세션 존재 힌트를 남긴다.
+  // 설명: 실제 refresh token은 쿠키에 있어도 프론트는 session hint로 복구 시도 여부를 판단한다.
   setAccess(accessToken) {
     if (accessToken) {
       localStorage.setItem(ACCESS_KEY, accessToken);
@@ -42,6 +45,8 @@ export const tokenStore = {
     }
     emitAuthChange();
   },
+
+  // 기능: 로그아웃이나 refresh 실패 시 브라우저 쪽 인증 흔적을 모두 제거한다.
   clear() {
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);

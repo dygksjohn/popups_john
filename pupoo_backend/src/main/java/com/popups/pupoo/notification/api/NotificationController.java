@@ -9,8 +9,18 @@ import com.popups.pupoo.notification.dto.NotificationResponse;
 import com.popups.pupoo.notification.dto.NotificationSettingsResponse;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 내 알림함 조회 API다.
+ * 모든 엔드포인트는 인증이 필요하며, 알림 읽음 처리와 마케팅 수신 설정 변경을 `NotificationService`에 위임한다.
+ */
 @RestController
 @RequestMapping("/api/notifications")
 public class NotificationController {
@@ -24,8 +34,7 @@ public class NotificationController {
     }
 
     /**
-     * 읽지 않은 알림 수 조회(종 모양 배지용).
-     * 설계: GET /api/notifications/unread-count
+     * 읽지 않은 인앱 알림 수를 조회한다.
      */
     @GetMapping("/unread-count")
     public ApiResponse<Long> unreadCount() {
@@ -34,7 +43,7 @@ public class NotificationController {
     }
 
     /**
-     * 내 미열람(=인박스) 알림 목록
+     * 현재 사용자 인앱 알림함을 페이지 단위로 조회한다.
      */
     @GetMapping
     public ApiResponse<NotificationListResponse> myInbox(@PageableDefault(size = 20) Pageable pageable) {
@@ -43,7 +52,8 @@ public class NotificationController {
     }
 
     /**
-     * 클릭(읽음) 처리: target 정보 반환 + 인박스에서 즉시 삭제
+     * 알림 클릭 시 읽음 처리한다.
+     * 정책상 읽음은 `notification_inbox` 행을 즉시 삭제하는 방식이다.
      */
     @PostMapping("/{inboxId}/click")
     public ApiResponse<NotificationResponse> click(@PathVariable Long inboxId) {
@@ -52,7 +62,7 @@ public class NotificationController {
     }
 
     /**
-     * (전역) 알림 설정 조회
+     * 현재 사용자의 알림 설정을 조회한다.
      */
     @GetMapping("/settings")
     public ApiResponse<NotificationSettingsResponse> getSettings() {
@@ -61,7 +71,7 @@ public class NotificationController {
     }
 
     /**
-     * (전역) 마케팅 수신 동의 업데이트
+     * 현재 사용자의 마케팅 수신 동의 여부를 갱신한다.
      */
     @PutMapping("/settings")
     public ApiResponse<NotificationSettingsResponse> updateSettings(@RequestParam boolean allowMarketing) {

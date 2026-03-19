@@ -1,6 +1,13 @@
 import { axiosInstance } from "../../app/http/axiosInstance";
 
+// 기능: generated API 공통 URL 빌더를 제공한다.
+// 설명: path parameter가 포함된 backend 경로를 안전하게 실제 요청 URL로 변환한다.
+// 흐름: 템플릿 순회 -> 필수 파라미터 검증 -> URL 인코딩 후 치환.
+
 function buildUrl(template, pathParams = {}) {
+  // 기능: 경로 템플릿에 path param을 주입한다.
+  // 설명: generated API 함수들이 공통 규칙으로 URL을 만들도록 돕는다.
+  // 흐름: 템플릿 순회 -> 필수 파라미터 검증 -> URL 인코딩 후 치환.
   return template.replace(/\{([^}]+)\}/g, (_, key) => {
     const value = pathParams[key];
     if (value === undefined || value === null) {
@@ -26,12 +33,6 @@ export const siteGeneratedApi = {
   // GET /api/auth/email/verification/confirm (AuthVerificationController#confirmEmailVerification)
   getapiAuthEmailVerificationConfirm(pathParams = {}, params = {}, config = {}) {
     const url = buildUrl("/api/auth/email/verification/confirm", pathParams);
-    return axiosInstance.get(url, { ...config, params });
-  },
-
-  // GET /api/auth/secure-ping (AuthController#securePing)
-  getapiAuthSecurePing(pathParams = {}, params = {}, config = {}) {
-    const url = buildUrl("/api/auth/secure-ping", pathParams);
     return axiosInstance.get(url, { ...config, params });
   },
 

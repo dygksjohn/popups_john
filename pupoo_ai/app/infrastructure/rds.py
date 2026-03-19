@@ -1,3 +1,12 @@
+"""RDS 연결 유틸리티.
+
+기능:
+- 환경 설정에서 DB 연결 정보를 해석하고 상태 점검용 연결을 제공한다.
+
+설명:
+- AI 서비스는 읽기/헬스체크 성격의 접근만 여기서 수행한다.
+"""
+
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -12,6 +21,7 @@ from pupoo_ai.app.core.config import settings
 
 @dataclass(frozen=True)
 class DbConnectionConfig:
+    # 기능: 실제 접속에 사용할 DB 연결 파라미터를 보관한다.
     host: str
     port: int
     user: str
@@ -25,6 +35,8 @@ class DbConnectionConfig:
 
 
 def _parse_db_url(db_url: str) -> dict[str, Any]:
+    # 기능: 단일 DB URL을 세부 접속 정보로 분해한다.
+    # 설명: 개별 설정값보다 DB URL이 우선 제공된 경우를 지원한다.
     parsed = urlparse(db_url)
     if parsed.scheme not in {"mysql", "mysql+pymysql"}:
         raise ValueError("Unsupported DB URL scheme. Expected mysql:// or mysql+pymysql://")
@@ -41,6 +53,7 @@ def _parse_db_url(db_url: str) -> dict[str, Any]:
 
 
 def is_rds_configured() -> bool:
+    # 기능: RDS 설정이 최소한으로 채워졌는지 확인한다.
     if settings.db_url.strip():
         return True
     return all(
@@ -53,6 +66,8 @@ def is_rds_configured() -> bool:
 
 
 def resolve_db_config() -> DbConnectionConfig:
+    # 기능: 분산된 환경 설정을 최종 DB 접속 설정으로 정규화한다.
+    # 설명: DB URL과 개별 필드가 함께 있을 수 있어 빈 값 보완 규칙을 한곳에 모은다.
     parsed_url: dict[str, Any] = {}
     if settings.db_url.strip():
         parsed_url = _parse_db_url(settings.db_url.strip())
@@ -82,6 +97,8 @@ def resolve_db_config() -> DbConnectionConfig:
 
 
 def create_connection() -> pymysql.connections.Connection:
+    # 기능: pymysql 연결 객체를 생성한다.
+    # 설명: SSL CA가 있으면 SSL 연결 설정을 함께 적용한다.
     config = resolve_db_config()
     connection_kwargs: dict[str, Any] = {
         "host": config.host,
@@ -103,6 +120,7 @@ def create_connection() -> pymysql.connections.Connection:
 
 @contextmanager
 def db_connection():
+    # 기능: DB 연결을 컨텍스트 매니저로 감싼다.
     connection = create_connection()
     try:
         yield connection
@@ -111,6 +129,8 @@ def db_connection():
 
 
 def check_connection() -> dict[str, Any]:
+    # 기능: RDS 연결 가능 여부를 헬스체크용 payload로 반환한다.
+    # 흐름: 설정 해석 -> 연결 생성 -> `SELECT 1` 실행 -> 결과 정리.
     config = resolve_db_config()
     with db_connection() as connection:
         with connection.cursor() as cursor:

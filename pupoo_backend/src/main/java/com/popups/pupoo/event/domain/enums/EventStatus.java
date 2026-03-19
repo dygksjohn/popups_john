@@ -2,8 +2,8 @@
 package com.popups.pupoo.event.domain.enums;
 
 /**
- * v2.5 event.status ENUM 매핑
- * - DB: ENUM('PLANNED','ONGOING','ENDED','CANCELLED')
+ * 행사 상태다.
+ * DB `event.status`와 1:1로 매핑되며, 공개 화면에서는 날짜 기준으로 재해석될 수 있다.
  */
 public enum EventStatus {
     PLANNED,

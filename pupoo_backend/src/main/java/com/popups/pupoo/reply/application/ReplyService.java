@@ -2,7 +2,6 @@
 package com.popups.pupoo.reply.application;
 
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
-import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.bannedword.application.ModerationClient;
 import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
@@ -27,9 +26,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.time.LocalDateTime;
 
+/**
+ * 게시글 댓글과 리뷰 댓글의 생성/조회/수정/삭제를 통합 처리한다.
+ *
+ * 댓글은 별도 신고 상태를 들고 있지 않고,
+ * 현재 구현 기준 응답 상태는 ACTIVE와 DELETED만 노출한다.
+ */
 @Service
 @Transactional(readOnly = true)
 public class ReplyService {
@@ -66,11 +70,14 @@ public class ReplyService {
         return userRepository.findById(userId).map(u -> u.getEmail()).orElse(null);
     }
 
+    /**
+     * 댓글 생성 전 대상 존재 여부, 댓글 허용 여부, 금칙어 정책을 순서대로 검증한다.
+     * AI moderation 차단 건은 저장하지 않고 로그만 남긴 뒤 예외를 반환한다.
+     */
     @Transactional
     public ReplyResponse create(Long userId, ReplyCreateRequest request) {
         targetValidator.validate(request.getTargetType(), request.getTargetId());
 
-        // 댓글 정책: FAQ 및 댓글 비활성 게시글은 댓글 생성 불가
         if (request.getTargetType() == ReplyTargetType.POST) {
             validateReplyAllowedForPost(request.getTargetId());
         }
@@ -92,7 +99,6 @@ public class ReplyService {
         if (!bannedWordService.shouldSkipModeration(userId) && boardIdForModeration != null) {
             modResult = moderationClient.moderate(request.getContent() != null ? request.getContent() : "", boardIdForModeration, "COMMENT");
             if (modResult != null && modResult.isBlock()) {
-                // 생성 단계에서 BLOCK 된 댓글도 로그에 남긴다 (contentId는 아직 없음).
                 bannedWordService.logAiModeration(
                         boardIdForModeration,
                         null,
@@ -100,9 +106,8 @@ public class ReplyService {
                         userId,
                         modResult
                 );
-                // 댓글 작성 실패 시 사용자 메시지 통일
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "댓글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+                        "댓글 내용이 정책을 위반하여 등록할 수 없습니다.");
             }
         }
 
@@ -147,12 +152,12 @@ public class ReplyService {
         Post post = postRepository.findByPostIdAndDeletedFalse(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시글이 존재하지 않습니다."));
 
-        // 정책: 숨김(HIDDEN) 게시글에는 댓글 작성 불가
+        // 숨김 처리된 게시글은 공개 댓글 흐름에서 제외한다.
         if (post.getStatus() == com.popups.pupoo.board.post.domain.enums.PostStatus.HIDDEN) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "숨김 처리된 게시글에는 댓글을 작성할 수 없습니다.");
         }
 
-        // 정책: 댓글은 FREE/INFO만 허용
+        // 현재 댓글은 FREE와 INFO 게시판 게시글에만 허용한다.
         BoardType bt = (post.getBoard() == null) ? null : post.getBoard().getBoardType();
         if (bt != BoardType.FREE && bt != BoardType.INFO) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "해당 게시판에는 댓글을 작성할 수 없습니다.");
@@ -162,10 +167,11 @@ public class ReplyService {
         }
     }
 
+    /**
+     * 공개 댓글 목록 조회 시 부모 콘텐츠가 공개 가능한 상태인지 먼저 검증한다.
+     */
     public Page<ReplyResponse> list(ReplyTargetType targetType, Long targetId, int page, int size) {
         validatePageRequest(page, size);
-
-        // 공개 댓글 목록 조회 시 부모 컨텐츠 공개 상태 검증
         targetValidator.validatePublicReadable(targetType, targetId);
 
         if (targetType == ReplyTargetType.POST) {
@@ -187,12 +193,12 @@ public class ReplyService {
         throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 댓글 대상 타입입니다.");
     }
 
+    /**
+     * 수정은 작성자 본인만 가능하다.
+     */
     @Transactional
     public ReplyResponse update(Long userId, ReplyTargetType targetType, Long replyId, ReplyUpdateRequest request) {
         LocalDateTime now = LocalDateTime.now();
-
-        // 금칙어 검증 (댓글 수정 포함)
-        // - update에서는 replyId만으로는 targetId를 알기 어려우므로, 실제 엔티티에서 targetId를 꺼내서 검증한다.
 
         if (targetType == ReplyTargetType.POST) {
             PostComment comment = postCommentRepository.findByCommentIdAndDeletedFalse(replyId)
@@ -223,6 +229,9 @@ public class ReplyService {
         throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 댓글 대상 타입입니다.");
     }
 
+    /**
+     * 삭제는 hard delete가 아니라 deleted 플래그를 세우는 soft delete다.
+     */
     @Transactional
     public void delete(Long userId, ReplyTargetType targetType, Long replyId) {
         LocalDateTime now = LocalDateTime.now();
@@ -285,8 +294,7 @@ public class ReplyService {
     }
 
     /**
-     * 운영 환경에서 과도한 페이징 요청으로 DB 부하가 커지는 것을 방지하기 위해,
-     * page/size 범위를 서비스 레이어에서 한번 더 제한한다.
+     * 과도한 페이지 요청으로 인한 조회 부하를 막기 위해 범위를 제한한다.
      */
     private void validatePageRequest(int page, int size) {
         if (page < 0) {
@@ -296,5 +304,4 @@ public class ReplyService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "size는 1~100 범위여야 합니다.");
         }
     }
-
 }

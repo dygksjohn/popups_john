@@ -496,6 +496,7 @@ export default function JoinNormal() {
   });
   const [pets, setPets] = useState([{ ...DEFAULT_PET }]);
   const [error, setError] = useState("");
+  // 기능: 일반 회원가입 화면은 약관 -> 정보 -> OTP -> 이메일 -> 완료 흐름을 step 문자열로 구분한다.
   const [step, setStep] = useState("AGREE");
   const [signupKey, setSignupKey] = useState(null);
 
@@ -510,12 +511,19 @@ export default function JoinNormal() {
 
   const [otpCode, setOtpCode] = useState("");
   const [loading, setLoading] = useState(false);
+  // 기능: phoneVerified는 OTP 검증 API 성공 이후에만 true가 되는 휴대폰 인증 완료 상태다.
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [otpDevCode, setOtpDevCode] = useState("");
   const [emailRequested, setEmailRequested] = useState(false);
+  // 기능: emailVerified는 이메일 confirm API 성공 이후에만 true가 되는 최종 인증 상태다.
   const [emailVerified, setEmailVerified] = useState(false);
   const [emailCode, setEmailCode] = useState("");
+  const [emailDevCode, setEmailDevCode] = useState("");
+  // 기능: otpCooldown은 재전송 대기 시간을 초 단위로 유지해 버튼 활성화를 제어한다.
   const [otpCooldown, setOtpCooldown] = useState(0);
 
   useEffect(() => {
+    // 기능: OTP 재전송 가능 시간을 1초씩 줄여 버튼 상태와 남은 시간을 같은 값으로 맞춘다.
     if (otpCooldown <= 0) return;
     const t = setInterval(() => setOtpCooldown((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
@@ -568,7 +576,7 @@ export default function JoinNormal() {
     setForm((p) => ({ ...p, email: socialState.email ?? p.email, nickname: socialState.nickname ?? p.nickname }));
   }, [isSocial, socialState]);
 
-  // Filter out Network Error and technical messages from user-facing errors
+  // 기능: 기술적인 에러 문구를 사용자에게 보이는 가입 단계 메시지로 정리한다.
   const setUserError = (msg) => {
     const s = String(msg || "");
     if (/network\s*error/i.test(s) || /signupKey/i.test(s) || /accessToken/i.test(s)) return;
@@ -594,12 +602,17 @@ export default function JoinNormal() {
       const payload = isSocial
         ? { signupType: "SOCIAL", socialProvider: socialState.socialProvider ?? "KAKAO", socialProviderUid: socialState.socialProviderUid, email: form.email.trim(), nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileDigits }
         : { signupType: "EMAIL", email: form.email.trim(), password: form.password, nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileDigits };
+      // 기능: 회원가입 기본 정보 입력 이후 휴대폰 OTP 발송 단계를 시작한다.
+      // 설명: 휴대폰 인증 완료 여부는 이후 verifyOtp 성공 응답으로만 확정한다.
+      // 흐름: 기본 정보 검증 -> signup/start 호출 -> signupKey 저장 -> OTP 입력 단계 이동.
       const res = await authApi.signupStart(payload);
       const data = getApiData(res); const key = data?.signupKey;
       if (!key) throw new Error("가입 세션 생성에 실패했습니다. 다시 시도해주세요.");
-      setSignupKey(key); setStep("OTP");
+      setSignupKey(key); setStep("OTP"); setPhoneVerified(false); setOtpCode(""); setOtpDevCode("");
+      setEmailRequested(false); setEmailVerified(false); setEmailCode(""); setEmailDevCode("");
+      // 기능: 서버가 내려준 otpCooldownSeconds를 그대로 받아 재전송 버튼 잠금 시간으로 사용한다.
       if (data?.otpCooldownSeconds) setOtpCooldown(Number(data.otpCooldownSeconds) || 0);
-      if (data?.devOtp) setOtpCode(String(data.devOtp));
+      if (data?.devOtp) setOtpDevCode(String(data.devOtp));
     } catch (e) {
       if (e?.response?.status === 429) {
         const retryAfter = Number(e?.response?.headers?.["retry-after"]);
@@ -617,7 +630,12 @@ export default function JoinNormal() {
     if (!otpCode.trim()) throw new Error("인증번호를 입력하세요.");
     setLoading(true); setError("");
     try {
+      // 기능: 휴대폰 인증 완료 여부를 백엔드 검증 성공 응답으로 확정한다.
+      // 설명: 프론트 로컬 입력값만으로 완료 처리하지 않고 verify-otp 성공 이후에만 다음 단계로 이동한다.
+      // 흐름: OTP 입력 -> verify-otp 호출 -> 성공 시 phoneVerified 반영 -> 이메일 인증 단계 이동.
       await authApi.signupVerifyOtp({ signupKey, phone: phoneMobileDigits, otpCode: otpCode.trim() });
+      setPhoneVerified(true);
+      if (isSocial) setEmailVerified(true);
       setStep("COMPLETE");
     } finally { setLoading(false); }
   };
@@ -626,10 +644,15 @@ export default function JoinNormal() {
     if (loading || !signupKey) return;
     setError(""); setLoading(true);
     try {
+      // 기능: 휴대폰 인증 이후 가입 완료 전 마지막 단계인 이메일 인증 메일을 발송한다.
+      // 설명: request 성공은 메일 발송 완료만 뜻하고, emailVerified는 confirm 성공 전까지 false로 유지된다.
       const res = await authApi.signupEmailRequest({ signupKey });
       const body = res?.data ?? res;
       const devCode = body?.data?.devCode || body?.devCode || body?.data?.code || "";
-      if (devCode) setEmailCode(devCode);
+      // 기능: 개발 환경 보조 코드는 화면 도움말로만 노출한다.
+      // 설명: 자동 입력으로 인증 완료를 가장하지 않기 위해 입력 칸에는 채우지 않는다.
+      // 흐름: 이메일 요청 성공 -> 이메일 입력 단계 유지 -> 필요 시 dev 코드만 별도 표시.
+      if (devCode) setEmailDevCode(String(devCode));
       setEmailRequested(true);
     } catch (err) { setUserError(err?.response?.data?.message ?? err?.message ?? "이메일 인증 요청에 실패했습니다."); }
     finally { setLoading(false); }
@@ -640,6 +663,9 @@ export default function JoinNormal() {
     if (!emailCode.trim()) return setError("인증 코드를 입력하세요.");
     setError(""); setLoading(true);
     try {
+      // 기능: 이메일 인증 완료 여부도 백엔드 confirm 성공 응답 기준으로만 반영한다.
+      // 설명: 로컬 플래그가 아니라 email/confirm 성공 이후에만 완료 상태를 true로 만든다.
+      // 흐름: 코드 입력 -> email/confirm 호출 -> 성공 시 emailVerified 반영.
       await authApi.signupEmailConfirm({ signupKey, code: emailCode.trim() });
       setEmailVerified(true);
     } catch (err) { setUserError(err?.response?.data?.message ?? err?.message ?? "인증 확인에 실패했습니다."); }
@@ -648,10 +674,13 @@ export default function JoinNormal() {
 
   const completeSignup = async () => {
     if (loading || !signupKey) return;
-    if (!emailVerified) throw new Error("이메일 인증을 완료해주세요.");
+    if (!phoneVerified) throw new Error("휴대폰 인증을 먼저 완료해주세요.");
+    if (!isSocial && !emailVerified) throw new Error("이메일 인증을 완료해주세요.");
     const petPayloads = parsePetsForCreate(pets);
     setLoading(true); setError("");
     try {
+      // 기능: 가입 완료 API는 휴대폰 인증 완료와 이메일 인증 완료 상태를 모두 통과한 뒤에만 호출된다.
+      // 설명: 일반 가입에서는 phoneVerified와 emailVerified가 둘 다 필요하고, 소셜 가입은 이메일을 이미 확보했으므로 emailVerified를 바로 true로 본다.
       const res = await authApi.signupComplete({ signupKey });
       const data = getApiData(res); const accessToken = data?.accessToken;
       if (!accessToken) throw new Error("가입 완료에 실패했습니다. 다시 시도해주세요.");
@@ -667,6 +696,8 @@ export default function JoinNormal() {
   const handleSubmit = async (e) => {
     e.preventDefault(); setError("");
     try {
+      // 기능: 같은 제출 버튼을 현재 step에 따라 다음 행동으로 분기한다.
+      // 흐름: AGREE는 FORM 이동 -> FORM은 signup/start -> OTP는 verify-otp -> COMPLETE는 signup/complete.
       if (step === "AGREE") { if (!agreeTerms || !agreePrivacy) throw new Error("필수 약관에 동의해 주세요."); setStep("FORM"); return; }
       if (step === "FORM") { await signupStart(); return; }
       if (step === "OTP") { await verifyOtp(); return; }
@@ -674,9 +705,18 @@ export default function JoinNormal() {
     } catch (err) { setUserError(err?.response?.data?.message ?? err?.message); }
   };
 
-  const stepIndex = step === "AGREE" ? 0 : step === "FORM" ? 1 : step === "OTP" ? 2 : 3;
-  const stepLabels = ["약관 동의", "정보 입력", "휴대폰 인증", "이메일 인증"];
-  const StepIcons = [ClipboardCheck, PenLine, Smartphone, Mail];
+  // 기능: 상단 진행 바는 현재 내부 step과 이메일 인증 완료 여부를 숫자 인덱스로 변환해 표시한다.
+  const stepIndex = step === "AGREE"
+    ? 0
+    : step === "FORM"
+      ? 1
+      : step === "OTP"
+        ? 2
+        : emailVerified
+          ? 4
+          : 3;
+  const stepLabels = ["약관 동의", "기본 정보", "휴대폰 인증", "이메일 인증", "가입 완료"];
+  const StepIcons = [ClipboardCheck, PenLine, Smartphone, Mail, CheckCircle2];
 
   return (
     <>
@@ -692,7 +732,7 @@ export default function JoinNormal() {
           {step === "AGREE" ? "서비스 이용을 위해 약관을 확인해 주세요." : step === "FORM" ? "간단한 정보만 입력하면 pupoo의 모든 서비스를 이용할 수 있어요." : step === "OTP" ? "휴대폰으로 전송된 인증번호를 확인해 주세요." : "마지막으로 이메일 인증을 완료해 주세요."}
         </p>
 
-        {/* Step */}
+        {/* 기능: 진행 바는 사용자가 현재 어느 가입 단계에 있는지 화면 상단에서 바로 보여준다. */}
         <div className="step-bar">
           {stepLabels.map((label, i) => {
             const Icon = StepIcons[i];
@@ -712,7 +752,7 @@ export default function JoinNormal() {
 
 
 
-        {/* Error — show only in AGREE / FORM steps at top */}
+        {/* 기능: 상단 공통 에러는 약관과 정보 단계에서만 카드 상단에 노출한다. */}
         {error && (step === "AGREE" || step === "FORM") && (
           <div className="error-text">
             <AlertCircle size={16} style={{ color: "#dc2626", flexShrink: 0, marginTop: 2 }} />
@@ -990,6 +1030,9 @@ export default function JoinNormal() {
                 ))}
               </div>
 
+              {otpDevCode ? (
+                <HintBanner icon={Info} variant="warn">개발 환경 확인용 OTP: {otpDevCode}</HintBanner>
+              ) : null}
               <div className="btn-row" style={{ justifyContent: "center", maxWidth: 360, margin: "0 auto" }}>
                 <button type="submit" className="btn-primary" disabled={loading}>
                   {loading ? <><Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> 확인 중...</> : <><ShieldCheck size={18} /> 인증 확인</>}
@@ -1002,7 +1045,7 @@ export default function JoinNormal() {
                 </div>
               )}
               <div style={{ marginTop: 20, textAlign: "center" }}>
-                <button type="button" className="btn-text-link" disabled={loading} onClick={() => { setStep("FORM"); setSignupKey(null); setOtpCode(""); setEmailRequested(false); setEmailVerified(false); setEmailCode(""); }}>
+                <button type="button" className="btn-text-link" disabled={loading} onClick={() => { setStep("FORM"); setSignupKey(null); setOtpCode(""); setOtpDevCode(""); setPhoneVerified(false); setEmailRequested(false); setEmailVerified(false); setEmailCode(""); setEmailDevCode(""); }}>
                   이전 단계로 돌아가기
                 </button>
               </div>
@@ -1024,6 +1067,7 @@ export default function JoinNormal() {
                   <div style={{ fontSize: 14, color: "#888", marginBottom: 4 }}>
                     <b style={{ color: "#6c5ce7" }}>{form.email}</b> 로 인증 메일을 보내드립니다
                   </div>
+                  <HintBanner icon={ShieldCheck}>휴대폰 인증이 완료되었고, 이제 이메일 인증을 마치면 가입을 완료할 수 있습니다.</HintBanner>
                   <div className="btn-row" style={{ justifyContent: "center", maxWidth: 360, margin: "32px auto 0" }}>
                     <button type="button" className="btn-primary" onClick={requestEmailVerification} disabled={loading}>
                       {loading ? <><Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> 발송 중...</> : <><Send size={18} /> 인증 메일 발송</>}
@@ -1040,6 +1084,9 @@ export default function JoinNormal() {
                   <div style={{ fontSize: 14, color: "#888", marginBottom: 4 }}>
                     <b style={{ color: "#6c5ce7" }}>{form.email}</b> 로 발송되었습니다
                   </div>
+                  {emailDevCode ? (
+                    <HintBanner icon={Info} variant="warn">개발 환경 확인용 이메일 코드: {emailDevCode}</HintBanner>
+                  ) : null}
                   <div className="verify-input-row" style={{ marginTop: 32 }}>
                     <input className="fi" type="text" value={emailCode} onChange={(e) => setEmailCode(e.target.value)} placeholder="인증 코드 입력" autoFocus disabled={loading} style={{ maxWidth: 280, textAlign: "center", fontSize: 18 }} />
                   </div>
