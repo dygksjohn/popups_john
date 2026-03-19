@@ -10,8 +10,8 @@ import com.popups.pupoo.auth.support.RefreshCookieRequestSupport;
 import com.popups.pupoo.auth.token.JwtProvider;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
-import com.popups.pupoo.user.domain.enums.RoleName;
 import com.popups.pupoo.user.application.UserService;
+import com.popups.pupoo.user.domain.enums.RoleName;
 import com.popups.pupoo.user.domain.enums.UserStatus;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.dto.UserCreateRequest;
@@ -28,6 +28,10 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.time.LocalDateTime;
 
+/**
+ * 로그인과 토큰 발급을 담당하는 인증 코어 서비스다.
+ * 사용자 상태를 검증한 뒤 access token, refresh token, refresh cookie를 일관된 정책으로 발급한다.
+ */
 @Service
 public class AuthService {
 
@@ -37,12 +41,9 @@ public class AuthService {
     private final UserService userService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
-
     private final TokenService tokenService;
     private final JwtProvider jwtProvider;
-
     private final EmailVerificationService emailVerificationService;
-
     private final boolean refreshCookieSecure;
     private final int refreshCookieMaxAgeSeconds;
     private final String refreshCookiePath;
@@ -72,30 +73,24 @@ public class AuthService {
     }
 
     /**
-     * 외부(Service)에서 사용자 상태 검증을 재사용할 수 있도록 공개 래퍼 제공
-     * - KakaoOAuthService에서 "자동 연동 insert 전에" 차단할 때 사용
+     * 소셜 로그인 서비스도 동일한 사용자 상태 정책을 재사용할 수 있도록 공개 헬퍼를 제공한다.
      */
     public void validateUserStatusForAuthPublic(User user) {
         validateUserStatusForAuth(user);
     }
 
     /**
-     * 회원가입 + 자동 로그인
+     * 회원가입 직후 자동 로그인까지 처리한다.
+     * 계정 생성 성공 후에만 토큰을 발급하고, 커밋 이후 계정 이메일 인증 메일을 비동기 후처리로 보낸다.
      */
     @Transactional
     public LoginResponse signup(UserCreateRequest req, HttpServletResponse response) {
-
         User saved = userService.create(req);
-
-        // 가입 직후 상태 검증도 일관성 유지(정책상 보통 ACTIVE로 생성되겠지만 방어)
         validateUserStatusForAuth(saved);
 
-        // 토큰 발급 + 쿠키 세팅 공통 처리
-        LoginResponse lr = issueTokensAndSetCookie(saved, response);
-
+        LoginResponse loginResponse = issueTokensAndSetCookie(saved, response);
         Long userId = saved.getUserId();
 
-        // 가입 직후 인증메일 발송은 트랜잭션 커밋 이후 수행(실패해도 가입 자체는 성공)
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
@@ -109,13 +104,12 @@ public class AuthService {
             });
         }
 
-        return lr;
+        return loginResponse;
     }
 
     /**
-     * 로그인
-     * - accessToken: body
-     * - refreshToken: HttpOnly 쿠키
+     * 이메일/비밀번호 로그인 흐름이다.
+     * 사용자 상태와 비밀번호를 모두 검증한 뒤 마지막 로그인 시각을 갱신하고 토큰을 발급한다.
      */
     @Transactional
     public LoginResponse login(LoginRequest req, HttpServletResponse response) {
@@ -135,11 +129,10 @@ public class AuthService {
     }
 
     /**
-     * 소셜 로그인 등 "이미 인증된 User"를 기반으로 로그인 처리
+     * 카카오 등 외부 인증이 끝난 User 엔티티로 로그인 처리를 재사용한다.
      */
     @Transactional
     public LoginResponse loginByUser(User user, HttpServletResponse response) {
-
         validateUserStatusForAuth(user);
 
         user.setLastLoginAt(LocalDateTime.now());
@@ -149,7 +142,8 @@ public class AuthService {
     }
 
     /**
-     * refresh (쿠키 기반)
+     * refresh token rotation 정책을 적용한다.
+     * 기존 refresh row를 삭제한 뒤 새 refresh token과 새 cookie를 발급하고, access token은 응답 본문으로 반환한다.
      */
     @Transactional
     public TokenResponse refreshToken(String refreshToken, HttpServletResponse response) {
@@ -163,21 +157,17 @@ public class AuthService {
         jwtProvider.validateRefreshToken(refreshToken);
 
         Long userId = jwtProvider.getUserId(refreshToken);
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         validateUserStatusForAuth(user);
 
         String roleName = user.getRoleName().name();
-
         String newAccess = tokenService.createAccessToken(userId, roleName);
 
-        // rotation: 기존 refresh 제거 후 신규 발급
         refreshTokenRepository.delete(stored);
 
         String newRefresh = tokenService.createRefreshToken(userId);
-
         RefreshToken newRt = new RefreshToken();
         newRt.setUserId(userId);
         newRt.setToken(newRefresh);
@@ -191,11 +181,10 @@ public class AuthService {
     }
 
     /**
-     * 로그아웃 (디바이스 단위)
+     * 로그아웃 시 refresh token 저장소와 cookie를 함께 정리한다.
      */
     @Transactional
     public void logout(String refreshToken, HttpServletResponse response) {
-
         if (refreshToken != null && !refreshToken.isBlank()) {
             refreshTokenRepository.findByToken(refreshToken)
                     .ifPresent(refreshTokenRepository::delete);
@@ -205,7 +194,7 @@ public class AuthService {
     }
 
     /**
-     * 공통: access/refresh 발급 + refresh 저장 + 쿠키 세팅
+     * 인증 성공 후 공통으로 사용하는 토큰 발급 루틴이다.
      */
     private LoginResponse issueTokensAndSetCookie(User user, HttpServletResponse response) {
         Long userId = user.getUserId();
@@ -227,13 +216,9 @@ public class AuthService {
     }
 
     /**
-     * 인증/인가 흐름에서 허용하지 않는 사용자 상태를 차단한다.
-     *
-     * 현재 UserStatus 정의
-     * - ACTIVE / SUSPENDED / DELETED
-     *
-     * 정책
-     * - DELETED(탈퇴)는 "비활성"으로 간주하여 로그인/토큰발급을 차단한다.
+     * 인증 흐름에서 허용되지 않는 사용자 상태를 차단한다.
+     * `DELETED`는 soft delete 상태이므로 로그인과 토큰 재발급을 모두 막고,
+     * `SUSPENDED`는 제재 계정으로 별도 에러 코드를 반환한다.
      */
     private void validateUserStatusForAuth(User user) {
         normalizeLegacyAuthFields(user);
@@ -264,6 +249,9 @@ public class AuthService {
         }
     }
 
+    /**
+     * refresh token은 HttpOnly cookie로만 내려 인증 헤더와 분리한다.
+     */
     private void setRefreshCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, token)
                 .httpOnly(true)
@@ -276,6 +264,9 @@ public class AuthService {
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
+    /**
+     * 로그아웃과 refresh 실패 시 기존 refresh cookie를 비운다.
+     */
     private void expireRefreshCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
                 .httpOnly(true)

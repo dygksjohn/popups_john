@@ -1,3 +1,9 @@
+"""AI 서비스 공통 상수.
+
+기능:
+- 내부 라우트 prefix, 헤더명, 응답 코드 상수를 모아둔다.
+"""
+
 INTERNAL_API_PREFIX = "/internal"
 HEADER_INTERNAL_TOKEN = "X-Internal-Token"
 HEADER_TRACE_ID = "X-Trace-Id"

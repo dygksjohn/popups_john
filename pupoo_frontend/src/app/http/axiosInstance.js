@@ -9,8 +9,8 @@ export function createAxiosInstance() {
   const baseURL = getConfiguredBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
   const instance = axios.create({
-    // Keep axios baseURL unset and build the final URL explicitly in the
-    // request interceptor. This prevents duplicate prefixes like /api/api/*.
+    // 기능: axios 기본 인스턴스는 공통 헤더, timeout, 쿠키 포함 규칙만 담당한다.
+    // 설명: baseURL을 여기서 고정하지 않고 request interceptor에서 최종 URL을 조합해 `/api/api` 중복을 막는다.
     baseURL: undefined,
     timeout: 30000,
     headers: { "Content-Type": "application/json" },
@@ -18,12 +18,14 @@ export function createAxiosInstance() {
   });
 
   instance.interceptors.request.use((config) => {
+    // 기능: 환경별 base URL과 상대 경로를 요청 직전에 하나의 URL로 합친다.
     config.url = buildRequestUrl(baseURL, config.url);
     return config;
   });
 
   console.log("axiosInstance request base =", baseURL || "(same-origin)");
 
+  // 기능: 인증 헤더 주입, refresh 재시도, 공개 API 예외 처리를 한 곳에 묶는다.
   attachInterceptors(instance, {
     publicPathPrefixes: ["/api/auth/", "/api/storage/presign"],
     publicGetPathPrefixes: [

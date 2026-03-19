@@ -25,6 +25,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * 파일 메타데이터와 실제 오브젝트 저장을 함께 조율한다.
+ *
+ * - StoredFile row는 메타데이터와 soft delete 상태를 관리한다.
+ * - 실제 오브젝트 삭제는 purge 배치에서 지연 처리한다.
+ */
 @Slf4j
 @Service
 public class StorageService {
@@ -62,8 +68,8 @@ public class StorageService {
     }
 
     /**
-     * POST/NOTICE 첨부파일 업로드 API입니다.
-     * NOTICE 업로드는 관리자만 허용합니다.
+     * 게시글과 공지 첨부파일을 업로드하고 files 테이블에 메타데이터를 남긴다.
+     * 공지 업로드는 관리자만 허용한다.
      */
     @Transactional
     public UploadResponse uploadForFilesTable(MultipartFile file, UploadRequest request) {
@@ -110,8 +116,7 @@ public class StorageService {
     }
 
     /**
-     * 갤러리 이미지 임시 업로드 API입니다.
-     * files 테이블에는 저장하지 않고 object storage 경로만 반환합니다.
+     * 갤러리 임시 이미지는 DB row 없이 오브젝트 스토리지에만 저장하고 공개 URL을 반환한다.
      */
     public UploadResponse uploadForGalleryTemp(MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -134,7 +139,7 @@ public class StorageService {
     }
 
     /**
-     * Admin gallery uploads return public URLs immediately, but URL assembly stays in the service layer.
+     * 관리자 갤러리 업로드는 다건 이미지를 즉시 업로드하고 공개 URL만 반환한다.
      */
     public List<String> uploadGalleryImagesForAdmin(List<MultipartFile> files) {
         validateGalleryUploadBatch(files);
@@ -165,7 +170,8 @@ public class StorageService {
     }
 
     /**
-     * 게시글(postId)에 연결된 첨부파일 메타 조회. 없으면 null.
+     * 게시글에 연결된 첨부파일 메타데이터를 조회한다.
+     * soft delete 된 파일은 제외한다.
      */
     @Transactional(readOnly = true)
     public FileResponse getFileByPostId(Long postId) {
@@ -187,6 +193,10 @@ public class StorageService {
         return objectStoragePort.getObject(LOCAL_BUCKET_UNUSED, key);
     }
 
+    /**
+     * 사용자 삭제는 files row만 soft delete 한다.
+     * 실제 오브젝트 제거는 purge 주기에서 처리한다.
+     */
     @Transactional
     public void deleteByUser(Long fileId) {
         Long currentUserId = securityUtil.currentUserId();
@@ -205,6 +215,9 @@ public class StorageService {
         storedFileRepository.save(f);
     }
 
+    /**
+     * 관리자 삭제도 동일하게 soft delete 우선 정책을 따른다.
+     */
     @Transactional
     public void deleteByAdmin(Long fileId, String reason) {
         Long adminId = securityUtil.currentUserId();
@@ -217,6 +230,10 @@ public class StorageService {
         storedFileRepository.save(f);
     }
 
+    /**
+     * 삭제 보존 기간이 지난 row만 실제 오브젝트 삭제 대상으로 잡는다.
+     * 실패 건은 objectDeletedAt을 남기지 않아 다음 주기에 재시도된다.
+     */
     @Transactional
     public int purgeDeletedObjects(int retentionDays) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
@@ -232,7 +249,7 @@ public class StorageService {
                 storedFileRepository.save(f);
                 deletedCount++;
             } catch (Exception e) {
-                // 실패 건은 다음 주기에서 재시도합니다.
+                // 실패 건은 상태를 남기지 않고 다음 purge 주기에서 다시 시도한다.
             }
         }
         return deletedCount;

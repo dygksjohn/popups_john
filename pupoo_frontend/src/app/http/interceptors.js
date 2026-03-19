@@ -75,6 +75,8 @@ function extractAccessToken(payload) {
 }
 
 async function requestTokenRefresh() {
+  // 기능: 401 이후 refresh cookie 기반으로 새 access token을 발급받는다.
+  // 설명: refresh API는 기존 access 없이도 동작해야 하므로 별도 axios 호출로 분리되어 있다.
   const res = await axios.post(
     buildRequestUrl(apiBaseUrl, REFRESH_PATH),
     null,
@@ -101,11 +103,13 @@ function refreshAccessToken() {
 
 export function attachInterceptors(instance, options = {}) {
   instance.interceptors.request.use((config) => {
-    // Let the browser add the multipart boundary for FormData requests.
+    // 기능: FormData 요청은 브라우저가 boundary를 직접 계산하도록 헤더를 비운다.
     if (config.data && config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     }
 
+    // 기능: 공개 API가 아니고 Authorization이 비어 있으면 저장된 토큰을 자동으로 붙인다.
+    // 설명: 로그인/회원가입 같은 공개 경로는 제외하고, 일반 사용자와 관리자 요청을 경로 기준으로 분기한다.
     if (shouldSkipAutoAuth(config, options)) {
       return config;
     }
@@ -147,6 +151,9 @@ export function attachInterceptors(instance, options = {}) {
         return Promise.reject(err);
       }
 
+      // 기능: 만료된 access token으로 실패한 요청은 refresh 성공 시 한 번만 재실행한다.
+      // 설명: refreshPromise를 공유해 동시에 여러 401이 발생해도 refresh API는 한 번만 호출한다.
+      // 흐름: 401 감지 -> refresh 토큰 재발급 -> 새 Authorization 주입 -> 원래 요청 재시도.
       original._retry = true;
 
       try {

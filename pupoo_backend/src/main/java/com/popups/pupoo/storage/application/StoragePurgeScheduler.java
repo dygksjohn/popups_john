@@ -5,8 +5,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 지연삭제 스케줄러
- * - soft delete 된 파일 중, retention 기간이 지난 오브젝트를 실제 스토리지에서 제거한다.
+ * soft delete 후 보존 기간이 지난 파일 오브젝트를 실제 저장소에서 정리하는 스케줄러다.
+ * 메타데이터 soft delete와 실제 오브젝트 삭제 시점을 분리하는 현재 정책의 후행 작업을 담당한다.
  */
 @Component
 public class StoragePurgeScheduler {
@@ -20,7 +20,7 @@ public class StoragePurgeScheduler {
     }
 
     /**
-     * 매일 03:10 실행
+     * 매일 03:10에 보존 기간이 지난 soft delete 파일을 정리한다.
      */
     @Scheduled(cron = "0 10 3 * * *")
     public void purge() {

@@ -6,10 +6,10 @@ import com.popups.pupoo.auth.dto.PhoneVerificationConfirmRequest;
 import com.popups.pupoo.auth.dto.PhoneVerificationRequest;
 import com.popups.pupoo.auth.dto.PhoneVerificationRequestResponse;
 import com.popups.pupoo.auth.persistence.PhoneVerificationTokenRepository;
+import com.popups.pupoo.auth.port.SmsOtpSenderPort;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.util.HashUtil;
-import com.popups.pupoo.notification.port.NotificationSender;
 import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.persistence.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,16 +18,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.List;
 
+/**
+ * 기능: 사용자 휴대폰 인증과 휴대폰 번호 변경 인증을 처리한다.
+ * 설명: OTP 생성과 검증 책임은 서비스에 두고 실제 SMS 발송은 포트 뒤로 분리한다.
+ * 흐름: requestPhoneVerification/requestPhoneChange -> confirmPhoneVerification/confirmPhoneChange 순서로 동작한다.
+ */
 @Service
 public class PhoneVerificationService {
 
-    private static final SecureRandom random = new SecureRandom();
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
     private final PhoneVerificationTokenRepository tokenRepository;
-    private final NotificationSender notificationSender;
+    private final SmsOtpSenderPort smsOtpSenderPort;
 
     private final String hashSalt;
     private final int otpTtlMinutes;
@@ -38,7 +42,7 @@ public class PhoneVerificationService {
     public PhoneVerificationService(
             UserRepository userRepository,
             PhoneVerificationTokenRepository tokenRepository,
-            NotificationSender notificationSender,
+            SmsOtpSenderPort smsOtpSenderPort,
             @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
             @Value("${verification.phone.ttl-minutes:5}") int otpTtlMinutes,
             @Value("${verification.request.cooldown-seconds:60}") int requestCooldownSeconds,
@@ -47,7 +51,7 @@ public class PhoneVerificationService {
     ) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
-        this.notificationSender = notificationSender;
+        this.smsOtpSenderPort = smsOtpSenderPort;
         this.hashSalt = hashSalt;
         this.otpTtlMinutes = otpTtlMinutes;
         this.requestCooldownSeconds = requestCooldownSeconds;
@@ -56,17 +60,13 @@ public class PhoneVerificationService {
     }
 
     /**
-     * 휴대폰 OTP 발송
-     *
-     * 정책
-     * - phone_verified=true면 409로 응답한다.
-     * - OTP 원문은 저장하지 않고 code_hash(SHA-256 hex)만 저장한다.
+     * 기능: 현재 사용자 휴대폰 인증 OTP를 발급한다.
+     * 설명: phone_verified 상태와 쿨다운을 확인한 뒤 OTP를 저장하고 SMS 발송 포트를 호출한다.
+     * 흐름: 사용자 조회 -> 상태 확인 -> OTP 생성/저장 -> SMS 포트 호출 -> 응답 반환 순서다.
      */
     @Transactional
     public PhoneVerificationRequestResponse requestPhoneVerification(Long userId, PhoneVerificationRequest request) {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        validateHashSalt();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_PROFILE_NOT_FOUND));
@@ -90,17 +90,22 @@ public class PhoneVerificationService {
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(otpTtlMinutes);
         tokenRepository.save(new PhoneVerificationToken(userId, phone, codeHash, expiresAt));
 
-        String text = "[POPUPS] 인증번호는 " + code + " 입니다. (" + otpTtlMinutes + "분 이내 입력)";
-        notificationSender.sendSms(List.of(phone), text);
+        // 기능: 휴대폰 OTP 발송 구현을 포트 뒤로 숨겨 provider 전환 시 서비스 코드를 고정한다.
+        // 설명: 인증 서비스는 번호와 메시지만 전달하고 실제 AWS SNS 또는 dev 로그 처리는 어댑터가 맡는다.
+        // 흐름: OTP 저장 후 포트에 메시지를 전달한다.
+        smsOtpSenderPort.sendOtp(phone, buildOtpMessage(code));
 
         return new PhoneVerificationRequestResponse(expiresAt, exposeDevCode ? code : null);
     }
 
+    /**
+     * 기능: 휴대폰 번호 변경용 OTP를 발급한다.
+     * 설명: 현재 번호와 중복 여부를 확인한 뒤 새 번호로 OTP를 저장하고 발송한다.
+     * 흐름: 사용자 조회 -> 번호 검증 -> OTP 저장 -> SMS 포트 호출 -> 응답 반환 순서다.
+     */
     @Transactional
     public PhoneVerificationRequestResponse requestPhoneChange(Long userId, PhoneVerificationRequest request) {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        validateHashSalt();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_PROFILE_NOT_FOUND));
@@ -125,21 +130,19 @@ public class PhoneVerificationService {
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(otpTtlMinutes);
 
         tokenRepository.save(new PhoneVerificationToken(userId, phone, codeHash, expiresAt));
-
-        String text = "[POPUPS] 인증번호는 " + code + " 입니다. (" + otpTtlMinutes + "분 이내 입력)";
-        notificationSender.sendSms(List.of(phone), text);
+        smsOtpSenderPort.sendOtp(phone, buildOtpMessage(code));
 
         return new PhoneVerificationRequestResponse(expiresAt, exposeDevCode ? code : null);
     }
 
     /**
-     * 휴대폰 OTP 확인
+     * 기능: 현재 사용자 휴대폰 인증 OTP를 검증한다.
+     * 설명: 최신 미사용 토큰을 기준으로 만료 여부와 시도 횟수를 확인한 뒤 사용자 인증 상태를 갱신한다.
+     * 흐름: 사용자 조회 -> 토큰 조회 -> 만료/횟수 검사 -> 코드 비교 -> phoneVerified 저장 순서다.
      */
     @Transactional
     public void confirmPhoneVerification(Long userId, PhoneVerificationConfirmRequest request) {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        validateHashSalt();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_PROFILE_NOT_FOUND));
@@ -149,56 +152,59 @@ public class PhoneVerificationService {
         }
 
         String phone = normalizePhone(request.getPhone());
-        PhoneVerificationToken pvt = tokenRepository.findTopByUserIdAndPhoneAndUsedAtIsNullOrderByCreatedAtDesc(userId, phone)
+        PhoneVerificationToken token = tokenRepository.findTopByUserIdAndPhoneAndUsedAtIsNullOrderByCreatedAtDesc(userId, phone)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHONE_OTP_INVALID));
 
-        if (pvt.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.PHONE_OTP_EXPIRED);
         }
 
-        if (pvt.getAttemptCount() >= maxAttempts) {
+        if (token.getAttemptCount() >= maxAttempts) {
             throw new BusinessException(ErrorCode.PHONE_OTP_TOO_MANY_ATTEMPTS);
         }
 
-        pvt.increaseAttemptCount();
+        token.increaseAttemptCount();
 
         String codeHash = HashUtil.sha256Hex(request.getCode() + hashSalt);
-        if (!codeHash.equals(pvt.getCodeHash())) {
-            tokenRepository.save(pvt);
+        if (!codeHash.equals(token.getCodeHash())) {
+            tokenRepository.save(token);
             throw new BusinessException(ErrorCode.PHONE_OTP_INVALID);
         }
 
         user.setPhoneVerified(true);
         userRepository.save(user);
 
-        pvt.markUsed(LocalDateTime.now());
-        tokenRepository.save(pvt);
+        token.markUsed(LocalDateTime.now());
+        tokenRepository.save(token);
     }
 
+    /**
+     * 기능: 휴대폰 번호 변경 OTP를 검증하고 새 번호를 반영한다.
+     * 설명: 인증된 새 번호가 중복되지 않는지 확인한 뒤 사용자 번호와 인증 상태를 갱신한다.
+     * 흐름: 사용자 조회 -> 토큰 조회 -> 코드 검증 -> 중복 검사 -> 번호 저장 순서다.
+     */
     @Transactional
     public void confirmPhoneChange(Long userId, PhoneVerificationConfirmRequest request) {
-        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
-        }
+        validateHashSalt();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_PROFILE_NOT_FOUND));
 
         String phone = normalizePhone(request.getPhone());
-        PhoneVerificationToken pvt = tokenRepository.findTopByUserIdAndPhoneAndUsedAtIsNullOrderByCreatedAtDesc(userId, phone)
+        PhoneVerificationToken token = tokenRepository.findTopByUserIdAndPhoneAndUsedAtIsNullOrderByCreatedAtDesc(userId, phone)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHONE_OTP_INVALID));
 
-        if (pvt.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.PHONE_OTP_EXPIRED);
         }
-        if (pvt.getAttemptCount() >= maxAttempts) {
+        if (token.getAttemptCount() >= maxAttempts) {
             throw new BusinessException(ErrorCode.PHONE_OTP_TOO_MANY_ATTEMPTS);
         }
 
-        pvt.increaseAttemptCount();
+        token.increaseAttemptCount();
         String codeHash = HashUtil.sha256Hex(request.getCode() + hashSalt);
-        if (!codeHash.equals(pvt.getCodeHash())) {
-            tokenRepository.save(pvt);
+        if (!codeHash.equals(token.getCodeHash())) {
+            tokenRepository.save(token);
             throw new BusinessException(ErrorCode.PHONE_OTP_INVALID);
         }
 
@@ -210,13 +216,23 @@ public class PhoneVerificationService {
         user.setPhoneVerified(true);
         userRepository.save(user);
 
-        pvt.markUsed(LocalDateTime.now());
-        tokenRepository.save(pvt);
+        token.markUsed(LocalDateTime.now());
+        tokenRepository.save(token);
+    }
+
+    private void validateHashSalt() {
+        if (hashSalt == null || hashSalt.isBlank() || "__MISSING__".equals(hashSalt)) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
+        }
     }
 
     private String generateSixDigitCode() {
-        int value = random.nextInt(900000) + 100000;
+        int value = RANDOM.nextInt(900000) + 100000;
         return String.valueOf(value);
+    }
+
+    private String buildOtpMessage(String code) {
+        return "[POPUPS] 인증번호는 " + code + " 입니다. (" + otpTtlMinutes + "분 이내 입력)";
     }
 
     private String normalizePhone(String phone) {
