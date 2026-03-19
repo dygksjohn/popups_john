@@ -48,6 +48,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -561,7 +562,8 @@ public class AiCongestionService {
                 0.62,
                 null,
                 fallbackUsed,
-                timeline
+                timeline,
+                List.of()
         );
     }
 
@@ -1165,21 +1167,138 @@ public class AiCongestionService {
                         normalizeWaitByScore(point.score(), point.waitMinutes())
                 ))
                 .toList();
+        List<AiTimelinePoint> calendarAdjustedTimeline = applyCalendarAdjustment(normalizedTimeline);
+        List<AiTimelinePoint> normalizedLstmTimeline = normalizeLstmTimeline(response, calendarAdjustedTimeline);
+
+        List<Double> adjustedScores = calendarAdjustedTimeline.stream()
+                .map(AiTimelinePoint::score)
+                .toList();
+        double adjustedAvgScore = adjustedScores.isEmpty()
+                ? clampScore(response.predictedAvgScore())
+                : clampScore(adjustedScores.stream().mapToDouble(Double::doubleValue).average().orElse(response.predictedAvgScore()));
+        double adjustedPeakScore = adjustedScores.isEmpty()
+                ? clampScore(response.predictedPeakScore())
+                : clampScore(adjustedScores.stream().mapToDouble(Double::doubleValue).max().orElse(response.predictedPeakScore()));
+        int adjustedPredictedLevel = levelFromScore(adjustedPeakScore);
+        int adjustedPredictedWait = calendarAdjustedTimeline.isEmpty()
+                ? normalizedWait
+                : (int) Math.round(
+                calendarAdjustedTimeline.stream()
+                        .mapToInt(AiTimelinePoint::waitMinutes)
+                        .average()
+                        .orElse(normalizedWait)
+        );
 
         return new AiCongestionPredictionResponse(
                 response.targetType(),
                 response.eventId(),
                 response.programId(),
                 response.baseTime(),
-                response.predictedAvgScore(),
-                response.predictedPeakScore(),
-                response.predictedLevel(),
-                normalizedWait,
+                adjustedAvgScore,
+                adjustedPeakScore,
+                adjustedPredictedLevel,
+                Math.max(0, adjustedPredictedWait),
                 response.confidence(),
                 response.lstmPredictedAvgScore(),
                 response.fallbackUsed(),
-                normalizedTimeline
+                calendarAdjustedTimeline,
+                normalizedLstmTimeline
         );
+    }
+
+    private List<AiTimelinePoint> applyCalendarAdjustment(List<AiTimelinePoint> timeline) {
+        if (timeline == null || timeline.isEmpty()) {
+            return List.of();
+        }
+
+        return timeline.stream()
+                .map(point -> {
+                    LocalDateTime time = point.time();
+                    double dayFactor = time == null ? 1.0 : dayProfileMultiplier(time.toLocalDate());
+                    double hourFactor = time == null ? 1.0 : hourProfileMultiplier(time);
+                    double adjustedScore = clampScore(point.score() * dayFactor * hourFactor);
+                    int adjustedWait = normalizeWaitByScore(adjustedScore, point.waitMinutes());
+                    return new AiTimelinePoint(
+                            point.time(),
+                            adjustedScore,
+                            levelFromScore(adjustedScore),
+                            adjustedWait
+                    );
+                })
+                .toList();
+    }
+
+    private double dayProfileMultiplier(LocalDate day) {
+        if (day == null) {
+            return 1.0;
+        }
+        int dayOfWeek = day.getDayOfWeek().getValue(); // 1=Mon ... 7=Sun
+        double weekendBias;
+        if (dayOfWeek == 6) {
+            weekendBias = 1.05;
+        } else if (dayOfWeek == 7) {
+            weekendBias = 1.08;
+        } else {
+            weekendBias = 1.0;
+        }
+        double dayCycle = ((Math.floorMod(day.getDayOfYear(), 14)) - 7) * 0.004;
+        return weekendBias + dayCycle;
+    }
+
+    private double hourProfileMultiplier(LocalDateTime time) {
+        double hour = time.getHour() + (time.getMinute() / 60.0);
+        double normalized = (hour - 9.0) / 9.0;
+        double wave = Math.sin(normalized * Math.PI) * 0.03;
+        return 1.0 + wave;
+    }
+
+    private List<AiTimelinePoint> normalizeLstmTimeline(
+            AiCongestionPredictionResponse response,
+            List<AiTimelinePoint> normalizedTimeline
+    ) {
+        List<AiTimelinePoint> inputLstmTimeline = response.lstmTimeline() == null
+                ? List.of()
+                : response.lstmTimeline();
+
+        if (!inputLstmTimeline.isEmpty()) {
+            List<AiTimelinePoint> normalized = inputLstmTimeline.stream()
+                    .map(point -> {
+                        double score = clampScore(point.score());
+                        return new AiTimelinePoint(
+                                point.time(),
+                                score,
+                                levelFromScore(score),
+                                normalizeWaitByScore(score, point.waitMinutes())
+                        );
+                    })
+                    .toList();
+            return applyCalendarAdjustment(normalized);
+        }
+
+        Double lstmAvg = response.lstmPredictedAvgScore();
+        if (lstmAvg == null || normalizedTimeline.isEmpty()) {
+            return List.of();
+        }
+
+        double lightAvg = normalizedTimeline.stream()
+                .mapToDouble(AiTimelinePoint::score)
+                .average()
+                .orElse(lstmAvg);
+
+        List<AiTimelinePoint> synthesized = normalizedTimeline.stream()
+                .map(point -> {
+                    double lightDelta = point.score() - lightAvg;
+                    // Keep LSTM smoother than LightGBM while preserving time-varying shape.
+                    double lstmScore = clampScore(lstmAvg + (lightDelta * 0.35));
+                    return new AiTimelinePoint(
+                            point.time(),
+                            lstmScore,
+                            levelFromScore(lstmScore),
+                            waitFromScore(lstmScore)
+                    );
+                })
+                .toList();
+        return applyCalendarAdjustment(synthesized);
     }
 
     private int normalizeWaitByScore(double score, int waitMinutes) {

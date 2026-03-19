@@ -740,8 +740,8 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
         {
           eventName: form.name.trim(),
           description: form.description?.trim() || "",
-          startAt: toISO(form.dateStart, false),
-          endAt: toISO(form.dateEnd, true),
+          startAt: toISO(form.dateStart, false, form.startAt),
+          endAt: toISO(form.dateEnd, true, form.endAt),
           location: form.location.trim(),
           extraPrompt: posterPrompt.trim(),
         },
@@ -1665,11 +1665,20 @@ const authHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-/* 프론트 날짜("2026.01.10") → ISO LocalDateTime */
-const toISO = (dotDate, isEnd) => {
-  if (!dotDate) return null;
-  const d = dotDate.replace(/\./g, "-");
-  return isEnd ? `${d}T23:59:59` : `${d}T00:00:00`;
+/* 프론트 날짜("2026.01.10") → ISO LocalDateTime
+   - referenceIso가 있으면 기존 시/분/초를 유지해 날짜만 변경
+   - referenceIso가 없으면 기본 운영시간(09:00:00~18:00:00) 사용 */
+const toISO = (dotDate, isEnd, referenceIso = null) => {
+  if (!dotDate) return referenceIso || null;
+  const d = dotDate.replace(/\./g, "-").split("T")[0];
+
+  const ref = referenceIso ? new Date(referenceIso) : null;
+  const hasRef = ref && !Number.isNaN(ref.getTime());
+  const hh = hasRef ? String(ref.getHours()).padStart(2, "0") : isEnd ? "18" : "09";
+  const mm = hasRef ? String(ref.getMinutes()).padStart(2, "0") : "00";
+  const ss = hasRef ? String(ref.getSeconds()).padStart(2, "0") : "00";
+
+  return `${d}T${hh}:${mm}:${ss}`;
 };
 
 /**
@@ -1837,8 +1846,13 @@ export default function EventManage({ subTab = "all" }) {
         startAt: toISO(
           form.dateStart || form.date?.split("~")[0]?.trim(),
           false,
+          form.startAt,
         ),
-        endAt: toISO(form.dateEnd || form.date?.split("~")[1]?.trim(), true),
+        endAt: toISO(
+          form.dateEnd || form.date?.split("~")[1]?.trim(),
+          true,
+          form.endAt,
+        ),
         location: form.location,
         imageUrl,
         status: STATUS_TO_BACKEND[autoStatus] || "PLANNED",
@@ -1877,8 +1891,13 @@ export default function EventManage({ subTab = "all" }) {
         startAt: toISO(
           form.dateStart || form.date?.split("~")[0]?.trim(),
           false,
+          form.startAt,
         ),
-        endAt: toISO(form.dateEnd || form.date?.split("~")[1]?.trim(), true),
+        endAt: toISO(
+          form.dateEnd || form.date?.split("~")[1]?.trim(),
+          true,
+          form.endAt,
+        ),
         location: form.location,
         imageUrl,
         status: STATUS_TO_BACKEND[autoStatus] || "PLANNED",

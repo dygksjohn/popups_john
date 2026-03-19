@@ -201,17 +201,41 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           APP_AI_MODERATION_INTERNAL_TOKEN: ${{ secrets.APP_AI_MODERATION_INTERNAL_TOKEN }}
+          AWS_AUTH_MESSAGING_ACCESS_KEY_ID: ${{ secrets.AWS_AUTH_MESSAGING_ACCESS_KEY_ID }}
+          AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY: ${{ secrets.AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY }}
+          SES_FROM_EMAIL: ${{ secrets.SES_FROM_EMAIL }}
+          AUTH_AWS_REGION: ${{ vars.AUTH_AWS_REGION }}
+          AUTH_SMS_REGION: ${{ vars.AUTH_SMS_REGION }}
         run: |
           if [ -z "${OPENAI_API_KEY}" ]; then
             echo "OPENAI_API_KEY secret is required"
             exit 1
           fi
+          if [ -z "${AWS_AUTH_MESSAGING_ACCESS_KEY_ID}" ] || [ -z "${AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY}" ]; then
+            echo "AWS auth messaging secrets are required"
+            exit 1
+          fi
+          if [ -z "${SES_FROM_EMAIL}" ]; then
+            echo "SES_FROM_EMAIL secret is required"
+            exit 1
+          fi
           CURRENT_AI_SERVICE_INTERNAL_TOKEN="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AI_SERVICE_INTERNAL_TOKEN}' | base64 -d)"
           MODERATION_INTERNAL_TOKEN="${APP_AI_MODERATION_INTERNAL_TOKEN:-${CURRENT_AI_SERVICE_INTERNAL_TOKEN}}"
+          EMAIL_PROVIDER="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AUTH_EMAIL_PROVIDER}' | base64 -d 2>/dev/null || true)"
+          SMS_PROVIDER="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AUTH_SMS_PROVIDER}' | base64 -d 2>/dev/null || true)"
+          SMS_ORIGINATION_NUMBER="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AWS_SMS_ORIGINATION_NUMBER}' | base64 -d 2>/dev/null || true)"
+          SMS_SENDER_ID="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AWS_SMS_SENDER_ID}' | base64 -d 2>/dev/null || true)"
 
           if [ -z "${MODERATION_INTERNAL_TOKEN}" ]; then
             echo "APP_AI_MODERATION_INTERNAL_TOKEN is missing and existing AI_SERVICE_INTERNAL_TOKEN could not be read"
             exit 1
+          fi
+
+          if [ -z "${EMAIL_PROVIDER}" ]; then
+            EMAIL_PROVIDER="aws-ses"
+          fi
+          if [ -z "${SMS_PROVIDER}" ]; then
+            SMS_PROVIDER="aws-sns"
           fi
 
           cat > /tmp/pupoo-backend-secret-patch.yaml <<EOF
@@ -219,6 +243,15 @@ jobs:
             OPENAI_API_KEY: "${OPENAI_API_KEY}"
             OPENAI_IMAGE_MODEL: "${OPENAI_IMAGE_MODEL}"
             APP_AI_MODERATION_INTERNAL_TOKEN: "${MODERATION_INTERNAL_TOKEN}"
+            AUTH_EMAIL_PROVIDER: "${EMAIL_PROVIDER}"
+            AUTH_SMS_PROVIDER: "${SMS_PROVIDER}"
+            AWS_REGION: "${AUTH_AWS_REGION}"
+            AWS_SMS_REGION: "${AUTH_SMS_REGION}"
+            AWS_ACCESS_KEY_ID: "${AWS_AUTH_MESSAGING_ACCESS_KEY_ID}"
+            AWS_SECRET_ACCESS_KEY: "${AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY}"
+            AWS_SES_FROM_ADDRESS: "${SES_FROM_EMAIL}"
+            AWS_SMS_ORIGINATION_NUMBER: "${SMS_ORIGINATION_NUMBER}"
+            AWS_SMS_SENDER_ID: "${SMS_SENDER_ID}"
           EOF
 
           kubectl -n "${EKS_NAMESPACE:-pupoo}" patch secret pupoo-backend-secret \
