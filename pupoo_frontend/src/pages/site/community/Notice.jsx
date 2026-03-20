@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, ChevronRight, ListFilter, Loader2, Megaphone, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ListFilter, Loader2, Megaphone, Pin, Search, SlidersHorizontal } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import EmptyState from "../components/EmptyState";
@@ -335,11 +335,6 @@ export default function Notice() {
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
-                        {notice.pinned && (
-                          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 38, padding: "4px 10px", borderRadius: 999, background: "#FEF2F2", color: "#DC2626", fontSize: 12, fontWeight: 700, lineHeight: 1 }}>
-                            공지
-                          </span>
-                        )}
                         <BadgeTag
                           icon={scopeBadge.icon}
                           label={scopeBadge.compactLabel}
@@ -359,6 +354,24 @@ export default function Notice() {
                             lineHeight: 1,
                           }}
                         />
+                        {notice.pinned && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: 22,
+                              height: 22,
+                              borderRadius: "50%",
+                              background: "#FEF2F2",
+                              color: "#DC2626",
+                              flexShrink: 0,
+                            }}
+                            aria-label="고정 공지"
+                          >
+                            <Pin size={12} strokeWidth={2} />
+                          </span>
+                        )}
                         <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
                           {notice.title}
                         </span>

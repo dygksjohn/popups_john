@@ -1020,6 +1020,7 @@ export default function FreeBoard() {
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
               </div>
               {pagedItems.map((item, index) => {
+                const rowNumber = totalElements - ((pageSafe - 1) * PAGE_SIZE) - index;
                 const authorLabel =
                   item?.nickname ||
                   item?.author ||
@@ -1047,7 +1048,28 @@ export default function FreeBoard() {
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
-                        <BadgeTag badge={badge} />
+                        {isMobile ? (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              minWidth: 34,
+                              padding: "3px 8px",
+                              borderRadius: 999,
+                              background: "#F3F4F6",
+                              color: "#6B7280",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              lineHeight: 1,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {rowNumber}
+                          </span>
+                        ) : (
+                          <BadgeTag badge={badge} />
+                        )}
                         <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
                           {item.postTitle}
                         </span>
@@ -1060,7 +1082,7 @@ export default function FreeBoard() {
                       {isMobile && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
                           <span style={{ minWidth: 0, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>{authorLabel}</span>
-                          <span style={{ color: "#cbd5e1" }}>?</span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(item.createdAt)}</span>
                         </div>
                       )}
