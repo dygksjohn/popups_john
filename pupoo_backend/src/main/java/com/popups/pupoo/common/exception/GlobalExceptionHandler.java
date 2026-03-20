@@ -37,6 +37,7 @@ public class GlobalExceptionHandler {
         if (msg == null || msg.isBlank()) {
             msg = ec.getMessage();
         }
+        logHandledException(request, ec, msg);
         ErrorResponse body = new ErrorResponse(ec.getCode(), msg, ec.getStatus().value(), request.getRequestURI());
         return ResponseEntity.status(ec.getStatus())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -63,6 +64,7 @@ public class GlobalExceptionHandler {
                         .map(err -> new FieldErrorItem(err.getField(), err.getDefaultMessage()))
                         .toList()
         );
+        logHandledException(request, ErrorCode.VALIDATION_FAILED, msg);
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getStatus())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .body(ApiResponse.fail(body));
@@ -79,7 +81,7 @@ public class GlobalExceptionHandler {
             msg = cause.getMessage();
         }
 
-        log.warn("Unreadable request body: method={} uri={} message={}", request.getMethod(), request.getRequestURI(), msg);
+        logHandledException(request, ErrorCode.VALIDATION_FAILED, msg);
         return build(request, ErrorCode.VALIDATION_FAILED, ErrorCode.VALIDATION_FAILED.getStatus(), msg);
     }
 
@@ -199,10 +201,20 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ApiResponse<Void>> build(HttpServletRequest request, ErrorCode ec, HttpStatus status, String msg) {
+        logHandledException(request, ec, msg);
         ErrorResponse body = new ErrorResponse(ec.getCode(), msg, status.value(), request.getRequestURI());
         return ResponseEntity.status(status)
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .body(ApiResponse.fail(body));
+    }
+
+    private void logHandledException(HttpServletRequest request, ErrorCode ec, String msg) {
+        log.warn("Handled exception: method={} uri={} code={} status={} message={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                ec.getCode(),
+                ec.getStatus().value(),
+                msg);
     }
 
     private String rootMessage(Throwable t) {

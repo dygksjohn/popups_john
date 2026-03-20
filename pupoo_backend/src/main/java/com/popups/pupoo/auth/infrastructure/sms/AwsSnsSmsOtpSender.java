@@ -44,6 +44,10 @@ public class AwsSnsSmsOtpSender implements SmsOtpSenderPort {
         // 설명: 도메인 서비스가 준비한 메시지를 수신 번호 기준으로 단건 publish 한다.
         // 흐름: 메시지 속성 생성 -> SNS publish 호출 -> 성공 로그 또는 예외 변환 순서로 진행한다.
         String maskedPhone = maskPhone(phone);
+        AwsMessagingProperties.Sms smsProperties = awsMessagingProperties.getSms();
+        String smsRegion = smsProperties != null ? smsProperties.getRegion() : null;
+        boolean hasOriginationNumber = smsProperties != null && hasText(smsProperties.getOriginationNumber());
+        boolean hasSenderId = smsProperties != null && hasText(smsProperties.getSenderId());
         try {
             snsClient.publish(
                     PublishRequest.builder()
@@ -53,9 +57,21 @@ public class AwsSnsSmsOtpSender implements SmsOtpSenderPort {
                             .build()
             );
 
-            log.info("[AUTH_SMS_PROVIDER={}] SNS sms sent. phone={}", provider, maskedPhone);
+            log.info("[AUTH_SMS_PROVIDER={}] SNS sms sent. phone={}, region={}, originationConfigured={}, senderIdConfigured={}",
+                    provider,
+                    maskedPhone,
+                    blankToPlaceholder(smsRegion),
+                    hasOriginationNumber,
+                    hasSenderId);
         } catch (SnsException | SdkClientException e) {
-            log.error("[AUTH_SMS_PROVIDER={}] SNS sms failed. phone={}, reason={}", provider, maskedPhone, e.getMessage(), e);
+            log.error("[AUTH_SMS_PROVIDER={}] SNS sms failed. phone={}, region={}, originationConfigured={}, senderIdConfigured={}, reason={}",
+                    provider,
+                    maskedPhone,
+                    blankToPlaceholder(smsRegion),
+                    hasOriginationNumber,
+                    hasSenderId,
+                    e.getMessage(),
+                    e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "인증 SMS 발송에 실패했습니다.");
         }
     }
@@ -96,5 +112,13 @@ public class AwsSnsSmsOtpSender implements SmsOtpSenderPort {
             return "***";
         }
         return phone.substring(0, Math.min(3, phone.length())) + "****" + phone.substring(phone.length() - 2);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String blankToPlaceholder(String value) {
+        return hasText(value) ? value : "<empty>";
     }
 }
