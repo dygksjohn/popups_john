@@ -1133,7 +1133,7 @@ export default function PaymentManage({ subTab = "all" }) {
                           <Checkbox checked={isChecked} onChange={() => toggleOne(p.paymentId)} />
                           <div style={{ minWidth: 0, flex: 1 }}>
                             <div style={{ fontWeight: 700, fontSize: 13.5, color: ds.ink, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word", lineHeight: 1.45 }}>
-                              {p.eventTitle || selectedEvent.title || "?됱궗 寃곗젣"}
+                              {p.eventTitle || selectedEvent.title || "행사 결제"}
                             </div>
                             <div style={{ fontSize: 11.5, color: ds.ink4, marginTop: 4 }}>
                               {p.orderNo || `#${p.paymentId}`}

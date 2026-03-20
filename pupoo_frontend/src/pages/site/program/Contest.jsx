@@ -50,7 +50,7 @@ const styles = `
   .ct-root *, .ct-root *::before, .ct-root *::after { box-sizing: border-box; font-family: inherit; }
   .ct-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 80px; }
 
-  /* ?? Live badge ?? */
+  /* live badge */
   .ct-live-badge {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 5px 14px; background: #fff0f0; border: 1px solid #fecaca;
@@ -66,7 +66,7 @@ const styles = `
     50% { opacity: 0.4; transform: scale(0.7); }
   }
 
-  /* ?? Stat cards ?? */
+  /* stat cards */
   .ct-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
   .ct-stat-card {
     background: #fff; border: 1px solid #e9ecef; border-radius: 13px; padding: 20px 22px;
@@ -76,7 +76,7 @@ const styles = `
   .ct-stat-label { font-size: 12px; color: #6b7280; font-weight: 500; margin-bottom: 2px; }
   .ct-stat-value { font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.2px; }
 
-  /* ?? Current contest highlight ?? */
+  /* current contest highlight */
   .ct-highlight {
     background: linear-gradient(135deg, #6d28d9 0%, #a855f7 50%, #c084fc 100%);
     border-radius: 16px; padding: 28px 28px 24px; color: #fff; margin-bottom: 24px;
@@ -106,10 +106,10 @@ const styles = `
   .ct-progress-bar { height: 6px; background: rgba(255,255,255,0.18); border-radius: 100px; overflow: hidden; }
   .ct-progress-fill { height: 100%; background: #fbbf24; border-radius: 100px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
 
-  /* ?? Main layout ?? */
+  /* main layout */
   .ct-main-grid { display: block; }
 
-  /* ?? Card base ?? */
+  /* card base */
   .ct-card {
     background: #fff; border: 1px solid #e9ecef; border-radius: 13px;
     padding: 24px 28px; margin-bottom: 16px;
@@ -200,7 +200,7 @@ const styles = `
   @media (max-width: 680px) { .ct-contest-list { grid-template-columns: 1fr; } }
   }
 
-  /* ?? Candidate voting cards ?? */
+  /* candidate voting cards */
   .ct-vote-area { margin-bottom: 0; }
   .ct-candidates-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .ct-candidate-card {
@@ -295,7 +295,7 @@ const styles = `
     cursor: default; border: 1px solid #eceef3;
   }
 
-  /* ?? My vote confirmation toast ?? */
+  /* my vote confirmation toast */
   .ct-my-vote {
     display: flex; align-items: center; gap: 12px;
     background: linear-gradient(135deg, #f5f0ff 0%, #ede9fe 100%);
@@ -315,7 +315,7 @@ const styles = `
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* ?? Modal overlay ?? */
+  /* modal overlay */
   .ct-modal-overlay {
     position: fixed; inset: 0; z-index: 9999;
     background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
@@ -369,7 +369,7 @@ const styles = `
   .ct-modal-close:hover { background: rgba(0,0,0,0.6); }
   .ct-modal-img-wrap { position: relative; }
 
-  /* ?? Ranking sidebar ?? */
+  /* ranking sidebar */
   .ct-ranking-list { display: flex; flex-direction: column; gap: 6px; }
   .ct-ranking-item {
     display: flex; align-items: center; gap: 10px;
@@ -402,7 +402,7 @@ const styles = `
   .ct-ranking-score { font-size: 14px; font-weight: 800; color: #6d28d9; }
   .ct-ranking-score-label { font-size: 10px; color: #a0a7b5; font-weight: 500; }
 
-  /* ?? Upcoming / Ended state ?? */
+  /* upcoming / ended state */
   .ct-state-overlay {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 48px 20px; text-align: center;
@@ -414,14 +414,14 @@ const styles = `
   .ct-state-title { font-size: 17px; font-weight: 700; color: #374151; margin-bottom: 6px; }
   .ct-state-desc { font-size: 13px; color: #9ca3af; line-height: 1.6; }
 
-  /* ?? Card entrance ?? */
+  /* card entrance */
   .ct-fade-in { animation: ct-fade-in 0.35s ease-out both; }
   @keyframes ct-fade-in {
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* ?? Responsive ?? */
+  /* responsive */
   @media (max-width: 1100px) { .ct-main-grid { grid-template-columns: 1fr; } }
   @media (max-width: 700px) {
     .ct-container { padding: 20px 16px 60px; }

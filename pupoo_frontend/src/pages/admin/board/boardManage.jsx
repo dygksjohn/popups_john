@@ -1249,9 +1249,9 @@ function BoardRow({
               }}
             >
               <span>{item.author}</span>
-              <span style={{ color: ds.line }}>?</span>
+              <span style={{ color: ds.line }}>·</span>
               <span>{item.date}</span>
-              <span style={{ color: ds.line }}>?</span>
+              <span style={{ color: ds.line }}>·</span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <Eye size={12} /> {item.views}
               </span>
@@ -1269,7 +1269,7 @@ function BoardRow({
                     fontWeight: 700,
                   }}
                 >
-                  <MessageCircle size={10} /> ?? ??
+                  <MessageCircle size={10} /> 답변 있음
                 </span>
               )}
             </div>
@@ -1302,7 +1302,7 @@ function BoardRow({
               fontFamily: ds.ff,
             }}
           >
-            ??
+            수정
           </button>
           <button
             onClick={(e) => {
@@ -1322,7 +1322,7 @@ function BoardRow({
               fontFamily: ds.ff,
             }}
           >
-            ??
+            삭제
           </button>
         </div>
       </div>

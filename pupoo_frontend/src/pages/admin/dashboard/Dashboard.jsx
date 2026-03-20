@@ -27,7 +27,7 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken, clearToken } from "../../../api/noticeApi";
 import HomeDashboard from "./HomeDashboard";
 
-/* ?섏씠吏 import */
+/* page imports */
 import EventManage from "../event/eventManage";
 import ProgramManage from "../program/programManage";
 import BoardManage from "../board/boardManage";
@@ -45,9 +45,9 @@ import AdminLogManage from "../adminlog/AdminLogManage";
 import ReportManage from "../report/ReportManage";
 /**/
 
-/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
-   踰??좊땲硫붿씠??CSS
-   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
+/* global animation CSS */
+
+
 const globalStyles = `
 @keyframes bellRing {
   0%   { transform: rotate(0deg); }
@@ -62,7 +62,7 @@ const globalStyles = `
   100% { transform: rotate(0deg); }
 }
 
-/* ?? ?몃젴???ㅽ겕 ?ㅽ겕濡ㅻ컮 ?? */
+/* thin custom scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -81,7 +81,7 @@ const globalStyles = `
   background: transparent;
 }
 
-/* ?ъ씠?쒕컮 ?꾩슜 */
+/* sidebar scrollbar */
 aside ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.07);
 }
@@ -99,9 +99,9 @@ aside * {
 }
 `;
 
-/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
-   ?ъ씠?쒕컮 & ???ㅼ젙
-   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
+/* sidebar and shell layout */
+
+
 const NAV = [
   {
     section: "대시보드",
@@ -290,9 +290,9 @@ function PageHome() {
   return <HomeDashboard />;
 }
 
-/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
-   硫붿씤 而댄룷?뚰듃
-   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
+/* main component */
+
+
 export default function Dashboard() {
   const [nav, setNav] = useState("dashboard");
   const [subTab, setSubTab] = useState(null);
@@ -300,7 +300,7 @@ export default function Dashboard() {
     typeof window === "undefined" ? 1440 : window.innerWidth,
   );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  // bellAnim removed ??logout button now
+  // bell animation removed because the logout button occupies the slot
   const [pageTabs, setPageTabs] = useState(DEFAULT_PAGE_TABS);
   const [eventMenuBadge, setEventMenuBadge] = useState(0);
 
@@ -350,7 +350,7 @@ export default function Dashboard() {
             ? payload
             : [];
 
-      /* ?좎쭨 湲곕컲 ?곹깭 怨꾩궛 ??媛?愿由??섏씠吏??calcStatus? ?숈씪 濡쒖쭅 */
+      /* date-based status calculation aligned with event manage calcStatus */
       const calcSt = (startAt, endAt) => {
         if (!startAt && !endAt) return "pending";
         const norm = (v) => (v ? String(v).replace(/\./g, "-").trim() : v);
@@ -574,7 +574,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 硫붾돱 洹몃９ */}
+        {/* menu groups */}
         <nav style={{ flex: 1, padding: "0 10px", overflow: "auto" }}>
           {NAV.map((group) => (
             <div key={group.section}>
@@ -649,7 +649,7 @@ export default function Dashboard() {
           ))}
         </nav>
 
-        {/* ?좎? */}
+        {/* sidebar footer */}
         <div
           style={{
             padding: "12px 14px 16px",
@@ -768,10 +768,10 @@ export default function Dashboard() {
               minWidth: 0,
             }}
           >
-            {/* ?? ?ㅻ뒛 ?좎쭨 + ?몄궗留??? */}
+            {/* desktop only: today greeting */}
             {!isMobile && <TodayGreeting />}
 
-            {/* 濡쒓렇?꾩썐 */}
+            {/* logout */}
             <button
               onClick={() => {
                 clearToken();
@@ -810,7 +810,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* ??(2媛??댁긽???뚮쭔 ?쒖떆) */}
+        {/* tabs shown only when there is more than one */}
         {tabs.length > 1 && (
           <div
             style={{
@@ -876,7 +876,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ?섏씠吏 肄섑뀗痢?*/}
+        {/* page content */}
         <div
           style={{
             flex: 1,

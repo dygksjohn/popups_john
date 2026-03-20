@@ -112,10 +112,10 @@ const LoginPage = ({ leftBgImage = null }) => {
       return;
     }
 
-    // ??濡쒓렇???깃났 ???뚯븘媛?寃쎈줈 ???
-    // 1?쒖쐞: ProtectedRoute媛 ?섍꺼以 from
-    // 2?쒖쐞: 吏곸쟾 ???媛?
-    // 3?쒖쐞: 湲곕낯 ??
+    // Redirect priority after login success
+    // 1. from passed by ProtectedRoute
+    // 2. previous visited route
+    // 3. default home
     const redirectTo = resolvePostLoginRedirect();
     sessionStorage.setItem("post_login_redirect", redirectTo);
 
@@ -261,7 +261,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               marginTop: isMobile ? 40 : isTablet ? 60 : 100,
             }}
           >
-            {/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 LEFT PANEL ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */}
+            {/* Left panel */}
             <div
               className="left-panel"
               style={{
@@ -381,7 +381,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               </div>
             </div>
 
-            {/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 RIGHT PANEL ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */}
+            {/* Right panel */}
             <div
               className="right-panel"
               style={{

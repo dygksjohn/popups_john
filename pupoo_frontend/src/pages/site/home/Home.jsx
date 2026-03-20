@@ -11,7 +11,7 @@ import {
   toPublicAssetUrl,
 } from "../../../shared/utils/publicAssetUrl";
 
-/* ?? ?대?吏 ?대갚 ?? */
+/* fallback dog images */
 const DOG_IMGS = [
   "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=800&fit=crop",
   "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&h=800&fit=crop",
@@ -24,7 +24,7 @@ const DOG_IMGS = [
 ];
 const dogImg = (id) => DOG_IMGS[Math.abs(Number(id) || 0) % DOG_IMGS.length];
 
-/* ?? 怨듯넻 ?좎쭨 ?щ㎎ ?? */
+/* shared event date formatter */
 function fmtEventDate(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -103,7 +103,7 @@ function mapSession(raw, eventMap) {
   };
 }
 
-// ================= ?ㅽ겕濡?reveal ??=================
+// ================= scroll reveal =================
 function useScrollReveal(options = {}) {
   const { threshold = 0.15, rootMargin = "0px 0px -60px 0px" } = options;
   const ref = useRef(null);
@@ -143,7 +143,7 @@ function RevealSection({ children, className = "", delay = 0 }) {
   );
 }
 
-// ================= EVENT SECTION (DB ?곕룞 ??醫? ?? 怨좎젙) =================
+// ================= EVENT SECTION (DB-driven event cards) =================
 function EventSection() {
   const navigate = useNavigate();
   const [hoveredCard, setHoveredCard] = useState(null);
@@ -166,7 +166,7 @@ function EventSection() {
       .catch(() => setEvents([]));
   }, []);
 
-  // 醫?3媛?/ ??3媛?遺꾨같
+  // split events into two groups of up to three items
   const leftItems = events.slice(0, 3);
   const rightItems = events.length > 3 ? events.slice(3, 6) : events.slice(0, Math.min(3, events.length));
   const sides = [
@@ -238,7 +238,7 @@ function EventCard({ event, isHovered, onHover, onLeave, onClick }) {
   );
 }
 
-// ================= 臾댄븳猷⑦봽 ??=================
+// ================= infinite slider =================
 function useInfiniteSlider(itemCount, slideSize) {
   const CLONES = 15;
   const CENTER = itemCount * 7;
@@ -268,7 +268,7 @@ function useInfiniteSlider(itemCount, slideSize) {
   return { index, realIndex, offset, transition, next, prev, goTo, setIndex, setTransition, CLONES };
 }
 
-// ================= SESSION LINEUP (?몄뀡 DB ?곕룞) =================
+// ================= SESSION LINEUP (session DB sync) =================
 function SessionLineup() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
@@ -420,7 +420,7 @@ function SessionLineup() {
   );
 }
 
-// ================= RECOMMEND CAROUSEL (DB ?곕룞) =================
+// ================= RECOMMEND CAROUSEL (DB-driven) =================
 function RecommendCarousel() {
   const [events, setEvents] = useState([]);
   useEffect(() => {
@@ -508,7 +508,7 @@ function RecommendCarousel() {
   );
 }
 
-// ================= NOTICE SECTION (API ?곕룞) =================
+// ================= NOTICE SECTION (API sync) =================
 function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);

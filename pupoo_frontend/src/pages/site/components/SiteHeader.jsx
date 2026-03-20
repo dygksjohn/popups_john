@@ -290,7 +290,7 @@ const DropdownCard = ({ menuData, onNavigate, topOffset = 92 }) => {
         <div style={{ width: 1, background: "#f0f0f0", margin: "0 36px", flexShrink: 0 }} />
       )}
 
-      {/* Promo Card (right side ??Kakao ESG style) */}
+      {/* Promo card */}
       {promo && (
         <PromoCard promo={promo} />
       )}
@@ -337,7 +337,7 @@ const SearchPanel = ({
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  /* ?붾컮?댁뒪 寃??*/
+  /* search debounce */
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = query.trim();
@@ -444,7 +444,7 @@ const SearchPanel = ({
         </div>
       </form>
 
-      {/* 寃??寃곌낵 or ?멸린 ?쒓렇 */}
+      {/* search results or popular tags */}
       {searched && query.trim() ? (
         <div style={{ width: "100%", maxWidth: resultMaxWidth }}>
           {loading ? (
@@ -470,7 +470,7 @@ const SearchPanel = ({
                   onMouseEnter={(e) => (e.currentTarget.style.background = "#f7f8fa")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
                 >
-                  {/* ?몃꽕??*/}
+                  {/* thumbnail */}
                   <div style={{
                     width: compact ? 48 : 56, height: compact ? 48 : 56, borderRadius: 12, flexShrink: 0, overflow: "hidden",
                     background: "#f0f0f0",
@@ -490,7 +490,7 @@ const SearchPanel = ({
                       </div>
                     )}
                   </div>
-                  {/* ?뺣낫 */}
+                  {/* info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontSize: mobile ? 14 : 15, fontWeight: 700, color: "#222",
@@ -515,7 +515,7 @@ const SearchPanel = ({
                       )}
                     </div>
                   </div>
-                  {/* ?곹깭 */}
+                  {/* status */}
                   {evt.status && (
                     <div style={{
                       fontSize: 12, fontWeight: 700, color: statusColor(evt.status),
@@ -529,7 +529,7 @@ const SearchPanel = ({
               ))}
             </div>
           ) : (
-            /* 寃곌낵 ?놁쓬 */
+            /* empty results */
             <div style={{
               textAlign: "center", padding: "32px 0",
               display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
@@ -569,7 +569,7 @@ const SearchPanel = ({
           )}
         </div>
       ) : (
-        /* 湲곕낯: ?멸린 ?쒓렇 */
+        /* default popular tags */
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
           {POPULAR_TAGS.map((tag) => (
             <button

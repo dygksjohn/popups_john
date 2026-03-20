@@ -34,7 +34,7 @@ const SORT_OPTIONS = [
   { key: "views", label: "조회순" },
 ];
 
-/* ?? ?좎쭨 ?щ㎎ ?? */
+/* date formatter */
 function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
@@ -50,7 +50,7 @@ function hasAnswer(item) {
   return Boolean(String(item?.answerContent ?? "").trim()) || Boolean(item?.answeredAt);
 }
 
-/* ?? ?좎뒪???? */
+/* toast */
 function Toast({ msg, type = "success", onDone }) {
   useEffect(() => {
     const t = setTimeout(onDone, 2200);
@@ -82,7 +82,7 @@ function Toast({ msg, type = "success", onDone }) {
   );
 }
 
-/* ?? ?ㅻ쾭?덉씠 ?? */
+/* overlay */
 function Overlay({ children, onClose }) {
   return (
     <div
@@ -115,7 +115,7 @@ function Overlay({ children, onClose }) {
   );
 }
 
-/* ?? 삭제 ?뺤씤 紐⑤떖 ?? */
+/* delete confirm modal */
 function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
   return (
     <Overlay onClose={onCancel}>
@@ -198,7 +198,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel, loading }) {
   );
 }
 
-/* ?? 湲?곌린/수정 紐⑤떖 ?? */
+/* write and edit modal */
 function WriteModal({ item, onSave, onClose, saving }) {
   const isEdit = !!item;
   const [form, setForm] = useState({
@@ -369,9 +369,9 @@ function WriteModal({ item, onSave, onClose, saving }) {
   );
 }
 
-/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
-   硫붿씤 而댄룷?뚰듃
-   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
+/* main component */
+
+
 export default function ServicePage() {
   const navigate = useNavigate();
   const [currentPath, setCurrentPath] = useState("/community/qna");
@@ -387,7 +387,7 @@ export default function ServicePage() {
   );
   const [openReplies, setOpenReplies] = useState({});
 
-  /* ???? API ???? ???? */
+  /* data state */
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -405,7 +405,7 @@ export default function ServicePage() {
     setOpenReplies((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  /* ?? 紐⑸줉 議고쉶 ?? */
+  /* fetch question list */
   const fetchList = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -444,7 +444,7 @@ export default function ServicePage() {
     fetchList();
   }, [fetchList]);
 
-  /* ?? ?꾪꽣留??? */
+  /* filtering */
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return items.filter((q) => {
@@ -507,7 +507,7 @@ export default function ServicePage() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  /*?? ?깅줉 ?? */
+  /* create question */
   const handleCreate = async (form) => {
     setSaving(true);
     try {
@@ -523,7 +523,7 @@ export default function ServicePage() {
     }
   };
 
-  /* ?? 수정 ?? */
+  /* update question */
   const handleUpdate = async (form) => {
     setSaving(true);
     try {
@@ -539,7 +539,7 @@ export default function ServicePage() {
     }
   };
 
-  /* ?? 삭제 ?? */
+  /* delete question */
   const handleDelete = async () => {
     setSaving(true);
     try {
@@ -580,7 +580,7 @@ export default function ServicePage() {
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
-        {/* ?곷떒 ?꾪꽣/검색諛?*/}
+        {/* top filter and search bar */}
         <div
           style={{
             display: "flex",
@@ -729,17 +729,17 @@ export default function ServicePage() {
           </div>
         </div>
 
-        {/* 濡쒕뵫 */}
+        {/* loading */}
         {loading && (
           <PageLoading message="질문 목록을 불러오는 중입니다" />
         )}
 
-        {/* ?먮윭 */}
+        {/* error */}
         {!loading && error && (
-          <EmptyState type="error" message="질문 목록을 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." />
+          <EmptyState type="error" message="질문 목록을 불러오지 못했습니다." description="네트워크 연결을 확인하고 다시 시도해 주세요." />
         )}
 
-        {/* 紐⑸줉 */}
+        {/* list */}
         {!loading && !error && (
           <div>
             <div style={{
@@ -864,7 +864,7 @@ export default function ServicePage() {
           </div>
         )}
 
-        {/* ?섏씠吏?ㅼ씠??*/}
+        {/* pagination */}
         {!loading && !error ? (
           <CommunityPagination
             currentPage={currentPage}
@@ -874,7 +874,7 @@ export default function ServicePage() {
         ) : null}
       </main>
 
-      {/* ?? 湲?곌린/수정 紐⑤떖 ?? */}
+      {/* write and edit modal */}
       {writeModal?.item ? (
         <WriteModal
           item={writeModal.item}
@@ -884,7 +884,7 @@ export default function ServicePage() {
         />
       ) : null}
 
-      {/* ?? 삭제 ?뺤씤 紐⑤떖 ?? */}
+      {/* delete confirm modal */}
       {deleteModal && (
         <ConfirmModal
           title="질문 삭제"
@@ -895,7 +895,7 @@ export default function ServicePage() {
         />
       )}
 
-      {/* ?? ?좎뒪???? */}
+      {/* toast */}
       {toast && (
         <Toast
           msg={toast.msg}
