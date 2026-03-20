@@ -296,8 +296,8 @@ jobs:
             AUTH_SMS_PROVIDER: "${SMS_PROVIDER}"
             AWS_REGION: "${AUTH_AWS_REGION}"
             AWS_SMS_REGION: "${AUTH_SMS_REGION}"
-            AWS_ACCESS_KEY_ID: "${AWS_AUTH_MESSAGING_ACCESS_KEY_ID}"
-            AWS_SECRET_ACCESS_KEY: "${AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY}"
+            AWS_AUTH_MESSAGING_ACCESS_KEY_ID: "${AWS_AUTH_MESSAGING_ACCESS_KEY_ID}"
+            AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY: "${AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY}"
             AWS_SES_FROM_ADDRESS: "${SES_FROM_EMAIL}"
             AWS_SMS_ORIGINATION_NUMBER: "${SMS_ORIGINATION_NUMBER}"
             AWS_SMS_SENDER_ID: "${SMS_SENDER_ID}"
@@ -306,6 +306,14 @@ jobs:
           kubectl -n "${EKS_NAMESPACE:-pupoo}" patch secret pupoo-backend-secret \
             --type merge \
             --patch-file /tmp/pupoo-backend-secret-patch.yaml
+
+          for legacy_key in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN; do
+            if kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o "jsonpath={.data.${legacy_key}}" 2>/dev/null | grep -q .; then
+              kubectl -n "${EKS_NAMESPACE:-pupoo}" patch secret pupoo-backend-secret \
+                --type json \
+                -p="[ { \"op\": \"remove\", \"path\": \"/data/${legacy_key}\" } ]"
+            fi
+          done
 
       - name: Apply base manifests
         run: kubectl apply -k k8s/base

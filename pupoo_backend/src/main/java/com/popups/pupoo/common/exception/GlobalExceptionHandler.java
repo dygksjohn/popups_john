@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -36,6 +37,7 @@ public class GlobalExceptionHandler {
         if (msg == null || msg.isBlank()) {
             msg = ec.getMessage();
         }
+        logHandledException(request, ec, msg);
         ErrorResponse body = new ErrorResponse(ec.getCode(), msg, ec.getStatus().value(), request.getRequestURI());
         return ResponseEntity.status(ec.getStatus())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -62,9 +64,25 @@ public class GlobalExceptionHandler {
                         .map(err -> new FieldErrorItem(err.getField(), err.getDefaultMessage()))
                         .toList()
         );
+        logHandledException(request, ErrorCode.VALIDATION_FAILED, msg);
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getStatus())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .body(ApiResponse.fail(body));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableBody(
+            HttpMessageNotReadableException e,
+            HttpServletRequest request
+    ) {
+        String msg = "Request body is invalid";
+        Throwable cause = e.getMostSpecificCause();
+        if (cause != null && cause.getMessage() != null && !cause.getMessage().isBlank()) {
+            msg = cause.getMessage();
+        }
+
+        logHandledException(request, ErrorCode.VALIDATION_FAILED, msg);
+        return build(request, ErrorCode.VALIDATION_FAILED, ErrorCode.VALIDATION_FAILED.getStatus(), msg);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -183,10 +201,20 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ApiResponse<Void>> build(HttpServletRequest request, ErrorCode ec, HttpStatus status, String msg) {
+        logHandledException(request, ec, msg);
         ErrorResponse body = new ErrorResponse(ec.getCode(), msg, status.value(), request.getRequestURI());
         return ResponseEntity.status(status)
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .body(ApiResponse.fail(body));
+    }
+
+    private void logHandledException(HttpServletRequest request, ErrorCode ec, String msg) {
+        log.warn("Handled exception: method={} uri={} code={} status={} message={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                ec.getCode(),
+                ec.getStatus().value(),
+                msg);
     }
 
     private String rootMessage(Throwable t) {

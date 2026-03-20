@@ -78,6 +78,8 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
     }
 
     private void sendEmail(String targetEmail, String subject, String body, String mailType) {
+        String maskedTarget = maskEmail(targetEmail);
+        String fromAddress = awsMessagingProperties.getSes() != null ? awsMessagingProperties.getSes().getFromAddress() : null;
         try {
             sesV2Client.sendEmail(
                     SendEmailRequest.builder()
@@ -96,10 +98,21 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
                             .build()
             );
 
-            log.info("[AUTH_EMAIL_PROVIDER={}] SES email sent. type={}, target={}", provider, mailType, targetEmail);
+            log.info("[AUTH_EMAIL_PROVIDER={}] SES email sent. type={}, target={}, fromConfigured={}, verificationBaseUrlConfigured={}",
+                    provider,
+                    mailType,
+                    maskedTarget,
+                    hasText(fromAddress),
+                    hasText(verificationBaseUrl));
         } catch (SesV2Exception | SdkClientException e) {
-            log.error("[AUTH_EMAIL_PROVIDER={}] SES email failed. type={}, target={}, reason={}",
-                    provider, mailType, targetEmail, e.getMessage(), e);
+            log.error("[AUTH_EMAIL_PROVIDER={}] SES email failed. type={}, target={}, fromConfigured={}, verificationBaseUrlConfigured={}, reason={}",
+                    provider,
+                    mailType,
+                    maskedTarget,
+                    hasText(fromAddress),
+                    hasText(verificationBaseUrl),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "인증 이메일 발송에 실패했습니다.");
         }
     }
@@ -168,5 +181,24 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
         if (verificationBaseUrl == null || verificationBaseUrl.isBlank()) {
             throw new IllegalStateException("verification.email.base-url 설정이 필요합니다.");
         }
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return "<empty>";
+        }
+
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 1 || atIndex == email.length() - 1) {
+            return "***";
+        }
+
+        String localPart = email.substring(0, atIndex);
+        String domainPart = email.substring(atIndex + 1);
+        return localPart.charAt(0) + "***@" + domainPart;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

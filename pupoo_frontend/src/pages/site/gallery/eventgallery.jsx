@@ -363,7 +363,59 @@ function GalleryWriteModal({
     </>
   );
 }
-function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, liked }) {
+function GalleryEditModal({ open, item, onClose, onSubmit, loading, error }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    if (open && item) {
+      setTitle(item.title || "");
+      setDescription(item.description || "");
+    }
+  }, [open, item]);
+
+  if (!open || !item) return null;
+
+  return (
+    <>
+      <div style={backdropStyle()} onClick={onClose} />
+      <div style={overlayStyle()} onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} style={modalShellStyle("min(520px, 100%)")}>
+          <div style={{ padding: "28px 28px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#111827" }}>갤러리 수정</div>
+              <button type="button" onClick={onClose} style={{ width: 34, height: 34, borderRadius: 999, border: "none", background: "#f3f4f6", color: "#6b7280", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+          <div style={{ padding: "0 28px 28px", display: "grid", gap: 16 }}>
+            {error && (
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", fontSize: 13, color: "#B91C1C", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                <AlertTriangle size={14} />
+                {error}
+              </div>
+            )}
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>제목</span>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} disabled={loading} style={{ height: 44, borderRadius: 10, border: "1px solid #cbd5e1", padding: "0 14px", fontSize: 14, color: "#0f172a", background: loading ? "#f1f5f9" : "#fff" }} />
+            </label>
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>설명</span>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} disabled={loading} rows={4} style={{ borderRadius: 10, border: "1px solid #cbd5e1", padding: "12px 14px", fontSize: 14, color: "#0f172a", resize: "vertical", fontFamily: "inherit", background: loading ? "#f1f5f9" : "#fff" }} />
+            </label>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button type="button" onClick={onClose} disabled={loading} style={buttonStyle()}>취소</button>
+              <button type="button" onClick={() => onSubmit({ title: title.trim(), description: description.trim() })} disabled={loading || !title.trim()} style={{ ...buttonStyle("primary"), opacity: loading || !title.trim() ? 0.6 : 1, cursor: loading || !title.trim() ? "not-allowed" : "pointer" }}>{loading ? "수정 중..." : "수정하기"}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, onEdit, liked, canEdit }) {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -455,6 +507,11 @@ function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, liked
                   <button type="button" onClick={onToggleLike} style={{ height: 38, padding: "0 16px", borderRadius: 999, border: liked ? "1px solid #fecdd3" : "1px solid #e5e7eb", background: liked ? "#fff1f2" : "#fff", color: liked ? "#e11d48" : "#374151", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                     <Heart size={15} fill={liked ? "currentColor" : "none"} /> 좋아요 {item.likeCount}
                   </button>
+                  {canEdit && (
+                    <button type="button" onClick={onEdit} style={{ height: 38, padding: "0 16px", borderRadius: 999, border: "1px solid #e5e7eb", background: "#fff", color: "#374151", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                      수정
+                    </button>
+                  )}
                   <button type="button" onClick={onReport} style={{ height: 38, padding: "0 16px", borderRadius: 999, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                     <AlertTriangle size={14} /> 신고
                   </button>
@@ -494,6 +551,10 @@ export default function EventGallery() {
   const [writeForm, setWriteForm] = useState({ eventId: "", title: "", description: "", files: [] });
   const [reportTarget, setReportTarget] = useState(null);
   const [reportNotice, setReportNotice] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
   const userClosedViewerRef = useRef(false);
 
   const eventNameMap = useMemo(() => Object.fromEntries(events.map((event) => [String(event.eventId), event.eventName])), [events]);
@@ -684,6 +745,33 @@ export default function EventGallery() {
     }
   }, [ensureAuthed, loadGalleries, selectedEventId, writeForm]);
 
+  const openEditModal = useCallback((gallery) => {
+    if (!gallery?.galleryId) return;
+    setEditTarget(gallery);
+    setEditError("");
+    setEditOpen(true);
+  }, []);
+
+  const handleEdit = useCallback(async (payload) => {
+    if (!editTarget?.galleryId) return;
+    setEditLoading(true);
+    setEditError("");
+    try {
+      await galleryApi.updateOne(editTarget.galleryId, payload);
+      setEditOpen(false);
+      setEditTarget(null);
+      await loadGalleries();
+      if (viewer?.galleryId === editTarget.galleryId) {
+        setViewer((prev) => prev ? { ...prev, title: payload.title, description: payload.description } : prev);
+      }
+    } catch (err) {
+      console.error("[EventGallery] edit failed:", err);
+      setEditError(err?.response?.data?.message || "갤러리 수정에 실패했습니다.");
+    } finally {
+      setEditLoading(false);
+    }
+  }, [editTarget, loadGalleries, viewer]);
+
   const openGalleryReport = useCallback(
     (gallery) => {
       if (!gallery?.galleryId || !ensureAuthed()) return;
@@ -823,7 +911,8 @@ export default function EventGallery() {
         </section>
       </main>
       <GalleryWriteModal open={writeOpen} events={events} form={writeForm} onChange={(field, value) => setWriteForm((prev) => ({ ...prev, [field]: value }))} onFilesChange={(files) => setWriteForm((prev) => ({ ...prev, files }))} onClose={() => setWriteOpen(false)} onSubmit={handleCreate} loading={writeLoading} error={writeError} />
-      <GalleryViewer item={viewer} eventName={eventNameMap[String(viewer?.eventId)] || `행사 ${viewer?.eventId || ""}`} onClose={closeViewer} onToggleLike={() => viewer && toggleLike(viewer)} onReport={() => viewer && openGalleryReport(viewer)} liked={!!likedMap[viewer?.galleryId]} />
+      <GalleryViewer item={viewer} eventName={eventNameMap[String(viewer?.eventId)] || `행사 ${viewer?.eventId || ""}`} onClose={closeViewer} onToggleLike={() => viewer && toggleLike(viewer)} onReport={() => viewer && openGalleryReport(viewer)} onEdit={() => viewer && openEditModal(viewer)} liked={!!likedMap[viewer?.galleryId]} canEdit={meUserId != null && viewer?.userId === meUserId} />
+      <GalleryEditModal open={editOpen} item={editTarget} onClose={() => { setEditOpen(false); setEditTarget(null); }} onSubmit={handleEdit} loading={editLoading} error={editError} />
       <ReportModal open={Boolean(reportTarget)} title={reportTarget?.title || "신고하기"} onClose={() => setReportTarget(null)} onSubmit={submitGalleryReport} onSuccess={() => setReportNotice(reportTarget?.successMessage || "신고가 접수되었습니다.")} />
     </div>
   );

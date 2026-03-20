@@ -54,7 +54,7 @@ export const postApi = {
         boardId: payload.boardId,
         postTitle: payload.postTitle ?? "",
         content: payload.content ?? "",
-      }, { timeout: 60000 })
+      }, { timeout: 120000 })
       .then((res) => unwrap(res));
   },
 
@@ -65,7 +65,7 @@ export const postApi = {
       .put(`/api/posts/${postId}`, {
         postTitle: payload?.postTitle ?? "",
         content: payload?.content ?? "",
-      })
+      }, { timeout: 120000 })
       .then((res) => unwrap(res));
   },
 

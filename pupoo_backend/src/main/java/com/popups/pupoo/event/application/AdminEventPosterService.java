@@ -48,7 +48,7 @@ public class AdminEventPosterService {
 
     private static final String STORAGE_BUCKET_UNUSED = "local";
     private static final int POSTER_IMAGE_COUNT = 1;
-    // OpenAI currently accepts 1024x1024, 1024x1792, and 1792x1024 for DALL-E 3.
+    // Production OpenAI responses confirm DALL-E 3 accepts 1024x1024, 1024x1792, and 1792x1024.
     private static final String POSTER_IMAGE_SIZE = "1024x1792";
     private static final int POSTER_OUTPUT_WIDTH = 400;
     private static final int POSTER_OUTPUT_HEIGHT = 847;
@@ -82,6 +82,7 @@ public class AdminEventPosterService {
     private final StorageUrlResolver storageUrlResolver;
     private final String apiKey;
     private final String model;
+    private final String baseUrl;
 
     public AdminEventPosterService(
             RestClient.Builder builder,
@@ -106,6 +107,7 @@ public class AdminEventPosterService {
                 readDotEnvValue("OPENAI_IMAGE_MODEL"),
                 "dall-e-3"
         );
+        this.baseUrl = baseUrl;
         RestClient.Builder configuredBuilder = builder.baseUrl(baseUrl);
         if (StringUtils.hasText(this.apiKey)) {
             configuredBuilder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + this.apiKey);
@@ -135,7 +137,8 @@ public class AdminEventPosterService {
         payload.put("response_format", "b64_json");
 
         try {
-            log.info("AI poster generation started. model={}, size={}, eventName={}", model, POSTER_IMAGE_SIZE, request.eventName());
+            log.info("AI poster generation started. model={}, size={}, baseUrl={}, eventName={}",
+                    model, POSTER_IMAGE_SIZE, baseUrl, request.eventName());
             OpenAiImageGenerationResponse response = restClient.post()
                     .uri("/v1/images/generations")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -169,6 +172,7 @@ public class AdminEventPosterService {
         if (StringUtils.hasText(apiKey)) {
             return;
         }
+        log.error("AI poster generation is not configured. openai.image.api-key/OPENAI_API_KEY is missing. baseUrl={}", baseUrl);
         throw new BusinessException(
                 ErrorCode.INTERNAL_ERROR,
                 "OpenAI API key is not configured. Set OPENAI_API_KEY or pupoo_ai/.env"

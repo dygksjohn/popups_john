@@ -1,7 +1,15 @@
 // file: src/main/java/com/popups/pupoo/reply/application/ReplyService.java
 package com.popups.pupoo.reply.application;
 
+import java.time.LocalDateTime;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.application.ModerationBlockMessageResolver;
 import com.popups.pupoo.board.bannedword.application.ModerationClient;
 import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
@@ -21,12 +29,6 @@ import com.popups.pupoo.reply.dto.ReplyUpdateRequest;
 import com.popups.pupoo.reply.persistence.PostCommentRepository;
 import com.popups.pupoo.reply.persistence.ReviewCommentRepository;
 import com.popups.pupoo.user.persistence.UserRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 /**
  * 게시글 댓글과 리뷰 댓글의 생성/조회/수정/삭제를 통합 처리한다.
@@ -45,6 +47,7 @@ public class ReplyService {
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
     private final ModerationClient moderationClient;
+    private final ModerationBlockMessageResolver moderationBlockMessageResolver;
     private final UserRepository userRepository;
 
     public ReplyService(PostCommentRepository postCommentRepository,
@@ -54,6 +57,7 @@ public class ReplyService {
                         BoardRepository boardRepository,
                         BannedWordService bannedWordService,
                         ModerationClient moderationClient,
+                        ModerationBlockMessageResolver moderationBlockMessageResolver,
                         UserRepository userRepository) {
         this.postCommentRepository = postCommentRepository;
         this.reviewCommentRepository = reviewCommentRepository;
@@ -62,6 +66,7 @@ public class ReplyService {
         this.boardRepository = boardRepository;
         this.bannedWordService = bannedWordService;
         this.moderationClient = moderationClient;
+        this.moderationBlockMessageResolver = moderationBlockMessageResolver;
         this.userRepository = userRepository;
     }
 
@@ -106,8 +111,9 @@ public class ReplyService {
                         userId,
                         modResult
                 );
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "댓글 내용이 정책을 위반하여 등록할 수 없습니다.");
+                // 기술/서버 장애 등으로 BLOCK 된 경우에도 reason/stack을 반영해 안내문구를 다르게 노출한다.
+                String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("댓글", modResult);
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, msg);
             }
         }
 
@@ -208,8 +214,21 @@ public class ReplyService {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다.");
             }
 
+            Long boardId = postRepository.findByPostIdAndDeletedFalse(comment.getPostId())
+                    .map(p -> p.getBoard() != null ? p.getBoard().getBoardId() : null).orElse(null);
+
+            if (!bannedWordService.shouldSkipModeration(userId) && boardId != null) {
+                ModerationResult modResult = moderationClient.moderate(
+                        request.getContent() != null ? request.getContent() : "", boardId, "COMMENT");
+                if (modResult != null && modResult.isBlock()) {
+                    bannedWordService.logAiModeration(
+                            boardId, replyId, BannedLogContentType.COMMENT, userId, modResult);
+                    String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("댓글", modResult);
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED, msg);
+                }
+            }
+
             PostComment saved = postCommentRepository.save(comment.updateContent(request.getContent(), now));
-            Long boardId = postRepository.findByPostIdAndDeletedFalse(comment.getPostId()).map(p -> p.getBoard() != null ? p.getBoard().getBoardId() : null).orElse(null);
             return toResponse(saved, ReplyTargetType.POST, comment.getPostId(), boardId);
         }
 
@@ -221,8 +240,21 @@ public class ReplyService {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다.");
             }
 
+            Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW)
+                    .map(b -> b.getBoardId()).orElse(null);
+
+            if (!bannedWordService.shouldSkipModeration(userId) && reviewBoardId != null) {
+                ModerationResult modResult = moderationClient.moderate(
+                        request.getContent() != null ? request.getContent() : "", reviewBoardId, "COMMENT");
+                if (modResult != null && modResult.isBlock()) {
+                    bannedWordService.logAiModeration(
+                            reviewBoardId, replyId, BannedLogContentType.COMMENT, userId, modResult);
+                    String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("댓글", modResult);
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED, msg);
+                }
+            }
+
             ReviewComment saved = reviewCommentRepository.save(comment.updateContent(request.getContent(), now));
-            Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW).map(b -> b.getBoardId()).orElse(null);
             return toResponse(saved, ReplyTargetType.REVIEW, comment.getReviewId(), reviewBoardId);
         }
 

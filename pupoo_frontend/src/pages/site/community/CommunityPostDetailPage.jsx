@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Flag, MessageCircle, Paperclip } from "lucide-react";
+import { AlertTriangle, Edit3, Flag, MessageCircle, Paperclip } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { postApi } from "../../../app/http/postApi";
 import { postReplyApi } from "../../../app/http/replyApi";
 import { reportApi } from "../../../app/http/reportApi";
 import { tokenStore } from "../../../app/http/tokenStore";
+import { userApi } from "../../../app/http/userApi";
 import { fileApi } from "../../../app/http/fileApi";
 import CommunityDetailLayout from "./shared/CommunityDetailLayout";
 import ReportModal from "../components/ReportModal";
@@ -50,6 +51,11 @@ export default function CommunityPostDetailPage({
   const [replySubmitting, setReplySubmitting] = useState(false);
   const [reportNotice, setReportNotice] = useState("");
   const [reportTarget, setReportTarget] = useState(null);
+  const [meUserId, setMeUserId] = useState(null);
+  const [editingReplyId, setEditingReplyId] = useState(null);
+  const [editReplyText, setEditReplyText] = useState("");
+  const [editReplySubmitting, setEditReplySubmitting] = useState(false);
+  const [editReplyError, setEditReplyError] = useState("");
 
   const detailPath = `${currentPath}/${post?.postId ?? numericPostId}`;
 
@@ -121,6 +127,12 @@ export default function CommunityPostDetailPage({
   }, [loadAttachment, loadReplies, numericPostId]);
 
   useEffect(() => {
+    if (tokenStore.getAccess()) {
+      userApi.getMe().then((data) => setMeUserId(data?.userId ?? null)).catch(() => setMeUserId(null));
+    }
+  }, []);
+
+  useEffect(() => {
     if (!location.hash) return;
     const anchorId = location.hash.replace(/^#/, "");
     if (!anchorId) return;
@@ -160,6 +172,40 @@ export default function CommunityPostDetailPage({
       setReplySubmitting(false);
     }
   };
+
+  const startEditReply = useCallback((reply) => {
+    setEditingReplyId(reply.replyId);
+    setEditReplyText(reply.content || "");
+    setEditReplyError("");
+  }, []);
+
+  const cancelEditReply = useCallback(() => {
+    setEditingReplyId(null);
+    setEditReplyText("");
+    setEditReplyError("");
+  }, []);
+
+  const submitEditReply = useCallback(async () => {
+    if (!editingReplyId) return;
+    const content = editReplyText.trim();
+    if (!content) {
+      setEditReplyError("댓글 내용을 입력해 주세요.");
+      return;
+    }
+    setEditReplySubmitting(true);
+    setEditReplyError("");
+    try {
+      await postReplyApi.update(editingReplyId, content);
+      setEditingReplyId(null);
+      setEditReplyText("");
+      if (post?.postId) await loadReplies(post.postId);
+    } catch (err) {
+      console.error("[CommunityPostDetailPage] reply edit failed:", err);
+      setEditReplyError(err?.response?.data?.message || "댓글 수정에 실패했습니다.");
+    } finally {
+      setEditReplySubmitting(false);
+    }
+  }, [editReplyText, editingReplyId, loadReplies, post]);
 
   const ensureAuthed = useCallback(() => {
     if (!tokenStore.getAccess()) {
@@ -206,6 +252,8 @@ export default function CommunityPostDetailPage({
     [reportTarget],
   );
 
+  const isOwner = meUserId != null && post?.userId === meUserId;
+
   const reportHead = !loading && post ? (
     <div
       style={{
@@ -234,27 +282,52 @@ export default function CommunityPostDetailPage({
       ) : (
         <span />
       )}
-      <button
-        type="button"
-        onClick={openPostReport}
-        style={{
-          height: 38,
-          padding: "0 14px",
-          borderRadius: 999,
-          border: "1px solid #fecaca",
-          background: "#fff5f5",
-          color: "#b91c1c",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          fontSize: 12,
-          fontWeight: 800,
-          cursor: "pointer",
-        }}
-      >
-        <AlertTriangle size={14} />
-        신고하기
-      </button>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        {isOwner && (
+          <button
+            type="button"
+            onClick={() => navigate(`${currentPath}/${post.postId}/edit`)}
+            style={{
+              height: 38,
+              padding: "0 14px",
+              borderRadius: 999,
+              border: "1px solid #cbd5e1",
+              background: "#fff",
+              color: "#374151",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            <Edit3 size={14} />
+            수정하기
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={openPostReport}
+          style={{
+            height: 38,
+            padding: "0 14px",
+            borderRadius: 999,
+            border: "1px solid #fecaca",
+            background: "#fff5f5",
+            color: "#b91c1c",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 12,
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          <AlertTriangle size={14} />
+          신고하기
+        </button>
+      </div>
     </div>
   ) : null;
 
@@ -383,38 +456,62 @@ export default function CommunityPostDetailPage({
               <div style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>등록된 댓글이 없습니다.</div>
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
-                {replies.map((reply) => (
-                  <div id={`reply-${reply.replyId}`} key={reply.replyId} style={{ borderBottom: "1px solid #f3f4f6", padding: "16px 0", scrollMarginTop: 120 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
-                      <div style={{ fontSize: 12, color: "#64748b" }}>
-                        {reply.writerEmail || `user#${reply.userId || "-"}`} · {fmtDate(reply.createdAt)}
+                {replies.map((reply) => {
+                  const isReplyOwner = meUserId != null && reply.userId === meUserId;
+                  const isEditing = editingReplyId === reply.replyId;
+                  return (
+                    <div id={`reply-${reply.replyId}`} key={reply.replyId} style={{ borderBottom: "1px solid #f3f4f6", padding: "16px 0", scrollMarginTop: 120 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
+                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                          {reply.writerEmail || `user#${reply.userId || "-"}`} · {fmtDate(reply.createdAt)}
+                        </div>
+                        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                          {isReplyOwner && !isEditing && (
+                            <button
+                              type="button"
+                              onClick={() => startEditReply(reply)}
+                              style={{ border: "none", background: "none", color: "#d1d5db", cursor: "pointer", padding: 4, borderRadius: 4, display: "flex", alignItems: "center", transition: "color .15s" }}
+                              onMouseEnter={(e) => { e.currentTarget.style.color = "#1d4ed8"; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.color = "#d1d5db"; }}
+                              title="수정하기"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => openReplyReport(reply)}
+                            style={{ border: "none", background: "none", color: "#d1d5db", cursor: "pointer", padding: 4, borderRadius: 4, display: "flex", alignItems: "center", transition: "color .15s" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = "#dc2626"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = "#d1d5db"; }}
+                            title="신고하기"
+                          >
+                            <Flag size={14} />
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => openReplyReport(reply)}
-                        style={{
-                          border: "none",
-                          background: "none",
-                          color: "#d1d5db",
-                          cursor: "pointer",
-                          padding: 4,
-                          borderRadius: 4,
-                          display: "flex",
-                          alignItems: "center",
-                          transition: "color .15s",
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "#dc2626"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = "#d1d5db"; }}
-                        title="신고하기"
-                      >
-                        <Flag size={14} />
-                      </button>
+                      {isEditing ? (
+                        <div>
+                          <textarea
+                            value={editReplyText}
+                            onChange={(e) => setEditReplyText(e.target.value)}
+                            rows={3}
+                            style={{ width: "100%", borderRadius: 8, border: "1px solid #d1d5db", padding: "10px 12px", resize: "vertical", fontSize: 14, lineHeight: 1.6, fontFamily: "'Noto Sans KR', sans-serif", outline: "none" }}
+                          />
+                          {editReplyError && <div style={{ marginTop: 6, fontSize: 12, color: "#dc2626" }}>{editReplyError}</div>}
+                          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+                            <button type="button" onClick={cancelEditReply} disabled={editReplySubmitting} style={{ border: "1px solid #cbd5e1", borderRadius: 6, background: "#fff", color: "#475569", padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>취소</button>
+                            <button type="button" onClick={submitEditReply} disabled={editReplySubmitting} style={{ border: "1px solid #111827", borderRadius: 6, background: "#111827", color: "#fff", padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: editReplySubmitting ? "not-allowed" : "pointer", opacity: editReplySubmitting ? 0.6 : 1 }}>{editReplySubmitting ? "수정 중..." : "수정"}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 14, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+                          {reply.content}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ fontSize: 14, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
-                      {reply.content}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

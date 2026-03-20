@@ -766,7 +766,9 @@ function EventFormModal({ item, onSave, onClose, isEdit }) {
     } catch (error) {
       console.error("[EventManage] AI 포스터 생성 실패:", error);
       const message =
-        error?.response?.data?.message || "AI 포스터 생성에 실패했습니다.";
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.message ||
+        "AI 포스터 생성에 실패했습니다.";
       setErr(message);
     } finally {
       setIsGeneratingPoster(false);

@@ -31,13 +31,13 @@ export const qnaApi = {
     axiosInstance.post("/api/qnas", {
       title: data.title,
       content: data.content,
-    }, { timeout: 60000 }),
+    }, { timeout: 120000 }),
 
   update: (qnaId, data) =>
     axiosInstance.patch(`/api/qnas/${qnaId}`, {
       title: data.title,
       content: data.content,
-    }),
+    }, { timeout: 120000 }),
 
   delete: (qnaId) => axiosInstance.delete(`/api/qnas/${qnaId}`),
 

@@ -15,6 +15,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AwsMessagingProperties {
 
     private String region;
+    private String accessKeyId;
+    private String secretAccessKey;
+    private String sessionToken;
     private Ses ses = new Ses();
     private Sms sms = new Sms();
 

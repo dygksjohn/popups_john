@@ -6,18 +6,22 @@
 설명:
 - retrieved_docs의 score는 정책 검색 유사도이며 최종 위반 점수와 다르다.
 - 이 모듈은 사전 차단 판단만 다루며, 신고 기반 모더레이션 상태 전이는 다루지 않는다.
-"""
 
+watsonx.ai LLM 호출.
+- 검색된 정책 + 사용자 입력 기반 위반 여부·사유 생성.
+- 임베딩은 BGE-M3(embedding_service.py)를 사용하며, 이 모듈은 LLM만 담당한다.
+- langchain_ibm은 watsonx 사용 시에만 로드.
+"""
 from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Iterable, List
+from typing import TYPE_CHECKING, List
 
 from pupoo_ai.app.core.config import settings
 
 if TYPE_CHECKING:
-    from langchain_ibm import WatsonxEmbeddings, WatsonxLLM
+    from langchain_ibm import WatsonxLLM
 
 
 logger = logging.getLogger(__name__)
@@ -26,16 +30,6 @@ ACTION_PATTERN = re.compile(r"\b(BLOCK|PASS)\b", re.I)
 SCORE_PATTERN = re.compile(r"SCORE\s*:\s*([0-9.]+)", re.I)
 FLAGGED_PATTERN = re.compile(r"FLAGGED\s*:\s*([^\n]+)", re.I)
 INFERRED_PATTERN = re.compile(r"INFERRED\s*:\s*([^\n]+)", re.I)
-
-
-def _watsonx_embedding_params() -> dict:
-    # 기능: watsonx 임베딩 클라이언트 초기화 파라미터를 구성한다.
-    return {
-        "url": settings.watsonx_url or "https://us-south.ml.cloud.ibm.com",
-        "api_key": settings.watsonx_api_key,
-        "project_id": settings.watsonx_project_id,
-        "model_id": settings.watsonx_embedding_model_id or "ibm/slate-125m-english-rtrvr",
-    }
 
 
 def _watsonx_llm_params() -> dict:
@@ -56,26 +50,6 @@ def is_watsonx_configured() -> bool:
         and settings.watsonx_url
         and settings.watsonx_project_id
     )
-
-
-class WatsonxEmbeddingService:
-    # 기능: watsonx 임베딩 서비스를 project 내부 인터페이스에 맞춰 감싼다.
-    def __init__(self) -> None:
-        from langchain_ibm import WatsonxEmbeddings
-
-        params = _watsonx_embedding_params()
-        self._embeddings: WatsonxEmbeddings = WatsonxEmbeddings(**params)
-        self._dim = settings.watsonx_embedding_dim
-
-    @property
-    def dim(self) -> int:
-        return self._dim
-
-    def embed_texts(self, texts: Iterable[str]) -> List[List[float]]:
-        text_list = list(texts)
-        if not text_list:
-            return []
-        return self._embeddings.embed_documents(text_list)
 
 
 def get_llm_for_moderation():
@@ -137,18 +111,14 @@ INFERRED: 정책 문맥상 추론된 위반 유형 또는 표현 목록. 없으�
         output = (output or "").strip()
         lines = [line.strip() for line in output.splitlines() if line.strip()]
 
-        action = "PASS"
-        for match in ACTION_PATTERN.finditer(output):
-            action = match.group(1).upper()
+        action = None
+        for m in ACTION_PATTERN.finditer(out):
+            action = m.group(1).upper()
             break
         if action not in ("BLOCK", "PASS"):
-            action = "PASS"
-
-        logger.info(
-            "LLM moderation parsed action=%s, ai_score_raw=%s",
-            action,
-            SCORE_PATTERN.search(output).group(1) if SCORE_PATTERN.search(output) else None,
-        )
+            logger.error("LLM output parse failed: ACTION token is missing or invalid. Treating as BLOCK.")
+            return "BLOCK", None, "LLM 출력 파싱 실패(ACTION 미검출)로 차단되었습니다.", None, None
+        logger.info("LLM moderation parsed action=%s, ai_score_raw=%s", action, SCORE_PATTERN.search(out).group(1) if SCORE_PATTERN.search(out) else None)
 
         ai_score: float | None = None
         score_match = SCORE_PATTERN.search(output)

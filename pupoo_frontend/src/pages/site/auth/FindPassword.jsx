@@ -10,6 +10,7 @@ export default function FindPassword() {
   const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [issuedCode, setIssuedCode] = useState("");
+  const [codeRequested, setCodeRequested] = useState(false);
   const [requestingCode, setRequestingCode] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -31,6 +32,7 @@ export default function FindPassword() {
     setRequestingCode(true);
     setErrorMessage("");
     setSuccessMessage("");
+    setCodeRequested(false);
     sessionStorage.removeItem(PASSWORD_RESET_CONTEXT_KEY);
 
     try {
@@ -41,21 +43,27 @@ export default function FindPassword() {
       const nextCode = String(response?.verificationCode || "");
       setIssuedCode(nextCode);
       setVerificationCode(nextCode);
-      setSuccessMessage("인증번호를 자동으로 입력했습니다. 확인 버튼을 눌러 진행해 주세요.");
+      setCodeRequested(true);
+      setSuccessMessage(
+        nextCode
+          ? "인증번호를 자동으로 입력했습니다. 확인 버튼을 눌러 진행해 주세요."
+          : "인증번호를 요청했습니다. 이메일 또는 휴대전화로 받은 인증번호를 입력해 주세요.",
+      );
     } catch (error) {
       const message =
-        error?.response?.data?.error?.message ||
+        error?.message ||
         "인증번호 발급에 실패했습니다. 잠시 후 다시 시도해 주세요.";
       setErrorMessage(message);
       setIssuedCode("");
       setVerificationCode("");
+      setCodeRequested(false);
     } finally {
       setRequestingCode(false);
     }
   };
 
   const handleVerifyCode = async () => {
-    if (!issuedCode) {
+    if (!codeRequested) {
       setErrorMessage("먼저 인증번호를 요청해 주세요.");
       return;
     }
@@ -88,7 +96,7 @@ export default function FindPassword() {
       navigate("/auth/reset-password");
     } catch (error) {
       const message =
-        error?.response?.data?.error?.message ||
+        error?.message ||
         "인증번호 확인에 실패했습니다. 다시 시도해 주세요.";
       setErrorMessage(message);
     } finally {
@@ -170,7 +178,7 @@ export default function FindPassword() {
           </button>
         </form>
 
-        {issuedCode ? (
+        {codeRequested ? (
           <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
             <input
               type="text"
