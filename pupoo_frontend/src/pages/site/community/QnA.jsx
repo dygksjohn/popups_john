@@ -831,7 +831,7 @@ export default function ServicePage() {
                       {isMobile && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
                           <span>{authorLabel}</span>
-                          <span style={{ color: "#cbd5e1" }}>?</span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(q.createdAt)}</span>
                         </div>
                       )}

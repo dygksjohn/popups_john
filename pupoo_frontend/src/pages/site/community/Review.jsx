@@ -436,7 +436,12 @@ export default function Review() {
               )}
               {pagedItems.map((item, index) => {
                 const commentCount = Number(commentCountMap[item.reviewId] || 0);
-                const eventLabel = eventNameMap[item.eventId] || item.eventName || `?? ${item.eventId}`;
+                const eventLabel = eventNameMap[item.eventId] || item.eventName || `행사 ${item.eventId}`;
+                const authorLabel =
+                  item?.author ||
+                  item?.nickname ||
+                  item?.userName ||
+                  (item?.userId ? `회원 #${item.userId}` : "익명 사용자");
                 const rowNumber = sortedFilteredItems.length - ((currentPage - 1) * PAGE_SIZE) - index;
                 return (
                   <div
@@ -462,9 +467,11 @@ export default function Review() {
                     {!isMobile && <span style={{ width: 60, textAlign: "center", fontSize: 13, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 44, padding: "4px 10px", borderRadius: 999, background: "#F1F5F9", color: "#475569", fontSize: 12, fontWeight: 600, lineHeight: 1 }}>
-                          {eventLabel}
-                        </span>
+                        {!isMobile && (
+                          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 44, padding: "4px 10px", borderRadius: 999, background: "#F1F5F9", color: "#475569", fontSize: 12, fontWeight: 600, lineHeight: 1 }}>
+                            {eventLabel}
+                          </span>
+                        )}
                         <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
                           {item.title}
                         </span>
@@ -476,8 +483,12 @@ export default function Review() {
                       </div>
                       {isMobile && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 1 }}>{[1, 2, 3, 4, 5].map((starIndex) => <Star key={starIndex} size={12} color={starIndex <= Number(item.rating || 0) ? "#F59E0B" : "#D1D5DB"} fill={starIndex <= Number(item.rating || 0) ? "#F59E0B" : "none"} />)}</span>
-                          <span style={{ color: "#cbd5e1" }}>?</span>
+                          <span style={{ color: "#4B5563", fontWeight: 600 }}>{eventLabel}</span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 1 }}>{renderStars(Number(item.rating || 0), 12)}</span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
+                          <span>{authorLabel}</span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(item.createdAt)}</span>
                         </div>
                       )}
