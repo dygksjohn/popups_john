@@ -174,9 +174,9 @@ export default function PageHeader({
   const pageHeaderStyle = {
     ...styles.pageHeader,
     paddingTop: isMobile
-      ? "calc(var(--pupoo-site-header-offset, 92px) + 24px)"
+      ? "calc(var(--pupoo-site-header-offset, 92px) + 32px)"
       : isTablet
-        ? "calc(var(--pupoo-site-header-height, 72px) + 30px)"
+        ? "calc(var(--pupoo-site-header-height, 72px) + 36px)"
         : styles.pageHeader.paddingTop,
   };
 
@@ -193,21 +193,21 @@ export default function PageHeader({
     ...styles.topRow,
     flexDirection: isMobile ? "column" : "row",
     alignItems: isMobile ? "flex-start" : styles.topRow.alignItems,
-    gap: isMobile ? 12 : isTablet ? 14 : styles.topRow.gap,
+    gap: isMobile ? 14 : isTablet ? 16 : styles.topRow.gap,
   };
 
   const mergedTitleStyle = {
     ...styles.title,
-    fontSize: isMobile ? 28 : isTablet ? 34 : styles.title.fontSize,
-    lineHeight: isMobile ? "1.22" : isTablet ? "1.28" : styles.title.lineHeight,
+    fontSize: isMobile ? 32 : isTablet ? 36 : styles.title.fontSize,
+    lineHeight: isMobile ? "1.15" : isTablet ? "1.22" : styles.title.lineHeight,
     ...titleStyle,
   };
 
   const mergedSubtitleStyle = {
     ...styles.subtitle,
-    fontSize: isMobile ? 14 : isTablet ? 16 : styles.subtitle.fontSize,
-    margin: isMobile ? "8px 0 0" : isTablet ? "8px 0 0" : styles.subtitle.margin,
-    lineHeight: isMobile ? 1.55 : styles.subtitle.lineHeight,
+    fontSize: isMobile ? 16 : isTablet ? 17 : styles.subtitle.fontSize,
+    margin: isMobile ? "10px 0 0" : isTablet ? "10px 0 0" : styles.subtitle.margin,
+    lineHeight: isMobile ? 1.5 : styles.subtitle.lineHeight,
     ...subtitleStyle,
   };
 
@@ -218,19 +218,19 @@ export default function PageHeader({
     whiteSpace: isMobile ? "normal" : styles.breadcrumb.whiteSpace,
     flexWrap: isMobile ? "wrap" : "nowrap",
     paddingTop: isMobile ? 0 : styles.breadcrumb.paddingTop,
-    fontSize: isMobile ? 12 : styles.breadcrumb.fontSize,
+    fontSize: isMobile ? 12.5 : styles.breadcrumb.fontSize,
     gap: isMobile ? 4 : styles.breadcrumb.gap,
   };
 
   const searchAreaStyle = {
     ...styles.searchArea,
     width: "100%",
-    padding: isMobile ? "14px 0 0" : isTablet ? "18px 0 0" : styles.searchArea.padding,
+    padding: isMobile ? "18px 0 0" : isTablet ? "22px 0 0" : styles.searchArea.padding,
   };
 
   const tabsStyle = {
     ...styles.tabs,
-    marginTop: isMobile ? 18 : isTablet ? 28 : styles.tabs.marginTop,
+    marginTop: isMobile ? 22 : isTablet ? 32 : styles.tabs.marginTop,
     overflowX: isCompact ? "auto" : "visible",
     overflowY: "hidden",
     flexWrap: isMobile ? "nowrap" : isTablet ? "wrap" : "nowrap",
@@ -280,11 +280,11 @@ export default function PageHeader({
                 flex: isCompact ? "0 0 auto" : styles.tabBase.flex,
                 minWidth: isMobile ? 108 : isTablet ? 136 : undefined,
                 padding: isMobile
-                  ? "9px 12px"
+                  ? "10px 14px"
                   : isTablet
                     ? "11px 14px"
                     : styles.tabBase.padding,
-                fontSize: isMobile ? 14 : isTablet ? 15 : styles.tabBase.fontSize,
+                fontSize: isMobile ? 13.5 : isTablet ? 15 : styles.tabBase.fontSize,
               };
               if (isActive) {
                 btnStyle = { ...btnStyle, ...styles.tabActive };

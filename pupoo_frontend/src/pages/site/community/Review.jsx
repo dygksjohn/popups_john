@@ -416,6 +416,7 @@ export default function Review() {
         {!loading && !error && (
           <>
             <div>
+              {!isMobile && (
               <div style={{
                 display: "flex",
                 alignItems: "center",
@@ -432,6 +433,7 @@ export default function Review() {
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>별점</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
               </div>
+              )}
               {pagedItems.map((item, index) => {
                 const commentCount = Number(commentCountMap[item.reviewId] || 0);
                 const eventLabel = eventNameMap[item.eventId] || item.eventName || `행사 ${item.eventId}`;
@@ -442,8 +444,10 @@ export default function Review() {
                     onClick={() => navigate(`/community/review/${item.reviewId}`)}
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      padding: "18px 16px",
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "stretch" : "center",
+                      gap: isMobile ? 8 : 0,
+                      padding: isMobile ? "14px 12px" : "18px 16px",
                       borderBottom: "1px solid #f0f0f0",
                       cursor: "pointer",
                       transition: "background 0.15s",
@@ -455,15 +459,15 @@ export default function Review() {
                       event.currentTarget.style.background = "transparent";
                     }}
                   >
-                    <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>
-                    <span style={{ flex: 1, fontSize: 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ width: isMobile ? "auto" : 60, textAlign: isMobile ? "left" : "center", fontSize: 13, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>
+                    <span style={{ flex: 1, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", minWidth: 0, wordBreak: "keep-all", overflowWrap: "break-word" }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginRight: 6 }}>[{eventLabel}]</span>
                       {item.reviewTitle || "행사 후기"}
                     </span>
-                    <span style={{ width: 100, textAlign: "center", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
+                    <span style={{ width: isMobile ? "auto" : 100, textAlign: isMobile ? "left" : "center", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: isMobile ? "flex-start" : "center", gap: 1 }}>
                       {renderStars(item.rating || 0, 13)}
                     </span>
-                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                    <span style={{ width: isMobile ? "auto" : 100, textAlign: isMobile ? "left" : "center", fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
                       {fmtDate(item.createdAt)}
                     </span>
                   </div>

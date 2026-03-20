@@ -545,8 +545,8 @@ export default function AdminChatBot() {
     setTimeout(() => setClosing(false), 1000);
   };
 
-  const mobilePanelBottom = "calc(env(safe-area-inset-bottom, 0px) + 64px)";
-  const mobileButtonBottom = "calc(env(safe-area-inset-bottom, 0px) + 12px)";
+  const mobilePanelBottom = "calc(env(safe-area-inset-bottom, 0px) + 72px)";
+  const mobileButtonBottom = "calc(env(safe-area-inset-bottom, 0px) + 16px)";
 
   const handleKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
   const handleClear = () => { clearMessages(); setHasChats(false); };

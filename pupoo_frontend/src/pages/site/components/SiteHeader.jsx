@@ -618,8 +618,8 @@ export default function PupooHeader() {
   const isMobile = viewportWidth < 768;
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
   const isCompact = viewportWidth < 1024;
-  const headerHeight = isMobile ? 60 : isTablet ? 72 : 92;
-  const mobileShortcutHeight = isMobile ? 28 : 0;
+  const headerHeight = isMobile ? 58 : isTablet ? 72 : 92;
+  const mobileShortcutHeight = isMobile ? 24 : 0;
   const compactTopOffset = isMobile ? headerHeight + mobileShortcutHeight : headerHeight;
 
   /* ── scroll listener ── */
@@ -742,11 +742,26 @@ export default function PupooHeader() {
   const isLight = isHome && !scrolled && !activeMenu && !searchOpen;
   const textColor = isWhiteMode ? "#222" : "#fff";
   const iconColor = isWhiteMode ? "#222" : "#fff";
+  const mobileActionChipStyle = {
+    height: 32,
+    padding: "0 10px",
+    borderRadius: 999,
+    border: isWhiteMode ? "1px solid #e7ebf0" : "1px solid rgba(255,255,255,0.18)",
+    background: isWhiteMode ? "#fff" : "rgba(255,255,255,0.12)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    color: textColor,
+    textDecoration: "none",
+    fontSize: 12,
+    fontWeight: 700,
+    fontFamily: FONT,
+    flexShrink: 0,
+  };
   const mobileQuickLinks = [
     { label: "홈", to: "/" },
     { label: "행사", to: "/event/current" },
     { label: "커뮤니티", to: "/community/notice" },
-    { label: isAuthed ? "마이" : "로그인", to: isAuthed ? "/mypage" : "/auth/login" },
   ];
 
   return (
@@ -1077,7 +1092,7 @@ export default function PupooHeader() {
 
             <div
               className="pupoo-mobile-only"
-              style={{ display: "none", alignItems: "center", gap: 2, flexShrink: 0 }}
+              style={{ display: "none", alignItems: "center", gap: 6, flexShrink: 0 }}
             >
               <button
                 type="button"
@@ -1094,7 +1109,7 @@ export default function PupooHeader() {
                 <>
                   <Link
                     to="/mypage"
-                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                    style={mobileActionChipStyle}
                     onClick={() => {
                       setActiveMenu(null);
                       setSearchOpen(false);
@@ -1102,10 +1117,11 @@ export default function PupooHeader() {
                     }}
                   >
                     <UserCircle size={17} color={iconColor} strokeWidth={1.8} />
+                    <span>마이</span>
                   </Link>
                   <button
                     type="button"
-                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                    style={{ ...mobileActionChipStyle, cursor: "pointer" }}
                     onClick={() => {
                       logout();
                       setActiveMenu(null);
@@ -1115,12 +1131,13 @@ export default function PupooHeader() {
                     }}
                   >
                     <LogOut size={17} color={iconColor} strokeWidth={1.8} />
+                    <span>로그아웃</span>
                   </button>
                 </>
               ) : (
                 <Link
                   to="/auth/login"
-                  className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                  style={mobileActionChipStyle}
                   onClick={() => {
                     setActiveMenu(null);
                     setSearchOpen(false);
@@ -1128,6 +1145,7 @@ export default function PupooHeader() {
                   }}
                 >
                   <LogIn size={17} color={iconColor} strokeWidth={1.8} />
+                  <span>로그인</span>
                 </Link>
               )}
               <button
@@ -1165,9 +1183,9 @@ export default function PupooHeader() {
             <div
               style={{
                 display: "flex",
-                gap: 6,
+                gap: 5,
                 overflowX: "auto",
-                padding: "3px 10px 4px",
+                padding: "3px 10px 3px",
                 WebkitOverflowScrolling: "touch",
                 scrollbarWidth: "none",
               }}
@@ -1185,14 +1203,14 @@ export default function PupooHeader() {
                     }}
                     style={{
                       flexShrink: 0,
-                      height: 20,
-                      padding: "0 9px",
+                      height: 18,
+                      padding: "0 8px",
                       borderRadius: 999,
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
                       textDecoration: "none",
-                      fontSize: 12,
+                      fontSize: 11.5,
                       fontWeight: 700,
                       fontFamily: FONT,
                       color: active ? "#fff" : isWhiteMode ? "#4b5563" : "#fff",

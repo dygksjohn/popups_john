@@ -704,6 +704,7 @@ export default function Dashboard() {
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
+          minWidth: 0,
         }}
       >
         {/* ?ㅻ뜑 */}
@@ -756,7 +757,17 @@ export default function Dashboard() {
           >
             {PAGE_TITLES[nav] || "대시보드"}
           </h1>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: isMobile ? "wrap" : "nowrap",
+              width: isMobile ? "100%" : "auto",
+              justifyContent: isMobile ? "space-between" : "flex-end",
+              minWidth: 0,
+            }}
+          >
             {/* ?? ?ㅻ뒛 ?좎쭨 + ?몄궗留??? */}
             {!isMobile && <TodayGreeting />}
 
@@ -870,6 +881,7 @@ export default function Dashboard() {
           style={{
             flex: 1,
             overflow: "auto",
+            minWidth: 0,
             padding: isHandset
               ? "10px 12px 18px"
               : isTablet
