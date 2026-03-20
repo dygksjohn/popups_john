@@ -1778,6 +1778,9 @@ const calcAutoStatus = (dateStr) => {
 export default function EventManage({ subTab = "all" }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [modal, setModal] = useState(null);
   const [panel, setPanel] = useState(null);
   const [toast, setToast] = useState(null);
@@ -1785,6 +1788,14 @@ export default function EventManage({ subTab = "all" }) {
   const [selected, setSelected] = useState(new Set());
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   /* ── API에서 행사 목록 로드 ── */
   const loadEvents = async () => {
@@ -1868,6 +1879,7 @@ export default function EventManage({ subTab = "all" }) {
   const activeEvents = vis.filter((e) => e.status === "active").length;
   const totalParticipants = vis.reduce((a, b) => a + b.participants, 0);
   const pendingEvents = vis.filter((e) => e.status === "pending").length;
+  const isMobile = viewportWidth < 768;
 
   const isAllSelected =
     rows.length > 0 && rows.every((r) => selected.has(r.id));
@@ -2130,15 +2142,17 @@ export default function EventManage({ subTab = "all" }) {
             {/* 테이블 헤더 바 */}
             <div
               style={{
-                padding: "12px 18px",
+                padding: isMobile ? "14px" : "12px 18px",
                 display: "flex",
-                alignItems: "center",
+                flexDirection: isMobile ? "column" : "row",
+                alignItems: isMobile ? "stretch" : "center",
                 justifyContent: "space-between",
                 borderBottom: `1px solid ${ds.line}`,
+                gap: isMobile ? 12 : 8,
               }}
             >
               {/* 좌: 제목 + 건수 + 날짜필터 */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
                 <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
                   행사 목록
                 </span>
@@ -2171,7 +2185,7 @@ export default function EventManage({ subTab = "all" }) {
               </div>
 
               {/* 우: 삭제 + 등록 */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
                 {hasSelected && (
                   <button
                     onClick={() => setModal({ type: "bulkDelete" })}
@@ -2242,6 +2256,8 @@ export default function EventManage({ subTab = "all" }) {
                     cursor: "pointer",
                     fontFamily: ds.ff,
                     transition: "transform .1s",
+                    width: isMobile ? "100%" : "auto",
+                    justifyContent: "center",
                   }}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.transform = "translateY(-1px)")
@@ -2256,6 +2272,101 @@ export default function EventManage({ subTab = "all" }) {
             </div>
 
             {/* 테이블 헤드 */}
+            {isMobile ? (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {rows.map((r) => {
+                  const st = statusMap[r.status];
+                  const isRemoving = removing === r.id;
+                  const isChecked = selected.has(r.id);
+                  return (
+                    <div
+                      key={r.id}
+                      className={isRemoving ? "row-removing" : ""}
+                      onClick={() => setModal({ type: "detail", item: r })}
+                      style={{
+                        padding: "14px",
+                        borderBottom: `1px solid ${ds.lineSoft}`,
+                        background: isChecked ? `${ds.brand}06` : "transparent",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: "flex", gap: 10, minWidth: 0 }}>
+                            {r.imageUrl && (
+                              <img
+                                src={resolveImageUrl(r.imageUrl)}
+                                alt=""
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: 10,
+                                  objectFit: "cover",
+                                  flexShrink: 0,
+                                  border: `1px solid ${ds.line}`,
+                                }}
+                              />
+                            )}
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: ds.ink, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                                {r.name}
+                              </div>
+                              <div style={{ fontSize: 11, color: ds.ink4, fontFamily: "monospace", marginTop: 2 }}>
+                                {r.id}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display: "grid", gap: 6, marginTop: 10, fontSize: 12.5, color: ds.ink3 }}>
+                            <div style={{ whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>{r.date}</div>
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                              <MapPin size={12} color={ds.ink4} /> {r.location}
+                            </div>
+                          </div>
+                          <div style={{ marginTop: 10 }}>
+                            <MiniProgress value={r.participants} max={r.capacity || 500} />
+                          </div>
+                          <div style={{ marginTop: 10 }}>
+                            <Pill color={st.c} bg={st.bg}>{st.l}</Pill>
+                          </div>
+                        </div>
+                        <Checkbox checked={isChecked} onChange={() => toggleOne(r.id)} />
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                        {[
+                          { label: "상세", fn: () => setModal({ type: "detail", item: r }), color: ds.ink3, border: ds.line, bg: ds.card },
+                          { label: "수정", fn: () => setPanel({ type: "edit", item: r }), color: ds.brand, border: `${ds.brand}25`, bg: `${ds.brand}06` },
+                          { label: "삭제", fn: () => setModal({ type: "delete", item: r }), color: "#EF4444", border: "#FECACA60", bg: "transparent" },
+                        ].map((action) => (
+                          <button
+                            key={action.label}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              action.fn();
+                            }}
+                            style={{
+                              flex: "1 1 0",
+                              minWidth: 0,
+                              padding: "8px 10px",
+                              borderRadius: 8,
+                              border: `1px solid ${action.border}`,
+                              background: action.bg,
+                              color: action.color,
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              fontFamily: ds.ff,
+                            }}
+                          >
+                            {action.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${ds.line}` }}>
@@ -2466,6 +2577,7 @@ export default function EventManage({ subTab = "all" }) {
                 })}
               </tbody>
             </table>
+            )}
 
             {/* 빈 상태 */}
             {rows.length === 0 && (

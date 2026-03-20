@@ -1053,6 +1053,9 @@ export default function ProgramManage({ subTab = "all" }) {
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [programs, setPrograms] = useState([]);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
   const [modal, setModal] = useState(null);
@@ -1061,6 +1064,13 @@ export default function ProgramManage({ subTab = "all" }) {
   const [removing, setRemoving] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const imageMapRef = useRef({});
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
   // eventFilter는 Dashboard subTab으로 대체
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
@@ -1300,6 +1310,7 @@ export default function ProgramManage({ subTab = "all" }) {
     }[subTab] || (() => true);
   const rows = programs.filter((e) => e._visible).filter(filterFn);
   const vis = programs.filter((e) => e._visible);
+  const isMobile = viewportWidth < 768;
   const isAllSelected =
     rows.length > 0 && rows.every((r) => selected.has(r.id));
   const hasSelected = selected.size > 0;
@@ -1741,7 +1752,7 @@ export default function ProgramManage({ subTab = "all" }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
               gap: 12,
               marginBottom: 16,
             }}
@@ -1783,14 +1794,16 @@ export default function ProgramManage({ subTab = "all" }) {
           >
             <div
               style={{
-                padding: "12px 18px",
+                padding: isMobile ? "14px" : "12px 18px",
                 display: "flex",
-                alignItems: "center",
+                flexDirection: isMobile ? "column" : "row",
+                alignItems: isMobile ? "stretch" : "center",
                 justifyContent: "space-between",
                 borderBottom: `1px solid ${ds.line}`,
+                gap: isMobile ? 12 : 8,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
                 <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
                   프로그램 목록
                 </span>
@@ -1821,7 +1834,7 @@ export default function ProgramManage({ subTab = "all" }) {
                   </span>
                 )}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
                 {hasSelected && (
                   <button
                     onClick={() => setModal({ type: "bulkDelete" })}
@@ -1879,6 +1892,8 @@ export default function ProgramManage({ subTab = "all" }) {
                     fontWeight: 700,
                     cursor: "pointer",
                     fontFamily: ds.ff,
+                    width: isMobile ? "100%" : "auto",
+                    justifyContent: "center",
                   }}
                 >
                   <Plus size={13} strokeWidth={2.5} /> 프로그램 등록
@@ -1886,6 +1901,107 @@ export default function ProgramManage({ subTab = "all" }) {
               </div>
             </div>
 
+            {isMobile ? (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {loadingPrograms ? (
+                  <div style={{ padding: "40px 14px", textAlign: "center", fontSize: 13, color: ds.ink4 }}>
+                    프로그램 로딩 중입니다.
+                  </div>
+                ) : rows.length === 0 ? (
+                  <div style={{ padding: "40px 14px", textAlign: "center", fontSize: 13, color: ds.ink4 }}>
+                    등록된 프로그램이 없습니다.
+                  </div>
+                ) : (
+                  rows.map((r) => {
+                    const st = statusMap[r.status] || statusMap.pending;
+                    const isRemoving = removing === r.id;
+                    const isChecked = selected.has(r.id);
+                    return (
+                      <div
+                        key={r.id}
+                        className={isRemoving ? "row-removing" : ""}
+                        onClick={() => setModal({ type: "detail", item: r })}
+                        style={{
+                          padding: "14px",
+                          borderBottom: `1px solid ${ds.lineSoft}`,
+                          background: isChecked ? `${ds.brand}06` : "transparent",
+                          cursor: "pointer",
+                          opacity: r.status === "ended" ? 0.45 : 1,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: "flex", gap: 10, minWidth: 0 }}>
+                              {r.imageUrl && (
+                                <img
+                                  src={resolveImageUrl(r.imageUrl)}
+                                  alt=""
+                                  style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 10,
+                                    objectFit: "cover",
+                                    flexShrink: 0,
+                                    border: `1px solid ${ds.line}`,
+                                  }}
+                                />
+                              )}
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 14, fontWeight: 800, color: ds.ink, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                                  {r.name}
+                                </div>
+                                <div style={{ fontSize: 11, color: ds.ink4, fontFamily: "monospace", marginTop: 2 }}>
+                                  {r.id}
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                              <Pill color="#8B5CF6" bg="#8B5CF610">{r.category}</Pill>
+                              <Pill color={st.c} bg={st.bg}>{st.l}</Pill>
+                            </div>
+                            <div style={{ marginTop: 10, fontSize: 12.5, color: ds.ink3 }}>
+                              등록 인원 {r.enrolled || 0}명
+                            </div>
+                          </div>
+                          <Checkbox checked={isChecked} onChange={() => toggleOne(r.id)} />
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                          {[
+                            { label: "상세", fn: () => setModal({ type: "detail", item: r }), color: ds.ink3, border: ds.line, bg: ds.card },
+                            { label: "수정", fn: () => setPanel({ type: "edit", item: r }), color: ds.ink3, border: ds.line, bg: ds.card },
+                            { label: "삭제", fn: () => setModal({ type: "delete", item: r }), color: ds.red, border: "#FECACA60", bg: "#FEF2F208" },
+                          ].map((action) => (
+                            <button
+                              key={action.label}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                action.fn();
+                              }}
+                              style={{
+                                flex: "1 1 0",
+                                minWidth: 0,
+                                padding: "8px 10px",
+                                borderRadius: 8,
+                                border: `1px solid ${action.border}`,
+                                background: action.bg,
+                                color: action.color,
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                fontFamily: ds.ff,
+                              }}
+                            >
+                              {action.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${ds.line}` }}>
@@ -2172,6 +2288,7 @@ export default function ProgramManage({ subTab = "all" }) {
                 )}
               </tbody>
             </table>
+            )}
           </div>
         </>
       )}

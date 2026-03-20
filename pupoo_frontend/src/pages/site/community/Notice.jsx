@@ -286,6 +286,7 @@ export default function Notice() {
         {!loading && !error && (
           <>
             <div>
+              {!isMobile && (
               <div style={{
                 display: "flex",
                 alignItems: "center",
@@ -302,6 +303,7 @@ export default function Notice() {
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
               </div>
+              )}
               {paged.map((notice, index) => {
                 const scopeBadge = getNoticeScopeBadge(notice.scope);
                 const rowNumber = totalFromApi - ((currentPage - 1) * PAGE_SIZE) - index;
@@ -311,8 +313,10 @@ export default function Notice() {
                     onClick={() => navigate(`/community/notice/${notice.noticeId}`)}
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      padding: "18px 16px",
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "stretch" : "center",
+                      gap: isMobile ? 8 : 0,
+                      padding: isMobile ? "14px 12px" : "18px 16px",
                       borderBottom: "1px solid #f0f0f0",
                       cursor: "pointer",
                       transition: "background 0.15s",
@@ -324,10 +328,10 @@ export default function Notice() {
                       event.currentTarget.style.background = "transparent";
                     }}
                   >
-                    <span style={{ width: 60, textAlign: "center", fontSize: 14, color: notice.pinned ? "#dc2626" : "#9ca3af", fontWeight: notice.pinned ? 700 : 400, flexShrink: 0 }}>
+                    <span style={{ width: isMobile ? "auto" : 60, textAlign: isMobile ? "left" : "center", fontSize: 13, color: notice.pinned ? "#dc2626" : "#9ca3af", fontWeight: notice.pinned ? 700 : 400, flexShrink: 0 }}>
                       {notice.pinned ? "공지" : rowNumber}
                     </span>
-                    <span style={{ flex: 1, fontSize: 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center" }}>
+                    <span style={{ flex: 1, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", display: "flex", alignItems: "center", minWidth: 0, wordBreak: "keep-all", overflowWrap: "break-word" }}>
                       <BadgeTag
                         icon={scopeBadge.icon}
                         label={scopeBadge.compactLabel}
@@ -352,8 +356,8 @@ export default function Notice() {
                       {notice.pinned ? <span style={{ fontSize: 12, marginRight: 4 }}>📌</span> : null}
                       {notice.title}
                     </span>
-                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>관리자</span>
-                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                    <span style={{ width: isMobile ? "auto" : 100, textAlign: isMobile ? "left" : "center", fontSize: 13, color: "#6b7280", flexShrink: 0 }}>관리자</span>
+                    <span style={{ width: isMobile ? "auto" : 100, textAlign: isMobile ? "left" : "center", fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
                       {fmtDate(notice.createdAt)}
                     </span>
                   </div>
