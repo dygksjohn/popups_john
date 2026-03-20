@@ -24,6 +24,16 @@ public class DevSmsOtpSender implements SmsOtpSenderPort {
         // 기능: OTP SMS 메시지를 개발 로그로 노출한다.
         // 설명: 외부 SMS 발송 없이도 인증 코드와 대상 번호를 확인할 수 있게 한다.
         // 흐름: provider를 기록하고 대상 번호와 메시지를 info 로그로 출력한다.
-        log.info("[AUTH_SMS_PROVIDER={}] sms otp phone={}, message={}", provider, phone, message);
+        log.info("[AUTH_SMS_PROVIDER={}] sms otp phone={}, message=<masked>", provider, maskPhone(phone));
+    }
+
+    private String maskPhone(String phone) {
+        if (phone == null || phone.isBlank()) {
+            return "<empty>";
+        }
+        if (phone.length() <= 4) {
+            return "***";
+        }
+        return phone.substring(0, Math.min(3, phone.length())) + "****" + phone.substring(phone.length() - 2);
     }
 }

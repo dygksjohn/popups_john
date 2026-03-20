@@ -17,6 +17,8 @@ import com.popups.pupoo.user.domain.model.User;
 import com.popups.pupoo.user.dto.UserCreateRequest;
 import com.popups.pupoo.user.persistence.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -36,6 +38,7 @@ import java.time.LocalDateTime;
 public class AuthService {
 
     private static final String REFRESH_COOKIE_NAME = "refresh_token";
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UserRepository userRepository;
     private final UserService userService;
@@ -98,7 +101,7 @@ public class AuthService {
                     try {
                         emailVerificationService.requestEmailVerification(userId);
                     } catch (Throwable t) {
-                        t.printStackTrace();
+                        log.error("Email verification dispatch failed after signup commit. userId={}", userId, t);
                     }
                 }
             });

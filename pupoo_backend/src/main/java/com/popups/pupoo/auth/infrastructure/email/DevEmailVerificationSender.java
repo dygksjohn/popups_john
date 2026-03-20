@@ -26,7 +26,7 @@ public class DevEmailVerificationSender implements EmailVerificationSenderPort {
         // 기능: 회원가입 이메일 인증 코드를 개발 로그로 노출한다.
         // 설명: 실제 메일 발송 없이 수신자와 인증 코드를 확인할 수 있게 한다.
         // 흐름: provider를 기록하고 signup verification payload를 출력한다.
-        log.info("[AUTH_EMAIL_PROVIDER={}] signup verification email={}, code={}", provider, email, code);
+        log.info("[AUTH_EMAIL_PROVIDER={}] signup verification email={}, code=<masked>", provider, maskEmail(email));
     }
 
     @Override
@@ -34,7 +34,7 @@ public class DevEmailVerificationSender implements EmailVerificationSenderPort {
         // 기능: 비밀번호 재설정 코드를 개발 로그로 노출한다.
         // 설명: 실제 메일 발송 없이 재설정 코드를 확인할 수 있게 한다.
         // 흐름: provider를 기록하고 password reset payload를 출력한다.
-        log.info("[AUTH_EMAIL_PROVIDER={}] password reset email={}, token={}", provider, email, token);
+        log.info("[AUTH_EMAIL_PROVIDER={}] password reset email={}, token=<masked>", provider, maskEmail(email));
     }
 
     @Override
@@ -42,7 +42,7 @@ public class DevEmailVerificationSender implements EmailVerificationSenderPort {
         // 기능: 계정 이메일 인증 링크용 토큰을 개발 로그로 노출한다.
         // 설명: 운영 메일 대신 토큰을 바로 확인해 인증 링크 흐름을 검증할 수 있게 한다.
         // 흐름: provider를 기록하고 account verification payload를 출력한다.
-        log.info("[AUTH_EMAIL_PROVIDER={}] account verification email={}, token={}", provider, email, token);
+        log.info("[AUTH_EMAIL_PROVIDER={}] account verification email={}, token=<masked>", provider, maskEmail(email));
     }
 
     @Override
@@ -50,7 +50,22 @@ public class DevEmailVerificationSender implements EmailVerificationSenderPort {
         // 기능: 이메일 변경 인증 토큰을 개발 로그로 노출한다.
         // 설명: 실제 메일 없이 새 이메일과 만료 시각을 함께 확인할 수 있게 한다.
         // 흐름: provider를 기록하고 email change payload를 출력한다.
-        log.info("[AUTH_EMAIL_PROVIDER={}] email change email={}, token={}, expiresAt={}",
-                provider, email, token, expiresAt);
+        log.info("[AUTH_EMAIL_PROVIDER={}] email change email={}, token=<masked>, expiresAt={}",
+                provider, maskEmail(email), expiresAt);
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return "<empty>";
+        }
+
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 1 || atIndex == email.length() - 1) {
+            return "***";
+        }
+
+        String localPart = email.substring(0, atIndex);
+        String domainPart = email.substring(atIndex + 1);
+        return localPart.charAt(0) + "***@" + domainPart;
     }
 }

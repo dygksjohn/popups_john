@@ -78,6 +78,7 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
     }
 
     private void sendEmail(String targetEmail, String subject, String body, String mailType) {
+        String maskedTarget = maskEmail(targetEmail);
         try {
             sesV2Client.sendEmail(
                     SendEmailRequest.builder()
@@ -96,10 +97,10 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
                             .build()
             );
 
-            log.info("[AUTH_EMAIL_PROVIDER={}] SES email sent. type={}, target={}", provider, mailType, targetEmail);
+            log.info("[AUTH_EMAIL_PROVIDER={}] SES email sent. type={}, target={}", provider, mailType, maskedTarget);
         } catch (SesV2Exception | SdkClientException e) {
             log.error("[AUTH_EMAIL_PROVIDER={}] SES email failed. type={}, target={}, reason={}",
-                    provider, mailType, targetEmail, e.getMessage(), e);
+                    provider, mailType, maskedTarget, e.getMessage(), e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "인증 이메일 발송에 실패했습니다.");
         }
     }
@@ -168,5 +169,20 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
         if (verificationBaseUrl == null || verificationBaseUrl.isBlank()) {
             throw new IllegalStateException("verification.email.base-url 설정이 필요합니다.");
         }
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return "<empty>";
+        }
+
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 1 || atIndex == email.length() - 1) {
+            return "***";
+        }
+
+        String localPart = email.substring(0, atIndex);
+        String domainPart = email.substring(atIndex + 1);
+        return localPart.charAt(0) + "***@" + domainPart;
     }
 }

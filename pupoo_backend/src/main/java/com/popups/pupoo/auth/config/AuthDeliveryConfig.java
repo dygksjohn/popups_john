@@ -6,12 +6,15 @@ import com.popups.pupoo.auth.infrastructure.sms.AwsSnsSmsOtpSender;
 import com.popups.pupoo.auth.infrastructure.sms.DevSmsOtpSender;
 import com.popups.pupoo.auth.port.EmailVerificationSenderPort;
 import com.popups.pupoo.auth.port.SmsOtpSenderPort;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.sns.SnsClient;
@@ -25,6 +28,8 @@ import software.amazon.awssdk.services.sns.SnsClient;
 @EnableConfigurationProperties({AuthProperties.class, AwsMessagingProperties.class})
 public class AuthDeliveryConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthDeliveryConfig.class);
+
     /**
      * 기능: 인증 이메일 발송 포트를 provider 설정에 따라 선택한다.
      * 설명: dev와 aws-ses 구현체를 하나의 auth 전용 포트 아래에서 선택해 서비스 계층을 고정한다.
@@ -35,9 +40,11 @@ public class AuthDeliveryConfig {
             AuthProperties authProperties,
             AwsMessagingProperties awsMessagingProperties,
             ObjectProvider<SesV2Client> sesV2ClientProvider,
+            Environment environment,
             @Value("${verification.email.base-url:http://3.38.233.224:8080}") String verificationBaseUrl
     ) {
         String provider = normalizeProvider(authProperties.getEmail().getProvider(), "auth.email.provider");
+        logSelectedProvider("email", provider, environment);
         return switch (provider) {
             case "dev" -> new DevEmailVerificationSender(provider);
             case "aws-ses" -> new AwsSesEmailVerificationSender(
@@ -59,9 +66,11 @@ public class AuthDeliveryConfig {
     public SmsOtpSenderPort smsOtpSenderPort(
             AuthProperties authProperties,
             AwsMessagingProperties awsMessagingProperties,
-            ObjectProvider<SnsClient> snsClientProvider
+            ObjectProvider<SnsClient> snsClientProvider,
+            Environment environment
     ) {
         String provider = normalizeProvider(authProperties.getSms().getProvider(), "auth.sms.provider");
+        logSelectedProvider("sms", provider, environment);
         return switch (provider) {
             case "dev" -> new DevSmsOtpSender(provider);
             case "aws-sns" -> new AwsSnsSmsOtpSender(
@@ -127,5 +136,14 @@ public class AuthDeliveryConfig {
             throw new IllegalStateException(condition + " 설정에 필요한 AWS 클라이언트가 생성되지 않았습니다.");
         }
         return bean;
+    }
+
+    private void logSelectedProvider(String channel, String provider, Environment environment) {
+        boolean productionProfile = environment.matchesProfiles("prod");
+        if (productionProfile && "dev".equals(provider)) {
+            log.warn("Auth {} provider is set to dev while prod profile is active. Real delivery is disabled.", channel);
+            return;
+        }
+        log.info("Auth {} provider selected: {}", channel, provider);
     }
 }
