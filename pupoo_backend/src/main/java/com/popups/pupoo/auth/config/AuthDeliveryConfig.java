@@ -15,6 +15,11 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.sns.SnsClient;
@@ -92,6 +97,7 @@ public class AuthDeliveryConfig {
     public SesV2Client sesV2Client(AwsMessagingProperties awsMessagingProperties) {
         return SesV2Client.builder()
                 .region(resolveDefaultRegion(awsMessagingProperties))
+                .credentialsProvider(resolveAwsCredentialsProvider(awsMessagingProperties))
                 .build();
     }
 
@@ -105,6 +111,7 @@ public class AuthDeliveryConfig {
     public SnsClient snsClient(AwsMessagingProperties awsMessagingProperties) {
         return SnsClient.builder()
                 .region(resolveSmsRegion(awsMessagingProperties))
+                .credentialsProvider(resolveAwsCredentialsProvider(awsMessagingProperties))
                 .build();
     }
 
@@ -145,5 +152,36 @@ public class AuthDeliveryConfig {
             return;
         }
         log.info("Auth {} provider selected: {}", channel, provider);
+    }
+
+    private AwsCredentialsProvider resolveAwsCredentialsProvider(AwsMessagingProperties awsMessagingProperties) {
+        String accessKeyId = awsMessagingProperties.getAccessKeyId();
+        String secretAccessKey = awsMessagingProperties.getSecretAccessKey();
+        String sessionToken = awsMessagingProperties.getSessionToken();
+
+        boolean hasAccessKey = hasText(accessKeyId);
+        boolean hasSecretKey = hasText(secretAccessKey);
+
+        if (hasAccessKey != hasSecretKey) {
+            throw new IllegalStateException("aws.access-key-id and aws.secret-access-key must be configured together.");
+        }
+
+        if (!hasAccessKey) {
+            return DefaultCredentialsProvider.create();
+        }
+
+        if (hasText(sessionToken)) {
+            return StaticCredentialsProvider.create(
+                    AwsSessionCredentials.create(accessKeyId.trim(), secretAccessKey.trim(), sessionToken.trim())
+            );
+        }
+
+        return StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(accessKeyId.trim(), secretAccessKey.trim())
+        );
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }
