@@ -451,6 +451,86 @@ export default function RefundManage() {
           </div>
         ) : (
           <>
+            {isMobile ? (
+              <div style={{ display: "grid", gap: 12 }}>
+                {refundPage.content.map((item) => {
+                  const rowBusy = actionLoading.endsWith(`${item.refundId}`);
+                  return (
+                    <div key={item.refundId} style={{ background: ds.card, borderRadius: 12, border: `1px solid ${ds.line}`, padding: 14, display: "grid", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div><Badge value={item.status} /></div>
+                          <div style={{ fontSize: 11.5, color: ds.ink4, marginTop: 6 }}>환불 ID #{item.refundId}</div>
+                        </div>
+                        <div style={{ fontSize: 12, color: ds.ink3, textAlign: "right" }}>
+                          {fmtDateTime(item.requestedAt)}
+                        </div>
+                      </div>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>행사</span>
+                        <div style={{ fontSize: 13, color: ds.ink, fontWeight: 700, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word", lineHeight: 1.45 }}>
+                          {item.eventTitle || "행사 정보 없음"}
+                        </div>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                        <div style={{ display: "grid", gap: 4 }}>
+                          <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>결제 ID</span>
+                          <span style={{ fontSize: 12.5, color: ds.ink }}>#{item.paymentId}</span>
+                        </div>
+                        <div style={{ display: "grid", gap: 4 }}>
+                          <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>신청 ID</span>
+                          <span style={{ fontSize: 12.5, color: ds.ink }}>{item.eventApplyId ? `#${item.eventApplyId}` : "-"}</span>
+                        </div>
+                      </div>
+                      <div style={{ display: "grid", gap: 4 }}>
+                        <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>환불 금액</span>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: ds.ink }}>{fmtAmount(item.refundAmount)}</span>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <button type="button" onClick={() => setSelectedId(item.refundId)} style={{ ...detailButton, width: "100%", justifyContent: "center" }}>
+                          상세
+                        </button>
+                        {item.status === "REQUESTED" ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleAction(item, "approve")}
+                              disabled={rowBusy}
+                              style={{ ...buttonBase, width: "100%", justifyContent: "center", borderColor: `${ds.brand}33`, background: ds.brandSoft, color: ds.brand }}
+                            >
+                              {actionLoading === `approve-${item.refundId}` ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                              승인
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAction(item, "reject")}
+                              disabled={rowBusy}
+                              style={{ ...buttonBase, width: "100%", justifyContent: "center", borderColor: `${ds.red}33`, background: ds.redSoft, color: ds.red }}
+                            >
+                              {actionLoading === `reject-${item.refundId}` ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                              거절
+                            </button>
+                          </>
+                        ) : null}
+                        {item.status === "APPROVED" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleAction(item, "execute")}
+                            disabled={rowBusy}
+                            style={{ ...buttonBase, width: "100%", justifyContent: "center", borderColor: `${ds.green}33`, background: ds.greenSoft, color: ds.green }}
+                          >
+                            {actionLoading === `execute-${item.refundId}` ? <Loader2 size={14} className="animate-spin" /> : <Clock3 size={14} />}
+                            환불 실행
+                          </button>
+                        ) : item.status === "REJECTED" || item.status === "REFUNDED" ? (
+                          <span style={{ fontSize: 12, color: ds.ink4 }}>처리 완료</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
                 <thead>
@@ -611,6 +691,7 @@ export default function RefundManage() {
                 </tbody>
               </table>
             </div>
+            )}
 
             {refundPage.totalPages > 1 ? (
               <div

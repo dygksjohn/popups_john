@@ -813,7 +813,7 @@ export default function PaymentManage({ subTab = "all" }) {
                             </div>
                           </div>
                         );
-                      })}
+                  })}
                     </div>
                   )}
                 </>
@@ -1107,10 +1107,90 @@ export default function PaymentManage({ subTab = "all" }) {
                 background: ds.card,
                 borderRadius: 12,
                 border: `1px solid ${ds.line}`,
-                overflowX: "auto",
-                overflowY: "hidden",
+                overflow: "hidden",
               }}
             >
+              {isMobile ? (
+                <div style={{ display: "grid", gap: 12, padding: 12 }}>
+                  {filtered.map((p) => {
+                    const ps = PAY_STATUS[p.status] || PAY_STATUS.PENDING;
+                    const isChecked = selected.has(p.paymentId);
+                    return (
+                      <div
+                        key={p.paymentId || p.orderNo}
+                        onClick={() => setDetailItem(p)}
+                        style={{
+                          background: isChecked ? `${ds.brand}06` : ds.bg,
+                          border: `1px solid ${isChecked ? `${ds.brand}22` : ds.line}`,
+                          borderRadius: 12,
+                          padding: "14px 14px 12px",
+                          display: "grid",
+                          gap: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                          <Checkbox checked={isChecked} onChange={() => toggleOne(p.paymentId)} />
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13.5, color: ds.ink, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word", lineHeight: 1.45 }}>
+                              {p.eventTitle || selectedEvent.title || "?됱궗 寃곗젣"}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: ds.ink4, marginTop: 4 }}>
+                              {p.orderNo || `#${p.paymentId}`}
+                            </div>
+                          </div>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              padding: "3px 10px",
+                              borderRadius: 99,
+                              background: ps.bg,
+                              color: ps.c,
+                              flexShrink: 0,
+                            }}
+                          >
+                            <span style={{ width: 5, height: 5, borderRadius: "50%", background: ps.c }} />
+                            {ps.l}
+                          </span>
+                        </div>
+
+                        <div style={{ display: "grid", gap: 8 }}>
+                          <div style={{ display: "grid", gap: 4 }}>
+                            <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>결제자</span>
+                            <span style={{ fontSize: 12.5, color: ds.ink, fontWeight: 600, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                              {p.buyerName || p.nickname || "-"}
+                            </span>
+                            <span style={{ fontSize: 11.5, color: ds.ink4, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                              {p.buyerEmail || p.email || ""}
+                            </span>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                            <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+                              <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>결제 수단</span>
+                              <span style={{ fontSize: 12.5, color: ds.ink3, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                                {METHOD_LABEL[p.paymentMethod] || p.paymentMethod || "-"}
+                              </span>
+                            </div>
+                            <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+                              <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>금액</span>
+                              <span style={{ fontSize: 12.5, color: ds.ink, fontWeight: 700 }}>{fmtAmount(p.amount)}</span>
+                            </div>
+                          </div>
+                          <div style={{ display: "grid", gap: 4 }}>
+                            <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>결제일</span>
+                            <span style={{ fontSize: 12.5, color: ds.ink3 }}>{fmtDateTime(p.requestedAt || p.createdAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+              <>
               {/* 테이블 헤더 */}
               <div
                 style={{
@@ -1231,6 +1311,8 @@ export default function PaymentManage({ subTab = "all" }) {
                   </div>
                 );
               })}
+              </>
+              )}
             </div>
           )}
           {filtered.length > 0 && (

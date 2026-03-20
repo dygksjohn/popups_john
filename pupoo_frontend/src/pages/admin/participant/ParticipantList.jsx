@@ -1469,6 +1469,221 @@ export default function ParticipantList({ subTab = "list" }) {
             </div>
 
             {/* 테이블 본체 */}
+            {isMobile ? (
+              <div style={{ display: "grid", gap: 12 }}>
+                {loadingParticipants ? (
+                  <div
+                    style={{
+                      background: ds.card,
+                      borderRadius: 14,
+                      border: `1px solid ${ds.line}`,
+                      padding: "32px 16px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        border: `3px solid ${ds.brand}20`,
+                        borderTopColor: ds.brand,
+                        borderRadius: "50%",
+                        animation: "spin 1s linear infinite",
+                      }}
+                    />
+                    <span style={{ fontSize: 13, color: ds.ink4, fontWeight: 600 }}>
+                      李멸???濡쒕뵫 以?..
+                    </span>
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div
+                    style={{
+                      background: ds.card,
+                      borderRadius: 14,
+                      border: `1px solid ${ds.line}`,
+                      padding: "32px 16px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Users size={36} color={ds.ink4} strokeWidth={1.5} />
+                    <div style={{ fontSize: 14, fontWeight: 700, color: ds.ink4, marginTop: 12 }}>
+                      李멸??먭? ?놁뒿?덈떎
+                    </div>
+                    <div style={{ fontSize: 12.5, color: ds.ink4, marginTop: 4, textAlign: "center" }}>
+                      ?꾩쭅 ???됱궗???좎껌???뚯썝???놁뒿?덈떎
+                    </div>
+                  </div>
+                ) : (
+                  filtered.map((r) => {
+                    const st = REG_STATUS[r.status] || REG_STATUS.APPLIED;
+                    const sg = SIGNUP_TYPE[r.signupType] || SIGNUP_TYPE.NORMAL;
+                    const isRemoving = removing === r.applyId;
+                    const isChecked = selected.has(r.applyId);
+                    return (
+                      <div
+                        key={r.applyId}
+                        className={isRemoving ? "row-removing" : ""}
+                        onClick={() => setModal({ type: "detail", item: r })}
+                        style={{
+                          background: isChecked ? `${ds.brand}06` : ds.card,
+                          borderRadius: 14,
+                          border: `1px solid ${isChecked ? `${ds.brand}22` : ds.line}`,
+                          padding: "14px 14px 12px",
+                          display: "grid",
+                          gap: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                          <Checkbox
+                            checked={isChecked}
+                            onChange={() => toggleOne(r.applyId)}
+                          />
+                          <div
+                            style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: 9,
+                              background: `${ds.brand}10`,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 13,
+                              fontWeight: 800,
+                              color: ds.brand,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {(r.nickname || "?")[0]}
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div
+                              style={{
+                                fontSize: 13.5,
+                                fontWeight: 700,
+                                color: ds.ink,
+                                whiteSpace: "normal",
+                                wordBreak: "keep-all",
+                                overflowWrap: "break-word",
+                                lineHeight: 1.45,
+                              }}
+                            >
+                              {r.nickname}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 11.5,
+                                color: ds.ink4,
+                                marginTop: 4,
+                                whiteSpace: "normal",
+                                wordBreak: "keep-all",
+                                overflowWrap: "break-word",
+                                lineHeight: 1.45,
+                              }}
+                            >
+                              {r.email}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: "grid", gap: 8 }}>
+                          <div style={{ display: "grid", gap: 4 }}>
+                            <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>연락처</span>
+                            <span style={{ fontSize: 12.5, color: ds.ink3, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                              {r.phone || "-"}
+                            </span>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                            <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+                              <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>가입유형</span>
+                              <div><Pill color={sg.c} bg={sg.bg}>{sg.l}</Pill></div>
+                            </div>
+                            <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+                              <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>신청일</span>
+                              <span style={{ fontSize: 12.5, color: ds.ink3 }}>{fmtDateShort(r.appliedAt)}</span>
+                            </div>
+                          </div>
+                          <div style={{ display: "grid", gap: 4 }}>
+                            <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>상태</span>
+                            <div><Pill color={st.c} bg={st.bg}>{st.l}</Pill></div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setModal({ type: "detail", item: r });
+                            }}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: 8,
+                              border: `1px solid ${ds.line}`,
+                              background: ds.card,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: ds.ink3,
+                              cursor: "pointer",
+                              fontFamily: ds.ff,
+                              width: "100%",
+                            }}
+                          >
+                            ?곸꽭
+                          </button>
+                          {r.status === "APPLIED" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusChange(r.applyId, "APPROVED");
+                              }}
+                              style={{
+                                padding: "9px 12px",
+                                borderRadius: 8,
+                                border: "1px solid #D1FAE5",
+                                background: ds.greenSoft,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "#059669",
+                                cursor: "pointer",
+                                fontFamily: ds.ff,
+                                width: "100%",
+                              }}
+                            >
+                              ?뱀씤
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setModal({ type: "delete", item: r });
+                            }}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: 8,
+                              border: "1px solid #FECACA60",
+                              background: "#FEF2F208",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: ds.red,
+                              cursor: "pointer",
+                              fontFamily: ds.ff,
+                              width: "100%",
+                            }}
+                          >
+                            ??젣
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
             <div style={{ overflowX: "auto" }}>
               <table
                 style={{
@@ -1772,6 +1987,7 @@ export default function ParticipantList({ subTab = "list" }) {
               </tbody>
               </table>
             </div>
+            )}
           </div>
         </>
       )}

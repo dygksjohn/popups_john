@@ -441,6 +441,91 @@ export default function ReportManage() {
           </div>
           {error ? <div style={{ padding: "12px 14px", borderRadius: 10, background: ds.redSoft, color: ds.inkW }}>{error}</div> : null}
 
+          {isMobile ? (
+            <div style={{ display: "grid", gap: 12 }}>
+              {loading ? (
+                <div style={{ padding: 24, borderRadius: 12, background: ds.bg, color: ds.ink3, textAlign: "center" }}>
+                  신고 목록을 불러오는 중입니다.
+                </div>
+              ) : null}
+              {!loading && reportPage.content.length === 0 ? (
+                <div style={{ padding: 24, borderRadius: 12, background: ds.bg, color: ds.ink3, textAlign: "center" }}>
+                  조회된 신고가 없습니다.
+                </div>
+              ) : null}
+              {!loading
+                ? reportPage.content.map((report) => {
+                    const acceptKey = `ACCEPT:${report.reportId}`;
+                    const rejectKey = `REJECT:${report.reportId}`;
+                    const isPending = report.status === "PENDING";
+                    const rowActionLabel = getPrimaryActionLabel();
+                    const targetTitle = report.targetTitle || `${targetMeta[report.targetType]?.label || "대상"} #${report.targetId}`;
+                    const targetStatusLabel = getTargetStatusLabel(report.targetStatus);
+
+                    return (
+                      <div key={report.reportId} style={{ background: ds.card, borderRadius: 12, border: `1px solid ${ds.line}`, padding: 14, display: "grid", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, color: ds.ink4, fontWeight: 700 }}>신고 #{report.reportId}</div>
+                            <div style={{ marginTop: 6 }}>{badge(statusMeta[report.status], report.status)}</div>
+                          </div>
+                          <div style={{ fontSize: 12, color: ds.ink4, flexShrink: 0 }}>{fmt(report.createdAt)}</div>
+                        </div>
+                        <div style={{ display: "grid", gap: 6 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            {badge(targetMeta[report.targetType], report.targetType)}
+                            <span style={{ fontSize: 12, color: ds.ink3 }}>#{report.targetId}</span>
+                            <span style={{ fontSize: 12, color: ds.ink4 }}>현재 상태 {targetStatusLabel}</span>
+                          </div>
+                          <div style={{ fontSize: 13, color: ds.inkW, fontWeight: 700, lineHeight: 1.45, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                            {targetTitle}
+                          </div>
+                        </div>
+                        <div style={{ display: "grid", gap: 4 }}>
+                          <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>신고자 / 사유</span>
+                          <div style={{ fontSize: 12.5, color: ds.inkW, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                            #{report.reporterUserId} · {report.reasonLabel || report.reasonCode || "-"}
+                          </div>
+                        </div>
+                        <div style={{ display: "grid", gap: 4 }}>
+                          <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>신고 수</span>
+                          <div style={{ fontSize: 12.5, color: ds.ink3 }}>{report.totalReportCount}건 · 대기 {report.pendingReportCount}건</div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <button type="button" onClick={() => openDetailModal(report)} style={{ ...detailButton, width: "100%" }}>
+                            상세
+                          </button>
+                          {isPending ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickDecision(report, "ACCEPT")}
+                                disabled={Boolean(quickActionKey)}
+                                style={{ ...actionButton, width: "100%", justifyContent: "center", background: ds.redSoft, borderColor: ds.red, color: ds.red, cursor: quickActionKey ? "not-allowed" : "pointer", opacity: quickActionKey ? 0.7 : 1 }}
+                              >
+                                <ShieldAlert size={13} />
+                                {quickActionKey === acceptKey ? `${rowActionLabel} 중...` : rowActionLabel}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickDecision(report, "REJECT")}
+                                disabled={Boolean(quickActionKey)}
+                                style={{ ...actionButton, width: "100%", justifyContent: "center", background: ds.bg, borderColor: ds.line, color: ds.ink, cursor: quickActionKey ? "not-allowed" : "pointer", opacity: quickActionKey ? 0.7 : 1 }}
+                              >
+                                <Ban size={13} />
+                                {quickActionKey === rejectKey ? "거절 중..." : "거절"}
+                              </button>
+                            </>
+                          ) : (
+                            <span style={{ fontSize: 12, color: ds.ink3, fontWeight: 700 }}>처리 완료</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                : null}
+            </div>
+          ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", minWidth: 1360, borderCollapse: "collapse" }}>
               <thead>
@@ -584,6 +669,7 @@ export default function ReportManage() {
               </tbody>
             </table>
           </div>
+          )}
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
             <div style={{ fontSize: 12, color: ds.ink4 }}>정렬 기준: {sortOptions.find((item) => item.value === sortBy)?.label || "최신 신고순"}</div>

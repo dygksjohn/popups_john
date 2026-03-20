@@ -78,7 +78,7 @@ const styles = `
   .ev-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
 
   .ev-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
-  .ev-toolbar-top { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .ev-toolbar-top { display: flex; gap: 12px; row-gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
   .ev-search-box { position: relative; width: 280px; flex-shrink: 0; }
 
 
@@ -128,6 +128,7 @@ const styles = `
   @media (max-width: 600px) {
     .ev-container { width: calc(100% - 20px); padding: 16px 0 32px; }
     .ev-live-chip { height: 44px; padding: 0 14px; font-size: 14px; border-radius: 12px; }
+    .ev-toolbar-top { gap: 8px; margin-bottom: 14px; }
     .ev-stat-grid { gap: 10px; margin-bottom: 18px; }
     .ev-stat-card { padding: 14px 16px; gap: 10px; }
     .ev-stat-icon { width: 36px; height: 36px; border-radius: 10px; }
