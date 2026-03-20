@@ -26,7 +26,7 @@ public class BannedWordAdminService {
     public Page<BannedWordResponse> list(Long boardId, Pageable pageable) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시판을 찾을 수 없습니다."));
-        return bannedWordRepository.findByBoard_BoardIdOrderByBannedWordIdAsc(board.getBoardId(), pageable)
+        return bannedWordRepository.findByBoardIdOrGlobal(board.getBoardId(), pageable)
                 .map(BannedWordResponse::from);
     }
 

@@ -5,7 +5,7 @@ import com.popups.pupoo.board.bannedword.application.BannedWordService;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.bannedword.application.ModerationClient;
 import com.popups.pupoo.board.bannedword.application.ModerationResult;
-import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
+import com.popups.pupoo.board.bannedword.application.ModerationBlockMessageResolver;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
 import com.popups.pupoo.board.review.domain.enums.ReviewStatus;
@@ -34,6 +34,7 @@ public class ReviewService {
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
     private final ModerationClient moderationClient;
+    private final ModerationBlockMessageResolver moderationBlockMessageResolver;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
 
@@ -55,9 +56,9 @@ public class ReviewService {
                         userId,
                         modResult
                 );
-                // 후기 작성 실패 시 사용자 메시지 통일
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "후기 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+                // 기술/서버 장애 등으로 BLOCK 된 경우에도 reason/stack을 반영해 안내문구를 다르게 노출한다.
+                String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("후기", modResult);
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, msg);
             }
         }
 
@@ -147,12 +148,26 @@ public class ReviewService {
             throw new SecurityException("수정 권한이 없습니다.");
         }
 
+        Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW)
+                .map(b -> b.getBoardId()).orElse(null);
+
+        if (!bannedWordService.shouldSkipModeration(userId) && reviewBoardId != null) {
+            ModerationResult modResult = moderationClient.moderate(
+                    request.getContent() != null ? request.getContent() : "", reviewBoardId, "POST");
+            if (modResult != null && modResult.isBlock()) {
+                bannedWordService.logAiModeration(
+                        reviewBoardId, reviewId, BannedLogContentType.POST, userId, modResult);
+                String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("후기", modResult);
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, msg);
+            }
+        }
+
         Review updated = Review.builder()
                 .reviewId(review.getReviewId())
                 .eventId(review.getEventId())
                 .userId(review.getUserId())
                 .rating((byte) request.getRating().shortValue())
-                .reviewTitle(review.getReviewTitle() != null ? review.getReviewTitle() : deriveTitleFromContent(request.getContent()))
+                .reviewTitle(request.getReviewTitle() != null ? request.getReviewTitle() : (review.getReviewTitle() != null ? review.getReviewTitle() : deriveTitleFromContent(request.getContent())))
                 .content(request.getContent())
                 .viewCount(review.getViewCount())
                 .createdAt(review.getCreatedAt())

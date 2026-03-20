@@ -4,6 +4,10 @@
  * - POST /api/admin/boards/{boardId}/banned-words
  * - PATCH /api/admin/banned-words/{bannedWordId}
  * - DELETE /api/admin/banned-words/{bannedWordId}
+ *
+ * 관리자 정책 API
+ * - GET /api/admin/moderation/policies/active
+ * - POST /api/admin/moderation/policies/upload
  */
 import { axiosInstance } from "./axiosInstance";
 
@@ -13,12 +17,6 @@ function unwrap(res) {
 }
 
 export const bannedWordApi = {
-  /**
-   * 게시판별 금지어 목록 (페이징)
-   * @param {number} boardId
-   * @param {number} page - 0-based
-   * @param {number} size
-   */
   list(boardId, page = 0, size = 20) {
     return axiosInstance
       .get(`/api/admin/boards/${boardId}/banned-words`, {
@@ -27,35 +25,40 @@ export const bannedWordApi = {
       .then((res) => unwrap(res));
   },
 
-  /**
-   * 금지어 등록
-   * @param {number} boardId
-   * @param {{ bannedWord: string, category: string, replacement?: string }} body
-   */
   create(boardId, body) {
     return axiosInstance
       .post(`/api/admin/boards/${boardId}/banned-words`, body)
       .then((res) => unwrap(res));
   },
 
-  /**
-   * 금지어 수정
-   * @param {number} bannedWordId
-   * @param {{ bannedWord?: string, category?: string, replacement?: string }} body
-   */
   update(bannedWordId, body) {
     return axiosInstance
       .patch(`/api/admin/banned-words/${bannedWordId}`, body)
       .then((res) => unwrap(res));
   },
 
-  /**
-   * 금지어 삭제
-   * @param {number} bannedWordId
-   */
   delete(bannedWordId) {
     return axiosInstance
       .delete(`/api/admin/banned-words/${bannedWordId}`)
+      .then((res) => unwrap(res));
+  },
+};
+
+export const policyApi = {
+  getActive() {
+    return axiosInstance
+      .get("/api/admin/moderation/policies/active")
+      .then((res) => unwrap(res));
+  },
+
+  upload(file) {
+    const form = new FormData();
+    form.append("file", file);
+    return axiosInstance
+      .post("/api/admin/moderation/policies/upload", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 120_000,
+      })
       .then((res) => unwrap(res));
   },
 };

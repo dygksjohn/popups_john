@@ -17,12 +17,20 @@ from pymilvus.milvus_client import IndexParams
 
 from pupoo_ai.app.core.config import settings
 
-POLICY_COLLECTION_NAME = settings.milvus_collection
 
+def _ensure_collection(client: MilvusClient, collection_name: str, dim: int) -> None:
+    """
+    정책 벡터용 컬렉션이 없으면 생성한다.
 
-def _ensure_collection(client: MilvusClient, dim: int) -> None:
-    """정책 벡터 컬렉션이 없으면 생성한다."""
-    if client.has_collection(POLICY_COLLECTION_NAME):
+    컬럼:
+    - id: int64 (primary key, auto_id)
+    - embedding: float_vector (dim)
+    - policy_id: varchar
+    - category: varchar
+    - source: varchar
+    - chunk_text: varchar
+    """
+    if client.has_collection(collection_name):
         return
 
     fields = [
@@ -36,7 +44,7 @@ def _ensure_collection(client: MilvusClient, dim: int) -> None:
     schema = CollectionSchema(fields=fields, description="Policy RAG vectors")
 
     client.create_collection(
-        collection_name=POLICY_COLLECTION_NAME,
+        collection_name=collection_name,
         schema=schema,
         shards_num=2,
     )
@@ -50,7 +58,7 @@ def _ensure_collection(client: MilvusClient, dim: int) -> None:
         nlist=1024,
     )
     client.create_index(
-        collection_name=POLICY_COLLECTION_NAME,
+        collection_name=collection_name,
         index_params=index_params,
     )
 
@@ -58,8 +66,10 @@ def _ensure_collection(client: MilvusClient, dim: int) -> None:
 class PolicyVectorStore:
     """Milvus 기반 정책 벡터 저장소 래퍼."""
 
-    def __init__(self, dim: int) -> None:
+    def __init__(self, dim: int, collection_name: str) -> None:
         self._dim = dim
+        self._collection_name = collection_name
+        # Milvus 2.x gRPC: URI는 http://host:port (REST 게이트웨이) 또는 host:port
         uri = f"http://{settings.milvus_host}:{settings.milvus_port}"
         user = settings.milvus_username or None
         password = settings.milvus_password or None
@@ -71,7 +81,7 @@ class PolicyVectorStore:
             secure=settings.milvus_tls,
             timeout=30,
         )
-        _ensure_collection(self._client, dim)
+        _ensure_collection(self._client, collection_name=self._collection_name, dim=dim)
 
     def upsert(
         self,
@@ -107,7 +117,7 @@ class PolicyVectorStore:
         ]
 
         self._client.insert(
-            collection_name=POLICY_COLLECTION_NAME,
+            collection_name=self._collection_name,
             data=data,
         )
 
@@ -118,13 +128,13 @@ class PolicyVectorStore:
     ) -> List[List[dict]]:
         """질의 벡터별 상위 정책 청크를 검색한다."""
         try:
-            self._client.load_collection(collection_name=POLICY_COLLECTION_NAME)
+            self._client.load_collection(collection_name=self._collection_name)
         except Exception:
             # 기능: load 실패는 search에서 다시 실패시킬 수 있으므로 여기서는 조용히 넘긴다.
             pass
 
-        return self._client.search(
-            collection_name=POLICY_COLLECTION_NAME,
+        results = self._client.search(
+            collection_name=self._collection_name,
             data=list(query_embeddings),
             anns_field="embedding",
             limit=top_k,

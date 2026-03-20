@@ -28,8 +28,12 @@ def include_registered_routers(app: FastAPI) -> None:
 
 
 def create_app() -> FastAPI:
-    # 기능: 공통 미들웨어와 예외 처리기를 포함한 AI FastAPI 앱을 생성한다.
-    app = FastAPI(title=settings.service_name)
+    app = FastAPI(
+    title=settings.service_name,
+    servers=[
+    {"url": "http://pupoo-ai.default.svc.cluster.local:8000", "description": "K8s 운영"},
+],
+)
     app.add_middleware(TraceIdMiddleware)
     register_exception_handlers(app)
     include_registered_routers(app)
