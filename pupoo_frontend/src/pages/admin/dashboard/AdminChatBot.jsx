@@ -204,8 +204,8 @@ function DogCharacter({ onClick, mobile = false }) {
     <div
       style={{
         position: "fixed",
-        bottom: mobile ? "calc(env(safe-area-inset-bottom, 0px) + 6px)" : 12,
-        right: mobile ? 8 : 14,
+        bottom: mobile ? "calc(env(safe-area-inset-bottom, 0px) + 4px)" : 12,
+        right: mobile ? 6 : 14,
         zIndex: 10000,
         cursor: "pointer",
         display: "flex",

@@ -618,8 +618,8 @@ export default function PupooHeader() {
   const isMobile = viewportWidth < 768;
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
   const isCompact = viewportWidth < 1024;
-  const headerHeight = isMobile ? 64 : isTablet ? 74 : 92;
-  const mobileShortcutHeight = isMobile ? 38 : 0;
+  const headerHeight = isMobile ? 60 : isTablet ? 72 : 92;
+  const mobileShortcutHeight = isMobile ? 28 : 0;
   const compactTopOffset = isMobile ? headerHeight + mobileShortcutHeight : headerHeight;
 
   /* ── scroll listener ── */
@@ -711,6 +711,19 @@ export default function PupooHeader() {
   useEffect(() => {
     if (!isCompact) setMobileMenuOpen(false);
   }, [isCompact]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const root = document.documentElement;
+    root.style.setProperty("--pupoo-site-header-height", `${headerHeight}px`);
+    root.style.setProperty("--pupoo-site-header-offset", `${compactTopOffset}px`);
+    root.style.setProperty("--pupoo-site-quicknav-height", `${mobileShortcutHeight}px`);
+    return () => {
+      root.style.removeProperty("--pupoo-site-header-height");
+      root.style.removeProperty("--pupoo-site-header-offset");
+      root.style.removeProperty("--pupoo-site-quicknav-height");
+    };
+  }, [headerHeight, compactTopOffset, mobileShortcutHeight]);
 
   const handleNavClick = (menuKey) => {
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey));
@@ -1064,20 +1077,46 @@ export default function PupooHeader() {
 
             <div
               className="pupoo-mobile-only"
-              style={{ display: "none", alignItems: "center", gap: 4, flexShrink: 0 }}
+              style={{ display: "none", alignItems: "center", gap: 2, flexShrink: 0 }}
             >
+              <button
+                type="button"
+                className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                onClick={() => {
+                  setSearchOpen((v) => !v);
+                  setActiveMenu(null);
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <Search size={16} color={iconColor} strokeWidth={1.8} />
+              </button>
               {isAuthed ? (
-                <Link
-                  to="/mypage"
-                  className={`kakao-icon-btn ${isLight ? "light" : ""}`}
-                  onClick={() => {
-                    setActiveMenu(null);
-                    setSearchOpen(false);
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  <UserCircle size={17} color={iconColor} strokeWidth={1.8} />
-                </Link>
+                <>
+                  <Link
+                    to="/mypage"
+                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                    onClick={() => {
+                      setActiveMenu(null);
+                      setSearchOpen(false);
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <UserCircle size={17} color={iconColor} strokeWidth={1.8} />
+                  </Link>
+                  <button
+                    type="button"
+                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                    onClick={() => {
+                      logout();
+                      setActiveMenu(null);
+                      setSearchOpen(false);
+                      setMobileMenuOpen(false);
+                      navigate("/", { replace: true });
+                    }}
+                  >
+                    <LogOut size={17} color={iconColor} strokeWidth={1.8} />
+                  </button>
+                </>
               ) : (
                 <Link
                   to="/auth/login"
@@ -1091,17 +1130,6 @@ export default function PupooHeader() {
                   <LogIn size={17} color={iconColor} strokeWidth={1.8} />
                 </Link>
               )}
-              <button
-                type="button"
-                className={`kakao-icon-btn ${isLight ? "light" : ""}`}
-                onClick={() => {
-                  setSearchOpen((v) => !v);
-                  setActiveMenu(null);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <Search size={16} color={iconColor} strokeWidth={1.8} />
-              </button>
               <button
                 type="button"
                 className={`kakao-icon-btn ${isLight ? "light" : ""}`}
@@ -1137,9 +1165,9 @@ export default function PupooHeader() {
             <div
               style={{
                 display: "flex",
-                gap: 8,
+                gap: 6,
                 overflowX: "auto",
-                padding: "7px 12px 8px",
+                padding: "3px 10px 4px",
                 WebkitOverflowScrolling: "touch",
                 scrollbarWidth: "none",
               }}
@@ -1157,14 +1185,14 @@ export default function PupooHeader() {
                     }}
                     style={{
                       flexShrink: 0,
-                      height: 24,
-                      padding: "0 10px",
+                      height: 20,
+                      padding: "0 9px",
                       borderRadius: 999,
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
                       textDecoration: "none",
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: 700,
                       fontFamily: FONT,
                       color: active ? "#fff" : isWhiteMode ? "#4b5563" : "#fff",

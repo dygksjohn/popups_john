@@ -37,6 +37,9 @@ function fmtDate(value) {
 export default function Notice() {
   const navigate = useNavigate();
   const badge = getBoardBadge("NOTICE");
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [search, setSearch] = useState("");
   const [scopeKey, setScopeKey] = useState("all");
   const [sortKey, setSortKey] = useState("recent");
@@ -100,6 +103,17 @@ export default function Notice() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+
   return (
     <>
       <PageHeader
@@ -115,28 +129,46 @@ export default function Notice() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
       <main
         style={{
-          width: "min(1400px, calc(100% - 40px))",
+          width: isMobile
+            ? "calc(100% - 20px)"
+            : isTablet
+              ? "calc(100% - 28px)"
+              : "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
-          padding: "40px 0 64px",
+          padding: isMobile ? "20px 0 40px" : isTablet ? "28px 0 52px" : "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
             justifyContent: "space-between",
             paddingBottom: "16px",
             marginBottom: "8px",
-            gap: 8,
+            gap: isMobile ? 12 : 8,
           }}
         >
           <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>총 {totalFromApi}개</span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: 999, height: 42 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0,
+                background: "#f3f4f6",
+                borderRadius: isMobile ? 16 : 999,
+                height: isMobile ? "auto" : 42,
+                width: isMobile ? "100%" : "auto",
+                flexWrap: isMobile ? "wrap" : "nowrap",
+                padding: isMobile ? 6 : 0,
+                rowGap: isMobile ? 6 : 0,
+              }}
+            >
               {/* scope dropdown */}
-              <div style={{ position: "relative", flex: "0 0 auto" }} ref={scopeDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={scopeDdRef}>
                 <button
                   type="button"
                   onClick={() => setScopeDdOpen((v) => !v)}
@@ -165,10 +197,10 @@ export default function Notice() {
                 )}
               </div>
 
-              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* sort button */}
-              <div style={{ position: "relative", flex: "0 0 auto" }} ref={sortDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={sortDdRef}>
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((prev) => !prev)}
@@ -197,10 +229,10 @@ export default function Notice() {
                 )}
               </div>
 
-              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* search input */}
-              <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "1 1 auto", minWidth: 0, width: isMobile ? "100%" : "auto" }}>
                 <Search
                   size={16}
                   strokeWidth={2}
@@ -226,16 +258,16 @@ export default function Notice() {
                     }
                   }}
                   style={{
-                    border: "none",
-                    background: "transparent",
+                    border: isMobile ? "1px solid #dbe2ea" : "none",
+                    background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: "0 999px 999px 0",
+                    borderRadius: isMobile ? 999 : "0 999px 999px 0",
                     height: 42,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",
                     outline: "none",
-                    width: 280,
+                    width: isMobile ? "100%" : 280,
                   }}
                 />
               </div>
