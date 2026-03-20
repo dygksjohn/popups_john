@@ -166,7 +166,7 @@ function EventSection() {
       .catch(() => setEvents([]));
   }, []);
 
-  // ??3揶?/ ??3揶??브쑬媛?  const leftItems = events.slice(0, 3);
+  const leftItems = events.slice(0, 3);
   const rightItems = events.length > 3 ? events.slice(3, 6) : events.slice(0, Math.min(3, events.length));
   const sides = [
     { items: leftItems, color: { bg: "bg-gradient-to-r from-[#E6F7F2] to-[#EDF9F5]", text: "text-[#02A17E]" } },
