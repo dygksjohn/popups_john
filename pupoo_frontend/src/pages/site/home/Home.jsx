@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+﻿import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { noticeApi, unwrap } from "../../../api/noticeApi";
 import { reviewApi } from "../../../app/http/reviewApi";
@@ -11,7 +11,7 @@ import {
   toPublicAssetUrl,
 } from "../../../shared/utils/publicAssetUrl";
 
-/* ?? ?대?吏 ?대갚 ?? */
+/* ???? ???筌왖 ??媛????? */
 const DOG_IMGS = [
   "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=800&fit=crop",
   "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&h=800&fit=crop",
@@ -24,12 +24,12 @@ const DOG_IMGS = [
 ];
 const dogImg = (id) => DOG_IMGS[Math.abs(Number(id) || 0) % DOG_IMGS.length];
 
-/* ?? 怨듯넻 ?좎쭨 ?щ㎎ ?? */
+/* ???? ?⑤벏???醫롮? ???????? */
 function fmtEventDate(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d)) return "";
-  const week = ["일", "월", "화", "수", "목", "금", "토"];
+  const week = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}(${week[d.getDay()]})`;
 }
 
@@ -69,8 +69,8 @@ function mapApiEvent(raw) {
     id,
     title,
     description: raw?.description ?? "",
-    location: raw?.location ?? raw?.place ?? "장소 미정",
-    category: raw?.category ?? raw?.eventCategory ?? "행사",
+    location: raw?.location ?? raw?.place ?? "?μ냼 誘몄젙",
+    category: raw?.category ?? raw?.eventCategory ?? "?됱궗",
     startAt: raw?.startAt ?? raw?.startDateTime ?? null,
     endAt: raw?.endAt ?? raw?.endDateTime ?? null,
     image: raw?.imageUrl ?? raw?.posterUrl ?? raw?.thumbnail ?? dogImg(id),
@@ -80,7 +80,7 @@ function mapApiEvent(raw) {
   };
 }
 
-/* 세션 매핑 */
+/* ?몄뀡 留ㅽ븨 */
 function mapSession(raw, eventMap) {
   const id = raw?.programId ?? raw?.id;
   const eventId = raw?.eventId;
@@ -88,9 +88,9 @@ function mapSession(raw, eventMap) {
   return {
     id,
     eventId,
-    title: raw?.programTitle ?? raw?.programName ?? raw?.title ?? "세션",
+    title: raw?.programTitle ?? raw?.programName ?? raw?.title ?? "?몄뀡",
     description: raw?.description ?? "",
-    location: raw?.location ?? raw?.place ?? raw?.boothName ?? ev?.location ?? "장소 미정",
+    location: raw?.location ?? raw?.place ?? raw?.boothName ?? ev?.location ?? "?μ냼 誘몄젙",
     category: raw?.category ?? raw?.programCategory ?? "",
     startAt: raw?.startAt ?? raw?.startDateTime ?? null,
     endAt: raw?.endAt ?? raw?.endDateTime ?? null,
@@ -103,7 +103,7 @@ function mapSession(raw, eventMap) {
   };
 }
 
-// ================= ?ㅽ겕濡?reveal ??=================
+// ================= ??쎄쾿嚥?reveal ??=================
 function useScrollReveal(options = {}) {
   const { threshold = 0.15, rootMargin = "0px 0px -60px 0px" } = options;
   const ref = useRef(null);
@@ -143,7 +143,7 @@ function RevealSection({ children, className = "", delay = 0 }) {
   );
 }
 
-// ================= EVENT SECTION (DB ?곕룞 ??醫? ?? 怨좎젙) =================
+// ================= EVENT SECTION (DB ?怨뺣짗 ???? ?? ?⑥쥙?? =================
 function EventSection() {
   const navigate = useNavigate();
   const [hoveredCard, setHoveredCard] = useState(null);
@@ -166,8 +166,7 @@ function EventSection() {
       .catch(() => setEvents([]));
   }, []);
 
-  // 醫?3媛?/ ??3媛?遺꾨같
-  const leftItems = events.slice(0, 3);
+  // ??3揶?/ ??3揶??브쑬媛?  const leftItems = events.slice(0, 3);
   const rightItems = events.length > 3 ? events.slice(3, 6) : events.slice(0, Math.min(3, events.length));
   const sides = [
     { items: leftItems, color: { bg: "bg-gradient-to-r from-[#E6F7F2] to-[#EDF9F5]", text: "text-[#02A17E]" } },
@@ -175,7 +174,7 @@ function EventSection() {
   ];
   const groupDate = (items) => {
     const first = items.find((e) => e.startAt);
-    return first ? fmtEventDate(first.startAt) : "일정 미정";
+    return first ? fmtEventDate(first.startAt) : "?쇱젙 誘몄젙";
   };
 
   return (
@@ -183,14 +182,14 @@ function EventSection() {
       <div className="max-w-[1400px] mx-auto px-[25px]">
         <RevealSection>
           <div className="text-center mb-10">
-            <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">진행 중인 행사 안내</p>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">현재 진행 중인 행사</h2>
-            <button onClick={() => navigate("/event/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#02A17E" }}>자세히 보기</button>
+            <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">吏꾪뻾 以묒씤 ?됱궗 ?덈궡</p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">?꾩옱 吏꾪뻾 以묒씤 ?됱궗</h2>
+            <button onClick={() => navigate("/event/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#02A17E" }}>?먯꽭??蹂닿린</button>
           </div>
         </RevealSection>
         <RevealSection delay={0.15}>
           {events.length === 0 ? (
-            <div className="text-center text-gray-400 py-12">진행 중인 행사가 없습니다.</div>
+            <div className="text-center text-gray-400 py-12">吏꾪뻾 以묒씤 ?됱궗媛 ?놁뒿?덈떎.</div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 relative">
               <div className="hidden lg:block absolute left-1/2 top-6 bottom-0 -translate-x-1/2">
@@ -203,7 +202,7 @@ function EventSection() {
                     {side.items.map((ev, idx) => (
                       <EventCard
                         key={ev.id || idx}
-                        event={{ title: ev.title, time: ev.startAt && ev.endAt ? `${fmtTime(ev.startAt)} ~ ${fmtTime(ev.endAt)}` : "시간 미정", location: ev.location }}
+                        event={{ title: ev.title, time: ev.startAt && ev.endAt ? `${fmtTime(ev.startAt)} ~ ${fmtTime(ev.endAt)}` : "?쒓컙 誘몄젙", location: ev.location }}
                         isHovered={hoveredCard === `${si}-${idx}`}
                         onHover={() => setHoveredCard(`${si}-${idx}`)}
                         onLeave={() => setHoveredCard(null)}
@@ -230,7 +229,7 @@ function EventCard({ event, isHovered, onHover, onLeave, onClick }) {
           <p className="text-[13px] text-gray-600 leading-tight">{event.time}</p>
           <p className="text-[13px] text-gray-600 leading-tight">{event.location}</p>
           <div className={`overflow-hidden transition-all duration-300 ease-out ${isHovered ? "max-h-16 mt-3" : "max-h-0 mt-0"}`}>
-            <button type="button" onClick={(e) => { e.stopPropagation(); onClick?.(); }} className="text-white text-xs font-semibold px-4 py-1.5 rounded-full" style={{ background: "#02A17E" }}>자세히 보기</button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); onClick?.(); }} className="text-white text-xs font-semibold px-4 py-1.5 rounded-full" style={{ background: "#02A17E" }}>?먯꽭??蹂닿린</button>
           </div>
         </div>
       </div>
@@ -238,7 +237,7 @@ function EventCard({ event, isHovered, onHover, onLeave, onClick }) {
   );
 }
 
-// ================= 臾댄븳猷⑦봽 ??=================
+// ================= ?얜똾釉녕뙴??늄 ??=================
 function useInfiniteSlider(itemCount, slideSize) {
   const CLONES = 15;
   const CENTER = itemCount * 7;
@@ -268,7 +267,7 @@ function useInfiniteSlider(itemCount, slideSize) {
   return { index, realIndex, offset, transition, next, prev, goTo, setIndex, setTransition, CLONES };
 }
 
-// ================= SESSION LINEUP (?몄뀡 DB ?곕룞) =================
+// ================= SESSION LINEUP (?紐꾨?DB ?怨뺣짗) =================
 function SessionLineup() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
@@ -336,10 +335,10 @@ function SessionLineup() {
 
   const catLabel = (c) => {
     const raw = String(c).toUpperCase();
-    if (raw.includes("SESSION")) return "세션";
-    if (raw.includes("EXPERIENCE")) return "체험";
-    if (raw.includes("CONTEST")) return "콘테스트";
-    return "프로그램";
+    if (raw.includes("SESSION")) return "?몄뀡";
+    if (raw.includes("EXPERIENCE")) return "泥댄뿕";
+    if (raw.includes("CONTEST")) return "肄섑뀒?ㅽ듃";
+    return "?꾨줈洹몃옩";
   };
 
   return (
@@ -348,13 +347,13 @@ function SessionLineup() {
         <RevealSection>
           <div className="text-center mb-10">
             <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">PuPoo Session</p>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">현재 행사에서 운영 중인 프로그램</h2>
-            <button onClick={() => navigate("/program/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#02A17E" }}>전체 프로그램 보기</button>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">?꾩옱 ?됱궗?먯꽌 ?댁쁺 以묒씤 ?꾨줈洹몃옩</h2>
+            <button onClick={() => navigate("/program/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#02A17E" }}>?꾩껜 ?꾨줈洹몃옩 蹂닿린</button>
           </div>
         </RevealSection>
         <RevealSection delay={0.12}>
           {items.length === 0 ? (
-            <div className="text-center text-gray-400 py-12">연결된 프로그램이 없습니다.</div>
+            <div className="text-center text-gray-400 py-12">?곌껐???꾨줈洹몃옩???놁뒿?덈떎.</div>
           ) : (
             <>
               <div className="overflow-hidden cursor-grab active:cursor-grabbing" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} style={{ userSelect: "none" }}>
@@ -376,8 +375,8 @@ function SessionLineup() {
                             <p className="text-white font-bold text-lg leading-snug">{s.title}</p>
                             <p className="text-white/60 text-sm mt-0.5">{s.eventName}</p>
                             <p className="text-white/50 text-xs mt-1">
-                              {s.startAt ? `${fmtEventDate(s.startAt)} ${fmtTime(s.startAt)}` : "일정 미정"}
-                              {s.location ? ` · ${s.location}` : ""}
+                              {s.startAt ? `${fmtEventDate(s.startAt)} ${fmtTime(s.startAt)}` : "?쇱젙 誘몄젙"}
+                              {s.location ? ` 쨌 ${s.location}` : ""}
                             </p>
                           </div>
                         </div>
@@ -420,7 +419,7 @@ function SessionLineup() {
   );
 }
 
-// ================= RECOMMEND CAROUSEL (DB ?곕룞) =================
+// ================= RECOMMEND CAROUSEL (DB ?怨뺣짗) =================
 function RecommendCarousel() {
   const [events, setEvents] = useState([]);
   useEffect(() => {
@@ -457,7 +456,7 @@ function RecommendCarousel() {
     else if (delta > 50) slider.prev();
   };
 
-  if (items.length === 0) return <div className="text-center text-gray-400 py-12">추천 행사를 불러오는 중입니다.</div>;
+  if (items.length === 0) return <div className="text-center text-gray-400 py-12">異붿쿇 ?됱궗瑜?遺덈윭?ㅻ뒗 以묒엯?덈떎.</div>;
 
   return (
     <div className="relative w-full">
@@ -473,7 +472,7 @@ function RecommendCarousel() {
                 <div className="mt-4">
                   <div className="text-[17px] font-bold text-gray-900">{ev.title}</div>
                   <div className="text-sm text-gray-500 mt-1.5">
-                    {ev.description ? (ev.description.length > 40 ? ev.description.slice(0, 40) + "..." : ev.description) : ev.startAt ? fmtEventDate(ev.startAt) : "상세 정보 보기"}
+                    {ev.description ? (ev.description.length > 40 ? ev.description.slice(0, 40) + "..." : ev.description) : ev.startAt ? fmtEventDate(ev.startAt) : "?곸꽭 ?뺣낫 蹂닿린"}
                   </div>
                   <span className="inline-block mt-3 text-xs font-medium bg-gray-200 text-gray-600 px-3 py-1 rounded-md">{ev.location}</span>
                 </div>
@@ -508,7 +507,7 @@ function RecommendCarousel() {
   );
 }
 
-// ================= NOTICE SECTION (API ?곕룞) =================
+// ================= NOTICE SECTION (API ?怨뺣짗) =================
 function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
@@ -519,7 +518,7 @@ function getReviewHeadline(item) {
   const explicitTitle = String(item?.reviewTitle || item?.title || "").trim();
   if (explicitTitle) return explicitTitle;
   const firstLine = String(item?.content || "").split("\n").map((line) => line.trim()).find(Boolean);
-  if (!firstLine) return "행사 후기";
+  if (!firstLine) return "?됱궗 ?꾧린";
   return firstLine.length > 58 ? `${firstLine.slice(0, 58)}...` : firstLine;
 }
 
@@ -539,8 +538,8 @@ function NoticeSection() {
   }, []);
 
   const sections = [
-    { title: "공지사항", items: notices.map((n) => ({ title: n.title, date: fmtDate(n.createdAt) })), morePath: "/community/notice" },
-    { title: "후기 게시판", items: reviews.map((r) => ({ title: getReviewHeadline(r), date: fmtDate(r.createdAt) })), morePath: "/community/review" },
+    { title: "怨듭??ы빆", items: notices.map((n) => ({ title: n.title, date: fmtDate(n.createdAt) })), morePath: "/community/notice" },
+    { title: "Reviews", items: reviews.map((r) => ({ title: getReviewHeadline(r), date: fmtDate(r.createdAt) })), morePath: "/community/review" },
   ];
 
   return (
@@ -571,7 +570,7 @@ function NoticeSection() {
                       <div key={i} className="group cursor-pointer">
                         <div className="flex justify-between">
                           <div>
-                            <div className="text-lg font-semibold text-white/30">불러오는 중...</div>
+                            <div className="text-lg font-semibold text-white/30">遺덈윭?ㅻ뒗 以?..</div>
                             <div className="mt-3 text-sm text-white/20">-</div>
                           </div>
                         </div>
@@ -639,8 +638,8 @@ export default function Home() {
         style={
           isMobile
             ? {
-                height: "100svh",
-                minHeight: "100svh",
+                height: "88svh",
+                minHeight: "88svh",
               }
             : undefined
         }
@@ -649,12 +648,11 @@ export default function Home() {
         <div className="absolute inset-0 bg-black/40" />
         <div className="relative h-full flex items-center justify-center">
           <div className="max-w-[1400px] w-full px-[25px] text-white">
-            <h1 className="text-3xl md:text-6xl font-extrabold leading-tight">
-              지금 가장 주목할
-              <br />
-              반려견 페스티벌
+            <h1 className="text-2xl md:text-6xl font-extrabold leading-tight">
+              吏湲?媛??二쇰ぉ??              <br />
+              諛섎젮寃??섏뒪?곕쾶
             </h1>
-            <p className="mt-6 text-lg md:text-xl text-white/90">참여 가능한 행사를 바로 확인해 보세요.</p>
+            <p className="mt-4 text-base md:text-xl text-white/90">李몄뿬 媛?ν븳 ?됱궗瑜?諛붾줈 ?뺤씤??蹂댁꽭??</p>
           </div>
         </div>
         <div
@@ -689,7 +687,7 @@ export default function Home() {
         <div className="max-w-[1400px] mx-auto px-[25px]">
           <RevealSection>
             <h2 className="text-2xl md:text-3xl font-extrabold mb-8">
-                <span className="text-[#02A17E]">당신이</span> 좋아할 만한 추천 행사
+              <span className="text-[#02A17E]">추천</span> 행사
             </h2>
           </RevealSection>
           <RevealSection delay={0.08}>

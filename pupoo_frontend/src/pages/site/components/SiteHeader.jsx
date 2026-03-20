@@ -1064,8 +1064,33 @@ export default function PupooHeader() {
 
             <div
               className="pupoo-mobile-only"
-              style={{ display: "none", alignItems: "center", gap: 5, flexShrink: 0 }}
+              style={{ display: "none", alignItems: "center", gap: 4, flexShrink: 0 }}
             >
+              {isAuthed ? (
+                <Link
+                  to="/mypage"
+                  className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                  onClick={() => {
+                    setActiveMenu(null);
+                    setSearchOpen(false);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <UserCircle size={17} color={iconColor} strokeWidth={1.8} />
+                </Link>
+              ) : (
+                <Link
+                  to="/auth/login"
+                  className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                  onClick={() => {
+                    setActiveMenu(null);
+                    setSearchOpen(false);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <LogIn size={17} color={iconColor} strokeWidth={1.8} />
+                </Link>
+              )}
               <button
                 type="button"
                 className={`kakao-icon-btn ${isLight ? "light" : ""}`}
@@ -1075,7 +1100,7 @@ export default function PupooHeader() {
                   setMobileMenuOpen(false);
                 }}
               >
-                <Search size={17} color={iconColor} strokeWidth={1.8} />
+                <Search size={16} color={iconColor} strokeWidth={1.8} />
               </button>
               <button
                 type="button"
