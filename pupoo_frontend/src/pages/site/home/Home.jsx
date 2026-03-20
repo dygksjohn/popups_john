@@ -649,7 +649,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-black/40" />
         <div className="relative h-full flex items-center justify-center">
           <div className="max-w-[1400px] w-full px-[25px] text-white">
-            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
+            <h1 className="text-3xl md:text-6xl font-extrabold leading-tight">
               지금 가장 주목할
               <br />
               반려견 페스티벌
@@ -663,13 +663,13 @@ export default function Home() {
             bottom: isMobile
               ? "calc(env(safe-area-inset-bottom, 0px) + 12px)"
               : 64,
-            width: isMobile ? "min(280px, calc(100vw - 40px))" : 300,
+            width: isMobile ? "min(256px, calc(100vw - 44px))" : 300,
           }}
         >
           <div className="relative h-[2px] bg-white/30">
             <div className="absolute left-0 top-0 h-full bg-white transition-[width] duration-200 ease-linear" style={{ width: `${progress}%` }} />
           </div>
-          <div className="flex justify-between items-center mt-3 text-white text-sm">
+          <div className="flex justify-between items-center mt-2 text-white text-[13px]">
             <span>{String(currentVideoIndex + 1).padStart(2, "0")} / {String(heroVideos.length).padStart(2, "0")}</span>
             <button type="button" onClick={togglePlay} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/20 transition">
               {isPlaying ? (
@@ -703,7 +703,6 @@ export default function Home() {
     </div>
   );
 }
-
 
 
 

@@ -5,7 +5,7 @@ import { tokenStore } from "../../../app/http/tokenStore";
 import { useAuth } from "./AuthProvider";
 
 // ?? Social button (reusable) ??????????????????????????????????????????????????
-const SocialButton = ({ onClick, style, children }) => {
+const SocialButton = ({ onClick, style, children, compact = false }) => {
   const [hovered, setHovered] = useState(false);
   return (
     <button
@@ -16,13 +16,13 @@ const SocialButton = ({ onClick, style, children }) => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 8,
+        gap: compact ? 7 : 8,
         width: "100%",
-        padding: "10px 16px",
-        borderRadius: 8,
+        padding: compact ? "9px 14px" : "10px 16px",
+        borderRadius: compact ? 7 : 8,
         border: "none",
         cursor: "pointer",
-        fontSize: 14,
+        fontSize: compact ? 13 : 14,
         fontFamily: "'Noto Sans KR', sans-serif",
         fontWeight: 500,
         transition: "filter 0.15s, box-shadow 0.15s",
@@ -216,10 +216,10 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const inputStyle = (fieldName) => ({
     width: "100%",
-    padding: "13px 16px",
+    padding: isMobile ? "12px 14px" : "13px 16px",
     borderRadius: 8,
     border: `1.5px solid ${focusedField === fieldName ? "#4A90E2" : "#E2E8F0"}`,
-    fontSize: 14,
+    fontSize: isMobile ? 13.5 : 14,
     fontFamily: "'Noto Sans KR', sans-serif",
     color: "#2D3748",
     background: "#FAFBFD",
@@ -242,7 +242,7 @@ const LoginPage = ({ leftBgImage = null }) => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: isMobile ? "16px 12px" : isTablet ? "20px 16px" : "24px 16px",
+          padding: isMobile ? "12px 10px" : isTablet ? "18px 14px" : "24px 16px",
           background: "linear-gradient(135deg, #EEF2F9 0%, #E3EAF6 100%)",
         }}
       >
@@ -258,7 +258,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               boxShadow:
                 "0 20px 60px rgba(74,100,180,0.18), 0 4px 16px rgba(0,0,0,0.08)",
               minHeight: isMobile ? "auto" : 500,
-              marginTop: isMobile ? 56 : isTablet ? 72 : 100,
+              marginTop: isMobile ? 40 : isTablet ? 60 : 100,
             }}
           >
             {/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 LEFT PANEL ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */}
@@ -272,7 +272,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "flex-end",
-                padding: isMobile ? "28px 22px" : isTablet ? "34px 28px" : "40px 36px",
+                padding: isMobile ? "22px 18px" : isTablet ? "30px 24px" : "40px 36px",
                 background: leftBgImage
                   ? `url(${leftBgImage}) center/cover no-repeat`
                   : "linear-gradient(145deg, #6B8CFF 0%, #4B6FE5 35%, #3A55CC 65%, #5B35CC 100%)",
@@ -351,11 +351,11 @@ const LoginPage = ({ leftBgImage = null }) => {
                 <h1
                   style={{
                     color: "#FFFFFF",
-                    fontSize: isMobile ? 22 : isTablet ? 24 : 26,
+                    fontSize: isMobile ? 20 : isTablet ? 22 : 26,
                     fontWeight: 700,
                     lineHeight: 1.45,
                     letterSpacing: "-0.5px",
-                    marginBottom: 12,
+                    marginBottom: isMobile ? 10 : 12,
                     textShadow: "0 2px 12px rgba(0,0,30,0.25)",
                   }}
                 >
@@ -368,7 +368,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 <p
                   style={{
                     color: "rgba(255,255,255,0.78)",
-                    fontSize: isMobile ? 11.5 : 12,
+                    fontSize: isMobile ? 11 : 12,
                     fontWeight: 400,
                     lineHeight: 1.6,
                     letterSpacing: "0.2px",
@@ -390,12 +390,12 @@ const LoginPage = ({ leftBgImage = null }) => {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
-                padding: isMobile ? "28px 20px" : isTablet ? "36px 28px" : "44px 40px",
+                padding: isMobile ? "22px 18px" : isTablet ? "30px 24px" : "44px 40px",
                 borderRadius: isMobile ? "0 0 20px 20px" : "0 20px 20px 0",
               }}
             >
               {/* Title */}
-              <div style={{ marginBottom: 32 }}>
+              <div style={{ marginBottom: isMobile ? 22 : 32 }}>
                 <div
                   style={{
                     display: "inline-flex",
@@ -403,7 +403,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                     gap: 8,
                   }}
                 >
-                  <span style={{ fontSize: isMobile ? 24 : 28, fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a" }}>로그인</span>
+                  <span style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a" }}>로그인</span>
                 </div>
               </div>
 
@@ -422,7 +422,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               </div>
 
               {/* ??? Password input ??? */}
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: isMobile ? 14 : 16 }}>
                 <input
                   type="password"
                   placeholder="비밀번호를 입력하세요"
@@ -442,8 +442,8 @@ const LoginPage = ({ leftBgImage = null }) => {
                   alignItems: "center",
                   gap: 8,
                   cursor: "pointer",
-                  marginBottom: 20,
-                  fontSize: 13,
+                  marginBottom: isMobile ? 16 : 20,
+                  fontSize: isMobile ? 12.5 : 13,
                   color: "#4A5568",
                   userSelect: "none",
                 }}
@@ -468,20 +468,20 @@ const LoginPage = ({ leftBgImage = null }) => {
                 onClick={handleLogin}
                 style={{
                   width: "100%",
-                  padding: "13px",
+                  padding: isMobile ? "12px" : "13px",
                   borderRadius: 8,
                   border: "none",
                   background:
                     "linear-gradient(90deg, #5591F5 0%, #4A82E8 100%)",
                   color: "#fff",
-                  fontSize: 15,
+                  fontSize: isMobile ? 14 : 15,
                   fontWeight: 600,
                   fontFamily: "'Noto Sans KR', sans-serif",
                   cursor: "pointer",
                   letterSpacing: "1px",
                   transition: "filter 0.2s, transform 0.15s",
                   boxShadow: "0 4px 14px rgba(74,130,232,0.35)",
-                  marginBottom: 16,
+                  marginBottom: isMobile ? 14 : 16,
                 }}
               >
                 로그인
@@ -494,7 +494,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                   justifyContent: "center",
                   flexWrap: isMobile ? "wrap" : "nowrap",
                   gap: 0,
-                  marginBottom: 24,
+                  marginBottom: isMobile ? 18 : 24,
                 }}
               >
                 <a
@@ -504,10 +504,10 @@ const LoginPage = ({ leftBgImage = null }) => {
                     navigate("/auth/join/joinselect");
                   }}
                   style={{
-                    fontSize: 13,
+                    fontSize: isMobile ? 12.5 : 13,
                     color: "#718096",
                     textDecoration: "none",
-                    padding: "0 14px",
+                    padding: isMobile ? "0 10px" : "0 14px",
                     borderRight: "1px solid #CBD5E0",
                   }}
                 >
@@ -520,10 +520,10 @@ const LoginPage = ({ leftBgImage = null }) => {
                     navigate("/auth/find-password");
                   }}
                   style={{
-                    fontSize: 13,
+                    fontSize: isMobile ? 12.5 : 13,
                     color: "#718096",
                     textDecoration: "none",
-                    padding: "0 14px",
+                    padding: isMobile ? "0 10px" : "0 14px",
                   }}
                 >
                   비밀번호 찾기
@@ -535,8 +535,8 @@ const LoginPage = ({ leftBgImage = null }) => {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
-                  marginBottom: 16,
+                  gap: isMobile ? 8 : 10,
+                  marginBottom: isMobile ? 14 : 16,
                 }}
               >
                 <div style={{ flex: 1, height: 1, background: "#E8EDF5" }} />
@@ -558,6 +558,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               >
                 <SocialButton
                   onClick={handleKakaoLogin}
+                  compact={isMobile}
                   style={{ background: "#FEE500", color: "#3C1E1E" }}
                 >
                   <KakaoIcon />
@@ -567,6 +568,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 {/* Google */}
                 <SocialButton
                   onClick={() => handleSocialClick("Google")}
+                  compact={isMobile}
                   style={{
                     background: "#FFFFFF",
                     color: "#3C4043",
@@ -584,6 +586,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 {/* Apple */}
                 <SocialButton
                   onClick={() => handleSocialClick("Apple")}
+                  compact={isMobile}
                   style={{
                     background: "#000000",
                     color: "#FFFFFF",
@@ -604,7 +607,7 @@ const LoginPage = ({ leftBgImage = null }) => {
             style={{
               textAlign: "center",
               marginTop: 24,
-              fontSize: 12,
+              fontSize: isMobile ? 11.5 : 12,
               color: "#A0AEC0",
               lineHeight: 1.7,
               padding: isMobile ? "0 8px" : 0,
@@ -621,11 +624,13 @@ const LoginPage = ({ leftBgImage = null }) => {
 
       {toast && (
         <div style={{
-          position: "fixed", bottom: 40, left: "50%", transform: "translateX(-50%)",
-          background: "#fff", color: "#333", fontSize: 14, fontWeight: 600,
-          padding: "14px 32px", borderRadius: 14, border: "1px solid #e8e8e8",
+          position: "fixed", bottom: isMobile ? "calc(env(safe-area-inset-bottom, 0px) + 16px)" : 40, left: "50%", transform: "translateX(-50%)",
+          background: "#fff", color: "#333", fontSize: isMobile ? 13 : 14, fontWeight: 600,
+          padding: isMobile ? "12px 20px" : "14px 32px", borderRadius: 14, border: "1px solid #e8e8e8",
           boxShadow: "0 8px 32px rgba(0,0,0,.12)", zIndex: 9999,
           animation: "login-toast-in .3s ease, login-toast-out .3s ease 2s forwards",
+          width: isMobile ? "min(calc(100vw - 24px), 320px)" : "auto",
+          textAlign: "center",
         }}>{toast}</div>
       )}
 

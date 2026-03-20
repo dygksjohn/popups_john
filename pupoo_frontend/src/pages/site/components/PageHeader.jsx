@@ -173,15 +173,15 @@ export default function PageHeader({
 
   const pageHeaderStyle = {
     ...styles.pageHeader,
-    paddingTop: isMobile ? 96 : isTablet ? 118 : styles.pageHeader.paddingTop,
+    paddingTop: isMobile ? 82 : isTablet ? 102 : styles.pageHeader.paddingTop,
   };
 
   const innerStyle = {
     ...styles.inner,
     width: isMobile
-      ? "calc(100% - 24px)"
+      ? "calc(100% - 20px)"
       : isTablet
-        ? "calc(100% - 32px)"
+        ? "calc(100% - 28px)"
         : styles.inner.width,
   };
 
@@ -194,15 +194,16 @@ export default function PageHeader({
 
   const mergedTitleStyle = {
     ...styles.title,
-    fontSize: isMobile ? 32 : isTablet ? 40 : styles.title.fontSize,
-    lineHeight: isMobile ? "1.28" : isTablet ? "56px" : styles.title.lineHeight,
+    fontSize: isMobile ? 28 : isTablet ? 34 : styles.title.fontSize,
+    lineHeight: isMobile ? "1.22" : isTablet ? "1.28" : styles.title.lineHeight,
     ...titleStyle,
   };
 
   const mergedSubtitleStyle = {
     ...styles.subtitle,
-    fontSize: isMobile ? 16 : isTablet ? 18 : styles.subtitle.fontSize,
-    margin: isMobile ? "10px 0 0" : styles.subtitle.margin,
+    fontSize: isMobile ? 14 : isTablet ? 16 : styles.subtitle.fontSize,
+    margin: isMobile ? "8px 0 0" : isTablet ? "8px 0 0" : styles.subtitle.margin,
+    lineHeight: isMobile ? 1.55 : styles.subtitle.lineHeight,
     ...subtitleStyle,
   };
 
@@ -213,21 +214,23 @@ export default function PageHeader({
     whiteSpace: isMobile ? "normal" : styles.breadcrumb.whiteSpace,
     flexWrap: isMobile ? "wrap" : "nowrap",
     paddingTop: isMobile ? 0 : styles.breadcrumb.paddingTop,
+    fontSize: isMobile ? 12 : styles.breadcrumb.fontSize,
+    gap: isMobile ? 4 : styles.breadcrumb.gap,
   };
 
   const searchAreaStyle = {
     ...styles.searchArea,
     width: "100%",
-    padding: isMobile ? "18px 0 0" : isTablet ? "24px 0 0" : styles.searchArea.padding,
+    padding: isMobile ? "14px 0 0" : isTablet ? "18px 0 0" : styles.searchArea.padding,
   };
 
   const tabsStyle = {
     ...styles.tabs,
-    marginTop: isMobile ? 24 : isTablet ? 36 : styles.tabs.marginTop,
+    marginTop: isMobile ? 18 : isTablet ? 28 : styles.tabs.marginTop,
     overflowX: isCompact ? "auto" : "visible",
     overflowY: "hidden",
     flexWrap: isMobile ? "nowrap" : isTablet ? "wrap" : "nowrap",
-    paddingBottom: isCompact ? 4 : 0,
+    paddingBottom: isCompact ? 2 : 0,
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
   };
@@ -270,13 +273,13 @@ export default function PageHeader({
               let btnStyle = {
                 ...styles.tabBase,
                 flex: isCompact ? "0 0 auto" : styles.tabBase.flex,
-                minWidth: isMobile ? 120 : isTablet ? 148 : undefined,
+                minWidth: isMobile ? 108 : isTablet ? 136 : undefined,
                 padding: isMobile
-                  ? "11px 14px"
+                  ? "9px 12px"
                   : isTablet
-                    ? "12px 16px"
+                    ? "11px 14px"
                     : styles.tabBase.padding,
-                fontSize: isMobile ? 15 : isTablet ? 16 : styles.tabBase.fontSize,
+                fontSize: isMobile ? 14 : isTablet ? 15 : styles.tabBase.fontSize,
               };
               if (isActive) {
                 btnStyle = { ...btnStyle, ...styles.tabActive };
@@ -306,10 +309,10 @@ export default function PageHeader({
                         alignItems: "center",
                         justifyContent: "center",
                         minWidth: 22,
-                        height: 22,
+                        height: isMobile ? 20 : 22,
                         borderRadius: 11,
                         padding: "0 6px",
-                        fontSize: 12,
+                        fontSize: isMobile ? 11 : 12,
                         fontWeight: 700,
                         lineHeight: 1,
                         background: isActive ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.07)",

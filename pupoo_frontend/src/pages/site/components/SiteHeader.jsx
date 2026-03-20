@@ -309,7 +309,14 @@ const POPULAR_TAGS = [
   { label: "#갤러리", to: "/gallery/eventgallery" },
 ];
 
-const SearchPanel = ({ onClose, onSearch, onNavigate, topOffset = 92, compact = false }) => {
+const SearchPanel = ({
+  onClose,
+  onSearch,
+  onNavigate,
+  topOffset = 92,
+  compact = false,
+  mobile = false,
+}) => {
   const inputRef = useRef(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -378,14 +385,14 @@ const SearchPanel = ({ onClose, onSearch, onNavigate, topOffset = 92, compact = 
     return m[s] || "#9496A6";
   };
 
-  const panelPadding = compact ? "24px 16px 22px" : "48px 36px 40px";
-  const panelGap = compact ? 18 : 24;
-  const panelRadius = compact ? "0 0 18px 18px" : "0 0 20px 20px";
+  const panelPadding = mobile ? "16px 12px 14px" : compact ? "24px 16px 22px" : "48px 36px 40px";
+  const panelGap = mobile ? 14 : compact ? 18 : 24;
+  const panelRadius = mobile ? "0 0 16px 16px" : compact ? "0 0 18px 18px" : "0 0 20px 20px";
   const formMaxWidth = compact ? "100%" : 720;
-  const searchHeight = compact ? 54 : 64;
-  const searchGap = compact ? 12 : 16;
-  const searchPadding = compact ? "0 18px" : "0 30px";
-  const inputFontSize = compact ? 16 : 20;
+  const searchHeight = mobile ? 46 : compact ? 54 : 64;
+  const searchGap = mobile ? 10 : compact ? 12 : 16;
+  const searchPadding = mobile ? "0 14px" : compact ? "0 18px" : "0 30px";
+  const inputFontSize = mobile ? 15 : compact ? 16 : 20;
   const resultMaxWidth = compact ? "100%" : 720;
 
   return (
@@ -413,7 +420,7 @@ const SearchPanel = ({ onClose, onSearch, onNavigate, topOffset = 92, compact = 
           background: "#222", borderRadius: 999,
           padding: searchPadding, height: searchHeight,
         }}>
-          <Search size={compact ? 18 : 22} color="#999" />
+          <Search size={mobile ? 16 : compact ? 18 : 22} color="#999" />
           <input
             ref={inputRef}
             value={query}
@@ -487,7 +494,7 @@ const SearchPanel = ({ onClose, onSearch, onNavigate, topOffset = 92, compact = 
                   {/* 정보 */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
-                      fontSize: 15, fontWeight: 700, color: "#222",
+                      fontSize: mobile ? 14 : 15, fontWeight: 700, color: "#222",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     }}>
                       {evt.eventName}
@@ -514,7 +521,7 @@ const SearchPanel = ({ onClose, onSearch, onNavigate, topOffset = 92, compact = 
                     <div style={{
                       fontSize: 12, fontWeight: 700, color: statusColor(evt.status),
                       background: `${statusColor(evt.status)}18`,
-                      padding: "4px 10px", borderRadius: 20, flexShrink: 0,
+                      padding: mobile ? "3px 8px" : "4px 10px", borderRadius: 20, flexShrink: 0,
                     }}>
                       {statusLabel(evt.status)}
                     </div>
@@ -529,15 +536,15 @@ const SearchPanel = ({ onClose, onSearch, onNavigate, topOffset = 92, compact = 
               display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
             }}>
               <div style={{
-                width: 52, height: 52, borderRadius: "50%", background: "#f5f5f5",
+                width: mobile ? 46 : 52, height: mobile ? 46 : 52, borderRadius: "50%", background: "#f5f5f5",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <SearchX size={24} color="#ccc" />
+                <SearchX size={mobile ? 20 : 24} color="#ccc" />
               </div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#444", fontFamily: FONT }}>
+              <div style={{ fontSize: mobile ? 14 : 15, fontWeight: 700, color: "#444", fontFamily: FONT }}>
                 '{query.trim()}'에 대한 검색 결과가 없어요
               </div>
-              <div style={{ fontSize: 13, color: "#aaa", fontFamily: FONT, lineHeight: 1.5 }}>
+              <div style={{ fontSize: mobile ? 12 : 13, color: "#aaa", fontFamily: FONT, lineHeight: 1.5 }}>
                 다른 키워드로 검색하거나, 아래 태그를 눌러보세요
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 8 }}>
@@ -547,9 +554,9 @@ const SearchPanel = ({ onClose, onSearch, onNavigate, topOffset = 92, compact = 
                     type="button"
                     onClick={() => { onClose(); onNavigate(tag.to); }}
                     style={{
-                      padding: "7px 16px", borderRadius: 999,
+                      padding: mobile ? "6px 13px" : "7px 16px", borderRadius: 999,
                       border: "1px solid #e5e7eb", background: "#fff",
-                      fontSize: 14, fontWeight: 600, color: "rgb(161,161,161)",
+                      fontSize: mobile ? 13 : 14, fontWeight: 600, color: "rgb(161,161,161)",
                       fontFamily: FONT, cursor: "pointer", transition: "all 0.15s",
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6"; }}
@@ -571,9 +578,9 @@ const SearchPanel = ({ onClose, onSearch, onNavigate, topOffset = 92, compact = 
               type="button"
               onClick={() => { onClose(); onNavigate(tag.to); }}
               style={{
-                padding: "7px 16px", borderRadius: 999,
+                padding: mobile ? "6px 13px" : "7px 16px", borderRadius: 999,
                 border: "1px solid #e5e7eb", background: "#fff",
-                fontSize: 14, fontWeight: 600, color: "rgb(161,161,161)",
+                fontSize: mobile ? 13 : 14, fontWeight: 600, color: "rgb(161,161,161)",
                 letterSpacing: "0px",
                 fontFamily: FONT, cursor: "pointer",
                 transition: "all 0.15s",
@@ -611,7 +618,9 @@ export default function PupooHeader() {
   const isMobile = viewportWidth < 768;
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
   const isCompact = viewportWidth < 1024;
-  const headerHeight = isMobile ? 72 : isTablet ? 80 : 92;
+  const headerHeight = isMobile ? 64 : isTablet ? 74 : 92;
+  const mobileShortcutHeight = isMobile ? 38 : 0;
+  const compactTopOffset = isMobile ? headerHeight + mobileShortcutHeight : headerHeight;
 
   /* ── scroll listener ── */
   useEffect(() => {
@@ -716,10 +725,16 @@ export default function PupooHeader() {
     navigate(href);
   };
 
-  const isWhiteMode = !isHome || scrolled || activeMenu !== null || searchOpen;
+  const isWhiteMode = !isHome || scrolled || activeMenu !== null || searchOpen || mobileMenuOpen;
   const isLight = isHome && !scrolled && !activeMenu && !searchOpen;
   const textColor = isWhiteMode ? "#222" : "#fff";
   const iconColor = isWhiteMode ? "#222" : "#fff";
+  const mobileQuickLinks = [
+    { label: "홈", to: "/" },
+    { label: "행사", to: "/event/current" },
+    { label: "커뮤니티", to: "/community/notice" },
+    { label: isAuthed ? "마이" : "로그인", to: isAuthed ? "/mypage" : "/auth/login" },
+  ];
 
   return (
     <>
@@ -903,9 +918,9 @@ export default function PupooHeader() {
         }
         @media (max-width: 767px) {
           .kakao-icon-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
           }
         }
       `}</style>
@@ -932,7 +947,7 @@ export default function PupooHeader() {
               maxWidth: 1712,
               width: "100%",
               margin: "0 auto",
-              padding: isMobile ? "0 14px" : isTablet ? "0 24px" : "0 40px",
+              padding: isMobile ? "0 12px" : isTablet ? "0 20px" : "0 40px",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -954,7 +969,7 @@ export default function PupooHeader() {
                 src={isLight ? "/logo_white2.png" : "/logo_olive.png"}
                 alt="Pupoo"
                 style={{
-                  height: isMobile ? 24 : isTablet ? 26 : 28,
+                  height: isMobile ? 22 : isTablet ? 24 : 28,
                   width: "auto",
                   display: "block",
                 }}
@@ -1049,7 +1064,7 @@ export default function PupooHeader() {
 
             <div
               className="pupoo-mobile-only"
-              style={{ display: "none", alignItems: "center", gap: 6, flexShrink: 0 }}
+              style={{ display: "none", alignItems: "center", gap: 5, flexShrink: 0 }}
             >
               <button
                 type="button"
@@ -1060,7 +1075,7 @@ export default function PupooHeader() {
                   setMobileMenuOpen(false);
                 }}
               >
-                <Search size={19} color={iconColor} strokeWidth={1.8} />
+                <Search size={17} color={iconColor} strokeWidth={1.8} />
               </button>
               <button
                 type="button"
@@ -1072,14 +1087,73 @@ export default function PupooHeader() {
                 }}
               >
                 {mobileMenuOpen ? (
-                  <X size={20} color={iconColor} strokeWidth={1.8} />
+                  <X size={18} color={iconColor} strokeWidth={1.8} />
                 ) : (
-                  <Menu size={20} color={iconColor} strokeWidth={1.8} />
+                  <Menu size={18} color={iconColor} strokeWidth={1.8} />
                 )}
               </button>
             </div>
           </div>
         </header>
+
+        {isMobile && (
+          <div
+            style={{
+              position: "fixed",
+              top: headerHeight,
+              left: 0,
+              right: 0,
+              zIndex: 1001,
+              background: isWhiteMode ? "rgba(255,255,255,0.96)" : "rgba(255,255,255,0.14)",
+              backdropFilter: "blur(14px)",
+              borderBottom: isWhiteMode ? "1px solid #edf1f5" : "1px solid rgba(255,255,255,0.16)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                overflowX: "auto",
+                padding: "7px 12px 8px",
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "none",
+              }}
+            >
+              {mobileQuickLinks.map((item) => {
+                const active = location.pathname === item.to;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => {
+                      setActiveMenu(null);
+                      setSearchOpen(false);
+                      setMobileMenuOpen(false);
+                    }}
+                    style={{
+                      flexShrink: 0,
+                      height: 24,
+                      padding: "0 10px",
+                      borderRadius: 999,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textDecoration: "none",
+                      fontSize: 12.5,
+                      fontWeight: 700,
+                      fontFamily: FONT,
+                      color: active ? "#fff" : isWhiteMode ? "#4b5563" : "#fff",
+                      background: active ? "#02A17E" : isWhiteMode ? "#f3f4f6" : "rgba(255,255,255,0.16)",
+                      border: active ? "none" : isWhiteMode ? "1px solid #eef2f7" : "1px solid rgba(255,255,255,0.14)",
+                    }}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── DROPDOWN CARD ── */}
         {!isCompact && activeMenu && megaMenuData[activeMenu] && (
@@ -1094,23 +1168,24 @@ export default function PupooHeader() {
           <div
             style={{
               position: "fixed",
-              top: headerHeight,
+              top: compactTopOffset,
               left: 0,
               right: 0,
               zIndex: 1001,
               background: "#fff",
               borderBottomLeftRadius: 20,
               borderBottomRightRadius: 20,
-              padding: isMobile ? "14px 14px 18px" : "18px 18px 22px",
+              padding: isMobile ? "12px 12px 14px" : "16px 16px 20px",
               paddingBottom: isCompact
-                ? `calc(${isMobile ? 18 : 22}px + env(safe-area-inset-bottom, 0px))`
+                ? `calc(${isMobile ? 14 : 20}px + env(safe-area-inset-bottom, 0px))`
                 : undefined,
               boxShadow: "0 14px 34px rgba(15, 23, 42, 0.16)",
-              maxHeight: `calc(${isCompact ? "100dvh" : "100vh"} - ${headerHeight}px - env(safe-area-inset-bottom, 0px))`,
+              maxHeight: `calc(${isCompact ? "100dvh" : "100vh"} - ${compactTopOffset}px - env(safe-area-inset-bottom, 0px))`,
               overflowY: "auto",
+              animation: "searchSlideDown 0.18s ease",
             }}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 12 : 16 }}>
               {navItems.map((item) => {
                 if (item.href) {
                   return (
@@ -1123,12 +1198,12 @@ export default function PupooHeader() {
                         alignItems: "center",
                         justifyContent: "space-between",
                         width: "100%",
-                        padding: "14px 16px",
-                        borderRadius: 16,
+                        padding: isMobile ? "12px 14px" : "14px 16px",
+                        borderRadius: 14,
                         border: "1px solid #eef2f7",
                         background: "#fff",
                         color: "#222",
-                        fontSize: 15,
+                        fontSize: isMobile ? 14 : 15,
                         fontWeight: 700,
                         fontFamily: FONT,
                         cursor: "pointer",
@@ -1146,14 +1221,14 @@ export default function PupooHeader() {
                     key={item.menuKey}
                     style={{
                       border: "1px solid #eef2f7",
-                      borderRadius: 18,
-                      padding: "14px 14px 6px",
+                      borderRadius: 16,
+                      padding: isMobile ? "12px 12px 4px" : "14px 14px 6px",
                       background: "#fff",
                     }}
                   >
                     <div
                       style={{
-                        fontSize: 15,
+                        fontSize: isMobile ? 14 : 15,
                         fontWeight: 800,
                         color: "#222",
                         fontFamily: FONT,
@@ -1185,9 +1260,9 @@ export default function PupooHeader() {
                                 style={{
                                   border: "none",
                                   background: "transparent",
-                                  padding: "8px 0",
+                                  padding: isMobile ? "7px 0" : "8px 0",
                                   textAlign: "left",
-                                  fontSize: 14,
+                                  fontSize: isMobile ? 13 : 14,
                                   fontWeight: 500,
                                   color: "#333",
                                   fontFamily: FONT,
@@ -1208,12 +1283,12 @@ export default function PupooHeader() {
               <div
                 style={{
                   border: "1px solid #eef2f7",
-                  borderRadius: 18,
-                  padding: 14,
+                  borderRadius: 16,
+                  padding: isMobile ? 12 : 14,
                   background: "#f7f8fa",
                   display: "flex",
                   flexDirection: "column",
-                  gap: 10,
+                  gap: isMobile ? 8 : 10,
                 }}
               >
                 {!isAuthed ? (
@@ -1224,7 +1299,7 @@ export default function PupooHeader() {
                       style={{
                         textDecoration: "none",
                         color: "#222",
-                        fontSize: 14,
+                        fontSize: isMobile ? 13 : 14,
                         fontWeight: 700,
                         fontFamily: FONT,
                       }}
@@ -1237,7 +1312,7 @@ export default function PupooHeader() {
                       style={{
                         textDecoration: "none",
                         color: "#02A17E",
-                        fontSize: 14,
+                        fontSize: isMobile ? 13 : 14,
                         fontWeight: 700,
                         fontFamily: FONT,
                       }}
@@ -1253,7 +1328,7 @@ export default function PupooHeader() {
                       style={{
                         textDecoration: "none",
                         color: "#222",
-                        fontSize: 14,
+                        fontSize: isMobile ? 13 : 14,
                         fontWeight: 700,
                         fontFamily: FONT,
                       }}
@@ -1297,8 +1372,9 @@ export default function PupooHeader() {
               navigate(`/event/current?search=${encodeURIComponent(keyword)}`);
             }}
             onNavigate={(path) => { setSearchOpen(false); navigate(path); }}
-            topOffset={headerHeight}
+            topOffset={compactTopOffset}
             compact={isCompact}
+            mobile={isMobile}
           />
         )}
 
@@ -1312,7 +1388,7 @@ export default function PupooHeader() {
             }}
             style={{
               position: "fixed",
-              top: headerHeight,
+              top: compactTopOffset,
               left: 0,
               right: 0,
               bottom: 0,

@@ -126,14 +126,24 @@ const styles = `
     .sc-card { padding: 20px 22px; }
   }
   @media (max-width: 767px) {
-    .sc-container { padding: 20px 12px 40px; }
+    .sc-container { padding: 16px 12px 30px; }
     .sc-stat-grid { grid-template-columns: 1fr; }
-    .sc-card { padding: 18px 16px; }
+    .sc-stat-grid { gap: 10px; margin-bottom: 14px; }
+    .sc-stat-card { padding: 14px 15px; gap: 10px; }
+    .sc-stat-icon { width: 36px; height: 36px; border-radius: 10px; }
+    .sc-stat-value { font-size: 19px; }
+    .sc-card { padding: 16px 14px; margin-bottom: 12px; }
     .sc-card-header { flex-wrap: wrap; gap: 10px; }
-    .sc-day-item { padding: 14px 14px; }
-    .sc-event-item { flex-direction: column; gap: 10px; padding: 14px; }
+    .sc-day-item { padding: 12px 12px; gap: 10px; }
+    .sc-day-icon { width: 38px; height: 38px; border-radius: 9px; }
+    .sc-day-icon .sc-day-d { font-size: 14px; }
+    .sc-day-title { font-size: 13px; }
+    .sc-day-sub { font-size: 11px; }
+    .sc-event-item { flex-direction: column; gap: 8px; padding: 12px; }
     .sc-event-dot { margin-top: 0; }
     .sc-event-badge { align-self: flex-start; }
+    .sc-event-name { font-size: 13px; }
+    .sc-event-meta { gap: 8px; margin-top: 3px; font-size: 11px; }
   }
 `;
 

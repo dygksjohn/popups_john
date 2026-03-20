@@ -219,7 +219,7 @@ function DogCharacter({ onClick, mobile = false }) {
         <div
           style={{
             position: "absolute",
-            bottom: mobile ? 98 : 164,
+            bottom: mobile ? 84 : 164,
             left: mobile ? 2 : 20,
             animation: `${bubbleAnim} 0.35s cubic-bezier(.34,1.4,.64,1) forwards`,
             pointerEvents: "none",
@@ -231,13 +231,13 @@ function DogCharacter({ onClick, mobile = false }) {
           <div style={{
             background: "#fff",
             color: "#374151",
-            fontSize: mobile ? 11 : 12.5,
+            fontSize: mobile ? 10.5 : 12.5,
             fontWeight: 600,
             fontFamily: ds.ff,
-            padding: mobile ? "6px 12px" : "7px 14px",
+            padding: mobile ? "5px 10px" : "7px 14px",
             borderRadius: 14,
             boxShadow: "0 4px 16px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)",
-            maxWidth: mobile ? 132 : 180,
+            maxWidth: mobile ? 118 : 180,
             textAlign: "center",
             wordBreak: "keep-all",
             lineHeight: 1.4,
@@ -259,14 +259,15 @@ function DogCharacter({ onClick, mobile = false }) {
       {/* 캐릭터 본체 — Lottie 애니메이션 (좌우 반전 = 반대쪽으로 걷기) */}
       <div
         style={{
-          width: mobile ? 104 : 180,
-          height: mobile ? 104 : 180,
+          width: mobile ? 86 : 180,
+          height: mobile ? 86 : 180,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.12))",
+          filter: mobile ? "drop-shadow(0 3px 10px rgba(0,0,0,0.1))" : "drop-shadow(0 4px 14px rgba(0,0,0,0.12))",
           transition: "transform 0.3s ease",
           transform: hovered ? "scaleX(-1) scale(1.1)" : "scaleX(-1)",
+          opacity: mobile ? 0.92 : 1,
         }}
       >
         {animData ? (
@@ -276,33 +277,33 @@ function DogCharacter({ onClick, mobile = false }) {
             loop
             autoplay
             style={{
-              width: mobile ? 122 : 210,
-              height: mobile ? 122 : 210,
+              width: mobile ? 100 : 210,
+              height: mobile ? 100 : 210,
             }}
           />
         ) : (
-          <div style={{ width: mobile ? 122 : 210, height: mobile ? 122 : 210 }} />
+          <div style={{ width: mobile ? 100 : 210, height: mobile ? 100 : 210 }} />
         )}
       </div>
 
       {/* ── 채팅 받침대 ── */}
       <div style={{
-        marginTop: mobile ? -14 : -28,
+        marginTop: mobile ? -10 : -28,
         background: "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
         borderRadius: 14,
-        padding: mobile ? "5px 12px 6px" : "7px 18px 8px",
+        padding: mobile ? "4px 9px 5px" : "7px 18px 8px",
         display: "flex",
         alignItems: "center",
-        gap: 8,
-        boxShadow: "0 4px 16px rgba(255,107,107,0.35), 0 1px 3px rgba(0,0,0,0.1)",
+        gap: mobile ? 6 : 8,
+        boxShadow: mobile ? "0 3px 10px rgba(255,107,107,0.22), 0 1px 2px rgba(0,0,0,0.08)" : "0 4px 16px rgba(255,107,107,0.35), 0 1px 3px rgba(0,0,0,0.1)",
         position: "relative",
         transition: "transform .2s, box-shadow .2s",
         transform: hovered ? "scale(1.05)" : "scale(1)",
       }}>
         {/* 녹화 스타일 깜박이는 초록 점 */}
         <div style={{
-          width: mobile ? 7 : 8,
-          height: mobile ? 7 : 8,
+          width: mobile ? 6 : 8,
+          height: mobile ? 6 : 8,
           borderRadius: "50%",
           background: "#4ADE80",
           boxShadow: "0 0 6px rgba(74,222,128,0.7)",
@@ -310,7 +311,7 @@ function DogCharacter({ onClick, mobile = false }) {
           flexShrink: 0,
         }} />
         <span style={{
-          fontSize: mobile ? 11 : 13,
+          fontSize: mobile ? 10 : 13,
           fontWeight: 700,
           color: "#fff",
           fontFamily: ds.ff,

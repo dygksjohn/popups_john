@@ -126,10 +126,25 @@ const styles = `
     .ev-search-box { width: 100%; }
   }
   @media (max-width: 600px) {
-    .ev-container { width: calc(100% - 24px); padding: 20px 0 40px; }
+    .ev-container { width: calc(100% - 20px); padding: 16px 0 32px; }
+    .ev-live-chip { height: 44px; padding: 0 14px; font-size: 14px; border-radius: 12px; }
+    .ev-stat-grid { gap: 10px; margin-bottom: 18px; }
+    .ev-stat-card { padding: 14px 16px; gap: 10px; }
+    .ev-stat-icon { width: 36px; height: 36px; border-radius: 10px; }
+    .ev-stat-value { font-size: 19px; }
+    .ev-card { padding: 16px 14px; margin-bottom: 12px; border-radius: 14px; }
+    .ev-card-header { margin-bottom: 14px; padding-bottom: 10px; }
+    .ev-toolbar { gap: 8px; margin-bottom: 12px; }
     .ev-grid { grid-template-columns: 1fr; }
-    .ev-card { padding: 20px 16px; }
-    .ev-event-card-body { padding: 14px 14px 16px; }
+    .ev-event-card { border-radius: 14px; }
+    .ev-event-card-body { padding: 12px 12px 14px; }
+    .ev-event-category { font-size: 12px; margin-bottom: 4px; }
+    .ev-event-title { font-size: 15px; margin-bottom: 8px; }
+    .ev-event-meta { gap: 3px; margin-bottom: 10px; }
+    .ev-event-meta-row { font-size: 12.5px; }
+    .ev-event-footer { padding-top: 10px; }
+    .ev-progress-wrap { margin-bottom: 8px; }
+    .ev-card-btn { height: 38px; font-size: 13px; border-radius: 9px; }
   }
 `;
 
