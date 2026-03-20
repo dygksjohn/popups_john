@@ -48,8 +48,8 @@ public class AdminEventPosterService {
 
     private static final String STORAGE_BUCKET_UNUSED = "local";
     private static final int POSTER_IMAGE_COUNT = 1;
-    // OpenAI currently accepts 1024x1024, 1024x1536, and 1536x1024 for DALL-E 3.
-    private static final String POSTER_IMAGE_SIZE = "1024x1536";
+    // Production OpenAI responses confirm DALL-E 3 accepts 1024x1024, 1024x1792, and 1792x1024.
+    private static final String POSTER_IMAGE_SIZE = "1024x1792";
     private static final int POSTER_OUTPUT_WIDTH = 400;
     private static final int POSTER_OUTPUT_HEIGHT = 847;
     private static final String[] POSTER_FONT_CANDIDATES = {
