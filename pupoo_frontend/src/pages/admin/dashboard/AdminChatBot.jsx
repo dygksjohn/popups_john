@@ -1,11 +1,12 @@
-﻿import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { X, Send, RotateCcw, Minus } from "lucide-react";
 import Lottie from "lottie-react";
 import ds from "../shared/designTokens";
 import { useChatBot } from "./useChatBot";
 
 /* ============================================================
-   AdminChatBot ???꾨━誘몄뾼 ?뚮줈??梨쀫큸 + 罹먮┃???좊땲硫붿씠??   ============================================================ */
+   AdminChatBot — 프리미엄 플로팅 챗봇 + 캐릭터 애니메이션
+   ============================================================ */
 
 const chatStyles = `
 @keyframes chatSlideUp {
@@ -39,7 +40,7 @@ const chatStyles = `
   to   { opacity: 0; transform: scale(0.8) translateY(-4px); }
 }
 
-/* 罹먮┃???좊땲硫붿씠?섎뱾 */
+/* 캐릭터 애니메이션들 */
 @keyframes dogIdle {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-2px); }
@@ -110,20 +111,21 @@ const chatStyles = `
 const fmt = (d) =>
   `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
-/* ?? ?곹깭蹂?硫붿떆吏 ?? */
+/* ── 상태별 메시지 ── */
 const STATE_BUBBLES = {
-  bark: ["硫띾찉!", "?덉솃!", "硫?"],
-  wag: ["諛섍??뚯슂!", "醫뗭? ?섎（!", "?꾩?以꾧퉴??"],
-  jump: ["?좊궃??", "?쇳샇!"],
-  look: ["萸??섍퀬 ?덉뼱??", "沅곴툑??嫄??덉뼱??"],
+  bark: ["멍멍!", "왈왈!", "멍!"],
+  wag: ["반가워요!", "좋은 하루!", "도와줄까요?"],
+  jump: ["신난다!", "야호!"],
+  look: ["뭐 하고 있어요?", "궁금한 거 있어요?"],
   sleep: ["zzZ..."],
 };
 
-/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧
-   ?명꽣?숉떚釉?媛뺤븘吏 罹먮┃??(Lottie ?좊땲硫붿씠??
-   - ?됱냼: 嫄몄뼱?ㅻ땲???좊땲硫붿씠??   - hover: 硫덉텛怨?留먰뭾??("?대┃?대킄??")
-   - leave: ?ㅼ떆 嫄룰린
-   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */
+/* ══════════════════════════════════════════════
+   인터랙티브 강아지 캐릭터 (Lottie 애니메이션)
+   - 평소: 걸어다니는 애니메이션
+   - hover: 멈추고 말풍선 ("클릭해봐요!")
+   - leave: 다시 걷기
+   ══════════════════════════════════════════════ */
 function DogCharacter({ onClick, mobile = false }) {
   const [hovered, setHovered] = useState(false);
   const [bubble, setBubble] = useState(null);
@@ -133,7 +135,7 @@ function DogCharacter({ onClick, mobile = false }) {
   const bubbleTimerRef = useRef(null);
   const idleBubbleRef = useRef(null);
 
-  // Lottie JSON 濡쒕뱶
+  // Lottie JSON 로드
   useEffect(() => {
     fetch("/dog-lottie.json")
       .then((r) => r.json())
@@ -141,14 +143,21 @@ function DogCharacter({ onClick, mobile = false }) {
       .catch(() => {});
   }, []);
 
-  // 媛???쇱옄 留먰뭾???꾩슦湲?(嫄룸뒗 以묒뿉)
+  // 가끔 혼자 말풍선 띄우기 (걷는 중에)
   useEffect(() => {
     const msgs = [
-      "안내가 필요하면 눌러주세요",
-      "궁금한 내용을 바로 도와드릴게요",
-      "행사 운영 정보를 빠르게 확인해보세요",
-      "필요한 내용을 누리에게 물어보세요",
-      "참가자와 결제 현황도 확인할 수 있어요",
+      "안녕! 나는 누리야~ 🐾",
+      "누리가 도와줄까요? 멍! 🐶",
+      "심심한데 얘기할까요? 왈왈!",
+      "오늘 행사는 잘 되고 있어요~?",
+      "뭐든 물어봐도 돼요! 누리가 척척! ✨",
+      "누리한테 맡겨주세요~ 💪",
+      "같이 일하면 더 빠르죠! 헤헤 ⚡",
+      "혹시 궁금한 거 없어요~? 🐕",
+      "클릭하면 누리랑 대화할 수 있어요!",
+      "누리 여기 있어요~ 불러주세요! 🙋",
+      "행사 관리? 누리가 최고라구요! 🏆",
+      "멍멍! 오늘도 힘내세요~! 💛",
     ];
     const tick = () => {
       if (!hovered) {
@@ -173,18 +182,21 @@ function DogCharacter({ onClick, mobile = false }) {
   const handleMouseEnter = () => {
     if (mobile) return;
     setHovered(true);
-    // 硫덉텛湲?    if (lottieRef.current) lottieRef.current.pause();
-    // 留먰뭾??    clearTimeout(bubbleTimerRef.current);
+    // 멈추기
+    if (lottieRef.current) lottieRef.current.pause();
+    // 말풍선
+    clearTimeout(bubbleTimerRef.current);
     setBubbleAnim("bubblePop");
-    setBubble("?꾨━???섍린?댁슂! ?뮠");
+    setBubble("누리랑 얘기해요! 💬");
   };
 
   const handleMouseLeave = () => {
     if (mobile) return;
     setHovered(false);
-    // ?ㅼ떆 嫄룰린
+    // 다시 걷기
     if (lottieRef.current) lottieRef.current.play();
-    // 留먰뭾???щ씪吏湲?    setBubbleAnim("bubbleOut");
+    // 말풍선 사라지기
+    setBubbleAnim("bubbleOut");
     bubbleTimerRef.current = setTimeout(() => setBubble(null), 300);
   };
 
@@ -204,7 +216,7 @@ function DogCharacter({ onClick, mobile = false }) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* 留먰뭾??*/}
+      {/* 말풍선 */}
       {!mobile && bubble && (
         <div
           style={{
@@ -234,7 +246,7 @@ function DogCharacter({ onClick, mobile = false }) {
           }}>
             {bubble}
           </div>
-          {/* 媛?대뜲 瑗щ━ ?쇨컖??*/}
+          {/* 가운데 꼬리 삼각형 */}
           <div style={{
             width: 0, height: 0,
             borderLeft: "6px solid transparent",
@@ -246,11 +258,11 @@ function DogCharacter({ onClick, mobile = false }) {
         </div>
       )}
 
-      {/* 罹먮┃??蹂몄껜 ??Lottie ?좊땲硫붿씠??(醫뚯슦 諛섏쟾 = 諛섎?履쎌쑝濡?嫄룰린) */}
+      {/* 캐릭터 본체 — Lottie 애니메이션 (좌우 반전 = 반대쪽으로 걷기) */}
       <div
         style={{
-          width: mobile ? 86 : 180,
-          height: mobile ? 86 : 180,
+          width: mobile ? 78 : 180,
+          height: mobile ? 78 : 180,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -267,16 +279,16 @@ function DogCharacter({ onClick, mobile = false }) {
             loop
             autoplay
             style={{
-              width: mobile ? 100 : 210,
-              height: mobile ? 100 : 210,
+              width: mobile ? 92 : 210,
+              height: mobile ? 92 : 210,
             }}
           />
         ) : (
-          <div style={{ width: mobile ? 100 : 210, height: mobile ? 100 : 210 }} />
+          <div style={{ width: mobile ? 92 : 210, height: mobile ? 92 : 210 }} />
         )}
       </div>
 
-      {/* ?? 梨꾪똿 諛쏆묠? ?? */}
+      {/* ── 채팅 받침대 ── */}
       <div style={{
         marginTop: mobile ? -10 : -28,
         background: "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
@@ -290,7 +302,7 @@ function DogCharacter({ onClick, mobile = false }) {
         transition: "transform .2s, box-shadow .2s",
         transform: hovered ? "scale(1.05)" : "scale(1)",
       }}>
-        {/* ?뱁솕 ?ㅽ???源쒕컯?대뒗 珥덈줉 ??*/}
+        {/* 녹화 스타일 깜박이는 초록 점 */}
         <div style={{
           width: mobile ? 6 : 8,
           height: mobile ? 6 : 8,
@@ -308,7 +320,7 @@ function DogCharacter({ onClick, mobile = false }) {
             fontFamily: ds.ff,
             letterSpacing: -0.2,
           }}>
-            AI assistant
+            AI 멍비서
           </span>
         ) : null}
       </div>
@@ -316,9 +328,9 @@ function DogCharacter({ onClick, mobile = false }) {
   );
 }
 
-/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧
-   梨꾪똿 ?⑤꼸 ?대? 而댄룷?뚰듃
-   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */
+/* ══════════════════════════════════════════════
+   채팅 패널 내부 컴포넌트
+   ══════════════════════════════════════════════ */
 
 function MiniDogLottie({ size = 28 }) {
   const [data, setData] = useState(null);
@@ -339,7 +351,7 @@ function MiniDogLottie({ size = 28 }) {
       {data ? (
         <Lottie animationData={data} loop autoplay style={{ width: size * 1.4, height: size * 1.4 }} />
       ) : (
-        <span style={{ fontSize: size * 0.5 }}>?릷</span>
+        <span style={{ fontSize: size * 0.5 }}>🐕</span>
       )}
     </div>
   );
@@ -396,18 +408,18 @@ function Typing({ mobile = false }) {
 
 function Welcome({ onSelect, mobile = false }) {
   const items = [
-    { icon: "\uD83D\uDCC8", label: "행사 현황 알려줘", sub: "진행 중 행사 요약" },
+    { icon: "\uD83D\uDCC8", label: "행사 현황 알려줘", sub: "진행 중인 행사 요약" },
     { icon: "\uD83D\uDEA8", label: "최근 신고 내역", sub: "접수된 신고 확인" },
-    { icon: "\uD83D\uDC65", label: "참가자 현황 보기", sub: "체크인 상태 확인" },
-    { icon: "\uD83D\uDCB3", label: "결제 현황 알려줘", sub: "매출과 결제 내역" },
+    { icon: "\uD83D\uDC65", label: "오늘 참가자 수", sub: "체크인 현황 조회" },
+    { icon: "\uD83D\uDCB3", label: "결제 현황 알려줘", sub: "매출 및 결제 내역" },
   ];
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: mobile ? "22px 14px 12px" : "28px 20px 16px", overflow: "auto", background: "#fff" }}>
       <div style={{ animation: "softBounce 2.5s ease-in-out infinite" }}>
         <BotAvatar size={mobile ? 46 : 56} />
       </div>
-      <div style={{ fontSize: mobile ? 16 : 18, fontWeight: 700, color: "#1F2937", marginTop: mobile ? 12 : 14, letterSpacing: -0.5, textAlign: "center" }}>?덈뀞?섏꽭?? ?꾨━?덉슂~ ?맯</div>
-      <div style={{ fontSize: mobile ? 12.5 : 13, color: "#9CA3AF", marginTop: 4, textAlign: "center", lineHeight: 1.5 }}>萸먮뱺 ?명븯寃?臾쇱뼱遊먯슂! ?꾨━媛 泥숈쿃 ?꾩?以꾧쾶??</div>
+      <div style={{ fontSize: mobile ? 16 : 18, fontWeight: 700, color: "#1F2937", marginTop: mobile ? 12 : 14, letterSpacing: -0.5, textAlign: "center" }}>안녕하세요! 누리예요~ 🐶</div>
+      <div style={{ fontSize: mobile ? 12.5 : 13, color: "#9CA3AF", marginTop: 4, textAlign: "center", lineHeight: 1.5 }}>뭐든 편하게 물어봐요! 누리가 척척 도와줄게요~</div>
       <div style={{ width: "100%", marginTop: mobile ? 16 : 20, display: "flex", flexDirection: "column", gap: mobile ? 7 : 8 }}>
         {items.map((it) => (
           <button key={it.label} onClick={() => onSelect(it.label)}
@@ -474,7 +486,7 @@ function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobi
         onBlurCapture={(e) => { e.currentTarget.style.borderColor = "#EBEBEB"; e.currentTarget.style.boxShadow = "none"; }}
       >
         <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKey}
-          placeholder="臾댁뾿?대뱺 臾쇱뼱蹂댁꽭??.." rows={1}
+          placeholder="무엇이든 물어보세요..." rows={1}
           style={{
             flex: 1, border: "none", outline: "none", background: "transparent", resize: "none",
             fontFamily: ds.ff, fontSize: mobile ? 13 : 13.5, color: "#1F2937", lineHeight: 1.5, maxHeight: mobile ? 72 : 80, overflowY: "auto", padding: "4px 0",
@@ -499,9 +511,9 @@ function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobi
   );
 }
 
-/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧
-   硫붿씤 而댄룷?뚰듃
-   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */
+/* ══════════════════════════════════════════════
+   메인 컴포넌트
+   ══════════════════════════════════════════════ */
 export default function AdminChatBot() {
   const {
     isOpen, toggle, close,
@@ -544,7 +556,7 @@ export default function AdminChatBot() {
     <>
       <style>{chatStyles}</style>
 
-      {/* ?? 梨꾪똿 ?⑤꼸 ?? */}
+      {/* ── 채팅 패널 ── */}
       {isOpen && (
         <div style={{
           position: "fixed", bottom: isMobile ? mobilePanelBottom : 96, right: isMobile ? 8 : 28,
@@ -556,7 +568,7 @@ export default function AdminChatBot() {
           display: "flex", flexDirection: "column", overflow: "hidden",
           zIndex: 9999, animation: "chatSlideUp .32s cubic-bezier(.34,1.2,.64,1)", fontFamily: ds.ff,
         }}>
-          {/* ?ㅻ뜑 */}
+          {/* 헤더 */}
           <div style={{
             padding: isMobile ? "14px 14px 12px" : "16px 16px 14px",
             background: "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
@@ -567,7 +579,7 @@ export default function AdminChatBot() {
             <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 12, position: "relative" }}>
               <MiniDogLottie size={isMobile ? 30 : 40} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 700, color: "#fff" }}>硫띾퉬???꾨━</div>
+                <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 700, color: "#fff" }}>멍비서 누리</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
                   <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#A7F3D0", boxShadow: "0 0 6px rgba(167,243,208,0.6)" }} />
                   <span style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>응답 가능</span>
@@ -590,7 +602,7 @@ export default function AdminChatBot() {
             </div>
           </div>
 
-          {/* 蹂몃Ц */}
+          {/* 본문 */}
           {!hasChats ? (
             <Welcome onSelect={(q) => sendMessage(q)} mobile={isMobile} />
           ) : (
@@ -610,7 +622,7 @@ export default function AdminChatBot() {
         </div>
       )}
 
-      {/* ?? 罹먮┃??or ?リ린 踰꾪듉 ?? */}
+      {/* ── 캐릭터 or 닫기 버튼 ── */}
       {isOpen ? (
         <button
           onClick={toggle}
@@ -633,4 +645,3 @@ export default function AdminChatBot() {
     </>
   );
 }
-
