@@ -44,7 +44,7 @@
 
 html,
 body {
-  font-family: "Kakao Big Sans", "Pretendard", sans-serif !important;
+  font-family: "Kakao Big Sans", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif !important;
 }
 
 /* 모든 요소에 Kakao Big Sans 강제 적용 (인라인 스타일도 덮어씀) */
@@ -52,7 +52,7 @@ body {
 *::before,
 *::after,
 *::placeholder {
-  font-family: "Kakao Big Sans", "Pretendard", sans-serif !important;
+  font-family: "Kakao Big Sans", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif !important;
   letter-spacing: -0.5px !important;
 }
 
@@ -66,7 +66,7 @@ body {
   }
 
   .section-title {
-    font-family: "Kakao Big Sans", "Pretendard", sans-serif;
+    font-family: "Kakao Big Sans", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
     font-size: 44px;
     font-weight: 800;
     color: #111;
@@ -78,6 +78,7 @@ body {
     font-size: 18px;
     color: #555;
     font-weight: 400;
+    font-family: "Kakao Big Sans", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   }
 
   .section-subtitle strong {

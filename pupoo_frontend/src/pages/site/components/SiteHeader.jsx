@@ -10,7 +10,7 @@ import {
 import { eventApi } from "../../../app/http/eventApi";
 import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
-const FONT = "'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', sans-serif";
+const FONT = "'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
 
 /* ─────────────────────────────────────────────
    NAV DATA
