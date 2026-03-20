@@ -710,10 +710,10 @@ export default function Dashboard() {
         <header
           style={{
             background: ds.card,
-            padding: isHandset ? "10px 12px" : isTablet ? "12px 18px" : "0 28px",
+            padding: isHandset ? "8px 12px 10px" : isTablet ? "10px 18px 12px" : "0 28px",
             minHeight: isHandset ? 60 : isMobile ? 64 : 52,
             display: "flex",
-            alignItems: "center",
+            alignItems: isMobile ? "flex-start" : "center",
             justifyContent: "space-between",
             gap: isHandset ? 10 : 12,
             flexWrap: isMobile ? "wrap" : "nowrap",
@@ -871,9 +871,9 @@ export default function Dashboard() {
             flex: 1,
             overflow: "auto",
             padding: isHandset
-              ? "12px 12px 18px"
+              ? "10px 12px 18px"
               : isTablet
-                ? "18px 18px 24px"
+                ? "16px 18px 24px"
                 : "20px 28px 28px",
           }}
         >

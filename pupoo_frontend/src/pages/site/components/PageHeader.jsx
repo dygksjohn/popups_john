@@ -173,7 +173,11 @@ export default function PageHeader({
 
   const pageHeaderStyle = {
     ...styles.pageHeader,
-    paddingTop: isMobile ? 82 : isTablet ? 102 : styles.pageHeader.paddingTop,
+    paddingTop: isMobile
+      ? "calc(var(--pupoo-site-header-offset, 92px) + 24px)"
+      : isTablet
+        ? "calc(var(--pupoo-site-header-height, 72px) + 30px)"
+        : styles.pageHeader.paddingTop,
   };
 
   const innerStyle = {
@@ -231,6 +235,7 @@ export default function PageHeader({
     overflowY: "hidden",
     flexWrap: isMobile ? "nowrap" : isTablet ? "wrap" : "nowrap",
     paddingBottom: isCompact ? 2 : 0,
+    gap: isMobile ? 8 : styles.tabs.gap,
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
   };
