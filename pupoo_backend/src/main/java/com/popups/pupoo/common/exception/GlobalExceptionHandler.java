@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -65,6 +66,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getStatus())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .body(ApiResponse.fail(body));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableBody(
+            HttpMessageNotReadableException e,
+            HttpServletRequest request
+    ) {
+        String msg = "Request body is invalid";
+        Throwable cause = e.getMostSpecificCause();
+        if (cause != null && cause.getMessage() != null && !cause.getMessage().isBlank()) {
+            msg = cause.getMessage();
+        }
+
+        log.warn("Unreadable request body: method={} uri={} message={}", request.getMethod(), request.getRequestURI(), msg);
+        return build(request, ErrorCode.VALIDATION_FAILED, ErrorCode.VALIDATION_FAILED.getStatus(), msg);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
