@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX } from "lucide-react";
+import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX, Menu } from "lucide-react";
 import {
   notificationApi,
   NOTIFICATION_UNREAD_COUNT_EVENT,
@@ -240,7 +240,7 @@ const PromoCard = ({ promo }) => {
 /* ─────────────────────────────────────────────
    DROPDOWN CARD (compact, fixed below header)
 ───────────────────────────────────────────── */
-const DropdownCard = ({ menuData, onNavigate }) => {
+const DropdownCard = ({ menuData, onNavigate, topOffset = 92 }) => {
   if (!menuData) return null;
   const { columns, promo } = menuData;
 
@@ -248,7 +248,7 @@ const DropdownCard = ({ menuData, onNavigate }) => {
     <div
       style={{
         position: "fixed",
-        top: 92,
+        top: topOffset,
         left: "50%",
         transform: "translateX(-50%)",
         zIndex: 1001,
@@ -309,7 +309,7 @@ const POPULAR_TAGS = [
   { label: "#갤러리", to: "/gallery/eventgallery" },
 ];
 
-const SearchPanel = ({ onClose, onSearch, onNavigate }) => {
+const SearchPanel = ({ onClose, onSearch, onNavigate, topOffset = 92, compact = false }) => {
   const inputRef = useRef(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -378,32 +378,42 @@ const SearchPanel = ({ onClose, onSearch, onNavigate }) => {
     return m[s] || "#9496A6";
   };
 
+  const panelPadding = compact ? "24px 16px 22px" : "48px 36px 40px";
+  const panelGap = compact ? 18 : 24;
+  const panelRadius = compact ? "0 0 18px 18px" : "0 0 20px 20px";
+  const formMaxWidth = compact ? "100%" : 720;
+  const searchHeight = compact ? 54 : 64;
+  const searchGap = compact ? 12 : 16;
+  const searchPadding = compact ? "0 18px" : "0 30px";
+  const inputFontSize = compact ? 16 : 20;
+  const resultMaxWidth = compact ? "100%" : 720;
+
   return (
     <div
       style={{
         position: "fixed",
-        top: 92,
+        top: topOffset,
         left: 0,
         right: 0,
         zIndex: 1001,
         backgroundColor: "#fff",
-        borderRadius: "0 0 20px 20px",
-        padding: "48px 36px 40px",
+        borderRadius: panelRadius,
+        padding: panelPadding,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 24,
+        gap: panelGap,
         animation: "searchSlideDown 0.18s ease",
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 720 }}>
+      <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: formMaxWidth }}>
         <div style={{
-          display: "flex", alignItems: "center", gap: 16,
+          display: "flex", alignItems: "center", gap: searchGap,
           background: "#222", borderRadius: 999,
-          padding: "0 30px", height: 64,
+          padding: searchPadding, height: searchHeight,
         }}>
-          <Search size={22} color="#999" />
+          <Search size={compact ? 18 : 22} color="#999" />
           <input
             ref={inputRef}
             value={query}
@@ -411,7 +421,7 @@ const SearchPanel = ({ onClose, onSearch, onNavigate }) => {
             placeholder="어떤 행사를 찾고 계세요?"
             style={{
               flex: 1, border: "none", background: "none", outline: "none",
-              color: "#fff", fontSize: 20, fontWeight: 500,
+              color: "#fff", fontSize: inputFontSize, fontWeight: 500,
               fontFamily: FONT,
             }}
           />
@@ -429,7 +439,7 @@ const SearchPanel = ({ onClose, onSearch, onNavigate }) => {
 
       {/* 검색 결과 or 인기 태그 */}
       {searched && query.trim() ? (
-        <div style={{ width: "100%", maxWidth: 720 }}>
+        <div style={{ width: "100%", maxWidth: resultMaxWidth }}>
           {loading ? (
             <div style={{ textAlign: "center", padding: "20px 0", color: "#999", fontSize: 14, fontFamily: FONT }}>
               검색 중...
@@ -445,8 +455,8 @@ const SearchPanel = ({ onClose, onSearch, onNavigate }) => {
                   type="button"
                   onClick={() => { onClose(); onNavigate(`/event/eventschedule?eventId=${evt.eventId}`); }}
                   style={{
-                    display: "flex", alignItems: "center", gap: 16,
-                    padding: "14px 16px", borderRadius: 14,
+                    display: "flex", alignItems: "center", gap: compact ? 12 : 16,
+                    padding: compact ? "12px 14px" : "14px 16px", borderRadius: 14,
                     border: "none", background: "#fff", cursor: "pointer",
                     textAlign: "left", fontFamily: FONT, width: "100%",
                     transition: "background 0.15s",
@@ -456,7 +466,7 @@ const SearchPanel = ({ onClose, onSearch, onNavigate }) => {
                 >
                   {/* 썸네일 */}
                   <div style={{
-                    width: 56, height: 56, borderRadius: 12, flexShrink: 0, overflow: "hidden",
+                    width: compact ? 48 : 56, height: compact ? 48 : 56, borderRadius: 12, flexShrink: 0, overflow: "hidden",
                     background: "#f0f0f0",
                   }}>
                     {evt.imageUrl ? (
@@ -483,8 +493,9 @@ const SearchPanel = ({ onClose, onSearch, onNavigate }) => {
                       {evt.eventName}
                     </div>
                     <div style={{
-                      display: "flex", alignItems: "center", gap: 12,
-                      marginTop: 4, fontSize: 13, color: "#999",
+                      display: "flex", alignItems: "center", gap: compact ? 8 : 12,
+                      marginTop: 4, fontSize: compact ? 12 : 13, color: "#999",
+                      flexWrap: compact ? "wrap" : "nowrap",
                     }}>
                       {evt.location && (
                         <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
@@ -588,17 +599,33 @@ export default function PupooHeader() {
   const [activeMenu, setActiveMenu] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [unreadCount, setUnreadCount] = useState(0);
   const unreadCountRef = useRef(0);
   const headerRef = useRef(null);
   const location = useLocation();
   const isHome = location.pathname === "/";
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const isCompact = viewportWidth < 1024;
+  const headerHeight = isMobile ? 72 : isTablet ? 80 : 92;
 
   /* ── scroll listener ── */
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
   /* ── unread count sync ── */
@@ -669,15 +696,23 @@ export default function PupooHeader() {
   useEffect(() => {
     setActiveMenu(null);
     setSearchOpen(false);
+    setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isCompact) setMobileMenuOpen(false);
+  }, [isCompact]);
 
   const handleNavClick = (menuKey) => {
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey));
     setSearchOpen(false);
+    setMobileMenuOpen(false);
   };
 
   const handleMegaNavigate = (href) => {
     setActiveMenu(null);
+    setSearchOpen(false);
+    setMobileMenuOpen(false);
     navigate(href);
   };
 
@@ -844,6 +879,35 @@ export default function PupooHeader() {
           background: #f0f4ff;
           box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
+        .pupoo-mobile-only {
+          display: none;
+        }
+        .pupoo-desktop-only {
+          display: flex;
+        }
+        @media (max-width: 1023px) {
+          .pupoo-mobile-only {
+            display: flex;
+          }
+          .pupoo-desktop-only {
+            display: none !important;
+          }
+          .kakao-icon-btn .ktt {
+            display: none;
+          }
+          .kakao-icon-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+          }
+        }
+        @media (max-width: 767px) {
+          .kakao-icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+          }
+        }
       `}</style>
 
       <div ref={headerRef} style={{ position: "relative", zIndex: 3000 }}>
@@ -854,7 +918,7 @@ export default function PupooHeader() {
             top: 0,
             left: 0,
             width: "100%",
-            height: 92,
+            height: headerHeight,
             display: "flex",
             alignItems: "center",
             zIndex: 1002,
@@ -868,9 +932,10 @@ export default function PupooHeader() {
               maxWidth: 1712,
               width: "100%",
               margin: "0 auto",
-              padding: "0 40px",
+              padding: isMobile ? "0 14px" : isTablet ? "0 24px" : "0 40px",
               display: "flex",
               alignItems: "center",
+              justifyContent: "space-between",
               height: "100%",
             }}
           >
@@ -882,18 +947,23 @@ export default function PupooHeader() {
                 alignItems: "center",
                 textDecoration: "none",
                 flexShrink: 0,
-                marginRight: 40,
+                marginRight: isCompact ? 0 : 40,
               }}
             >
               <img
                 src={isLight ? "/logo_white2.png" : "/logo_olive.png"}
                 alt="Pupoo"
-                style={{ height: 28, width: "auto", display: "block" }}
+                style={{
+                  height: isMobile ? 24 : isTablet ? 26 : 28,
+                  width: "auto",
+                  display: "block",
+                }}
               />
             </Link>
 
             {/* ── CENTER: Nav (Kakao-style pill buttons) ── */}
             <nav
+              className="pupoo-desktop-only"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -916,7 +986,10 @@ export default function PupooHeader() {
             </nav>
 
             {/* ── RIGHT: Icons ── */}
-            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <div
+              className="pupoo-desktop-only"
+              style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
+            >
               {!isAuthed ? (
                 <>
                   <button
@@ -973,15 +1046,246 @@ export default function PupooHeader() {
                 </>
               )}
             </div>
+
+            <div
+              className="pupoo-mobile-only"
+              style={{ display: "none", alignItems: "center", gap: 6, flexShrink: 0 }}
+            >
+              <button
+                type="button"
+                className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                onClick={() => {
+                  setSearchOpen((v) => !v);
+                  setActiveMenu(null);
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <Search size={19} color={iconColor} strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                onClick={() => {
+                  setMobileMenuOpen((prev) => !prev);
+                  setActiveMenu(null);
+                  setSearchOpen(false);
+                }}
+              >
+                {mobileMenuOpen ? (
+                  <X size={20} color={iconColor} strokeWidth={1.8} />
+                ) : (
+                  <Menu size={20} color={iconColor} strokeWidth={1.8} />
+                )}
+              </button>
+            </div>
           </div>
         </header>
 
         {/* ── DROPDOWN CARD ── */}
-        {activeMenu && megaMenuData[activeMenu] && (
+        {!isCompact && activeMenu && megaMenuData[activeMenu] && (
           <DropdownCard
             menuData={megaMenuData[activeMenu]}
             onNavigate={handleMegaNavigate}
+            topOffset={headerHeight}
           />
+        )}
+
+        {isCompact && mobileMenuOpen && (
+          <div
+            style={{
+              position: "fixed",
+              top: headerHeight,
+              left: 0,
+              right: 0,
+              zIndex: 1001,
+              background: "#fff",
+              borderBottomLeftRadius: 20,
+              borderBottomRightRadius: 20,
+              padding: isMobile ? "14px 14px 18px" : "18px 18px 22px",
+              paddingBottom: isCompact
+                ? `calc(${isMobile ? 18 : 22}px + env(safe-area-inset-bottom, 0px))`
+                : undefined,
+              boxShadow: "0 14px 34px rgba(15, 23, 42, 0.16)",
+              maxHeight: `calc(${isCompact ? "100dvh" : "100vh"} - ${headerHeight}px - env(safe-area-inset-bottom, 0px))`,
+              overflowY: "auto",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {navItems.map((item) => {
+                if (item.href) {
+                  return (
+                    <button
+                      key={item.href}
+                      type="button"
+                      onClick={() => handleMegaNavigate(item.href)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                        padding: "14px 16px",
+                        borderRadius: 16,
+                        border: "1px solid #eef2f7",
+                        background: "#fff",
+                        color: "#222",
+                        fontSize: 15,
+                        fontWeight: 700,
+                        fontFamily: FONT,
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                }
+
+                const menu = megaMenuData[item.menuKey];
+                return (
+                  <div
+                    key={item.menuKey}
+                    style={{
+                      border: "1px solid #eef2f7",
+                      borderRadius: 18,
+                      padding: "14px 14px 6px",
+                      background: "#fff",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 800,
+                        color: "#222",
+                        fontFamily: FONT,
+                        marginBottom: 10,
+                      }}
+                    >
+                      {item.label}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {menu.columns.map((column, index) => (
+                        <div key={`${item.menuKey}-${index}`}>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: "#7f7f7f",
+                              fontFamily: FONT,
+                              marginBottom: 6,
+                            }}
+                          >
+                            {column.title}
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            {column.items.map((menuItem) => (
+                              <button
+                                key={menuItem.href}
+                                type="button"
+                                onClick={() => handleMegaNavigate(menuItem.href)}
+                                style={{
+                                  border: "none",
+                                  background: "transparent",
+                                  padding: "8px 0",
+                                  textAlign: "left",
+                                  fontSize: 14,
+                                  fontWeight: 500,
+                                  color: "#333",
+                                  fontFamily: FONT,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {menuItem.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div
+                style={{
+                  border: "1px solid #eef2f7",
+                  borderRadius: 18,
+                  padding: 14,
+                  background: "#f7f8fa",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                {!isAuthed ? (
+                  <>
+                    <Link
+                      to="/auth/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                      style={{
+                        textDecoration: "none",
+                        color: "#222",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        fontFamily: FONT,
+                      }}
+                    >
+                      로그인
+                    </Link>
+                    <Link
+                      to="/auth/join/joinselect"
+                      onClick={() => setMobileMenuOpen(false)}
+                      style={{
+                        textDecoration: "none",
+                        color: "#02A17E",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        fontFamily: FONT,
+                      }}
+                    >
+                      회원가입
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/mypage"
+                      onClick={() => setMobileMenuOpen(false)}
+                      style={{
+                        textDecoration: "none",
+                        color: "#222",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        fontFamily: FONT,
+                      }}
+                    >
+                      마이페이지
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        logout();
+                        setMobileMenuOpen(false);
+                        navigate("/", { replace: true });
+                      }}
+                      style={{
+                        border: "none",
+                        background: "transparent",
+                        padding: 0,
+                        textAlign: "left",
+                        color: "#222",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        fontFamily: FONT,
+                        cursor: "pointer",
+                      }}
+                    >
+                      로그아웃
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ── SEARCH PANEL ── */}
@@ -993,16 +1297,22 @@ export default function PupooHeader() {
               navigate(`/event/current?search=${encodeURIComponent(keyword)}`);
             }}
             onNavigate={(path) => { setSearchOpen(false); navigate(path); }}
+            topOffset={headerHeight}
+            compact={isCompact}
           />
         )}
 
         {/* ── BACKDROP (dark overlay below header, click to close) ── */}
-        {(activeMenu || searchOpen) && (
+        {(activeMenu || searchOpen || mobileMenuOpen) && (
           <div
-            onClick={() => { setActiveMenu(null); setSearchOpen(false); }}
+            onClick={() => {
+              setActiveMenu(null);
+              setSearchOpen(false);
+              setMobileMenuOpen(false);
+            }}
             style={{
               position: "fixed",
-              top: 92,
+              top: headerHeight,
               left: 0,
               right: 0,
               bottom: 0,

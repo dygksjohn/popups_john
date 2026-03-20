@@ -8,6 +8,7 @@ import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 import {
   createImageFallbackHandler,
   resolveImageUrl,
+  toPublicAssetUrl,
 } from "../../../shared/utils/publicAssetUrl";
 
 /* ?? ?대?吏 ?대갚 ?? */
@@ -589,15 +590,27 @@ function NoticeSection() {
 // ================= MAIN =================
 export default function Home() {
   const heroVideos = [
-    "/1.mov",
-    "/2.mov",
-    "/3.mp4",
+    toPublicAssetUrl("home/1.mov"),
+    toPublicAssetUrl("home/2.mov"),
+    toPublicAssetUrl("home/3.mp4"),
   ];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [fade, setFade] = useState(true);
   const [progress, setProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const videoRef = useRef(null);
+  const isMobile = viewportWidth < 768;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -621,7 +634,17 @@ export default function Home() {
 
   return (
     <div>
-      <section className="relative h-screen w-full overflow-hidden">
+      <section
+        className="relative h-screen w-full overflow-hidden"
+        style={
+          isMobile
+            ? {
+                height: "100svh",
+                minHeight: "100svh",
+              }
+            : undefined
+        }
+      >
         <video ref={videoRef} key={currentVideoIndex} src={heroVideos[currentVideoIndex]} autoPlay muted playsInline className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${fade ? "opacity-100" : "opacity-0"}`} />
         <div className="absolute inset-0 bg-black/40" />
         <div className="relative h-full flex items-center justify-center">
@@ -634,7 +657,15 @@ export default function Home() {
             <p className="mt-6 text-lg md:text-xl text-white/90">참여 가능한 행사를 바로 확인해 보세요.</p>
           </div>
         </div>
-        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[300px]">
+        <div
+          className="absolute left-1/2 -translate-x-1/2"
+          style={{
+            bottom: isMobile
+              ? "calc(env(safe-area-inset-bottom, 0px) + 12px)"
+              : 64,
+            width: isMobile ? "min(280px, calc(100vw - 40px))" : 300,
+          }}
+        >
           <div className="relative h-[2px] bg-white/30">
             <div className="absolute left-0 top-0 h-full bg-white transition-[width] duration-200 ease-linear" style={{ width: `${progress}%` }} />
           </div>
@@ -672,7 +703,6 @@ export default function Home() {
     </div>
   );
 }
-
 
 
 

@@ -119,12 +119,21 @@ const styles = `
   .sc-event-badge.upcoming { background: #fff7ed; color: #d97706; }
   .sc-event-badge.done { background: #f3f4f6; color: #9ca3af; }
 
-  @media (max-width: 900px) {
+  @media (max-width: 1023px) {
+    .sc-container { padding: 28px 20px 56px; }
+    .sc-stat-grid { grid-template-columns: repeat(2, 1fr); }
     .sc-main-grid { grid-template-columns: 1fr; }
+    .sc-card { padding: 20px 22px; }
   }
-  @media (max-width: 640px) {
-    .sc-container { padding: 20px 16px 48px; }
-    .sc-stat-grid { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 767px) {
+    .sc-container { padding: 20px 12px 40px; }
+    .sc-stat-grid { grid-template-columns: 1fr; }
+    .sc-card { padding: 18px 16px; }
+    .sc-card-header { flex-wrap: wrap; gap: 10px; }
+    .sc-day-item { padding: 14px 14px; }
+    .sc-event-item { flex-direction: column; gap: 10px; padding: 14px; }
+    .sc-event-dot { margin-top: 0; }
+    .sc-event-badge { align-self: flex-start; }
   }
 `;
 

@@ -547,17 +547,72 @@ const modalStyles = `
   }
 
   /* Responsive */
-  @media (max-width: 860px) {
-    .evm-modal { flex-direction: column; max-width: 780px; max-height: calc(100vh - 24px); }
-    .evm-poster-panel { width: 100%; height: 260px; }
+  @media (max-width: 1023px) {
+    .evm-overlay { padding: 24px 14px; }
+    .evm-modal {
+      flex-direction: column;
+      max-width: 780px;
+      max-height: calc(100vh - 28px);
+      width: min(100%, calc(100vw - 28px));
+    }
+    .evm-poster-panel { width: 100%; height: 300px; }
     .evm-right-panel { max-height: none; }
-    .evm-quick-info { grid-template-columns: 1fr; }
+    .evm-right-header { padding: 18px 22px 0; }
+    .evm-quick-info { grid-template-columns: repeat(2, 1fr); }
     .evm-speakers { grid-template-columns: 1fr; }
     .evm-contact-grid { grid-template-columns: 1fr; }
     .evm-right-title { font-size: 22px; }
-    .evm-content { padding: 20px 18px 28px; }
-    .evm-cta-bar { padding: 14px 18px; }
+    .evm-content { padding: 18px 22px 24px; }
+    .evm-cta-bar { padding: 16px 22px; }
     .evm-guide-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 767px) {
+    .evm-overlay { padding: 12px; }
+    .evm-modal {
+      max-height: calc(100vh - 24px);
+      border-radius: 16px;
+      width: min(100%, calc(100vw - 24px));
+    }
+    .evm-poster-panel { height: 220px; }
+    .evm-right-header { padding: 16px 16px 0; }
+    .evm-topbar-right { top: 10px; right: 10px; gap: 6px; }
+    .evm-content { padding: 16px 16px 20px; }
+    .evm-quick-info { grid-template-columns: 1fr; gap: 10px; margin-bottom: 22px; }
+    .evm-guide-panel-head {
+      height: auto;
+      padding: 12px 14px;
+      align-items: flex-start;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .evm-guide-day-item,
+    .evm-guide-program-item {
+      min-height: unset;
+      padding: 10px;
+    }
+    .evm-part-header,
+    .evm-part-note {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .evm-file-row {
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .evm-cta-bar {
+      padding: 14px 16px;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .evm-cta-actions {
+      width: 100%;
+      flex-direction: column;
+    }
+    .evm-btn-primary,
+    .evm-btn-secondary {
+      width: 100%;
+      justify-content: center;
+    }
   }
 `;
 

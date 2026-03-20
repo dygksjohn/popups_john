@@ -141,6 +141,9 @@ const LoginPage = ({ leftBgImage = null }) => {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -158,6 +161,17 @@ const LoginPage = ({ leftBgImage = null }) => {
     const t = setTimeout(() => setToast(null), 2300);
     return () => clearTimeout(t);
   }, [toast]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
 
   const handleSocialClick = (name) => {
     setToast(`${name} 로그인은 곧 지원될 예정이에요`);
@@ -228,41 +242,41 @@ const LoginPage = ({ leftBgImage = null }) => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "24px 16px",
+          padding: isMobile ? "16px 12px" : isTablet ? "20px 16px" : "24px 16px",
           background: "linear-gradient(135deg, #EEF2F9 0%, #E3EAF6 100%)",
         }}
       >
-        <div style={{ width: "100%", maxWidth: 860 }}>
+        <div style={{ width: "100%", maxWidth: isTablet ? 760 : 860 }}>
           {/* ?? Card ?? */}
           <div
             className="login-card card-enter"
             style={{
               display: "flex",
-              flexDirection: "row",
+              flexDirection: isMobile ? "column" : "row",
               borderRadius: 20,
               overflow: "hidden",
               boxShadow:
                 "0 20px 60px rgba(74,100,180,0.18), 0 4px 16px rgba(0,0,0,0.08)",
-              minHeight: 500,
-              marginTop: 100,
+              minHeight: isMobile ? "auto" : 500,
+              marginTop: isMobile ? 56 : isTablet ? 72 : 100,
             }}
           >
             {/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 LEFT PANEL ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */}
             <div
               className="left-panel"
               style={{
-                width: "48%",
-                minWidth: 260,
+                width: isMobile ? "100%" : "48%",
+                minWidth: isMobile ? 0 : 260,
                 position: "relative",
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "flex-end",
-                padding: "40px 36px",
+                padding: isMobile ? "28px 22px" : isTablet ? "34px 28px" : "40px 36px",
                 background: leftBgImage
                   ? `url(${leftBgImage}) center/cover no-repeat`
                   : "linear-gradient(145deg, #6B8CFF 0%, #4B6FE5 35%, #3A55CC 65%, #5B35CC 100%)",
-                borderRadius: "20px 0 0 20px",
+                borderRadius: isMobile ? "20px 20px 0 0" : "20px 0 0 20px",
               }}
             >
               {/* Geometric decorative shapes */}
@@ -337,7 +351,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 <h1
                   style={{
                     color: "#FFFFFF",
-                    fontSize: 26,
+                    fontSize: isMobile ? 22 : isTablet ? 24 : 26,
                     fontWeight: 700,
                     lineHeight: 1.45,
                     letterSpacing: "-0.5px",
@@ -354,7 +368,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 <p
                   style={{
                     color: "rgba(255,255,255,0.78)",
-                    fontSize: 12,
+                    fontSize: isMobile ? 11.5 : 12,
                     fontWeight: 400,
                     lineHeight: 1.6,
                     letterSpacing: "0.2px",
@@ -376,8 +390,8 @@ const LoginPage = ({ leftBgImage = null }) => {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
-                padding: "44px 40px",
-                borderRadius: "0 20px 20px 0",
+                padding: isMobile ? "28px 20px" : isTablet ? "36px 28px" : "44px 40px",
+                borderRadius: isMobile ? "0 0 20px 20px" : "0 20px 20px 0",
               }}
             >
               {/* Title */}
@@ -389,7 +403,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                     gap: 8,
                   }}
                 >
-                  <span style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a" }}>로그인</span>
+                  <span style={{ fontSize: isMobile ? 24 : 28, fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a" }}>로그인</span>
                 </div>
               </div>
 
@@ -478,6 +492,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                 style={{
                   display: "flex",
                   justifyContent: "center",
+                  flexWrap: isMobile ? "wrap" : "nowrap",
                   gap: 0,
                   marginBottom: 24,
                 }}
@@ -592,6 +607,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               fontSize: 12,
               color: "#A0AEC0",
               lineHeight: 1.7,
+              padding: isMobile ? "0 8px" : 0,
             }}
           >
               <strong style={{ color: "#718096" }}>

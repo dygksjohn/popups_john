@@ -178,6 +178,18 @@ export default function ReportManage() {
   const [decisionReason, setDecisionReason] = useState("");
   const [decisionLoading, setDecisionLoading] = useState("");
   const [quickActionKey, setQuickActionKey] = useState("");
+  const [viewportWidth, setViewportWidth] = useState(1280);
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const isCompact = viewportWidth < 1024;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   const loadReports = useCallback(async ({ silent = false } = {}) => {
     if (silent) setRefreshing(true);
@@ -344,7 +356,7 @@ export default function ReportManage() {
   return (
     <div style={{ display: "grid", gap: 18, color: ds.ink, fontFamily: ds.ff }}>
       <div style={{ display: "grid", gap: 18 }}>
-        <section style={{ ...panel, padding: 20, display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <section style={{ ...panel, padding: isMobile ? 16 : 20, display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: isCompact ? "stretch" : "center" }}>
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: ds.inkW }}>신고 관리</div>
             <div style={{ fontSize: 13, color: ds.ink3 }}>
@@ -357,7 +369,7 @@ export default function ReportManage() {
             disabled={loading || refreshing}
             style={{
               ...input,
-              width: 136,
+              width: isMobile ? "100%" : 136,
               cursor: loading || refreshing ? "not-allowed" : "pointer",
               display: "inline-flex",
               alignItems: "center",
@@ -371,15 +383,15 @@ export default function ReportManage() {
           </button>
         </section>
 
-        <section style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+        <section style={{ display: "grid", gap: 14, gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))" }}>
           <StatCard label="조회된 신고" value={reportPage.totalElements} hint="현재 필터 기준 전체 건수" />
           <StatCard label="현재 페이지 대기" value={pageStats.pending} hint="즉시 처리 가능한 신고" />
           <StatCard label="현재 페이지 처리완료" value={pageStats.processed} hint="승인 또는 거절 완료" />
           <StatCard label="평균 신고수" value={pageStats.avgCount} hint="현재 페이지 대상별 평균 신고 횟수" />
         </section>
 
-        <section style={{ ...panel, padding: 20, display: "grid", gap: 16 }}>
-          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "minmax(220px, 1fr) 180px 180px 180px 132px" }}>
+        <section style={{ ...panel, padding: isMobile ? 16 : 20, display: "grid", gap: 16 }}>
+          <div style={{ display: "grid", gap: 12, gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "minmax(220px, 1fr) 180px 180px 180px 132px" }}>
             <div style={{ position: "relative" }}>
               <Search size={14} color={ds.ink4} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
               <input
@@ -647,9 +659,9 @@ export default function ReportManage() {
             }}
             style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
           />
-          <div style={{ position: "fixed", inset: 0, zIndex: 61, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-            <div style={{ width: "min(900px, 100%)", maxHeight: "90vh", overflow: "auto", background: ds.card, borderRadius: 22, border: `1px solid ${ds.line}`, boxShadow: ds.sh3 }}>
-              <div style={{ padding: "24px 26px 20px", borderBottom: `1px solid ${ds.line}`, display: "flex", justifyContent: "space-between", gap: 16 }}>
+          <div style={{ position: "fixed", inset: 0, zIndex: 61, display: "flex", alignItems: "center", justifyContent: "center", padding: isMobile ? 12 : 24 }}>
+            <div style={{ width: isCompact ? "min(900px, calc(100vw - 24px))" : "min(900px, 100%)", maxHeight: isMobile ? "92vh" : "90vh", overflow: "auto", background: ds.card, borderRadius: 22, border: `1px solid ${ds.line}`, boxShadow: ds.sh3 }}>
+              <div style={{ padding: isMobile ? "18px 18px 16px" : "24px 26px 20px", borderBottom: `1px solid ${ds.line}`, display: "flex", justifyContent: "space-between", gap: 16, flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center" }}>
                 <div style={{ display: "grid", gap: 10 }}>
                   <div style={{ fontSize: 18, fontWeight: 800, color: ds.inkW }}>신고 #{selected.reportId}</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -671,7 +683,7 @@ export default function ReportManage() {
                   <X size={16} />
                 </button>
               </div>
-              <div style={{ padding: 26, display: "grid", gap: 18 }}>
+              <div style={{ padding: isMobile ? 18 : 26, display: "grid", gap: 18 }}>
                 {detailError ? <div style={{ padding: "12px 14px", borderRadius: 10, background: ds.redSoft, color: ds.inkW }}>{detailError}</div> : null}
                 {detailLoading ? <div style={{ color: ds.ink3 }}>신고 상세를 불러오는 중입니다.</div> : null}
                 {!detailLoading ? (
@@ -696,9 +708,10 @@ export default function ReportManage() {
                               fontSize: 14,
                               fontWeight: 700,
                               textDecoration: "none",
+                              flexWrap: isMobile ? "wrap" : "nowrap",
                             }}
                           >
-                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: isMobile ? "break-word" : "normal" }}>
                               {active?.targetTitle || `대상 #${active?.targetId || "-"}`}
                             </span>
                             <ExternalLink size={14} style={{ flexShrink: 0, color: ds.brand }} />
@@ -711,7 +724,7 @@ export default function ReportManage() {
                       </div>
                     </div>
 
-                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))" }}>
                       {[
                         ["대상 ID", active?.targetId],
                         ["대상 상태", getTargetStatusLabel(active?.targetStatus)],
@@ -743,14 +756,14 @@ export default function ReportManage() {
                           onChange={(event) => setDecisionReason(event.target.value)}
                           rows={5}
                           placeholder="처리 사유를 남기면 admin_logs에 함께 기록됩니다."
-                          style={{ width: "100%", borderRadius: 12, border: `1px solid ${ds.line}`, background: ds.bg, color: ds.ink, padding: 14, fontSize: 14, lineHeight: 1.7, resize: "vertical", fontFamily: ds.ff }}
+                          style={{ width: "100%", borderRadius: 12, border: `1px solid ${ds.line}`, background: ds.bg, color: ds.ink, padding: isMobile ? 12 : 14, fontSize: 14, lineHeight: 1.7, resize: "vertical", fontFamily: ds.ff }}
                         />
-                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap", flexDirection: isMobile ? "column-reverse" : "row" }}>
                           <button
                             type="button"
                             onClick={() => handleDecision("REJECT")}
                             disabled={Boolean(decisionLoading)}
-                            style={{ ...input, width: 120, cursor: decisionLoading ? "not-allowed" : "pointer" }}
+                            style={{ ...input, width: isMobile ? "100%" : 120, cursor: decisionLoading ? "not-allowed" : "pointer" }}
                           >
                             {decisionLoading === "REJECT" ? "거절 중..." : "거절"}
                           </button>
@@ -758,7 +771,7 @@ export default function ReportManage() {
                             type="button"
                             onClick={() => handleDecision("ACCEPT")}
                             disabled={Boolean(decisionLoading)}
-                            style={{ ...input, width: 140, background: ds.red, borderColor: ds.red, color: ds.inkW, cursor: decisionLoading ? "not-allowed" : "pointer" }}
+                            style={{ ...input, width: isMobile ? "100%" : 140, background: ds.red, borderColor: ds.red, color: ds.inkW, cursor: decisionLoading ? "not-allowed" : "pointer" }}
                           >
                             {decisionLoading === "ACCEPT" ? `${primaryActionLabel} 중...` : primaryActionLabel}
                           </button>

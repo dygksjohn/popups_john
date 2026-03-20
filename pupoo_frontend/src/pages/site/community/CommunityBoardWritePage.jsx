@@ -95,6 +95,9 @@ export default function CommunityBoardWritePage({
 }) {
   const navigate = useNavigate();
   const isMountedRef = useRef(true);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [boardId, setBoardId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -109,6 +112,14 @@ export default function CommunityBoardWritePage({
     return () => {
       isMountedRef.current = false;
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
   useEffect(() => {
@@ -159,6 +170,9 @@ export default function CommunityBoardWritePage({
     if (!hasMeaningfulCommunityContent(content)) return "내용을 입력해 주세요.";
     return "";
   }, [content, title]);
+
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -243,6 +257,7 @@ export default function CommunityBoardWritePage({
               fontWeight: 700,
               color: "#475569",
               cursor: "pointer",
+              width: isMobile ? "100%" : "auto",
             }}
           >
             취소
@@ -262,6 +277,7 @@ export default function CommunityBoardWritePage({
               color: "#fff",
               cursor: saving || loading ? "not-allowed" : "pointer",
               opacity: saving || loading ? 0.6 : 1,
+              width: isMobile ? "100%" : "auto",
             }}
           >
             {saving ? "등록 중..." : "등록하기"}
@@ -281,7 +297,7 @@ export default function CommunityBoardWritePage({
           <div
             style={{
               display: "grid",
-              gap: 18,
+              gap: isMobile ? 14 : isTablet ? 16 : 18,
               position: "relative",
               pointerEvents: saving ? "none" : undefined,
               opacity: saving ? 0.75 : 1,
@@ -299,7 +315,7 @@ export default function CommunityBoardWritePage({
                   height: 46,
                   borderRadius: 10,
                   border: "1px solid #cbd5e1",
-                  padding: "0 14px",
+                  padding: isMobile ? "0 12px" : "0 14px",
                   fontSize: 14,
                   color: "#0f172a",
                   background: saving ? "#f1f5f9" : "#fff",
@@ -313,7 +329,7 @@ export default function CommunityBoardWritePage({
                 value={content}
                 onChange={setContent}
                 placeholder="내용을 입력해 주세요."
-                height={340}
+                height={isMobile ? 260 : isTablet ? 300 : 340}
               />
             </label>
 
@@ -323,7 +339,7 @@ export default function CommunityBoardWritePage({
                 cursor: saving ? "not-allowed" : "pointer",
                 border: "1px solid #e2e8f0",
                 borderRadius: 14,
-                padding: "18px 20px",
+                padding: isMobile ? "16px" : isTablet ? "18px" : "18px 20px",
                 background: saving ? "#f1f5f9" : "#f8fafc",
               }}
             >

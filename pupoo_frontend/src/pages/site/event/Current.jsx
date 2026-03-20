@@ -78,6 +78,8 @@ const styles = `
   .ev-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
 
   .ev-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .ev-toolbar-top { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .ev-search-box { position: relative; width: 280px; flex-shrink: 0; }
 
 
   .ev-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
@@ -110,14 +112,24 @@ const styles = `
   .ev-card-btn:hover { background: #02A17E; color: #fff; border-color: #02A17E; }
 
   @media (max-width: 1024px) {
+    .ev-container { width: calc(100% - 32px); padding: 28px 0 56px; }
+    .ev-stat-grid { grid-template-columns: repeat(2, 1fr); }
     .ev-grid { grid-template-columns: repeat(3, 1fr); }
+    .ev-toolbar-top { flex-wrap: wrap; align-items: stretch; }
+    .ev-search-box { width: min(320px, 100%); }
   }
   @media (max-width: 860px) {
+    .ev-stat-grid { grid-template-columns: 1fr; }
     .ev-grid { grid-template-columns: repeat(2, 1fr); }
+    .ev-toolbar-top { flex-direction: column; align-items: stretch; }
+    .ev-live-chip { width: 100%; justify-content: center; }
+    .ev-search-box { width: 100%; }
   }
   @media (max-width: 600px) {
+    .ev-container { width: calc(100% - 24px); padding: 20px 0 40px; }
     .ev-grid { grid-template-columns: 1fr; }
     .ev-card { padding: 20px 16px; }
+    .ev-event-card-body { padding: 14px 14px 16px; }
   }
 `;
 
@@ -301,12 +313,12 @@ export default function Current() {
         ) : (
           <>
           {/* 검색 바 + 상태 칩 */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <div className="ev-toolbar-top">
             <div className="ev-live-chip">
               <div className="ev-live-dot" />
               진행 중 <span className="ev-live-count">{events.length}</span>
             </div>
-            <div style={{ position: "relative", width: 280 }}>
+            <div className="ev-search-box">
               <Search
                 size={16}
                 color={searchFocused ? "#02A17E" : "#94a3b8"}

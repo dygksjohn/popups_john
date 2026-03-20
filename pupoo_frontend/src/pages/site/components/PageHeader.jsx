@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
 
@@ -82,7 +82,8 @@ const styles = {
     border: "none",
     cursor: "pointer",
     transition: "all 0.15s",
-    fontFamily: "'JeonjuCraftGothic', Apple SD Gothic Neo, Malgun Gothic, '맑은 고딕', sans-serif",
+    fontFamily:
+      "'JeonjuCraftGothic', Apple SD Gothic Neo, Malgun Gothic, '맑은 고딕', sans-serif",
     color: "#6b7280",
     textAlign: "center",
     whiteSpace: "nowrap",
@@ -102,8 +103,24 @@ const styles = {
   },
 };
 
-export default function PageHeader({ title, subtitle, icon, titleStyle, subtitleStyle, categories, currentPath, breadcrumbTitle, onTabClick, tabCounts, children, className }) {
+export default function PageHeader({
+  title,
+  subtitle,
+  icon,
+  titleStyle,
+  subtitleStyle,
+  categories,
+  currentPath,
+  breadcrumbTitle,
+  onTabClick,
+  tabCounts,
+  children,
+  className,
+}) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const navigate = useNavigate();
   const location = useLocation();
   const hiddenPaths = new Set(["/event/preregister"]);
@@ -113,10 +130,14 @@ export default function PageHeader({ title, subtitle, icon, titleStyle, subtitle
   const currentEventId = programMatch?.[1] || null;
 
   const isProgramTabPath = (path) =>
-    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/[^/?#]+)?$/.test(path);
+    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/[^/?#]+)?$/.test(
+      path,
+    );
 
   const hasEventIdInPath = (path) =>
-    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)\/[^/?#]+$/.test(path);
+    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)\/[^/?#]+$/.test(
+      path,
+    );
 
   const resolveTargetPath = (path) => {
     if (!currentEventId) return path;
@@ -129,32 +150,107 @@ export default function PageHeader({ title, subtitle, icon, titleStyle, subtitle
     (cat) => !hiddenPaths.has(cat.path),
   );
 
-  // Auto breadcrumb from URL
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
   const activePath = currentPath || location.pathname;
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const section = pathSegments[0] || "";
   const sectionLabel = SECTION_LABELS[section];
   const lastCrumb = breadcrumbTitle || title;
-  const breadcrumbItems = sectionLabel ? ["홈", sectionLabel, lastCrumb] : ["홈", lastCrumb];
+  const breadcrumbItems = sectionLabel
+    ? ["홈", sectionLabel, lastCrumb]
+    : ["홈", lastCrumb];
+
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const isCompact = viewportWidth < 1024;
+
+  const pageHeaderStyle = {
+    ...styles.pageHeader,
+    paddingTop: isMobile ? 96 : isTablet ? 118 : styles.pageHeader.paddingTop,
+  };
+
+  const innerStyle = {
+    ...styles.inner,
+    width: isMobile
+      ? "calc(100% - 24px)"
+      : isTablet
+        ? "calc(100% - 32px)"
+        : styles.inner.width,
+  };
+
+  const topRowStyle = {
+    ...styles.topRow,
+    flexDirection: isMobile ? "column" : "row",
+    alignItems: isMobile ? "flex-start" : styles.topRow.alignItems,
+    gap: isMobile ? 12 : isTablet ? 14 : styles.topRow.gap,
+  };
+
+  const mergedTitleStyle = {
+    ...styles.title,
+    fontSize: isMobile ? 32 : isTablet ? 40 : styles.title.fontSize,
+    lineHeight: isMobile ? "1.28" : isTablet ? "56px" : styles.title.lineHeight,
+    ...titleStyle,
+  };
+
+  const mergedSubtitleStyle = {
+    ...styles.subtitle,
+    fontSize: isMobile ? 16 : isTablet ? 18 : styles.subtitle.fontSize,
+    margin: isMobile ? "10px 0 0" : styles.subtitle.margin,
+    ...subtitleStyle,
+  };
+
+  const breadcrumbStyle = {
+    ...styles.breadcrumb,
+    width: isMobile ? "100%" : "auto",
+    justifyContent: isMobile ? "flex-start" : "flex-end",
+    whiteSpace: isMobile ? "normal" : styles.breadcrumb.whiteSpace,
+    flexWrap: isMobile ? "wrap" : "nowrap",
+    paddingTop: isMobile ? 0 : styles.breadcrumb.paddingTop,
+  };
+
+  const searchAreaStyle = {
+    ...styles.searchArea,
+    width: "100%",
+    padding: isMobile ? "18px 0 0" : isTablet ? "24px 0 0" : styles.searchArea.padding,
+  };
+
+  const tabsStyle = {
+    ...styles.tabs,
+    marginTop: isMobile ? 24 : isTablet ? 36 : styles.tabs.marginTop,
+    overflowX: isCompact ? "auto" : "visible",
+    overflowY: "hidden",
+    flexWrap: isMobile ? "nowrap" : isTablet ? "wrap" : "nowrap",
+    paddingBottom: isCompact ? 4 : 0,
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none",
+  };
 
   return (
-    <div style={styles.pageHeader} className={className || ""}>
-      <div style={styles.inner}>
-        {/* Title + Breadcrumb */}
-        <div style={styles.topRow}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div style={pageHeaderStyle} className={className || ""}>
+      <div style={innerStyle}>
+        <div style={topRowStyle}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 12 }}>
               {icon && icon}
-              <h1 style={{ ...styles.title, ...titleStyle }}>{title}</h1>
+              <h1 style={mergedTitleStyle}>{title}</h1>
             </div>
-            {subtitle && <p style={{ ...styles.subtitle, ...subtitleStyle }}>{subtitle}</p>}
+            {subtitle && <p style={mergedSubtitleStyle}>{subtitle}</p>}
           </div>
-          <div style={styles.breadcrumb}>
+          <div style={breadcrumbStyle}>
             <Home size={12} style={{ color: "#b0b5bd" }} />
             {breadcrumbItems.map((item, i) => (
               <span key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 {i > 0 && <span style={styles.breadcrumbSep}>{">"}</span>}
-                <span style={i === breadcrumbItems.length - 1 ? styles.breadcrumbCurrent : undefined}>
+                <span
+                  style={i === breadcrumbItems.length - 1 ? styles.breadcrumbCurrent : undefined}
+                >
                   {item}
                 </span>
               </span>
@@ -162,18 +258,26 @@ export default function PageHeader({ title, subtitle, icon, titleStyle, subtitle
           </div>
         </div>
 
-        {/* Optional Search Area */}
-        {children && <div style={styles.searchArea}>{children}</div>}
+        {children && <div style={searchAreaStyle}>{children}</div>}
 
-        {/* Tabs */}
         {filteredCategories.length > 0 && (
-          <div style={styles.tabs}>
+          <div style={tabsStyle}>
             {filteredCategories.map((cat, i) => {
               const targetPath = resolveTargetPath(cat.path);
               const isActive = activePath === targetPath;
               const isHovered = hoveredIdx === i;
 
-              let btnStyle = { ...styles.tabBase };
+              let btnStyle = {
+                ...styles.tabBase,
+                flex: isCompact ? "0 0 auto" : styles.tabBase.flex,
+                minWidth: isMobile ? 120 : isTablet ? 148 : undefined,
+                padding: isMobile
+                  ? "11px 14px"
+                  : isTablet
+                    ? "12px 16px"
+                    : styles.tabBase.padding,
+                fontSize: isMobile ? 15 : isTablet ? 16 : styles.tabBase.fontSize,
+              };
               if (isActive) {
                 btnStyle = { ...btnStyle, ...styles.tabActive };
               } else if (isHovered) {
@@ -184,21 +288,34 @@ export default function PageHeader({ title, subtitle, icon, titleStyle, subtitle
                 <button
                   key={cat.path}
                   style={btnStyle}
-                  onClick={() => onTabClick ? onTabClick(targetPath) : navigate(targetPath)}
+                  onClick={() => (onTabClick ? onTabClick(targetPath) : navigate(targetPath))}
                   onMouseEnter={() => setHoveredIdx(i)}
                   onMouseLeave={() => setHoveredIdx(null)}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  {cat.icon && <span style={{ display: "inline-flex", alignItems: "center", marginRight: 6 }}>{cat.icon}</span>}
+                  {cat.icon && (
+                    <span style={{ display: "inline-flex", alignItems: "center", marginRight: 6 }}>
+                      {cat.icon}
+                    </span>
+                  )}
                   {cat.label}
                   {tabCounts && cat.countKey != null && (
-                    <span style={{
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      minWidth: 22, height: 22, borderRadius: 11, padding: "0 6px",
-                      fontSize: 12, fontWeight: 700, lineHeight: 1,
-                      background: isActive ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.07)",
-                      color: isActive ? "#fff" : "#6b7280",
-                    }}>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        padding: "0 6px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        background: isActive ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.07)",
+                        color: isActive ? "#fff" : "#6b7280",
+                      }}
+                    >
                       {tabCounts[cat.countKey] ?? 0}
                     </span>
                   )}

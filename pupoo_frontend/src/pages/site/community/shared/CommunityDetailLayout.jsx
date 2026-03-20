@@ -1,4 +1,5 @@
 import { ArrowLeft, List } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "../communityConfig";
@@ -12,21 +13,6 @@ const styles = {
     padding: "48px 0 80px",
     fontFamily: "'Noto Sans KR', sans-serif",
   },
-  backButton: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 32,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    padding: "10px 20px",
-    borderRadius: 8,
-    fontSize: 14,
-    fontWeight: 600,
-    color: "#374151",
-    cursor: "pointer",
-    transition: "all .15s",
-  },
   bottomButtons: {
     display: "flex",
     justifyContent: "center",
@@ -38,6 +24,7 @@ const styles = {
   listButton: {
     display: "inline-flex",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     border: "1px solid #d1d5db",
     background: "#fff",
@@ -81,11 +68,6 @@ const styles = {
     fontSize: 13,
     color: "#9ca3af",
   },
-  metaItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  },
   metaLabel: {
     color: "#9ca3af",
     fontWeight: 400,
@@ -124,6 +106,77 @@ export default function CommunityDetailLayout({
 }) {
   const navigate = useNavigate();
   const badge = getBoardBadge(badgeType);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const isCompact = viewportWidth < 1024;
+
+  const mainStyle = {
+    ...styles.main,
+    width: isMobile
+      ? "calc(100% - 24px)"
+      : isTablet
+        ? "calc(100% - 32px)"
+        : styles.main.width,
+    padding: isMobile ? "24px 0 40px" : isTablet ? "32px 0 56px" : styles.main.padding,
+  };
+
+  const headStyle = {
+    ...styles.head,
+    paddingBottom: isMobile ? 20 : isTablet ? 24 : styles.head.paddingBottom,
+  };
+
+  const titleStyle = {
+    ...styles.title,
+    fontSize: isMobile ? 22 : isTablet ? 24 : styles.title.fontSize,
+    lineHeight: isMobile ? 1.45 : styles.title.lineHeight,
+  };
+
+  const metaRowStyle = {
+    ...styles.metaRow,
+    gap: isMobile ? 10 : isTablet ? 14 : styles.metaRow.gap,
+    marginTop: isMobile ? 12 : styles.metaRow.marginTop,
+    flexDirection: isMobile ? "column" : "row",
+    alignItems: isMobile ? "flex-start" : "stretch",
+  };
+
+  const bodyStyle = {
+    ...styles.body,
+    padding: isMobile ? "24px 0" : isTablet ? "30px 0" : styles.body.padding,
+  };
+
+  const contentStyle = {
+    ...styles.content,
+    fontSize: isMobile ? 15.5 : isTablet ? 16.5 : styles.content.fontSize,
+    lineHeight: isMobile ? 1.8 : styles.content.lineHeight,
+    wordBreak: isMobile ? "break-word" : styles.content.wordBreak,
+  };
+
+  const bottomButtonsStyle = {
+    ...styles.bottomButtons,
+    gap: isMobile ? 8 : styles.bottomButtons.gap,
+    marginTop: isMobile ? 28 : isTablet ? 32 : styles.bottomButtons.marginTop,
+    paddingTop: isMobile ? 24 : styles.bottomButtons.paddingTop,
+    flexWrap: isCompact ? "wrap" : "nowrap",
+    flexDirection: isMobile ? "column" : "row",
+  };
+
+  const listButtonStyle = {
+    ...styles.listButton,
+    width: isMobile ? "100%" : "auto",
+    padding: isMobile ? "12px 18px" : isTablet ? "12px 22px" : styles.listButton.padding,
+  };
 
   return (
     <>
@@ -134,19 +187,29 @@ export default function CommunityDetailLayout({
         currentPath={currentPath}
         onNavigate={(path) => navigate(path)}
       />
-      <main style={styles.main}>
+      <main style={mainStyle}>
         <article style={styles.card}>
-          <header style={styles.head}>
+          <header style={headStyle}>
             <div style={styles.badgeRow}>
               <BadgeTag badge={badge} />
             </div>
-            <h1 style={styles.title}>{articleTitle}</h1>
+            <h1 style={titleStyle}>{articleTitle}</h1>
             {extraHead}
             {metaItems.length > 0 && (
-              <div style={styles.metaRow}>
+              <div style={metaRowStyle}>
                 {metaItems.map((item, i) => (
-                  <span key={`${item.label}-${item.value}`} style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                    {i > 0 && <span style={{ ...styles.metaDivider, marginRight: 20 }} />}
+                  <span
+                    key={`${item.label}-${item.value}`}
+                    style={{
+                      display: "flex",
+                      alignItems: isMobile ? "flex-start" : "center",
+                      gap: 0,
+                      flexWrap: isMobile ? "wrap" : "nowrap",
+                    }}
+                  >
+                    {!isMobile && i > 0 ? (
+                      <span style={{ ...styles.metaDivider, marginRight: 20 }} />
+                    ) : null}
                     <span style={styles.metaLabel}>{item.label}</span>
                     <span style={{ width: 6 }} />
                     <span style={styles.metaValue}>{item.value}</span>
@@ -156,9 +219,9 @@ export default function CommunityDetailLayout({
             )}
           </header>
 
-          <div style={styles.body}>
+          <div style={bodyStyle}>
             <div
-              style={styles.content}
+              style={contentStyle}
               dangerouslySetInnerHTML={{ __html: prepareContentForDisplay(content || "") }}
             />
             {extraContent}
@@ -166,23 +229,38 @@ export default function CommunityDetailLayout({
           {children}
         </article>
 
-        <div style={styles.bottomButtons}>
+        <div style={bottomButtonsStyle}>
           <button
             type="button"
-            style={styles.listButton}
+            style={listButtonStyle}
             onClick={() => navigate(currentPath)}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6"; e.currentTarget.style.borderColor = "#9ca3af"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#d1d5db"; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#f3f4f6";
+              e.currentTarget.style.borderColor = "#9ca3af";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#fff";
+              e.currentTarget.style.borderColor = "#d1d5db";
+            }}
           >
             <List size={18} />
             목록
           </button>
           <button
             type="button"
-            style={{ ...styles.listButton, background: "#111827", color: "#fff", borderColor: "#111827" }}
+            style={{
+              ...listButtonStyle,
+              background: "#111827",
+              color: "#fff",
+              borderColor: "#111827",
+            }}
             onClick={() => navigate(-1)}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.85"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = "0.85";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = "1";
+            }}
           >
             <ArrowLeft size={18} />
             뒤로가기

@@ -63,6 +63,19 @@ const styles = `
 .row-removing{animation:rowFadeOut .3s ease forwards}
 `;
 
+function getViewportFlags() {
+  if (typeof window === "undefined") {
+    return { isMobile: false, isTablet: false, isCompact: false };
+  }
+
+  const width = window.innerWidth;
+  return {
+    isMobile: width < 768,
+    isTablet: width >= 768 && width < 1024,
+    isCompact: width < 1024,
+  };
+}
+
 /* ── 공통 UI ── */
 function Checkbox({ checked, onChange, size = 18 }) {
   return (
@@ -123,6 +136,8 @@ function Toast({ msg, type = "success", onDone }) {
 }
 
 function Overlay({ children, onClose }) {
+  const { isMobile, isCompact } = getViewportFlags();
+
   return (
     <div
       onClick={onClose}
@@ -135,6 +150,7 @@ function Overlay({ children, onClose }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        padding: isMobile ? 12 : 20,
         animation: "fadeIn .15s ease",
       }}
     >
@@ -143,8 +159,8 @@ function Overlay({ children, onClose }) {
         style={{
           background: ds.card,
           borderRadius: 16,
-          width: 520,
-          maxHeight: "85vh",
+          width: isCompact ? "min(520px, calc(100vw - 24px))" : 520,
+          maxHeight: isMobile ? "90vh" : "85vh",
           overflow: "auto",
           boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
           animation: "slideUp .2s ease",
@@ -157,13 +173,16 @@ function Overlay({ children, onClose }) {
 }
 
 function ConfirmModal({ title, msg, onConfirm, onCancel }) {
+  const { isMobile, isCompact } = getViewportFlags();
+
   return (
     <Overlay onClose={onCancel}>
-      <div style={{ padding: "28px" }}>
+      <div style={{ padding: isMobile ? 20 : isCompact ? 24 : 28 }}>
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            alignItems: isMobile ? "flex-start" : "center",
+            flexDirection: isMobile ? "column" : "row",
             gap: 12,
             marginBottom: 14,
           }}
@@ -198,7 +217,14 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
         >
           {msg}
         </p>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+            flexDirection: isMobile ? "column-reverse" : "row",
+          }}
+        >
           <button
             onClick={onCancel}
             style={{
@@ -211,6 +237,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
               cursor: "pointer",
               fontFamily: ds.ff,
               color: ds.ink3,
+              width: isMobile ? "100%" : "auto",
             }}
           >
             취소
@@ -227,6 +254,7 @@ function ConfirmModal({ title, msg, onConfirm, onCancel }) {
               fontWeight: 700,
               cursor: "pointer",
               fontFamily: ds.ff,
+              width: isMobile ? "100%" : "auto",
             }}
           >
             삭제
@@ -334,17 +362,20 @@ const fmtDateShort = (dt) => {
 function DetailModal({ item, onClose, onStatusChange, onDelete }) {
   const st = REG_STATUS[item.status] || REG_STATUS.APPLIED;
   const sg = SIGNUP_TYPE[item.signupType] || SIGNUP_TYPE.NORMAL;
+  const { isMobile, isCompact } = getViewportFlags();
 
   return (
     <Overlay onClose={onClose}>
-      <div style={{ padding: "28px" }}>
+      <div style={{ padding: isMobile ? 20 : isCompact ? 24 : 28 }}>
         {/* 헤더 */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: isMobile ? "flex-start" : "center",
+            flexDirection: isMobile ? "column" : "row",
             marginBottom: 20,
+            gap: 12,
           }}
         >
           <h3
@@ -382,7 +413,8 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
           <div
             style={{
               display: "flex",
-              alignItems: "center",
+              alignItems: isCompact ? "flex-start" : "center",
+              flexDirection: isCompact ? "column" : "row",
               gap: 14,
               marginBottom: 16,
             }}
@@ -404,7 +436,7 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
             >
               {(item.nickname || "?")[0]}
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, width: isCompact ? "100%" : "auto" }}>
               <div style={{ fontSize: 17, fontWeight: 800, color: ds.ink }}>
                 {item.nickname}
               </div>
@@ -412,7 +444,7 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
                 #{item.applyId} · User #{item.userId}
               </div>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", width: isCompact ? "100%" : "auto" }}>
               <Pill color={st.c} bg={st.bg}>
                 {st.l}
               </Pill>
@@ -442,7 +474,8 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
               key={r.l}
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: isMobile ? "flex-start" : "center",
+                flexDirection: isMobile ? "column" : "row",
                 gap: 10,
                 padding: "9px 0",
                 borderBottom: `1px solid ${ds.line}`,
@@ -454,13 +487,13 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
                   fontSize: 13,
                   color: ds.ink3,
                   fontWeight: 500,
-                  width: 80,
+                  width: isMobile ? "100%" : 80,
                   flexShrink: 0,
                 }}
               >
                 {r.l}
               </span>
-              <span style={{ fontSize: 13, color: ds.ink, fontWeight: 600 }}>
+              <span style={{ fontSize: 13, color: ds.ink, fontWeight: 600, wordBreak: "break-word" }}>
                 {r.v}
               </span>
             </div>
@@ -479,7 +512,7 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
           >
             신청 상태 변경
           </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flexDirection: isMobile ? "column" : "row" }}>
             {item.status !== "APPROVED" && (
               <button
                 onClick={() => {
@@ -496,6 +529,7 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
                   color: "#059669",
                   cursor: "pointer",
                   fontFamily: ds.ff,
+                  width: isMobile ? "100%" : "auto",
                 }}
               >
                 승인
@@ -517,6 +551,7 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
                   color: ds.ink3,
                   cursor: "pointer",
                   fontFamily: ds.ff,
+                  width: isMobile ? "100%" : "auto",
                 }}
               >
                 거절
@@ -538,6 +573,7 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
                   color: ds.red,
                   cursor: "pointer",
                   fontFamily: ds.ff,
+                  width: isMobile ? "100%" : "auto",
                 }}
               >
                 취소
@@ -546,7 +582,7 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexDirection: isMobile ? "column" : "row" }}>
           <button
             onClick={() => {
               onClose();
@@ -565,6 +601,8 @@ function DetailModal({ item, onClose, onStatusChange, onDelete }) {
               display: "flex",
               alignItems: "center",
               gap: 6,
+              justifyContent: "center",
+              width: isMobile ? "100%" : "auto",
             }}
           >
             <Trash2 size={13} /> 삭제
@@ -591,7 +629,19 @@ export default function ParticipantList({ subTab = "list" }) {
   const [selected, setSelected] = useState(new Set());
   const [removing, setRemoving] = useState(null);
   const [eventFilter, setEventFilter] = useState("all");
+  const [viewportWidth, setViewportWidth] = useState(1280);
   const showToast = (msg, type = "success") => setToast({ msg, type });
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const isCompact = viewportWidth < 1024;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   /* ── 행사 목록 로드 ── */
   const calcStatus = (s, e) => {
@@ -938,7 +988,11 @@ export default function ParticipantList({ subTab = "list" }) {
                       style={{
                         display: "grid",
                         gridTemplateColumns:
-                          "repeat(auto-fill, minmax(280px, 1fr))",
+                          isMobile
+                            ? "repeat(auto-fill, minmax(220px, 1fr))"
+                            : isTablet
+                              ? "repeat(auto-fill, minmax(240px, 1fr))"
+                            : "repeat(auto-fill, minmax(280px, 1fr))",
                         gap: 14,
                       }}
                     >
@@ -1195,7 +1249,7 @@ export default function ParticipantList({ subTab = "list" }) {
             >
               <ChevronLeft size={14} /> 행사 목록으로
             </button>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: isCompact ? "flex-start" : "center", gap: 12, flexWrap: "wrap" }}>
               <h3
                 style={{
                   fontSize: 17,
@@ -1239,7 +1293,9 @@ export default function ParticipantList({ subTab = "list" }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
+              gridTemplateColumns: isCompact
+                ? "repeat(2, minmax(0, 1fr))"
+                : "repeat(4, 1fr)",
               gap: 12,
               marginBottom: 16,
             }}
@@ -1284,8 +1340,10 @@ export default function ParticipantList({ subTab = "list" }) {
               style={{
                 padding: "12px 18px",
                 display: "flex",
-                alignItems: "center",
+                alignItems: isCompact ? "stretch" : "center",
                 justifyContent: "space-between",
+                gap: 10,
+                flexWrap: "wrap",
                 borderBottom: `1px solid ${ds.line}`,
               }}
             >
@@ -1320,7 +1378,16 @@ export default function ParticipantList({ subTab = "list" }) {
                   </span>
                 )}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: isCompact ? "stretch" : "flex-end",
+                  gap: 6,
+                  flexWrap: "wrap",
+                  width: isCompact ? "100%" : "auto",
+                }}
+              >
                 {/* 상태 필터 */}
                 <select
                   value={statusFilter}
@@ -1335,6 +1402,7 @@ export default function ParticipantList({ subTab = "list" }) {
                     outline: "none",
                     background: ds.card,
                     cursor: "pointer",
+                    minWidth: isCompact ? "100%" : 0,
                   }}
                 >
                   <option value="ALL">전체 상태</option>
@@ -1344,13 +1412,13 @@ export default function ParticipantList({ subTab = "list" }) {
                   <option value="REJECTED">거절</option>
                 </select>
                 {/* 검색 */}
-                <div style={{ position: "relative" }}>
+                <div style={{ position: "relative", width: isCompact ? "100%" : "auto" }}>
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="이름/이메일/연락처"
                     style={{
-                      width: 170,
+                      width: isCompact ? "100%" : 170,
                       padding: "6px 12px 6px 30px",
                       borderRadius: 7,
                       border: `1px solid ${ds.line}`,
@@ -1380,6 +1448,7 @@ export default function ParticipantList({ subTab = "list" }) {
                     style={{
                       display: "flex",
                       alignItems: "center",
+                      justifyContent: "center",
                       gap: 4,
                       padding: "6px 12px",
                       borderRadius: 7,
@@ -1390,6 +1459,7 @@ export default function ParticipantList({ subTab = "list" }) {
                       color: ds.red,
                       cursor: "pointer",
                       fontFamily: ds.ff,
+                      width: isCompact ? "100%" : "auto",
                     }}
                   >
                     <Trash2 size={12} /> 선택 삭제
@@ -1399,7 +1469,14 @@ export default function ParticipantList({ subTab = "list" }) {
             </div>
 
             {/* 테이블 본체 */}
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <div style={{ overflowX: "auto" }}>
+              <table
+                style={{
+                  width: "100%",
+                  minWidth: isCompact ? 720 : "100%",
+                  borderCollapse: "collapse",
+                }}
+              >
               <thead>
                 <tr style={{ borderBottom: `1px solid ${ds.line}` }}>
                   <th style={{ width: 44, padding: "10px 14px" }}>
@@ -1693,7 +1770,8 @@ export default function ParticipantList({ subTab = "list" }) {
                   })
                 )}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         </>
       )}
@@ -1757,7 +1835,8 @@ function ParticipantCheckinPanel({ checkins }) {
         >
           체크인 내역 ({checkins.length})
         </div>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${ds.line}` }}>
               {["ID", "참가자", "행사", "방식", "체크인 시간", "게이트"].map(
@@ -1844,6 +1923,7 @@ function ParticipantCheckinPanel({ checkins }) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
@@ -1872,7 +1952,8 @@ function ParticipantSessionPanel({ sessions }) {
         >
           체험 세션 참여 이력 ({sessions.length})
         </div>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${ds.line}` }}>
               {["참가자", "반려견", "세션", "호출", "시작", "종료", "결과"].map(
@@ -1967,6 +2048,7 @@ function ParticipantSessionPanel({ sessions }) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

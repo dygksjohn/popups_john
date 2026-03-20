@@ -126,7 +126,7 @@ const STATE_BUBBLES = {
    - hover: 멈추고 말풍선 ("클릭해봐요!")
    - leave: 다시 걷기
    ══════════════════════════════════════════════ */
-function DogCharacter({ onClick }) {
+function DogCharacter({ onClick, mobile = false }) {
   const [hovered, setHovered] = useState(false);
   const [bubble, setBubble] = useState(null);
   const [bubbleAnim, setBubbleAnim] = useState("bubblePop");
@@ -202,8 +202,8 @@ function DogCharacter({ onClick }) {
     <div
       style={{
         position: "fixed",
-        bottom: 12,
-        right: 14,
+        bottom: mobile ? "calc(env(safe-area-inset-bottom, 0px) + 6px)" : 12,
+        right: mobile ? 8 : 14,
         zIndex: 10000,
         cursor: "pointer",
         display: "flex",
@@ -219,8 +219,8 @@ function DogCharacter({ onClick }) {
         <div
           style={{
             position: "absolute",
-            bottom: 164,
-            left: 20,
+            bottom: mobile ? 98 : 164,
+            left: mobile ? 2 : 20,
             animation: `${bubbleAnim} 0.35s cubic-bezier(.34,1.4,.64,1) forwards`,
             pointerEvents: "none",
             display: "flex",
@@ -231,13 +231,13 @@ function DogCharacter({ onClick }) {
           <div style={{
             background: "#fff",
             color: "#374151",
-            fontSize: 12.5,
+            fontSize: mobile ? 11 : 12.5,
             fontWeight: 600,
             fontFamily: ds.ff,
-            padding: "7px 14px",
+            padding: mobile ? "6px 12px" : "7px 14px",
             borderRadius: 14,
             boxShadow: "0 4px 16px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)",
-            maxWidth: 180,
+            maxWidth: mobile ? 132 : 180,
             textAlign: "center",
             wordBreak: "keep-all",
             lineHeight: 1.4,
@@ -259,8 +259,8 @@ function DogCharacter({ onClick }) {
       {/* 캐릭터 본체 — Lottie 애니메이션 (좌우 반전 = 반대쪽으로 걷기) */}
       <div
         style={{
-          width: 180,
-          height: 180,
+          width: mobile ? 104 : 180,
+          height: mobile ? 104 : 180,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -275,19 +275,22 @@ function DogCharacter({ onClick }) {
             animationData={animData}
             loop
             autoplay
-            style={{ width: 210, height: 210 }}
+            style={{
+              width: mobile ? 122 : 210,
+              height: mobile ? 122 : 210,
+            }}
           />
         ) : (
-          <div style={{ width: 210, height: 210 }} />
+          <div style={{ width: mobile ? 122 : 210, height: mobile ? 122 : 210 }} />
         )}
       </div>
 
       {/* ── 채팅 받침대 ── */}
       <div style={{
-        marginTop: -28,
+        marginTop: mobile ? -14 : -28,
         background: "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
         borderRadius: 14,
-        padding: "7px 18px 8px",
+        padding: mobile ? "5px 12px 6px" : "7px 18px 8px",
         display: "flex",
         alignItems: "center",
         gap: 8,
@@ -298,8 +301,8 @@ function DogCharacter({ onClick }) {
       }}>
         {/* 녹화 스타일 깜박이는 초록 점 */}
         <div style={{
-          width: 8,
-          height: 8,
+          width: mobile ? 7 : 8,
+          height: mobile ? 7 : 8,
           borderRadius: "50%",
           background: "#4ADE80",
           boxShadow: "0 0 6px rgba(74,222,128,0.7)",
@@ -307,7 +310,7 @@ function DogCharacter({ onClick }) {
           flexShrink: 0,
         }} />
         <span style={{
-          fontSize: 13,
+          fontSize: mobile ? 11 : 13,
           fontWeight: 700,
           color: "#fff",
           fontFamily: ds.ff,
@@ -353,18 +356,18 @@ function BotAvatar({ size = 28 }) {
   return <MiniDogLottie size={size} />;
 }
 
-function Bubble({ msg, isLast }) {
+function Bubble({ msg, isLast, mobile = false }) {
   const isBot = msg.role === "bot";
   return (
     <div className="cb-msg" style={{ display: "flex", flexDirection: isBot ? "row" : "row-reverse", alignItems: "flex-end", gap: 8, marginBottom: 6 }}>
-      {isBot && <BotAvatar size={28} />}
-      <div style={{ maxWidth: "76%", display: "flex", flexDirection: "column", alignItems: isBot ? "flex-start" : "flex-end", gap: 2 }}>
+      {isBot && <BotAvatar size={mobile ? 24 : 28} />}
+      <div style={{ maxWidth: mobile ? "82%" : "76%", display: "flex", flexDirection: "column", alignItems: isBot ? "flex-start" : "flex-end", gap: 2 }}>
         <div style={{
-          padding: "10px 14px",
+          padding: mobile ? "9px 12px" : "10px 14px",
           borderRadius: isBot ? "4px 16px 16px 16px" : "16px 4px 16px 16px",
           background: isBot ? "#fff" : "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
           color: isBot ? "#374151" : "#fff",
-          fontSize: 13.5, lineHeight: 1.65, wordBreak: "break-word",
+          fontSize: mobile ? 12.5 : 13.5, lineHeight: mobile ? 1.6 : 1.65, wordBreak: "break-word",
           boxShadow: isBot ? "0 1px 3px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03)" : "0 3px 14px rgba(255,107,107,0.25)",
         }}>
           {msg.text}
@@ -377,12 +380,12 @@ function Bubble({ msg, isLast }) {
   );
 }
 
-function Typing() {
+function Typing({ mobile = false }) {
   return (
     <div className="cb-msg" style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: 6 }}>
-      <BotAvatar size={28} />
+      <BotAvatar size={mobile ? 24 : 28} />
       <div style={{
-        padding: "11px 18px", borderRadius: "4px 16px 16px 16px",
+        padding: mobile ? "10px 14px" : "11px 18px", borderRadius: "4px 16px 16px 16px",
         background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03)",
         display: "flex", gap: 5, alignItems: "center",
       }}>
@@ -398,7 +401,7 @@ function Typing() {
   );
 }
 
-function Welcome({ onSelect }) {
+function Welcome({ onSelect, mobile = false }) {
   const items = [
     { icon: "\uD83D\uDCC8", label: "행사 현황 알려줘", sub: "진행 중인 행사 요약" },
     { icon: "\uD83D\uDEA8", label: "최근 신고 내역", sub: "접수된 신고 확인" },
@@ -406,53 +409,54 @@ function Welcome({ onSelect }) {
     { icon: "\uD83D\uDCB3", label: "결제 현황 알려줘", sub: "매출 및 결제 내역" },
   ];
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px 16px", overflow: "auto", background: "#fff" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: mobile ? "22px 14px 12px" : "28px 20px 16px", overflow: "auto", background: "#fff" }}>
       <div style={{ animation: "softBounce 2.5s ease-in-out infinite" }}>
-        <BotAvatar size={56} />
+        <BotAvatar size={mobile ? 46 : 56} />
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: "#1F2937", marginTop: 14, letterSpacing: -0.5 }}>안녕하세요! 누리예요~ 🐶</div>
-      <div style={{ fontSize: 13, color: "#9CA3AF", marginTop: 4, textAlign: "center", lineHeight: 1.5 }}>뭐든 편하게 물어봐요! 누리가 척척 도와줄게요~</div>
-      <div style={{ width: "100%", marginTop: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ fontSize: mobile ? 16 : 18, fontWeight: 700, color: "#1F2937", marginTop: mobile ? 12 : 14, letterSpacing: -0.5, textAlign: "center" }}>안녕하세요! 누리예요~ 🐶</div>
+      <div style={{ fontSize: mobile ? 12.5 : 13, color: "#9CA3AF", marginTop: 4, textAlign: "center", lineHeight: 1.5 }}>뭐든 편하게 물어봐요! 누리가 척척 도와줄게요~</div>
+      <div style={{ width: "100%", marginTop: mobile ? 16 : 20, display: "flex", flexDirection: "column", gap: mobile ? 7 : 8 }}>
         {items.map((it) => (
           <button key={it.label} onClick={() => onSelect(it.label)}
             style={{
               display: "flex", alignItems: "center", gap: 12,
-              padding: "12px 14px", borderRadius: 14,
+              padding: mobile ? "10px 12px" : "12px 14px", borderRadius: 14,
               border: "1px solid #F0F0F0", background: "#FAFAFA",
               cursor: "pointer", fontFamily: ds.ff, textAlign: "left", transition: "all .18s ease",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = "#FFF5F5"; e.currentTarget.style.borderColor = "#FECACA"; e.currentTarget.style.transform = "translateX(4px)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "#FAFAFA"; e.currentTarget.style.borderColor = "#F0F0F0"; e.currentTarget.style.transform = "translateX(0)"; }}
           >
-            <span style={{ fontSize: 20 }}>{it.icon}</span>
+            <span style={{ fontSize: mobile ? 18 : 20 }}>{it.icon}</span>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{it.label}</div>
-              <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 1 }}>{it.sub}</div>
+              <div style={{ fontSize: mobile ? 12.5 : 13, fontWeight: 600, color: "#374151" }}>{it.label}</div>
+              <div style={{ fontSize: mobile ? 10.5 : 11, color: "#9CA3AF", marginTop: 1 }}>{it.sub}</div>
             </div>
           </button>
         ))}
       </div>
-      <div style={{ marginTop: "auto", paddingTop: 16, fontSize: 10.5, color: "#D1D5DB" }}>Powered by Amazon Nova</div>
+      <div style={{ marginTop: "auto", paddingTop: mobile ? 12 : 16, fontSize: 10.5, color: "#D1D5DB" }}>Powered by Amazon Nova</div>
     </div>
   );
 }
 
-function Chips({ onSelect }) {
+function Chips({ onSelect, mobile = false }) {
   const list = [
     { emoji: "\uD83D\uDCCB", text: "행사 현황" },
     { emoji: "\uD83D\uDC65", text: "참가자 수" },
     { emoji: "\uD83D\uDCB3", text: "결제 현황" },
   ];
   return (
-    <div style={{ display: "flex", gap: 6, padding: "6px 14px 4px", background: "#FAFAFA", borderTop: "1px solid #F3F3F3" }}>
+    <div style={{ display: "flex", gap: 6, padding: mobile ? "6px 10px 4px" : "6px 14px 4px", background: "#FAFAFA", borderTop: "1px solid #F3F3F3", overflowX: mobile ? "auto" : "visible", WebkitOverflowScrolling: mobile ? "touch" : "auto" }}>
       {list.map((c) => (
         <button key={c.text} onClick={() => onSelect(c.text)}
           style={{
-            padding: "5px 11px", borderRadius: 20,
+            padding: mobile ? "5px 10px" : "5px 11px", borderRadius: 20,
             border: "1px solid #ECECEC", background: "#fff",
-            color: "#777", fontSize: 11.5, cursor: "pointer",
+            color: "#777", fontSize: mobile ? 11 : 11.5, cursor: "pointer",
             fontFamily: ds.ff, transition: "all .12s",
             display: "flex", alignItems: "center", gap: 4,
+            whiteSpace: "nowrap", flexShrink: 0,
           }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "#FFF5F5"; e.currentTarget.style.color = "#E8505B"; e.currentTarget.style.borderColor = "#FECACA"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#777"; e.currentTarget.style.borderColor = "#ECECEC"; }}
@@ -464,14 +468,14 @@ function Chips({ onSelect }) {
   );
 }
 
-function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey }) {
+function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobile = false }) {
   const active = input.trim() && !isTyping;
   return (
-    <div style={{ padding: "8px 12px 12px", background: "#fff" }}>
+    <div style={{ padding: mobile ? "6px 10px calc(env(safe-area-inset-bottom, 0px) + 10px)" : "8px 12px 12px", background: "#fff" }}>
       <div style={{
         display: "flex", alignItems: "flex-end", gap: 8,
         background: "#F7F7F8", border: "1.5px solid #EBEBEB",
-        borderRadius: 16, padding: "6px 6px 6px 16px", transition: "border-color .2s, box-shadow .2s",
+        borderRadius: 16, padding: mobile ? "5px 5px 5px 12px" : "6px 6px 6px 16px", transition: "border-color .2s, box-shadow .2s",
       }}
         onFocusCapture={(e) => { e.currentTarget.style.borderColor = "#FF6B6B"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(255,107,107,0.08)"; }}
         onBlurCapture={(e) => { e.currentTarget.style.borderColor = "#EBEBEB"; e.currentTarget.style.boxShadow = "none"; }}
@@ -480,13 +484,13 @@ function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey }) {
           placeholder="무엇이든 물어보세요..." rows={1}
           style={{
             flex: 1, border: "none", outline: "none", background: "transparent", resize: "none",
-            fontFamily: ds.ff, fontSize: 13.5, color: "#1F2937", lineHeight: 1.5, maxHeight: 80, overflowY: "auto", padding: "4px 0",
+            fontFamily: ds.ff, fontSize: mobile ? 13 : 13.5, color: "#1F2937", lineHeight: 1.5, maxHeight: mobile ? 72 : 80, overflowY: "auto", padding: "4px 0",
           }}
-          onInput={(e) => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 80) + "px"; }}
+          onInput={(e) => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, mobile ? 72 : 80) + "px"; }}
         />
         <button onClick={onSend} disabled={!active}
           style={{
-            width: 36, height: 36, borderRadius: 12, border: "none",
+            width: mobile ? 34 : 36, height: mobile ? 34 : 36, borderRadius: mobile ? 11 : 12, border: "none",
             background: active ? "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)" : "#E5E7EB",
             cursor: active ? "pointer" : "default",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -495,7 +499,7 @@ function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey }) {
             transform: active ? "scale(1)" : "scale(0.95)",
           }}
         >
-          <Send size={15} color={active ? "#fff" : "#B0B0B0"} strokeWidth={2.2} />
+          <Send size={mobile ? 14 : 15} color={active ? "#fff" : "#B0B0B0"} strokeWidth={2.2} />
         </button>
       </div>
     </div>
@@ -515,6 +519,15 @@ export default function AdminChatBot() {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const [hasChats, setHasChats] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setIsMobile(window.innerWidth < 768);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isTyping]);
   useEffect(() => { if (isOpen) setTimeout(() => inputRef.current?.focus(), 140); }, [isOpen]);
@@ -527,6 +540,9 @@ export default function AdminChatBot() {
     setTimeout(() => setClosing(false), 1000);
   };
 
+  const mobilePanelBottom = "calc(env(safe-area-inset-bottom, 0px) + 64px)";
+  const mobileButtonBottom = "calc(env(safe-area-inset-bottom, 0px) + 12px)";
+
   const handleKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
   const handleClear = () => { clearMessages(); setHasChats(false); };
   const isLastInGroup = (i) => i === messages.length - 1 || messages[i + 1]?.role !== messages[i].role;
@@ -538,24 +554,27 @@ export default function AdminChatBot() {
       {/* ── 채팅 패널 ── */}
       {isOpen && (
         <div style={{
-          position: "fixed", bottom: 96, right: 28,
-          width: 380, height: 560, borderRadius: 24, background: "#fff",
+          position: "fixed", bottom: isMobile ? mobilePanelBottom : 96, right: isMobile ? 8 : 28,
+          width: isMobile ? "min(calc(100vw - 16px), 336px)" : 380,
+          maxWidth: isMobile ? "calc(100vw - 16px)" : 380,
+          height: isMobile ? "min(calc(100dvh - env(safe-area-inset-bottom, 0px) - 84px), 468px)" : 560,
+          borderRadius: isMobile ? 20 : 24, background: "#fff",
           boxShadow: "0 25px 60px rgba(0,0,0,0.18), 0 6px 20px rgba(0,0,0,0.08)",
           display: "flex", flexDirection: "column", overflow: "hidden",
           zIndex: 9999, animation: "chatSlideUp .32s cubic-bezier(.34,1.2,.64,1)", fontFamily: ds.ff,
         }}>
           {/* 헤더 */}
           <div style={{
-            padding: "16px 16px 14px",
+            padding: isMobile ? "14px 14px 12px" : "16px 16px 14px",
             background: "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
             position: "relative", overflow: "hidden",
           }}>
-            <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
-            <div style={{ position: "absolute", bottom: -30, left: 40, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
-              <MiniDogLottie size={40} />
+            <div style={{ position: "absolute", top: -20, right: -20, width: isMobile ? 64 : 80, height: isMobile ? 64 : 80, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
+            <div style={{ position: "absolute", bottom: -30, left: 40, width: isMobile ? 44 : 60, height: isMobile ? 44 : 60, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 12, position: "relative" }}>
+              <MiniDogLottie size={isMobile ? 30 : 40} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>멍비서 누리</div>
+                <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 700, color: "#fff" }}>멍비서 누리</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
                   <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#A7F3D0", boxShadow: "0 0 6px rgba(167,243,208,0.6)" }} />
                   <span style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>응답 가능</span>
@@ -565,7 +584,7 @@ export default function AdminChatBot() {
                 {[{ Icon: RotateCcw, s: 13, fn: handleClear }, { Icon: Minus, s: 15, fn: close }].map(({ Icon, s, fn }, i) => (
                   <button key={i} onClick={fn}
                     style={{
-                      width: 30, height: 30, borderRadius: 10, border: "none",
+                      width: isMobile ? 28 : 30, height: isMobile ? 28 : 30, borderRadius: isMobile ? 9 : 10, border: "none",
                       background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)",
                       cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                       color: "rgba(255,255,255,0.75)", transition: "all .15s",
@@ -580,21 +599,21 @@ export default function AdminChatBot() {
 
           {/* 본문 */}
           {!hasChats ? (
-            <Welcome onSelect={(q) => sendMessage(q)} />
+            <Welcome onSelect={(q) => sendMessage(q)} mobile={isMobile} />
           ) : (
             <>
-              <div className="cb-panel" style={{ flex: 1, overflowY: "auto", padding: "16px 14px 6px", background: "#F9FAFB" }}>
+              <div className="cb-panel" style={{ flex: 1, overflowY: "auto", padding: isMobile ? "14px 12px 6px" : "16px 14px 6px", background: "#F9FAFB" }}>
                 {messages.map((msg, i) => (
-                  <Bubble key={msg.id} msg={msg} isLast={isLastInGroup(i)} />
+                  <Bubble key={msg.id} msg={msg} isLast={isLastInGroup(i)} mobile={isMobile} />
                 ))}
-                {isTyping && <Typing />}
+                {isTyping && <Typing mobile={isMobile} />}
                 <div ref={bottomRef} />
               </div>
-              <Chips onSelect={(q) => sendMessage(q)} />
+              <Chips onSelect={(q) => sendMessage(q)} mobile={isMobile} />
             </>
           )}
 
-          <InputBar inputRef={inputRef} input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} handleKey={handleKey} />
+          <InputBar inputRef={inputRef} input={input} setInput={setInput} onSend={() => sendMessage()} isTyping={isTyping} handleKey={handleKey} mobile={isMobile} />
         </div>
       )}
 
@@ -603,8 +622,8 @@ export default function AdminChatBot() {
         <button
           onClick={toggle}
           style={{
-            position: "fixed", bottom: 28, right: 28,
-            width: 56, height: 56, borderRadius: "50%", border: "none",
+            position: "fixed", bottom: isMobile ? mobileButtonBottom : 28, right: isMobile ? 8 : 28,
+            width: isMobile ? 48 : 56, height: isMobile ? 48 : 56, borderRadius: "50%", border: "none",
             background: "#fff", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             zIndex: 10000, transition: "all .2s",
@@ -613,10 +632,10 @@ export default function AdminChatBot() {
           onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.08)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
         >
-          <X size={22} color="#9CA3AF" strokeWidth={2.2} />
+          <X size={isMobile ? 20 : 22} color="#9CA3AF" strokeWidth={2.2} />
         </button>
       ) : (
-        <DogCharacter onClick={toggle} />
+        <DogCharacter onClick={toggle} mobile={isMobile} />
       )}
     </>
   );
