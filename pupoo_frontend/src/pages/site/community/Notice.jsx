@@ -328,38 +328,55 @@ export default function Notice() {
                       event.currentTarget.style.background = "transparent";
                     }}
                   >
-                    <span style={{ width: isMobile ? "auto" : 60, textAlign: isMobile ? "left" : "center", fontSize: 13, color: notice.pinned ? "#dc2626" : "#9ca3af", fontWeight: notice.pinned ? 700 : 400, flexShrink: 0 }}>
-                      {notice.pinned ? "공지" : rowNumber}
-                    </span>
-                    <span style={{ flex: 1, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", display: "flex", alignItems: "center", minWidth: 0, wordBreak: "keep-all", overflowWrap: "break-word" }}>
-                      <BadgeTag
-                        icon={scopeBadge.icon}
-                        label={scopeBadge.compactLabel}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 4,
-                          minWidth: 40,
-                          padding: "4px 10px",
-                          borderRadius: 999,
-                          border: `1px solid ${scopeBadge.borderColor}`,
-                          background: scopeBadge.background,
-                          color: scopeBadge.color,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          lineHeight: 1,
-                          marginRight: 6,
-                          verticalAlign: "middle",
-                        }}
-                      />
-                      {notice.pinned ? <span style={{ fontSize: 12, marginRight: 4 }}>📌</span> : null}
-                      {notice.title}
-                    </span>
-                    <span style={{ width: isMobile ? "auto" : 100, textAlign: isMobile ? "left" : "center", fontSize: 13, color: "#6b7280", flexShrink: 0 }}>관리자</span>
-                    <span style={{ width: isMobile ? "auto" : 100, textAlign: isMobile ? "left" : "center", fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
-                      {fmtDate(notice.createdAt)}
-                    </span>
+                    {!isMobile && (
+                      <span style={{ width: 60, textAlign: "center", fontSize: 13, color: notice.pinned ? "#dc2626" : "#9ca3af", fontWeight: notice.pinned ? 700 : 400, flexShrink: 0 }}>
+                        {notice.pinned ? "??" : rowNumber}
+                      </span>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+                        {notice.pinned && (
+                          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 38, padding: "4px 10px", borderRadius: 999, background: "#FEF2F2", color: "#DC2626", fontSize: 12, fontWeight: 700, lineHeight: 1 }}>
+                            ??
+                          </span>
+                        )}
+                        <BadgeTag
+                          icon={scopeBadge.icon}
+                          label={scopeBadge.compactLabel}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 4,
+                            minWidth: 40,
+                            padding: "4px 10px",
+                            borderRadius: 999,
+                            border: `1px solid ${scopeBadge.borderColor}`,
+                            background: scopeBadge.background,
+                            color: scopeBadge.color,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            lineHeight: 1,
+                          }}
+                        />
+                        <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                          {notice.title}
+                        </span>
+                      </div>
+                      {isMobile && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
+                          <span>???</span>
+                          <span style={{ color: "#cbd5e1" }}>?</span>
+                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(notice.createdAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                    {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#6b7280", flexShrink: 0 }}>???</span>}
+                    {!isMobile && (
+                      <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {fmtDate(notice.createdAt)}
+                      </span>
+                    )}
                   </div>
                 );
               })}

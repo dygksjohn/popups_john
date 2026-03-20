@@ -382,6 +382,9 @@ export default function ServicePage() {
   const [filterDdOpen, setFilterDdOpen] = useState(false);
   const filterDdRef = useRef(null);
   const sortDdRef = useRef(null);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [openReplies, setOpenReplies] = useState({});
 
   /* ???? API ???? ???? */
@@ -488,6 +491,9 @@ export default function ServicePage() {
     }
   }, [page, totalPages]);
 
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+
   const currentSortLabel =
     SORT_OPTIONS.find((option) => option.key === sortKey)?.label ||
     "최신순";
@@ -564,9 +570,13 @@ export default function ServicePage() {
       />
       <main
         style={{
-          width: "min(1400px, calc(100% - 40px))",
+          width: isMobile
+            ? "min(100%, calc(100% - 24px))"
+            : isTablet
+              ? "min(1400px, calc(100% - 32px))"
+              : "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
-          padding: "40px 0 64px",
+          padding: isMobile ? "20px 0 40px" : isTablet ? "28px 0 52px" : "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
@@ -574,24 +584,26 @@ export default function ServicePage() {
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
             justifyContent: "space-between",
             paddingBottom: "16px",
             marginBottom: "8px",
+            gap: isMobile ? 12 : 8,
           }}
         >
           <span style={{ fontSize: "15px", fontWeight: "600", color: "#222" }}>
             총 {totalElements}건
           </span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: 999, height: 42 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: isMobile ? 16 : 999, height: isMobile ? "auto" : 42, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: isMobile ? 6 : 0, rowGap: isMobile ? 6 : 0 }}>
               {/* status dropdown */}
-              <div style={{ position: "relative", flex: "0 0 auto" }} ref={filterDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={filterDdRef}>
                 <button
                   type="button"
                   onClick={() => setFilterDdOpen((v) => !v)}
-                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 120, display: "inline-flex", alignItems: "center", gap: 7 }}
+                  style={{ height: 42, width: isMobile ? "100%" : "auto", padding: "0 36px 0 14px", border: isMobile ? "1px solid #dbe2ea" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 999 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 120, display: "inline-flex", alignItems: "center", gap: 7 }}
                 >
                   <ListFilter size={14} style={{ color: "#9ca3af" }} />
                   {filter}
@@ -616,14 +628,14 @@ export default function ServicePage() {
                 )}
               </div>
 
-              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* sort button */}
-              <div style={{ position: "relative", flex: "0 0 auto" }} ref={sortDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={sortDdRef}>
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((prev) => !prev)}
-                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 110, display: "inline-flex", alignItems: "center", gap: 7 }}
+                  style={{ height: 42, width: isMobile ? "100%" : "auto", padding: "0 36px 0 14px", border: isMobile ? "1px solid #dbe2ea" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 999 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 110, display: "inline-flex", alignItems: "center", gap: 7 }}
                 >
                   <SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />
                   {currentSortLabel}
@@ -648,10 +660,10 @@ export default function ServicePage() {
                 )}
               </div>
 
-              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* search input */}
-              <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "1 1 auto", minWidth: 0, width: isMobile ? "100%" : "auto" }}>
                 <Search
                   size={16}
                   strokeWidth={2}
@@ -671,16 +683,16 @@ export default function ServicePage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{
-                    border: "none",
-                    background: "transparent",
+                    border: isMobile ? "1px solid #dbe2ea" : "none",
+                    background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: "0 999px 999px 0",
+                    borderRadius: isMobile ? 999 : "0 999px 999px 0",
                     height: 42,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",
                     outline: "none",
-                    width: 280,
+                    width: isMobile ? "100%" : 280,
                   }}
                 />
               </div>
@@ -702,6 +714,8 @@ export default function ServicePage() {
                 cursor: "pointer",
                 fontFamily: "'Noto Sans KR', sans-serif",
                 transition: "background .15s",
+                width: isMobile ? "100%" : "auto",
+                justifyContent: "center",
               }}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.background = "#3a6ce7")
@@ -746,20 +760,22 @@ export default function ServicePage() {
             </div>
             {pagedItems.map((q, index) => {
               const isClosed = hasAnswer(q);
-              const statusLabel = isClosed ? "답변완료" : "미답변";
+              const statusLabel = isClosed ? "????" : "???";
               const rowNumber = totalElements - ((currentPage - 1) * PAGE_SIZE) - index;
+              const authorLabel = q?.author || q?.nickname || q?.userName || (q?.userId ? `?? #${q.userId}` : "??? ??");
 
               return (
                 <div
                   key={q.qnaId}
                   style={{ borderBottom: "1px solid #f0f0f0" }}
                 >
-                  {/* 吏덈Ц ??*/}
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      padding: "18px 16px",
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "stretch" : "center",
+                      gap: isMobile ? 8 : 0,
+                      padding: isMobile ? "14px 12px" : "18px 16px",
                       cursor: "pointer",
                       transition: "background 0.15s",
                     }}
@@ -771,200 +787,61 @@ export default function ServicePage() {
                       (e.currentTarget.style.background = "transparent")
                     }
                   >
-                    <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: 15,
-                        color: "#111827",
-                        fontWeight: 500,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {q.title}
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: isClosed ? "#2EB893" : "#999",
-                          border: `1px solid ${isClosed ? "#2EB893" : "#ccc"}`,
-                          borderRadius: 20,
-                          padding: "2px 9px",
-                          marginLeft: 8,
-                          whiteSpace: "nowrap",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 3,
-                          verticalAlign: "middle",
-                        }}
-                      >
-                        {statusLabel}
+                    {!isMobile && <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
                         <span
                           style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: isClosed ? "#2EB893" : "#999",
+                            border: `1px solid ${isClosed ? "#2EB893" : "#ccc"}`,
+                            borderRadius: 20,
+                            padding: "2px 9px",
+                            whiteSpace: "nowrap",
                             display: "inline-flex",
-                            transition: "transform 0.2s ease",
-                            transform: openReplies[q.qnaId]
-                              ? "rotate(180deg)"
-                              : "rotate(0deg)",
+                            alignItems: "center",
+                            gap: 3,
+                            flexShrink: 0,
                           }}
                         >
-                          <ChevronDown size={11} strokeWidth={2.5} />
+                          {statusLabel}
                         </span>
-                      </span>
-                    </span>
-
-                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>관리자</span>
-                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
-                      {fmtDate(q.createdAt)}
-                    </span>
-                  </div>
-
-                  {/* ?곸꽭 ?댁슜 (?좉?) */}
-                  {openReplies[q.qnaId] && (
-                    <div
-                      style={{
-                        padding: "16px 20px",
-                        background: "#f7f9ff",
-                        borderTop: "1px dashed #dde6ff",
-                      }}
-                    >
-                      {/* 吏덈Ц ?댁슜 */}
-                      <p
-                        style={{
-                          fontSize: 14,
-                          color: "#444",
-                          lineHeight: 1.6,
-                          margin: "0 0 16px",
-                          whiteSpace: "pre-wrap",
-                        }}
-                      >
-                        {q.content}
-                      </p>
-
-                      {/* ?댁쁺???듬? */}
-                      {q.answerContent && (
-                        <div
+                        <span
                           style={{
-                            padding: "14px 16px",
-                            background: "#eef3ff",
-                            borderRadius: 8,
-                            borderLeft: "3px solid #2EB893",
-                            marginBottom: 16,
+                            flex: 1,
+                            minWidth: 0,
+                            fontSize: isMobile ? 14 : 15,
+                            color: "#111827",
+                            fontWeight: 500,
+                            overflow: "hidden",
+                            textOverflow: isMobile ? "clip" : "ellipsis",
+                            whiteSpace: isMobile ? "normal" : "nowrap",
+                            wordBreak: "keep-all",
+                            overflowWrap: "break-word",
                           }}
                         >
-                          <div
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: "#2EB893",
-                              marginBottom: 6,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 4,
-                            }}
-                          >
-                            re: 관리자 답변
-                            {q.answeredAt && (
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  color: "#999",
-                                  fontWeight: 400,
-                                  marginLeft: 8,
-                                }}
-                              >
-                                {fmtDate(q.answeredAt)}
-                              </span>
-                            )}
-                          </div>
-                          <p
-                            style={{
-                              fontSize: 14,
-                              color: "#444",
-                              lineHeight: 1.6,
-                              margin: 0,
-                              whiteSpace: "pre-wrap",
-                            }}
-                          >
-                            {q.answerContent}
-                          </p>
+                          {q.title}
+                        </span>
+                      </div>
+                      {isMobile && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
+                          <span>{authorLabel}</span>
+                          <span style={{ color: "#cbd5e1" }}>?</span>
+                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(q.createdAt)}</span>
                         </div>
                       )}
-
-                      {/* 수정/삭제 踰꾪듉 */}
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "flex-end",
-                          gap: 8,
-                          paddingTop: 8,
-                          borderTop: "1px solid #E6F7F2",
-                        }}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setWriteModal({ item: q });
-                          }}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            padding: "6px 14px",
-                            borderRadius: 6,
-                            border: "1px solid #ddd",
-                            background: "#fff",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            color: "#555",
-                            fontFamily: "'Noto Sans KR', sans-serif",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#f5f5f5")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "#fff")
-                          }
-                        >
-                          <Pencil size={12} /> 수정
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteModal(q);
-                          }}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            padding: "6px 14px",
-                            borderRadius: 6,
-                            border: "1px solid #fecaca",
-                            background: "#fef2f2",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            color: "#dc2626",
-                            fontFamily: "'Noto Sans KR', sans-serif",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#fee2e2")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "#fef2f2")
-                          }
-                        >
-                          <Trash2 size={12} /> 삭제
-                        </button>
-                      </div>
                     </div>
-                  )}
+                    {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>{authorLabel}</span>}
+                    {!isMobile && (
+                      <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {fmtDate(q.createdAt)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              );
-            })}
+                );
+              })}
 
             {pagedItems.length === 0 && (
               <div

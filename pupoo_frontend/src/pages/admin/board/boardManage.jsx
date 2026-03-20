@@ -1206,22 +1206,16 @@ function BoardRow({
           }}
         >
           <div style={{ ...mobileTextStyle, flex: 1 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                flexWrap: "wrap",
-                marginBottom: 6,
-              }}
-            >
-              <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
-                {item.author}
-              </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
               {boardType === "free" && item.pinned && (
                 <Star size={12} color="#F59E0B" fill="#F59E0B" />
               )}
               {isQna && <StatusPill status={item.status} />}
+              {isReview && item.event && (
+                <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 8px", borderRadius: 999, background: ds.lineSoft, fontSize: 11.5, fontWeight: 700, color: ds.ink3 }}>
+                  {item.event}
+                </span>
+              )}
               {isReview && item.rating != null && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
                   <Star size={11} color="#F59E0B" fill="#F59E0B" />
@@ -1235,40 +1229,32 @@ function BoardRow({
               style={{
                 ...mobileTextStyle,
                 fontSize: 14,
-                fontWeight: 700,
+                fontWeight: 800,
                 color: ds.ink2,
                 lineHeight: 1.45,
+                marginTop: 8,
               }}
             >
               {item.title}
             </div>
-            {isReview && item.event && (
-              <div
-                style={{
-                  ...mobileTextStyle,
-                  marginTop: 8,
-                  fontSize: 12,
-                  color: ds.ink4,
-                }}
-              >
-                {item.event}
-              </div>
-            )}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 10,
+                gap: 8,
                 flexWrap: "wrap",
                 marginTop: 10,
                 fontSize: 12,
                 color: ds.ink4,
               }}
             >
+              <span>{item.author}</span>
+              <span style={{ color: ds.line }}>?</span>
+              <span>{item.date}</span>
+              <span style={{ color: ds.line }}>?</span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <Eye size={12} /> {item.views}
               </span>
-              <span>{item.date}</span>
               {item.answer && (
                 <span
                   style={{
@@ -1283,7 +1269,7 @@ function BoardRow({
                     fontWeight: 700,
                   }}
                 >
-                  <MessageCircle size={10} /> 답변 완료
+                  <MessageCircle size={10} /> ?? ??
                 </span>
               )}
             </div>
@@ -1292,9 +1278,9 @@ function BoardRow({
         </div>
         <div
           style={{
-            display: "flex",
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
             gap: 8,
-            flexWrap: "wrap",
             marginTop: 12,
           }}
         >
@@ -1304,7 +1290,6 @@ function BoardRow({
               onEdit();
             }}
             style={{
-              flex: "1 1 0",
               minWidth: 0,
               padding: "8px 10px",
               borderRadius: 8,
@@ -1317,7 +1302,7 @@ function BoardRow({
               fontFamily: ds.ff,
             }}
           >
-            수정
+            ??
           </button>
           <button
             onClick={(e) => {
@@ -1325,7 +1310,6 @@ function BoardRow({
               onDelete();
             }}
             style={{
-              flex: "1 1 0",
               minWidth: 0,
               padding: "8px 10px",
               borderRadius: 8,
@@ -1338,7 +1322,7 @@ function BoardRow({
               fontFamily: ds.ff,
             }}
           >
-            삭제
+            ??
           </button>
         </div>
       </div>
