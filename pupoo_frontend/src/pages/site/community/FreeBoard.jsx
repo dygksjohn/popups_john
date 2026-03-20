@@ -1020,12 +1020,11 @@ export default function FreeBoard() {
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
               </div>
               {pagedItems.map((item, index) => {
-                const rowNumber = totalElements - ((pageSafe - 1) * PAGE_SIZE) - index;
                 const authorLabel =
                   item?.nickname ||
                   item?.author ||
                   item?.userName ||
-                  (item?.userId ? `?? #${item.userId}` : "??? ??");
+                  (item?.userId ? `회원 #${item.userId}` : "익명 사용자");
                 return (
                   <div
                     key={item.postId}

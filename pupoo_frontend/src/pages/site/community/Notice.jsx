@@ -330,14 +330,14 @@ export default function Notice() {
                   >
                     {!isMobile && (
                       <span style={{ width: 60, textAlign: "center", fontSize: 13, color: notice.pinned ? "#dc2626" : "#9ca3af", fontWeight: notice.pinned ? 700 : 400, flexShrink: 0 }}>
-                        {notice.pinned ? "??" : rowNumber}
+                        {notice.pinned ? "공지" : rowNumber}
                       </span>
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
                         {notice.pinned && (
                           <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 38, padding: "4px 10px", borderRadius: 999, background: "#FEF2F2", color: "#DC2626", fontSize: 12, fontWeight: 700, lineHeight: 1 }}>
-                            ??
+                            공지
                           </span>
                         )}
                         <BadgeTag
@@ -365,13 +365,13 @@ export default function Notice() {
                       </div>
                       {isMobile && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
-                          <span>???</span>
-                          <span style={{ color: "#cbd5e1" }}>?</span>
+                          <span>관리자</span>
+                          <span style={{ color: "#cbd5e1" }}>{"\u00b7"}</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(notice.createdAt)}</span>
                         </div>
                       )}
                     </div>
-                    {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#6b7280", flexShrink: 0 }}>???</span>}
+                    {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#6b7280", flexShrink: 0 }}>관리자</span>}
                     {!isMobile && (
                       <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
                         {fmtDate(notice.createdAt)}

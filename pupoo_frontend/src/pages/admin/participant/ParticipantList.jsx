@@ -1495,7 +1495,7 @@ export default function ParticipantList({ subTab = "list" }) {
                       }}
                     />
                     <span style={{ fontSize: 13, color: ds.ink4, fontWeight: 600 }}>
-                      李멸???濡쒕뵫 以?..
+                      참가자 목록을 불러오는 중...
                     </span>
                   </div>
                 ) : filtered.length === 0 ? (
@@ -1512,10 +1512,10 @@ export default function ParticipantList({ subTab = "list" }) {
                   >
                     <Users size={36} color={ds.ink4} strokeWidth={1.5} />
                     <div style={{ fontSize: 14, fontWeight: 700, color: ds.ink4, marginTop: 12 }}>
-                      李멸??먭? ?놁뒿?덈떎
+                      참가자 목록이 없습니다
                     </div>
                     <div style={{ fontSize: 12.5, color: ds.ink4, marginTop: 4, textAlign: "center" }}>
-                      ?꾩쭅 ???됱궗???좎껌???뚯썝???놁뒿?덈떎
+                      검색 조건에 맞는 행사 참가 신청자가 없습니다
                     </div>
                   </div>
                 ) : (
@@ -1633,7 +1633,7 @@ export default function ParticipantList({ subTab = "list" }) {
                               width: "100%",
                             }}
                           >
-                            ?곸꽭
+                            상세
                           </button>
                           {r.status === "APPLIED" && (
                             <button
@@ -1654,7 +1654,7 @@ export default function ParticipantList({ subTab = "list" }) {
                                 width: "100%",
                               }}
                             >
-                              ?뱀씤
+                              승인
                             </button>
                           )}
                           <button
@@ -1675,7 +1675,7 @@ export default function ParticipantList({ subTab = "list" }) {
                               width: "100%",
                             }}
                           >
-                            ??젣
+                            삭제
                           </button>
                         </div>
                       </div>

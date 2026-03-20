@@ -760,9 +760,13 @@ export default function ServicePage() {
             </div>
             {pagedItems.map((q, index) => {
               const isClosed = hasAnswer(q);
-              const statusLabel = isClosed ? "????" : "???";
+              const statusLabel = isClosed ? "답변완료" : "미답변";
               const rowNumber = totalElements - ((currentPage - 1) * PAGE_SIZE) - index;
-              const authorLabel = q?.author || q?.nickname || q?.userName || (q?.userId ? `?? #${q.userId}` : "??? ??");
+              const authorLabel =
+                q?.author ||
+                q?.nickname ||
+                q?.userName ||
+                (q?.userId ? `회원 #${q.userId}` : "익명 사용자");
 
               return (
                 <div
