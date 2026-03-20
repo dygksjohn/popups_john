@@ -1021,7 +1021,7 @@ export default function InfoBoard() {
               </div>
               {pagedItems.map((item, index) => {
                 const rowNumber = totalElements - ((pageSafe - 1) * PAGE_SIZE) - index;
-                const authorLabel = item?.author || item?.nickname || item?.userName || "???";
+                const authorLabel = item?.author || item?.nickname || item?.userName || "관리자";
                 return (
                   <div
                     key={item.postId}

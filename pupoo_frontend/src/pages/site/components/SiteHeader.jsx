@@ -19,104 +19,104 @@ const megaMenuData = {
   events: {
     columns: [
       {
-        title: "?됱궗",
+        title: "행사",
         items: [
-          { label: "?꾩옱 吏꾪뻾 ?됱궗", href: "/event/current" },
-          { label: "?덉젙 ?됱궗", href: "/event/upcoming" },
-          { label: "醫낅즺 ?됱궗", href: "/event/closed" },
-          { label: "?됱궗 ?쇱젙 ?덈궡", href: "/event/eventschedule" },
+          { label: "현재 진행 행사", href: "/event/current" },
+          { label: "예정 행사", href: "/event/upcoming" },
+          { label: "종료 행사", href: "/event/closed" },
+          { label: "행사 일정 안내", href: "/event/eventschedule" },
         ],
       },
       {
-        title: "?꾨줈洹몃옩",
+        title: "프로그램",
         items: [
-          { label: "?꾩옱 吏꾪뻾 ?꾨줈洹몃옩", href: "/program/current" },
-          { label: "?덉젙 ?꾨줈洹몃옩", href: "/program/upcoming" },
-          { label: "醫낅즺 ?꾨줈洹몃옩", href: "/program/closed" },
+          { label: "현재 진행 프로그램", href: "/program/current" },
+          { label: "예정 프로그램", href: "/program/upcoming" },
+          { label: "종료 프로그램", href: "/program/closed" },
         ],
       },
     ],
     promo: {
       image: "/promo_event.jpg",
-      title: "?됱궗 ?덈궡",
-      desc: "Pupoo??二쇱슂 ?됱궗? ?꾨줈洹몃옩???쒕늿???뺤씤?섏꽭??",
+      title: "행사 안내",
+      desc: "Pupoo의 주요 행사와 프로그램을 한눈에 확인하세요.",
       icon: "event",
     },
   },
   community: {
     columns: [
       {
-        title: "?뚰넻 怨듦컙",
+        title: "소통 공간",
         items: [
-          { label: "怨듭??ы빆", href: "/community/notice" },
-          { label: "?먯쑀 寃뚯떆??", href: "/community/freeboard" },
-          { label: "?뺣낫 寃뚯떆??", href: "/community/info" },
-          { label: "?됱궗 ?꾧린", href: "/community/review" },
-          { label: "吏덈Ц怨??듬?", href: "/community/qna" },
-          { label: "?먯＜ 臾삳뒗 吏덈Ц", href: "/community/faq" },
+          { label: "공지사항", href: "/community/notice" },
+          { label: "자유 게시판", href: "/community/freeboard" },
+          { label: "정보 게시판", href: "/community/info" },
+          { label: "행사 후기", href: "/community/review" },
+          { label: "질문과 답변", href: "/community/qna" },
+          { label: "자주 묻는 질문", href: "/community/faq" },
         ],
       },
       {
-        title: "誘몃뵒??",
-        items: [{ label: "?됱궗 媛ㅻ윭由?", href: "/gallery/eventgallery" }],
+        title: "미디어",
+        items: [{ label: "행사 갤러리", href: "/gallery/eventgallery" }],
       },
     ],
     promo: {
       image: "/promo_community.jpg",
-      title: "而ㅻ??덊떚",
-      desc: "李몄뿬 ?꾧린? ?좎슜???뺣낫瑜?而ㅻ??덊떚?먯꽌 ?뺤씤?섏꽭??",
+      title: "커뮤니티",
+      desc: "참여 후기와 유용한 정보를 커뮤니티에서 확인하세요.",
       icon: "community",
     },
   },
   registration: {
     columns: [
       {
-        title: "李멸? ?좎껌",
+        title: "참가 신청",
         items: [
-          { label: "?됱궗 李멸? ?좎껌", href: "/registration/apply" },
-          { label: "?좎껌 ?댁뿭 議고쉶", href: "/registration/applyhistory" },
-          { label: "寃곗젣 ?댁뿭", href: "/registration/paymenthistory" },
-          { label: "QR 泥댄겕??", href: "/registration/qrcheckin" },
+          { label: "행사 참가 신청", href: "/registration/apply" },
+          { label: "신청 내역 조회", href: "/registration/applyhistory" },
+          { label: "결제 내역", href: "/registration/paymenthistory" },
+          { label: "QR 체크인", href: "/registration/qrcheckin" },
         ],
       },
       {
-        title: "李몄뿬 ?덈궡",
-        items: [{ label: "?꾩옣 ?댁슜 ?덈궡", href: "/guide/operation" }],
+        title: "참여 안내",
+        items: [{ label: "현장 이용 안내", href: "/guide/operation" }],
       },
     ],
     promo: {
       image: "/promo_registration.jpg",
-      title: "李멸? ?좎껌",
-      desc: "李멸? ?좎껌遺???꾩옣 ?댁슜源뚯? 鍮좊Ⅴ寃??뺤씤?섏꽭??",
+      title: "참가 신청",
+      desc: "참가 신청부터 현장 이용까지 빠르게 확인하세요.",
       icon: "registration",
     },
   },
   realtime: {
     columns: [
       {
-        title: "?ㅼ떆媛??꾪솴",
+        title: "실시간 현황",
         items: [
-          { label: "?듯빀 ?꾪솴", href: "/realtime/dashboard" },
-          { label: "?湲??꾪솴", href: "/realtime/waitingstatus" },
-          { label: "泥댄겕???꾪솴", href: "/realtime/checkinstatus" },
-          { label: "?ы몴 ?꾪솴", href: "/realtime/votestatus" },
+          { label: "통합 현황", href: "/realtime/dashboard" },
+          { label: "대기 현황", href: "/realtime/waitingstatus" },
+          { label: "체크인 현황", href: "/realtime/checkinstatus" },
+          { label: "투표 현황", href: "/realtime/votestatus" },
         ],
       },
     ],
     promo: {
       image: "/promo_realtime.jpg",
-      title: "?ㅼ떆媛??꾪솴",
-      desc: "?됱궗?μ쓽 二쇱슂 吏?쒕? ?ㅼ떆媛꾩쑝濡??뺤씤?????덉뒿?덈떎.",
+      title: "실시간 현황",
+      desc: "행사장의 주요 지표를 실시간으로 확인할 수 있습니다.",
       icon: "realtime",
     },
   },
 };
 
 const navItems = [
-  { label: "?됱궗", menuKey: "events" },
-  { label: "而ㅻ??덊떚", menuKey: "community" },
-  { label: "李멸??좎껌", menuKey: "registration" },
-  { label: "?ㅼ떆媛꾪쁽??", href: "/realtime/dashboard" },
+  { label: "행사", menuKey: "events" },
+  { label: "커뮤니티", menuKey: "community" },
+  { label: "참가신청", menuKey: "registration" },
+  { label: "실시간현황", href: "/realtime/dashboard" },
 ];
 
 /* ?????????????????????????????????????????????
@@ -302,11 +302,11 @@ const DropdownCard = ({ menuData, onNavigate, topOffset = 92 }) => {
    SEARCH PANEL (dropdown style, below header)
 ????????????????????????????????????????????? */
 const POPULAR_TAGS = [
-  { label: "#?됱궗?덈궡", to: "/event/current" },
-  { label: "#李멸??좎껌", to: "/registration/apply" },
-  { label: "#?꾨줈洹몃옩", to: "/program/current" },
-  { label: "#泥댄겕??", to: "/registration/qrcheckin" },
-  { label: "#媛ㅻ윭由?", to: "/gallery/eventgallery" },
+  { label: "#행사안내", to: "/event/current" },
+  { label: "#참가신청", to: "/registration/apply" },
+  { label: "#프로그램", to: "/program/current" },
+  { label: "#체크인", to: "/registration/qrcheckin" },
+  { label: "#갤러리", to: "/gallery/eventgallery" },
 ];
 
 const SearchPanel = ({
@@ -366,7 +366,7 @@ const SearchPanel = ({
     e.preventDefault();
     if (query.trim()) onSearch(query.trim());
   };
-
+                          <span style={{ color: "#cbd5e1" }}>?</span>
   const formatDate = (start, end) => {
     if (!start) return "";
     const fmt = (d) => {
@@ -377,7 +377,7 @@ const SearchPanel = ({
   };
 
   const statusLabel = (s) => {
-    const m = { PLANNED: "?덉젙", ONGOING: "吏꾪뻾以?", ENDED: "醫낅즺" };
+    const m = { PLANNED: "예정", ONGOING: "진행중", ENDED: "종료" };
     return m[s] || s;
   };
   const statusColor = (s) => {
@@ -425,7 +425,7 @@ const SearchPanel = ({
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="?대뼡 ?됱궗瑜?李얘퀬 怨꾩꽭??"
+            placeholder="어떤 행사를 찾고 계세요?"
             style={{
               flex: 1, border: "none", background: "none", outline: "none",
               color: "#fff", fontSize: inputFontSize, fontWeight: 500,
@@ -449,15 +449,15 @@ const SearchPanel = ({
         <div style={{ width: "100%", maxWidth: resultMaxWidth }}>
           {loading ? (
             <div style={{ textAlign: "center", padding: "20px 0", color: "#999", fontSize: 14, fontFamily: FONT }}>
-              寃??以?..
+              검색 중...
             </div>
           ) : results.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#aaa", marginBottom: 8, fontFamily: FONT }}>
-                寃??寃곌낵 {results.length}嫄?              </div>
-              {results.map((evt) => (
-                <button
-                  key={evt.eventId}
+                검색 결과 {results.length}건
+              </div>
+                {results.map((evt) => (
+                  <button
                   type="button"
                   onClick={() => { onClose(); onNavigate(`/event/eventschedule?eventId=${evt.eventId}`); }}
                   style={{
@@ -541,9 +541,11 @@ const SearchPanel = ({
                 <SearchX size={mobile ? 20 : 24} color="#ccc" />
               </div>
               <div style={{ fontSize: mobile ? 14 : 15, fontWeight: 700, color: "#444", fontFamily: FONT }}>
-                '{query.trim()}'?????寃??寃곌낵媛 ?놁뼱??              </div>
+                '{query.trim()}'에 대한 검색 결과가 없어요
+              </div>
               <div style={{ fontSize: mobile ? 12 : 13, color: "#aaa", fontFamily: FONT, lineHeight: 1.5 }}>
-                ?ㅻⅨ ?ㅼ썙?쒕줈 寃?됲븯嫄곕굹, ?꾨옒 ?쒓렇瑜??뚮윭蹂댁꽭??              </div>
+                다른 키워드로 검색하거나, 아래 태그를 눌러보세요
+              </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 8 }}>
                 {POPULAR_TAGS.map((tag) => (
                   <button
@@ -754,9 +756,9 @@ export default function PupooHeader() {
     flexShrink: 0,
   };
   const mobileQuickLinks = [
-    { label: "??", to: "/" },
-    { label: "?됱궗", to: "/event/current" },
-    { label: "而ㅻ??덊떚", to: "/community/notice" },
+    { label: "홈", to: "/" },
+    { label: "행사", to: "/event/current" },
+    { label: "커뮤니티", to: "/community/notice" },
   ];
 
   return (
@@ -1036,21 +1038,21 @@ export default function PupooHeader() {
                     onClick={() => { setSearchOpen((v) => !v); setActiveMenu(null); }}
                   >
                     <Search size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">寃??</span>
+                    <span className="ktt">검색</span>
                   </button>
                   <Link
                     to="/auth/login"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
                   >
                     <LogIn size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">濡쒓렇??</span>
+                    <span className="ktt">로그인</span>
                   </Link>
                   <Link
                     to="/auth/join/joinselect"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
                   >
                     <UserPlus size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">?뚯썝媛??</span>
+                    <span className="ktt">회원가입</span>
                   </Link>
                 </>
               ) : (
@@ -1061,14 +1063,14 @@ export default function PupooHeader() {
                     onClick={() => { setSearchOpen((v) => !v); setActiveMenu(null); }}
                   >
                     <Search size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">寃??</span>
+                    <span className="ktt">검색</span>
                   </button>
                   <Link
                     to="/mypage"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
                   >
                     <UserCircle size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">留덉씠?섏씠吏</span>
+                    <span className="ktt">마이페이지</span>
                   </Link>
                   <button
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
@@ -1079,7 +1081,7 @@ export default function PupooHeader() {
                     type="button"
                   >
                     <LogOut size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">濡쒓렇?꾩썐</span>
+                    <span className="ktt">로그아웃</span>
                   </button>
                 </>
               )}
@@ -1366,7 +1368,8 @@ export default function PupooHeader() {
                         fontFamily: FONT,
                       }}
                     >
-                      濡쒓렇??                    </Link>
+                      로그인
+                    </Link>
                     <Link
                       to="/auth/join/joinselect"
                       onClick={() => setMobileMenuOpen(false)}
@@ -1378,7 +1381,8 @@ export default function PupooHeader() {
                         fontFamily: FONT,
                       }}
                     >
-                      ?뚯썝媛??                    </Link>
+                      회원가입
+                    </Link>
                   </>
                 ) : (
                   <>
@@ -1393,7 +1397,7 @@ export default function PupooHeader() {
                         fontFamily: FONT,
                       }}
                     >
-                      留덉씠?섏씠吏
+                      마이페이지
                     </Link>
                     <button
                       type="button"
@@ -1414,7 +1418,7 @@ export default function PupooHeader() {
                         cursor: "pointer",
                       }}
                     >
-                      濡쒓렇?꾩썐
+                      로그아웃
                     </button>
                   </>
                 )}
