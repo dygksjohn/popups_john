@@ -14,15 +14,18 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import List, Tuple
 
 from pupoo_ai.app.features.moderation.chunking import PolicyChunk, load_policy_chunks
 from pupoo_ai.app.features.moderation.embedding_service import get_embedding_service
 from pupoo_ai.app.features.moderation.milvus_client import PolicyVectorStore
+from pupoo_ai.app.features.moderation.policy_state import load_active_policy
 from pupoo_ai.app.features.moderation.watsonx_client import is_watsonx_configured, moderate_with_llm
 
 POLICY_DOC_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "policy_docs"
+logger = logging.getLogger(__name__)
 
 
 def build_policy_index(dry_run: bool = False) -> Tuple[int, int]:
@@ -39,7 +42,8 @@ def build_policy_index(dry_run: bool = False) -> Tuple[int, int]:
 
     texts = [chunk.text for chunk in chunks]
     vectors = embedder.embed_texts(texts)
-    store = PolicyVectorStore(dim=embedder.dim)
+    active = load_active_policy()
+    store = PolicyVectorStore(dim=embedder.dim, collection_name=active.collection)
     store.upsert(
         embeddings=vectors,
         policy_ids=[chunk.policy_id for chunk in chunks],
@@ -55,9 +59,10 @@ def retrieve_policies(query: str, top_k: int = 5) -> List[dict]:
     # 설명: score는 벡터 검색 결과의 거리 값이며, 정책 위반 확률이 아니라 검색 유사도 성격이다.
     # 흐름: 질의 임베딩 생성 -> Milvus 검색 -> 결과 필드 정규화.
     embedder = get_embedding_service()
-    query_vectors = embedder.embed_texts([query])
-    store = PolicyVectorStore(dim=embedder.dim)
-    results = store.search(query_vectors, top_k=top_k)
+    q_vecs = embedder.embed_texts([query])
+    active = load_active_policy()
+    store = PolicyVectorStore(dim=embedder.dim, collection_name=active.collection)
+    results = store.search(q_vecs, top_k=top_k)
     if not results:
         return []
 
@@ -77,20 +82,19 @@ def retrieve_policies(query: str, top_k: int = 5) -> List[dict]:
     return documents
 
 
-def moderate_with_rag(
-    text: str,
-) -> tuple[str, float | None, str | None, str, list[str] | None, list[str] | None]:
-    # 기능: 정책 검색 결과와 LLM 판단을 결합해 moderation 결과를 생성한다.
-    # 설명: watsonx가 있으면 정책 검색 결과를 근거로 최종 판단을 생성하고, 없으면 검색 근거만 반환하는 fallback을 사용한다.
-    # 흐름: 정책 검색 -> watsonx 사용 여부 판단 -> LLM 판단 또는 fallback 결과 반환.
-    documents = retrieve_policies(text, top_k=5)
+def moderate_with_rag(text: str) -> tuple[str, float | None, str | None, str, list[str] | None, list[str] | None]:
+    """
+    RAG 기반 모더레이션: 정책 검색 후 watsonx LLM으로 판정·사유·문제 문구(원문·유추) 생성.
+    - 운영 정책: watsonx 미설정/오류 등 예상치 못한 상황은 안전하게 BLOCK 처리한다.
+    """
+    docs = retrieve_policies(text, top_k=5)
 
     if is_watsonx_configured():
         action, ai_score, reason, flagged_phrases, inferred_phrases = moderate_with_llm(text, documents)
         return action, ai_score, reason, "rag_watsonx", flagged_phrases, inferred_phrases
 
-    if not documents:
-        return "PASS", 0.0, None, "rag_milvus_stub", None, None
+    logger.error("watsonx is not configured. Treating moderation result as BLOCK.")
+    return "BLOCK", None, "watsonx 설정이 없어 모더레이션을 수행할 수 없습니다.", "rag_milvus_stub", None, None
 
     reasons = []
     for document in documents:

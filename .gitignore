@@ -159,3 +159,6 @@ run_logs/
 .mlflow/
 wandb/pupoo_backend/.claude/
 pupoo_frontend/.claude/
+
+#대용량 더미데이터 방지
+*.hprof

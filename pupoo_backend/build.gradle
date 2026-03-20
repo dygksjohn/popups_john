@@ -140,6 +140,11 @@ tasks.named('test') {
 	jvmArgs '-Dfile.encoding=UTF-8'
 }
 
+// 로컬 개발 시 bootRun은 기본으로 local 프로필 사용 (AI moderation → localhost:8000)
+tasks.named('bootRun') {
+	systemProperty 'spring.profiles.active', System.getProperty('spring.profiles.active') ?: 'local'
+}
+
 tasks.register('installFrontendDependencies', Exec) {
 	group = 'build'
 	description = 'Install frontend dependencies for the integrated workspace build.'

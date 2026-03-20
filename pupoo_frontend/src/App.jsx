@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useParams,
+} from "react-router-dom";
 import { useAuth } from "./pages/site/auth/AuthProvider";
 import SiteLayout from "./layouts/SiteLayout";
 import ScrollToTop from "./ScrollToTop.jsx";
@@ -96,6 +102,10 @@ import InfoBoard from "./pages/site/community/InfoBoard";
 import InfoBoardDetailPage from "./pages/site/community/InfoBoardDetailPage";
 import InfoBoardWritePage from "./pages/site/community/InfoBoardWritePage";
 import FaqDetailPage from "./pages/site/community/FaqDetailPage";
+import FreeBoardEditPage from "./pages/site/community/FreeBoardEditPage";
+import InfoBoardEditPage from "./pages/site/community/InfoBoardEditPage";
+import QnAEditPage from "./pages/site/community/QnAEditPage";
+import ReviewEditPage from "./pages/site/community/ReviewEditPage";
 
 /* Info */
 import PlatformIntro from "./pages/site/info/PlatformIntro";
@@ -547,20 +557,51 @@ export default function App() {
             path="/realtime/waitingstatus/:eventId?"
             element={<WaitingStatus />}
           />
-              <Route path="/community/freeboard" element={<FreeBoard />} />
-              <Route path="/community/freeboard/write" element={<FreeBoardWritePage />} />
-              <Route path="/community/freeboard/:postId" element={<FreeBoardDetailPage />} />
-              <Route path="/community/info" element={<InfoBoard />} />
-              <Route path="/community/info/write" element={<InfoBoardWritePage />} />
-              <Route path="/community/info/:postId" element={<InfoBoardDetailPage />} />
-              <Route path="/community/review" element={<Review />} />
-              <Route path="/community/review/write" element={<ReviewWritePage />} />
-              <Route path="/community/review/:reviewId" element={<ReviewDetailPage />} />
-              <Route path="/community/qna" element={<QnA />} />
-              <Route path="/community/qna/write" element={<QnAWritePage />} />
-              <Route path="/community/qna/:qnaId" element={<QnADetailPage />} />
+          <Route path="/community/freeboard" element={<FreeBoard />} />
+          <Route
+            path="/community/freeboard/write"
+            element={<FreeBoardWritePage />}
+          />
+          <Route
+            path="/community/freeboard/:postId/edit"
+            element={<FreeBoardEditPage />}
+          />
+          <Route
+            path="/community/freeboard/:postId"
+            element={<FreeBoardDetailPage />}
+          />
+          <Route path="/community/info" element={<InfoBoard />} />
+          <Route
+            path="/community/info/write"
+            element={<InfoBoardWritePage />}
+          />
+          <Route
+            path="/community/info/:postId/edit"
+            element={<InfoBoardEditPage />}
+          />
+          <Route
+            path="/community/info/:postId"
+            element={<InfoBoardDetailPage />}
+          />
+          <Route path="/community/review" element={<Review />} />
+          <Route path="/community/review/write" element={<ReviewWritePage />} />
+          <Route
+            path="/community/review/:reviewId/edit"
+            element={<ReviewEditPage />}
+          />
+          <Route
+            path="/community/review/:reviewId"
+            element={<ReviewDetailPage />}
+          />
+          <Route path="/community/qna" element={<QnA />} />
+          <Route path="/community/qna/write" element={<QnAWritePage />} />
+          <Route path="/community/qna/:qnaId/edit" element={<QnAEditPage />} />
+          <Route path="/community/qna/:qnaId" element={<QnADetailPage />} />
           <Route path="/community/notice" element={<Notice />} />
-          <Route path="/community/notice/:noticeId" element={<NoticeDetailPage />} />
+          <Route
+            path="/community/notice/:noticeId"
+            element={<NoticeDetailPage />}
+          />
           <Route path="/community/faq" element={<CommunityFaq />} />
           <Route path="/community/faq/:postId" element={<FaqDetailPage />} />
           <Route path="/info/intro" element={<PlatformIntro />} />

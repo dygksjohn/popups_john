@@ -26,7 +26,7 @@ public class BoardBannedLog {
     @Column(name = "board_id", nullable = false)
     private Long boardId;
 
-    @Column(name = "content_id", nullable = false)
+    @Column(name = "content_id", nullable = true)
     private Long contentId;
 
     @Enumerated(EnumType.STRING)

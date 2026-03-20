@@ -48,7 +48,7 @@ export const reviewApi = {
         rating: payload.rating,
         reviewTitle: payload.reviewTitle ?? "",
         content: payload.content ?? "",
-      }, { timeout: 60000 })
+      }, { timeout: 120000 })
       .then((res) => unwrap(res));
   },
 
@@ -60,7 +60,7 @@ export const reviewApi = {
         rating: payload?.rating ?? 5,
         reviewTitle: payload?.reviewTitle ?? "",
         content: payload?.content ?? "",
-      })
+      }, { timeout: 120000 })
       .then((res) => unwrap(res));
   },
 

@@ -2078,25 +2078,6 @@ export default function Gallery() {
     }
   };
 
-  /* ── 전체 삭제 ── */
-  const handleDeleteAll = async () => {
-    setSaving(true);
-    try {
-      const ids = filtered.map((g) => g.galleryId);
-      await api.batchDelete(ids);
-      setModal(null);
-      setSelected(new Set());
-      showToast(`${ids.length}건이 전체 삭제되었습니다.`);
-      fetchList(page);
-    } catch (err) {
-      console.error("[Gallery] delete all error:", err);
-      setModal(null);
-      showToast("전체 삭제에 실패했습니다.", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   /* ── 선택 토글 ── */
   const isAllSelected =
     filtered.length > 0 && filtered.every((g) => selected.has(g.galleryId));
@@ -2192,27 +2173,6 @@ export default function Gallery() {
                   }}
                 >
                   <Trash2 size={12} /> 선택 삭제
-                </button>
-              )}
-              {filtered.length > 0 && (
-                <button
-                  onClick={() => setModal({ type: "deleteAll" })}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    padding: "6px 12px",
-                    borderRadius: 7,
-                    border: `1px solid ${ds.line}`,
-                    background: ds.card,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: ds.ink3,
-                    cursor: "pointer",
-                    fontFamily: ds.ff,
-                  }}
-                >
-                  <Trash2 size={12} /> 전체 삭제
                 </button>
               )}
               <div style={{ position: "relative" }}>
@@ -2533,15 +2493,6 @@ export default function Gallery() {
           title="선택 삭제"
           msg={`선택한 ${selected.size}건을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
           onConfirm={handleBatchDelete}
-          onCancel={() => setModal(null)}
-          loading={saving}
-        />
-      )}
-      {modal?.type === "deleteAll" && (
-        <ConfirmModal
-          title="전체 삭제"
-          msg={`현재 탭의 ${filtered.length}건을 전체 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
-          onConfirm={handleDeleteAll}
           onCancel={() => setModal(null)}
           loading={saving}
         />

@@ -1971,49 +1971,6 @@ export default function BoardManage({ subTab = "free" }) {
     }
   };
 
-  /* ── 전체 삭제 ── */
-  const handleDeleteAll = async () => {
-    const allIds = rows.map(getRowId);
-    setSelected(new Set(allIds));
-    setSaving(true);
-    try {
-      if (isQna) {
-        for (const r of rows) {
-          const qnaId = r.qnaId ?? r.id;
-          await adminQnaApi.delete(qnaId);
-        }
-        fetchQnaList(1);
-      } else {
-        if (boardType === "faq") {
-          await Promise.all(
-            rows.map((r) => {
-              const postId = r.postId || r.id;
-              return axiosInstance.delete(`/api/admin/faqs/${postId}`, {
-                headers: authHeaders(),
-              });
-            }),
-          );
-        } else {
-          const postIds = rows.map((r) => r.postId || r.reviewId || r.id);
-          await axiosInstance.delete("/api/admin/posts/batch", {
-            headers: authHeaders(),
-            data: { ids: postIds },
-          });
-        }
-        fetchBoardData(boardType);
-      }
-      setModal(null);
-      setSelected(new Set());
-      showToast(`${rows.length}건이 전체 삭제되었습니다.`);
-    } catch (err) {
-      console.error("[BoardManage] delete all error:", err);
-      setModal(null);
-      showToast("전체 삭제에 실패했습니다.", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   /* ── 운영자 답변 등록/수정 (Q&A API) ── */
   const handleReply = async (item, replyText) => {
     if (isQna) {
@@ -2142,27 +2099,6 @@ export default function BoardManage({ subTab = "free" }) {
                 }}
               >
                 <Trash2 size={12} /> 선택 삭제
-              </button>
-            )}
-            {rows.length > 0 && (
-              <button
-                onClick={() => setModal({ type: "deleteAll" })}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "7px 12px",
-                  borderRadius: 7,
-                  border: `1px solid ${ds.line}`,
-                  background: ds.bg,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: ds.ink3,
-                  cursor: "pointer",
-                  fontFamily: ds.ff,
-                }}
-              >
-                <Trash2 size={12} /> 전체 삭제
               </button>
             )}
             <div style={{ position: "relative" }}>
@@ -2480,16 +2416,6 @@ export default function BoardManage({ subTab = "free" }) {
           loading={saving}
         />
       )}
-      {modal?.type === "deleteAll" && (
-        <ConfirmModal
-          title="전체 삭제"
-          msg={`현재 목록의 ${rows.length}건을 전체 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`}
-          onConfirm={handleDeleteAll}
-          onCancel={() => setModal(null)}
-          loading={saving}
-        />
-      )}
-
       {/* ── 토스트 ── */}
       {toast && (
         <Toast

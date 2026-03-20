@@ -40,7 +40,7 @@ export const replyApi = {
         targetType: payload.targetType,
         targetId: payload.targetId,
         content: payload.content.trim(),
-      }, { timeout: 60000 })
+      }, { timeout: 120000 })
       .then((res) => unwrap(res));
   },
 
@@ -49,7 +49,7 @@ export const replyApi = {
     if (replyId == null || targetType == null)
       throw new Error("replyApi.update: replyId, targetType are required");
     return axiosInstance
-      .patch(`/api/replies/${replyId}`, { content: content ?? "" }, { params: { targetType } })
+      .patch(`/api/replies/${replyId}`, { content: content ?? "" }, { params: { targetType }, timeout: 120000 })
       .then((res) => unwrap(res));
   },
 

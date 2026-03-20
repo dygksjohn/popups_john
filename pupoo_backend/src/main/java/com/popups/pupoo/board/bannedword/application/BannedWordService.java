@@ -37,11 +37,21 @@ public class BannedWordService {
     @Transactional
     public void logAiModeration(Long boardId, Long contentId, BannedLogContentType contentType, Long userId,
                                 ModerationResult result) {
-        if (result == null || boardId == null || contentId == null) return;
+        if (result == null || boardId == null) return;
         if (!result.isBlock()) return;
         FilterAction action = FilterAction.BLOCK;
         String reason = result.getReason();
-        if (reason != null && reason.length() > 2000) reason = reason.substring(0, 2000);
+        String stack = result.getStack();
+        // rag_reason에는 reason + stack을 함께 넣어, 서버 장애/통신 예외의 원인을 추적할 수 있게 한다.
+        String ragReason = reason;
+        if (stack != null && !stack.isBlank()) {
+            if (ragReason == null || ragReason.isBlank()) {
+                ragReason = "stack=" + stack;
+            } else {
+                ragReason = ragReason + " | stack=" + stack;
+            }
+        }
+        if (ragReason != null && ragReason.length() > 2000) ragReason = ragReason.substring(0, 2000);
         try {
             boardBannedLogRepository.save(BoardBannedLog.builder()
                     .boardId(boardId)
@@ -51,7 +61,7 @@ public class BannedWordService {
                     .detectedWord("AI")
                     .filterActionTaken(action)
                     .aiScore(result.getAiScore())
-                    .ragReason(reason)
+                    .ragReason(ragReason)
                     .build());
         } catch (Exception e) {
             log.warn("AI moderation log save failed (boardId={}, contentId={}). Ensure board_banned_logs has ai_score, rag_reason columns. Error: {}", boardId, contentId, e.getMessage());

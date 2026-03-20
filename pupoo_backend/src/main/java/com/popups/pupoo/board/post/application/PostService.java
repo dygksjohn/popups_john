@@ -5,7 +5,7 @@ import com.popups.pupoo.board.bannedword.application.BannedWordService;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.bannedword.application.ModerationClient;
 import com.popups.pupoo.board.bannedword.application.ModerationResult;
-import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
+import com.popups.pupoo.board.bannedword.application.ModerationBlockMessageResolver;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.domain.model.Board;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
@@ -20,6 +20,7 @@ import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.search.SearchType;
 import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class PostService {
 
     private final PostRepository postRepository;
@@ -39,6 +41,7 @@ public class PostService {
     private final BannedWordService bannedWordService;
     private final ModerationClient moderationClient;
     private final UserRepository userRepository;
+    private final ModerationBlockMessageResolver moderationBlockMessageResolver;
 
     private Long resolveBoardId(Long boardId, BoardType boardType) {
         if (boardId != null) return boardId;
@@ -141,9 +144,25 @@ public class PostService {
 
     @Transactional
     public Long createPost(Long userId, PostCreateRequest req) {
+        if (req == null) {
+            log.warn("createPost called with null req (userId={})", userId);
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "request is required");
+        }
+        String title = req.getPostTitle();
+        String content = req.getContent();
+        int titleLen = title == null ? 0 : title.length();
+        int contentLen = content == null ? 0 : content.length();
+        String titlePreview = title == null ? "null" : (title.length() <= 40 ? title : title.substring(0, 40) + "...");
+        String contentPreview = content == null ? "null" : (content.length() <= 40 ? content : content.substring(0, 40) + "...");
+        // debugging: 400 등으로 moderation 이전에 막히는 케이스가 있어, info 대신 warn으로 항상 노출한다.
+        log.warn("createPost request: userId={}, boardId={}, postTitleLen={}, contentLen={}, titlePreview='{}', contentPreview='{}'",
+                userId, req.getBoardId(), titleLen, contentLen, titlePreview, contentPreview);
+
         if (userId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         if (req.getBoardId() == null || req.getPostTitle() == null || req.getPostTitle().isBlank() || req.getContent() == null) {
+            log.warn("createPost validation failed: userId={}, boardId={}, postTitle={}, contentNull={}",
+                    userId, req.getBoardId(), req.getPostTitle(), req.getContent() == null);
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "boardId/postTitle/content is required");
         }
 
@@ -153,6 +172,8 @@ public class PostService {
         ModerationResult modResult = null;
         if (!bannedWordService.shouldSkipModeration(userId)) {
             String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
+            log.warn("Calling AI moderation for post: textLen={}, preview='{}'",
+                    textToModerate.length(), textToModerate.length() <= 60 ? textToModerate : textToModerate.substring(0, 60) + "...");
             modResult = moderationClient.moderate(textToModerate.trim(), req.getBoardId(), "POST");
             if (modResult != null && modResult.isBlock()) {
                 // 생성 단계에서 BLOCK 된 요청도 로그에 남긴다 (contentId는 아직 없음).
@@ -163,9 +184,9 @@ public class PostService {
                         userId,
                         modResult
                 );
-                // 자유게시판 등 게시글 전반: 사용자에게는 항상 동일한 안내만 노출
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "게시글 내용이 정책에 위반될 수 있어 등록할 수 없습니다.");
+                // 기술/서버 장애 등으로 BLOCK 된 경우에도 reason/stack을 반영해 안내문구를 다르게 노출한다.
+                String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("게시글", modResult);
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, msg);
             }
         }
 
@@ -210,9 +231,7 @@ public class PostService {
                 );
                 throw new BusinessException(
                         ErrorCode.VALIDATION_FAILED,
-                        modResult.getReason() != null
-                                ? modResult.getReason()
-                                : "게시글 내용이 정책에 위반될 수 있어 수정할 수 없습니다."
+                        moderationBlockMessageResolver.resolveUpdateBlockMessage("게시글", modResult)
                 );
             }
             post.updateTitleAndContent(req.getPostTitle(), req.getContent());

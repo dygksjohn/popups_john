@@ -1,7 +1,15 @@
 // file: src/main/java/com/popups/pupoo/board/qna/application/QnaService.java
 package com.popups.pupoo.board.qna.application;
 
+import java.time.LocalDateTime;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
+import com.popups.pupoo.board.bannedword.application.ModerationBlockMessageResolver;
 import com.popups.pupoo.board.bannedword.application.ModerationClient;
 import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
@@ -19,13 +27,8 @@ import com.popups.pupoo.board.qna.persistence.QnaRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.user.persistence.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 사용자 QnA 게시글 생성과 공개 조회를 담당한다.
@@ -40,6 +43,7 @@ public class QnaService {
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
     private final ModerationClient moderationClient;
+    private final ModerationBlockMessageResolver moderationBlockMessageResolver;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
 
@@ -68,8 +72,9 @@ public class QnaService {
                         userId,
                         modResult
                 );
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "QnA 내용이 정책을 위반하여 등록할 수 없습니다.");
+                // 기술/서버 장애 등으로 BLOCK 된 경우에도 reason/stack을 반영해 안내문구를 다르게 노출한다.
+                String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("QnA", modResult);
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, msg);
             }
         }
 
@@ -138,6 +143,21 @@ public class QnaService {
 
         if (!post.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다.");
+        }
+
+        Long qnaBoardId = boardRepository.findByBoardType(BoardType.QNA)
+                .map(Board::getBoardId).orElse(null);
+
+        if (!bannedWordService.shouldSkipModeration(userId) && qnaBoardId != null) {
+            String textToModerate = (request.getTitle() != null ? request.getTitle() : "") + " "
+                    + (request.getContent() != null ? request.getContent() : "");
+            ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), qnaBoardId, "POST");
+            if (modResult != null && modResult.isBlock()) {
+                bannedWordService.logAiModeration(
+                        qnaBoardId, qnaId, BannedLogContentType.POST, userId, modResult);
+                String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("QnA", modResult);
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, msg);
+            }
         }
 
         post.updateTitleAndContent(request.getTitle(), request.getContent());
