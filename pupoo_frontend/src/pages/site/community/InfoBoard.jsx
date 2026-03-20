@@ -543,6 +543,9 @@ export default function InfoBoard() {
   const [sortKey, setSortKey] = useState("recent");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const sortDdRef = useRef(null);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
 
   const [allItems, setAllItems] = useState([]);
   const [commentCountMap, setCommentCountMap] = useState({});
@@ -838,12 +841,22 @@ export default function InfoBoard() {
   const currentSortLabel =
     SORT_OPTIONS.find((option) => option.key === sortKey)?.label || "최신순";
 
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+
   useEffect(() => {
     const h = (e) => {
       if (sortDdRef.current && !sortDdRef.current.contains(e.target)) setSortMenuOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  useEffect(() => {
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
   return (
@@ -862,32 +875,37 @@ export default function InfoBoard() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
       <main
         style={{
-          width: "min(1400px, calc(100% - 40px))",
+          width: isMobile
+            ? "min(100%, calc(100% - 24px))"
+            : isTablet
+              ? "min(1400px, calc(100% - 32px))"
+              : "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
-          padding: "40px 0 64px",
+          padding: isMobile ? "20px 0 40px" : isTablet ? "28px 0 52px" : "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
             justifyContent: "space-between",
             paddingBottom: "16px",
             marginBottom: "8px",
-            gap: 8,
+            gap: isMobile ? 12 : 8,
           }}
         >
           <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>총 {totalElements}개</span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: 999, height: 42 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: isMobile ? 16 : 999, height: isMobile ? "auto" : 42, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: isMobile ? 6 : 0, rowGap: isMobile ? 6 : 0 }}>
               {/* sort button */}
-              <div style={{ position: "relative", flex: "0 0 auto" }} ref={sortDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={sortDdRef}>
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((prev) => !prev)}
-                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 110, display: "inline-flex", alignItems: "center", gap: 7 }}
+                  style={{ height: 42, width: isMobile ? "100%" : "auto", padding: "0 36px 0 14px", border: isMobile ? "1px solid #dbe2ea" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 999 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 110, display: "inline-flex", alignItems: "center", gap: 7 }}
                 >
                   <SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />
                   {currentSortLabel}
@@ -912,10 +930,10 @@ export default function InfoBoard() {
                 )}
               </div>
 
-              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* search input */}
-              <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "1 1 auto", minWidth: 0, width: isMobile ? "100%" : "auto" }}>
                 <Search
                   size={16}
                   strokeWidth={2}
@@ -935,16 +953,16 @@ export default function InfoBoard() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{
-                    border: "none",
-                    background: "transparent",
+                    border: isMobile ? "1px solid #dbe2ea" : "none",
+                    background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: "0 999px 999px 0",
+                    borderRadius: isMobile ? 999 : "0 999px 999px 0",
                     height: 42,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",
                     outline: "none",
-                    width: 280,
+                    width: isMobile ? "100%" : 280,
                   }}
                 />
               </div>
@@ -956,6 +974,7 @@ export default function InfoBoard() {
               style={{
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: 5,
                 padding: "8px 16px",
                 borderRadius: 999,
@@ -1002,14 +1021,17 @@ export default function InfoBoard() {
               </div>
               {pagedItems.map((item, index) => {
                 const rowNumber = totalElements - ((pageSafe - 1) * PAGE_SIZE) - index;
+                const authorLabel = item?.author || item?.nickname || item?.userName || "???";
                 return (
                   <div
                     key={item.postId}
                     onClick={() => navigate(`/community/info/${item.postId}`)}
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      padding: "18px 16px",
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "stretch" : "center",
+                      gap: isMobile ? 8 : 0,
+                      padding: isMobile ? "14px 12px" : "18px 16px",
                       borderBottom: "1px solid #f0f0f0",
                       cursor: "pointer",
                       transition: "background 0.15s",
@@ -1017,17 +1039,35 @@ export default function InfoBoard() {
                     onMouseEnter={(e) => (e.currentTarget.style.background = "#f9f9f9")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>
-                    <span style={{ flex: 1, fontSize: 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {item.postTitle}
-                      {(commentCountMap[item.postId] ?? 0) > 0 && (
-                        <span style={{ fontSize: 12, color: "#9ca3af", marginLeft: 6 }}>({commentCountMap[item.postId]})</span>
+                    {!isMobile && (
+                      <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+                        <BadgeTag badge={badge} />
+                        <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                          {item.postTitle}
+                        </span>
+                        {(commentCountMap[item.postId] ?? 0) > 0 && (
+                          <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0 }}>
+                            ({commentCountMap[item.postId]})
+                          </span>
+                        )}
+                      </div>
+                      {isMobile && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
+                          <span>{authorLabel}</span>
+                          <span style={{ color: "#cbd5e1" }}>?</span>
+                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(item.createdAt)}</span>
+                        </div>
                       )}
-                    </span>
-                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>관리자</span>
-                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
-                      {fmtDate(item.createdAt)}
-                    </span>
+                    </div>
+                    {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>{authorLabel}</span>}
+                    {!isMobile && (
+                      <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {fmtDate(item.createdAt)}
+                      </span>
+                    )}
                   </div>
                 );
               })}

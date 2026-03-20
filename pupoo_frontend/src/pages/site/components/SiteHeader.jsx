@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX, Menu } from "lucide-react";
@@ -12,116 +12,116 @@ import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const FONT = "'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
 
-/* ─────────────────────────────────────────────
+/* ?????????????????????????????????????????????
    NAV DATA
-───────────────────────────────────────────── */
+????????????????????????????????????????????? */
 const megaMenuData = {
   events: {
     columns: [
       {
-        title: "행사",
+        title: "?됱궗",
         items: [
-          { label: "현재 진행 행사", href: "/event/current" },
-          { label: "예정 행사", href: "/event/upcoming" },
-          { label: "종료 행사", href: "/event/closed" },
-          { label: "행사 일정 안내", href: "/event/eventschedule" },
+          { label: "?꾩옱 吏꾪뻾 ?됱궗", href: "/event/current" },
+          { label: "?덉젙 ?됱궗", href: "/event/upcoming" },
+          { label: "醫낅즺 ?됱궗", href: "/event/closed" },
+          { label: "?됱궗 ?쇱젙 ?덈궡", href: "/event/eventschedule" },
         ],
       },
       {
-        title: "프로그램",
+        title: "?꾨줈洹몃옩",
         items: [
-          { label: "현재 진행 프로그램", href: "/program/current" },
-          { label: "예정 프로그램", href: "/program/upcoming" },
-          { label: "종료 프로그램", href: "/program/closed" },
+          { label: "?꾩옱 吏꾪뻾 ?꾨줈洹몃옩", href: "/program/current" },
+          { label: "?덉젙 ?꾨줈洹몃옩", href: "/program/upcoming" },
+          { label: "醫낅즺 ?꾨줈洹몃옩", href: "/program/closed" },
         ],
       },
     ],
     promo: {
       image: "/promo_event.jpg",
-      title: "행사 안내",
-      desc: "Pupoo의 주요 행사와 프로그램을 한눈에 확인하세요.",
+      title: "?됱궗 ?덈궡",
+      desc: "Pupoo??二쇱슂 ?됱궗? ?꾨줈洹몃옩???쒕늿???뺤씤?섏꽭??",
       icon: "event",
     },
   },
   community: {
     columns: [
       {
-        title: "소통 공간",
+        title: "?뚰넻 怨듦컙",
         items: [
-          { label: "공지사항", href: "/community/notice" },
-          { label: "자유 게시판", href: "/community/freeboard" },
-          { label: "정보 게시판", href: "/community/info" },
-          { label: "행사 후기", href: "/community/review" },
-          { label: "질문과 답변", href: "/community/qna" },
-          { label: "자주 묻는 질문", href: "/community/faq" },
+          { label: "怨듭??ы빆", href: "/community/notice" },
+          { label: "?먯쑀 寃뚯떆??", href: "/community/freeboard" },
+          { label: "?뺣낫 寃뚯떆??", href: "/community/info" },
+          { label: "?됱궗 ?꾧린", href: "/community/review" },
+          { label: "吏덈Ц怨??듬?", href: "/community/qna" },
+          { label: "?먯＜ 臾삳뒗 吏덈Ц", href: "/community/faq" },
         ],
       },
       {
-        title: "미디어",
-        items: [{ label: "행사 갤러리", href: "/gallery/eventgallery" }],
+        title: "誘몃뵒??",
+        items: [{ label: "?됱궗 媛ㅻ윭由?", href: "/gallery/eventgallery" }],
       },
     ],
     promo: {
       image: "/promo_community.jpg",
-      title: "커뮤니티",
-      desc: "참여 후기와 유용한 정보를 커뮤니티에서 확인하세요.",
+      title: "而ㅻ??덊떚",
+      desc: "李몄뿬 ?꾧린? ?좎슜???뺣낫瑜?而ㅻ??덊떚?먯꽌 ?뺤씤?섏꽭??",
       icon: "community",
     },
   },
   registration: {
     columns: [
       {
-        title: "참가 신청",
+        title: "李멸? ?좎껌",
         items: [
-          { label: "행사 참가 신청", href: "/registration/apply" },
-          { label: "신청 내역 조회", href: "/registration/applyhistory" },
-          { label: "결제 내역", href: "/registration/paymenthistory" },
-          { label: "QR 체크인", href: "/registration/qrcheckin" },
+          { label: "?됱궗 李멸? ?좎껌", href: "/registration/apply" },
+          { label: "?좎껌 ?댁뿭 議고쉶", href: "/registration/applyhistory" },
+          { label: "寃곗젣 ?댁뿭", href: "/registration/paymenthistory" },
+          { label: "QR 泥댄겕??", href: "/registration/qrcheckin" },
         ],
       },
       {
-        title: "참여 안내",
-        items: [{ label: "현장 이용 안내", href: "/guide/operation" }],
+        title: "李몄뿬 ?덈궡",
+        items: [{ label: "?꾩옣 ?댁슜 ?덈궡", href: "/guide/operation" }],
       },
     ],
     promo: {
       image: "/promo_registration.jpg",
-      title: "참가 신청",
-      desc: "참가 신청부터 현장 이용까지 빠르게 확인하세요.",
+      title: "李멸? ?좎껌",
+      desc: "李멸? ?좎껌遺???꾩옣 ?댁슜源뚯? 鍮좊Ⅴ寃??뺤씤?섏꽭??",
       icon: "registration",
     },
   },
   realtime: {
     columns: [
       {
-        title: "실시간 현황",
+        title: "?ㅼ떆媛??꾪솴",
         items: [
-          { label: "통합 현황", href: "/realtime/dashboard" },
-          { label: "대기 현황", href: "/realtime/waitingstatus" },
-          { label: "체크인 현황", href: "/realtime/checkinstatus" },
-          { label: "투표 현황", href: "/realtime/votestatus" },
+          { label: "?듯빀 ?꾪솴", href: "/realtime/dashboard" },
+          { label: "?湲??꾪솴", href: "/realtime/waitingstatus" },
+          { label: "泥댄겕???꾪솴", href: "/realtime/checkinstatus" },
+          { label: "?ы몴 ?꾪솴", href: "/realtime/votestatus" },
         ],
       },
     ],
     promo: {
       image: "/promo_realtime.jpg",
-      title: "실시간 현황",
-      desc: "행사장의 주요 지표를 실시간으로 확인할 수 있습니다.",
+      title: "?ㅼ떆媛??꾪솴",
+      desc: "?됱궗?μ쓽 二쇱슂 吏?쒕? ?ㅼ떆媛꾩쑝濡??뺤씤?????덉뒿?덈떎.",
       icon: "realtime",
     },
   },
 };
 
 const navItems = [
-  { label: "행사", menuKey: "events" },
-  { label: "커뮤니티", menuKey: "community" },
-  { label: "참가신청", menuKey: "registration" },
-  { label: "실시간현황", href: "/realtime/dashboard" },
+  { label: "?됱궗", menuKey: "events" },
+  { label: "而ㅻ??덊떚", menuKey: "community" },
+  { label: "李멸??좎껌", menuKey: "registration" },
+  { label: "?ㅼ떆媛꾪쁽??", href: "/realtime/dashboard" },
 ];
 
-/* ─────────────────────────────────────────────
+/* ?????????????????????????????????????????????
    MEGA MENU LINK ITEM
-───────────────────────────────────────────── */
+????????????????????????????????????????????? */
 const MegaLink = ({ item, onNavigate }) => {
   const [hovered, setHovered] = useState(false);
   return (
@@ -151,9 +151,9 @@ const MegaLink = ({ item, onNavigate }) => {
   );
 };
 
-/* ─────────────────────────────────────────────
+/* ?????????????????????????????????????????????
    PROMO ICON MAP
-───────────────────────────────────────────── */
+????????????????????????????????????????????? */
 const PROMO_ICONS = {
   event: { Icon: CalendarHeart, bg: "#eff4ff", color: "#02A17E" },
   community: { Icon: MessageCircleHeart, bg: "#fef3f2", color: "#e04545" },
@@ -237,9 +237,9 @@ const PromoCard = ({ promo }) => {
   );
 };
 
-/* ─────────────────────────────────────────────
+/* ?????????????????????????????????????????????
    DROPDOWN CARD (compact, fixed below header)
-───────────────────────────────────────────── */
+????????????????????????????????????????????? */
 const DropdownCard = ({ menuData, onNavigate, topOffset = 92 }) => {
   if (!menuData) return null;
   const { columns, promo } = menuData;
@@ -290,7 +290,7 @@ const DropdownCard = ({ menuData, onNavigate, topOffset = 92 }) => {
         <div style={{ width: 1, background: "#f0f0f0", margin: "0 36px", flexShrink: 0 }} />
       )}
 
-      {/* Promo Card (right side — Kakao ESG style) */}
+      {/* Promo Card (right side ??Kakao ESG style) */}
       {promo && (
         <PromoCard promo={promo} />
       )}
@@ -298,15 +298,15 @@ const DropdownCard = ({ menuData, onNavigate, topOffset = 92 }) => {
   );
 };
 
-/* ─────────────────────────────────────────────
+/* ?????????????????????????????????????????????
    SEARCH PANEL (dropdown style, below header)
-───────────────────────────────────────────── */
+????????????????????????????????????????????? */
 const POPULAR_TAGS = [
-  { label: "#행사안내", to: "/event/current" },
-  { label: "#참가신청", to: "/registration/apply" },
-  { label: "#프로그램", to: "/program/current" },
-  { label: "#체크인", to: "/registration/qrcheckin" },
-  { label: "#갤러리", to: "/gallery/eventgallery" },
+  { label: "#?됱궗?덈궡", to: "/event/current" },
+  { label: "#李멸??좎껌", to: "/registration/apply" },
+  { label: "#?꾨줈洹몃옩", to: "/program/current" },
+  { label: "#泥댄겕??", to: "/registration/qrcheckin" },
+  { label: "#媛ㅻ윭由?", to: "/gallery/eventgallery" },
 ];
 
 const SearchPanel = ({
@@ -337,7 +337,7 @@ const SearchPanel = ({
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  /* 디바운스 검색 */
+  /* ?붾컮?댁뒪 寃??*/
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = query.trim();
@@ -377,7 +377,7 @@ const SearchPanel = ({
   };
 
   const statusLabel = (s) => {
-    const m = { PLANNED: "예정", ONGOING: "진행중", ENDED: "종료" };
+    const m = { PLANNED: "?덉젙", ONGOING: "吏꾪뻾以?", ENDED: "醫낅즺" };
     return m[s] || s;
   };
   const statusColor = (s) => {
@@ -425,7 +425,7 @@ const SearchPanel = ({
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="어떤 행사를 찾고 계세요?"
+            placeholder="?대뼡 ?됱궗瑜?李얘퀬 怨꾩꽭??"
             style={{
               flex: 1, border: "none", background: "none", outline: "none",
               color: "#fff", fontSize: inputFontSize, fontWeight: 500,
@@ -444,18 +444,17 @@ const SearchPanel = ({
         </div>
       </form>
 
-      {/* 검색 결과 or 인기 태그 */}
+      {/* 寃??寃곌낵 or ?멸린 ?쒓렇 */}
       {searched && query.trim() ? (
         <div style={{ width: "100%", maxWidth: resultMaxWidth }}>
           {loading ? (
             <div style={{ textAlign: "center", padding: "20px 0", color: "#999", fontSize: 14, fontFamily: FONT }}>
-              검색 중...
+              寃??以?..
             </div>
           ) : results.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#aaa", marginBottom: 8, fontFamily: FONT }}>
-                검색 결과 {results.length}건
-              </div>
+                寃??寃곌낵 {results.length}嫄?              </div>
               {results.map((evt) => (
                 <button
                   key={evt.eventId}
@@ -471,7 +470,7 @@ const SearchPanel = ({
                   onMouseEnter={(e) => (e.currentTarget.style.background = "#f7f8fa")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
                 >
-                  {/* 썸네일 */}
+                  {/* ?몃꽕??*/}
                   <div style={{
                     width: compact ? 48 : 56, height: compact ? 48 : 56, borderRadius: 12, flexShrink: 0, overflow: "hidden",
                     background: "#f0f0f0",
@@ -491,7 +490,7 @@ const SearchPanel = ({
                       </div>
                     )}
                   </div>
-                  {/* 정보 */}
+                  {/* ?뺣낫 */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontSize: mobile ? 14 : 15, fontWeight: 700, color: "#222",
@@ -516,7 +515,7 @@ const SearchPanel = ({
                       )}
                     </div>
                   </div>
-                  {/* 상태 */}
+                  {/* ?곹깭 */}
                   {evt.status && (
                     <div style={{
                       fontSize: 12, fontWeight: 700, color: statusColor(evt.status),
@@ -530,7 +529,7 @@ const SearchPanel = ({
               ))}
             </div>
           ) : (
-            /* 결과 없음 */
+            /* 寃곌낵 ?놁쓬 */
             <div style={{
               textAlign: "center", padding: "32px 0",
               display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
@@ -542,11 +541,9 @@ const SearchPanel = ({
                 <SearchX size={mobile ? 20 : 24} color="#ccc" />
               </div>
               <div style={{ fontSize: mobile ? 14 : 15, fontWeight: 700, color: "#444", fontFamily: FONT }}>
-                '{query.trim()}'에 대한 검색 결과가 없어요
-              </div>
+                '{query.trim()}'?????寃??寃곌낵媛 ?놁뼱??              </div>
               <div style={{ fontSize: mobile ? 12 : 13, color: "#aaa", fontFamily: FONT, lineHeight: 1.5 }}>
-                다른 키워드로 검색하거나, 아래 태그를 눌러보세요
-              </div>
+                ?ㅻⅨ ?ㅼ썙?쒕줈 寃?됲븯嫄곕굹, ?꾨옒 ?쒓렇瑜??뚮윭蹂댁꽭??              </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 8 }}>
                 {POPULAR_TAGS.map((tag) => (
                   <button
@@ -570,7 +567,7 @@ const SearchPanel = ({
           )}
         </div>
       ) : (
-        /* 기본: 인기 태그 */
+        /* 湲곕낯: ?멸린 ?쒓렇 */
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
           {POPULAR_TAGS.map((tag) => (
             <button
@@ -597,9 +594,9 @@ const SearchPanel = ({
   );
 };
 
-/* ─────────────────────────────────────────────
+/* ?????????????????????????????????????????????
    MAIN HEADER
-───────────────────────────────────────────── */
+????????????????????????????????????????????? */
 export default function PupooHeader() {
   const navigate = useNavigate();
   const { isAuthed, logout } = useAuth();
@@ -622,7 +619,7 @@ export default function PupooHeader() {
   const mobileShortcutHeight = isMobile ? 24 : 0;
   const compactTopOffset = isMobile ? headerHeight + mobileShortcutHeight : headerHeight;
 
-  /* ── scroll listener ── */
+  /* ?? scroll listener ?? */
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -637,7 +634,7 @@ export default function PupooHeader() {
     return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
-  /* ── unread count sync ── */
+  /* ?? unread count sync ?? */
   useEffect(() => {
     unreadCountRef.current = unreadCount;
   }, [unreadCount]);
@@ -692,7 +689,7 @@ export default function PupooHeader() {
     return () => window.removeEventListener(NOTIFICATION_UNREAD_COUNT_EVENT, handleUnreadCountChange);
   }, []);
 
-  /* ── outside click ── */
+  /* ?? outside click ?? */
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (headerRef.current && !headerRef.current.contains(e.target)) setActiveMenu(null);
@@ -701,7 +698,7 @@ export default function PupooHeader() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  /* ── close on route change ── */
+  /* ?? close on route change ?? */
   useEffect(() => {
     setActiveMenu(null);
     setSearchOpen(false);
@@ -742,26 +739,24 @@ export default function PupooHeader() {
   const isLight = isHome && !scrolled && !activeMenu && !searchOpen;
   const textColor = isWhiteMode ? "#222" : "#fff";
   const iconColor = isWhiteMode ? "#222" : "#fff";
-  const mobileActionChipStyle = {
+  const mobileActionIconStyle = {
+    width: 32,
     height: 32,
-    padding: "0 10px",
     borderRadius: 999,
     border: isWhiteMode ? "1px solid #e7ebf0" : "1px solid rgba(255,255,255,0.18)",
     background: isWhiteMode ? "#fff" : "rgba(255,255,255,0.12)",
     display: "inline-flex",
     alignItems: "center",
-    gap: 5,
+    justifyContent: "center",
     color: textColor,
     textDecoration: "none",
-    fontSize: 12,
-    fontWeight: 700,
     fontFamily: FONT,
     flexShrink: 0,
   };
   const mobileQuickLinks = [
-    { label: "홈", to: "/" },
-    { label: "행사", to: "/event/current" },
-    { label: "커뮤니티", to: "/community/notice" },
+    { label: "??", to: "/" },
+    { label: "?됱궗", to: "/event/current" },
+    { label: "而ㅻ??덊떚", to: "/community/notice" },
   ];
 
   return (
@@ -843,7 +838,7 @@ export default function PupooHeader() {
         .kakao-icon-btn.light:hover {
           background-color: rgba(255,255,255,0.15);
         }
-        /* ── custom tooltip ── */
+        /* ?? custom tooltip ?? */
         .kakao-icon-btn .ktt {
           position: absolute;
           bottom: -36px;
@@ -885,7 +880,7 @@ export default function PupooHeader() {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
         }
-        /* ── CTA Button ── */
+        /* ?? CTA Button ?? */
         .kakao-cta {
           display: inline-flex;
           align-items: center;
@@ -954,7 +949,7 @@ export default function PupooHeader() {
       `}</style>
 
       <div ref={headerRef} style={{ position: "relative", zIndex: 3000 }}>
-        {/* ── HEADER BAR ── */}
+        {/* ?? HEADER BAR ?? */}
         <header
           style={{
             position: "fixed",
@@ -982,7 +977,7 @@ export default function PupooHeader() {
               height: "100%",
             }}
           >
-            {/* ── LEFT: Logo ── */}
+            {/* ?? LEFT: Logo ?? */}
             <Link
               to="/"
               style={{
@@ -1004,7 +999,7 @@ export default function PupooHeader() {
               />
             </Link>
 
-            {/* ── CENTER: Nav (Kakao-style pill buttons) ── */}
+            {/* ?? CENTER: Nav (Kakao-style pill buttons) ?? */}
             <nav
               className="pupoo-desktop-only"
               style={{
@@ -1028,7 +1023,7 @@ export default function PupooHeader() {
               ))}
             </nav>
 
-            {/* ── RIGHT: Icons ── */}
+            {/* ?? RIGHT: Icons ?? */}
             <div
               className="pupoo-desktop-only"
               style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
@@ -1041,21 +1036,21 @@ export default function PupooHeader() {
                     onClick={() => { setSearchOpen((v) => !v); setActiveMenu(null); }}
                   >
                     <Search size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">검색</span>
+                    <span className="ktt">寃??</span>
                   </button>
                   <Link
                     to="/auth/login"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
                   >
                     <LogIn size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">로그인</span>
+                    <span className="ktt">濡쒓렇??</span>
                   </Link>
                   <Link
                     to="/auth/join/joinselect"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
                   >
                     <UserPlus size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">회원가입</span>
+                    <span className="ktt">?뚯썝媛??</span>
                   </Link>
                 </>
               ) : (
@@ -1066,14 +1061,14 @@ export default function PupooHeader() {
                     onClick={() => { setSearchOpen((v) => !v); setActiveMenu(null); }}
                   >
                     <Search size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">검색</span>
+                    <span className="ktt">寃??</span>
                   </button>
                   <Link
                     to="/mypage"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
                   >
                     <UserCircle size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">마이페이지</span>
+                    <span className="ktt">留덉씠?섏씠吏</span>
                   </Link>
                   <button
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
@@ -1084,7 +1079,7 @@ export default function PupooHeader() {
                     type="button"
                   >
                     <LogOut size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">로그아웃</span>
+                    <span className="ktt">濡쒓렇?꾩썐</span>
                   </button>
                 </>
               )}
@@ -1109,7 +1104,7 @@ export default function PupooHeader() {
                 <>
                   <Link
                     to="/mypage"
-                    style={mobileActionChipStyle}
+                    style={mobileActionIconStyle}
                     onClick={() => {
                       setActiveMenu(null);
                       setSearchOpen(false);
@@ -1117,11 +1112,10 @@ export default function PupooHeader() {
                     }}
                   >
                     <UserCircle size={17} color={iconColor} strokeWidth={1.8} />
-                    <span>마이</span>
                   </Link>
                   <button
                     type="button"
-                    style={{ ...mobileActionChipStyle, cursor: "pointer" }}
+                    style={{ ...mobileActionIconStyle, cursor: "pointer" }}
                     onClick={() => {
                       logout();
                       setActiveMenu(null);
@@ -1131,13 +1125,12 @@ export default function PupooHeader() {
                     }}
                   >
                     <LogOut size={17} color={iconColor} strokeWidth={1.8} />
-                    <span>로그아웃</span>
                   </button>
                 </>
               ) : (
                 <Link
                   to="/auth/login"
-                  style={mobileActionChipStyle}
+                  style={mobileActionIconStyle}
                   onClick={() => {
                     setActiveMenu(null);
                     setSearchOpen(false);
@@ -1145,7 +1138,6 @@ export default function PupooHeader() {
                   }}
                 >
                   <LogIn size={17} color={iconColor} strokeWidth={1.8} />
-                  <span>로그인</span>
                 </Link>
               )}
               <button
@@ -1226,7 +1218,7 @@ export default function PupooHeader() {
           </div>
         )}
 
-        {/* ── DROPDOWN CARD ── */}
+        {/* ?? DROPDOWN CARD ?? */}
         {!isCompact && activeMenu && megaMenuData[activeMenu] && (
           <DropdownCard
             menuData={megaMenuData[activeMenu]}
@@ -1281,7 +1273,6 @@ export default function PupooHeader() {
                         textAlign: "left",
                       }}
                     >
-                      <span>{item.label}</span>
                     </button>
                   );
                 }
@@ -1375,8 +1366,7 @@ export default function PupooHeader() {
                         fontFamily: FONT,
                       }}
                     >
-                      로그인
-                    </Link>
+                      濡쒓렇??                    </Link>
                     <Link
                       to="/auth/join/joinselect"
                       onClick={() => setMobileMenuOpen(false)}
@@ -1388,8 +1378,7 @@ export default function PupooHeader() {
                         fontFamily: FONT,
                       }}
                     >
-                      회원가입
-                    </Link>
+                      ?뚯썝媛??                    </Link>
                   </>
                 ) : (
                   <>
@@ -1404,7 +1393,7 @@ export default function PupooHeader() {
                         fontFamily: FONT,
                       }}
                     >
-                      마이페이지
+                      留덉씠?섏씠吏
                     </Link>
                     <button
                       type="button"
@@ -1425,7 +1414,7 @@ export default function PupooHeader() {
                         cursor: "pointer",
                       }}
                     >
-                      로그아웃
+                      濡쒓렇?꾩썐
                     </button>
                   </>
                 )}
@@ -1434,7 +1423,7 @@ export default function PupooHeader() {
           </div>
         )}
 
-        {/* ── SEARCH PANEL ── */}
+        {/* ?? SEARCH PANEL ?? */}
         {searchOpen && (
           <SearchPanel
             onClose={() => setSearchOpen(false)}
@@ -1449,7 +1438,7 @@ export default function PupooHeader() {
           />
         )}
 
-        {/* ── BACKDROP (dark overlay below header, click to close) ── */}
+        {/* ?? BACKDROP (dark overlay below header, click to close) ?? */}
         {(activeMenu || searchOpen || mobileMenuOpen) && (
           <div
             onClick={() => {
@@ -1472,3 +1461,5 @@ export default function PupooHeader() {
     </>
   );
 }
+
+

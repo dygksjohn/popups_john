@@ -876,6 +876,11 @@ export default function HomeDashboard({ initialEventId = null }) {
         },
       );
       const totalEventCount = allEvents.length;
+      const totalParticipantCount = eventPerformance.reduce(
+        (sum, event) => sum + (Number(event.approvedRegistrationCount) || 0),
+        0,
+      );
+      const pendingEventCount = Number(summary.plannedCount) || 0;
 
       const yearlyMap = new Map();
       for (let year = currentYear - 4; year <= currentYear; year += 1) {
@@ -955,6 +960,8 @@ export default function HomeDashboard({ initialEventId = null }) {
       setSnapshot({
         summary,
         totalEventCount,
+        totalParticipantCount,
+        pendingEventCount,
         allEvents,
         liveEvents,
         focusEvent,
@@ -1172,7 +1179,7 @@ export default function HomeDashboard({ initialEventId = null }) {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: isHandset ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fit, minmax(180px, 1fr))", gap: isHandset ? 10 : 14, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isHandset ? "repeat(2, minmax(0, 1fr))" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fit, minmax(180px, 1fr))", gap: isHandset ? 10 : 14, marginBottom: 16 }}>
           {selectedScope ? (
             <>
               <MetricCard icon={Users} label="승인 등록" value={formatNumber(snapshot.scopedRegistrationCount)} sub="선택 행사 승인 신청 기준" color={ds.brand} bg={ds.brandSoft} compact={isCompact} />
