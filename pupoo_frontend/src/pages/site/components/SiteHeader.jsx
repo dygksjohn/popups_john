@@ -1145,19 +1145,34 @@ export default function PupooHeader() {
                   </button>
                 </>
               ) : (
-                <Link
-                  to="/auth/login"
-                  style={mobileActionIconStyle}
-                  aria-label="로그인"
-                  title="로그인"
-                  onClick={() => {
-                    setActiveMenu(null);
-                    setSearchOpen(false);
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  <LogIn size={19} color={iconColor} strokeWidth={1.9} />
-                </Link>
+                <>
+                  <Link
+                    to="/auth/login"
+                    style={mobileActionIconStyle}
+                    aria-label="로그인"
+                    title="로그인"
+                    onClick={() => {
+                      setActiveMenu(null);
+                      setSearchOpen(false);
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <LogIn size={19} color={iconColor} strokeWidth={1.9} />
+                  </Link>
+                  <Link
+                    to="/auth/join/joinselect"
+                    style={mobileActionIconStyle}
+                    aria-label="회원가입"
+                    title="회원가입"
+                    onClick={() => {
+                      setActiveMenu(null);
+                      setSearchOpen(false);
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <UserPlus size={19} color={iconColor} strokeWidth={1.8} />
+                  </Link>
+                </>
               )}
             </div>
           </div>
