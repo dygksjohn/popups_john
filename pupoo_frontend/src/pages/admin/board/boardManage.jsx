@@ -1583,6 +1583,79 @@ function LoadingIndicator() {
 /* ═══════════════════════════════════════════
    메인 컴포넌트
    ═══════════════════════════════════════════ */
+function MobilePagination({ page, totalPages, onChange }) {
+  if (totalPages <= 1) return null;
+
+  const buttonStyle = {
+    minHeight: 40,
+    minWidth: 40,
+    padding: "0 12px",
+    borderRadius: 10,
+    border: `1px solid ${ds.line}`,
+    background: ds.bg,
+    color: ds.ink3,
+    fontSize: 13,
+    fontWeight: 700,
+    fontFamily: ds.ff,
+    cursor: "pointer",
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        marginTop: 16,
+        flexWrap: "wrap",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => onChange(page - 1)}
+        disabled={page <= 1}
+        style={{
+          ...buttonStyle,
+          opacity: page <= 1 ? 0.45 : 1,
+          cursor: page <= 1 ? "default" : "pointer",
+        }}
+      >
+        이전
+      </button>
+      <div
+        style={{
+          minHeight: 40,
+          padding: "0 14px",
+          borderRadius: 10,
+          border: `1px solid ${ds.line}`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 13,
+          fontWeight: 800,
+          color: ds.ink2,
+          background: `${ds.brand}0A`,
+        }}
+      >
+        {page} / {totalPages}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(page + 1)}
+        disabled={page >= totalPages}
+        style={{
+          ...buttonStyle,
+          opacity: page >= totalPages ? 0.45 : 1,
+          cursor: page >= totalPages ? "default" : "pointer",
+        }}
+      >
+        다음
+      </button>
+    </div>
+  );
+}
+
 export default function BoardManage({ subTab = "free" }) {
   if (subTab === "banned") {
     return <BannedWordsManage />;
@@ -1782,7 +1855,9 @@ export default function BoardManage({ subTab = "free" }) {
   const [qnaPage, setQnaPage] = useState(1);
   const [qnaTotalPages, setQnaTotalPages] = useState(0);
   const [qnaTotalElements, setQnaTotalElements] = useState(0);
+  const [mobilePage, setMobilePage] = useState(1);
   const QNA_PAGE_SIZE = 20;
+  const MOBILE_PAGE_SIZE = 6;
 
   /* ── 공통 UI 상태 ── */
   const [modal, setModal] = useState(null);
@@ -1841,15 +1916,24 @@ export default function BoardManage({ subTab = "free" }) {
     );
   const totalCount = isQna ? qnaTotalElements : rows.length;
   const isMobile = viewportWidth < 768;
+  const mobileTotalPages =
+    isMobile && !isQna ? Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE)) : 1;
+  const mobilePageStart = (mobilePage - 1) * MOBILE_PAGE_SIZE;
+  const pagedRows =
+    isMobile && !isQna
+      ? rows.slice(mobilePageStart, mobilePageStart + MOBILE_PAGE_SIZE)
+      : rows;
+  const interactiveRows = isMobile && !isQna ? pagedRows : rows;
 
   /* ── 선택 관련 ── */
   const getRowId = (r) => r.id;
   const isAllSelected =
-    rows.length > 0 && rows.every((r) => selected.has(getRowId(r)));
+    interactiveRows.length > 0 &&
+    interactiveRows.every((r) => selected.has(getRowId(r)));
   const hasSelected = selected.size > 0;
   const toggleAll = () => {
     if (isAllSelected) setSelected(new Set());
-    else setSelected(new Set(rows.map(getRowId)));
+    else setSelected(new Set(interactiveRows.map(getRowId)));
   };
   const toggleOne = (id) => {
     setSelected((prev) => {
@@ -1861,6 +1945,21 @@ export default function BoardManage({ subTab = "free" }) {
   };
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
+
+  useEffect(() => {
+    if (!isMobile || isQna) return undefined;
+    setMobilePage(1);
+    return undefined;
+  }, [boardType, search, isMobile, isQna]);
+
+  useEffect(() => {
+    if (!isMobile || isQna) return undefined;
+    const safeTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
+    if (mobilePage > safeTotalPages) {
+      setMobilePage(safeTotalPages);
+    }
+    return undefined;
+  }, [rows.length, mobilePage, isMobile, isQna]);
 
   /* ── 로컬 게시판 setter ── */
   const setBoard = (fn) =>
@@ -2423,7 +2522,7 @@ export default function BoardManage({ subTab = "free" }) {
         {/* 리스트 */}
         {!boardLoading &&
           !(isQna && (qnaLoading || qnaError)) &&
-          rows.map((r) => (
+          pagedRows.map((r) => (
             <BoardRow
               key={r.id}
               item={r}
@@ -2479,8 +2578,29 @@ export default function BoardManage({ subTab = "free" }) {
           )}
       </div>
 
+      {isMobile && !isQna && rows.length > MOBILE_PAGE_SIZE && (
+        <MobilePagination
+          page={mobilePage}
+          totalPages={mobileTotalPages}
+          onChange={(nextPage) => {
+            if (nextPage < 1 || nextPage > mobileTotalPages) return;
+            setMobilePage(nextPage);
+          }}
+        />
+      )}
+
       {/* ── Q&A 페이지네이션 ── */}
       {isQna && !qnaLoading && !qnaError && qnaTotalPages > 1 && (
+        isMobile ? (
+          <MobilePagination
+            page={qnaPage}
+            totalPages={qnaTotalPages}
+            onChange={(nextPage) => {
+              if (nextPage < 1 || nextPage > qnaTotalPages) return;
+              fetchQnaList(nextPage);
+            }}
+          />
+        ) : (
         <div
           style={{
             display: "flex",
@@ -2538,6 +2658,7 @@ export default function BoardManage({ subTab = "free" }) {
             ›
           </button>
         </div>
+        )
       )}
 
       {/* ── 슬라이드 패널 ── */}
