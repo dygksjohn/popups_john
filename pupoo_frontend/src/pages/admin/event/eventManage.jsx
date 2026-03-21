@@ -1643,16 +1643,17 @@ function ActionMenu({ onEdit, onDelete, onDetail }) {
 /* ═══════════════════════════════════════════
    요약 통계 카드
    ═══════════════════════════════════════════ */
-function StatCard({ icon: Icon, label, value, color }) {
+function StatCard({ icon: Icon, label, value, color, mobile = false }) {
   return (
     <div
       style={{
         background: ds.card,
         borderRadius: 14,
-        padding: "18px 18px",
+        padding: mobile ? "16px 14px" : "18px 18px",
         border: `1px solid ${ds.line}`,
         position: "relative",
         overflow: "hidden",
+        minWidth: 0,
       }}
     >
       <div
@@ -1670,9 +1671,10 @@ function StatCard({ icon: Icon, label, value, color }) {
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             gap: 8,
             marginBottom: 10,
+            minWidth: 0,
           }}
         >
           <div
@@ -1688,16 +1690,32 @@ function StatCard({ icon: Icon, label, value, color }) {
           >
             <Icon size={15} color={color} strokeWidth={2.2} />
           </div>
-          <span style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4 }}>
+          <span
+            style={{
+              fontSize: mobile ? 11 : 11.5,
+              fontWeight: 600,
+              color: ds.ink4,
+              minWidth: 0,
+              whiteSpace: "normal",
+              wordBreak: "keep-all",
+              overflowWrap: "break-word",
+              lineHeight: 1.35,
+            }}
+          >
             {label}
           </span>
         </div>
         <div
           style={{
-            fontSize: 22,
+            fontSize: mobile ? 18 : 22,
             fontWeight: 800,
             color: ds.ink,
             letterSpacing: -0.5,
+            minWidth: 0,
+            whiteSpace: "normal",
+            wordBreak: "keep-all",
+            overflowWrap: "break-word",
+            lineHeight: 1.15,
           }}
         >
           {value}
@@ -2099,7 +2117,7 @@ export default function EventManage({ subTab = "all" }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
+              gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, 1fr)",
               gap: 12,
               marginBottom: 16,
             }}
@@ -2109,24 +2127,28 @@ export default function EventManage({ subTab = "all" }) {
               label="전체 행사"
               value={totalEvents}
               color={ds.brand}
+              mobile={isMobile}
             />
             <StatCard
               icon={TrendingUp}
               label="진행 중"
               value={activeEvents}
               color="#10B981"
+              mobile={isMobile}
             />
             <StatCard
               icon={Users}
               label="총 참가자"
               value={totalParticipants.toLocaleString()}
               color="#8B5CF6"
+              mobile={isMobile}
             />
             <StatCard
               icon={Clock}
               label="대기 중"
               value={pendingEvents}
               color="#F59E0B"
+              mobile={isMobile}
             />
           </div>
 
