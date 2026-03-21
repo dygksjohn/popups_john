@@ -590,6 +590,7 @@ export default function Closed() {
   const [downloading, setDownloading] = useState(false);
   const [programFilter, setProgramFilter] = useState("전체");
   const [visibleCount, setVisibleCount] = useState(5);
+  const [programVisibleCount, setProgramVisibleCount] = useState(3);
   const [searchFocused, setSearchFocused] = useState(false);
   const [yearOpen, setYearOpen] = useState(false);
   const yearDropRef = useRef(null);
@@ -662,6 +663,7 @@ export default function Closed() {
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
   const featuredEventCount = isMobile ? 4 : isTablet ? 6 : 8;
   const listLoadStep = isMobile ? 4 : 5;
+  const programLoadStep = isMobile ? 3 : 6;
 
   useEffect(() => {
     setVisibleCount(listLoadStep);
@@ -734,6 +736,14 @@ export default function Closed() {
     if (programFilter === "전체") return selectedPrograms;
     return selectedPrograms.filter((p) => getProgramCategoryMeta(p?.category).label === programFilter);
   }, [selectedPrograms, programFilter]);
+
+  const visiblePrograms = isMobile
+    ? filteredPrograms.slice(0, programVisibleCount)
+    : filteredPrograms;
+
+  useEffect(() => {
+    setProgramVisibleCount(programLoadStep);
+  }, [selected?.id, programFilter, programLoadStep]);
 
   const handleDownload = useCallback(() => {
     if (!selected || downloading) return;
@@ -1161,7 +1171,7 @@ export default function Closed() {
                         ) : (
                           <div style={{ marginTop: 18 }}>
                             <div className="closed-prog-scroll" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 12, maxHeight: isMobile ? "none" : 440, overflowY: isMobile ? "visible" : "auto", paddingRight: isMobile ? 0 : 4 }}>
-                              {filteredPrograms.map((program, index) => {
+                              {visiblePrograms.map((program, index) => {
                                 const categoryMeta = getProgramCategoryMeta(program?.category);
                                 return (
                                   <div
@@ -1220,7 +1230,37 @@ export default function Closed() {
                                 );
                               })}
                             </div>
-                            {filteredPrograms.length > 4 && (
+                            {isMobile && filteredPrograms.length > visiblePrograms.length && (
+                              <div style={{ paddingTop: 14 }}>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setProgramVisibleCount((prev) =>
+                                      Math.min(prev + programLoadStep, filteredPrograms.length),
+                                    )
+                                  }
+                                  style={{
+                                    width: "100%",
+                                    minHeight: 42,
+                                    borderRadius: 12,
+                                    border: "1px solid #dbe3ee",
+                                    background: "#f8fafc",
+                                    color: "#475569",
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: 8,
+                                  }}
+                                >
+                                  <ChevronDown size={14} />
+                                  프로그램 더보기 ({filteredPrograms.length - visiblePrograms.length}개 남음)
+                                </button>
+                              </div>
+                            )}
+                            {!isMobile && filteredPrograms.length > 4 && (
                               <div style={{ textAlign: "center", padding: "24px 0 12px" }}>
                                 <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, color: "#94a3b8", fontWeight: 500, letterSpacing: "0.5px" }}>
                                   <ChevronDown size={14} /> 스크롤하여 더보기 ({filteredPrograms.length - 4}개 더)
