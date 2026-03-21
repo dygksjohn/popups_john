@@ -20,10 +20,17 @@ function unwrap(res) {
 }
 
 export const bannedWordApi = {
-  list(boardId, page = 0, size = 20) {
+  /**
+   * @param {string} [q] 금지어 부분 검색 (서버 LIKE)
+   */
+  list(boardId, page = 0, size = 20, q) {
+    const params = { page, size };
+    if (q != null && String(q).trim() !== "") {
+      params.q = String(q).trim();
+    }
     return axiosInstance
       .get(`/api/admin/boards/${boardId}/banned-words`, {
-        params: { page, size },
+        params,
       })
       .then((res) => unwrap(res));
   },

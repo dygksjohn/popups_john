@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
@@ -74,10 +73,10 @@ public class ModerationPolicyAdminService {
                     })
                     .header("Content-Type", MediaType.APPLICATION_OCTET_STREAM_VALUE);
 
+            // Content-Type 을 직접 넣으면 boundary 가 없어 AI(FastAPI)가 multipart 를 파싱하지 못함 — WebClient 가 자동 설정
             Map<?, ?> response = aiModerationWebClient
                     .post()
                     .uri("/internal/policies/upload-and-activate")
-                    .header(HttpHeaders.CONTENT_TYPE, MediaType.MULTIPART_FORM_DATA_VALUE)
                     .body(BodyInserters.fromMultipartData(builder.build()))
                     .retrieve()
                     .bodyToMono(Map.class)

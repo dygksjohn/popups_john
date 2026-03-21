@@ -55,6 +55,29 @@ function toTimestamp(value) {
   return Number.isFinite(ts) ? ts : 0;
 }
 
+function maskDisplayName(value, maxUnits) {
+  const src = String(value || "").trim();
+  if (!src) return "";
+  let used = 0;
+  let out = "";
+  for (const ch of src) {
+    const units = ch.charCodeAt(0) <= 127 ? 1 : 2;
+    if (used + units > maxUnits) return `${out}*`;
+    out += ch;
+    used += units;
+  }
+  return out;
+}
+
+/** 목록 표시용: API는 reviewTitle, 구버전/호환용 title, 없으면 본문 첫 줄 */
+function displayReviewListTitle(item) {
+  const explicit = String(item?.reviewTitle ?? item?.title ?? "").trim();
+  if (explicit) return explicit;
+  const plain = htmlToPlainText(item?.content || "").trim();
+  const firstLine = plain.split(/\r?\n/).map((s) => s.trim()).find(Boolean) || "";
+  return firstLine || "후기";
+}
+
 function renderStars(rating = 0, size = 14) {
   return Array.from({ length: 5 }, (_, idx) => (
     <Star
@@ -430,6 +453,7 @@ export default function Review() {
               }}>
                 <span style={{ width: 60, textAlign: "center", flexShrink: 0 }}>번호</span>
                 <span style={{ flex: 1, textAlign: "center" }}>제목</span>
+                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>별점</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
               </div>
@@ -438,10 +462,13 @@ export default function Review() {
                 const commentCount = Number(commentCountMap[item.reviewId] || 0);
                 const eventLabel = eventNameMap[item.eventId] || item.eventName || `행사 ${item.eventId}`;
                 const authorLabel =
+                  item?.writerNickname ||
+                  item?.writerEmail ||
                   item?.author ||
                   item?.nickname ||
                   item?.userName ||
                   (item?.userId ? `회원 #${item.userId}` : "익명 사용자");
+                const maskedAuthorLabel = maskDisplayName(authorLabel, 10);
                 const rowNumber = sortedFilteredItems.length - ((currentPage - 1) * PAGE_SIZE) - index;
                 return (
                   <div
@@ -513,13 +540,11 @@ export default function Review() {
                           </span>
                         )}
                         <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
-                          {item.title}
+                          {displayReviewListTitle(item)}
                         </span>
-                        {commentCount > 0 && (
-                          <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0 }}>
-                            ({commentCount})
-                          </span>
-                        )}
+                        <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
+                          +{commentCount}
+                        </span>
                       </div>
                       {isMobile && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
@@ -527,12 +552,17 @@ export default function Review() {
                           <span style={{ color: "#cbd5e1" }}>·</span>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 1 }}>{renderStars(Number(item.rating || 0), 12)}</span>
                           <span style={{ color: "#cbd5e1" }}>·</span>
-                          <span>{authorLabel}</span>
+                          <span>{maskedAuthorLabel}</span>
                           <span style={{ color: "#cbd5e1" }}>·</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(item.createdAt)}</span>
                         </div>
                       )}
                     </div>
+                    {!isMobile && (
+                      <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#6b7280", flexShrink: 0 }}>
+                        {maskedAuthorLabel}
+                      </span>
+                    )}
                     {!isMobile && (
                       <span style={{ width: 100, textAlign: "center", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
                         {[1, 2, 3, 4, 5].map((starIndex) => <Star key={starIndex} size={12} color={starIndex <= Number(item.rating || 0) ? "#F59E0B" : "#D1D5DB"} fill={starIndex <= Number(item.rating || 0) ? "#F59E0B" : "none"} />)}

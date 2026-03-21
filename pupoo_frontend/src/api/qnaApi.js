@@ -1,5 +1,6 @@
 // src/api/qnaApi.js
 import { axiosInstance } from "../app/http/axiosInstance";
+import { tokenStore } from "../app/http/tokenStore";
 
 /* ── 관리자 토큰 관리 (adminQnaApi 전용) ── */
 const ADMIN_TOKEN_KEY = "pupoo_admin_token";
@@ -9,6 +10,12 @@ function adminAuthHeaders() {
   if (!token) return {};
   const headers = { Authorization: `Bearer ${token}` };
   return headers;
+}
+
+function userAuthHeaders() {
+  const token = tokenStore.getAccess();
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
 }
 
 /* ── 공통 유틸 ── */
@@ -23,9 +30,13 @@ export const qnaApi = {
   list: (uiPage = 1, size = 10) =>
     axiosInstance.get("/api/qnas", {
       params: { page: uiPage - 1, size },
+      headers: userAuthHeaders(),
     }),
 
-  get: (qnaId) => axiosInstance.get(`/api/qnas/${qnaId}`),
+  // 숨김(HIDDEN) 상세는 작성자 판별이 필요해, 로그인 사용자는 토큰을 함께 보낸다.
+  get: (qnaId) => axiosInstance.get(`/api/qnas/${qnaId}`, {
+    headers: userAuthHeaders(),
+  }),
 
   create: (data) =>
     axiosInstance.post("/api/qnas", {
@@ -89,4 +100,12 @@ export const adminQnaApi = {
     axiosInstance.delete(`/api/admin/qnas/${qnaId}/answer`, {
       headers: adminAuthHeaders(),
     }),
+
+  /** QnA 공개(PUBLISHED) / 숨김(HIDDEN) — 관리자 */
+  setVisibility: (qnaId, publicationStatus) =>
+    axiosInstance.patch(
+      `/api/admin/qnas/${qnaId}/visibility`,
+      { publicationStatus },
+      { headers: adminAuthHeaders() },
+    ),
 };

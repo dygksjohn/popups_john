@@ -50,6 +50,20 @@ function toTimestamp(value) {
   return Number.isFinite(ts) ? ts : 0;
 }
 
+function maskDisplayName(value, maxUnits) {
+  const src = String(value || "").trim();
+  if (!src) return "";
+  let used = 0;
+  let out = "";
+  for (const ch of src) {
+    const units = ch.charCodeAt(0) <= 127 ? 1 : 2;
+    if (used + units > maxUnits) return `${out}*`;
+    out += ch;
+    used += units;
+  }
+  return out;
+}
+
 function Overlay({ children, onClose }) {
   return (
     <div
@@ -1017,15 +1031,19 @@ export default function FreeBoard() {
               }}>
                 <span style={{ width: 60, textAlign: "center", flexShrink: 0 }}>번호</span>
                 <span style={{ flex: 1, textAlign: "center" }}>제목</span>
+                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
               </div>
               {pagedItems.map((item, index) => {
                 const rowNumber = totalElements - ((pageSafe - 1) * PAGE_SIZE) - index;
                 const authorLabel =
+                  item?.writerNickname ||
+                  item?.writerEmail ||
                   item?.nickname ||
                   item?.author ||
                   item?.userName ||
                   (item?.userId ? `회원 #${item.userId}` : "익명 사용자");
+                const maskedAuthorLabel = maskDisplayName(authorLabel, 10);
                 return (
                   <div
                     key={item.postId}
@@ -1075,19 +1093,24 @@ export default function FreeBoard() {
                           {item.postTitle}
                         </span>
                         {(commentCountMap[item.postId] ?? 0) > 0 && (
-                          <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0 }}>
-                            ({commentCountMap[item.postId]})
+                          <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
+                            +{commentCountMap[item.postId] ?? 0}
                           </span>
                         )}
                       </div>
                       {isMobile && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
-                          <span style={{ minWidth: 0, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>{authorLabel}</span>
+                          <span style={{ minWidth: 0, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>{maskedAuthorLabel}</span>
                           <span style={{ color: "#cbd5e1" }}>·</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(item.createdAt)}</span>
                         </div>
                       )}
                     </div>
+                    {!isMobile && (
+                      <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>
+                        {maskedAuthorLabel}
+                      </span>
+                    )}
                     {!isMobile && (
                       <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
                         {fmtDate(item.createdAt)}

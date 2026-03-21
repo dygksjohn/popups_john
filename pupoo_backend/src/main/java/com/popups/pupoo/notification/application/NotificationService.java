@@ -136,6 +136,35 @@ public class NotificationService {
     }
 
     /**
+     * 단일 사용자 대상 인앱 알림을 발행한다.
+     */
+    @Transactional
+    public void publishUserNoticeNotification(Long userId,
+                                              String title,
+                                              String content,
+                                              InboxTargetType targetType,
+                                              Long targetId) {
+        if (userId == null || !userRepository.existsById(userId)) {
+            return;
+        }
+        Notification notification = Notification.create(NotificationType.SYSTEM, title, content);
+        notificationRepository.save(notification);
+        notificationInboxRepository.save(NotificationInbox.create(userId, notification, targetType, targetId));
+        notificationSendRepository.save(
+                NotificationSend.create(notification, userId, SenderType.SYSTEM, NotificationChannel.APP)
+        );
+        notificationSender.send(
+                new NotificationSender.SendCommand(
+                        notification.getNotificationId(),
+                        userId,
+                        userId,
+                        SenderType.SYSTEM,
+                        NotificationChannel.APP
+                )
+        );
+    }
+
+    /**
      * 관리자 이벤트 알림은 채널별로 fan-out 전략이 다르다.
      * APP은 inbox row를 만들고, EMAIL/SMS는 실제 수신 대상을 해석해 바로 전송한다.
      */

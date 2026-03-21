@@ -27,7 +27,7 @@ import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 const FILTER_OPTIONS = [
   "전체",
   "답변완료",
-  "미답변",
+  "대기중",
 ];
 const SORT_OPTIONS = [
   { key: "recent", label: "최신순" },
@@ -48,6 +48,11 @@ function toTimestamp(value) {
 
 function hasAnswer(item) {
   return Boolean(String(item?.answerContent ?? "").trim()) || Boolean(item?.answeredAt);
+}
+
+/** 숨김(HIDDEN) 질문 — 목록에서 답변 상태 배지 숨김 */
+function isQnaHiddenRow(q) {
+  return q?.publicationStatus === "HIDDEN" || q?.masked === true;
 }
 
 /* toast */
@@ -449,9 +454,7 @@ export default function ServicePage() {
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return items.filter((q) => {
-      const statusLabel = hasAnswer(q)
-        ? "답변완료"
-        : "미답변";
+      const statusLabel = hasAnswer(q) ? "답변완료" : "대기중";
       const matchFilter = filter === "전체" || filter === statusLabel;
       const matchSearch =
         !keyword ||
@@ -761,9 +764,11 @@ export default function ServicePage() {
             </div>
             {pagedItems.map((q, index) => {
               const isClosed = hasAnswer(q);
-              const statusLabel = isClosed ? "답변완료" : "미답변";
+              const statusLabel = isClosed ? "답변완료" : "대기중";
+              const hiddenRow = isQnaHiddenRow(q);
               const rowNumber = totalElements - ((currentPage - 1) * PAGE_SIZE) - index;
               const authorLabel =
+                q?.writerNickname ||
                 q?.author ||
                 q?.nickname ||
                 q?.userName ||
@@ -795,23 +800,44 @@ export default function ServicePage() {
                     {!isMobile && <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: isClosed ? "#2EB893" : "#999",
-                            border: `1px solid ${isClosed ? "#2EB893" : "#ccc"}`,
-                            borderRadius: 20,
-                            padding: "2px 9px",
-                            whiteSpace: "nowrap",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 3,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {statusLabel}
-                        </span>
+                        {hiddenRow ? (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: "#999",
+                              border: "1px solid #ccc",
+                              borderRadius: 20,
+                              padding: "2px 9px",
+                              whiteSpace: "nowrap",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 3,
+                              flexShrink: 0,
+                            }}
+                          >
+                            숨김
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: isClosed ? "#2EB893" : "#CA8A04",
+                              border: `1px solid ${isClosed ? "#2EB893" : "#FBBF24"}`,
+                              background: isClosed ? "transparent" : "#FFFBEB",
+                              borderRadius: 20,
+                              padding: "2px 9px",
+                              whiteSpace: "nowrap",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 3,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {statusLabel}
+                          </span>
+                        )}
                         {isMobile && (
                           <span
                             style={{

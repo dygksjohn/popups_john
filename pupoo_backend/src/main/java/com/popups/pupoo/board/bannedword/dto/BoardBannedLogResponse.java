@@ -1,6 +1,7 @@
 package com.popups.pupoo.board.bannedword.dto;
 
 import com.popups.pupoo.board.bannedword.domain.model.BoardBannedLog;
+import com.popups.pupoo.board.post.domain.enums.PostStatus;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -21,7 +22,16 @@ public class BoardBannedLogResponse {
     private final String ragReason;
     private final LocalDateTime createdAt;
 
+    /**
+     * 게시글(posts)인 경우에만: PUBLISHED / HIDDEN 등. QnA 모더레이션 차단 시 HIDDEN.
+     */
+    private final String contentPostStatus;
+
     public static BoardBannedLogResponse from(BoardBannedLog entity) {
+        return from(entity, null);
+    }
+
+    public static BoardBannedLogResponse from(BoardBannedLog entity, PostStatus postStatus) {
         return BoardBannedLogResponse.builder()
                 .logId(entity.getLogId())
                 .boardId(entity.getBoardId())
@@ -33,6 +43,7 @@ public class BoardBannedLogResponse {
                 .aiScore(entity.getAiScore())
                 .ragReason(entity.getRagReason())
                 .createdAt(entity.getCreatedAt())
+                .contentPostStatus(postStatus != null ? postStatus.name() : null)
                 .build();
     }
 }

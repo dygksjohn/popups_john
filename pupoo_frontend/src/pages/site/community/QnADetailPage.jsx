@@ -69,14 +69,23 @@ export default function QnADetailPage() {
 
   const metaItems = useMemo(() => {
     if (!item) return [];
-    return [
+    const answered =
+      item.status === "ANSWERED" ||
+      item.status === "CLOSED" ||
+      Boolean(String(item?.answerContent ?? "").trim()) ||
+      Boolean(item?.answeredAt);
+    const rows = [
       { label: "작성일", value: fmtDate(item.createdAt) },
       { label: "조회수", value: item.viewCount ?? 0 },
       {
-        label: "상태",
-        value: item.status === "CLOSED" ? "답변 완료" : "미답변",
+        label: "답변",
+        value: answered ? "답변 완료" : "미답변",
       },
     ];
+    if (item.publicationStatus === "HIDDEN") {
+      rows.push({ label: "노출", value: "숨김 (다른 사용자에게는 목록·검색에 마스킹)" });
+    }
+    return rows;
   }, [item]);
 
   const ensureAuthed = useCallback(() => {

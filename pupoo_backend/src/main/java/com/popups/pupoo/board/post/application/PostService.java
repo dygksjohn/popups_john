@@ -138,8 +138,12 @@ public class PostService {
         return userId != null ? userRepository.findById(userId).map(u -> u.getEmail()).orElse(null) : null;
     }
 
+    private String getWriterNickname(Long userId) {
+        return userId != null ? userRepository.findById(userId).map(u -> u.getNickname()).orElse(null) : null;
+    }
+
     private PostResponse toResponse(Post post) {
-        return PostResponse.from(post, getWriterEmail(post.getUserId()), post.getPostTitle(), post.getContent());
+        return PostResponse.from(post, getWriterEmail(post.getUserId()), getWriterNickname(post.getUserId()), post.getPostTitle(), post.getContent());
     }
 
     @Transactional

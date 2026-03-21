@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface QnaRepository extends JpaRepository<Post, Long> {
@@ -33,16 +34,17 @@ public interface QnaRepository extends JpaRepository<Post, Long> {
     Optional<Post> findQnaById(@Param("postId") Long postId);
 
 
+    /** 공개 목록: PUBLISHED + HIDDEN(숨김·마감 등). HIDDEN은 응답에서 마스킹 처리. */
     @Query("""
         select p
         from Post p
         join p.board b
         where b.boardType = com.popups.pupoo.board.boardinfo.domain.enums.BoardType.QNA
           and p.deleted = false
-          and p.status = :status
+          and p.status in :statuses
         order by p.createdAt desc
     """)
-    Page<Post> findAllQnaPublished(@Param("status") PostStatus status, Pageable pageable);
+    Page<Post> findAllQnaVisible(@Param("statuses") List<PostStatus> statuses, Pageable pageable);
 
     @Query("""
         select p
@@ -50,13 +52,13 @@ public interface QnaRepository extends JpaRepository<Post, Long> {
         join p.board b
         where b.boardType = com.popups.pupoo.board.boardinfo.domain.enums.BoardType.QNA
           and p.deleted = false
-          and p.status = :status
+          and p.status in :statuses
           and (:answeredOnly is null or ((:answeredOnly = true and p.answeredAt is not null) or (:answeredOnly = false and p.answeredAt is null)))
         order by p.createdAt desc
     """)
-    Page<Post> findAllQnaPublishedWithAnsweredFilter(@Param("status") PostStatus status,
-                                                     @Param("answeredOnly") Boolean answeredOnly,
-                                                     Pageable pageable);
+    Page<Post> findAllQnaVisibleWithAnsweredFilter(@Param("statuses") List<PostStatus> statuses,
+                                                   @Param("answeredOnly") Boolean answeredOnly,
+                                                   Pageable pageable);
 
     @Query("""
         select p

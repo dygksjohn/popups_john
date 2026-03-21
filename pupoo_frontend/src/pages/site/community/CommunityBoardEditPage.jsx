@@ -50,7 +50,7 @@ function InProgressBox() {
       }}
     >
       <Loader2 size={14} style={{ flexShrink: 0, animation: "spin 1s linear infinite" }} />
-      수정 중입니다. 기다려 주세요.
+      깨끗한 커뮤니티 조성을 위해 AI가 게시글 콘텐츠를 검토 중입니다.
     </div>
   );
 }
@@ -143,6 +143,7 @@ export default function CommunityBoardEditPage({
     if (!hasMeaningfulCommunityContent(content)) return "내용을 입력해 주세요.";
     return "";
   }, [content, title]);
+  const isFormLocked = saving || Boolean(successMessage);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -173,11 +174,8 @@ export default function CommunityBoardEditPage({
       }
       if (!isMountedRef.current) return;
 
-      setSuccessMessage("수정 완료");
-      setTimeout(() => {
-        if (!isMountedRef.current) return;
-        navigate(`${currentPath}/${postId}`);
-      }, 1500);
+      setSuccessMessage("수정 완료되었습니다.");
+      setSaving(false);
     } catch (err) {
       console.error("[CommunityBoardEditPage] update failed:", err);
       if (!isMountedRef.current) return;
@@ -216,7 +214,7 @@ export default function CommunityBoardEditPage({
           <button
             type="submit"
             form="community-board-edit-form"
-            disabled={saving || loading}
+            disabled={isFormLocked || loading}
             style={{
               height: 44,
               padding: "0 18px",
@@ -226,8 +224,8 @@ export default function CommunityBoardEditPage({
               fontSize: 14,
               fontWeight: 800,
               color: "#fff",
-              cursor: saving || loading ? "not-allowed" : "pointer",
-              opacity: saving || loading ? 0.6 : 1,
+              cursor: isFormLocked || loading ? "not-allowed" : "pointer",
+              opacity: isFormLocked || loading ? 0.6 : 1,
             }}
           >
             {saving ? "수정 중..." : "수정하기"}
@@ -249,8 +247,8 @@ export default function CommunityBoardEditPage({
               display: "grid",
               gap: 18,
               position: "relative",
-              pointerEvents: saving ? "none" : undefined,
-              opacity: saving ? 0.75 : 1,
+              pointerEvents: isFormLocked ? "none" : undefined,
+              opacity: isFormLocked ? 0.75 : 1,
             }}
           >
             <label style={{ display: "grid", gap: 8 }}>
@@ -259,8 +257,8 @@ export default function CommunityBoardEditPage({
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="제목을 입력해 주세요"
-                disabled={saving}
-                readOnly={saving}
+                disabled={isFormLocked}
+                readOnly={isFormLocked}
                 style={{
                   height: 46,
                   borderRadius: 10,
@@ -268,7 +266,7 @@ export default function CommunityBoardEditPage({
                   padding: "0 14px",
                   fontSize: 14,
                   color: "#0f172a",
-                  background: saving ? "#f1f5f9" : "#fff",
+                  background: isFormLocked ? "#f1f5f9" : "#fff",
                 }}
               />
             </label>
@@ -286,16 +284,16 @@ export default function CommunityBoardEditPage({
             <label
               style={{
                 display: "block",
-                cursor: saving ? "not-allowed" : "pointer",
+                cursor: isFormLocked ? "not-allowed" : "pointer",
                 border: "1px solid #e2e8f0",
                 borderRadius: 14,
                 padding: "18px 20px",
-                background: saving ? "#f1f5f9" : "#f8fafc",
+                background: isFormLocked ? "#f1f5f9" : "#f8fafc",
               }}
             >
               <input
                 type="file"
-                disabled={saving}
+                disabled={isFormLocked}
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 style={{ position: "absolute", width: 0, height: 0, opacity: 0, overflow: "hidden" }}
               />

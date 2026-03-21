@@ -264,8 +264,13 @@ public class ReviewService {
 
     private ReviewResponse toResponse(Review r) {
         String eventName = eventRepository.findById(r.getEventId()).map(e -> e.getEventName()).orElse(null);
-        String writerEmail = userRepository.findById(r.getUserId()).map(u -> u.getEmail()).orElse(null);
-        Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW).map(b -> b.getBoardId()).orElse(null);
-        return ReviewResponse.from(r, eventName, writerEmail, r.getReviewTitle(), r.getContent());
+        String writerEmail = null;
+        String writerNickname = null;
+        if (r.getUserId() != null) {
+            var u = userRepository.findById(r.getUserId());
+            writerEmail = u.map(user -> user.getEmail()).orElse(null);
+            writerNickname = u.map(user -> user.getNickname()).orElse(null);
+        }
+        return ReviewResponse.from(r, eventName, writerEmail, writerNickname, r.getReviewTitle(), r.getContent());
     }
 }

@@ -18,6 +18,20 @@ function fmtDate(value) {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function maskDisplayName(value, maxUnits) {
+  const src = String(value || "").trim();
+  if (!src) return "";
+  let used = 0;
+  let out = "";
+  for (const ch of src) {
+    const units = ch.charCodeAt(0) <= 127 ? 1 : 2;
+    if (used + units > maxUnits) return `${out}*`;
+    out += ch;
+    used += units;
+  }
+  return out;
+}
+
 function Stars({ value }) {
   return (
     <div style={{ display: "inline-flex", gap: 3, alignItems: "center" }}>
@@ -237,9 +251,17 @@ export default function ReviewDetailPage() {
 
   const metaItems = useMemo(() => {
     if (!review) return [];
+    const authorLabel =
+      review?.writerNickname ||
+      review?.writerEmail ||
+      review?.author ||
+      review?.nickname ||
+      review?.userName ||
+      (review?.userId ? `회원 #${review.userId}` : "익명 사용자");
     return [
       { label: "작성일", value: fmtDate(review.createdAt) },
       { label: "조회수", value: review.viewCount ?? 0 },
+      { label: "작성자", value: maskDisplayName(authorLabel, 30) },
       { label: "행사명", value: eventName || review.eventName || "행사 정보 없음" },
     ];
   }, [eventName, review]);

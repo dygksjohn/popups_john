@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Trash2, X, AlertTriangle, Loader2, ShieldAlert, Upload, FileText, CheckCircle, ScrollText } from "lucide-react";
+import { Plus, Trash2, X, AlertTriangle, Loader2, ShieldAlert, Upload, FileText, CheckCircle, ScrollText, Search } from "lucide-react";
 import ds from "../shared/designTokens";
 import { boardApi } from "../../../app/http/boardApi";
 import {
@@ -343,19 +343,44 @@ function truncate(str, max = 48) {
   return s.length > max ? `${s.slice(0, max)}…` : s;
 }
 
+/** board_banned_logs.content_type 표시용 */
+function logContentTypeLabel(code) {
+  if (!code) return "-";
+  const c = String(code).toUpperCase();
+  if (c === "POST") return "게시글";
+  if (c === "COMMENT") return "댓글";
+  return code;
+}
+
+/** posts.status (게시글 로그일 때 contentPostStatus) */
+function logPostStatusLabel(code) {
+  if (!code) return "-";
+  const c = String(code).toUpperCase();
+  if (c === "HIDDEN") return "숨김";
+  if (c === "PUBLISHED") return "공개";
+  if (c === "DRAFT") return "임시";
+  return code;
+}
+
+/** 사유 컬럼: 줄바꿈·다중 공백을 한 줄로 */
+function ragReasonOneLine(s) {
+  if (s == null || s === "") return "-";
+  return String(s).replace(/\s+/g, " ").trim();
+}
+
 /* ══════════════════════════════════════════════
    AI 모더레이션 BLOCK 로그 (페이징)
+   — 금지어 관리의 게시판 선택과 별도: 기본은 전체(모든 게시판·댓글)
    ══════════════════════════════════════════════ */
-function ModerationLogSection({ selectedBoardId, boards }) {
+function ModerationLogSection({ boards }) {
+  /** null = 전체 게시판 (API boardId 미전송) */
+  const [logBoardFilter, setLogBoardFilter] = useState(null);
   const [logPage, setLogPage] = useState(0);
   const [logItems, setLogItems] = useState([]);
   const [logLoading, setLogLoading] = useState(false);
+  /** totalElements·size로 계산 (목록 건수와 페이지 수 일치, 범위 초과 방지) */
   const [logTotalPages, setLogTotalPages] = useState(0);
   const [logTotalElements, setLogTotalElements] = useState(0);
-
-  useEffect(() => {
-    setLogPage(0);
-  }, [selectedBoardId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -365,12 +390,23 @@ function ModerationLogSection({ selectedBoardId, boards }) {
         const res = await moderationLogsApi.list(
           logPage,
           LOG_PAGE_SIZE,
-          selectedBoardId ?? undefined
+          logBoardFilter ?? undefined
         );
         if (cancelled) return;
+
+        const totalElements = Number(res?.totalElements ?? 0);
+        const pageSize = Number(res?.size ?? LOG_PAGE_SIZE) || LOG_PAGE_SIZE;
+        const computedTotalPages =
+          totalElements === 0 ? 0 : Math.ceil(totalElements / pageSize);
+
+        if (computedTotalPages > 0 && logPage >= computedTotalPages) {
+          setLogPage(computedTotalPages - 1);
+          return;
+        }
+
         setLogItems(res?.content ?? []);
-        setLogTotalPages(res?.totalPages ?? 0);
-        setLogTotalElements(res?.totalElements ?? 0);
+        setLogTotalElements(totalElements);
+        setLogTotalPages(computedTotalPages);
       } catch (e) {
         console.warn("[ModerationLogSection] 로그 로드 실패:", e);
         if (!cancelled) {
@@ -385,7 +421,7 @@ function ModerationLogSection({ selectedBoardId, boards }) {
     return () => {
       cancelled = true;
     };
-  }, [logPage, selectedBoardId]);
+  }, [logPage, logBoardFilter]);
 
   const boardName = (id) =>
     boards.find((b) => b.boardId === id)?.name ||
@@ -408,23 +444,50 @@ function ModerationLogSection({ selectedBoardId, boards }) {
           alignItems: "center",
           justifyContent: "space-between",
           flexWrap: "wrap",
-          gap: 8,
+          gap: 10,
           borderBottom: `1px solid ${ds.line}`,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           <ScrollText size={17} color={ds.brand} />
           <span style={{ fontSize: 13.5, fontWeight: 800, color: ds.ink }}>
             AI 모더레이션 BLOCK 로그
           </span>
         </div>
-        <span style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4 }}>
-          {selectedBoardId
-            ? `게시판 필터: ${boardName(selectedBoardId)}`
-            : "전체 게시판"}
-          {" · "}
-          총 {logTotalElements}건
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <label style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4, display: "flex", alignItems: "center", gap: 6 }}>
+            게시판
+            <select
+              value={logBoardFilter ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setLogBoardFilter(v === "" ? null : Number(v));
+                setLogPage(0);
+              }}
+              style={{
+                padding: "5px 10px",
+                borderRadius: 8,
+                border: `1px solid ${ds.line}`,
+                background: ds.bg,
+                fontSize: 12.5,
+                fontFamily: ds.ff,
+                color: ds.ink,
+                cursor: "pointer",
+                minWidth: 160,
+              }}
+            >
+              <option value="">전체 (모든 게시판·댓글)</option>
+              {boards.map((b) => (
+                <option key={b.boardId} value={b.boardId}>
+                  {b.name || b.boardType || `게시판 #${b.boardId}`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4 }}>
+            총 {logTotalElements}건
+          </span>
+        </div>
       </div>
 
       {logLoading && (
@@ -446,7 +509,8 @@ function ModerationLogSection({ selectedBoardId, boards }) {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "128px 72px 72px 64px 64px 100px 72px 52px minmax(120px, 1fr)",
+                gridTemplateColumns:
+                  "128px 72px 72px 64px 64px 100px 72px 52px 52px minmax(160px, 1fr)",
                 gap: 8,
                 padding: "6px 14px",
                 borderBottom: `1px solid ${ds.line}`,
@@ -455,7 +519,7 @@ function ModerationLogSection({ selectedBoardId, boards }) {
                 color: ds.ink4,
                 textTransform: "uppercase",
                 letterSpacing: "0.02em",
-                minWidth: 900,
+                minWidth: 920,
               }}
             >
               <span>일시</span>
@@ -465,6 +529,7 @@ function ModerationLogSection({ selectedBoardId, boards }) {
               <span>유저</span>
               <span>탐지</span>
               <span>조치</span>
+              <span>노출</span>
               <span>AI</span>
               <span>사유</span>
             </div>
@@ -473,14 +538,15 @@ function ModerationLogSection({ selectedBoardId, boards }) {
                 key={row.logId}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "128px 72px 72px 64px 64px 100px 72px 52px minmax(120px, 1fr)",
+                  gridTemplateColumns:
+                    "128px 72px 72px 64px 64px 100px 72px 52px 52px minmax(160px, 1fr)",
                   gap: 8,
                   alignItems: "center",
                   padding: "5px 14px",
                   borderBottom: `1px solid ${ds.lineSoft}`,
                   fontSize: 11.5,
                   color: ds.ink3,
-                  minWidth: 900,
+                  minWidth: 920,
                 }}
               >
                 <span style={{ fontSize: 11, color: ds.ink4, whiteSpace: "nowrap" }}>
@@ -492,7 +558,9 @@ function ModerationLogSection({ selectedBoardId, boards }) {
                 >
                   {truncate(boardName(row.boardId), 10)}
                 </span>
-                <span style={{ fontSize: 11 }}>{row.contentType ?? "-"}</span>
+                <span style={{ fontSize: 11 }} title={row.contentType ?? ""}>
+                  {logContentTypeLabel(row.contentType)}
+                </span>
                 <span style={{ fontSize: 11, color: ds.ink4 }}>{row.contentId ?? "-"}</span>
                 <span style={{ fontSize: 11, color: ds.ink4 }}>{row.userId ?? "-"}</span>
                 <span
@@ -504,15 +572,29 @@ function ModerationLogSection({ selectedBoardId, boards }) {
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: "#B45309" }}>
                   {row.filterActionTaken ?? "-"}
                 </span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: ds.ink3 }} title={row.contentPostStatus ?? ""}>
+                  {logPostStatusLabel(row.contentPostStatus)}
+                </span>
                 <span style={{ fontSize: 11, color: ds.ink4 }}>
                   {row.aiScore != null ? row.aiScore.toFixed(2) : "-"}
                 </span>
-                <span
-                  style={{ fontSize: 11, color: ds.ink4, lineHeight: 1.35 }}
-                  title={row.ragReason}
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: ds.ink4,
+                    lineHeight: 1.25,
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    overflowX: "auto",
+                    overflowY: "hidden",
+                    whiteSpace: "nowrap",
+                    WebkitOverflowScrolling: "touch",
+                    scrollbarWidth: "thin",
+                  }}
+                  title={row.ragReason != null ? String(row.ragReason) : ""}
                 >
-                  {truncate(row.ragReason, 64)}
-                </span>
+                  {ragReasonOneLine(row.ragReason)}
+                </div>
               </div>
             ))}
           </div>
@@ -816,6 +898,22 @@ export default function BannedWordsManage() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const lastSearchAppliedRef = useRef("");
+
+  /** 입력 디바운스 후 검색어 반영 + 검색 변경 시 첫 페이지로 */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const next = searchInput.trim();
+      if (lastSearchAppliedRef.current !== next) {
+        lastSearchAppliedRef.current = next;
+        setPage(0);
+      }
+      setSearchQuery(next);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const fetchBoards = useCallback(async () => {
     setBoardsLoading(true);
@@ -841,7 +939,7 @@ export default function BannedWordsManage() {
     }
     setLoading(true);
     try {
-      const res = await bannedWordApi.list(selectedBoardId, page, BANNED_PAGE_SIZE);
+      const res = await bannedWordApi.list(selectedBoardId, page, BANNED_PAGE_SIZE, searchQuery);
       setItems(res?.content ?? []);
       setTotalPages(res?.totalPages ?? 0);
       setTotalElements(res?.totalElements ?? 0);
@@ -852,7 +950,7 @@ export default function BannedWordsManage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedBoardId, page]);
+  }, [selectedBoardId, page, searchQuery]);
 
   useEffect(() => {
     fetchBoards();
@@ -925,18 +1023,31 @@ export default function BannedWordsManage() {
       <style>{spinStyle}</style>
 
       {/* ── AI 모더레이션 BLOCK 로그 (상단) ── */}
-      <ModerationLogSection selectedBoardId={selectedBoardId} boards={boards} />
+      <ModerationLogSection boards={boards} />
 
-      {/* ── 금지어 목록 ── */}
+      {/* ── 금지어/정책 영역: 챗봇 우측 공간 확보 ── */}
       <div
         style={{
-          background: ds.bg,
-          borderRadius: 12,
-          border: `1px solid ${ds.line}`,
-          overflow: "hidden",
+          display: "grid",
+          // 아이콘 중심 기준: (중심~오른쪽 끝) == (중심~테이블 오른쪽 끝)
+          // 데스크톱 기준 right(14px) + 아이콘폭(180px)/2 = 104px 이므로,
+          // 테이블 우측 경계는 화면 오른쪽에서 약 208px 지점에 배치
+          gridTemplateColumns: "minmax(0, 1fr) 208px",
+          gap: 0,
+          alignItems: "start",
           marginTop: 20,
         }}
       >
+        <div>
+          {/* ── 금지어 목록 ── */}
+          <div
+            style={{
+              background: ds.bg,
+              borderRadius: 12,
+              border: `1px solid ${ds.line}`,
+              overflow: "hidden",
+            }}
+          >
         <div
           style={{
             padding: "10px 16px",
@@ -948,38 +1059,117 @@ export default function BannedWordsManage() {
             borderBottom: `1px solid ${ds.line}`,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+              minWidth: 0,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
               <ShieldAlert size={17} color={ds.brand} />
-              <span style={{ fontSize: 13.5, fontWeight: 800, color: ds.ink }}>금지어 관리</span>
+              <span style={{ fontSize: 13.5, fontWeight: 800, color: ds.ink }}>금지어 목록</span>
             </div>
-            <select
-              value={selectedBoardId ?? ""}
-              onChange={(e) => {
-                setSelectedBoardId(e.target.value ? Number(e.target.value) : null);
-                setPage(0);
-              }}
+            {/* 게시판 드롭다운 + 검색창을 한 줄에 고정 (줄바꿈 시에도 붙어 있음) */}
+            <div
               style={{
-                padding: "6px 10px",
-                borderRadius: 8,
-                border: `1px solid ${ds.line}`,
-                background: ds.bg,
-                fontSize: 12.5,
-                fontFamily: ds.ff,
-                color: ds.ink,
-                cursor: "pointer",
-                minWidth: 150,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "nowrap",
+                flexShrink: 0,
+                minWidth: 0,
               }}
             >
-              <option value="">게시판 선택</option>
-              {boards.map((b) => (
-                <option key={b.boardId} value={b.boardId}>
-                  {b.name || b.boardType || `게시판 #${b.boardId}`}
-                </option>
-              ))}
-            </select>
+              <select
+                value={selectedBoardId ?? ""}
+                onChange={(e) => {
+                  setSelectedBoardId(e.target.value ? Number(e.target.value) : null);
+                  setPage(0);
+                  setSearchInput("");
+                  setSearchQuery("");
+                  lastSearchAppliedRef.current = "";
+                }}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                  border: `1px solid ${ds.line}`,
+                  background: ds.bg,
+                  fontSize: 12.5,
+                  fontFamily: ds.ff,
+                  color: ds.ink,
+                  cursor: "pointer",
+                  minWidth: 150,
+                  flexShrink: 0,
+                }}
+              >
+                <option value="">게시판 선택</option>
+                {boards.map((b) => (
+                  <option key={b.boardId} value={b.boardId}>
+                    {b.name || b.boardType || `게시판 #${b.boardId}`}
+                  </option>
+                ))}
+              </select>
+              {selectedBoardId && (
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "5px 10px",
+                    borderRadius: 8,
+                    border: `1px solid ${ds.line}`,
+                    background: ds.bg,
+                    width: 200,
+                    flexShrink: 0,
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <Search size={14} color={ds.ink4} style={{ flexShrink: 0 }} aria-hidden />
+                  <input
+                    type="search"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder="금지어 검색"
+                    autoComplete="off"
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 12.5,
+                      fontFamily: ds.ff,
+                      color: ds.ink,
+                      outline: "none",
+                    }}
+                  />
+                  {searchInput ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchInput("")}
+                      aria-label="검색어 지우기"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 2,
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        color: ds.ink4,
+                        borderRadius: 4,
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  ) : null}
+                </label>
+              )}
+            </div>
             {selectedBoardId && (
-              <span style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4, flexShrink: 0 }}>
                 총 {totalElements}개
               </span>
             )}
@@ -1029,7 +1219,9 @@ export default function BannedWordsManage() {
 
         {!boardsLoading && selectedBoardId && !loading && items.length === 0 && (
           <div style={{ padding: 60, textAlign: "center", color: ds.ink4, fontSize: 13.5 }}>
-            등록된 금지어가 없습니다. "금지어 추가"로 등록하세요.
+            {searchQuery
+              ? "검색 결과가 없습니다. 다른 검색어를 입력해 보세요."
+              : '등록된 금지어가 없습니다. "금지어 추가"로 등록하세요.'}
           </div>
         )}
 
@@ -1038,7 +1230,7 @@ export default function BannedWordsManage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 110px 72px 100px 88px 72px",
+                gridTemplateColumns: "1fr 110px 72px 88px 72px",
                 gap: 8,
                 padding: "6px 14px",
                 borderBottom: `1px solid ${ds.line}`,
@@ -1052,7 +1244,6 @@ export default function BannedWordsManage() {
               <span>금지어</span>
               <span>카테고리</span>
               <span>적용</span>
-              <span>대체어</span>
               <span>등록일</span>
               <span></span>
             </div>
@@ -1061,7 +1252,7 @@ export default function BannedWordsManage() {
                 key={row.bannedWordId}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 110px 72px 100px 88px 72px",
+                  gridTemplateColumns: "1fr 110px 72px 88px 72px",
                   gap: 8,
                   alignItems: "center",
                   padding: "5px 14px",
@@ -1085,7 +1276,6 @@ export default function BannedWordsManage() {
                 >
                   {row.boardId ? "게시판" : "공통"}
                 </span>
-                <span style={{ color: ds.ink4, fontSize: 11.5 }}>{row.replacement || "-"}</span>
                 <span style={{ fontSize: 11, color: ds.ink4 }}>{fmtDate(row.createdAt)}</span>
                 <div style={{ display: "flex", gap: 3 }}>
                   <button
@@ -1178,28 +1368,34 @@ export default function BannedWordsManage() {
           </>
         )}
 
-        {modal?.type === "form" && (
-          <FormModal
-            item={modal.item}
-            onSave={modal.item ? handleUpdate : handleCreate}
-            onClose={() => setModal(null)}
-            saving={saving}
-          />
-        )}
+          </div>
 
-        {modal?.type === "delete" && (
-          <ConfirmModal
-            title="금지어 삭제"
-            msg={`"${modal.item?.bannedWord}" 을(를) 삭제하시겠습니까?`}
-            onConfirm={handleDelete}
-            onCancel={() => setModal(null)}
-            loading={saving}
-          />
-        )}
+          {/* ── AI 정책 파일 관리 (하단) ── */}
+          <PolicySection showToast={showToast} />
+        </div>
+
+        {/* 챗봇과 겹치지 않도록 우측 여백 컬럼 */}
+        <div aria-hidden="true" />
       </div>
 
-      {/* ── AI 정책 파일 관리 (하단) ── */}
-      <PolicySection showToast={showToast} />
+      {modal?.type === "form" && (
+        <FormModal
+          item={modal.item}
+          onSave={modal.item ? handleUpdate : handleCreate}
+          onClose={() => setModal(null)}
+          saving={saving}
+        />
+      )}
+
+      {modal?.type === "delete" && (
+        <ConfirmModal
+          title="금지어 삭제"
+          msg={`"${modal.item?.bannedWord}" 을(를) 삭제하시겠습니까?`}
+          onConfirm={handleDelete}
+          onCancel={() => setModal(null)}
+          loading={saving}
+        />
+      )}
 
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
     </div>
