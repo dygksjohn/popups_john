@@ -562,34 +562,34 @@ const summarizeRealtimeByEvents = (eventRealtimeRows = []) => {
 const eventOptionLabel = (event) =>
   `${event.eventName} · ${formatDateRange(event.startAt, event.endAt)}`;
 
-function MetricCard({ icon: Icon, label, value, sub, color, bg }) {
+function MetricCard({ icon: Icon, label, value, sub, color, bg, compact = false }) {
   return (
-    <div style={{ ...cardStyle, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+    <div style={{ ...cardStyle, padding: compact ? "15px 16px" : "18px 20px", display: "flex", flexDirection: "column", gap: compact ? 10 : 14, minWidth: 0, minHeight: compact ? 126 : 142 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 700, color: ds.ink3 }}>{label}</span>
-        <div style={{ width: 34, height: 34, borderRadius: 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: ds.ink3, minWidth: 0, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word", lineHeight: 1.4 }}>{label}</span>
+        <div style={{ width: compact ? 30 : 34, height: compact ? 30 : 34, borderRadius: compact ? 9 : 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Icon size={16} color={color} strokeWidth={2.2} />
         </div>
       </div>
-      <div style={{ fontSize: typeof value === "string" && value.length > 10 ? 22 : 29, fontWeight: 800, color: ds.ink, lineHeight: 1.1, wordBreak: "keep-all" }}>
+      <div style={{ fontSize: compact ? (typeof value === "string" && value.length > 10 ? 19 : 24) : (typeof value === "string" && value.length > 10 ? 22 : 29), fontWeight: 800, color: ds.ink, lineHeight: 1.08, wordBreak: "keep-all", overflowWrap: "break-word", minWidth: 0 }}>
         {value}
       </div>
-      <div style={{ fontSize: 12, color: ds.ink4, lineHeight: 1.45 }}>{sub}</div>
+      <div style={{ fontSize: 12, color: ds.ink4, lineHeight: 1.45, minWidth: 0, wordBreak: "keep-all", overflowWrap: "break-word" }}>{sub}</div>
     </div>
   );
 }
 
-function SectionCard({ title, subtitle, action, children }) {
+function SectionCard({ title, subtitle, action, children, compact = false, handset = false }) {
   return (
     <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
-      <div style={{ padding: "18px 20px 14px", borderBottom: `1px solid ${ds.line}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+      <div style={{ padding: compact ? "15px 16px 12px" : "18px 20px 14px", borderBottom: `1px solid ${ds.line}`, display: "flex", flexDirection: handset ? "column" : "row", alignItems: handset ? "stretch" : "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div>
           <div style={{ fontSize: 14.5, fontWeight: 800, color: ds.ink }}>{title}</div>
           {subtitle && <div style={{ fontSize: 11.5, color: ds.ink4, marginTop: 4 }}>{subtitle}</div>}
         </div>
         {action}
       </div>
-      <div style={{ padding: 20 }}>{children}</div>
+      <div style={{ padding: compact ? 16 : 20 }}>{children}</div>
     </div>
   );
 }
@@ -603,9 +603,9 @@ function ChartEmpty({ title, description }) {
   );
 }
 
-function FilterControl({ value, onChange, placeholder }) {
+function FilterControl({ value, onChange, placeholder, compact = false }) {
   return (
-    <div style={{ position: "relative", minWidth: 0 }}>
+    <div style={{ position: "relative", minWidth: 0, width: compact ? "100%" : "auto" }}>
       <div style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: ds.ink4, pointerEvents: "none" }}>
         <Search size={13} strokeWidth={2.2} />
       </div>
@@ -613,13 +613,16 @@ function FilterControl({ value, onChange, placeholder }) {
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        style={{ width: "100%", minWidth: 180, height: 36, padding: "0 12px 0 32px", borderRadius: 10, border: `1px solid ${ds.line}`, background: ds.card, color: ds.ink, fontSize: 12.5, fontFamily: ds.ff, outline: "none" }}
+        style={{ width: "100%", minWidth: compact ? 0 : 180, height: 36, padding: "0 12px 0 32px", borderRadius: 10, border: `1px solid ${ds.line}`, background: ds.card, color: ds.ink, fontSize: 12.5, fontFamily: ds.ff, outline: "none" }}
       />
     </div>
   );
 }
 
 export default function HomeDashboard({ initialEventId = null }) {
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -632,6 +635,14 @@ export default function HomeDashboard({ initialEventId = null }) {
     if (initialEventId == null) return;
     setSelectedEventId(String(initialEventId));
   }, [initialEventId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
   const loadDashboard = useCallback(async ({ silent = false } = {}) => {
     if (silent) setRefreshing(true);
     else setLoading(true);
@@ -865,6 +876,11 @@ export default function HomeDashboard({ initialEventId = null }) {
         },
       );
       const totalEventCount = allEvents.length;
+      const totalParticipantCount = eventPerformance.reduce(
+        (sum, event) => sum + (Number(event.approvedRegistrationCount) || 0),
+        0,
+      );
+      const pendingEventCount = Number(summary.plannedCount) || 0;
 
       const yearlyMap = new Map();
       for (let year = currentYear - 4; year <= currentYear; year += 1) {
@@ -944,6 +960,8 @@ export default function HomeDashboard({ initialEventId = null }) {
       setSnapshot({
         summary,
         totalEventCount,
+        totalParticipantCount,
+        pendingEventCount,
         allEvents,
         liveEvents,
         focusEvent,
@@ -1034,6 +1052,10 @@ export default function HomeDashboard({ initialEventId = null }) {
       return name.includes(keyword) || date.includes(keyword);
     });
   }, [eventSearch, snapshot?.allEvents]);
+  const isHandset = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const isCompact = viewportWidth < 1024;
+
   if (loading && !snapshot) {
     return (
       <div style={{ minHeight: 420, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
@@ -1090,25 +1112,26 @@ export default function HomeDashboard({ initialEventId = null }) {
       : "행사를 선택하면 시간대별 혼잡 추이를 보여줍니다.";
 
   return (
-    <div style={{ display: "flex", gap: 20 }}>
+    <div style={{ display: "flex", flexDirection: isCompact ? "column" : "row", gap: isHandset ? 14 : 20 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 18, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: isCompact ? "column" : "row", alignItems: isCompact ? "stretch" : "flex-start", justifyContent: "space-between", gap: isHandset ? 12 : 16, marginBottom: isHandset ? 14 : 18, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 800, color: ds.ink }}>실시간 운영 대시보드</div>
             <div style={{ fontSize: 12.5, color: ds.ink4, marginTop: 4 }}>
               행사 상태, 체크인, 혼잡도, 결제/환불, 관리자 활동을 30초마다 자동으로 갱신합니다.
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", flexDirection: isHandset ? "column" : "row", alignItems: isHandset ? "stretch" : "center", gap: 10, flexWrap: "wrap", width: isCompact ? "100%" : "auto" }}>
             <FilterControl
               value={eventSearch}
               onChange={(event) => setEventSearch(event.target.value)}
               placeholder="행사 검색"
+              compact={isCompact}
             />
             <select
               value={selectedEventId}
               onChange={(event) => setSelectedEventId(event.target.value)}
-              style={{ minWidth: 240, height: 36, padding: "0 12px", borderRadius: 10, border: `1px solid ${ds.line}`, background: ds.card, color: ds.ink, fontSize: 12.5, fontFamily: ds.ff, outline: "none" }}
+              style={{ minWidth: isCompact ? 0 : 240, width: isCompact ? "100%" : "auto", height: 36, padding: "0 12px", borderRadius: 10, border: `1px solid ${ds.line}`, background: ds.card, color: ds.ink, fontSize: 12.5, fontFamily: ds.ff, outline: "none" }}
             >
               <option value="ALL">전체 행사 보기</option>
               {filteredEvents.map((event) => (
@@ -1120,15 +1143,15 @@ export default function HomeDashboard({ initialEventId = null }) {
             {selectedEventId !== "ALL" && (
               <button
                 onClick={() => setSelectedEventId("ALL")}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 10px", borderRadius: ds.rs, border: `1px solid ${ds.line}`, background: ds.card, color: ds.ink3, fontSize: 12, fontWeight: 700, fontFamily: ds.ff, cursor: "pointer" }}
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, width: isHandset ? "100%" : "auto", padding: "7px 10px", borderRadius: ds.rs, border: `1px solid ${ds.line}`, background: ds.card, color: ds.ink3, fontSize: 12, fontWeight: 700, fontFamily: ds.ff, cursor: "pointer" }}
               >
                 전체 보기
               </button>
             )}
-            <span style={{ fontSize: 11.5, color: ds.ink4 }}>최근 갱신 {formatRelativeTime(snapshot.updatedAt)}</span>
+            <span style={{ fontSize: 11.5, color: ds.ink4, width: isHandset ? "100%" : "auto" }}>최근 갱신 {formatRelativeTime(snapshot.updatedAt)}</span>
             <button
               onClick={() => loadDashboard()}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: ds.rs, border: `1px solid ${ds.line}`, background: ds.card, color: ds.ink3, fontSize: 12, fontWeight: 700, fontFamily: ds.ff, cursor: "pointer" }}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, width: isHandset ? "100%" : "auto", padding: "7px 12px", borderRadius: ds.rs, border: `1px solid ${ds.line}`, background: ds.card, color: ds.ink3, fontSize: 12, fontWeight: 700, fontFamily: ds.ff, cursor: "pointer" }}
             >
               <RefreshCw size={13} strokeWidth={2.2} />
               {refreshing ? "갱신 중" : "새로고침"}
@@ -1143,7 +1166,7 @@ export default function HomeDashboard({ initialEventId = null }) {
         )}
 
         {selectedScope && focusStatus && (
-          <div style={{ ...cardStyle, padding: "14px 16px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ ...cardStyle, padding: isHandset ? "12px 14px" : "14px 16px", marginBottom: 16, display: "flex", flexDirection: isHandset ? "column" : "row", alignItems: isHandset ? "stretch" : "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>{snapshot.focusEvent.eventName}</div>
               <div style={{ fontSize: 11.5, color: ds.ink4, marginTop: 4 }}>
@@ -1156,32 +1179,34 @@ export default function HomeDashboard({ initialEventId = null }) {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isHandset ? "repeat(2, minmax(0, 1fr))" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fit, minmax(180px, 1fr))", gap: isHandset ? 10 : 14, marginBottom: 16 }}>
           {selectedScope ? (
             <>
-              <MetricCard icon={Users} label="승인 등록" value={formatNumber(snapshot.scopedRegistrationCount)} sub="선택 행사 승인 신청 기준" color={ds.brand} bg={ds.brandSoft} />
-              <MetricCard icon={Radio} label="체크인" value={formatNumber(snapshot.scopedCheckinCount)} sub={`노쇼 ${formatNumber(snapshot.scopedNoShowCount)}명`} color={ds.green} bg={ds.greenSoft} />
-              <MetricCard icon={CalendarDays} label="체크인율" value={`${formatNumber(snapshot.scopedAttendanceRate)}%`} sub="등록 대비 실참석 비율" color={ds.amber} bg={ds.amberSoft} />
-              <MetricCard icon={Wallet} label="승인 결제액" value={formatCompactWon(snapshot.approvedPaymentAmount)} sub={`승인 결제 ${formatNumber(snapshot.approvedPaymentCount)}건`} color={ds.violet} bg={ds.violetSoft} />
-              <MetricCard icon={RotateCcw} label="환불 요청" value={formatNumber(snapshot.requestedRefundCount)} sub={`환불 완료 ${formatNumber(snapshot.completedRefundCount)}건`} color={ds.red} bg={ds.redSoft} />
+              <MetricCard icon={Users} label="승인 등록" value={formatNumber(snapshot.scopedRegistrationCount)} sub="선택 행사 승인 신청 기준" color={ds.brand} bg={ds.brandSoft} compact={isCompact} />
+              <MetricCard icon={Radio} label="체크인" value={formatNumber(snapshot.scopedCheckinCount)} sub={`노쇼 ${formatNumber(snapshot.scopedNoShowCount)}명`} color={ds.green} bg={ds.greenSoft} compact={isCompact} />
+              <MetricCard icon={CalendarDays} label="체크인율" value={`${formatNumber(snapshot.scopedAttendanceRate)}%`} sub="등록 대비 실참석 비율" color={ds.amber} bg={ds.amberSoft} compact={isCompact} />
+              <MetricCard icon={Wallet} label="승인 결제액" value={formatCompactWon(snapshot.approvedPaymentAmount)} sub={`승인 결제 ${formatNumber(snapshot.approvedPaymentCount)}건`} color={ds.violet} bg={ds.violetSoft} compact={isCompact} />
+              <MetricCard icon={RotateCcw} label="환불 요청" value={formatNumber(snapshot.requestedRefundCount)} sub={`환불 완료 ${formatNumber(snapshot.completedRefundCount)}건`} color={ds.red} bg={ds.redSoft} compact={isCompact} />
             </>
           ) : (
             <>
-              <MetricCard icon={CalendarDays} label="전체 행사" value={formatNumber(snapshot.totalEventCount)} sub={`예정 ${formatNumber(snapshot.summary.plannedCount)} · 종료 ${formatNumber(snapshot.summary.endedCount)}`} color={ds.brand} bg={ds.brandSoft} />
-              <MetricCard icon={Radio} label="진행 중 행사" value={formatNumber(snapshot.summary.ongoingCount)} sub={`취소 ${formatNumber(snapshot.summary.cancelledCount)}건 포함`} color={ds.green} bg={ds.greenSoft} />
-              <MetricCard icon={Users} label="오늘 체크인" value={formatNumber(snapshot.summary.todayCheckinCount)} sub="실시간 체크인 누적 기준" color={ds.sky} bg={ds.skySoft} />
-              <MetricCard icon={Wallet} label="승인 결제액" value={formatCompactWon(snapshot.approvedPaymentAmount)} sub={`승인 결제 ${formatNumber(snapshot.approvedPaymentCount)}건`} color={ds.violet} bg={ds.violetSoft} />
-              <MetricCard icon={RotateCcw} label="환불 요청" value={formatNumber(snapshot.requestedRefundCount)} sub={`환불 완료 ${formatNumber(snapshot.completedRefundCount)}건`} color={ds.amber} bg={ds.amberSoft} />
+              <MetricCard icon={CalendarDays} label="전체 행사" value={formatNumber(snapshot.totalEventCount)} sub={`예정 ${formatNumber(snapshot.summary.plannedCount)} · 종료 ${formatNumber(snapshot.summary.endedCount)}`} color={ds.brand} bg={ds.brandSoft} compact={isCompact} />
+              <MetricCard icon={Radio} label="진행 중 행사" value={formatNumber(snapshot.summary.ongoingCount)} sub={`취소 ${formatNumber(snapshot.summary.cancelledCount)}건 포함`} color={ds.green} bg={ds.greenSoft} compact={isCompact} />
+              <MetricCard icon={Users} label="오늘 체크인" value={formatNumber(snapshot.summary.todayCheckinCount)} sub="실시간 체크인 누적 기준" color={ds.sky} bg={ds.skySoft} compact={isCompact} />
+              <MetricCard icon={Wallet} label="승인 결제액" value={formatCompactWon(snapshot.approvedPaymentAmount)} sub={`승인 결제 ${formatNumber(snapshot.approvedPaymentCount)}건`} color={ds.violet} bg={ds.violetSoft} compact={isCompact} />
+              <MetricCard icon={RotateCcw} label="환불 요청" value={formatNumber(snapshot.requestedRefundCount)} sub={`환불 완료 ${formatNumber(snapshot.completedRefundCount)}건`} color={ds.amber} bg={ds.amberSoft} compact={isCompact} />
             </>
           )}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 14, marginBottom: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isCompact ? "1fr" : "minmax(0, 1fr) 300px", gap: 14, marginBottom: 14 }}>
         <SectionCard
           title="실시간 혼잡 추이"
           subtitle={congestionSubtitle}
+          compact={isCompact}
+          handset={isHandset}
             action={(
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: isHandset ? "flex-start" : "flex-end", width: isHandset ? "100%" : "auto" }}>
                 {isSelectedPlannedEvent ? (
                   <>
                     <input
@@ -1219,7 +1244,7 @@ export default function HomeDashboard({ initialEventId = null }) {
           >
             {isAllEventCongestionView ? (
               <>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isHandset ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>현재 실시간 혼잡도</div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
@@ -1340,7 +1365,7 @@ export default function HomeDashboard({ initialEventId = null }) {
                     </ResponsiveContainer>
                   </div>
                 ) : null}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isHandset ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>
                       {snapshot.isPredictionCongestionView ? "예상 평균 혼잡도" : "평균 혼잡도"}
@@ -1421,7 +1446,7 @@ export default function HomeDashboard({ initialEventId = null }) {
             )}
           </SectionCard>
 
-          <SectionCard title={selectedScope ? "선택 행사 운영 성과" : "참가 성과 상위 행사"} subtitle={selectedScope ? "등록 · 체크인 · 노쇼 요약" : "승인 등록 대비 체크인율 기준"}>
+          <SectionCard title={selectedScope ? "선택 행사 운영 성과" : "참가 성과 상위 행사"} subtitle={selectedScope ? "등록 · 체크인 · 노쇼 요약" : "승인 등록 대비 체크인율 기준"} compact={isCompact} handset={isHandset}>
             {selectedScope ? (
               snapshot.selectedPerformance ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1432,7 +1457,7 @@ export default function HomeDashboard({ initialEventId = null }) {
                     </div>
                     <Bar2 pct={snapshot.scopedAttendanceRate} color={ds.amber} h={7} />
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isHandset ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 10 }}>
                     {[
                       { label: "승인 등록", value: formatNumber(snapshot.scopedRegistrationCount) },
                       { label: "체크인", value: formatNumber(snapshot.scopedCheckinCount) },
@@ -1471,8 +1496,8 @@ export default function HomeDashboard({ initialEventId = null }) {
           </SectionCard>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 14 }}>
-          <SectionCard title="연도별 운영 추이" subtitle="플랫폼 전체 기준 행사 수 · 승인 등록 · 환불 요청">
+        <div style={{ display: "grid", gridTemplateColumns: isCompact ? "1fr" : "minmax(0, 1fr) 300px", gap: 14 }}>
+          <SectionCard title="연도별 운영 추이" subtitle="플랫폼 전체 기준 행사 수 · 승인 등록 · 환불 요청" compact={isCompact} handset={isHandset}>
             {hasTrendData ? (
               <>
                 <ResponsiveContainer width="100%" height={250}>
@@ -1504,12 +1529,12 @@ export default function HomeDashboard({ initialEventId = null }) {
             )}
           </SectionCard>
 
-          <SectionCard title="결제/환불 상태" subtitle={`결제 ${formatNumber(snapshot.paymentStatusRows.reduce((sum, row) => sum + row.count, 0))}건 · 환불 ${formatNumber(snapshot.refundStatusRows.reduce((sum, row) => sum + row.count, 0))}건`}>
+          <SectionCard title="결제/환불 상태" subtitle={`결제 ${formatNumber(snapshot.paymentStatusRows.reduce((sum, row) => sum + row.count, 0))}건 · 환불 ${formatNumber(snapshot.refundStatusRows.reduce((sum, row) => sum + row.count, 0))}건`} compact={isCompact} handset={isHandset}>
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: ds.ink3, marginBottom: 12 }}>환불 처리 흐름</div>
                 {snapshot.refundDonutRows.length > 0 ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ display: "flex", flexDirection: isHandset ? "column" : "row", alignItems: isHandset ? "stretch" : "center", gap: 14 }}>
                     <div style={{ width: 112, height: 112, flexShrink: 0 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -1557,8 +1582,8 @@ export default function HomeDashboard({ initialEventId = null }) {
         </div>
       </div>
 
-      <div style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
-        <SectionCard title="운영 알림" subtitle="지금 확인이 필요한 운영 신호">
+      <div style={{ width: isCompact ? "100%" : 280, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+        <SectionCard title="운영 알림" subtitle="지금 확인이 필요한 운영 신호" compact={isCompact} handset={isHandset}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {snapshot.alerts.map((alert, index) => {
               const Icon = alert.icon;
@@ -1577,7 +1602,7 @@ export default function HomeDashboard({ initialEventId = null }) {
           </div>
         </SectionCard>
 
-        <SectionCard title="진행 중 행사" subtitle={`현재 운영 중 ${formatNumber(snapshot.liveEvents.length)}건`} action={snapshot.liveEvents.length > 0 ? <Pill color={ds.green} bg={ds.greenSoft}>라이브</Pill> : null}>
+        <SectionCard title="진행 중 행사" subtitle={`현재 운영 중 ${formatNumber(snapshot.liveEvents.length)}건`} action={snapshot.liveEvents.length > 0 ? <Pill color={ds.green} bg={ds.greenSoft}>라이브</Pill> : null} compact={isCompact} handset={isHandset}>
           {snapshot.liveEvents.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {snapshot.liveEvents.slice(0, 5).map((event) => {
@@ -1600,7 +1625,7 @@ export default function HomeDashboard({ initialEventId = null }) {
           )}
         </SectionCard>
 
-        <SectionCard title="최근 관리자 활동" subtitle="최근 로그 5건 기준" action={snapshot.recentLogs.length > 0 ? <Pill color={ds.sky} bg={ds.skySoft}>LIVE</Pill> : null}>
+        <SectionCard title="최근 관리자 활동" subtitle="최근 로그 5건 기준" action={snapshot.recentLogs.length > 0 ? <Pill color={ds.sky} bg={ds.skySoft}>LIVE</Pill> : null} compact={isCompact} handset={isHandset}>
           {snapshot.recentLogs.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {snapshot.recentLogs.map((log) => (

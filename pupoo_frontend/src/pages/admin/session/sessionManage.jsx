@@ -712,6 +712,9 @@ function SessionFormModal({ item, onSave, onClose, isEdit, eventName }) {
 
 /* ═══ 메인 ═══ */
 export default function SessionManage({ subTab = "all" }) {
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [items, setItems] = useState([]);
@@ -722,9 +725,18 @@ export default function SessionManage({ subTab = "all" }) {
   const [toast, setToast] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [selected, setSelected] = useState(new Set());
+  const isMobile = viewportWidth < 768;
   // eventFilter는 Dashboard subTab으로 대체
   const imageMapRef = useRef({});
   const showToast = (msg, type = "success") => setToast({ msg, type });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   const loadEvents = async () => {
     try {
@@ -1034,8 +1046,9 @@ const handleDeleteAll = async () => {
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fill, minmax(280px, 1fr))",
+                        gridTemplateColumns: isMobile
+                          ? "1fr"
+                          : "repeat(auto-fill, minmax(280px, 1fr))",
                         gap: 14,
                       }}
                     >
@@ -1334,7 +1347,7 @@ const handleDeleteAll = async () => {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
+              gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(3, 1fr)",
               gap: 12,
               marginBottom: 16,
             }}
@@ -1369,14 +1382,16 @@ const handleDeleteAll = async () => {
           >
             <div
               style={{
-                padding: "12px 18px",
+                padding: isMobile ? "14px" : "12px 18px",
                 display: "flex",
-                alignItems: "center",
+                flexDirection: isMobile ? "column" : "row",
+                alignItems: isMobile ? "stretch" : "center",
                 justifyContent: "space-between",
                 borderBottom: `1px solid ${ds.line}`,
+                gap: isMobile ? 12 : 8,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
                 <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
                   세션/강연 목록
                 </span>
@@ -1407,7 +1422,7 @@ const handleDeleteAll = async () => {
                   </span>
                 )}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
                 {hasSelected && (
                   <button
                     onClick={() => setModal({ type: "bulkDelete" })}
@@ -1465,12 +1480,117 @@ const handleDeleteAll = async () => {
                     fontWeight: 700,
                     cursor: "pointer",
                     fontFamily: ds.ff,
+                    width: isMobile ? "100%" : "auto",
+                    justifyContent: "center",
                   }}
                 >
                   <Plus size={13} strokeWidth={2.5} /> 세션 등록
                 </button>
               </div>
             </div>
+            {isMobile ? (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {loadingItems ? (
+                  <div style={{ padding: "40px 14px", textAlign: "center", fontSize: 13, color: ds.ink4 }}>
+                    로딩 중입니다.
+                  </div>
+                ) : rows.length === 0 ? (
+                  <div style={{ padding: "40px 14px", textAlign: "center", fontSize: 13, color: ds.ink4 }}>
+                    등록된 세션이 없습니다.
+                  </div>
+                ) : (
+                  rows.map((r) => {
+                    const st = statusMap[r.status] || statusMap.pending;
+                    const isChecked = selected.has(r.id);
+                    const isEnded = r.status === "ended";
+                    return (
+                      <div
+                        key={r.id}
+                        className={removing === r.id ? "row-removing" : ""}
+                        onClick={() => setModal({ type: "detail", item: r })}
+                        style={{
+                          padding: "14px",
+                          borderBottom: `1px solid ${ds.lineSoft}`,
+                          background: isChecked ? `${ds.brand}06` : "transparent",
+                          cursor: "pointer",
+                          opacity: isEnded ? 0.45 : 1,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: "flex", gap: 10, minWidth: 0 }}>
+                              {r.imageUrl && (
+                                <img
+                                  src={resolveImageUrl(r.imageUrl)}
+                                  alt=""
+                                  style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 10,
+                                    objectFit: "cover",
+                                    flexShrink: 0,
+                                    border: `1px solid ${ds.line}`,
+                                    filter: isEnded ? "blur(1.5px) grayscale(0.6)" : "none",
+                                  }}
+                                />
+                              )}
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 14, fontWeight: 800, color: ds.ink, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                                  {r.name}
+                                </div>
+                                <div style={{ fontSize: 11, color: ds.ink4, fontFamily: "monospace", marginTop: 2 }}>
+                                  {r.id}
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                              <Pill color={st.c} bg={st.bg}>
+                                {st.l}
+                              </Pill>
+                            </div>
+                            <div style={{ marginTop: 10, fontSize: 12.5, color: ds.ink3 }}>
+                              참가 인원 {r.enrolled || 0}명
+                            </div>
+                          </div>
+                          <Checkbox checked={isChecked} onChange={() => toggleOne(r.id)} />
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                          {[
+                            { label: "상세", fn: () => setModal({ type: "detail", item: r }), color: ds.ink3, border: ds.line, bg: ds.card },
+                            { label: "수정", fn: () => setPanel({ type: "edit", item: r }), color: ds.ink3, border: ds.line, bg: ds.card },
+                            { label: "삭제", fn: () => setModal({ type: "delete", item: r }), color: ds.red, border: "#FECACA60", bg: "#FEF2F208" },
+                          ].map((action) => (
+                            <button
+                              key={action.label}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                action.fn();
+                              }}
+                              style={{
+                                flex: "1 1 0",
+                                minWidth: 0,
+                                padding: "8px 10px",
+                                borderRadius: 8,
+                                border: `1px solid ${action.border}`,
+                                background: action.bg,
+                                color: action.color,
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                fontFamily: ds.ff,
+                              }}
+                            >
+                              {action.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${ds.line}` }}>
@@ -1721,6 +1841,7 @@ const handleDeleteAll = async () => {
                 )}
               </tbody>
             </table>
+            )}
           </div>
         </>
       )}

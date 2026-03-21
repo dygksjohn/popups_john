@@ -52,6 +52,19 @@ const styles = `
 @keyframes spin{to{transform:rotate(360deg)}}
 `;
 
+function getViewportFlags() {
+  if (typeof window === "undefined") {
+    return { isMobile: false, isTablet: false, isCompact: false };
+  }
+
+  const width = window.innerWidth;
+  return {
+    isMobile: width < 768,
+    isTablet: width >= 768 && width < 1024,
+    isCompact: width < 1024,
+  };
+}
+
 /* ── 인증 ── */
 function authHeaders() {
   const token = getToken();
@@ -165,6 +178,8 @@ function Toast({ msg, type = "success", onDone }) {
 }
 
 function Overlay({ children, onClose }) {
+  const { isMobile, isCompact } = getViewportFlags();
+
   return (
     <div
       onClick={onClose}
@@ -177,6 +192,7 @@ function Overlay({ children, onClose }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        padding: isMobile ? 12 : 20,
         animation: "fadeIn .15s ease",
       }}
     >
@@ -185,8 +201,8 @@ function Overlay({ children, onClose }) {
         style={{
           background: ds.card,
           borderRadius: 16,
-          width: 520,
-          maxHeight: "85vh",
+          width: isCompact ? "min(520px, calc(100vw - 24px))" : 520,
+          maxHeight: isMobile ? "90vh" : "85vh",
           overflow: "auto",
           boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
           animation: "slideUp .2s ease",
@@ -280,10 +296,22 @@ export default function PaymentManage({ subTab = "all" }) {
   const [modal, setModal] = useState(null);
   const [toast, setToast] = useState(null);
   const [detailItem, setDetailItem] = useState(null);
+  const [viewportWidth, setViewportWidth] = useState(1280);
   // eventFilter는 Dashboard subTab으로 대체
 
   const showToast = useCallback((msg, type = "success") => {
     setToast({ msg, type });
+  }, []);
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const isCompact = viewportWidth < 1024;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
   /* ── 행사 목록 로드 ── */
@@ -564,8 +592,11 @@ export default function PaymentManage({ subTab = "all" }) {
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fill, minmax(280px, 1fr))",
+                        gridTemplateColumns: isMobile
+                          ? "repeat(auto-fill, minmax(220px, 1fr))"
+                          : isTablet
+                            ? "repeat(auto-fill, minmax(240px, 1fr))"
+                            : "repeat(auto-fill, minmax(280px, 1fr))",
                         gap: 14,
                       }}
                     >
@@ -782,7 +813,7 @@ export default function PaymentManage({ subTab = "all" }) {
                             </div>
                           </div>
                         );
-                      })}
+                  })}
                     </div>
                   )}
                 </>
@@ -799,9 +830,10 @@ export default function PaymentManage({ subTab = "all" }) {
           <div
             style={{
               display: "flex",
-              alignItems: "center",
+              alignItems: isCompact ? "flex-start" : "center",
               gap: 12,
               marginBottom: 20,
+              flexWrap: "wrap",
             }}
           >
             <button
@@ -889,7 +921,9 @@ export default function PaymentManage({ subTab = "all" }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
+              gridTemplateColumns: isCompact
+                ? "repeat(2, minmax(0, 1fr))"
+                : "repeat(4, 1fr)",
               gap: 12,
               marginBottom: 20,
             }}
@@ -928,13 +962,19 @@ export default function PaymentManage({ subTab = "all" }) {
           <div
             style={{
               display: "flex",
-              alignItems: "center",
+              alignItems: isCompact ? "stretch" : "center",
               gap: 10,
               marginBottom: 14,
               flexWrap: "wrap",
             }}
           >
-            <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+            <div
+              style={{
+                position: "relative",
+                flex: 1,
+                minWidth: isCompact ? "100%" : 200,
+              }}
+            >
               <Search
                 size={14}
                 color={ds.ink4}
@@ -978,6 +1018,7 @@ export default function PaymentManage({ subTab = "all" }) {
                 background: ds.card,
                 cursor: "pointer",
                 outline: "none",
+                minWidth: isCompact ? "100%" : 0,
               }}
             >
               <option value="ALL">전체 상태</option>
@@ -1004,7 +1045,9 @@ export default function PaymentManage({ subTab = "all" }) {
                   fontFamily: ds.ff,
                   display: "flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: 5,
+                  width: isCompact ? "100%" : "auto",
                 }}
               >
                 <Ban size={12} /> 선택 환불 ({selected.size})
@@ -1067,11 +1110,93 @@ export default function PaymentManage({ subTab = "all" }) {
                 overflow: "hidden",
               }}
             >
+              {isMobile ? (
+                <div style={{ display: "grid", gap: 12, padding: 12 }}>
+                  {filtered.map((p) => {
+                    const ps = PAY_STATUS[p.status] || PAY_STATUS.PENDING;
+                    const isChecked = selected.has(p.paymentId);
+                    return (
+                      <div
+                        key={p.paymentId || p.orderNo}
+                        onClick={() => setDetailItem(p)}
+                        style={{
+                          background: isChecked ? `${ds.brand}06` : ds.bg,
+                          border: `1px solid ${isChecked ? `${ds.brand}22` : ds.line}`,
+                          borderRadius: 12,
+                          padding: "14px 14px 12px",
+                          display: "grid",
+                          gap: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                          <Checkbox checked={isChecked} onChange={() => toggleOne(p.paymentId)} />
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13.5, color: ds.ink, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word", lineHeight: 1.45 }}>
+                              {p.eventTitle || selectedEvent.title || "행사 결제"}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: ds.ink4, marginTop: 4 }}>
+                              {p.orderNo || `#${p.paymentId}`}
+                            </div>
+                          </div>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              padding: "3px 10px",
+                              borderRadius: 99,
+                              background: ps.bg,
+                              color: ps.c,
+                              flexShrink: 0,
+                            }}
+                          >
+                            <span style={{ width: 5, height: 5, borderRadius: "50%", background: ps.c }} />
+                            {ps.l}
+                          </span>
+                        </div>
+
+                        <div style={{ display: "grid", gap: 8 }}>
+                          <div style={{ display: "grid", gap: 4 }}>
+                            <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>결제자</span>
+                            <span style={{ fontSize: 12.5, color: ds.ink, fontWeight: 600, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                              {p.buyerName || p.nickname || "-"}
+                            </span>
+                            <span style={{ fontSize: 11.5, color: ds.ink4, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                              {p.buyerEmail || p.email || ""}
+                            </span>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                            <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+                              <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>결제 수단</span>
+                              <span style={{ fontSize: 12.5, color: ds.ink3, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                                {METHOD_LABEL[p.paymentMethod] || p.paymentMethod || "-"}
+                              </span>
+                            </div>
+                            <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+                              <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>금액</span>
+                              <span style={{ fontSize: 12.5, color: ds.ink, fontWeight: 700 }}>{fmtAmount(p.amount)}</span>
+                            </div>
+                          </div>
+                          <div style={{ display: "grid", gap: 4 }}>
+                            <span style={{ fontSize: 11, color: ds.ink4, fontWeight: 700 }}>결제일</span>
+                            <span style={{ fontSize: 12.5, color: ds.ink3 }}>{fmtDateTime(p.requestedAt || p.createdAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+              <>
               {/* 테이블 헤더 */}
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns: "36px 1fr 1fr 120px 110px 120px 80px",
+                  minWidth: isCompact ? 760 : "100%",
                   padding: "10px 16px",
                   fontSize: 11,
                   fontWeight: 700,
@@ -1100,6 +1225,7 @@ export default function PaymentManage({ subTab = "all" }) {
                       display: "grid",
                       gridTemplateColumns:
                         "36px 1fr 1fr 120px 110px 120px 80px",
+                      minWidth: isCompact ? 760 : "100%",
                       padding: "14px 16px",
                       fontSize: 13,
                       color: ds.ink,
@@ -1185,6 +1311,8 @@ export default function PaymentManage({ subTab = "all" }) {
                   </div>
                 );
               })}
+              </>
+              )}
             </div>
           )}
           {filtered.length > 0 && (
@@ -1207,13 +1335,15 @@ export default function PaymentManage({ subTab = "all" }) {
       {/* ═══ 상세 모달 ═══ */}
       {detailItem && (
         <Overlay onClose={() => setDetailItem(null)}>
-          <div style={{ padding: 28 }}>
+          <div style={{ padding: isMobile ? 20 : isCompact ? 24 : 28 }}>
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "center",
+                alignItems: isMobile ? "flex-start" : "center",
+                flexDirection: isMobile ? "column" : "row",
                 marginBottom: 20,
+                gap: 12,
               }}
             >
               <h3
@@ -1278,7 +1408,7 @@ export default function PaymentManage({ subTab = "all" }) {
               style={{
                 background: ds.bg,
                 borderRadius: 12,
-                padding: 20,
+                padding: isMobile ? 16 : 20,
                 marginBottom: 20,
               }}
             >
@@ -1326,6 +1456,9 @@ export default function PaymentManage({ subTab = "all" }) {
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
+                    flexDirection: isMobile ? "column" : "row",
+                    alignItems: isMobile ? "flex-start" : "center",
+                    gap: isMobile ? 6 : 16,
                     padding: "8px 0",
                     borderBottom: "1px solid #EEF2F6",
                     fontSize: 13,
@@ -1403,11 +1536,12 @@ export default function PaymentManage({ subTab = "all" }) {
       {/* ═══ 환불 확인 모달 ═══ */}
       {modal?.type === "refund" && (
         <Overlay onClose={() => setModal(null)}>
-          <div style={{ padding: 28 }}>
+          <div style={{ padding: isMobile ? 20 : isCompact ? 24 : 28 }}>
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: isMobile ? "flex-start" : "center",
+                flexDirection: isMobile ? "column" : "row",
                 gap: 12,
                 marginBottom: 14,
               }}
@@ -1460,7 +1594,12 @@ export default function PaymentManage({ subTab = "all" }) {
               환불 처리된 결제는 복구할 수 없습니다.
             </p>
             <div
-              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+                flexDirection: isMobile ? "column-reverse" : "row",
+              }}
             >
               <button
                 onClick={() => setModal(null)}
@@ -1474,6 +1613,7 @@ export default function PaymentManage({ subTab = "all" }) {
                   cursor: "pointer",
                   fontFamily: ds.ff,
                   color: ds.ink3,
+                  width: isMobile ? "100%" : "auto",
                 }}
               >
                 취소
@@ -1490,6 +1630,7 @@ export default function PaymentManage({ subTab = "all" }) {
                   fontWeight: 700,
                   cursor: "pointer",
                   fontFamily: ds.ff,
+                  width: isMobile ? "100%" : "auto",
                 }}
               >
                 환불 확인
@@ -1502,11 +1643,12 @@ export default function PaymentManage({ subTab = "all" }) {
       {/* ═══ 일괄 환불 확인 모달 ═══ */}
       {modal?.type === "bulkRefund" && (
         <Overlay onClose={() => setModal(null)}>
-          <div style={{ padding: 28 }}>
+          <div style={{ padding: isMobile ? 20 : isCompact ? 24 : 28 }}>
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: isMobile ? "flex-start" : "center",
+                flexDirection: isMobile ? "column" : "row",
                 gap: 12,
                 marginBottom: 14,
               }}
@@ -1550,7 +1692,12 @@ export default function PaymentManage({ subTab = "all" }) {
               환불 처리된 결제는 복구할 수 없습니다.
             </p>
             <div
-              style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+                flexDirection: isMobile ? "column-reverse" : "row",
+              }}
             >
               <button
                 onClick={() => setModal(null)}
@@ -1564,6 +1711,7 @@ export default function PaymentManage({ subTab = "all" }) {
                   cursor: "pointer",
                   fontFamily: ds.ff,
                   color: ds.ink3,
+                  width: isMobile ? "100%" : "auto",
                 }}
               >
                 취소
@@ -1580,6 +1728,7 @@ export default function PaymentManage({ subTab = "all" }) {
                   fontWeight: 700,
                   cursor: "pointer",
                   fontFamily: ds.ff,
+                  width: isMobile ? "100%" : "auto",
                 }}
               >
                 일괄 환불

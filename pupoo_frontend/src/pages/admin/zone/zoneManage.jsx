@@ -930,6 +930,9 @@ function BoothDetailModal({ item, onClose, onEdit, onDelete }) {
 
 /* ═══ 메인 ═══ */
 export default function ZoneManage({ subTab = "all" }) {
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [booths, setBooths] = useState([]);
@@ -941,6 +944,15 @@ export default function ZoneManage({ subTab = "all" }) {
   const [removing, setRemoving] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const showToast = (msg, type = "success") => setToast({ msg, type });
+  const isMobile = viewportWidth < 768;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
   // eventFilter는 Dashboard subTab으로 대체
   const calcStatus = (s, e) => {
     if (!s && !e) return "pending";
@@ -1223,8 +1235,9 @@ export default function ZoneManage({ subTab = "all" }) {
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fill, minmax(280px, 1fr))",
+                        gridTemplateColumns: isMobile
+                          ? "1fr"
+                          : "repeat(auto-fill, minmax(280px, 1fr))",
                         gap: 14,
                       }}
                     >
@@ -1528,7 +1541,7 @@ export default function ZoneManage({ subTab = "all" }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
+              gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(3, 1fr)",
               gap: 12,
               marginBottom: 16,
             }}
@@ -1563,14 +1576,16 @@ export default function ZoneManage({ subTab = "all" }) {
           >
             <div
               style={{
-                padding: "12px 18px",
+                padding: isMobile ? "14px" : "12px 18px",
                 display: "flex",
-                alignItems: "center",
+                flexDirection: isMobile ? "column" : "row",
+                alignItems: isMobile ? "stretch" : "center",
                 justifyContent: "space-between",
                 borderBottom: `1px solid ${ds.line}`,
+                gap: isMobile ? 12 : 8,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
                 <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
                   체험존 목록
                 </span>
@@ -1601,7 +1616,7 @@ export default function ZoneManage({ subTab = "all" }) {
                   </span>
                 )}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
                 {hasSelected && (
                   <button
                     onClick={() => setModal({ type: "bulkDelete" })}
@@ -1659,12 +1674,113 @@ export default function ZoneManage({ subTab = "all" }) {
                     fontWeight: 700,
                     cursor: "pointer",
                     fontFamily: ds.ff,
+                    width: isMobile ? "100%" : "auto",
+                    justifyContent: "center",
                   }}
                 >
                   <Plus size={13} strokeWidth={2.5} /> 체험존 등록
                 </button>
               </div>
             </div>
+            {isMobile ? (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {loadingBooths ? (
+                  <div style={{ padding: "40px 14px", textAlign: "center", fontSize: 13, color: ds.ink4 }}>
+                    로딩 중입니다.
+                  </div>
+                ) : rows.length === 0 ? (
+                  <div style={{ padding: "40px 14px", textAlign: "center", fontSize: 13, color: ds.ink4 }}>
+                    등록된 체험존이 없습니다.
+                  </div>
+                ) : (
+                  rows.map((r) => {
+                    const sc = statusColor(r.status);
+                    const isChecked = selected.has(r.boothId);
+                    return (
+                      <div
+                        key={r.boothId}
+                        className={removing === r.boothId ? "row-removing" : ""}
+                        onClick={() => setModal({ type: "detail", item: r })}
+                        style={{
+                          padding: "14px",
+                          borderBottom: `1px solid ${ds.lineSoft}`,
+                          background: isChecked ? `${ds.brand}06` : "transparent",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+                              <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                                {r.placeName}
+                              </span>
+                              <Pill color={sc.c} bg={sc.bg}>
+                                {statusLabel(r.status)}
+                              </Pill>
+                            </div>
+                            <div style={{ fontSize: 11, color: ds.ink4, fontFamily: "monospace", marginTop: 4 }}>
+                              #{r.boothId}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, marginTop: 12 }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 3 }}>유형</div>
+                                <Pill color="#8B5CF6" bg="#8B5CF610">
+                                  {typeLabel(r.type)}
+                                </Pill>
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 3 }}>구역</div>
+                                <div style={{ fontSize: 12.5, color: ds.ink3, fontWeight: 600, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                                  {zoneLabel(r.zone)}
+                                </div>
+                              </div>
+                              <div style={{ minWidth: 0, gridColumn: "1 / -1" }}>
+                                <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 3 }}>업체</div>
+                                <div style={{ fontSize: 12.5, color: ds.ink3, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                                  {r.company || "-"}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <Checkbox checked={isChecked} onChange={() => toggleOne(r.boothId)} />
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                          {[
+                            { label: "상세", fn: () => setModal({ type: "detail", item: r }), color: ds.ink3, border: ds.line, bg: ds.bg },
+                            { label: "수정", fn: () => setPanel({ type: "edit", item: r }), color: ds.ink3, border: ds.line, bg: ds.bg },
+                            { label: "삭제", fn: () => setModal({ type: "delete", item: r }), color: ds.red, border: "#FECACA60", bg: "#FEF2F208" },
+                          ].map((action) => (
+                            <button
+                              key={action.label}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                action.fn();
+                              }}
+                              style={{
+                                flex: "1 1 0",
+                                minWidth: 0,
+                                padding: "8px 10px",
+                                borderRadius: 8,
+                                border: `1px solid ${action.border}`,
+                                background: action.bg,
+                                color: action.color,
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                fontFamily: ds.ff,
+                              }}
+                            >
+                              {action.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${ds.line}` }}>
@@ -1921,6 +2037,7 @@ export default function ZoneManage({ subTab = "all" }) {
                 )}
               </tbody>
             </table>
+            )}
           </div>
         </>
       )}

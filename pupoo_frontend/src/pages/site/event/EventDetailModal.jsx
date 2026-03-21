@@ -547,17 +547,87 @@ const modalStyles = `
   }
 
   /* Responsive */
-  @media (max-width: 860px) {
-    .evm-modal { flex-direction: column; max-width: 780px; max-height: calc(100vh - 24px); }
-    .evm-poster-panel { width: 100%; height: 260px; }
+  @media (max-width: 1023px) {
+    .evm-overlay { padding: 18px 12px; }
+    .evm-modal {
+      flex-direction: column;
+      max-width: 780px;
+      max-height: calc(100vh - 24px);
+      width: min(100%, calc(100vw - 24px));
+    }
+    .evm-poster-panel { width: 100%; height: 264px; }
     .evm-right-panel { max-height: none; }
-    .evm-quick-info { grid-template-columns: 1fr; }
+    .evm-right-header { padding: 16px 20px 0; }
+    .evm-quick-info { grid-template-columns: repeat(2, 1fr); }
     .evm-speakers { grid-template-columns: 1fr; }
     .evm-contact-grid { grid-template-columns: 1fr; }
-    .evm-right-title { font-size: 22px; }
-    .evm-content { padding: 20px 18px 28px; }
-    .evm-cta-bar { padding: 14px 18px; }
+    .evm-right-title { font-size: 21px; }
+    .evm-right-sub { font-size: 14px; margin-bottom: 12px; }
+    .evm-content { padding: 16px 20px 22px; }
+    .evm-cta-bar { padding: 14px 20px; }
     .evm-guide-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 767px) {
+    .evm-overlay { padding: 10px; }
+    .evm-modal {
+      max-height: calc(100vh - 20px);
+      border-radius: 14px;
+      width: min(100%, calc(100vw - 20px));
+    }
+    .evm-poster-panel { height: 196px; }
+    .evm-right-header { padding: 14px 14px 0; }
+    .evm-topbar-right { top: 10px; right: 10px; gap: 6px; }
+    .evm-right-title { font-size: 19px; line-height: 1.25; }
+    .evm-right-sub { font-size: 13px; margin-bottom: 10px; }
+    .evm-content { padding: 14px 14px 18px; }
+    .evm-quick-info { grid-template-columns: 1fr; gap: 8px; margin-bottom: 18px; }
+    .evm-qi-item { padding: 10px 12px; }
+    .evm-qi-icon { width: 32px; height: 32px; border-radius: 8px; }
+    .evm-qi-label { font-size: 12px; }
+    .evm-qi-value { font-size: 14px; }
+    .evm-section { margin-bottom: 20px; }
+    .evm-section-header { margin-bottom: 10px; padding-bottom: 8px; }
+    .evm-section-title { font-size: 14px; }
+    .evm-desc { font-size: 13px; line-height: 1.65; }
+    .evm-guide-panel-head {
+      height: auto;
+      padding: 10px 12px;
+      align-items: flex-start;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .evm-guide-day-item,
+    .evm-guide-program-item {
+      min-height: unset;
+      padding: 10px;
+    }
+    .evm-part-header,
+    .evm-part-note {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .evm-file-row {
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .evm-cta-bar {
+      padding: 12px 14px;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .evm-cta-price-label { font-size: 12px; }
+    .evm-cta-price { font-size: 22px; }
+    .evm-cta-actions {
+      width: 100%;
+      flex-direction: column;
+    }
+    .evm-btn-primary,
+    .evm-btn-secondary {
+      width: 100%;
+      justify-content: center;
+      height: 44px;
+      font-size: 13.5px;
+    }
   }
 `;
 

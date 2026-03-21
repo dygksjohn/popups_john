@@ -1,4 +1,5 @@
 import { ArrowLeft } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "../communityConfig";
@@ -73,6 +74,21 @@ export default function CommunityWriteLayout({
 }) {
   const navigate = useNavigate();
   const badge = getBoardBadge(badgeType);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const isCompact = viewportWidth < 1024;
 
   return (
     <>
@@ -84,21 +100,71 @@ export default function CommunityWriteLayout({
         onNavigate={(path) => navigate(path)}
       />
 
-      <main style={styles.main}>
+      <main
+        style={{
+          ...styles.main,
+          width: isMobile
+            ? "calc(100% - 24px)"
+            : isTablet
+              ? "calc(100% - 32px)"
+              : styles.main.width,
+          padding: isMobile ? "24px 0 40px" : isTablet ? "32px 0 52px" : styles.main.padding,
+        }}
+      >
         <button type="button" style={styles.backButton} onClick={() => navigate(currentPath)}>
           <ArrowLeft size={16} />
           목록으로
         </button>
 
         <article style={styles.card}>
-          <header style={styles.head}>
+          <header
+            style={{
+              ...styles.head,
+              padding: isMobile ? "20px 18px 16px" : isTablet ? "24px 24px 18px" : styles.head.padding,
+            }}
+          >
             <BadgeTag badge={badge} />
-            <h1 style={styles.title}>{formTitle}</h1>
-            {formDescription ? <p style={styles.description}>{formDescription}</p> : null}
+            <h1
+              style={{
+                ...styles.title,
+                fontSize: isMobile ? 22 : isTablet ? 25 : styles.title.fontSize,
+                margin: isMobile ? "12px 0 0" : styles.title.margin,
+              }}
+            >
+              {formTitle}
+            </h1>
+            {formDescription ? (
+              <p
+                style={{
+                  ...styles.description,
+                  fontSize: isMobile ? 13 : styles.description.fontSize,
+                }}
+              >
+                {formDescription}
+              </p>
+            ) : null}
           </header>
 
-          <div style={styles.body}>{children}</div>
-          {footer ? <div style={styles.footer}>{footer}</div> : null}
+          <div
+            style={{
+              ...styles.body,
+              padding: isMobile ? "18px 16px" : isTablet ? "24px 24px" : styles.body.padding,
+            }}
+          >
+            {children}
+          </div>
+          {footer ? (
+            <div
+              style={{
+                ...styles.footer,
+                padding: isMobile ? "0 16px 18px" : isTablet ? "0 24px 24px" : styles.footer.padding,
+                flexWrap: isCompact ? "wrap" : "nowrap",
+                flexDirection: isMobile ? "column" : "row",
+              }}
+            >
+              {footer}
+            </div>
+          ) : null}
         </article>
       </main>
     </>

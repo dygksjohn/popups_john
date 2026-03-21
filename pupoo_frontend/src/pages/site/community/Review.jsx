@@ -70,6 +70,9 @@ function renderStars(rating = 0, size = 14) {
 export default function Review() {
   const navigate = useNavigate();
   const badge = getBoardBadge("REVIEW");
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [search, setSearch] = useState("");
   const [ratingFilter, setRatingFilter] = useState("ALL");
   const [sortOption, setSortOption] = useState("latest");
@@ -217,6 +220,17 @@ export default function Review() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+
   const handleWrite = () => {
     if (!tokenStore.getAccess()) {
       navigate("/auth/login", { state: { from: "/community/review" } });
@@ -241,28 +255,33 @@ export default function Review() {
 
       <main
         style={{
-          width: "min(1400px, calc(100% - 40px))",
+          width: isMobile
+            ? "calc(100% - 20px)"
+            : isTablet
+              ? "calc(100% - 28px)"
+              : "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
-          padding: "40px 0 64px",
+          padding: isMobile ? "20px 0 40px" : isTablet ? "28px 0 52px" : "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
             justifyContent: "space-between",
             paddingBottom: "16px",
             marginBottom: "8px",
-            gap: 8,
+            gap: isMobile ? 12 : 8,
           }}
         >
           <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>총 {sortedFilteredItems.length}개</span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: 999, height: 42 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: isMobile ? 16 : 999, height: isMobile ? "auto" : 42, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: isMobile ? 6 : 0, rowGap: isMobile ? 6 : 0 }}>
               {/* rating dropdown */}
-              <div style={{ position: "relative", flex: "0 0 auto" }} ref={ratingDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={ratingDdRef}>
                 <button
                   type="button"
                   onClick={() => setRatingDdOpen((v) => !v)}
@@ -291,10 +310,10 @@ export default function Review() {
                 )}
               </div>
 
-              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* sort button */}
-              <div style={{ position: "relative", flex: "0 0 auto" }} ref={sortDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={sortDdRef}>
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((prev) => !prev)}
@@ -323,10 +342,10 @@ export default function Review() {
                 )}
               </div>
 
-              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* search input */}
-              <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "1 1 auto", minWidth: 0, width: isMobile ? "100%" : "auto" }}>
                 <Search
                   size={16}
                   strokeWidth={2}
@@ -346,16 +365,16 @@ export default function Review() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   style={{
-                    border: "none",
-                    background: "transparent",
+                    border: isMobile ? "1px solid #dbe2ea" : "none",
+                    background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: "0 999px 999px 0",
+                    borderRadius: isMobile ? 999 : "0 999px 999px 0",
                     height: 42,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",
                     outline: "none",
-                    width: 280,
+                    width: isMobile ? "100%" : 280,
                   }}
                 />
               </div>
@@ -377,6 +396,8 @@ export default function Review() {
                 fontWeight: 700,
                 cursor: "pointer",
                 fontFamily: "'Noto Sans KR', sans-serif",
+                width: isMobile ? "100%" : "auto",
+                justifyContent: "center",
               }}
             >
               <Plus size={14} strokeWidth={2.5} /> 글쓰기
@@ -395,6 +416,7 @@ export default function Review() {
         {!loading && !error && (
           <>
             <div>
+              {!isMobile && (
               <div style={{
                 display: "flex",
                 alignItems: "center",
@@ -411,9 +433,15 @@ export default function Review() {
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>별점</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
               </div>
+              )}
               {pagedItems.map((item, index) => {
                 const commentCount = Number(commentCountMap[item.reviewId] || 0);
                 const eventLabel = eventNameMap[item.eventId] || item.eventName || `행사 ${item.eventId}`;
+                const authorLabel =
+                  item?.author ||
+                  item?.nickname ||
+                  item?.userName ||
+                  (item?.userId ? `회원 #${item.userId}` : "익명 사용자");
                 const rowNumber = sortedFilteredItems.length - ((currentPage - 1) * PAGE_SIZE) - index;
                 return (
                   <div
@@ -421,8 +449,10 @@ export default function Review() {
                     onClick={() => navigate(`/community/review/${item.reviewId}`)}
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      padding: "18px 16px",
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "stretch" : "center",
+                      gap: isMobile ? 8 : 0,
+                      padding: isMobile ? "14px 12px" : "18px 16px",
                       borderBottom: "1px solid #f0f0f0",
                       cursor: "pointer",
                       transition: "background 0.15s",
@@ -434,17 +464,85 @@ export default function Review() {
                       event.currentTarget.style.background = "transparent";
                     }}
                   >
-                    <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>
-                    <span style={{ flex: 1, fontSize: 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginRight: 6 }}>[{eventLabel}]</span>
-                      {item.reviewTitle || "행사 후기"}
-                    </span>
-                    <span style={{ width: 100, textAlign: "center", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
-                      {renderStars(item.rating || 0, 13)}
-                    </span>
-                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
-                      {fmtDate(item.createdAt)}
-                    </span>
+                    {!isMobile && <span style={{ width: 60, textAlign: "center", fontSize: 13, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+                        {isMobile && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              minWidth: 34,
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              background: badge.background,
+                              color: badge.color,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              lineHeight: 1,
+                              flexShrink: 0,
+                            }}
+                          >
+                            후기
+                          </span>
+                        )}
+                        {isMobile && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              minWidth: 44,
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              background: "#F1F5F9",
+                              color: "#475569",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              lineHeight: 1,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {eventLabel}
+                          </span>
+                        )}
+                        {!isMobile && (
+                          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 44, padding: "4px 10px", borderRadius: 999, background: "#F1F5F9", color: "#475569", fontSize: 12, fontWeight: 600, lineHeight: 1 }}>
+                            {eventLabel}
+                          </span>
+                        )}
+                        <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                          {item.title}
+                        </span>
+                        {commentCount > 0 && (
+                          <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0 }}>
+                            ({commentCount})
+                          </span>
+                        )}
+                      </div>
+                      {isMobile && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
+                          <span style={{ color: "#4B5563", fontWeight: 600 }}>{eventLabel}</span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 1 }}>{renderStars(Number(item.rating || 0), 12)}</span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
+                          <span>{authorLabel}</span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
+                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(item.createdAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                    {!isMobile && (
+                      <span style={{ width: 100, textAlign: "center", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
+                        {[1, 2, 3, 4, 5].map((starIndex) => <Star key={starIndex} size={12} color={starIndex <= Number(item.rating || 0) ? "#F59E0B" : "#D1D5DB"} fill={starIndex <= Number(item.rating || 0) ? "#F59E0B" : "none"} />)}
+                      </span>
+                    )}
+                    {!isMobile && (
+                      <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {fmtDate(item.createdAt)}
+                      </span>
+                    )}
                   </div>
                 );
               })}

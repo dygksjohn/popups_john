@@ -8,9 +8,10 @@ import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 import {
   createImageFallbackHandler,
   resolveImageUrl,
+  toPublicAssetUrl,
 } from "../../../shared/utils/publicAssetUrl";
 
-/* ?? ?대?吏 ?대갚 ?? */
+/* fallback dog images */
 const DOG_IMGS = [
   "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=800&fit=crop",
   "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&h=800&fit=crop",
@@ -23,7 +24,7 @@ const DOG_IMGS = [
 ];
 const dogImg = (id) => DOG_IMGS[Math.abs(Number(id) || 0) % DOG_IMGS.length];
 
-/* ?? 怨듯넻 ?좎쭨 ?щ㎎ ?? */
+/* shared event date formatter */
 function fmtEventDate(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -102,7 +103,7 @@ function mapSession(raw, eventMap) {
   };
 }
 
-// ================= ?ㅽ겕濡?reveal ??=================
+// ================= scroll reveal =================
 function useScrollReveal(options = {}) {
   const { threshold = 0.15, rootMargin = "0px 0px -60px 0px" } = options;
   const ref = useRef(null);
@@ -142,7 +143,7 @@ function RevealSection({ children, className = "", delay = 0 }) {
   );
 }
 
-// ================= EVENT SECTION (DB ?곕룞 ??醫? ?? 怨좎젙) =================
+// ================= EVENT SECTION (DB-driven event cards) =================
 function EventSection() {
   const navigate = useNavigate();
   const [hoveredCard, setHoveredCard] = useState(null);
@@ -165,7 +166,7 @@ function EventSection() {
       .catch(() => setEvents([]));
   }, []);
 
-  // 醫?3媛?/ ??3媛?遺꾨같
+  // split events into two groups of up to three items
   const leftItems = events.slice(0, 3);
   const rightItems = events.length > 3 ? events.slice(3, 6) : events.slice(0, Math.min(3, events.length));
   const sides = [
@@ -237,7 +238,7 @@ function EventCard({ event, isHovered, onHover, onLeave, onClick }) {
   );
 }
 
-// ================= 臾댄븳猷⑦봽 ??=================
+// ================= infinite slider =================
 function useInfiniteSlider(itemCount, slideSize) {
   const CLONES = 15;
   const CENTER = itemCount * 7;
@@ -267,7 +268,7 @@ function useInfiniteSlider(itemCount, slideSize) {
   return { index, realIndex, offset, transition, next, prev, goTo, setIndex, setTransition, CLONES };
 }
 
-// ================= SESSION LINEUP (?몄뀡 DB ?곕룞) =================
+// ================= SESSION LINEUP (session DB sync) =================
 function SessionLineup() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
@@ -419,7 +420,7 @@ function SessionLineup() {
   );
 }
 
-// ================= RECOMMEND CAROUSEL (DB ?곕룞) =================
+// ================= RECOMMEND CAROUSEL (DB-driven) =================
 function RecommendCarousel() {
   const [events, setEvents] = useState([]);
   useEffect(() => {
@@ -507,7 +508,7 @@ function RecommendCarousel() {
   );
 }
 
-// ================= NOTICE SECTION (API ?곕룞) =================
+// ================= NOTICE SECTION (API sync) =================
 function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
@@ -589,15 +590,27 @@ function NoticeSection() {
 // ================= MAIN =================
 export default function Home() {
   const heroVideos = [
-    "/1.mov",
-    "/2.mov",
-    "/3.mp4",
+    toPublicAssetUrl("home/1.mov"),
+    toPublicAssetUrl("home/2.mov"),
+    toPublicAssetUrl("home/3.mp4"),
   ];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [fade, setFade] = useState(true);
   const [progress, setProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const videoRef = useRef(null);
+  const isMobile = viewportWidth < 768;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -620,25 +633,51 @@ export default function Home() {
   };
 
   return (
-    <div>
-      <section className="relative h-screen w-full overflow-hidden">
+    <div
+      style={
+        isMobile
+          ? {
+              paddingTop: "var(--pupoo-site-header-offset, 112px)",
+            }
+          : undefined
+      }
+    >
+      <section
+        className="relative h-screen w-full overflow-hidden"
+        style={
+          isMobile
+            ? {
+                height: "calc(100svh - var(--pupoo-site-header-offset, 112px))",
+                minHeight: "calc(100svh - var(--pupoo-site-header-offset, 112px))",
+              }
+            : undefined
+        }
+      >
         <video ref={videoRef} key={currentVideoIndex} src={heroVideos[currentVideoIndex]} autoPlay muted playsInline className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${fade ? "opacity-100" : "opacity-0"}`} />
         <div className="absolute inset-0 bg-black/40" />
         <div className="relative h-full flex items-center justify-center">
           <div className="max-w-[1400px] w-full px-[25px] text-white">
-            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
+            <h1 className="text-2xl md:text-6xl font-extrabold leading-tight">
               지금 가장 주목할
               <br />
               반려견 페스티벌
             </h1>
-            <p className="mt-6 text-lg md:text-xl text-white/90">참여 가능한 행사를 바로 확인해 보세요.</p>
+            <p className="mt-4 text-base md:text-xl text-white/90">참여 가능한 행사를 바로 확인해 보세요.</p>
           </div>
         </div>
-        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[300px]">
+        <div
+          className="absolute left-1/2 -translate-x-1/2"
+          style={{
+            bottom: isMobile
+              ? "calc(env(safe-area-inset-bottom, 0px) + 12px)"
+              : 64,
+            width: isMobile ? "min(256px, calc(100vw - 44px))" : 300,
+          }}
+        >
           <div className="relative h-[2px] bg-white/30">
             <div className="absolute left-0 top-0 h-full bg-white transition-[width] duration-200 ease-linear" style={{ width: `${progress}%` }} />
           </div>
-          <div className="flex justify-between items-center mt-3 text-white text-sm">
+          <div className="flex justify-between items-center mt-2 text-white text-[13px]">
             <span>{String(currentVideoIndex + 1).padStart(2, "0")} / {String(heroVideos.length).padStart(2, "0")}</span>
             <button type="button" onClick={togglePlay} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/20 transition">
               {isPlaying ? (
@@ -672,8 +711,5 @@ export default function Home() {
     </div>
   );
 }
-
-
-
 
 

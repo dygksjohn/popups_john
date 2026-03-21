@@ -1174,9 +1174,160 @@ function BoardRow({
   onDelete,
   checked,
   onToggle,
+  mobile = false,
 }) {
   const isQna = boardType === "qna";
   const isReview = boardType === "review";
+  const mobileTextStyle = {
+    minWidth: 0,
+    whiteSpace: "normal",
+    wordBreak: "keep-all",
+    overflowWrap: "break-word",
+  };
+
+  if (mobile) {
+    return (
+      <div
+        className={removing ? "row-removing" : ""}
+        onClick={onDetail}
+        style={{
+          padding: "14px",
+          borderBottom: `1px solid ${ds.lineSoft}`,
+          cursor: "pointer",
+          background: checked ? `${ds.brand}06` : "transparent",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <div style={{ ...mobileTextStyle, flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+              {boardType === "free" && item.pinned && (
+                <Star size={12} color="#F59E0B" fill="#F59E0B" />
+              )}
+              {isQna && <StatusPill status={item.status} />}
+              {isReview && item.event && (
+                <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 8px", borderRadius: 999, background: ds.lineSoft, fontSize: 11.5, fontWeight: 700, color: ds.ink3 }}>
+                  {item.event}
+                </span>
+              )}
+              {isReview && item.rating != null && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <Star size={11} color="#F59E0B" fill="#F59E0B" />
+                  <span style={{ fontSize: 12, color: "#F59E0B", fontWeight: 700 }}>
+                    {item.rating}
+                  </span>
+                </span>
+              )}
+            </div>
+            <div
+              style={{
+                ...mobileTextStyle,
+                fontSize: 14,
+                fontWeight: 800,
+                color: ds.ink2,
+                lineHeight: 1.45,
+                marginTop: 8,
+              }}
+            >
+              {item.title}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
+                marginTop: 10,
+                fontSize: 12,
+                color: ds.ink4,
+              }}
+            >
+              <span>{item.author}</span>
+              <span style={{ color: ds.line }}>·</span>
+              <span>{item.date}</span>
+              <span style={{ color: ds.line }}>·</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <Eye size={12} /> {item.views}
+              </span>
+              {item.answer && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "3px 8px",
+                    borderRadius: 999,
+                    background: `${ds.brand}08`,
+                    color: ds.brand,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                  }}
+                >
+                  <MessageCircle size={10} /> 답변 있음
+                </span>
+              )}
+            </div>
+          </div>
+          <Checkbox checked={checked} onChange={onToggle} />
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 8,
+            marginTop: 12,
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            style={{
+              minWidth: 0,
+              padding: "8px 10px",
+              borderRadius: 8,
+              border: `1px solid ${ds.brand}25`,
+              background: `${ds.brand}06`,
+              fontSize: 12,
+              fontWeight: 700,
+              color: ds.brand,
+              cursor: "pointer",
+              fontFamily: ds.ff,
+            }}
+          >
+            수정
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            style={{
+              minWidth: 0,
+              padding: "8px 10px",
+              borderRadius: 8,
+              border: "1px solid #FECACA50",
+              background: "transparent",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#EF4444",
+              cursor: "pointer",
+              fontFamily: ds.ff,
+            }}
+          >
+            삭제
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1439,6 +1590,9 @@ export default function BoardManage({ subTab = "free" }) {
   const boardType = subTab || "free";
   const config = BOARD_CONFIG[boardType] || BOARD_CONFIG.free;
   const isQna = boardType === "qna";
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
 
   /* ── 게시판 데이터 (free, info, review, faq — API 연동) ── */
   const [localData, setLocalData] = useState(() => ({
@@ -1452,6 +1606,14 @@ export default function BoardManage({ subTab = "free" }) {
   const [infoBoardId, setInfoBoardId] = useState(null);
   const [eventList, setEventList] = useState([]);
   const eventListRef = useRef([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   /* ── 행사 목록 로드 (후기 작성 시 eventId 선택용) ── */
   /* GET /api/admin/dashboard/events → DashboardEventResponse[] */
@@ -1678,6 +1840,7 @@ export default function BoardManage({ subTab = "free" }) {
       (e) => !search || e.title?.includes(search) || e.author?.includes(search),
     );
   const totalCount = isQna ? qnaTotalElements : rows.length;
+  const isMobile = viewportWidth < 768;
 
   /* ── 선택 관련 ── */
   const getRowId = (r) => r.id;
@@ -2046,14 +2209,24 @@ export default function BoardManage({ subTab = "free" }) {
         {/* 헤더 */}
         <div
           style={{
-            padding: "14px 20px",
+            padding: isMobile ? "14px" : "14px 20px",
             display: "flex",
-            alignItems: "center",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
             justifyContent: "space-between",
             borderBottom: `1px solid ${ds.line}`,
+            gap: isMobile ? 12 : 8,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+              minWidth: 0,
+            }}
+          >
             <Checkbox
               checked={isAllSelected && rows.length > 0}
               onChange={toggleAll}
@@ -2079,7 +2252,15 @@ export default function BoardManage({ subTab = "free" }) {
               </span>
             )}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+              width: isMobile ? "100%" : "auto",
+            }}
+          >
             {hasSelected && (
               <button
                 onClick={() => setModal({ type: "batchDelete" })}
@@ -2101,13 +2282,13 @@ export default function BoardManage({ subTab = "free" }) {
                 <Trash2 size={12} /> 선택 삭제
               </button>
             )}
-            <div style={{ position: "relative" }}>
+            <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }}>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="검색어를 입력하세요."
                 style={{
-                  width: 220,
+                  width: isMobile ? "100%" : 220,
                   padding: "7px 14px 7px 34px",
                   borderRadius: 8,
                   border: `1px solid ${ds.line}`,
@@ -2148,6 +2329,8 @@ export default function BoardManage({ subTab = "free" }) {
                 cursor: "pointer",
                 fontFamily: ds.ff,
                 transition: "transform .1s",
+                width: isMobile ? "100%" : "auto",
+                justifyContent: "center",
               }}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.transform = "translateY(-1px)")
@@ -2251,6 +2434,7 @@ export default function BoardManage({ subTab = "free" }) {
               onDetail={() => setModal({ type: "detail", item: r })}
               onEdit={() => setPanel({ type: "edit", item: r })}
               onDelete={() => setModal({ type: "delete", item: r })}
+              mobile={isMobile}
             />
           ))}
 

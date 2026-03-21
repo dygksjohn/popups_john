@@ -649,6 +649,9 @@ export default function Notice() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
@@ -660,6 +663,14 @@ export default function Notice() {
   const [removing, setRemoving] = useState(null);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(new Set());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
 
@@ -690,6 +701,7 @@ export default function Notice() {
   }, [fetchList]);
 
   const rows = items.filter((e) => !search || e.title?.includes(search));
+  const isMobile = viewportWidth < 768;
 
   /* ── 선택 관련 ── */
   const isAllSelected =
@@ -813,14 +825,24 @@ export default function Notice() {
       >
         <div
           style={{
-            padding: "14px 20px",
+            padding: isMobile ? "14px" : "14px 20px",
             display: "flex",
-            alignItems: "center",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
             justifyContent: "space-between",
             borderBottom: `1px solid ${ds.line}`,
+            gap: isMobile ? 12 : 8,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+              minWidth: 0,
+            }}
+          >
             <Checkbox
               checked={isAllSelected && rows.length > 0}
               onChange={toggleAll}
@@ -846,7 +868,15 @@ export default function Notice() {
               </span>
             )}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+              width: isMobile ? "100%" : "auto",
+            }}
+          >
             {hasSelected && (
               <button
                 onClick={() => setModal({ type: "batchDelete" })}
@@ -908,13 +938,13 @@ export default function Notice() {
             >
               <RefreshCw size={13} /> 새로고침
             </button>
-            <div style={{ position: "relative" }}>
+            <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }}>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="검색어를 입력하세요."
                 style={{
-                  width: 220,
+                  width: isMobile ? "100%" : 220,
                   padding: "7px 14px 7px 34px",
                   borderRadius: 8,
                   border: `1px solid ${ds.line}`,
@@ -953,6 +983,8 @@ export default function Notice() {
                 fontWeight: 700,
                 cursor: "pointer",
                 fontFamily: ds.ff,
+                width: isMobile ? "100%" : "auto",
+                justifyContent: "center",
               }}
             >
               <Plus size={13} strokeWidth={2.5} /> 공지 등록
@@ -1026,12 +1058,14 @@ export default function Notice() {
               onClick={() => setModal({ type: "detail", item: r })}
               style={{
                 display: "flex",
-                alignItems: "center",
-                padding: "14px 20px",
+                flexDirection: isMobile ? "column" : "row",
+                alignItems: isMobile ? "stretch" : "center",
+                padding: isMobile ? "14px" : "14px 20px",
                 borderBottom: `1px solid ${ds.lineSoft}`,
                 cursor: "pointer",
                 transition: "background .1s",
                 position: "relative",
+                gap: isMobile ? 12 : 0,
                 background: selected.has(r.noticeId)
                   ? `${ds.brand}06`
                   : "transparent",
@@ -1047,67 +1081,102 @@ export default function Notice() {
                   : "transparent")
               }
             >
-              <div style={{ marginRight: 12, flexShrink: 0 }}>
-                <Checkbox
-                  checked={selected.has(r.noticeId)}
-                  onChange={() => toggleOne(r.noticeId)}
-                />
-              </div>
-              <div style={{ width: 12, flexShrink: 0 }}>
-                {r.pinned && (
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: 3,
-                      background: "#EF4444",
-                      display: "inline-block",
-                    }}
-                  />
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  width: "100%",
+                  minWidth: 0,
+                }}
+              >
+                <div style={{ display: "flex", gap: 12, minWidth: 0, flex: 1 }}>
+                  <div style={{ flexShrink: 0 }}>
+                    <Checkbox
+                      checked={selected.has(r.noticeId)}
+                      onChange={() => toggleOne(r.noticeId)}
+                    />
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                        marginBottom: 6,
+                      }}
+                    >
+                      {r.pinned && (
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: 3,
+                            background: "#EF4444",
+                            display: "inline-block",
+                          }}
+                        />
+                      )}
+                      <span
+                        style={{
+                          fontSize: 11.5,
+                          color: ds.ink4,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {r.scope === "ALL" ? "전체" : "이벤트"}
+                      </span>
+                      <span style={{ fontSize: 12, color: ds.ink4 }}>
+                        {fmtDate(r.createdAt)}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        minWidth: 0,
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: ds.ink2,
+                        lineHeight: 1.45,
+                        whiteSpace: isMobile ? "normal" : "nowrap",
+                        wordBreak: "keep-all",
+                        overflowWrap: "break-word",
+                        overflow: "hidden",
+                        textOverflow: isMobile ? "clip" : "ellipsis",
+                      }}
+                    >
+                      {r.title}
+                    </div>
+                  </div>
+                </div>
+                {!isMobile && (
+                  <div style={{ width: 12, flexShrink: 0 }}>
+                    {r.pinned && (
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: 3,
+                          background: "#EF4444",
+                          display: "inline-block",
+                        }}
+                      />
+                    )}
+                  </div>
                 )}
               </div>
-              <span
-                style={{
-                  flex: 1,
-                  fontSize: 13.5,
-                  color: ds.ink3,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {r.title}
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  color: ds.ink4,
-                  marginRight: 14,
-                  flexShrink: 0,
-                }}
-              >
-                {r.scope === "ALL" ? "전체" : "이벤트"}
-              </span>
-              <span
-                style={{
-                  fontSize: 13,
-                  color: ds.ink4,
-                  flexShrink: 0,
-                  minWidth: 80,
-                  textAlign: "right",
-                }}
-              >
-                {fmtDate(r.createdAt)}
-              </span>
               <div
                 className="board-actions"
                 style={{
-                  opacity: 0,
+                  opacity: isMobile ? 1 : 0,
                   transition: "opacity .12s",
                   display: "flex",
-                  gap: 3,
-                  marginLeft: 10,
+                  gap: 8,
+                  marginLeft: isMobile ? 0 : 10,
                   flexShrink: 0,
+                  flexWrap: "wrap",
+                  width: isMobile ? "100%" : "auto",
                 }}
               >
                 <button
@@ -1116,7 +1185,7 @@ export default function Notice() {
                     setPanel({ type: "edit", item: r });
                   }}
                   style={{
-                    padding: "3px 8px",
+                    padding: isMobile ? "8px 10px" : "3px 8px",
                     borderRadius: 5,
                     border: `1px solid ${ds.brand}25`,
                     background: `${ds.brand}06`,
@@ -1126,6 +1195,7 @@ export default function Notice() {
                     cursor: "pointer",
                     fontFamily: ds.ff,
                     lineHeight: 1.2,
+                    flex: isMobile ? "1 1 0" : "0 0 auto",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = `${ds.brand}12`;
@@ -1142,7 +1212,7 @@ export default function Notice() {
                     setModal({ type: "delete", item: r });
                   }}
                   style={{
-                    padding: "3px 8px",
+                    padding: isMobile ? "8px 10px" : "3px 8px",
                     borderRadius: 5,
                     border: "1px solid #FECACA50",
                     background: "transparent",
@@ -1153,6 +1223,7 @@ export default function Notice() {
                     fontFamily: ds.ff,
                     lineHeight: 1.2,
                     opacity: 0.7,
+                    flex: isMobile ? "1 1 0" : "0 0 auto",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = ds.redSoft;

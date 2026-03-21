@@ -19,6 +19,7 @@ import {
   Send,
   Layers,
   Mic,
+  Menu,
 } from "lucide-react";
 import ds from "../shared/designTokens";
 import { countAdminStatuses, resolveAdminStatus } from "../shared/adminStatus";
@@ -26,7 +27,7 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken, clearToken } from "../../../api/noticeApi";
 import HomeDashboard from "./HomeDashboard";
 
-/* ?섏씠吏 import */
+/* page imports */
 import EventManage from "../event/eventManage";
 import ProgramManage from "../program/programManage";
 import BoardManage from "../board/boardManage";
@@ -44,9 +45,9 @@ import AdminLogManage from "../adminlog/AdminLogManage";
 import ReportManage from "../report/ReportManage";
 /**/
 
-/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
-   踰??좊땲硫붿씠??CSS
-   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
+/* global animation CSS */
+
+
 const globalStyles = `
 @keyframes bellRing {
   0%   { transform: rotate(0deg); }
@@ -61,7 +62,7 @@ const globalStyles = `
   100% { transform: rotate(0deg); }
 }
 
-/* ?? ?몃젴???ㅽ겕 ?ㅽ겕濡ㅻ컮 ?? */
+/* thin custom scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -80,7 +81,7 @@ const globalStyles = `
   background: transparent;
 }
 
-/* ?ъ씠?쒕컮 ?꾩슜 */
+/* sidebar scrollbar */
 aside ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.07);
 }
@@ -98,9 +99,9 @@ aside * {
 }
 `;
 
-/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
-   ?ъ씠?쒕컮 & ???ㅼ젙
-   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
+/* sidebar and shell layout */
+
+
 const NAV = [
   {
     section: "대시보드",
@@ -289,13 +290,17 @@ function PageHome() {
   return <HomeDashboard />;
 }
 
-/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
-   硫붿씤 而댄룷?뚰듃
-   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
+/* main component */
+
+
 export default function Dashboard() {
   const [nav, setNav] = useState("dashboard");
   const [subTab, setSubTab] = useState(null);
-  // bellAnim removed ??logout button now
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // bell animation removed because the logout button occupies the slot
   const [pageTabs, setPageTabs] = useState(DEFAULT_PAGE_TABS);
   const [eventMenuBadge, setEventMenuBadge] = useState(0);
 
@@ -306,6 +311,31 @@ export default function Dashboard() {
       document.body.style.backgroundColor = prevBg;
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
+  const isMobile = viewportWidth < 1024;
+  const isHandset = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+
+  useEffect(() => {
+    if (!isMobile) setMobileNavOpen(false);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = isMobile && mobileNavOpen ? "hidden" : prevOverflow;
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isMobile, mobileNavOpen]);
 
   const loadTabCounts = useCallback(async () => {
     try {
@@ -320,7 +350,7 @@ export default function Dashboard() {
             ? payload
             : [];
 
-      /* ?좎쭨 湲곕컲 ?곹깭 怨꾩궛 ??媛?愿由??섏씠吏??calcStatus? ?숈씪 濡쒖쭅 */
+      /* date-based status calculation aligned with event manage calcStatus */
       const calcSt = (startAt, endAt) => {
         if (!startAt && !endAt) return "pending";
         const norm = (v) => (v ? String(v).replace(/\./g, "-").trim() : v);
@@ -410,6 +440,7 @@ export default function Dashboard() {
   const handleNav = (id) => {
     setNav(id);
     setSubTab(null);
+    setMobileNavOpen(false);
   };
 
   const renderPage = () => {
@@ -455,7 +486,8 @@ export default function Dashboard() {
     <div
       style={{
         display: "flex",
-        height: "100vh",
+        height: isMobile ? "100dvh" : "100vh",
+        minHeight: isMobile ? "100dvh" : "100vh",
         fontFamily: ds.ff,
         background: ds.bg,
         overflow: "hidden",
@@ -466,11 +498,24 @@ export default function Dashboard() {
       {/* ??? SIDEBAR ??? */}
       <aside
         style={{
-          width: 240,
+          width: isHandset ? "min(82vw, 280px)" : isTablet ? 300 : 240,
           background: ds.sidebar,
           display: "flex",
           flexDirection: "column",
           flexShrink: 0,
+          ...(isMobile
+            ? {
+                position: "fixed",
+                top: 0,
+                bottom: 0,
+                left: 0,
+                paddingBottom: "env(safe-area-inset-bottom, 0px)",
+                zIndex: 1200,
+                transform: mobileNavOpen ? "translateX(0)" : "translateX(-100%)",
+                transition: "transform .2s ease",
+                boxShadow: "0 20px 48px rgba(15, 23, 42, 0.24)",
+              }
+            : {}),
         }}
       >
         {/* 濡쒓퀬 */}
@@ -529,7 +574,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 硫붾돱 洹몃９ */}
+        {/* menu groups */}
         <nav style={{ flex: 1, padding: "0 10px", overflow: "auto" }}>
           {NAV.map((group) => (
             <div key={group.section}>
@@ -604,7 +649,7 @@ export default function Dashboard() {
           ))}
         </nav>
 
-        {/* ?좎? */}
+        {/* sidebar footer */}
         <div
           style={{
             padding: "12px 14px 16px",
@@ -640,6 +685,18 @@ export default function Dashboard() {
         </div>
       </aside>
 
+      {isMobile && mobileNavOpen && (
+        <div
+          onClick={() => setMobileNavOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1100,
+            background: "rgba(15, 23, 42, 0.34)",
+          }}
+        />
+      )}
+
       {/* ??? MAIN ??? */}
       <main
         style={{
@@ -647,36 +704,74 @@ export default function Dashboard() {
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
+          minWidth: 0,
         }}
       >
         {/* ?ㅻ뜑 */}
         <header
           style={{
             background: ds.card,
-            padding: "0 28px",
-            height: 52,
+            padding: isHandset ? "10px 12px" : isTablet ? "10px 18px 12px" : "0 28px",
+            minHeight: isHandset ? 58 : isMobile ? 64 : 52,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            gap: isHandset ? 10 : 12,
+            flexWrap: isHandset ? "nowrap" : isMobile ? "wrap" : "nowrap",
             borderBottom: `1px solid ${ds.line}`,
           }}
         >
+          {isMobile && (
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              style={{
+                width: isHandset ? 36 : 38,
+                height: isHandset ? 36 : 38,
+                borderRadius: 10,
+                border: `1px solid ${ds.line}`,
+                background: ds.bg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <Menu size={16} color={ds.ink3} />
+            </button>
+          )}
           <h1
             style={{
-              fontSize: 17,
+              fontSize: isHandset ? 15.5 : isMobile ? 16 : 17,
               fontWeight: 800,
               margin: 0,
               color: ds.ink,
               letterSpacing: -0.3,
+              flex: isMobile ? 1 : "0 1 auto",
+              minWidth: 0,
+              whiteSpace: isMobile ? "nowrap" : "normal",
+              overflow: isMobile ? "hidden" : "visible",
+              textOverflow: isMobile ? "ellipsis" : "clip",
             }}
           >
             {PAGE_TITLES[nav] || "대시보드"}
           </h1>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* ?? ?ㅻ뒛 ?좎쭨 + ?몄궗留??? */}
-            <TodayGreeting />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: isHandset ? "nowrap" : isMobile ? "wrap" : "nowrap",
+              width: isHandset ? "auto" : isMobile ? "100%" : "auto",
+              justifyContent: isHandset ? "flex-end" : isMobile ? "space-between" : "flex-end",
+              minWidth: 0,
+            }}
+          >
+            {/* desktop only: today greeting */}
+            {!isMobile && <TodayGreeting />}
 
-            {/* 濡쒓렇?꾩썐 */}
+            {/* logout */}
             <button
               onClick={() => {
                 clearToken();
@@ -684,7 +779,7 @@ export default function Dashboard() {
               }}
               style={{
                 height: 32,
-                padding: "0 12px",
+                padding: isHandset ? "0 10px" : "0 12px",
                 borderRadius: ds.rs,
                 border: `1px solid ${ds.line}`,
                 background: ds.bg,
@@ -692,7 +787,7 @@ export default function Dashboard() {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                fontSize: 12,
+                fontSize: isHandset ? 11.5 : 12,
                 fontWeight: 600,
                 color: ds.ink3,
                 fontFamily: ds.ff,
@@ -715,15 +810,18 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* ??(2媛??댁긽???뚮쭔 ?쒖떆) */}
+        {/* tabs shown only when there is more than one */}
         {tabs.length > 1 && (
           <div
             style={{
               background: ds.card,
-              padding: "0 28px",
+              padding: isHandset ? "0 12px" : isTablet ? "0 18px" : "0 28px",
               borderBottom: `1px solid ${ds.line}`,
               display: "flex",
               alignItems: "center",
+              overflowX: "auto",
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "none",
             }}
           >
             {tabs.map((t) => {
@@ -733,7 +831,7 @@ export default function Dashboard() {
                   key={t.id}
                   onClick={() => setSubTab(t.id)}
                   style={{
-                    padding: "10px 16px",
+                    padding: isHandset ? "10px 12px" : isTablet ? "10px 14px" : "10px 16px",
                     border: "none",
                     cursor: "pointer",
                     background: "none",
@@ -746,6 +844,8 @@ export default function Dashboard() {
                     alignItems: "center",
                     gap: 5,
                     fontFamily: ds.ff,
+                    flexShrink: 0,
+                    whiteSpace: "nowrap",
                   }}
                   onMouseEnter={(e) => {
                     if (!on) e.currentTarget.style.color = ds.ink3;
@@ -776,8 +876,19 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ?섏씠吏 肄섑뀗痢?*/}
-        <div style={{ flex: 1, overflow: "auto", padding: "20px 28px 28px" }}>
+        {/* page content */}
+        <div
+          style={{
+            flex: 1,
+            overflow: "auto",
+            minWidth: 0,
+            padding: isHandset
+              ? "10px 12px 18px"
+              : isTablet
+                ? "16px 18px 24px"
+                : "20px 28px 28px",
+          }}
+        >
           {renderPage()}
         </div>
       </main>

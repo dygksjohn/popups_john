@@ -78,6 +78,8 @@ const styles = `
   .ev-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
 
   .ev-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .ev-toolbar-top { display: flex; gap: 12px; row-gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .ev-search-box { position: relative; width: 280px; flex-shrink: 0; }
 
 
   .ev-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
@@ -110,14 +112,40 @@ const styles = `
   .ev-card-btn:hover { background: #02A17E; color: #fff; border-color: #02A17E; }
 
   @media (max-width: 1024px) {
+    .ev-container { width: calc(100% - 32px); padding: 28px 0 56px; }
+    .ev-stat-grid { grid-template-columns: repeat(2, 1fr); }
     .ev-grid { grid-template-columns: repeat(3, 1fr); }
+    .ev-toolbar-top { flex-wrap: wrap; align-items: stretch; }
+    .ev-search-box { width: min(320px, 100%); }
   }
   @media (max-width: 860px) {
+    .ev-stat-grid { grid-template-columns: 1fr; }
     .ev-grid { grid-template-columns: repeat(2, 1fr); }
+    .ev-toolbar-top { flex-direction: column; align-items: stretch; }
+    .ev-live-chip { width: 100%; justify-content: center; }
+    .ev-search-box { width: 100%; }
   }
   @media (max-width: 600px) {
+    .ev-container { width: calc(100% - 20px); padding: 16px 0 32px; }
+    .ev-live-chip { height: 44px; padding: 0 14px; font-size: 14px; border-radius: 12px; }
+    .ev-toolbar-top { gap: 8px; margin-bottom: 14px; }
+    .ev-stat-grid { gap: 10px; margin-bottom: 18px; }
+    .ev-stat-card { padding: 14px 16px; gap: 10px; }
+    .ev-stat-icon { width: 36px; height: 36px; border-radius: 10px; }
+    .ev-stat-value { font-size: 19px; }
+    .ev-card { padding: 16px 14px; margin-bottom: 12px; border-radius: 14px; }
+    .ev-card-header { margin-bottom: 14px; padding-bottom: 10px; }
+    .ev-toolbar { gap: 8px; margin-bottom: 12px; }
     .ev-grid { grid-template-columns: 1fr; }
-    .ev-card { padding: 20px 16px; }
+    .ev-event-card { border-radius: 14px; }
+    .ev-event-card-body { padding: 12px 12px 14px; }
+    .ev-event-category { font-size: 12px; margin-bottom: 4px; }
+    .ev-event-title { font-size: 15px; margin-bottom: 8px; }
+    .ev-event-meta { gap: 3px; margin-bottom: 10px; }
+    .ev-event-meta-row { font-size: 12.5px; }
+    .ev-event-footer { padding-top: 10px; }
+    .ev-progress-wrap { margin-bottom: 8px; }
+    .ev-card-btn { height: 38px; font-size: 13px; border-radius: 9px; }
   }
 `;
 
@@ -301,12 +329,12 @@ export default function Current() {
         ) : (
           <>
           {/* 검색 바 + 상태 칩 */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <div className="ev-toolbar-top">
             <div className="ev-live-chip">
               <div className="ev-live-dot" />
               진행 중 <span className="ev-live-count">{events.length}</span>
             </div>
-            <div style={{ position: "relative", width: 280 }}>
+            <div className="ev-search-box">
               <Search
                 size={16}
                 color={searchFocused ? "#02A17E" : "#94a3b8"}

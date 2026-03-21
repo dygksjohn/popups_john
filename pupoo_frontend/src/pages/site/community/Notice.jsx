@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, ChevronRight, ListFilter, Loader2, Megaphone, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ListFilter, Loader2, Megaphone, Pin, Search, SlidersHorizontal } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import EmptyState from "../components/EmptyState";
@@ -37,6 +37,9 @@ function fmtDate(value) {
 export default function Notice() {
   const navigate = useNavigate();
   const badge = getBoardBadge("NOTICE");
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [search, setSearch] = useState("");
   const [scopeKey, setScopeKey] = useState("all");
   const [sortKey, setSortKey] = useState("recent");
@@ -100,6 +103,17 @@ export default function Notice() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+
   return (
     <>
       <PageHeader
@@ -115,28 +129,46 @@ export default function Notice() {
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
       <main
         style={{
-          width: "min(1400px, calc(100% - 40px))",
+          width: isMobile
+            ? "calc(100% - 20px)"
+            : isTablet
+              ? "calc(100% - 28px)"
+              : "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
-          padding: "40px 0 64px",
+          padding: isMobile ? "20px 0 40px" : isTablet ? "28px 0 52px" : "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
             justifyContent: "space-between",
             paddingBottom: "16px",
             marginBottom: "8px",
-            gap: 8,
+            gap: isMobile ? 12 : 8,
           }}
         >
           <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>총 {totalFromApi}개</span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: 999, height: 42 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0,
+                background: "#f3f4f6",
+                borderRadius: isMobile ? 16 : 999,
+                height: isMobile ? "auto" : 42,
+                width: isMobile ? "100%" : "auto",
+                flexWrap: isMobile ? "wrap" : "nowrap",
+                padding: isMobile ? 6 : 0,
+                rowGap: isMobile ? 6 : 0,
+              }}
+            >
               {/* scope dropdown */}
-              <div style={{ position: "relative", flex: "0 0 auto" }} ref={scopeDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={scopeDdRef}>
                 <button
                   type="button"
                   onClick={() => setScopeDdOpen((v) => !v)}
@@ -165,10 +197,10 @@ export default function Notice() {
                 )}
               </div>
 
-              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* sort button */}
-              <div style={{ position: "relative", flex: "0 0 auto" }} ref={sortDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={sortDdRef}>
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((prev) => !prev)}
@@ -197,10 +229,10 @@ export default function Notice() {
                 )}
               </div>
 
-              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* search input */}
-              <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "1 1 auto", minWidth: 0, width: isMobile ? "100%" : "auto" }}>
                 <Search
                   size={16}
                   strokeWidth={2}
@@ -226,16 +258,16 @@ export default function Notice() {
                     }
                   }}
                   style={{
-                    border: "none",
-                    background: "transparent",
+                    border: isMobile ? "1px solid #dbe2ea" : "none",
+                    background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: "0 999px 999px 0",
+                    borderRadius: isMobile ? 999 : "0 999px 999px 0",
                     height: 42,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",
                     outline: "none",
-                    width: 280,
+                    width: isMobile ? "100%" : 280,
                   }}
                 />
               </div>
@@ -254,6 +286,7 @@ export default function Notice() {
         {!loading && !error && (
           <>
             <div>
+              {!isMobile && (
               <div style={{
                 display: "flex",
                 alignItems: "center",
@@ -270,17 +303,21 @@ export default function Notice() {
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
               </div>
+              )}
               {paged.map((notice, index) => {
                 const scopeBadge = getNoticeScopeBadge(notice.scope);
                 const rowNumber = totalFromApi - ((currentPage - 1) * PAGE_SIZE) - index;
+                const mobileStateLabel = notice.pinned ? "고정" : "공지";
                 return (
                   <div
                     key={notice.noticeId}
                     onClick={() => navigate(`/community/notice/${notice.noticeId}`)}
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      padding: "18px 16px",
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "stretch" : "center",
+                      gap: isMobile ? 8 : 0,
+                      padding: isMobile ? "14px 12px" : "18px 16px",
                       borderBottom: "1px solid #f0f0f0",
                       cursor: "pointer",
                       transition: "background 0.15s",
@@ -292,38 +329,88 @@ export default function Notice() {
                       event.currentTarget.style.background = "transparent";
                     }}
                   >
-                    <span style={{ width: 60, textAlign: "center", fontSize: 14, color: notice.pinned ? "#dc2626" : "#9ca3af", fontWeight: notice.pinned ? 700 : 400, flexShrink: 0 }}>
-                      {notice.pinned ? "공지" : rowNumber}
-                    </span>
-                    <span style={{ flex: 1, fontSize: 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center" }}>
-                      <BadgeTag
-                        icon={scopeBadge.icon}
-                        label={scopeBadge.compactLabel}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 4,
-                          minWidth: 40,
-                          padding: "4px 10px",
-                          borderRadius: 999,
-                          border: `1px solid ${scopeBadge.borderColor}`,
-                          background: scopeBadge.background,
-                          color: scopeBadge.color,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          lineHeight: 1,
-                          marginRight: 6,
-                          verticalAlign: "middle",
-                        }}
-                      />
-                      {notice.pinned ? <span style={{ fontSize: 12, marginRight: 4 }}>📌</span> : null}
-                      {notice.title}
-                    </span>
-                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>관리자</span>
-                    <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
-                      {fmtDate(notice.createdAt)}
-                    </span>
+                    {!isMobile && (
+                      <span style={{ width: 60, textAlign: "center", fontSize: 13, color: notice.pinned ? "#dc2626" : "#9ca3af", fontWeight: notice.pinned ? 700 : 400, flexShrink: 0 }}>
+                        {notice.pinned ? "공지" : rowNumber}
+                      </span>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+                        {isMobile && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              minWidth: 38,
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              background: notice.pinned ? "#FEF2F2" : "#F3F4F6",
+                              color: notice.pinned ? "#DC2626" : "#6B7280",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              lineHeight: 1,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {mobileStateLabel}
+                          </span>
+                        )}
+                        <BadgeTag
+                          icon={scopeBadge.icon}
+                          label={scopeBadge.compactLabel}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 4,
+                            minWidth: 40,
+                            padding: "4px 10px",
+                            borderRadius: 999,
+                            border: `1px solid ${scopeBadge.borderColor}`,
+                            background: scopeBadge.background,
+                            color: scopeBadge.color,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            lineHeight: 1,
+                          }}
+                        />
+                        {notice.pinned && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: 22,
+                              height: 22,
+                              borderRadius: "50%",
+                              background: "#FEF2F2",
+                              color: "#DC2626",
+                              flexShrink: 0,
+                            }}
+                            aria-label="고정 공지"
+                          >
+                            <Pin size={12} strokeWidth={2} />
+                          </span>
+                        )}
+                        <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                          {notice.title}
+                        </span>
+                      </div>
+                      {isMobile && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
+                          <span>관리자</span>
+                          <span style={{ color: "#cbd5e1" }}>{"\u00b7"}</span>
+                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(notice.createdAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                    {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#6b7280", flexShrink: 0 }}>관리자</span>}
+                    {!isMobile && (
+                      <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {fmtDate(notice.createdAt)}
+                      </span>
+                    )}
                   </div>
                 );
               })}

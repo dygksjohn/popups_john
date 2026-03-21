@@ -11,25 +11,25 @@ const NAV_LINKS = [
 const Footer = () => {
   return (
     <footer className="w-full relative z-[1000] isolate pointer-events-auto" style={{ backgroundColor: "#2a2a2a" }}>
-      <div className="max-w-[1712px] mx-auto px-10">
+      <div className="max-w-[1712px] mx-auto px-3 md:px-6 lg:px-10">
         {/* ── 상단: 로고 | 네비게이션 | SNS 아이콘 ── */}
-        <div className="flex items-center justify-between py-8 border-b border-[#3a3a3a]">
+        <div className="flex flex-col items-start gap-4 py-5 border-b border-[#3a3a3a] md:gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-0 lg:py-8">
           {/* 로고 */}
           <Link to="/" className="flex-shrink-0">
             <img
               src="/logo_white.png"
               alt="Pupoo"
-              style={{ height: 22, width: "auto", display: "block", opacity: 0.9 }}
+              style={{ height: 20, width: "auto", display: "block", opacity: 0.9 }}
             />
           </Link>
 
           {/* 네비게이션 */}
-          <nav className="flex items-center gap-8">
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:gap-8">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
-                className="text-[#8a8a8a] text-sm font-medium tracking-[0.08em] whitespace-nowrap transition-colors duration-200 hover:text-white"
+                className="text-[#8a8a8a] text-[12px] md:text-sm font-medium tracking-[0.04em] whitespace-nowrap transition-colors duration-200 hover:text-white"
               >
                 {link.label}
               </Link>
@@ -37,7 +37,7 @@ const Footer = () => {
           </nav>
 
           {/* SNS 아이콘 */}
-          <div className="flex items-center gap-5 flex-shrink-0">
+          <div className="flex items-center gap-3 lg:gap-5 flex-shrink-0">
             {/* YouTube */}
             <a href="https://www.youtube.com/channel/UCmKrFZb9Dts6PyA6Wmc_zYA" target="_blank" rel="noopener noreferrer" className="block opacity-80 hover:opacity-100 transition-opacity duration-200">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff">
@@ -60,8 +60,8 @@ const Footer = () => {
         </div>
 
         {/* ── 하단: 저작권 + 회사정보 (좌) ── */}
-        <div className="flex items-start justify-between py-8">
-          <div className="text-[#666] text-sm leading-relaxed space-y-1">
+        <div className="flex items-start justify-between py-5 lg:py-8">
+          <div className="text-[#666] text-[11px] sm:text-sm leading-relaxed space-y-1">
             <div>© {new Date().getFullYear()} pupoo. All rights reserved.</div>
             <div>(주)푸푸컴퍼니 서울특별시 서초구 강남대로 405 통영빌딩 8층</div>
             <div>본 서비스는 프로젝트용으로 제작되었습니다. 대표이사 : 홍길동</div>
