@@ -467,6 +467,46 @@ export default function Review() {
                     {!isMobile && <span style={{ width: 60, textAlign: "center", fontSize: 13, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+                        {isMobile && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              minWidth: 34,
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              background: badge.background,
+                              color: badge.color,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              lineHeight: 1,
+                              flexShrink: 0,
+                            }}
+                          >
+                            후기
+                          </span>
+                        )}
+                        {isMobile && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              minWidth: 44,
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              background: "#F1F5F9",
+                              color: "#475569",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              lineHeight: 1,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {eventLabel}
+                          </span>
+                        )}
                         {!isMobile && (
                           <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 44, padding: "4px 10px", borderRadius: 999, background: "#F1F5F9", color: "#475569", fontSize: 12, fontWeight: 600, lineHeight: 1 }}>
                             {eventLabel}

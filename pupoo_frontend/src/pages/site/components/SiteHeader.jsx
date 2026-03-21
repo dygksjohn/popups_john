@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX, Menu } from "lucide-react";
+import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX } from "lucide-react";
 import {
   notificationApi,
   NOTIFICATION_UNREAD_COUNT_EVENT,
@@ -617,8 +617,8 @@ export default function PupooHeader() {
   const isMobile = viewportWidth < 768;
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
   const isCompact = viewportWidth < 1024;
-  const headerHeight = isMobile ? 58 : isTablet ? 72 : 92;
-  const mobileShortcutHeight = isMobile ? 24 : 0;
+  const headerHeight = isMobile ? 66 : isTablet ? 72 : 92;
+  const mobileShortcutHeight = isMobile ? 46 : 0;
   const compactTopOffset = isMobile ? headerHeight + mobileShortcutHeight : headerHeight;
 
   /* ?? scroll listener ?? */
@@ -737,13 +737,14 @@ export default function PupooHeader() {
     navigate(href);
   };
 
-  const isWhiteMode = !isHome || scrolled || activeMenu !== null || searchOpen || mobileMenuOpen;
-  const isLight = isHome && !scrolled && !activeMenu && !searchOpen;
+  const useSolidMobileHeader = isMobile;
+  const isWhiteMode = useSolidMobileHeader || !isHome || scrolled || activeMenu !== null || searchOpen || mobileMenuOpen;
+  const isLight = !useSolidMobileHeader && isHome && !scrolled && !activeMenu && !searchOpen;
   const textColor = isWhiteMode ? "#222" : "#fff";
   const iconColor = isWhiteMode ? "#222" : "#fff";
   const mobileActionIconStyle = {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
     borderRadius: 999,
     border: isWhiteMode ? "1px solid #e7ebf0" : "1px solid rgba(255,255,255,0.18)",
     background: isWhiteMode ? "#fff" : "rgba(255,255,255,0.12)",
@@ -963,7 +964,7 @@ export default function PupooHeader() {
             alignItems: "center",
             zIndex: 1002,
             backgroundColor: isWhiteMode ? "#fff" : "transparent",
-            borderBottom: isWhiteMode ? "1px solid #f0f0f0" : "none",
+            borderBottom: isWhiteMode ? "1px solid #edf1f5" : "none",
             transition: "background-color 0.3s ease",
           }}
         >
@@ -994,7 +995,7 @@ export default function PupooHeader() {
                 src={isLight ? "/logo_white2.png" : "/logo_olive.png"}
                 alt="Pupoo"
                 style={{
-                  height: isMobile ? 22 : isTablet ? 24 : 28,
+                  height: isMobile ? 26 : isTablet ? 24 : 28,
                   width: "auto",
                   display: "block",
                 }}
@@ -1089,18 +1090,18 @@ export default function PupooHeader() {
 
             <div
               className="pupoo-mobile-only"
-              style={{ display: "none", alignItems: "center", gap: 6, flexShrink: 0 }}
+              style={{ display: "none", alignItems: "center", gap: 8, flexShrink: 0 }}
             >
               <button
                 type="button"
-                className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                style={{ ...mobileActionIconStyle, cursor: "pointer" }}
                 onClick={() => {
                   setSearchOpen((v) => !v);
                   setActiveMenu(null);
                   setMobileMenuOpen(false);
                 }}
               >
-                <Search size={16} color={iconColor} strokeWidth={1.8} />
+                <Search size={17} color={iconColor} strokeWidth={1.8} />
               </button>
               {isAuthed ? (
                 <>
@@ -1142,21 +1143,6 @@ export default function PupooHeader() {
                   <LogIn size={17} color={iconColor} strokeWidth={1.8} />
                 </Link>
               )}
-              <button
-                type="button"
-                className={`kakao-icon-btn ${isLight ? "light" : ""}`}
-                onClick={() => {
-                  setMobileMenuOpen((prev) => !prev);
-                  setActiveMenu(null);
-                  setSearchOpen(false);
-                }}
-              >
-                {mobileMenuOpen ? (
-                  <X size={18} color={iconColor} strokeWidth={1.8} />
-                ) : (
-                  <Menu size={18} color={iconColor} strokeWidth={1.8} />
-                )}
-              </button>
             </div>
           </div>
         </header>
@@ -1169,17 +1155,17 @@ export default function PupooHeader() {
               left: 0,
               right: 0,
               zIndex: 1001,
-              background: isWhiteMode ? "rgba(255,255,255,0.96)" : "rgba(255,255,255,0.14)",
-              backdropFilter: "blur(14px)",
-              borderBottom: isWhiteMode ? "1px solid #edf1f5" : "1px solid rgba(255,255,255,0.16)",
+              background: "rgba(255,255,255,0.98)",
+              backdropFilter: "blur(18px)",
+              borderBottom: "1px solid #edf1f5",
             }}
           >
             <div
               style={{
                 display: "flex",
-                gap: 5,
+                gap: 8,
                 overflowX: "auto",
-                padding: "3px 10px 3px",
+                padding: "7px 12px",
                 WebkitOverflowScrolling: "touch",
                 scrollbarWidth: "none",
               }}
@@ -1197,19 +1183,19 @@ export default function PupooHeader() {
                     }}
                     style={{
                       flexShrink: 0,
-                      height: 18,
-                      padding: "0 8px",
+                      height: 30,
+                      padding: "0 14px",
                       borderRadius: 999,
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
                       textDecoration: "none",
-                      fontSize: 11.5,
+                      fontSize: 13,
                       fontWeight: 700,
                       fontFamily: FONT,
-                      color: active ? "#fff" : isWhiteMode ? "#4b5563" : "#fff",
-                      background: active ? "#02A17E" : isWhiteMode ? "#f3f4f6" : "rgba(255,255,255,0.16)",
-                      border: active ? "none" : isWhiteMode ? "1px solid #eef2f7" : "1px solid rgba(255,255,255,0.14)",
+                      color: active ? "#fff" : "#4b5563",
+                      background: active ? "#02A17E" : "#f3f4f6",
+                      border: active ? "none" : "1px solid #eef2f7",
                     }}
                   >
                     {item.label}

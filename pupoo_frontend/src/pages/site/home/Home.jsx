@@ -633,14 +633,22 @@ export default function Home() {
   };
 
   return (
-    <div>
+    <div
+      style={
+        isMobile
+          ? {
+              paddingTop: "var(--pupoo-site-header-offset, 112px)",
+            }
+          : undefined
+      }
+    >
       <section
         className="relative h-screen w-full overflow-hidden"
         style={
           isMobile
             ? {
-                height: "88svh",
-                minHeight: "88svh",
+                height: "calc(100svh - var(--pupoo-site-header-offset, 112px))",
+                minHeight: "calc(100svh - var(--pupoo-site-header-offset, 112px))",
               }
             : undefined
         }
@@ -703,6 +711,5 @@ export default function Home() {
     </div>
   );
 }
-
 
 

@@ -204,8 +204,8 @@ function DogCharacter({ onClick, mobile = false }) {
     <div
       style={{
         position: "fixed",
-        bottom: mobile ? "calc(env(safe-area-inset-bottom, 0px) + 4px)" : 12,
-        right: mobile ? 6 : 14,
+        bottom: mobile ? "calc(env(safe-area-inset-bottom, 0px) + 76px)" : 12,
+        right: mobile ? 10 : 14,
         zIndex: 10000,
         cursor: "pointer",
         display: "flex",
@@ -545,8 +545,8 @@ export default function AdminChatBot() {
     setTimeout(() => setClosing(false), 1000);
   };
 
-  const mobilePanelBottom = "calc(env(safe-area-inset-bottom, 0px) + 72px)";
-  const mobileButtonBottom = "calc(env(safe-area-inset-bottom, 0px) + 16px)";
+  const mobilePanelBottom = "calc(env(safe-area-inset-bottom, 0px) + 132px)";
+  const mobileButtonBottom = "calc(env(safe-area-inset-bottom, 0px) + 84px)";
 
   const handleKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
   const handleClear = () => { clearMessages(); setHasChats(false); };
@@ -559,7 +559,7 @@ export default function AdminChatBot() {
       {/* ── 채팅 패널 ── */}
       {isOpen && (
         <div style={{
-          position: "fixed", bottom: isMobile ? mobilePanelBottom : 96, right: isMobile ? 8 : 28,
+          position: "fixed", bottom: isMobile ? mobilePanelBottom : 96, right: isMobile ? 10 : 28,
           width: isMobile ? "min(calc(100vw - 16px), 336px)" : 380,
           maxWidth: isMobile ? "calc(100vw - 16px)" : 380,
           height: isMobile ? "min(calc(100dvh - env(safe-area-inset-bottom, 0px) - 84px), 468px)" : 560,
@@ -627,7 +627,7 @@ export default function AdminChatBot() {
         <button
           onClick={toggle}
           style={{
-            position: "fixed", bottom: isMobile ? mobileButtonBottom : 28, right: isMobile ? 8 : 28,
+            position: "fixed", bottom: isMobile ? mobileButtonBottom : 28, right: isMobile ? 10 : 28,
             width: isMobile ? 48 : 56, height: isMobile ? 48 : 56, borderRadius: "50%", border: "none",
             background: "#fff", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",

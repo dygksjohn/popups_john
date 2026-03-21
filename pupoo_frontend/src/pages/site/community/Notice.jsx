@@ -307,6 +307,7 @@ export default function Notice() {
               {paged.map((notice, index) => {
                 const scopeBadge = getNoticeScopeBadge(notice.scope);
                 const rowNumber = totalFromApi - ((currentPage - 1) * PAGE_SIZE) - index;
+                const mobileStateLabel = notice.pinned ? "고정" : "공지";
                 return (
                   <div
                     key={notice.noticeId}
@@ -335,6 +336,26 @@ export default function Notice() {
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+                        {isMobile && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              minWidth: 38,
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              background: notice.pinned ? "#FEF2F2" : "#F3F4F6",
+                              color: notice.pinned ? "#DC2626" : "#6B7280",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              lineHeight: 1,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {mobileStateLabel}
+                          </span>
+                        )}
                         <BadgeTag
                           icon={scopeBadge.icon}
                           label={scopeBadge.compactLabel}

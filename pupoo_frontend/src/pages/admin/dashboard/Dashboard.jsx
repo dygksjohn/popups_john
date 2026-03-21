@@ -711,13 +711,13 @@ export default function Dashboard() {
         <header
           style={{
             background: ds.card,
-            padding: isHandset ? "8px 12px 10px" : isTablet ? "10px 18px 12px" : "0 28px",
-            minHeight: isHandset ? 60 : isMobile ? 64 : 52,
+            padding: isHandset ? "10px 12px" : isTablet ? "10px 18px 12px" : "0 28px",
+            minHeight: isHandset ? 58 : isMobile ? 64 : 52,
             display: "flex",
-            alignItems: isMobile ? "flex-start" : "center",
+            alignItems: "center",
             justifyContent: "space-between",
             gap: isHandset ? 10 : 12,
-            flexWrap: isMobile ? "wrap" : "nowrap",
+            flexWrap: isHandset ? "nowrap" : isMobile ? "wrap" : "nowrap",
             borderBottom: `1px solid ${ds.line}`,
           }}
         >
@@ -762,9 +762,9 @@ export default function Dashboard() {
               display: "flex",
               alignItems: "center",
               gap: 8,
-              flexWrap: isMobile ? "wrap" : "nowrap",
-              width: isMobile ? "100%" : "auto",
-              justifyContent: isMobile ? "space-between" : "flex-end",
+              flexWrap: isHandset ? "nowrap" : isMobile ? "wrap" : "nowrap",
+              width: isHandset ? "auto" : isMobile ? "100%" : "auto",
+              justifyContent: isHandset ? "flex-end" : isMobile ? "space-between" : "flex-end",
               minWidth: 0,
             }}
           >

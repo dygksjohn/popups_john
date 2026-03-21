@@ -1054,8 +1054,8 @@ export default function FreeBoard() {
                               display: "inline-flex",
                               alignItems: "center",
                               justifyContent: "center",
-                              minWidth: 34,
-                              padding: "3px 8px",
+                              minWidth: 38,
+                              padding: "4px 10px",
                               borderRadius: 999,
                               background: "#F3F4F6",
                               color: "#6B7280",
@@ -1065,11 +1065,12 @@ export default function FreeBoard() {
                               flexShrink: 0,
                             }}
                           >
-                            {rowNumber}
+                            게시글
                           </span>
                         ) : (
                           <BadgeTag badge={badge} />
                         )}
+                        {isMobile && <BadgeTag badge={badge} />}
                         <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
                           {item.postTitle}
                         </span>

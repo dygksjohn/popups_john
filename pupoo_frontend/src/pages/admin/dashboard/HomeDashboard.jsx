@@ -564,17 +564,17 @@ const eventOptionLabel = (event) =>
 
 function MetricCard({ icon: Icon, label, value, sub, color, bg, compact = false }) {
   return (
-    <div style={{ ...cardStyle, padding: compact ? "15px 16px" : "18px 20px", display: "flex", flexDirection: "column", gap: compact ? 10 : 14 }}>
+    <div style={{ ...cardStyle, padding: compact ? "15px 16px" : "18px 20px", display: "flex", flexDirection: "column", gap: compact ? 10 : 14, minWidth: 0, minHeight: compact ? 126 : 142 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 700, color: ds.ink3 }}>{label}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: ds.ink3, minWidth: 0, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word", lineHeight: 1.4 }}>{label}</span>
         <div style={{ width: compact ? 30 : 34, height: compact ? 30 : 34, borderRadius: compact ? 9 : 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Icon size={16} color={color} strokeWidth={2.2} />
         </div>
       </div>
-      <div style={{ fontSize: compact ? (typeof value === "string" && value.length > 10 ? 19 : 24) : (typeof value === "string" && value.length > 10 ? 22 : 29), fontWeight: 800, color: ds.ink, lineHeight: 1.1, wordBreak: "keep-all" }}>
+      <div style={{ fontSize: compact ? (typeof value === "string" && value.length > 10 ? 19 : 24) : (typeof value === "string" && value.length > 10 ? 22 : 29), fontWeight: 800, color: ds.ink, lineHeight: 1.08, wordBreak: "keep-all", overflowWrap: "break-word", minWidth: 0 }}>
         {value}
       </div>
-      <div style={{ fontSize: 12, color: ds.ink4, lineHeight: 1.45 }}>{sub}</div>
+      <div style={{ fontSize: 12, color: ds.ink4, lineHeight: 1.45, minWidth: 0, wordBreak: "keep-all", overflowWrap: "break-word" }}>{sub}</div>
     </div>
   );
 }

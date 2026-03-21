@@ -853,6 +853,7 @@ function ContestCard({
   participantCount,
   onEdit,
   onDelete,
+  compact = false,
 }) {
   const badge = contestBadge(item.status);
   const icon = ICON_POOL[idx % ICON_POOL.length];
@@ -875,7 +876,7 @@ function ContestCard({
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           gap: 12,
           padding: "12px 14px 10px",
         }}
@@ -901,9 +902,11 @@ function ContestCard({
               fontSize: 14,
               fontWeight: 700,
               color: ds.ink,
-              whiteSpace: "nowrap",
+              whiteSpace: compact ? "normal" : "nowrap",
               overflow: "hidden",
-              textOverflow: "ellipsis",
+              textOverflow: compact ? "clip" : "ellipsis",
+              wordBreak: "keep-all",
+              overflowWrap: "break-word",
             }}
           >
             {item.name}
@@ -965,10 +968,11 @@ function ContestCard({
         <div
           style={{
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: compact ? "stretch" : "flex-end",
             gap: 6,
             padding: "7px 14px 10px",
             borderTop: `1px solid #2E3A4E`,
+            flexWrap: compact ? "wrap" : "nowrap",
           }}
         >
           <button
@@ -989,6 +993,8 @@ function ContestCard({
               fontWeight: 700,
               cursor: "pointer",
               fontFamily: ds.ff,
+              flex: compact ? "1 1 0" : "0 0 auto",
+              justifyContent: "center",
             }}
           >
             <Pencil size={11} color="#A8B4CC" /> 수정
@@ -1011,6 +1017,8 @@ function ContestCard({
               fontWeight: 700,
               cursor: "pointer",
               fontFamily: ds.ff,
+              flex: compact ? "1 1 0" : "0 0 auto",
+              justifyContent: "center",
             }}
           >
             <Trash2 size={11} /> 삭제
@@ -1353,6 +1361,9 @@ export default function ContestManage({
   onDetailEnter,
   onDetailLeave,
 }) {
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [items, setItems] = useState([]);
@@ -1368,8 +1379,18 @@ export default function ContestManage({
   const selectedContestRef = useRef(null);
   const [participantsMap, setParticipantsMap] = useState({});
   const [selected, setSelected] = useState(new Set());
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   /* ── 탭 콜백 ── */
   const enterDetail = useCallback(
@@ -1952,7 +1973,7 @@ export default function ContestManage({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))",
               gap: 14,
             }}
           >
@@ -2251,12 +2272,14 @@ export default function ContestManage({
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          alignItems: isMobile ? "stretch" : "center",
           justifyContent: "space-between",
           marginBottom: 20,
+          flexDirection: isMobile ? "column" : "row",
+          gap: isMobile ? 12 : 16,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: isMobile ? "flex-start" : "center", gap: 12, flexDirection: isMobile ? "column" : "row" }}>
           <button
             onClick={leaveDetail}
             style={{
@@ -2302,6 +2325,8 @@ export default function ContestManage({
             cursor: "pointer",
             fontFamily: ds.ff,
             boxShadow: `0 2px 10px ${RED.primary}40`,
+            width: isMobile ? "100%" : "auto",
+            justifyContent: "center",
           }}
         >
           <Plus size={15} /> 콘테스트 추가
@@ -2312,7 +2337,7 @@ export default function ContestManage({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4,1fr)",
+          gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4,1fr)",
           gap: 12,
           marginBottom: 20,
         }}
@@ -2385,7 +2410,7 @@ export default function ContestManage({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: selectedContest ? "380px 1fr" : "1fr",
+          gridTemplateColumns: isMobile ? "1fr" : selectedContest ? "380px 1fr" : "1fr",
           gap: 16,
         }}
       >
@@ -2452,12 +2477,14 @@ export default function ContestManage({
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: isMobile ? "stretch" : "center",
                 justifyContent: "space-between",
                 marginBottom: 10,
+                flexDirection: isMobile ? "column" : "row",
+                gap: isMobile ? 10 : 12,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
                 <Checkbox
                   checked={isAllSelected && items.length > 0}
                   onChange={toggleAll}
@@ -2478,7 +2505,7 @@ export default function ContestManage({
                   </span>
                 )}
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
                 {hasSelected && (
                   <button
                     onClick={() => setModal({ type: "bulkDelete" })}
@@ -2495,6 +2522,8 @@ export default function ContestManage({
                       color: RED.primary,
                       cursor: "pointer",
                       fontFamily: ds.ff,
+                      flex: isMobile ? "1 1 0" : "0 0 auto",
+                      justifyContent: "center",
                     }}
                   >
                     <Trash2 size={11} /> 선택 삭제
@@ -2515,6 +2544,8 @@ export default function ContestManage({
                     color: ds.ink3,
                     cursor: "pointer",
                     fontFamily: ds.ff,
+                    flex: isMobile ? "1 1 0" : "0 0 auto",
+                    justifyContent: "center",
                   }}
                 >
                   <Trash2 size={11} /> 전체 삭제
@@ -2589,6 +2620,7 @@ export default function ContestManage({
                       participantCount={getParticipants(it.programId).length}
                       onEdit={(item) => setModal({ item })}
                       onDelete={(item) => setDeleteTarget(item)}
+                      compact={isMobile}
                     />
                   </div>
                 </div>
@@ -2709,9 +2741,10 @@ export default function ContestManage({
                   position: "relative",
                   zIndex: 1,
                   display: "flex",
-                  alignItems: "center",
+                  alignItems: isMobile ? "flex-start" : "center",
                   gap: 8,
                   textShadow: "0 1px 6px rgba(0,0,0,0.3)",
+                  lineHeight: 1.3,
                 }}
               >
                 <Trophy size={20} /> {selectedContest.name}
@@ -2723,6 +2756,7 @@ export default function ContestManage({
                   marginTop: 10,
                   position: "relative",
                   zIndex: 1,
+                  flexWrap: "wrap",
                 }}
               >
                 <span
@@ -2757,12 +2791,14 @@ export default function ContestManage({
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: isMobile ? "stretch" : "center",
                 justifyContent: "space-between",
                 marginBottom: 16,
+                flexDirection: isMobile ? "column" : "row",
+                gap: isMobile ? 12 : 16,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
                 <div
                   style={{
                     width: 26,
@@ -2817,7 +2853,7 @@ export default function ContestManage({
                   🔄
                 </button>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
                 <button
                   onClick={() => handleVoteStart(true)}
                   style={{
@@ -2833,6 +2869,8 @@ export default function ContestManage({
                     fontWeight: 700,
                     cursor: "pointer",
                     boxShadow: "0 2px 8px rgba(16,185,129,.3)",
+                    flex: isMobile ? "1 1 0" : "0 0 auto",
+                    justifyContent: "center",
                   }}
                 >
                   ▶ 투표 시작
@@ -2852,6 +2890,8 @@ export default function ContestManage({
                     fontWeight: 700,
                     cursor: "pointer",
                     boxShadow: "0 2px 8px rgba(99,102,241,.3)",
+                    flex: isMobile ? "1 1 0" : "0 0 auto",
+                    justifyContent: "center",
                   }}
                 >
                   ⏹ 투표 종료
@@ -2904,7 +2944,7 @@ export default function ContestManage({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(200px, 1fr))",
                   gap: 14,
                 }}
               >

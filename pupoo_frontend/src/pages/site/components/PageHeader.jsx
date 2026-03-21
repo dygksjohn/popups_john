@@ -35,6 +35,7 @@ const styles = {
     margin: 0,
     letterSpacing: "-1px",
     lineHeight: "66px",
+    wordBreak: "keep-all",
   },
   breadcrumb: {
     display: "flex",
@@ -61,6 +62,7 @@ const styles = {
     fontWeight: 400,
     margin: "8px 0 0",
     lineHeight: 1.6,
+    wordBreak: "keep-all",
   },
   searchArea: {
     display: "flex",
@@ -174,7 +176,7 @@ export default function PageHeader({
   const pageHeaderStyle = {
     ...styles.pageHeader,
     paddingTop: isMobile
-      ? "calc(var(--pupoo-site-header-offset, 92px) + 32px)"
+      ? "calc(var(--pupoo-site-header-offset, 96px) + 24px)"
       : isTablet
         ? "calc(var(--pupoo-site-header-height, 72px) + 36px)"
         : styles.pageHeader.paddingTop,
@@ -193,21 +195,21 @@ export default function PageHeader({
     ...styles.topRow,
     flexDirection: isMobile ? "column" : "row",
     alignItems: isMobile ? "flex-start" : styles.topRow.alignItems,
-    gap: isMobile ? 14 : isTablet ? 16 : styles.topRow.gap,
+    gap: isMobile ? 12 : isTablet ? 16 : styles.topRow.gap,
   };
 
   const mergedTitleStyle = {
     ...styles.title,
-    fontSize: isMobile ? 32 : isTablet ? 36 : styles.title.fontSize,
-    lineHeight: isMobile ? "1.15" : isTablet ? "1.22" : styles.title.lineHeight,
+    fontSize: isMobile ? 30 : isTablet ? 36 : styles.title.fontSize,
+    lineHeight: isMobile ? "1.12" : isTablet ? "1.22" : styles.title.lineHeight,
     ...titleStyle,
   };
 
   const mergedSubtitleStyle = {
     ...styles.subtitle,
-    fontSize: isMobile ? 16 : isTablet ? 17 : styles.subtitle.fontSize,
-    margin: isMobile ? "10px 0 0" : isTablet ? "10px 0 0" : styles.subtitle.margin,
-    lineHeight: isMobile ? 1.5 : styles.subtitle.lineHeight,
+    fontSize: isMobile ? 15 : isTablet ? 17 : styles.subtitle.fontSize,
+    margin: isMobile || isTablet ? "10px 0 0" : styles.subtitle.margin,
+    lineHeight: isMobile ? 1.55 : styles.subtitle.lineHeight,
     ...subtitleStyle,
   };
 
@@ -220,17 +222,18 @@ export default function PageHeader({
     paddingTop: isMobile ? 0 : styles.breadcrumb.paddingTop,
     fontSize: isMobile ? 12.5 : styles.breadcrumb.fontSize,
     gap: isMobile ? 4 : styles.breadcrumb.gap,
+    lineHeight: isMobile ? 1.45 : 1,
   };
 
   const searchAreaStyle = {
     ...styles.searchArea,
     width: "100%",
-    padding: isMobile ? "18px 0 0" : isTablet ? "22px 0 0" : styles.searchArea.padding,
+    padding: isMobile ? "16px 0 0" : isTablet ? "22px 0 0" : styles.searchArea.padding,
   };
 
   const tabsStyle = {
     ...styles.tabs,
-    marginTop: isMobile ? 22 : isTablet ? 32 : styles.tabs.marginTop,
+    marginTop: isMobile ? 20 : isTablet ? 32 : styles.tabs.marginTop,
     overflowX: isCompact ? "auto" : "visible",
     overflowY: "hidden",
     flexWrap: isMobile ? "nowrap" : isTablet ? "wrap" : "nowrap",
@@ -244,15 +247,21 @@ export default function PageHeader({
     <div style={pageHeaderStyle} className={className || ""}>
       <div style={innerStyle}>
         <div style={topRowStyle}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 12 }}>
-              {icon && icon}
+          <div style={{ minWidth: 0, width: isMobile ? "100%" : "auto" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: isMobile ? "flex-start" : "center",
+                gap: isMobile ? 10 : 12,
+              }}
+            >
+              {icon && <span style={{ flexShrink: 0 }}>{icon}</span>}
               <h1 style={mergedTitleStyle}>{title}</h1>
             </div>
             {subtitle && <p style={mergedSubtitleStyle}>{subtitle}</p>}
           </div>
           <div style={breadcrumbStyle}>
-            <Home size={12} style={{ color: "#b0b5bd" }} />
+            <Home size={12} style={{ color: "#b0b5bd", flexShrink: 0 }} />
             {breadcrumbItems.map((item, i) => (
               <span key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 {i > 0 && <span style={styles.breadcrumbSep}>{">"}</span>}
@@ -278,7 +287,7 @@ export default function PageHeader({
               let btnStyle = {
                 ...styles.tabBase,
                 flex: isCompact ? "0 0 auto" : styles.tabBase.flex,
-                minWidth: isMobile ? 108 : isTablet ? 136 : undefined,
+                minWidth: isMobile ? 104 : isTablet ? 132 : undefined,
                 padding: isMobile
                   ? "10px 14px"
                   : isTablet
@@ -286,6 +295,7 @@ export default function PageHeader({
                     : styles.tabBase.padding,
                 fontSize: isMobile ? 13.5 : isTablet ? 15 : styles.tabBase.fontSize,
               };
+
               if (isActive) {
                 btnStyle = { ...btnStyle, ...styles.tabActive };
               } else if (isHovered) {

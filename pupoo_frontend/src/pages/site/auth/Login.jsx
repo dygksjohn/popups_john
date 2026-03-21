@@ -242,7 +242,11 @@ const LoginPage = ({ leftBgImage = null }) => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: isMobile ? "12px 10px" : isTablet ? "18px 14px" : "24px 16px",
+          padding: isMobile
+            ? "calc(var(--pupoo-site-header-offset, 112px) + 16px) 10px 16px"
+            : isTablet
+              ? "18px 14px"
+              : "24px 16px",
           background: "linear-gradient(135deg, #EEF2F9 0%, #E3EAF6 100%)",
         }}
       >
@@ -258,7 +262,7 @@ const LoginPage = ({ leftBgImage = null }) => {
               boxShadow:
                 "0 20px 60px rgba(74,100,180,0.18), 0 4px 16px rgba(0,0,0,0.08)",
               minHeight: isMobile ? "auto" : 500,
-              marginTop: isMobile ? 40 : isTablet ? 60 : 100,
+              marginTop: isMobile ? 0 : isTablet ? 60 : 100,
             }}
           >
             {/* Left panel */}

@@ -374,6 +374,7 @@ function WriteModal({ item, onSave, onClose, saving }) {
 
 export default function ServicePage() {
   const navigate = useNavigate();
+  const badge = getBoardBadge("QNA");
   const [currentPath, setCurrentPath] = useState("/community/qna");
   const [filter, setFilter] = useState("전체");
   const [search, setSearch] = useState("");
@@ -811,6 +812,26 @@ export default function ServicePage() {
                         >
                           {statusLabel}
                         </span>
+                        {isMobile && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              minWidth: 38,
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              background: badge.background,
+                              color: badge.color,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              lineHeight: 1,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {badge.shortLabel || badge.label}
+                          </span>
+                        )}
                         <span
                           style={{
                             flex: 1,
