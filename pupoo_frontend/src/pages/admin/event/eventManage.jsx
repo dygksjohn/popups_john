@@ -2343,16 +2343,13 @@ export default function EventManage({ subTab = "all" }) {
                               />
                             )}
                             <div style={{ minWidth: 0, flex: 1 }}>
-                              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                  <div style={{ fontSize: 15, fontWeight: 800, color: ds.ink, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
-                                    {r.name}
-                                  </div>
-                                  <div style={{ fontSize: 11, color: ds.ink4, fontFamily: "monospace", marginTop: 3 }}>
-                                    {r.id}
-                                  </div>
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ fontSize: 15, fontWeight: 800, color: ds.ink, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                                  {r.name}
                                 </div>
-                                <Pill color={st.c} bg={st.bg}>{st.l}</Pill>
+                                <div style={{ fontSize: 11, color: ds.ink4, fontFamily: "monospace", marginTop: 3 }}>
+                                  {r.id}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -2362,24 +2359,43 @@ export default function EventManage({ subTab = "all" }) {
                               <MapPin size={12} color={ds.ink4} /> {r.location}
                             </div>
                           </div>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 8 }}>
                             <div style={{ padding: "10px 12px", borderRadius: 10, background: ds.card, border: `1px solid ${ds.lineSoft}` }}>
                               <div style={{ fontSize: 10.5, color: ds.ink4, marginBottom: 3 }}>참가자</div>
                               <div style={{ fontSize: 15, fontWeight: 800, color: ds.ink }}>{participants.toLocaleString()}</div>
                             </div>
-                            <div style={{ padding: "10px 12px", borderRadius: 10, background: ds.card, border: `1px solid ${ds.lineSoft}` }}>
+                            <div style={{ display: "none", padding: "10px 12px", borderRadius: 10, background: ds.card, border: `1px solid ${ds.lineSoft}` }}>
                               <div style={{ fontSize: 10.5, color: ds.ink4, marginBottom: 3 }}>수용률</div>
                               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                <MiniProgress value={participants} max={capacity} />
-                                <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>{participationPct}%</div>
-                                  <div style={{ fontSize: 10.5, color: ds.ink4 }}>{participants}/{capacity}</div>
-                                </div>
+                                
                               </div>
                             </div>
                           </div>
                         </div>
-                        <Checkbox checked={isChecked} onChange={() => toggleOne(r.id)} />
+                        <div style={{ width: 96, flexShrink: 0, display: "grid", justifyItems: "end", gap: 8 }}>
+                          <Checkbox checked={isChecked} onChange={() => toggleOne(r.id)} />
+                          <Pill color={st.c} bg={st.bg}>{st.l}</Pill>
+                          <div
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              borderRadius: 12,
+                              background: ds.card,
+                              border: `1px solid ${ds.lineSoft}`,
+                              display: "grid",
+                              gap: 6,
+                              justifyItems: "center",
+                            }}
+                          >
+                            <MiniProgress value={participants} max={capacity} />
+                            <div style={{ fontSize: 16, fontWeight: 800, color: ds.ink, lineHeight: 1 }}>
+                              {participationPct}%
+                            </div>
+                            <div style={{ fontSize: 10.5, color: ds.ink4, lineHeight: 1.2, textAlign: "center", wordBreak: "keep-all" }}>
+                              {participants}/{capacity}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginTop: 12 }}>
                         {[
