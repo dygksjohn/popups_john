@@ -743,8 +743,8 @@ export default function PupooHeader() {
   const textColor = isWhiteMode ? "#222" : "#fff";
   const iconColor = isWhiteMode ? "#222" : "#fff";
   const mobileActionIconStyle = {
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
     borderRadius: 999,
     border: isWhiteMode ? "1px solid #e7ebf0" : "1px solid rgba(255,255,255,0.18)",
     background: isWhiteMode ? "#fff" : "rgba(255,255,255,0.12)",
@@ -1090,35 +1090,49 @@ export default function PupooHeader() {
 
             <div
               className="pupoo-mobile-only"
-              style={{ display: "none", alignItems: "center", gap: 8, flexShrink: 0 }}
+              style={{
+                display: "none",
+                alignItems: "center",
+                gap: 10,
+                flexShrink: 0,
+                marginLeft: "auto",
+                position: "relative",
+                zIndex: 2,
+              }}
             >
               <button
                 type="button"
                 style={{ ...mobileActionIconStyle, cursor: "pointer" }}
+                aria-label="검색"
+                title="검색"
                 onClick={() => {
                   setSearchOpen((v) => !v);
                   setActiveMenu(null);
                   setMobileMenuOpen(false);
                 }}
               >
-                <Search size={17} color={iconColor} strokeWidth={1.8} />
+                <Search size={19} color={iconColor} strokeWidth={1.8} />
               </button>
               {isAuthed ? (
                 <>
                   <Link
                     to="/mypage"
                     style={mobileActionIconStyle}
+                    aria-label="마이페이지"
+                    title="마이페이지"
                     onClick={() => {
                       setActiveMenu(null);
                       setSearchOpen(false);
                       setMobileMenuOpen(false);
                     }}
                   >
-                    <UserCircle size={17} color={iconColor} strokeWidth={1.8} />
+                    <UserCircle size={19} color={iconColor} strokeWidth={1.8} />
                   </Link>
                   <button
                     type="button"
                     style={{ ...mobileActionIconStyle, cursor: "pointer" }}
+                    aria-label="로그아웃"
+                    title="로그아웃"
                     onClick={() => {
                       logout();
                       setActiveMenu(null);
@@ -1127,20 +1141,22 @@ export default function PupooHeader() {
                       navigate("/", { replace: true });
                     }}
                   >
-                    <LogOut size={17} color={iconColor} strokeWidth={1.8} />
+                    <LogOut size={19} color={iconColor} strokeWidth={1.8} />
                   </button>
                 </>
               ) : (
                 <Link
                   to="/auth/login"
                   style={mobileActionIconStyle}
+                  aria-label="로그인"
+                  title="로그인"
                   onClick={() => {
                     setActiveMenu(null);
                     setSearchOpen(false);
                     setMobileMenuOpen(false);
                   }}
                 >
-                  <LogIn size={17} color={iconColor} strokeWidth={1.8} />
+                  <LogIn size={19} color={iconColor} strokeWidth={1.9} />
                 </Link>
               )}
             </div>
