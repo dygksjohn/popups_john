@@ -1989,11 +1989,14 @@ export default function BoardManage({ subTab = "free" }) {
       try {
         if (boardType === "free" || boardType === "info") {
           const postId = f.postId || f.id;
+          const postTitle = (f.title ?? f.postTitle ?? "").trim();
+          const content = f.content ?? "";
+          // 관리자는 작성자가 아닐 수 있으므로 /api/admin/posts (일반 PUT은 본인 글만 가능 → 403)
           await axiosInstance.put(
-            `/api/posts/${postId}`,
+            `/api/admin/posts/${postId}`,
             {
-              postTitle: f.title,
-              content: f.content || "",
+              postTitle,
+              content,
             },
             { headers: authHeaders() },
           );
@@ -2024,7 +2027,13 @@ export default function BoardManage({ subTab = "free" }) {
         fetchBoardData(boardType);
       } catch (err) {
         console.error(`[BoardManage] ${boardType} update error:`, err);
-        showToast("수정에 실패했습니다.", "error");
+        const msg =
+          err?.response?.data?.error?.message ||
+          err?.response?.data?.message ||
+          err?.response?.data?.data?.message ||
+          err?.message ||
+          "수정에 실패했습니다.";
+        showToast(String(msg), "error");
       } finally {
         setSaving(false);
       }
@@ -2057,9 +2066,11 @@ export default function BoardManage({ subTab = "free" }) {
       try {
         if (boardType === "free" || boardType === "info") {
           const postId = item.postId || id;
-          await axiosInstance.delete(`/api/posts/${postId}`, {
-            headers: authHeaders(),
-          });
+          await axiosInstance.patch(
+            `/api/admin/posts/${postId}/delete`,
+            {},
+            { headers: authHeaders() },
+          );
         } else if (boardType === "review") {
           const reviewId = item.reviewId || id;
           await axiosInstance.delete(

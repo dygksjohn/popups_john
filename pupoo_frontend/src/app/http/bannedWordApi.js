@@ -8,6 +8,9 @@
  * 관리자 정책 API
  * - GET /api/admin/moderation/policies/active
  * - POST /api/admin/moderation/policies/upload
+ *
+ * AI 모더레이션 BLOCK 로그
+ * - GET /api/admin/moderation/logs?boardId=&page=&size=
  */
 import { axiosInstance } from "./axiosInstance";
 
@@ -40,6 +43,23 @@ export const bannedWordApi = {
   delete(bannedWordId) {
     return axiosInstance
       .delete(`/api/admin/banned-words/${bannedWordId}`)
+      .then((res) => unwrap(res));
+  },
+};
+
+export const moderationLogsApi = {
+  /**
+   * @param {number} page
+   * @param {number} size
+   * @param {number} [boardId] - 없으면 전체 게시판 로그
+   */
+  list(page = 0, size = 10, boardId) {
+    const params = { page, size };
+    if (boardId != null && boardId !== "") {
+      params.boardId = boardId;
+    }
+    return axiosInstance
+      .get("/api/admin/moderation/logs", { params })
       .then((res) => unwrap(res));
   },
 };

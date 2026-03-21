@@ -46,7 +46,10 @@ public class ReviewService {
 
         ModerationResult modResult = null;
         if (!bannedWordService.shouldSkipModeration(userId)) {
-            modResult = moderationClient.moderate(request.getContent() != null ? request.getContent() : "", reviewBoardId, "POST");
+            String effectiveTitle = resolveReviewTitleForModeration(
+                    request.getReviewTitle(), request.getContent());
+            String textToModerate = buildReviewModerationText(effectiveTitle, request.getContent());
+            modResult = moderationClient.moderate(textToModerate, reviewBoardId, "POST");
             if (modResult != null && modResult.isBlock()) {
                 // 생성 단계에서 BLOCK 된 후기 역시 로그에 남긴다 (contentId는 아직 없음).
                 bannedWordService.logAiModeration(
@@ -62,7 +65,8 @@ public class ReviewService {
             }
         }
 
-        String reviewTitle = deriveTitleFromContent(request.getContent());
+        // 저장 제목은 모더레이션과 동일: 요청 제목이 있으면 사용, 없으면 본문 첫 줄 유도
+        String reviewTitle = resolveReviewTitleForModeration(request.getReviewTitle(), request.getContent());
 
         Review review = Review.builder()
                 .eventId(request.getEventId())
@@ -152,8 +156,9 @@ public class ReviewService {
                 .map(b -> b.getBoardId()).orElse(null);
 
         if (!bannedWordService.shouldSkipModeration(userId) && reviewBoardId != null) {
-            ModerationResult modResult = moderationClient.moderate(
-                    request.getContent() != null ? request.getContent() : "", reviewBoardId, "POST");
+            String effectiveTitle = resolveReviewTitleForUpdate(request, review);
+            String textToModerate = buildReviewModerationText(effectiveTitle, request.getContent());
+            ModerationResult modResult = moderationClient.moderate(textToModerate, reviewBoardId, "POST");
             if (modResult != null && modResult.isBlock()) {
                 bannedWordService.logAiModeration(
                         reviewBoardId, reviewId, BannedLogContentType.POST, userId, modResult);
@@ -214,6 +219,38 @@ public class ReviewService {
         if (content == null || content.isBlank()) return "행사 후기";
         String firstLine = content.lines().map(String::trim).filter(s -> !s.isEmpty()).findFirst().orElse("행사 후기");
         return firstLine.length() > 255 ? firstLine.substring(0, 255) : firstLine;
+    }
+
+    /**
+     * AI 모더레이션 입력: 제목 + 본문 (게시글 PostService와 동일하게 결합).
+     */
+    private static String buildReviewModerationText(String title, String content) {
+        String t = title != null ? title.trim() : "";
+        String c = content != null ? content : "";
+        return (t + " " + c).trim();
+    }
+
+    /**
+     * 생성 시 모더레이션에 쓸 제목: 요청에 제목이 있으면 그대로, 없으면 본문에서 유도(저장 로직과 동일).
+     */
+    private static String resolveReviewTitleForModeration(String reviewTitle, String content) {
+        if (reviewTitle != null && !reviewTitle.isBlank()) {
+            return reviewTitle.trim();
+        }
+        return deriveTitleFromContent(content);
+    }
+
+    /**
+     * 수정 시 모더레이션에 쓸 제목: {@link ReviewService#update} 의 reviewTitle 빌더와 동일한 규칙.
+     */
+    private static String resolveReviewTitleForUpdate(ReviewUpdateRequest request, Review review) {
+        if (request.getReviewTitle() != null) {
+            return request.getReviewTitle().trim();
+        }
+        if (review.getReviewTitle() != null) {
+            return review.getReviewTitle().trim();
+        }
+        return deriveTitleFromContent(request.getContent());
     }
 
     private void validatePageRequest(int page, int size) {
