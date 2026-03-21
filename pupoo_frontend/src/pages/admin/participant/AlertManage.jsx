@@ -493,6 +493,7 @@ function SlidePanel({
   events = [],
   filter = "all",
 }) {
+  const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
   const initialCreateFilter = useMemo(() => {
     if (item) {
       const itemMode = resolveAlertMode(item, filter);
@@ -712,7 +713,8 @@ function SlidePanel({
           right: 0,
           bottom: 0,
           zIndex: 5000,
-          width: 440,
+          width: isMobile ? "100%" : 440,
+          maxWidth: "100%",
           background: ds.card,
           boxShadow: "-4px 0 30px rgba(0,0,0,0.08)",
           display: "flex",
@@ -1015,6 +1017,9 @@ function SlidePanel({
    메인 컴포넌트
    ═══════════════════════════════════════════ */
 export default function AlertManage() {
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [items, setItems] = useState([]);
   const [events, setEvents] = useState([]);
   const [modal, setModal] = useState(null);
@@ -1075,6 +1080,14 @@ export default function AlertManage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
   const eventMap = useMemo(
     () =>
       new Map(
@@ -1086,6 +1099,7 @@ export default function AlertManage() {
   );
 
   const visible = items;
+  const isMobile = viewportWidth < 768;
   const sent = visible.filter((e) => e.status === "sent").length;
   const draft = visible.filter((e) => e.status === "draft").length;
   const totalTarget = visible
@@ -1190,7 +1204,7 @@ export default function AlertManage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
+          gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(3, 1fr)",
           gap: 12,
           marginBottom: 16,
         }}
@@ -1272,12 +1286,14 @@ export default function AlertManage() {
           style={{
             padding: "12px 20px",
             display: "flex",
-            alignItems: "center",
+            alignItems: isMobile ? "stretch" : "center",
             justifyContent: "space-between",
             borderBottom: `1px solid ${ds.line}`,
+            flexDirection: isMobile ? "column" : "row",
+            gap: 12,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
             <Checkbox
               checked={selected.length === rows.length && rows.length > 0}
               onChange={toggleAll}
@@ -1310,14 +1326,14 @@ export default function AlertManage() {
               </button>
             )}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
             <div style={{ position: "relative" }}>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="검색"
                 style={{
-                  width: 160,
+                  width: isMobile ? "100%" : 160,
                   padding: "6px 12px 6px 30px",
                   borderRadius: 7,
                   border: `1px solid ${ds.line}`,
@@ -1356,6 +1372,9 @@ export default function AlertManage() {
                 fontWeight: 700,
                 cursor: "pointer",
                 fontFamily: ds.ff,
+                minHeight: 40,
+                justifyContent: "center",
+                flex: isMobile ? "1 1 100%" : "0 0 auto",
               }}
             >
               <Plus size={13} strokeWidth={2.5} /> 알림 작성
@@ -1376,7 +1395,18 @@ export default function AlertManage() {
                   filter: r.filterGroup || eventStatusFilter,
                 })
               }
-              style={{
+              style={isMobile ? {
+                display: "grid",
+                gap: 10,
+                padding: "14px 16px",
+                borderBottom: `1px solid ${ds.lineSoft}`,
+                cursor: "pointer",
+                transition: "background .1s",
+                position: "relative",
+                background: selected.includes(r.id)
+                  ? `${ds.brand}06`
+                  : "transparent",
+              } : {
                 display: "flex",
                 alignItems: "center",
                 padding: "14px 20px",
@@ -1399,12 +1429,138 @@ export default function AlertManage() {
                   : "transparent")
               }
             >
-              <div style={{ marginRight: 12, flexShrink: 0 }}>
+              <div style={{ marginRight: isMobile ? 0 : 12, flexShrink: 0 }}>
                 <Checkbox
                   checked={selected.includes(r.id)}
                   onChange={() => toggle(r.id)}
                 />
               </div>
+              {isMobile ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <StatusDot
+                      status={r.status}
+                      label={r.status === "sent" ? "발송" : "임시"}
+                    />
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: ds.ink4,
+                        textAlign: "right",
+                      }}
+                    >
+                      {r.sentDate || "-"}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 13.5,
+                      color: ds.ink,
+                      fontWeight: 700,
+                      minWidth: 0,
+                      wordBreak: "keep-all",
+                    }}
+                  >
+                    {r.title}
+                  </span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                    <span
+                      style={{
+                        fontSize: 11.5,
+                        color: ds.ink4,
+                        maxWidth: "100%",
+                        wordBreak: "keep-all",
+                      }}
+                      title={r.eventName}
+                    >
+                      {r.eventName || "전체"}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: "2px 10px",
+                        borderRadius: 5,
+                        background: ds.brandSoft,
+                        color: ds.brand,
+                        minWidth: 48,
+                        textAlign: "center",
+                      }}
+                    >
+                      {r.targetCount == null ? "전체" : `${r.targetCount}명`}
+                    </span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: r.status === "draft" ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                    {r.status === "draft" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModal({ type: "send", item: r });
+                        }}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: `1px solid ${ds.green}25`,
+                          background: ds.greenSoft,
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          color: ds.green,
+                          cursor: "pointer",
+                          fontFamily: ds.ff,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        발송
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPanel({
+                          type: "edit",
+                          item: r,
+                          filter: r.filterGroup || eventStatusFilter,
+                        });
+                      }}
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        border: `1px solid ${ds.brand}25`,
+                        background: `${ds.brand}08`,
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        color: ds.brand,
+                        cursor: "pointer",
+                        fontFamily: ds.ff,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      수정
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setModal({ type: "delete", item: r });
+                      }}
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        border: `1px solid ${ds.red}22`,
+                        background: ds.redSoft,
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        color: ds.red,
+                        cursor: "pointer",
+                        fontFamily: ds.ff,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
               <div style={{ width: 56, flexShrink: 0, marginRight: 10 }}>
                 <StatusDot
                   status={r.status}
@@ -1583,6 +1739,8 @@ export default function AlertManage() {
                   </button>
                 </div>
               </div>
+                </>
+              )}
             </div>
           ))}
         </div>

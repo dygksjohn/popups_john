@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 function buildPageItems(currentPage, totalPages) {
@@ -38,12 +38,25 @@ export default function CommunityPagination({
   totalPages = 1,
   onChange,
 }) {
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const pageItems = useMemo(
     () => buildPageItems(currentPage, totalPages),
     [currentPage, totalPages],
   );
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
   if (totalPages <= 1) return null;
+
+  const isMobile = viewportWidth < 768;
 
   const moveToPage = (nextPage) => {
     const parsed = Number(nextPage);
@@ -53,6 +66,90 @@ export default function CommunityPagination({
       onChange(safePage);
     }
   };
+
+  if (isMobile) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          marginTop: 28,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => moveToPage(currentPage - 1)}
+          disabled={currentPage <= 1}
+          style={{
+            minWidth: 72,
+            height: 40,
+            borderRadius: 999,
+            border: "1px solid #e5e7eb",
+            background: "#fff",
+            color: currentPage <= 1 ? "#d1d5db" : "#4b5563",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            cursor: currentPage <= 1 ? "default" : "pointer",
+            padding: "0 14px",
+            fontSize: 13,
+            fontWeight: 700,
+            fontFamily: "inherit",
+          }}
+        >
+          <ChevronLeft size={16} />
+          이전
+        </button>
+
+        <div
+          style={{
+            minWidth: 78,
+            height: 40,
+            borderRadius: 999,
+            background: "#f3f4f6",
+            color: "#111827",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "0 14px",
+            fontSize: 13,
+            fontWeight: 800,
+          }}
+        >
+          {currentPage} / {totalPages}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => moveToPage(currentPage + 1)}
+          disabled={currentPage >= totalPages}
+          style={{
+            minWidth: 72,
+            height: 40,
+            borderRadius: 999,
+            border: "1px solid #e5e7eb",
+            background: "#fff",
+            color: currentPage >= totalPages ? "#d1d5db" : "#4b5563",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            cursor: currentPage >= totalPages ? "default" : "pointer",
+            padding: "0 14px",
+            fontSize: 13,
+            fontWeight: 700,
+            fontFamily: "inherit",
+          }}
+        >
+          다음
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -470,26 +470,6 @@ export default function Review() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
                         <BadgeTag badge={badge} style={isMobile ? { ...badge.style, padding: "4px 10px", fontSize: 11 } : undefined} />
-                        {isMobile && (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minWidth: 44,
-                              padding: "4px 10px",
-                              borderRadius: 999,
-                              background: "#F1F5F9",
-                              color: "#475569",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              lineHeight: 1,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {eventLabel}
-                          </span>
-                        )}
                         {!isMobile && (
                           <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 44, padding: "4px 10px", borderRadius: 999, background: "#F1F5F9", color: "#475569", fontSize: 12, fontWeight: 600, lineHeight: 1 }}>
                             {eventLabel}

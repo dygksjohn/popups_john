@@ -100,6 +100,9 @@ function MiniProgress({ pct }) {
 }
 
 export default function PastEvents() {
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
@@ -133,6 +136,14 @@ export default function PastEvents() {
         setLoading(false);
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
   const ev = selectedId
@@ -219,10 +230,130 @@ export default function PastEvents() {
   const avgCongestion = Math.round(
     events.reduce((a, b) => a + (b.avgCongestion || 0), 0) / events.length,
   );
+  const isMobile = viewportWidth < 768;
   const capacityPct =
     ev.capacity > 0
       ? Math.round(((ev.participants || 0) / ev.capacity) * 100)
       : 0;
+
+  const detailPanels = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div
+        style={{
+          background: ds.card,
+          borderRadius: 14,
+          border: `1px solid ${ds.line}`,
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ height: 100, position: "relative", background: ev.imageUrl ? "#000" : ds.brand }}>
+          {ev.imageUrl && <img src={resolveImageUrl(ev.imageUrl)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.7 }} />}
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.5) 100%)" }} />
+          <div style={{ position: "absolute", bottom: 12, left: 16, right: 16, zIndex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.3)" }}>{ev.name}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 3 }}><CalendarDays size={10} /> {ev.date}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 3 }}><MapPin size={10} /> {ev.location}</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ padding: "16px 16px 18px" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 8,
+              marginBottom: 16,
+            }}
+          >
+            {[
+              { l: "참가자", v: (ev.participants || 0).toLocaleString(), c: ds.brand },
+              { l: "수용 인원", v: (ev.capacity || 0).toLocaleString(), c: "#8B5CF6" },
+              { l: "체험존 이용률", v: `${ev.zoneUsage || 0}%`, c: "#10B981" },
+              { l: "이벤트 참여율", v: `${ev.eventRate || 0}%`, c: "#F59E0B" },
+            ].map((s) => (
+              <div
+                key={s.l}
+                style={{
+                  padding: "12px 12px",
+                  borderRadius: 10,
+                  background: ds.bg,
+                  borderLeft: `3px solid ${s.c}`,
+                }}
+              >
+                <div style={{ fontSize: 10, color: ds.ink4, marginBottom: 4, fontWeight: 600 }}>{s.l}</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: ds.ink }}>{s.v}</div>
+              </div>
+            ))}
+          </div>
+          <MiniProgress pct={capacityPct} />
+        </div>
+      </div>
+
+      <div
+        style={{
+          background: ds.card,
+          borderRadius: 14,
+          border: `1px solid ${ds.line}`,
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 800,
+            color: ds.ink,
+            marginBottom: 16,
+          }}
+        >
+          시간대별 혼잡도
+        </div>
+        <ResponsiveContainer width="100%" height={150}>
+          <AreaChart data={DATA.pastHourlyCongestion}>
+            <defs>
+              <linearGradient id="gCong" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={ds.ink4} stopOpacity={0.12} />
+                <stop offset="100%" stopColor={ds.ink4} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(255,255,255,0.08)"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="time"
+              tick={{ fontSize: 10, fill: ds.ink4 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 10, fill: ds.ink4 }}
+              axisLine={false}
+              tickLine={false}
+              width={28}
+              tickFormatter={(v) => `${v}%`}
+              domain={[0, 100]}
+            />
+            <Tooltip content={<ChartTooltip />} />
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke={ds.ink3}
+              strokeWidth={2}
+              fill="url(#gCong)"
+              dot={{
+                r: 3,
+                fill: ds.ink3,
+                stroke: "#fff",
+                strokeWidth: 2,
+              }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -230,7 +361,7 @@ export default function PastEvents() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, 1fr)",
           gap: 12,
           marginBottom: 16,
         }}
@@ -266,7 +397,7 @@ export default function PastEvents() {
       </div>
 
       <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 14 }}
+        style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: 14 }}
       >
         {/* 테이블 */}
         <div
@@ -293,6 +424,58 @@ export default function PastEvents() {
               {events.length}건
             </span>
           </div>
+          {isMobile ? (
+            <div style={{ display: "grid", gap: 10, padding: 12 }}>
+              {events.map((r, idx) => {
+                const rid = r.id || r.eventId;
+                const active = (ev.id || ev.eventId) === rid;
+                const rankColors = ["#F59E0B", "#94A3B8", "#CD7F32", ds.ink4];
+                return (
+                  <button
+                    key={rid}
+                    type="button"
+                    onClick={() => setSelectedId(rid)}
+                    style={{
+                      border: active ? `1px solid ${ds.brand}` : `1px solid ${ds.line}`,
+                      background: active ? `${ds.brand}08` : ds.bg,
+                      borderRadius: 12,
+                      padding: 12,
+                      display: "grid",
+                      gap: 10,
+                      textAlign: "left",
+                      cursor: "pointer",
+                      fontFamily: ds.ff,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {r.imageUrl ? (
+                        <img src={resolveImageUrl(r.imageUrl)} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", border: `1px solid ${ds.line}`, flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 48, height: 48, borderRadius: 10, background: `${rankColors[Math.min(idx, 3)]}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: rankColors[Math.min(idx, 3)] }}>{idx + 1}</span>
+                        </div>
+                      )}
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: active ? ds.brand : ds.ink, wordBreak: "keep-all" }}>{r.name}</div>
+                        <div style={{ fontSize: 11, color: ds.ink4, marginTop: 3 }}>{r.date}</div>
+                        <div style={{ fontSize: 11, color: ds.ink4, marginTop: 2, wordBreak: "keep-all" }}>{r.location}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                      <div style={{ padding: "10px 12px", borderRadius: 10, background: ds.card, border: `1px solid ${ds.lineSoft}` }}>
+                        <div style={{ fontSize: 10.5, color: ds.ink4, marginBottom: 3 }}>참가자</div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>{(r.participants || 0).toLocaleString()}</div>
+                      </div>
+                      <div style={{ padding: "10px 12px", borderRadius: 10, background: ds.card, border: `1px solid ${ds.lineSoft}` }}>
+                        <div style={{ fontSize: 10.5, color: ds.ink4, marginBottom: 3 }}>참여율</div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>{r.eventRate || 0}%</div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${ds.line}` }}>
@@ -386,6 +569,7 @@ export default function PastEvents() {
               })}
             </tbody>
           </table>
+          )}
         </div>
 
         {/* 우측 상세 */}
