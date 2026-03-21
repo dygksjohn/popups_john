@@ -974,12 +974,10 @@ export default function PupooHeader() {
               width: "100%",
               margin: "0 auto",
               padding: isMobile ? "0 12px" : isTablet ? "0 20px" : "0 40px",
-              paddingRight: isMobile ? 148 : isTablet ? 20 : 40,
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
+              justifyContent: isMobile ? "flex-start" : "space-between",
               height: "100%",
-              position: "relative",
             }}
           >
             {/* ?? LEFT: Logo ?? */}
@@ -1097,11 +1095,7 @@ export default function PupooHeader() {
                 alignItems: "center",
                 gap: 10,
                 flexShrink: 0,
-                position: "absolute",
-                right: 12,
-                top: "50%",
-                transform: "translateY(-50%)",
-                zIndex: 5,
+                marginLeft: 12,
               }}
             >
               <button
