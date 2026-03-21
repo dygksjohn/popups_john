@@ -2152,7 +2152,7 @@ export default function EventManage({ subTab = "all" }) {
               }}
             >
               {/* 좌: 제목 + 건수 + 날짜필터 */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: isMobile ? "stretch" : "center", flexDirection: isMobile ? "column" : "row", gap: 10, flexWrap: "wrap", minWidth: 0, width: isMobile ? "100%" : "auto" }}>
                 <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>
                   행사 목록
                 </span>
@@ -2168,14 +2168,16 @@ export default function EventManage({ subTab = "all" }) {
                 >
                   {rows.length}
                 </span>
-                <div
-                  style={{
-                    width: 1,
-                    height: 16,
-                    background: ds.line,
-                    margin: "0 2px",
-                  }}
-                />
+                {!isMobile && (
+                  <div
+                    style={{
+                      width: 1,
+                      height: 16,
+                      background: ds.line,
+                      margin: "0 2px",
+                    }}
+                  />
+                )}
                 <DateFilterInline
                   startDate={dateFrom}
                   endDate={dateTo}
@@ -2203,6 +2205,9 @@ export default function EventManage({ subTab = "all" }) {
                       cursor: "pointer",
                       fontFamily: ds.ff,
                       animation: "fadeIn .15s ease",
+                      flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto",
+                      justifyContent: "center",
+                      minHeight: 40,
                     }}
                   >
                     <Trash2 size={12} /> 선택 삭제 ({selected.size})
@@ -2225,6 +2230,9 @@ export default function EventManage({ subTab = "all" }) {
                       cursor: "pointer",
                       fontFamily: ds.ff,
                       transition: "all .1s",
+                      flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto",
+                      justifyContent: "center",
+                      minHeight: 40,
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = `${ds.red}33`;
@@ -2258,6 +2266,7 @@ export default function EventManage({ subTab = "all" }) {
                     transition: "transform .1s",
                     width: isMobile ? "100%" : "auto",
                     justifyContent: "center",
+                    minHeight: 44,
                   }}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.transform = "translateY(-1px)")
@@ -2273,11 +2282,14 @@ export default function EventManage({ subTab = "all" }) {
 
             {/* 테이블 헤드 */}
             {isMobile ? (
-              <div style={{ display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", flexDirection: "column", padding: 12, gap: 12 }}>
                 {rows.map((r) => {
                   const st = statusMap[r.status];
                   const isRemoving = removing === r.id;
                   const isChecked = selected.has(r.id);
+                  const capacity = Number(r.capacity || 500);
+                  const participants = Number(r.participants || 0);
+                  const participationPct = capacity > 0 ? Math.min(Math.round((participants / capacity) * 100), 999) : 0;
                   return (
                     <div
                       key={r.id}
@@ -2285,21 +2297,22 @@ export default function EventManage({ subTab = "all" }) {
                       onClick={() => setModal({ type: "detail", item: r })}
                       style={{
                         padding: "14px",
-                        borderBottom: `1px solid ${ds.lineSoft}`,
-                        background: isChecked ? `${ds.brand}06` : "transparent",
+                        border: `1px solid ${isChecked ? `${ds.brand}55` : ds.line}`,
+                        borderRadius: 14,
+                        background: isChecked ? `${ds.brand}06` : ds.bg,
                         cursor: "pointer",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                        <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ minWidth: 0, flex: 1, display: "grid", gap: 10 }}>
                           <div style={{ display: "flex", gap: 10, minWidth: 0 }}>
                             {r.imageUrl && (
                               <img
                                 src={resolveImageUrl(r.imageUrl)}
                                 alt=""
                                 style={{
-                                  width: 40,
-                                  height: 40,
+                                  width: 48,
+                                  height: 48,
                                   borderRadius: 10,
                                   objectFit: "cover",
                                   flexShrink: 0,
@@ -2307,31 +2320,46 @@ export default function EventManage({ subTab = "all" }) {
                                 }}
                               />
                             )}
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: 14, fontWeight: 800, color: ds.ink, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
-                                {r.name}
-                              </div>
-                              <div style={{ fontSize: 11, color: ds.ink4, fontFamily: "monospace", marginTop: 2 }}>
-                                {r.id}
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div style={{ fontSize: 15, fontWeight: 800, color: ds.ink, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
+                                    {r.name}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: ds.ink4, fontFamily: "monospace", marginTop: 3 }}>
+                                    {r.id}
+                                  </div>
+                                </div>
+                                <Pill color={st.c} bg={st.bg}>{st.l}</Pill>
                               </div>
                             </div>
                           </div>
-                          <div style={{ display: "grid", gap: 6, marginTop: 10, fontSize: 12.5, color: ds.ink3 }}>
+                          <div style={{ display: "grid", gap: 6, fontSize: 12.5, color: ds.ink3 }}>
                             <div style={{ whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>{r.date}</div>
                             <div style={{ display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "normal", wordBreak: "keep-all", overflowWrap: "break-word" }}>
                               <MapPin size={12} color={ds.ink4} /> {r.location}
                             </div>
                           </div>
-                          <div style={{ marginTop: 10 }}>
-                            <MiniProgress value={r.participants} max={r.capacity || 500} />
-                          </div>
-                          <div style={{ marginTop: 10 }}>
-                            <Pill color={st.c} bg={st.bg}>{st.l}</Pill>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                            <div style={{ padding: "10px 12px", borderRadius: 10, background: ds.card, border: `1px solid ${ds.lineSoft}` }}>
+                              <div style={{ fontSize: 10.5, color: ds.ink4, marginBottom: 3 }}>참가자</div>
+                              <div style={{ fontSize: 15, fontWeight: 800, color: ds.ink }}>{participants.toLocaleString()}</div>
+                            </div>
+                            <div style={{ padding: "10px 12px", borderRadius: 10, background: ds.card, border: `1px solid ${ds.lineSoft}` }}>
+                              <div style={{ fontSize: 10.5, color: ds.ink4, marginBottom: 3 }}>수용률</div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <MiniProgress value={participants} max={capacity} />
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>{participationPct}%</div>
+                                  <div style={{ fontSize: 10.5, color: ds.ink4 }}>{participants}/{capacity}</div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                         <Checkbox checked={isChecked} onChange={() => toggleOne(r.id)} />
                       </div>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginTop: 12 }}>
                         {[
                           { label: "상세", fn: () => setModal({ type: "detail", item: r }), color: ds.ink3, border: ds.line, bg: ds.card },
                           { label: "수정", fn: () => setPanel({ type: "edit", item: r }), color: ds.brand, border: `${ds.brand}25`, bg: `${ds.brand}06` },
@@ -2345,10 +2373,9 @@ export default function EventManage({ subTab = "all" }) {
                               action.fn();
                             }}
                             style={{
-                              flex: "1 1 0",
                               minWidth: 0,
-                              padding: "8px 10px",
-                              borderRadius: 8,
+                              padding: "9px 10px",
+                              borderRadius: 10,
                               border: `1px solid ${action.border}`,
                               background: action.bg,
                               color: action.color,
