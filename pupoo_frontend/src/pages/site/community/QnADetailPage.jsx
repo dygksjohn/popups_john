@@ -17,6 +17,21 @@ function fmtDate(value) {
   ).padStart(2, "0")}`;
 }
 
+function hasAnswer(item) {
+  const normalizedStatus = String(item?.status ?? item?.answerStatus ?? "").trim().toUpperCase();
+  if (["CLOSED", "ANSWERED", "COMPLETED", "RESOLVED", "DONE"].includes(normalizedStatus)) {
+    return true;
+  }
+  if (["OPEN", "PENDING", "WAITING", "UNANSWERED"].includes(normalizedStatus)) {
+    return false;
+  }
+  return (
+    Boolean(String(item?.answerContent ?? item?.answer ?? "").trim()) ||
+    Boolean(item?.answeredAt) ||
+    Boolean(item?.answerDate)
+  );
+}
+
 export default function QnADetailPage() {
   const navigate = useNavigate();
   const { qnaId } = useParams();
@@ -74,7 +89,7 @@ export default function QnADetailPage() {
       { label: "조회수", value: item.viewCount ?? 0 },
       {
         label: "상태",
-        value: item.status === "CLOSED" ? "답변 완료" : "미답변",
+        value: hasAnswer(item) ? "답변 완료" : "미답변",
       },
     ];
   }, [item]);

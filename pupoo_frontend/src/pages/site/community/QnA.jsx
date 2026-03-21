@@ -22,6 +22,7 @@ import {
 import { qnaApi, unwrap } from "../../../api/qnaApi";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
+import BadgeTag from "./shared/BadgeTag";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 
 const FILTER_OPTIONS = [
@@ -47,7 +48,18 @@ function toTimestamp(value) {
 }
 
 function hasAnswer(item) {
-  return Boolean(String(item?.answerContent ?? "").trim()) || Boolean(item?.answeredAt);
+  const normalizedStatus = String(item?.status ?? item?.answerStatus ?? "").trim().toUpperCase();
+  if (["CLOSED", "ANSWERED", "COMPLETED", "RESOLVED", "DONE"].includes(normalizedStatus)) {
+    return true;
+  }
+  if (["OPEN", "PENDING", "WAITING", "UNANSWERED"].includes(normalizedStatus)) {
+    return false;
+  }
+  return (
+    Boolean(String(item?.answerContent ?? item?.answer ?? "").trim()) ||
+    Boolean(item?.answeredAt) ||
+    Boolean(item?.answerDate)
+  );
 }
 
 /* toast */
@@ -812,26 +824,7 @@ export default function ServicePage() {
                         >
                           {statusLabel}
                         </span>
-                        {isMobile && (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minWidth: 38,
-                              padding: "4px 10px",
-                              borderRadius: 999,
-                              background: badge.background,
-                              color: badge.color,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              lineHeight: 1,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {badge.shortLabel || badge.label}
-                          </span>
-                        )}
+                        <BadgeTag badge={badge} style={isMobile ? { ...badge.style, padding: "4px 10px", fontSize: 11 } : undefined} />
                         <span
                           style={{
                             flex: 1,

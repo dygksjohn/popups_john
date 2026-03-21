@@ -22,6 +22,7 @@ import { eventApi } from "../../../app/http/eventApi";
 import { reviewReplyApi } from "../../../app/http/replyApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
+import BadgeTag from "./shared/BadgeTag";
 import { htmlToPlainText } from "./shared/communityHtml";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 
@@ -185,7 +186,7 @@ export default function Review() {
     const keyword = search.trim().toLowerCase();
     const filtered = items.filter((item) => {
       const eventName = String(eventNameMap[item.eventId] || item.eventName || "").toLowerCase();
-      const title = String(item.reviewTitle || "").toLowerCase();
+      const title = String(item.reviewTitle || item.title || "").toLowerCase();
       const text = htmlToPlainText(item.content || "").toLowerCase();
       return !keyword || title.includes(keyword) || text.includes(keyword) || eventName.includes(keyword);
     });
@@ -437,6 +438,7 @@ export default function Review() {
               {pagedItems.map((item, index) => {
                 const commentCount = Number(commentCountMap[item.reviewId] || 0);
                 const eventLabel = eventNameMap[item.eventId] || item.eventName || `행사 ${item.eventId}`;
+                const reviewTitle = item.reviewTitle || item.title || "행사 후기";
                 const authorLabel =
                   item?.author ||
                   item?.nickname ||
@@ -467,26 +469,7 @@ export default function Review() {
                     {!isMobile && <span style={{ width: 60, textAlign: "center", fontSize: 13, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
-                        {isMobile && (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              minWidth: 34,
-                              padding: "4px 10px",
-                              borderRadius: 999,
-                              background: badge.background,
-                              color: badge.color,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              lineHeight: 1,
-                              flexShrink: 0,
-                            }}
-                          >
-                            후기
-                          </span>
-                        )}
+                        <BadgeTag badge={badge} style={isMobile ? { ...badge.style, padding: "4px 10px", fontSize: 11 } : undefined} />
                         {isMobile && (
                           <span
                             style={{
@@ -513,7 +496,7 @@ export default function Review() {
                           </span>
                         )}
                         <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
-                          {item.title}
+                          {reviewTitle}
                         </span>
                         {commentCount > 0 && (
                           <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0 }}>
