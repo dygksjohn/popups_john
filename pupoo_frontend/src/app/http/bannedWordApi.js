@@ -7,6 +7,7 @@
  *
  * 관리자 정책 API
  * - GET /api/admin/moderation/policies/active
+ * - GET /api/admin/moderation/policies/uploads?page=&size=
  * - POST /api/admin/moderation/policies/upload
  *
  * AI 모더레이션 BLOCK 로그
@@ -78,13 +79,23 @@ export const policyApi = {
       .then((res) => unwrap(res));
   },
 
+  /**
+   * 정책 업로드 이력 (PageResponse: content, page, size, totalElements, …)
+   */
+  listUploads(page = 0, size = 20) {
+    return axiosInstance
+      .get("/api/admin/moderation/policies/uploads", { params: { page, size } })
+      .then((res) => unwrap(res));
+  },
+
   upload(file) {
     const form = new FormData();
     form.append("file", file);
     return axiosInstance
       .post("/api/admin/moderation/policies/upload", form, {
         headers: { "Content-Type": "multipart/form-data" },
-        timeout: 120_000,
+        // 백엔드 ai.moderation.timeout-seconds(기본 300) + 여유
+        timeout: 360_000,
       })
       .then((res) => unwrap(res));
   },

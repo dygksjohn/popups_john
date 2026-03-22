@@ -8,7 +8,7 @@ txt 정책 파일 업로드 파이프라인(로컬 스크립트)
   3) active_policy.json을 새 컬렉션으로 스위칭
 
 사전 조건:
-- embedding-service(포트 8001)가 실행 중이어야 합니다.
+- watsonx 임베딩 API(PUPOO_AI_WATSONX_* 및 EMBEDDING_MODEL_ID) 설정이 되어 있어야 합니다.
 - Milvus(포트 19530)에 접근 가능해야 합니다.
 - DB 키워드를 사용하려면 .env에 PUPOO_AI_DB_* 설정이 필요합니다.
 """

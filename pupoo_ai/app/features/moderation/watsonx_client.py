@@ -1,7 +1,7 @@
 """watsonx 연동 클라이언트.
 
 기능:
-- 임베딩 생성과 LLM 기반 moderation 판단을 담당한다.
+- LLM 기반 moderation 판단을 담당한다.
 
 설명:
 - retrieved_docs의 score는 정책 검색 유사도이며 최종 위반 점수와 다르다.
@@ -9,7 +9,7 @@
 
 watsonx.ai LLM 호출.
 - 검색된 정책 + 사용자 입력 기반 위반 여부·사유 생성.
-- 임베딩은 BGE-M3(embedding_service.py)를 사용하며, 이 모듈은 LLM만 담당한다.
+- 정책 벡터 임베딩은 embedding_service.py(watsonx Embeddings)에서 담당한다.
 - langchain_ibm은 watsonx 사용 시에만 로드.
 """
 from __future__ import annotations
@@ -36,7 +36,7 @@ def _watsonx_llm_params() -> dict:
     # 기능: watsonx LLM 초기화 파라미터를 구성한다.
     return {
         "url": settings.watsonx_url or "https://us-south.ml.cloud.ibm.com",
-        "api_key": settings.watsonx_api_key,
+        "apikey": settings.watsonx_api_key,
         "project_id": settings.watsonx_project_id,
         "model_id": settings.watsonx_llm_id or "ibm/granite-13b-instruct-v2",
         "params": {"decoding_method": "greedy", "max_new_tokens": 256, "temperature": 0.1},
@@ -49,6 +49,17 @@ def is_watsonx_configured() -> bool:
         settings.watsonx_api_key
         and settings.watsonx_url
         and settings.watsonx_project_id
+    )
+
+
+def is_watsonx_embedding_configured() -> bool:
+    # 기능: watsonx 임베딩 API 호출에 필요한 설정 존재 여부를 판단한다.
+    mid = (settings.watsonx_embedding_model_id or "").strip()
+    return bool(
+        settings.watsonx_api_key
+        and settings.watsonx_url
+        and settings.watsonx_project_id
+        and mid
     )
 
 
