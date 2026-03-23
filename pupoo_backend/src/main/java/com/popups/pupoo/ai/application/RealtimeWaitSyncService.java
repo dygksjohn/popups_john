@@ -38,6 +38,9 @@ public class RealtimeWaitSyncService {
     @Value("${ai.wait.sync.lookback-minutes:15}")
     private int lookbackMinutes;
 
+    @Value("${ai.wait.sync.applied-weight:0.35}")
+    private double appliedWeight;
+
     @Transactional
     public WaitSyncResult syncCurrentSnapshot() {
         LocalDateTime baseTime = LocalDateTime.now().withNano(0);
@@ -64,6 +67,11 @@ public class RealtimeWaitSyncService {
                 RealtimeWaitSyncQueryRepository.ProgramQueueCountRow::programId,
                 RealtimeWaitSyncQueryRepository.ProgramQueueCountRow::queueCount
         );
+        Map<Long, Integer> appliedCountMap = toProgramCountMap(
+                realtimeWaitSyncQueryRepository.findProgramAppliedCounts(runningProgramIds),
+                RealtimeWaitSyncQueryRepository.ProgramAppliedCountRow::programId,
+                RealtimeWaitSyncQueryRepository.ProgramAppliedCountRow::appliedCount
+        );
 
         Map<Long, Integer> recentCheckinMap = toProgramCountMap(
                 realtimeWaitSyncQueryRepository.findProgramCheckinCounts(runningProgramIds, windowFrom, baseTime),
@@ -85,6 +93,10 @@ public class RealtimeWaitSyncService {
         for (RealtimeWaitSyncQueryRepository.RunningProgramRow program : runningPrograms) {
             long programId = program.programId();
             int queueCount = Math.max(queueCountMap.getOrDefault(programId, 0), 0);
+            int weightedAppliedCount = calculateWeightedAppliedCount(
+                    Math.max(appliedCountMap.getOrDefault(programId, 0), 0)
+            );
+            queueCount += weightedAppliedCount;
             int recentCheckins = Math.max(recentCheckinMap.getOrDefault(programId, 0), 0);
 
             double throughputPerMinute = resolveProgramThroughputPerMinute(
@@ -198,6 +210,24 @@ public class RealtimeWaitSyncService {
                         row -> Math.max(countExtractor.apply(row), 0),
                         Integer::max
                 ));
+    }
+
+    private int calculateWeightedAppliedCount(int appliedCount) {
+        if (appliedCount <= 0) {
+            return 0;
+        }
+        double normalizedWeight = normalizeAppliedWeight(appliedWeight);
+        if (normalizedWeight <= 0.0d) {
+            return 0;
+        }
+        return (int) Math.ceil(appliedCount * normalizedWeight);
+    }
+
+    private double normalizeAppliedWeight(double configuredWeight) {
+        if (Double.isNaN(configuredWeight) || Double.isInfinite(configuredWeight)) {
+            return 0.0d;
+        }
+        return Math.max(0.0d, Math.min(configuredWeight, 1.0d));
     }
 
     private double resolveProgramThroughputPerMinute(

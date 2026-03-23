@@ -11,6 +11,8 @@ public interface RealtimeWaitSyncQueryRepository {
 
     List<ProgramQueueCountRow> findProgramQueueCounts(Collection<Long> programIds);
 
+    List<ProgramAppliedCountRow> findProgramAppliedCounts(Collection<Long> programIds);
+
     List<ProgramCheckinCountRow> findProgramCheckinCounts(
             Collection<Long> programIds,
             LocalDateTime fromInclusive,
@@ -28,6 +30,9 @@ public interface RealtimeWaitSyncQueryRepository {
     }
 
     record ProgramQueueCountRow(Long programId, int queueCount) {
+    }
+
+    record ProgramAppliedCountRow(Long programId, int appliedCount) {
     }
 
     record ProgramCheckinCountRow(Long programId, int checkinCount) {
