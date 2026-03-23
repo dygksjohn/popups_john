@@ -448,7 +448,7 @@ function StarRatingCard({ label, value, color, bg }) {
 }
 
 /* ── Bar Card (후기수) ── */
-function BarStatCard({ icon, label, value, suffix = "", color, bg }) {
+function BarStatCard({ icon, label, value, suffix = "", color, bg, actionLabel, onAction }) {
   const [animated, setAnimated] = useState(0);
 
   useEffect(() => {
@@ -473,11 +473,34 @@ function BarStatCard({ icon, label, value, suffix = "", color, bg }) {
 
   return (
     <div style={{ padding: "22px 22px 18px", borderRadius: 18, border: "1px solid #e2e8f0", background: "#fff" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: bg }}>
-          {icon}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 16 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: bg }}>
+            {icon}
+          </div>
+          <div style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{label}</div>
         </div>
-        <div style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{label}</div>
+        {actionLabel ? (
+          <button
+            type="button"
+            onClick={onAction}
+            style={{
+              height: 28,
+              padding: "0 10px",
+              borderRadius: 999,
+              border: "1px solid #ddd6fe",
+              background: "#f5f3ff",
+              color: "#6d28d9",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {actionLabel}
+          </button>
+        ) : null}
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ width: "55%", height: 6, borderRadius: 3, background: "#f1f5f9", overflow: "hidden" }}>
@@ -758,6 +781,11 @@ export default function Closed() {
     setSelectedId(eventId);
     setProgramFilter("전체");
   }, []);
+
+  const handleMoveToEventReviews = useCallback(() => {
+    if (!selected?.id) return;
+    navigate(`/community/review?eventId=${selected.id}`);
+  }, [navigate, selected?.id]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -1117,6 +1145,8 @@ export default function Closed() {
                           suffix="건"
                           color="#7c3aed"
                           bg="#f5f3ff"
+                          actionLabel="행사 후기"
+                          onAction={handleMoveToEventReviews}
                         />
                       </div>
                       <div style={{ marginTop: 24, paddingTop: 22, borderTop: "1px solid #eef2f7" }}>

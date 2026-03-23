@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CreditCard, Loader2, Inbox, CalendarDays, Wallet, Hash, ReceiptText } from "lucide-react";
+import { CreditCard, Loader2, Inbox, CalendarDays, Wallet, Hash, ReceiptText, Search } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import { axiosInstance } from "../../../app/http/axiosInstance";
@@ -61,7 +61,9 @@ const styles = `
     background: #d1d5db;
   }
   .ph-summary-dot.dot-green { background: #16a34a; }
+  .ph-summary-dot.dot-amber { background: #ca8a04; }
   .ph-summary-dot.dot-blue { background: #02A17E; }
+  .ph-summary-dot.dot-red { background: #ef4444; }
   .ph-summary-text {
     display: flex;
     flex-direction: column;
@@ -107,6 +109,66 @@ const styles = `
   .ph-count strong {
     color: #111;
     font-weight: 800;
+  }
+  .ph-filters {
+    display: inline-flex;
+    background: #f3f4f6;
+    border-radius: 999px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .ph-filter {
+    border: 1px solid transparent;
+    background: transparent;
+    color: #9ca3af;
+    padding: 8px 20px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  .ph-filter:hover { color: #374151; }
+  .ph-filter.active {
+    background: #1f2937;
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+  .ph-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ph-search-wrap {
+    position: relative;
+    width: 260px;
+  }
+  .ph-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+  }
+  .ph-search-input {
+    width: 100%;
+    height: 38px;
+    border-radius: 12px;
+    border: 1.5px solid #e2e8f0;
+    padding: 0 12px 0 36px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .ph-search-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
   }
 
   /* ── 카드 리스트 ── */
@@ -265,6 +327,8 @@ const styles = `
       align-items: center;
     }
     .ph-toolbar { flex-direction: column; align-items: flex-start; }
+    .ph-toolbar-right { width: 100%; flex-direction: column; align-items: stretch; }
+    .ph-search-wrap { width: 100%; }
   }
 `;
 
@@ -308,7 +372,7 @@ function methodLabelOf(paymentMethod) {
 
 function getStatusMeta(payment) {
   const refundStatus = String(payment?.refund?.status || "").toUpperCase();
-  if (refundStatus === "REQUESTED") return { label: "환불 요청", color: "#ca8a04" };
+  if (refundStatus === "REQUESTED") return { label: "환불 대기", color: "#ca8a04" };
   if (refundStatus === "APPROVED") return { label: "환불 승인", color: "#3DBFA0" };
   if (refundStatus === "REJECTED") return { label: "환불 거절", color: "#ef4444" };
   if (refundStatus === "REFUNDED") return { label: "환불 완료", color: "#6b7280" };
@@ -323,6 +387,24 @@ function getStatusMeta(payment) {
   }
 }
 
+const FILTERS = [
+  { key: "all", label: "전체" },
+  { key: "APPROVED", label: "승인" },
+  { key: "PENDING", label: "대기" },
+  { key: "CANCELLED", label: "취소" },
+  { key: "REJECTED", label: "거절" },
+];
+
+function getFilterKey(payment) {
+  const refundStatus = String(payment?.refund?.status || "").toUpperCase();
+  const paymentStatus = String(payment?.status || "").toUpperCase();
+
+  if (refundStatus === "REQUESTED" || paymentStatus === "REQUESTED") return "PENDING";
+  if (refundStatus === "REJECTED" || paymentStatus === "FAILED") return "REJECTED";
+  if (paymentStatus === "CANCELLED") return "CANCELLED";
+  return "APPROVED";
+}
+
 export default function PaymentHistory({ onNavigate }) {
   const currentPath = "/registration/paymenthistory";
   const [loading, setLoading] = useState(true);
@@ -330,6 +412,8 @@ export default function PaymentHistory({ onNavigate }) {
   const [payments, setPayments] = useState([]);
   const [refunds, setRefunds] = useState([]);
   const [refundingId, setRefundingId] = useState(null);
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
 
   const loadHistory = useCallback(async () => {
     if (!tokenStore.getAccess()) {
@@ -367,11 +451,33 @@ export default function PaymentHistory({ onNavigate }) {
     [payments, refundIndex],
   );
 
+  const filteredRows = useMemo(() => {
+    if (filter === "all") return paymentRows;
+    return paymentRows.filter((p) => getFilterKey(p) === filter);
+  }, [filter, paymentRows]);
+
+  const searchedRows = useMemo(() => {
+    const q = String(query || "").trim().toLowerCase();
+    if (!q) return filteredRows;
+    return filteredRows.filter((p) => {
+      const title = String(p?.eventTitle || "").toLowerCase();
+      const orderNo = String(p?.orderNo || `PAY-${p?.paymentId ?? ""}`).toLowerCase();
+      const method = String(methodLabelOf(p?.paymentMethod) || "").toLowerCase();
+      return title.includes(q) || orderNo.includes(q) || method.includes(q);
+    });
+  }, [filteredRows, query]);
+
   const stats = useMemo(() => {
-    const approved = paymentRows.filter((p) => p.status === "APPROVED" && !p.refund);
+    const approved = paymentRows.filter((p) => getFilterKey(p) === "APPROVED");
+    const pending = paymentRows.filter((p) => getFilterKey(p) === "PENDING");
+    const cancelledRejected = paymentRows.filter(
+      (p) => getFilterKey(p) === "CANCELLED" || getFilterKey(p) === "REJECTED",
+    );
     return {
       total: paymentRows.length,
       approved: approved.length,
+      pending: pending.length,
+      cancelledRejected: cancelledRejected.length,
       amount: approved.reduce((s, p) => s + toNumberAmount(p.amount), 0),
     };
   }, [paymentRows]);
@@ -439,10 +545,17 @@ export default function PaymentHistory({ onNavigate }) {
             </div>
           </div>
           <div className="ph-summary-card">
-            <div className="ph-summary-dot dot-blue" />
+            <div className="ph-summary-dot dot-amber" />
             <div className="ph-summary-text">
-              <div className="ph-summary-label">유효 금액</div>
-              <div className="ph-summary-val">{formatAmount(stats.amount)}</div>
+              <div className="ph-summary-label">환불 대기</div>
+              <div className="ph-summary-val">{stats.pending}</div>
+            </div>
+          </div>
+          <div className="ph-summary-card">
+            <div className="ph-summary-dot dot-red" />
+            <div className="ph-summary-text">
+              <div className="ph-summary-label">취소 / 거절</div>
+              <div className="ph-summary-val">{stats.cancelledRejected}</div>
             </div>
           </div>
         </div>
@@ -451,14 +564,37 @@ export default function PaymentHistory({ onNavigate }) {
         <div className="ph-toolbar">
           <div className="ph-toolbar-left">
             <span className="ph-toolbar-title">결제 내역</span>
-            {!loading && <span className="ph-count"><strong>{stats.total}</strong>건</span>}
+            {!loading && <span className="ph-count"><strong>{searchedRows.length}</strong>건</span>}
+          </div>
+          <div className="ph-toolbar-right">
+            <div className="ph-filters">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  className={`ph-filter${filter === f.key ? " active" : ""}`}
+                  onClick={() => setFilter(f.key)}
+                  type="button"
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <div className="ph-search-wrap">
+              <Search size={15} className="ph-search-icon" />
+              <input
+                className="ph-search-input"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="검색"
+              />
+            </div>
           </div>
         </div>
 
         {/* 리스트 */}
         {loading ? (
           <PageLoading />
-        ) : (error || paymentRows.length === 0) ? (
+        ) : (error || searchedRows.length === 0) ? (
           <div className="ph-empty">
             <Inbox size={48} strokeWidth={1.2} />
             <span>{error || "결제 내역이 없습니다."}</span>
@@ -466,10 +602,10 @@ export default function PaymentHistory({ onNavigate }) {
         ) : (
           <>
             <div className="ph-list">
-              {paymentRows.map((payment) => {
+              {searchedRows.map((payment) => {
                 const meta = getStatusMeta(payment);
                 const canRefund = payment.status === "APPROVED" && !payment.refund;
-                const refundLabel = isAutoRefundEligible(payment) ? "환불" : "환불 신청";
+                const refundLabel = "환불";
 
                 return (
                   <div key={payment.paymentId || payment.orderNo} className="ph-card">

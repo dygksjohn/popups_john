@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { tokenStore } from "../../../app/http/tokenStore";
+import { authApi } from "../../../features/auth/api/authApi";
 
 export default function PaymentApprove() {
   const [searchParams] = useSearchParams();
@@ -13,8 +14,34 @@ export default function PaymentApprove() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // ✅ 중복 실행 방지 (React StrictMode / 리렌더 방어)
   const didRunRef = useRef(false);
+  const returnToApproveUrl = `/payment/approve?paymentId=${paymentId ?? ""}&pg_token=${pgToken ?? ""}`;
+
+  const goToLogin = useCallback(() => {
+    navigate("/auth/login", {
+      state: { from: returnToApproveUrl },
+      replace: true,
+    });
+  }, [navigate, returnToApproveUrl]);
+
+  const recoverAccessToken = useCallback(async () => {
+    const access = tokenStore.getAccess();
+    if (access) return access;
+
+    if (!tokenStore.hasSessionHint()) return null;
+
+    try {
+      const res = await authApi.refresh();
+      const refreshed = res?.accessToken ?? null;
+      if (refreshed) {
+        tokenStore.setAccess(refreshed);
+        return refreshed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const approveOnce = useCallback(async () => {
     if (!paymentId || !pgToken) {
@@ -23,27 +50,27 @@ export default function PaymentApprove() {
       return;
     }
 
-    // 로그인 세션 없으면 로그인으로 보내고, 돌아오면 다시 실행
-    if (!tokenStore.getAccess()) {
-      navigate("/auth/login", {
-        state: { from: `/payment/approve?paymentId=${paymentId}&pg_token=${pgToken}` },
-        replace: true,
-      });
-      return;
-    }
-
     setLoading(true);
     setError("");
+
+    const access = await recoverAccessToken();
+    if (!access) {
+      goToLogin();
+      return;
+    }
 
     try {
       await axiosInstance.post(`/api/payments/${paymentId}/approve`, null, {
         params: { pg_token: pgToken },
       });
-
-      // ✅ 성공: 결제 내역으로 이동
       navigate("/registration/paymenthistory", { replace: true });
     } catch (e) {
-      // 서버 표준 에러 포맷 최대한 흡수
+      const status = Number(e?.response?.status);
+      if (status === 401 || status === 403) {
+        goToLogin();
+        return;
+      }
+
       const msg =
         e?.response?.data?.error?.message ||
         e?.response?.data?.message ||
@@ -52,7 +79,7 @@ export default function PaymentApprove() {
     } finally {
       setLoading(false);
     }
-  }, [navigate, paymentId, pgToken]);
+  }, [goToLogin, navigate, paymentId, pgToken, recoverAccessToken]);
 
   useEffect(() => {
     if (didRunRef.current) return;
@@ -66,14 +93,12 @@ export default function PaymentApprove() {
         결제 승인 처리
       </div>
 
-      {/* 진행 중 */}
       {loading && (
         <div style={{ color: "#374151" }}>
-          결제 승인 처리 중...
+          결제 승인 처리 중입니다.
         </div>
       )}
 
-      {/* 실패 */}
       {!loading && error && (
         <>
           <div style={{ color: "#b91c1c", marginBottom: 12 }}>{error}</div>
@@ -113,7 +138,6 @@ export default function PaymentApprove() {
         </>
       )}
 
-      {/* paymentId/pgToken 없음 */}
       {!loading && !error && (!paymentId || !pgToken) && (
         <>
           <div style={{ color: "#b91c1c", marginBottom: 12 }}>
