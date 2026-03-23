@@ -990,7 +990,7 @@ export default function PupooHeader() {
                 src={isLight ? "/logo_white2.png" : "/logo_olive.png"}
                 alt="Pupoo"
                 style={{
-                  height: isMobile ? 22 : isTablet ? 24 : 28,
+                  height: isMobile ? 17 : isTablet ? 22 : 28,
                   width: "auto",
                   display: "block",
                 }}

@@ -200,8 +200,8 @@ export default function PageHeader({
 
   const mergedTitleStyle = {
     ...styles.title,
-    fontSize: isMobile ? 22 : isTablet ? 32 : styles.title.fontSize,
-    lineHeight: isMobile ? "1.2" : isTablet ? "1.22" : styles.title.lineHeight,
+    fontSize: isMobile ? 18 : isTablet ? 30 : styles.title.fontSize,
+    lineHeight: isMobile ? "1.25" : isTablet ? "1.22" : styles.title.lineHeight,
     ...titleStyle,
   };
 
@@ -233,18 +233,16 @@ export default function PageHeader({
 
   const tabsStyle = {
     ...styles.tabs,
-    marginTop: isMobile ? 20 : isTablet ? 32 : styles.tabs.marginTop,
-    display: isMobile ? "grid" : styles.tabs.display,
-    gridTemplateColumns: isMobile
-      ? `repeat(${Math.min(filteredCategories.length >= 5 ? 3 : 2, Math.max(filteredCategories.length, 1))}, minmax(0, 1fr))`
-      : undefined,
-    overflowX: isMobile ? "visible" : isCompact ? "auto" : "visible",
+    marginTop: isMobile ? 16 : isTablet ? 32 : styles.tabs.marginTop,
+    display: "flex",
+    flexWrap: "nowrap",
+    overflowX: isMobile ? "auto" : isCompact ? "auto" : "visible",
     overflowY: "hidden",
-    flexWrap: isMobile ? "wrap" : isTablet ? "wrap" : "nowrap",
-    paddingBottom: isCompact && !isMobile ? 2 : 0,
-    gap: isMobile ? 8 : styles.tabs.gap,
+    gap: isMobile ? 6 : styles.tabs.gap,
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    paddingBottom: isMobile ? 4 : isCompact ? 2 : 0,
   };
 
   return (
@@ -294,18 +292,19 @@ export default function PageHeader({
 
               let btnStyle = {
                 ...styles.tabBase,
-                flex: isCompact ? "0 0 auto" : styles.tabBase.flex,
-                minWidth: isMobile ? 0 : isTablet ? 132 : undefined,
-                width: isMobile ? "100%" : undefined,
-                minHeight: isMobile ? 44 : undefined,
+                flex: "0 0 auto",
+                minWidth: 0,
+                width: "auto",
+                minHeight: isMobile ? 34 : 44,
                 padding: isMobile
-                  ? "10px 8px"
+                  ? "0 14px"
                   : isTablet
                     ? "11px 14px"
                     : styles.tabBase.padding,
-                fontSize: isMobile ? 13.5 : isTablet ? 15 : styles.tabBase.fontSize,
-                whiteSpace: isMobile ? "normal" : styles.tabBase.whiteSpace,
-                lineHeight: isMobile ? 1.25 : undefined,
+                fontSize: isMobile ? 13 : isTablet ? 15 : styles.tabBase.fontSize,
+                whiteSpace: "nowrap",
+                borderRadius: isMobile ? 999 : 0,
+                lineHeight: isMobile ? "34px" : undefined,
               };
 
               if (isActive) {
