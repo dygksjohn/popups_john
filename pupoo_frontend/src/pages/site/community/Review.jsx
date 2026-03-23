@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import CommunityPagination from "./shared/CommunityPagination";
 import {
   Search,
@@ -70,6 +70,7 @@ function renderStars(rating = 0, size = 14) {
 
 export default function Review() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const badge = getBoardBadge("REVIEW");
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window === "undefined" ? 1440 : window.innerWidth,
@@ -87,6 +88,11 @@ export default function Review() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
+  const eventIdFilter = useMemo(() => {
+    const raw = searchParams.get("eventId");
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [searchParams]);
 
   const loadReviews = useCallback(async () => {
     setLoading(true);
@@ -148,7 +154,7 @@ export default function Review() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, ratingFilter, sortOption]);
+  }, [search, ratingFilter, sortOption, eventIdFilter]);
 
   useEffect(() => {
     if (!items.length) return;
@@ -185,6 +191,9 @@ export default function Review() {
   const sortedFilteredItems = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     const filtered = items.filter((item) => {
+      if (eventIdFilter != null && Number(item?.eventId) !== eventIdFilter) {
+        return false;
+      }
       const eventName = String(eventNameMap[item.eventId] || item.eventName || "").toLowerCase();
       const title = String(item.reviewTitle || item.title || "").toLowerCase();
       const text = htmlToPlainText(item.content || "").toLowerCase();
@@ -200,7 +209,7 @@ export default function Review() {
       }
       return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
     });
-  }, [commentCountMap, eventNameMap, items, search, sortOption]);
+  }, [commentCountMap, eventIdFilter, eventNameMap, items, search, sortOption]);
 
   const totalPages = Math.max(1, Math.ceil(sortedFilteredItems.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);

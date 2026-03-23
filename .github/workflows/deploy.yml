@@ -255,6 +255,10 @@ jobs:
           SES_FROM_EMAIL: ${{ secrets.SES_FROM_EMAIL }}
           AUTH_AWS_REGION: ${{ vars.AUTH_AWS_REGION }}
           AUTH_SMS_REGION: ${{ vars.AUTH_SMS_REGION }}
+          APP_FRONTEND_BASE_URL: ${{ vars.APP_FRONTEND_BASE_URL || 'https://www.pupoo.site' }}
+          KAKAOPAY_APPROVAL_URL: ${{ secrets.KAKAOPAY_APPROVAL_URL }}
+          KAKAOPAY_CANCEL_URL: ${{ secrets.KAKAOPAY_CANCEL_URL }}
+          KAKAOPAY_FAIL_URL: ${{ secrets.KAKAOPAY_FAIL_URL }}
         run: |
           if [ -z "${OPENAI_API_KEY}" ]; then
             echo "OPENAI_API_KEY secret is required"
@@ -286,6 +290,9 @@ jobs:
           if [ -z "${SMS_PROVIDER}" ]; then
             SMS_PROVIDER="aws-sns"
           fi
+          KAKAOPAY_APPROVAL_URL="${KAKAOPAY_APPROVAL_URL:-${APP_FRONTEND_BASE_URL}/payment/approve?paymentId={paymentId}}"
+          KAKAOPAY_CANCEL_URL="${KAKAOPAY_CANCEL_URL:-${APP_FRONTEND_BASE_URL}/payment/cancel?paymentId={paymentId}}"
+          KAKAOPAY_FAIL_URL="${KAKAOPAY_FAIL_URL:-${APP_FRONTEND_BASE_URL}/payment/fail?paymentId={paymentId}}"
 
           cat > /tmp/pupoo-backend-secret-patch.yaml <<EOF
           stringData:
@@ -301,6 +308,10 @@ jobs:
             AWS_SES_FROM_ADDRESS: "${SES_FROM_EMAIL}"
             AWS_SMS_ORIGINATION_NUMBER: "${SMS_ORIGINATION_NUMBER}"
             AWS_SMS_SENDER_ID: "${SMS_SENDER_ID}"
+            APP_FRONTEND_BASE_URL: "${APP_FRONTEND_BASE_URL}"
+            KAKAOPAY_APPROVAL_URL: "${KAKAOPAY_APPROVAL_URL}"
+            KAKAOPAY_CANCEL_URL: "${KAKAOPAY_CANCEL_URL}"
+            KAKAOPAY_FAIL_URL: "${KAKAOPAY_FAIL_URL}"
           EOF
 
           kubectl -n "${EKS_NAMESPACE:-pupoo}" patch secret pupoo-backend-secret \

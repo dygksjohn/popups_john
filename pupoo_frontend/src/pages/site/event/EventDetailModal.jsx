@@ -416,6 +416,43 @@ const modalStyles = `
     margin-top: 4px;
   }
   .evm-part-note strong { color: #02A17E; font-weight: 800; }
+  .evm-header-participants {
+    margin: 0 24px 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #f8f9fc;
+    border: 1px solid #eef2f7;
+  }
+  .evm-header-participants-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 600;
+  }
+  .evm-header-participants-label strong {
+    color: #111827;
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .evm-header-participants-pct {
+    font-weight: 800;
+    color: #02A17E;
+  }
+  .evm-header-participants-track {
+    height: 6px;
+    border-radius: 999px;
+    background: #e5e7eb;
+    overflow: hidden;
+  }
+  .evm-header-participants-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #02A17E, #6366f1);
+    transition: width 0.3s ease;
+  }
 
   /* Location */
   .evm-map-placeholder {
@@ -558,6 +595,7 @@ const modalStyles = `
     .evm-poster-panel { width: 100%; height: 264px; }
     .evm-right-panel { max-height: none; }
     .evm-right-header { padding: 16px 20px 0; }
+    .evm-header-participants { margin: 0 20px 10px; }
     .evm-quick-info { grid-template-columns: repeat(2, 1fr); }
     .evm-speakers { grid-template-columns: 1fr; }
     .evm-contact-grid { grid-template-columns: 1fr; }
@@ -576,6 +614,7 @@ const modalStyles = `
     }
     .evm-poster-panel { height: 196px; }
     .evm-right-header { padding: 14px 14px 0; }
+    .evm-header-participants { margin: 0 14px 8px; }
     .evm-topbar-right { top: 10px; right: 10px; gap: 6px; }
     .evm-right-title { font-size: 19px; line-height: 1.25; }
     .evm-right-sub { font-size: 13px; margin-bottom: 10px; }
@@ -947,6 +986,8 @@ export default function EventDetailModal({ event, onClose }) {
   const overlayRef = useRef(null);
   const dayListRef = useRef(null);
   const dayItemRefs = useRef({});
+  const programScrollRef = useRef(null);
+  const programItemRefs = useRef({});
   const scrollDayList = (dir) => {
     if (dayListRef.current) dayListRef.current.scrollLeft += dir * 160;
   };
@@ -1201,6 +1242,26 @@ export default function EventDetailModal({ event, onClose }) {
       event?.participants ??
       0,
   );
+  const modalParticipantCount = Number(
+    detail?.participantCount ??
+      detail?.participants ??
+      event?.participantCount ??
+      event?.participants ??
+      0,
+  );
+  const modalCapacityRaw = Number(
+    detail?.capacity ??
+      detail?.maxParticipants ??
+      event?.capacity ??
+      event?.maxParticipants ??
+      preregistrationCount ??
+      0,
+  );
+  const modalCapacityCount = modalCapacityRaw > 0 ? modalCapacityRaw : 1;
+  const modalParticipationPct = Math.min(
+    100,
+    Math.round((modalParticipantCount / modalCapacityCount) * 100),
+  );
   const eventStart = parseDateTime(detail?.startAt ?? event?.startAt);
   const eventEnd = parseDateTime(detail?.endAt ?? event?.endAt);
   const eventDayCount =
@@ -1277,6 +1338,26 @@ export default function EventDetailModal({ event, onClose }) {
   const selectedPrograms = normalizedPrograms.filter(
     (item) => item.dateKey === effectiveDateKey,
   );
+  const liveProgram = selectedPrograms.find((item) => item.status === "live");
+  const liveProgramRefKey =
+    liveProgram?.id != null ? String(liveProgram.id) : "";
+
+  useEffect(() => {
+    if (!selectedPrograms.length || !liveProgramRefKey) return;
+    const target = programItemRefs.current[liveProgramRefKey];
+    const container = programScrollRef.current;
+    if (!target || !container) return;
+
+    requestAnimationFrame(() => {
+      const targetTop = target.offsetTop;
+      const targetHeight = target.offsetHeight;
+      const nextTop = Math.max(
+        0,
+        targetTop - container.clientHeight / 2 + targetHeight / 2,
+      );
+      container.scrollTo({ top: nextTop, behavior: "smooth" });
+    });
+  }, [effectiveDateKey, liveProgramRefKey, selectedPrograms.length]);
   const periods = ["오전", "오후", "저녁"];
   const programGroups = periods.map((period) => ({
     period,
@@ -1500,6 +1581,20 @@ export default function EventDetailModal({ event, onClose }) {
                 {dateLabel} · {timeLabel} · {loc}
               </div>
             </div>
+            <div className="evm-header-participants">
+              <div className="evm-header-participants-label">
+                <span>
+                  참가자 <strong>{modalParticipantCount.toLocaleString()}명 / {modalCapacityCount.toLocaleString()}명</strong>
+                </span>
+                <span className="evm-header-participants-pct">{modalParticipationPct}%</span>
+              </div>
+              <div className="evm-header-participants-track">
+                <div
+                  className="evm-header-participants-fill"
+                  style={{ width: `${modalParticipationPct}%` }}
+                />
+              </div>
+            </div>
 
           <div className="evm-body-scroll">
           {/* Body */}
@@ -1620,7 +1715,7 @@ export default function EventDetailModal({ event, onClose }) {
                     </div>
                     <span className="evm-guide-pill">{selectedPrograms.length}개 프로그램</span>
                   </div>
-                  <div className="evm-guide-program-scroll">
+                  <div className="evm-guide-program-scroll" ref={programScrollRef}>
                     {programGroups.every((group) => group.items.length === 0) ? (
                       <div className="evm-guide-empty">등록된 프로그램이 없습니다.</div>
                     ) : (
@@ -1632,6 +1727,9 @@ export default function EventDetailModal({ event, onClose }) {
                               {group.items.map((item) => (
                                 <div
                                   key={item.id}
+                                  ref={(el) => {
+                                    if (el) programItemRefs.current[String(item.id)] = el;
+                                  }}
                                   className={`evm-guide-program-item${item.programId ? " clickable" : ""}`}
                                   role={item.programId ? "button" : undefined}
                                   tabIndex={item.programId ? 0 : undefined}

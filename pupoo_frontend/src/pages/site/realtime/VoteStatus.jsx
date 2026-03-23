@@ -48,6 +48,13 @@ const styles = `
   .vt-container.with-event { padding-top: 20px; }
   .vt-container.selector-mode { padding-top: 32px; }
   .vt-page-shell { max-width: 1400px; margin: 0 auto; }
+  .vt-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
 
   .vt-back-btn {
     display: inline-flex; align-items: center; gap: 8px;
@@ -56,6 +63,43 @@ const styles = `
     font-size: 16px; font-weight: 700; cursor: pointer;
     transition: all 0.15s; margin-bottom: 20px;
     font-family: inherit; letter-spacing: -0.01em;
+  }
+  .vt-top-actions .vt-back-btn { margin-bottom: 0; }
+  .vt-event-mode-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+  .vt-mode-btn {
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background: #f3f4f6;
+    color: #6b7280;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .vt-mode-btn.active {
+    background: #02A17E;
+    color: #fff;
+    border-color: #02A17E;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+  }
+  .vt-mode-btn:hover {
+    background: #e5e7eb;
+    border-color: #cbd5e1;
+    color: #4b5563;
+  }
+  .vt-mode-btn.active:hover {
+    background: #028A6C;
+    border-color: #028A6C;
+    color: #fff;
   }
   .vt-back-btn:hover { background: #1f2937; border-color: #1f2937; }
   .vt-back-btn:active { transform: scale(0.97); }
@@ -242,6 +286,9 @@ const styles = `
   }
   @media (max-width: 640px) {
     .vt-container { padding: 20px 16px 48px; }
+    .vt-top-actions { align-items: stretch; }
+    .vt-event-mode-nav { width: 100%; margin-left: 0; }
+    .vt-mode-btn { flex: 1 1 calc(50% - 8px); min-width: 132px; }
     .vt-hero { padding: 22px 18px; }
     .vt-hero-title { font-size: 22px; }
     .vt-hero-kpi-value { font-size: 28px; }
@@ -264,6 +311,12 @@ export const SUBTITLE_MAP = {
   "/realtime/checkinstatus": "참가자 체크인 현황을 실시간으로 확인합니다",
   "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 확인합니다",
 };
+const EVENT_REALTIME_BUTTONS = [
+  { key: "dashboard", label: "통합현황", path: "/realtime/dashboard" },
+  { key: "waiting", label: "대기현황", path: "/realtime/waitingstatus" },
+  { key: "checkin", label: "체크인 현황", path: "/realtime/checkinstatus" },
+  { key: "vote", label: "투표현황", path: "/realtime/votestatus" },
+];
 
 const CONTEST_STATUS_FILTERS = [
   { key: "진행 중", label: "진행 중 콘테스트" },
@@ -577,6 +630,7 @@ function VoteContent({ eventId }) {
 
   const hasMoreThanFive = (activeContest?.items?.length ?? 0) > 5;
   const maxVotes = activeContest?.items?.[0]?.votes ?? 0;
+  const lastUpdated = formatTimestamp(lastLoadedAt);
 
   const summaryByStatus = useMemo(() => {
     return contests.reduce((acc, contest) => {
@@ -860,10 +914,24 @@ export default function VoteStatus() {
         <div className="vt-page-shell">
           {eventId ? (
             <>
-              <button className="vt-back-btn" onClick={() => navigate("/realtime/votestatus")}>
-                <ArrowLeft size={15} />
-                목록으로
-              </button>
+              <div className="vt-top-actions">
+                <button className="vt-back-btn" onClick={() => navigate("/realtime/votestatus")}>
+                  <ArrowLeft size={15} />
+                  목록으로
+                </button>
+                <div className="vt-event-mode-nav">
+                  {EVENT_REALTIME_BUTTONS.map((button) => (
+                    <button
+                      key={button.key}
+                      type="button"
+                      className={`vt-mode-btn${button.key === "vote" ? " active" : ""}`}
+                      onClick={() => navigate(`${button.path}/${eventId}`)}
+                    >
+                      {button.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <VoteContent eventId={eventId} />
             </>
           ) : (
