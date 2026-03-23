@@ -840,7 +840,7 @@ const compareRealtimeEventsByPriority = (left, right) => {
 const sortRealtimeEventsByPriority = (events = []) =>
   [...(Array.isArray(events) ? events : [])].sort(compareRealtimeEventsByPriority);
 
-const FILTER_VALUES = new Set(["all", "live", "upcoming", "ended"]);
+const FILTER_VALUES = new Set(["all", "live", "upcoming"]);
 
 const normalizeFilterValue = (value) =>
   FILTER_VALUES.has(String(value)) ? String(value) : "all";
@@ -943,7 +943,6 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
     { key: "all", label: "전체 행사" },
     { key: "live", label: "진행중 행사" },
     { key: "upcoming", label: "예정 행사" },
-    { key: "ended", label: "종료 행사" },
   ];
 
   useEffect(() => {
@@ -1170,6 +1169,9 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
 
   const filtered = useMemo(() => {
     return events.filter((event) => {
+      const isClosedEvent = event.status === "ended" || event.status === "cancelled";
+      if (isClosedEvent) return false;
+
       const keyword = search.trim().toLowerCase();
       const matchSearch =
         keyword === "" ||
@@ -1178,20 +1180,23 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
         event.date.toLowerCase().includes(keyword);
       const matchFilter =
         filter === "all" ||
-        event.status === filter ||
-        (filter === "ended" && event.status === "cancelled");
+        event.status === filter;
       const matchDropdown =
         selectedDropdownFilter === "all" ||
-        event.status === selectedDropdownFilter ||
-        (selectedDropdownFilter === "ended" && event.status === "cancelled");
+        event.status === selectedDropdownFilter;
       return matchSearch && matchFilter && matchDropdown;
     });
   }, [events, filter, search, selectedDropdownFilter]);
 
+  const activeEvents = useMemo(
+    () => events.filter((event) => event.status !== "ended" && event.status !== "cancelled"),
+    [events],
+  );
+
   const counts = {
-    all: events.length,
-    live: events.filter((event) => event.status === "live").length,
-    upcoming: events.filter((event) => event.status === "upcoming").length,
+    all: activeEvents.length,
+    live: activeEvents.filter((event) => event.status === "live").length,
+    upcoming: activeEvents.filter((event) => event.status === "upcoming").length,
     ended: events.filter((event) => event.status === "ended" || event.status === "cancelled").length,
   };
 
@@ -1217,7 +1222,6 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
               { key: "all", label: "전체 행사" },
               { key: "live", label: "진행중 행사" },
               { key: "upcoming", label: "예정 행사" },
-              { key: "ended", label: "종료 행사" },
             ].map((tab) => (
               <button
                 key={tab.key}

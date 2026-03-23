@@ -502,6 +502,14 @@ export default function App() {
           <Route path="/payment/checkout" element={<Checkout />} />
           <Route path="/payment/approve" element={<PaymentApprove />} />
           <Route
+            path="/payment/cancel"
+            element={<Navigate to="/registration/paymenthistory" replace />}
+          />
+          <Route
+            path="/payment/fail"
+            element={<Navigate to="/registration/paymenthistory" replace />}
+          />
+          <Route
             path="/program/experience/:eventId?"
             element={<Experience />}
           />

@@ -163,6 +163,13 @@ const css = `
   }
   .qr-dropdown-item:hover { background: #f5f7fa; }
   .qr-dropdown-item.selected { background: #f3f4f6; }
+  .qr-dropdown-item.disabled {
+    opacity: .45;
+    cursor: not-allowed;
+  }
+  .qr-dropdown-item.disabled:hover {
+    background: transparent;
+  }
   .qr-dd-icon {
     width: 36px; height: 36px; border-radius: 10px;
     background: #f3f4f6; display: flex; align-items: center; justify-content: center;
@@ -514,6 +521,12 @@ function formatRegistrationStatus(status) {
   return REGISTRATION_STATUS_LABEL[key] || String(status || "-");
 }
 
+function isRegistrationSelectable(registration) {
+  const status = String(registration?.status || "").toUpperCase();
+  if (status !== "APPROVED") return false;
+  return !Boolean(registration?.isRefundPending);
+}
+
 function getDownloadFilename(contentDisposition, fallback) {
   const value = String(contentDisposition || "");
   const utf8Match = value.match(/filename\*=UTF-8''([^;]+)/i);
@@ -560,6 +573,10 @@ export default function QRCheckin() {
   const ddRef = useRef(null);
 
   const registrationMap = useMemo(() => new Map(registrations.map((item) => [item.eventId, item])), [registrations]);
+  const selectableRegistrations = useMemo(
+    () => registrations.filter((item) => isRegistrationSelectable(item)),
+    [registrations],
+  );
 
   const safetyNumber = useMemo(() => {
     if (qrInfo?.safetyNumber) return qrInfo.safetyNumber;
@@ -608,15 +625,39 @@ export default function QRCheckin() {
       }
       setLoading(true); setError("");
       try {
-        const res = await axiosInstance.get("/api/users/me/event-registrations", { params: { page: 0, size: 200, sort: "appliedAt,desc" } });
-        const rows = res?.data?.data?.content ?? [];
+        const [regRes, paymentsRes, refundsRes] = await Promise.all([
+          axiosInstance.get("/api/users/me/event-registrations", { params: { page: 0, size: 200, sort: "appliedAt,desc" } }),
+          axiosInstance.get("/api/payments/my", { params: { page: 0, size: 200, sort: "requestedAt,desc" } }),
+          axiosInstance.get("/api/refunds/my", { params: { page: 0, size: 200, sort: "requestedAt,desc" } }),
+        ]);
+        const rows = regRes?.data?.data?.content ?? [];
+        const payments = paymentsRes?.data?.data?.content ?? [];
+        const refunds = refundsRes?.data?.data?.content ?? [];
+        const refundByPaymentId = new Map(
+          refunds
+            .filter((r) => r?.paymentId != null)
+            .map((r) => [Number(r.paymentId), r]),
+        );
+        const refundRequestedEventIds = new Set(
+          payments
+            .filter((p) => {
+              const refund = refundByPaymentId.get(Number(p?.paymentId));
+              return String(refund?.status || "").toUpperCase() === "REQUESTED";
+            })
+            .map((p) => Number(p?.eventId))
+            .filter(Number.isFinite),
+        );
         const dedup = []; const seen = new Set();
         for (const row of rows) { if (!row?.eventId || seen.has(row.eventId)) continue; seen.add(row.eventId); dedup.push(row); }
-        const approvedOnly = dedup.filter((r) => { const s = String(r?.status || "").toUpperCase(); return s === "APPROVED" || s === "승인완료"; });
+        const merged = dedup.map((item) => ({
+          ...item,
+          isRefundPending: refundRequestedEventIds.has(Number(item?.eventId)),
+        }));
+        const selectable = merged.filter((item) => isRegistrationSelectable(item));
         if (!mounted) return;
-        setRegistrations(approvedOnly);
-        const fallback = approvedOnly[0] || null;
-        const selected = Number.isFinite(queryEventId) && approvedOnly.some((r) => r.eventId === queryEventId) ? queryEventId : fallback?.eventId ?? null;
+        setRegistrations(merged);
+        const fallback = selectable[0] || null;
+        const selected = Number.isFinite(queryEventId) && selectable.some((r) => r.eventId === queryEventId) ? queryEventId : fallback?.eventId ?? null;
         setSelectedEventId(selected);
       } catch (e) {
         if (!mounted) return;
@@ -674,7 +715,7 @@ export default function QRCheckin() {
 
   const selectedLabel = selectedEventId
     ? (eventNameById[selectedEventId] || `이벤트 #${selectedEventId}`)
-    : registrations.length === 0 ? "승인완료된 이벤트가 없습니다" : "이벤트를 선택하세요";
+    : selectableRegistrations.length === 0 ? "선택 가능한 이벤트가 없습니다" : "이벤트를 선택하세요";
 
   const handleSendSMS = async () => {
     if (!qrInfo || !eventDetail) return;
@@ -733,10 +774,7 @@ export default function QRCheckin() {
                 onClick={() => { if (registrations.length > 0) setDdOpen((v) => !v); }}
                 disabled={loading || registrations.length === 0}
               >
-                {selectedEventId
-                  ? (eventNameById[selectedEventId] || `이벤트 #${selectedEventId}`)
-                  : <span className="placeholder">{registrations.length === 0 ? "승인완료된 이벤트가 없습니다" : "이벤트를 선택하세요"}</span>
-                }
+                {selectedEventId ? selectedLabel : <span className="placeholder">{selectedLabel}</span>}
               </button>
               <div className={`qr-dropdown-arrow${ddOpen ? " open" : ""}`}>
                 <ChevronDown size={18} />
@@ -746,12 +784,17 @@ export default function QRCheckin() {
                   {registrations.map((item) => {
                     const name = eventNameById[item.eventId] || `이벤트 #${item.eventId}`;
                     const reg = registrationMap.get(item.eventId);
-                    const statusText = reg ? formatRegistrationStatus(reg.status) : "";
+                    const isSelectable = isRegistrationSelectable(item);
+                    const statusText = item.isRefundPending ? "환불 대기" : (reg ? formatRegistrationStatus(reg.status) : "");
                     return (
                       <div
                         key={item.applyId ?? item.eventId}
-                        className={`qr-dropdown-item${item.eventId === selectedEventId ? " selected" : ""}`}
-                        onClick={() => { setSelectedEventId(item.eventId); setDdOpen(false); }}
+                        className={`qr-dropdown-item${item.eventId === selectedEventId ? " selected" : ""}${!isSelectable ? " disabled" : ""}`}
+                        onClick={() => {
+                          if (!isSelectable) return;
+                          setSelectedEventId(item.eventId);
+                          setDdOpen(false);
+                        }}
                       >
                         <div className="qr-dd-icon">
                           <Calendar size={16} />

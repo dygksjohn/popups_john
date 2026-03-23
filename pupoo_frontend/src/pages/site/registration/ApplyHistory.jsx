@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardList, QrCode, Inbox, CalendarDays, MapPin, Clock } from "lucide-react";
+import { ClipboardList, QrCode, Inbox, CalendarDays, MapPin, Clock, Search } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import { axiosInstance } from "../../../app/http/axiosInstance";
@@ -30,11 +30,18 @@ const STATUS_META = {
 
 const FILTERS = [
   { key: "all", label: "전체" },
-  { key: "APPLIED", label: "신청" },
   { key: "APPROVED", label: "승인" },
+  { key: "APPLIED", label: "대기" },
   { key: "CANCELLED", label: "취소" },
   { key: "REJECTED", label: "거절" },
 ];
+
+const REFUND_PENDING_META = {
+  label: "환불 대기",
+  bg: "#fff7ed",
+  color: "#ca8a04",
+  border: "#fed7aa",
+};
 
 const styles = `
   .ah-root {
@@ -78,6 +85,7 @@ const styles = `
     background: #d1d5db;
   }
   .ah-summary-dot.dot-blue { background: #02A17E; }
+  .ah-summary-dot.dot-amber { background: #ca8a04; }
   .ah-summary-dot.dot-red { background: #ef4444; }
   .ah-summary-text {
     display: flex;
@@ -150,6 +158,40 @@ const styles = `
     border-color: transparent;
     color: #fff;
     box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+  .ah-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ah-search-wrap {
+    position: relative;
+    width: 260px;
+  }
+  .ah-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+  }
+  .ah-search-input {
+    width: 100%;
+    height: 38px;
+    border-radius: 12px;
+    border: 1.5px solid #e2e8f0;
+    padding: 0 12px 0 36px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .ah-search-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
   }
 
   /* ── 카드 리스트 ── */
@@ -250,6 +292,12 @@ const styles = `
   .ah-qr-btn svg {
     flex-shrink: 0;
   }
+  .ah-qr-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
 
   /* ── 빈 상태 ── */
   .ah-empty {
@@ -285,6 +333,8 @@ const styles = `
     }
     .ah-qr-btn { width: 100%; justify-content: center; }
     .ah-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .ah-toolbar-right { width: 100%; flex-direction: column; align-items: stretch; }
+    .ah-search-wrap { width: 100%; }
     .ah-filter { padding: 7px 14px; font-size: 12px; }
   }
 `;
@@ -313,6 +363,7 @@ export default function ApplyHistory() {
   const currentPath = "/registration/applyhistory";
   const [records, setRecords] = useState([]);
   const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -331,11 +382,35 @@ export default function ApplyHistory() {
       setError("");
 
       try {
-        const res = await axiosInstance.get("/api/users/me/event-registrations", {
-          params: { page: 0, size: 200, sort: "appliedAt,desc" },
-        });
+        const [regRes, paymentsRes, refundsRes] = await Promise.all([
+          axiosInstance.get("/api/users/me/event-registrations", {
+            params: { page: 0, size: 200, sort: "appliedAt,desc" },
+          }),
+          axiosInstance.get("/api/payments/my", {
+            params: { page: 0, size: 200, sort: "requestedAt,desc" },
+          }),
+          axiosInstance.get("/api/refunds/my", {
+            params: { page: 0, size: 200, sort: "requestedAt,desc" },
+          }),
+        ]);
 
-        const rawItems = res?.data?.data?.content ?? [];
+        const rawItems = regRes?.data?.data?.content ?? [];
+        const payments = paymentsRes?.data?.data?.content ?? [];
+        const refunds = refundsRes?.data?.data?.content ?? [];
+        const refundByPaymentId = new Map(
+          refunds
+            .filter((r) => r?.paymentId != null)
+            .map((r) => [Number(r.paymentId), r]),
+        );
+        const refundRequestedEventIds = new Set(
+          payments
+            .filter((p) => {
+              const refund = refundByPaymentId.get(Number(p?.paymentId));
+              return String(refund?.status || "").toUpperCase() === "REQUESTED";
+            })
+            .map((p) => Number(p?.eventId))
+            .filter(Number.isFinite),
+        );
         const eventIds = [...new Set(rawItems.map((item) => item.eventId).filter(Boolean))];
 
         const eventResults = await Promise.all(
@@ -358,6 +433,7 @@ export default function ApplyHistory() {
             eventId: item.eventId,
             eventName: detail.eventName || `행사 #${item.eventId}`,
             status: item.status,
+            isRefundPending: refundRequestedEventIds.has(Number(item.eventId)),
             appliedAt: item.appliedAt,
             startAt: detail.startAt,
             endAt: detail.endAt,
@@ -385,12 +461,37 @@ export default function ApplyHistory() {
 
   const filtered = useMemo(() => {
     if (filter === "all") return records;
+    if (filter === "APPLIED") {
+      return records.filter((r) => r.status === "APPLIED" || r.isRefundPending);
+    }
+    if (filter === "APPROVED") {
+      return records.filter((r) => r.status === "APPROVED" && !r.isRefundPending);
+    }
     return records.filter((r) => r.status === filter);
   }, [filter, records]);
 
+  const searched = useMemo(() => {
+    const q = String(query || "").trim().toLowerCase();
+    if (!q) return filtered;
+    return filtered.filter((r) => {
+      const name = String(r?.eventName || "").toLowerCase();
+      const location = String(r?.location || "").toLowerCase();
+      return name.includes(q) || location.includes(q);
+    });
+  }, [filtered, query]);
+
   const counts = useMemo(() => {
-    const c = (s) => records.filter((r) => r.status === s).length;
-    return { total: records.length, approved: c("APPLIED") + c("APPROVED"), cancelled: c("CANCELLED") + c("REJECTED") };
+    const total = records.length;
+    const approved = records.filter(
+      (r) => r.status === "APPROVED" && !r.isRefundPending,
+    ).length;
+    const pending = records.filter(
+      (r) => r.status === "APPLIED" || r.isRefundPending,
+    ).length;
+    const cancelled = records.filter(
+      (r) => r.status === "CANCELLED" || r.status === "REJECTED",
+    ).length;
+    return { total, approved, pending, cancelled };
   }, [records]);
 
   return (
@@ -417,8 +518,15 @@ export default function ApplyHistory() {
           <div className="ah-summary-card">
             <div className="ah-summary-dot dot-blue" />
             <div className="ah-summary-text">
-              <div className="ah-summary-label">승인 / 신청</div>
+              <div className="ah-summary-label">승인</div>
               <div className="ah-summary-val">{counts.approved}</div>
+            </div>
+          </div>
+          <div className="ah-summary-card">
+            <div className="ah-summary-dot dot-amber" />
+            <div className="ah-summary-text">
+              <div className="ah-summary-label">대기</div>
+              <div className="ah-summary-val">{counts.pending}</div>
             </div>
           </div>
           <div className="ah-summary-card">
@@ -434,32 +542,45 @@ export default function ApplyHistory() {
         <div className="ah-toolbar">
           <div className="ah-toolbar-left">
             <span className="ah-toolbar-title">신청 내역</span>
-            {!loading && <span className="ah-count"><strong>{filtered.length}</strong>건</span>}
+            {!loading && <span className="ah-count"><strong>{searched.length}</strong>건</span>}
           </div>
-          <div className="ah-filters">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                className={`ah-filter${filter === f.key ? " active" : ""}`}
-                onClick={() => setFilter(f.key)}
-                type="button"
-              >{f.label}</button>
-            ))}
+          <div className="ah-toolbar-right">
+            <div className="ah-filters">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  className={`ah-filter${filter === f.key ? " active" : ""}`}
+                  onClick={() => setFilter(f.key)}
+                  type="button"
+                >{f.label}</button>
+              ))}
+            </div>
+            <div className="ah-search-wrap">
+              <Search size={15} className="ah-search-icon" />
+              <input
+                className="ah-search-input"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="검색"
+              />
+            </div>
           </div>
         </div>
 
         {/* 리스트 */}
         {loading ? (
           <PageLoading />
-        ) : (error || filtered.length === 0) ? (
+        ) : (error || searched.length === 0) ? (
           <div className="ah-empty">
             <Inbox size={48} strokeWidth={1.2} />
             <span>{error || "신청 내역이 없습니다."}</span>
           </div>
         ) : (
           <div className="ah-list">
-            {filtered.map((record) => {
-              const meta = STATUS_META[record.status] || { label: record.status, bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" };
+            {searched.map((record) => {
+              const meta = record.isRefundPending
+                ? REFUND_PENDING_META
+                : (STATUS_META[record.status] || { label: record.status, bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" });
               return (
                 <div
                   key={record.id}
@@ -496,7 +617,11 @@ export default function ApplyHistory() {
                     <button
                       className="ah-qr-btn"
                       type="button"
-                      onClick={() => navigate(`/registration/qrcheckin?eventId=${record.eventId}`)}
+                      disabled={Boolean(record.isRefundPending)}
+                      onClick={() => {
+                        if (record.isRefundPending) return;
+                        navigate(`/registration/qrcheckin?eventId=${record.eventId}`);
+                      }}
                     >
                       <QrCode size={18} /> QR 체크인
                     </button>
