@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX } from "lucide-react";
+import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX, Menu } from "lucide-react";
 import {
   notificationApi,
   NOTIFICATION_UNREAD_COUNT_EVENT,
@@ -759,7 +759,10 @@ export default function PupooHeader() {
   const mobileQuickLinks = [
     { label: "홈", to: "/" },
     { label: "행사", to: "/event/current" },
+    { label: "프로그램", to: "/program/current" },
     { label: "커뮤니티", to: "/community/notice" },
+    { label: "참가신청", to: "/registration/apply" },
+    { label: "실시간", to: "/realtime/dashboard" },
   ];
 
   return (
@@ -976,7 +979,7 @@ export default function PupooHeader() {
               padding: isMobile ? "0 12px" : isTablet ? "0 20px" : "0 40px",
               display: "flex",
               alignItems: "center",
-              justifyContent: isMobile ? "flex-start" : "space-between",
+              justifyContent: "space-between",
               height: "100%",
             }}
           >
@@ -995,7 +998,7 @@ export default function PupooHeader() {
                 src={isLight ? "/logo_white2.png" : "/logo_olive.png"}
                 alt="Pupoo"
                 style={{
-                  height: isMobile ? 26 : isTablet ? 24 : 28,
+                  height: isMobile ? 22 : isTablet ? 24 : 28,
                   width: "auto",
                   display: "block",
                 }}
@@ -1091,11 +1094,9 @@ export default function PupooHeader() {
             <div
               className="pupoo-mobile-only"
               style={{
-                display: "none",
                 alignItems: "center",
-                gap: 10,
+                gap: 6,
                 flexShrink: 0,
-                marginLeft: 12,
               }}
             >
               <button
@@ -1109,69 +1110,53 @@ export default function PupooHeader() {
                   setMobileMenuOpen(false);
                 }}
               >
-                <Search size={19} color={iconColor} strokeWidth={1.8} />
+                <Search size={18} color={iconColor} strokeWidth={1.8} />
               </button>
               {isAuthed ? (
-                <>
-                  <Link
-                    to="/mypage"
-                    style={mobileActionIconStyle}
-                    aria-label="마이페이지"
-                    title="마이페이지"
-                    onClick={() => {
-                      setActiveMenu(null);
-                      setSearchOpen(false);
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    <UserCircle size={19} color={iconColor} strokeWidth={1.8} />
-                  </Link>
-                  <button
-                    type="button"
-                    style={{ ...mobileActionIconStyle, cursor: "pointer" }}
-                    aria-label="로그아웃"
-                    title="로그아웃"
-                    onClick={() => {
-                      logout();
-                      setActiveMenu(null);
-                      setSearchOpen(false);
-                      setMobileMenuOpen(false);
-                      navigate("/", { replace: true });
-                    }}
-                  >
-                    <LogOut size={19} color={iconColor} strokeWidth={1.8} />
-                  </button>
-                </>
+                <Link
+                  to="/mypage"
+                  style={mobileActionIconStyle}
+                  aria-label="마이페이지"
+                  title="마이페이지"
+                  onClick={() => {
+                    setActiveMenu(null);
+                    setSearchOpen(false);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <UserCircle size={18} color={iconColor} strokeWidth={1.8} />
+                </Link>
               ) : (
-                <>
-                  <Link
-                    to="/auth/login"
-                    style={mobileActionIconStyle}
-                    aria-label="로그인"
-                    title="로그인"
-                    onClick={() => {
-                      setActiveMenu(null);
-                      setSearchOpen(false);
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    <LogIn size={19} color={iconColor} strokeWidth={1.9} />
-                  </Link>
-                  <Link
-                    to="/auth/join/joinselect"
-                    style={mobileActionIconStyle}
-                    aria-label="회원가입"
-                    title="회원가입"
-                    onClick={() => {
-                      setActiveMenu(null);
-                      setSearchOpen(false);
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    <UserPlus size={19} color={iconColor} strokeWidth={1.8} />
-                  </Link>
-                </>
+                <Link
+                  to="/auth/login"
+                  style={mobileActionIconStyle}
+                  aria-label="로그인"
+                  title="로그인"
+                  onClick={() => {
+                    setActiveMenu(null);
+                    setSearchOpen(false);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <LogIn size={18} color={iconColor} strokeWidth={1.9} />
+                </Link>
               )}
+              <button
+                type="button"
+                style={{ ...mobileActionIconStyle, cursor: "pointer" }}
+                aria-label="전체 메뉴"
+                title="전체 메뉴"
+                onClick={() => {
+                  setMobileMenuOpen((v) => !v);
+                  setActiveMenu(null);
+                  setSearchOpen(false);
+                }}
+              >
+                {mobileMenuOpen
+                  ? <X size={18} color={iconColor} strokeWidth={1.8} />
+                  : <Menu size={18} color={iconColor} strokeWidth={1.8} />
+                }
+              </button>
             </div>
           </div>
         </header>
@@ -1290,6 +1275,7 @@ export default function PupooHeader() {
                         textAlign: "left",
                       }}
                     >
+                      {item.label}
                     </button>
                   );
                 }
