@@ -7,7 +7,11 @@
  *
  * 관리자 정책 API
  * - GET /api/admin/moderation/policies/active
+ * - GET /api/admin/moderation/policies/uploads?page=&size=
  * - POST /api/admin/moderation/policies/upload
+ *
+ * AI 모더레이션 BLOCK 로그
+ * - GET /api/admin/moderation/logs?boardId=&page=&size=
  */
 import { axiosInstance } from "./axiosInstance";
 
@@ -17,10 +21,17 @@ function unwrap(res) {
 }
 
 export const bannedWordApi = {
-  list(boardId, page = 0, size = 20) {
+  /**
+   * @param {string} [q] 금지어 부분 검색 (서버 LIKE)
+   */
+  list(boardId, page = 0, size = 20, q) {
+    const params = { page, size };
+    if (q != null && String(q).trim() !== "") {
+      params.q = String(q).trim();
+    }
     return axiosInstance
       .get(`/api/admin/boards/${boardId}/banned-words`, {
-        params: { page, size },
+        params,
       })
       .then((res) => unwrap(res));
   },
@@ -44,10 +55,36 @@ export const bannedWordApi = {
   },
 };
 
+export const moderationLogsApi = {
+  /**
+   * @param {number} page
+   * @param {number} size
+   * @param {number} [boardId] - 없으면 전체 게시판 로그
+   */
+  list(page = 0, size = 10, boardId) {
+    const params = { page, size };
+    if (boardId != null && boardId !== "") {
+      params.boardId = boardId;
+    }
+    return axiosInstance
+      .get("/api/admin/moderation/logs", { params })
+      .then((res) => unwrap(res));
+  },
+};
+
 export const policyApi = {
   getActive() {
     return axiosInstance
       .get("/api/admin/moderation/policies/active")
+      .then((res) => unwrap(res));
+  },
+
+  /**
+   * 정책 업로드 이력 (PageResponse: content, page, size, totalElements, …)
+   */
+  listUploads(page = 0, size = 20) {
+    return axiosInstance
+      .get("/api/admin/moderation/policies/uploads", { params: { page, size } })
       .then((res) => unwrap(res));
   },
 
@@ -57,7 +94,8 @@ export const policyApi = {
     return axiosInstance
       .post("/api/admin/moderation/policies/upload", form, {
         headers: { "Content-Type": "multipart/form-data" },
-        timeout: 120_000,
+        // 백엔드 ai.moderation.timeout-seconds(기본 300) + 여유
+        timeout: 360_000,
       })
       .then((res) => unwrap(res));
   },

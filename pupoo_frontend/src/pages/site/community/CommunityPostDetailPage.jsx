@@ -17,6 +17,20 @@ function fmtDate(value) {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function maskDisplayName(value, maxUnits) {
+  const src = String(value || "").trim();
+  if (!src) return "";
+  let used = 0;
+  let out = "";
+  for (const ch of src) {
+    const units = ch.charCodeAt(0) <= 127 ? 1 : 2;
+    if (used + units > maxUnits) return `${out}*`;
+    out += ch;
+    used += units;
+  }
+  return out;
+}
+
 const sectionStyle = {
   padding: 0,
   paddingBottom: 32,
@@ -333,10 +347,17 @@ export default function CommunityPostDetailPage({
 
   const metaItems = useMemo(() => {
     if (!post) return [];
+    const authorLabel =
+      post?.writerNickname ||
+      post?.writerEmail ||
+      post?.author ||
+      post?.nickname ||
+      post?.userName ||
+      `user#${post.userId || "-"}`;
     return [
       { label: "작성일", value: fmtDate(post.createdAt) },
       { label: "조회수", value: post.viewCount ?? 0 },
-      { label: "작성자", value: post.writerEmail || `user#${post.userId || "-"}` },
+      { label: "작성자", value: maskDisplayName(authorLabel, 30) },
     ];
   }, [post]);
 

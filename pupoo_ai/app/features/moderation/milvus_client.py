@@ -10,12 +10,39 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from typing import Iterable, List, Optional
 
 from pymilvus import CollectionSchema, DataType, FieldSchema, MilvusClient
+from pymilvus.exceptions import MilvusException
 from pymilvus.milvus_client import IndexParams
 
 from pupoo_ai.app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+# CollectionSchema FieldSchema max_length 와 반드시 일치 (초과 시 insert 실패 → 500)
+_MILVUS_VARCHAR_LIMITS = {
+    "policy_id": 128,
+    "category": 64,
+    "source": 256,
+    "chunk_text": 2048,
+}
+
+
+def _clip_varchar(value: object, field: str) -> str:
+    s = "" if value is None else str(value)
+    limit = _MILVUS_VARCHAR_LIMITS[field]
+    if len(s) > limit:
+        logger.warning(
+            "Milvus 필드 길이 초과로 절단: field=%s len=%d max=%d",
+            field,
+            len(s),
+            limit,
+        )
+        return s[:limit]
+    return s
 
 
 def _ensure_collection(client: MilvusClient, collection_name: str, dim: int) -> None:
@@ -66,21 +93,54 @@ def _ensure_collection(client: MilvusClient, collection_name: str, dim: int) -> 
 class PolicyVectorStore:
     """Milvus 기반 정책 벡터 저장소 래퍼."""
 
+    # standalone 기동 직후 Proxy gRPC가 늦게 뜨는 경우가 있어 재시도한다.
+    # 시도당 타임아웃은 짧게: 장시간 대기 시 재시도 간격이 1분처럼 보이는 것을 줄임.
+    _CONNECT_RETRIES = 20
+    _CONNECT_RETRY_DELAY_SEC = 2.0
+    _CONNECT_TIMEOUT_SEC = 15.0
+
     def __init__(self, dim: int, collection_name: str) -> None:
         self._dim = dim
         self._collection_name = collection_name
-        # Milvus 2.x gRPC: URI는 http://host:port (REST 게이트웨이) 또는 host:port
+        # Milvus 2.x gRPC: URI는 http://host:port
         uri = f"http://{settings.milvus_host}:{settings.milvus_port}"
-        user = settings.milvus_username or None
-        password = settings.milvus_password or None
+        # pymilvus는 user=None 시 str(None) → "None" 으로 넘어가 인증/연결이 깨질 수 있음 → 빈 문자열만 전달
+        user = (settings.milvus_username or "").strip()
+        password = (settings.milvus_password or "").strip()
 
-        self._client = MilvusClient(
-            uri=uri,
-            user=user,
-            password=password,
-            secure=settings.milvus_tls,
-            timeout=30,
-        )
+        last_err: Optional[MilvusException] = None
+        for attempt in range(1, self._CONNECT_RETRIES + 1):
+            try:
+                self._client = MilvusClient(
+                    uri=uri,
+                    user=user,
+                    password=password,
+                    db_name="default",
+                    secure=settings.milvus_tls,
+                    timeout=self._CONNECT_TIMEOUT_SEC,
+                )
+                last_err = None
+                break
+            except MilvusException as e:
+                last_err = e
+                if attempt >= self._CONNECT_RETRIES:
+                    logger.error(
+                        "Milvus 연결 실패 uri=%s — docker-compose.milvus.yml의 shm_size(2gb)·mem_limit, "
+                        "docker logs pupoo-milvus, 19530 점유(netstat), 로컬 K8s Milvus와 RAM 경쟁 여부, "
+                        "pymilvus·이미지(v2.4.x) 확인. 원본: %s",
+                        uri,
+                        e,
+                    )
+                    raise
+                logger.warning(
+                    "Milvus 연결 재시도 %d/%d (%.0fs 후): %s",
+                    attempt,
+                    self._CONNECT_RETRIES,
+                    self._CONNECT_RETRY_DELAY_SEC,
+                    e,
+                )
+                time.sleep(self._CONNECT_RETRY_DELAY_SEC)
+
         _ensure_collection(self._client, collection_name=self._collection_name, dim=dim)
 
     def upsert(
@@ -106,10 +166,10 @@ class PolicyVectorStore:
         data = [
             {
                 "embedding": embedding,
-                "policy_id": policy_id,
-                "category": category,
-                "source": source,
-                "chunk_text": chunk,
+                "policy_id": _clip_varchar(policy_id, "policy_id"),
+                "category": _clip_varchar(category, "category"),
+                "source": _clip_varchar(source, "source"),
+                "chunk_text": _clip_varchar(chunk, "chunk_text"),
             }
             for embedding, policy_id, category, source, chunk in zip(
                 embeddings, policy_ids, categories, sources, chunks

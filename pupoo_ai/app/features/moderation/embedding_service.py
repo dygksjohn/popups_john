@@ -1,20 +1,27 @@
-"""모더레이션 임베딩 서비스 선택기.
+"""모더레이션 임베딩 서비스.
 
 기능:
-- 정책 검색에 사용할 임베딩 구현체를 선택한다.
+- 정책 검색(Milvus)에 쓰는 텍스트 임베딩을 IBM watsonx.ai Embeddings API로 생성한다.
 
 설명:
-- watsonx, BGE-M3, stub 구현을 지원한다.
-- stub은 개발/테스트용이며 실제 정책 품질을 보장하지 않는다.
+- BGE-M3 / 별도 embedding-service는 사용하지 않는다.
+- Milvus 컬렉션 벡터 차원은 `PUPOO_AI_WATSONX_EMBEDDING_DIM`과 선택한 모델 출력이 일치해야 한다.
+  (모델 변경 시 컬렉션 재구축 필요)
 """
 
 from __future__ import annotations
 
+import logging
+import threading
 from typing import Iterable, List, Protocol
 
-import httpx
-
 from pupoo_ai.app.core.config import settings
+from pupoo_ai.app.features.moderation.watsonx_client import is_watsonx_embedding_configured
+
+logger = logging.getLogger(__name__)
+
+# watsonx API 배치 한도를 넘기지 않도록 나눔
+_EMBED_BATCH_SIZE = 32
 
 
 class EmbeddingService(Protocol):
@@ -26,48 +33,65 @@ class EmbeddingService(Protocol):
         ...
 
 
-class RemoteBgeM3EmbeddingService:
-    """
-    BGE-M3 임베딩을 embedding-service(별도 FastAPI 앱)로 위임한다.
-    - pupoo_ai 런타임에서 무거운 모델(torch/sentence-transformers) 의존성을 제거하기 위한 구조.
-    """
+class WatsonxEmbeddingService:
+    """watsonx.ai foundation model 임베딩 (langchain_ibm.WatsonxEmbeddings)."""
 
     def __init__(self) -> None:
-        backend = getattr(settings, "embedding_backend", "").lower()
-        if backend != "bge-m3":
+        if not is_watsonx_embedding_configured():
             raise RuntimeError(
-                f"embedding_backend는 'bge-m3'로 고정되어야 합니다. 현재 값: {backend!r}"
+                "watsonx 임베딩에 필요한 설정이 없습니다. "
+                "PUPOO_AI_WATSONX_API_KEY, PUPOO_AI_WATSONX_URL, PUPOO_AI_WATSONX_PROJECT_ID, "
+                "PUPOO_AI_WATSONX_EMBEDDING_MODEL_ID 를 설정하세요."
             )
-        if not settings.embedding_service_url:
-            raise RuntimeError("PUPOO_AI_EMBEDDING_SERVICE_URL is required")
-
-        self._base_url = settings.embedding_service_url.rstrip("/")
-        self._timeout = settings.embedding_service_timeout_seconds
-        self._dim = 1024
+        self._dim = settings.watsonx_embedding_dim
+        self._client = None
+        self._lock = threading.Lock()
 
     @property
     def dim(self) -> int:
         return self._dim
 
+    def _get_watsonx(self):
+        with self._lock:
+            if self._client is None:
+                from langchain_ibm import WatsonxEmbeddings
+
+                self._client = WatsonxEmbeddings(
+                    model_id=settings.watsonx_embedding_model_id.strip(),
+                    url=settings.watsonx_url or "https://us-south.ml.cloud.ibm.com",
+                    apikey=settings.watsonx_api_key,
+                    project_id=settings.watsonx_project_id,
+                )
+            return self._client
+
     def embed_texts(self, texts: Iterable[str]) -> List[List[float]]:
-        texts_list = list(texts)
+        texts_list = [t if t is not None else "" for t in texts]
         if not texts_list:
             return []
 
-        headers = {"X-Internal-Token": settings.internal_token}
-        payload = {"texts": [t if t is not None else "" for t in texts_list]}
+        wx = self._get_watsonx()
+        out: List[List[float]] = []
+        for i in range(0, len(texts_list), _EMBED_BATCH_SIZE):
+            batch = texts_list[i : i + _EMBED_BATCH_SIZE]
+            out.extend(wx.embed_documents(batch))
 
-        with httpx.Client(timeout=self._timeout) as client:
-            r = client.post(f"{self._base_url}/internal/embed", json=payload, headers=headers)
-            r.raise_for_status()
-            data = r.json()
+        if out and len(out[0]) != self._dim:
+            logger.warning(
+                "임베딩 벡터 길이(%d)가 PUPOO_AI_WATSONX_EMBEDDING_DIM(%d)과 다릅니다. "
+                "Milvus 스키마·설정을 모델에 맞게 조정하세요.",
+                len(out[0]),
+                self._dim,
+            )
+        return out
 
-        vectors = data.get("vectors")
-        if not isinstance(vectors, list):
-            raise RuntimeError("Invalid embedding-service response: vectors")
-        return vectors
+
+_service_lock = threading.Lock()
+_service: WatsonxEmbeddingService | None = None
 
 
 def get_embedding_service() -> EmbeddingService:
-    return RemoteBgeM3EmbeddingService()
-
+    global _service
+    with _service_lock:
+        if _service is None:
+            _service = WatsonxEmbeddingService()
+        return _service

@@ -90,14 +90,14 @@ def moderate_with_rag(text: str) -> tuple[str, float | None, str | None, str, li
     docs = retrieve_policies(text, top_k=5)
 
     if is_watsonx_configured():
-        action, ai_score, reason, flagged_phrases, inferred_phrases = moderate_with_llm(text, documents)
+        action, ai_score, reason, flagged_phrases, inferred_phrases = moderate_with_llm(text, docs)
         return action, ai_score, reason, "rag_watsonx", flagged_phrases, inferred_phrases
 
     logger.error("watsonx is not configured. Treating moderation result as BLOCK.")
     return "BLOCK", None, "watsonx 설정이 없어 모더레이션을 수행할 수 없습니다.", "rag_milvus_stub", None, None
 
     reasons = []
-    for document in documents:
+    for document in docs:
         snippet = document["chunk_text"][:200].replace("\n", " ")
         reasons.append(f"[{document['policy_id']}] {snippet}")
 

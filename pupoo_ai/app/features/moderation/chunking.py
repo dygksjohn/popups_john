@@ -74,11 +74,11 @@ def _policy_json_to_chunk(policy: dict, file_source: str) -> PolicyChunk:
         "키워드: " + ", ".join(policy.get("keywords") or []),
     ]
     text = "\n".join(x for x in parts if x.strip())
-    policy_id = str(p.get("id") or p.get("code") or "")
+    policy_id = str(policy.get("id") or policy.get("code") or "")
     return PolicyChunk(
         text=text or policy_id,
         policy_id=policy_id,
-        category=str(p.get("category") or "GENERAL"),
+        category=str(policy.get("category") or "GENERAL"),
         source=file_source,
     )
 
