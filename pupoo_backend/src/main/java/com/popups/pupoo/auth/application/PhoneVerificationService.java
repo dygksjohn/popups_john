@@ -38,6 +38,7 @@ public class PhoneVerificationService {
     private final int requestCooldownSeconds;
     private final int maxAttempts;
     private final boolean exposeDevCode;
+    private final String smsProvider;
 
     public PhoneVerificationService(
             UserRepository userRepository,
@@ -47,7 +48,8 @@ public class PhoneVerificationService {
             @Value("${verification.phone.ttl-minutes:5}") int otpTtlMinutes,
             @Value("${verification.request.cooldown-seconds:60}") int requestCooldownSeconds,
             @Value("${verification.phone.max-attempts:5}") int maxAttempts,
-            @Value("${verification.dev.expose:true}") boolean exposeDevCode
+            @Value("${verification.dev.expose:true}") boolean exposeDevCode,
+            @Value("${auth.sms.provider:dev}") String smsProvider
     ) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
@@ -57,6 +59,7 @@ public class PhoneVerificationService {
         this.requestCooldownSeconds = requestCooldownSeconds;
         this.maxAttempts = maxAttempts;
         this.exposeDevCode = exposeDevCode;
+        this.smsProvider = smsProvider;
     }
 
     /**
@@ -95,7 +98,7 @@ public class PhoneVerificationService {
         // 흐름: OTP 저장 후 포트에 메시지를 전달한다.
         smsOtpSenderPort.sendOtp(phone, buildOtpMessage(code));
 
-        return new PhoneVerificationRequestResponse(expiresAt, exposeDevCode ? code : null);
+        return new PhoneVerificationRequestResponse(expiresAt, shouldExposeSmsCode() ? code : null);
     }
 
     /**
@@ -132,7 +135,7 @@ public class PhoneVerificationService {
         tokenRepository.save(new PhoneVerificationToken(userId, phone, codeHash, expiresAt));
         smsOtpSenderPort.sendOtp(phone, buildOtpMessage(code));
 
-        return new PhoneVerificationRequestResponse(expiresAt, exposeDevCode ? code : null);
+        return new PhoneVerificationRequestResponse(expiresAt, shouldExposeSmsCode() ? code : null);
     }
 
     /**
@@ -240,5 +243,10 @@ public class PhoneVerificationService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
         return phone.replaceAll("[^0-9]", "");
+    }
+
+    // 기능: SMS가 dev provider면 OTP를 테스트 응답에 노출한다.
+    private boolean shouldExposeSmsCode() {
+        return exposeDevCode || (smsProvider != null && "dev".equalsIgnoreCase(smsProvider.trim()));
     }
 }

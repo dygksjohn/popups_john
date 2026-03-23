@@ -46,7 +46,7 @@ public class AuthDeliveryConfig {
             AwsMessagingProperties awsMessagingProperties,
             ObjectProvider<SesV2Client> sesV2ClientProvider,
             Environment environment,
-            @Value("${verification.email.base-url:http://3.38.233.224:8080}") String verificationBaseUrl
+            @Value("${verification.email.base-url:}") String verificationBaseUrl
     ) {
         String provider = normalizeProvider(authProperties.getEmail().getProvider(), "auth.email.provider");
         logSelectedProvider("email", provider, environment);
