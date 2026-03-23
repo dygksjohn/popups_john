@@ -319,6 +319,11 @@ const modalStyles = `
     background: #f8fbff;
     box-shadow: 0 2px 10px rgba(26,79,214,0.1);
   }
+  .evm-guide-program-item.inactive {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: default;
+  }
   .evm-guide-program-dot {
     width: 10px;
     height: 10px;
@@ -1629,19 +1634,23 @@ export default function EventDetailModal({ event, onClose }) {
                           <div className="evm-guide-period">{group.period}</div>
                           {group.items.length > 0 && (
                             <div className="evm-guide-program-list">
-                              {group.items.map((item) => (
+                              {group.items.map((item) => {
+                                const isLive = item.status === "live";
+                                const isClickable = item.programId && isLive;
+                                const isInactive = item.status === "done" || item.status === "upcoming";
+                                return (
                                 <div
                                   key={item.id}
-                                  className={`evm-guide-program-item${item.programId ? " clickable" : ""}`}
-                                  role={item.programId ? "button" : undefined}
-                                  tabIndex={item.programId ? 0 : undefined}
+                                  className={`evm-guide-program-item${isClickable ? " clickable" : ""}${isInactive ? " inactive" : ""}`}
+                                  role={isClickable ? "button" : undefined}
+                                  tabIndex={isClickable ? 0 : undefined}
                                   onClick={
-                                    item.programId
+                                    isClickable
                                       ? () => handleViewProgramDetail(item.programId)
                                       : undefined
                                   }
                                   onKeyDown={
-                                    item.programId
+                                    isClickable
                                       ? (e) => {
                                           if (e.key === "Enter" || e.key === " ") {
                                             e.preventDefault();
@@ -1671,7 +1680,8 @@ export default function EventDetailModal({ event, onClose }) {
                                         : "예정"}
                                   </span>
                                 </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -1946,14 +1956,28 @@ export default function EventDetailModal({ event, onClose }) {
                 <ExternalLink size={14} />
                 공유
               </button>
-              {regLoading ? (
+              {(() => {
+                const eventEnded = statusLabel === "ENDED" || statusLabel === "CLOSED";
+                const eventUpcoming = statusLabel === "PLANNED" || statusLabel === "UPCOMING";
+                const eventInactive = eventEnded || eventUpcoming;
+                if (regLoading) return (
                 <button
                   className="evm-btn-primary"
                   disabled={detailLoading || regLoading}
                 >
                   로딩중
                 </button>
-              ) : canApply ? (
+                );
+                if (eventInactive) return (
+                <button
+                  className="evm-btn-primary"
+                  disabled
+                  style={{ background: "#d1d5db", color: "#9ca3af", boxShadow: "none", cursor: "not-allowed" }}
+                >
+                  {eventEnded ? "행사 종료" : "행사 예정"}
+                </button>
+                );
+                if (canApply) return (
                 <button
                   className="evm-btn-primary"
                   onClick={handleApply}
@@ -1962,7 +1986,8 @@ export default function EventDetailModal({ event, onClose }) {
                   <Zap size={14} />
                   참가 신청
                 </button>
-              ) : canCancel ? (
+                );
+                if (canCancel) return (
                 <button
                   className="evm-btn-primary"
                   style={{
@@ -1975,7 +2000,9 @@ export default function EventDetailModal({ event, onClose }) {
                   <CheckCircle size={14} />
                   신청 취소
                 </button>
-              ) : null}
+                );
+                return null;
+              })()}
             </div>
           </div>
           {/* /evm-cta-bar */}

@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX } from "lucide-react";
+import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX, Menu, ChevronDown, ChevronRight } from "lucide-react";
 import {
   notificationApi,
   NOTIFICATION_UNREAD_COUNT_EVENT,
@@ -606,6 +606,7 @@ export default function PupooHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expandedMenuKey, setExpandedMenuKey] = useState(null);
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window === "undefined" ? 1440 : window.innerWidth,
   );
@@ -617,9 +618,8 @@ export default function PupooHeader() {
   const isMobile = viewportWidth < 768;
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
   const isCompact = viewportWidth < 1024;
-  const headerHeight = isMobile ? 66 : isTablet ? 72 : 92;
-  const mobileShortcutHeight = isMobile ? 46 : 0;
-  const compactTopOffset = isMobile ? headerHeight + mobileShortcutHeight : headerHeight;
+  const headerHeight = isMobile ? 72 : isTablet ? 72 : 92;
+  const compactTopOffset = headerHeight;
 
   /* ?? scroll listener ?? */
   useEffect(() => {
@@ -716,13 +716,13 @@ export default function PupooHeader() {
     const root = document.documentElement;
     root.style.setProperty("--pupoo-site-header-height", `${headerHeight}px`);
     root.style.setProperty("--pupoo-site-header-offset", `${compactTopOffset}px`);
-    root.style.setProperty("--pupoo-site-quicknav-height", `${mobileShortcutHeight}px`);
+    root.style.setProperty("--pupoo-site-quicknav-height", "0px");
     return () => {
       root.style.removeProperty("--pupoo-site-header-height");
       root.style.removeProperty("--pupoo-site-header-offset");
       root.style.removeProperty("--pupoo-site-quicknav-height");
     };
-  }, [headerHeight, compactTopOffset, mobileShortcutHeight]);
+  }, [headerHeight, compactTopOffset]);
 
   const handleNavClick = (menuKey) => {
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey));
@@ -743,11 +743,11 @@ export default function PupooHeader() {
   const textColor = isWhiteMode ? "#222" : "#fff";
   const iconColor = isWhiteMode ? "#222" : "#fff";
   const mobileActionIconStyle = {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
-    border: isWhiteMode ? "1px solid #e7ebf0" : "1px solid rgba(255,255,255,0.18)",
-    background: isWhiteMode ? "#fff" : "rgba(255,255,255,0.12)",
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    border: "none",
+    background: "none",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -756,11 +756,6 @@ export default function PupooHeader() {
     fontFamily: FONT,
     flexShrink: 0,
   };
-  const mobileQuickLinks = [
-    { label: "홈", to: "/" },
-    { label: "행사", to: "/event/current" },
-    { label: "커뮤니티", to: "/community/notice" },
-  ];
 
   return (
     <>
@@ -976,7 +971,7 @@ export default function PupooHeader() {
               padding: isMobile ? "0 12px" : isTablet ? "0 20px" : "0 40px",
               display: "flex",
               alignItems: "center",
-              justifyContent: isMobile ? "flex-start" : "space-between",
+              justifyContent: "space-between",
               height: "100%",
             }}
           >
@@ -995,7 +990,7 @@ export default function PupooHeader() {
                 src={isLight ? "/logo_white2.png" : "/logo_olive.png"}
                 alt="Pupoo"
                 style={{
-                  height: isMobile ? 26 : isTablet ? 24 : 28,
+                  height: isMobile ? 17 : isTablet ? 22 : 28,
                   width: "auto",
                   display: "block",
                 }}
@@ -1091,11 +1086,9 @@ export default function PupooHeader() {
             <div
               className="pupoo-mobile-only"
               style={{
-                display: "none",
                 alignItems: "center",
-                gap: 10,
+                gap: 6,
                 flexShrink: 0,
-                marginLeft: 12,
               }}
             >
               <button
@@ -1109,131 +1102,57 @@ export default function PupooHeader() {
                   setMobileMenuOpen(false);
                 }}
               >
-                <Search size={19} color={iconColor} strokeWidth={1.8} />
+                <Search size={18} color={iconColor} strokeWidth={1.8} />
               </button>
               {isAuthed ? (
-                <>
-                  <Link
-                    to="/mypage"
-                    style={mobileActionIconStyle}
-                    aria-label="마이페이지"
-                    title="마이페이지"
-                    onClick={() => {
-                      setActiveMenu(null);
-                      setSearchOpen(false);
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    <UserCircle size={19} color={iconColor} strokeWidth={1.8} />
-                  </Link>
-                  <button
-                    type="button"
-                    style={{ ...mobileActionIconStyle, cursor: "pointer" }}
-                    aria-label="로그아웃"
-                    title="로그아웃"
-                    onClick={() => {
-                      logout();
-                      setActiveMenu(null);
-                      setSearchOpen(false);
-                      setMobileMenuOpen(false);
-                      navigate("/", { replace: true });
-                    }}
-                  >
-                    <LogOut size={19} color={iconColor} strokeWidth={1.8} />
-                  </button>
-                </>
+                <Link
+                  to="/mypage"
+                  style={mobileActionIconStyle}
+                  aria-label="마이페이지"
+                  title="마이페이지"
+                  onClick={() => {
+                    setActiveMenu(null);
+                    setSearchOpen(false);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <UserCircle size={18} color={iconColor} strokeWidth={1.8} />
+                </Link>
               ) : (
-                <>
-                  <Link
-                    to="/auth/login"
-                    style={mobileActionIconStyle}
-                    aria-label="로그인"
-                    title="로그인"
-                    onClick={() => {
-                      setActiveMenu(null);
-                      setSearchOpen(false);
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    <LogIn size={19} color={iconColor} strokeWidth={1.9} />
-                  </Link>
-                  <Link
-                    to="/auth/join/joinselect"
-                    style={mobileActionIconStyle}
-                    aria-label="회원가입"
-                    title="회원가입"
-                    onClick={() => {
-                      setActiveMenu(null);
-                      setSearchOpen(false);
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    <UserPlus size={19} color={iconColor} strokeWidth={1.8} />
-                  </Link>
-                </>
+                <Link
+                  to="/auth/login"
+                  style={mobileActionIconStyle}
+                  aria-label="로그인"
+                  title="로그인"
+                  onClick={() => {
+                    setActiveMenu(null);
+                    setSearchOpen(false);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <LogIn size={18} color={iconColor} strokeWidth={1.9} />
+                </Link>
               )}
+              <button
+                type="button"
+                style={{ ...mobileActionIconStyle, cursor: "pointer" }}
+                aria-label="전체 메뉴"
+                title="전체 메뉴"
+                onClick={() => {
+                  setMobileMenuOpen((v) => !v);
+                  setActiveMenu(null);
+                  setSearchOpen(false);
+                }}
+              >
+                {mobileMenuOpen
+                  ? <X size={18} color={iconColor} strokeWidth={1.8} />
+                  : <Menu size={18} color={iconColor} strokeWidth={1.8} />
+                }
+              </button>
             </div>
           </div>
         </header>
 
-        {isMobile && (
-          <div
-            style={{
-              position: "fixed",
-              top: headerHeight,
-              left: 0,
-              right: 0,
-              zIndex: 1001,
-              background: "rgba(255,255,255,0.98)",
-              backdropFilter: "blur(18px)",
-              borderBottom: "1px solid #edf1f5",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                overflowX: "auto",
-                padding: "7px 12px",
-                WebkitOverflowScrolling: "touch",
-                scrollbarWidth: "none",
-              }}
-            >
-              {mobileQuickLinks.map((item) => {
-                const active = location.pathname === item.to;
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => {
-                      setActiveMenu(null);
-                      setSearchOpen(false);
-                      setMobileMenuOpen(false);
-                    }}
-                    style={{
-                      flexShrink: 0,
-                      height: 30,
-                      padding: "0 14px",
-                      borderRadius: 999,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      textDecoration: "none",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      fontFamily: FONT,
-                      color: active ? "#fff" : "#4b5563",
-                      background: active ? "#02A17E" : "#f3f4f6",
-                      border: active ? "none" : "1px solid #eef2f7",
-                    }}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* ?? DROPDOWN CARD ?? */}
         {!isCompact && activeMenu && megaMenuData[activeMenu] && (
@@ -1248,196 +1167,183 @@ export default function PupooHeader() {
           <div
             style={{
               position: "fixed",
-              top: compactTopOffset,
+              top: headerHeight,
               left: 0,
               right: 0,
+              bottom: 0,
               zIndex: 1001,
               background: "#fff",
-              borderBottomLeftRadius: 20,
-              borderBottomRightRadius: 20,
-              padding: isMobile ? "12px 12px 14px" : "16px 16px 20px",
-              paddingBottom: isCompact
-                ? `calc(${isMobile ? 14 : 20}px + env(safe-area-inset-bottom, 0px))`
-                : undefined,
-              boxShadow: "0 14px 34px rgba(15, 23, 42, 0.16)",
-              maxHeight: `calc(${isCompact ? "100dvh" : "100vh"} - ${compactTopOffset}px - env(safe-area-inset-bottom, 0px))`,
               overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
               animation: "searchSlideDown 0.18s ease",
+              paddingBottom: "env(safe-area-inset-bottom, 0px)",
             }}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 12 : 16 }}>
+            {/* 대분류 아코디언 */}
+            <div style={{ flex: 1 }}>
               {navItems.map((item) => {
                 if (item.href) {
                   return (
-                    <button
-                      key={item.href}
-                      type="button"
-                      onClick={() => handleMegaNavigate(item.href)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        width: "100%",
-                        padding: isMobile ? "12px 14px" : "14px 16px",
-                        borderRadius: 14,
-                        border: "1px solid #eef2f7",
-                        background: "#fff",
-                        color: "#222",
-                        fontSize: isMobile ? 14 : 15,
-                        fontWeight: 700,
-                        fontFamily: FONT,
-                        cursor: "pointer",
-                        textAlign: "left",
-                      }}
-                    >
-                    </button>
+                    <div key={item.href} style={{ borderBottom: "1px solid #f2f2f2" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleMegaNavigate(item.href)}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "22px 24px",
+                          background: "none",
+                          border: "none",
+                          fontSize: 20,
+                          fontWeight: 500,
+                          color: "#111",
+                          fontFamily: FONT,
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                      >
+                        {item.label}
+                        <ChevronRight size={18} color="#bbb" strokeWidth={1.5} />
+                      </button>
+                    </div>
                   );
                 }
 
+                const isExpanded = expandedMenuKey === item.menuKey;
                 const menu = megaMenuData[item.menuKey];
                 return (
-                  <div
-                    key={item.menuKey}
-                    style={{
-                      border: "1px solid #eef2f7",
-                      borderRadius: 16,
-                      padding: isMobile ? "12px 12px 4px" : "14px 14px 6px",
-                      background: "#fff",
-                    }}
-                  >
-                    <div
+                  <div key={item.menuKey} style={{ borderBottom: "1px solid #f2f2f2" }}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedMenuKey(isExpanded ? null : item.menuKey)}
                       style={{
-                        fontSize: isMobile ? 14 : 15,
-                        fontWeight: 800,
-                        color: "#222",
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "22px 24px",
+                        background: "none",
+                        border: "none",
+                        fontSize: 20,
+                        fontWeight: 500,
+                        color: "#111",
                         fontFamily: FONT,
-                        marginBottom: 10,
+                        cursor: "pointer",
+                        textAlign: "left",
                       }}
                     >
                       {item.label}
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      {menu.columns.map((column, index) => (
-                        <div key={`${item.menuKey}-${index}`}>
-                          <div
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: "#7f7f7f",
-                              fontFamily: FONT,
-                              marginBottom: 6,
-                            }}
-                          >
-                            {column.title}
+                      <ChevronDown
+                        size={18}
+                        color="#bbb"
+                        strokeWidth={1.5}
+                        style={{
+                          transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                          transition: "transform 0.2s ease",
+                          flexShrink: 0,
+                        }}
+                      />
+                    </button>
+                    {isExpanded && (
+                      <div style={{ padding: "0 24px 16px" }}>
+                        {menu.columns.map((col, ci) => (
+                          <div key={ci} style={{ marginBottom: 12 }}>
+                            {col.title && (
+                              <div style={{
+                                fontSize: 11, fontWeight: 600, color: "#bbb",
+                                fontFamily: FONT, marginBottom: 6, letterSpacing: "0.06em",
+                                textTransform: "uppercase",
+                              }}>
+                                {col.title}
+                              </div>
+                            )}
+                            <div style={{ display: "flex", flexDirection: "column" }}>
+                              {col.items.map((menuItem) => (
+                                <button
+                                  key={menuItem.href}
+                                  type="button"
+                                  onClick={() => handleMegaNavigate(menuItem.href)}
+                                  style={{
+                                    border: "none", background: "none",
+                                    padding: "9px 0", textAlign: "left",
+                                    fontSize: 15, fontWeight: 400,
+                                    color: "#444", fontFamily: FONT, cursor: "pointer",
+                                  }}
+                                >
+                                  {menuItem.label}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                            {column.items.map((menuItem) => (
-                              <button
-                                key={menuItem.href}
-                                type="button"
-                                onClick={() => handleMegaNavigate(menuItem.href)}
-                                style={{
-                                  border: "none",
-                                  background: "transparent",
-                                  padding: isMobile ? "7px 0" : "8px 0",
-                                  textAlign: "left",
-                                  fontSize: isMobile ? 13 : 14,
-                                  fontWeight: 500,
-                                  color: "#333",
-                                  fontFamily: FONT,
-                                  cursor: "pointer",
-                                }}
-                              >
-                                {menuItem.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
+            </div>
 
-              <div
-                style={{
-                  border: "1px solid #eef2f7",
-                  borderRadius: 16,
-                  padding: isMobile ? 12 : 14,
-                  background: "#f7f8fa",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: isMobile ? 8 : 10,
-                }}
-              >
-                {!isAuthed ? (
-                  <>
-                    <Link
-                      to="/auth/login"
-                      onClick={() => setMobileMenuOpen(false)}
-                      style={{
-                        textDecoration: "none",
-                        color: "#222",
-                        fontSize: isMobile ? 13 : 14,
-                        fontWeight: 700,
-                        fontFamily: FONT,
-                      }}
-                    >
-                      로그인
-                    </Link>
-                    <Link
-                      to="/auth/join/joinselect"
-                      onClick={() => setMobileMenuOpen(false)}
-                      style={{
-                        textDecoration: "none",
-                        color: "#02A17E",
-                        fontSize: isMobile ? 13 : 14,
-                        fontWeight: 700,
-                        fontFamily: FONT,
-                      }}
-                    >
-                      회원가입
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      to="/mypage"
-                      onClick={() => setMobileMenuOpen(false)}
-                      style={{
-                        textDecoration: "none",
-                        color: "#222",
-                        fontSize: isMobile ? 13 : 14,
-                        fontWeight: 700,
-                        fontFamily: FONT,
-                      }}
-                    >
-                      마이페이지
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        logout();
-                        setMobileMenuOpen(false);
-                        navigate("/", { replace: true });
-                      }}
-                      style={{
-                        border: "none",
-                        background: "transparent",
-                        padding: 0,
-                        textAlign: "left",
-                        color: "#222",
-                        fontSize: 14,
-                        fontWeight: 700,
-                        fontFamily: FONT,
-                        cursor: "pointer",
-                      }}
-                    >
-                      로그아웃
-                    </button>
-                  </>
-                )}
-              </div>
+            {/* 하단 로그인/마이페이지 */}
+            <div style={{ borderTop: "1px solid #f0f0f0", padding: "8px 0" }}>
+              {!isAuthed ? (
+                <>
+                  <Link
+                    to="/auth/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "18px 24px", textDecoration: "none",
+                      color: "#111", fontSize: 16, fontWeight: 500, fontFamily: FONT,
+                    }}
+                  >
+                    로그인
+                    <ChevronRight size={16} color="#ccc" strokeWidth={1.5} />
+                  </Link>
+                  <Link
+                    to="/auth/join/joinselect"
+                    onClick={() => setMobileMenuOpen(false)}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "18px 24px", textDecoration: "none",
+                      color: "#02A17E", fontSize: 16, fontWeight: 500, fontFamily: FONT,
+                    }}
+                  >
+                    회원가입
+                    <ChevronRight size={16} color="#02A17E" strokeWidth={1.5} />
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/mypage"
+                    onClick={() => setMobileMenuOpen(false)}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "18px 24px", textDecoration: "none",
+                      color: "#111", fontSize: 16, fontWeight: 500, fontFamily: FONT,
+                    }}
+                  >
+                    마이페이지
+                    <ChevronRight size={16} color="#ccc" strokeWidth={1.5} />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => { logout(); setMobileMenuOpen(false); navigate("/", { replace: true }); }}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      width: "100%", padding: "18px 24px",
+                      border: "none", background: "none", textAlign: "left",
+                      color: "#888", fontSize: 16, fontWeight: 500, fontFamily: FONT, cursor: "pointer",
+                    }}
+                  >
+                    로그아웃
+                    <ChevronRight size={16} color="#ccc" strokeWidth={1.5} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}

@@ -4,7 +4,7 @@ export const SERVICE_CATEGORIES = [
   { label: "전체", path: "/program/all" },
   { label: "세션/강연", path: "/program/session" },
   { label: "체험존", path: "/program/experience" },
-  { label: "콘테스트 및 투표", path: "/program/contest" },
+  { label: "콘테스트", path: "/program/contest" },
 ];
 
 export const SUBTITLE_MAP = {
