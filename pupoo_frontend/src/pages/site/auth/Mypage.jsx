@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { mypageApi } from "./api/mypageApi";
 import {
   notificationApi,
+  NOTIFICATION_UNREAD_COUNT_EVENT,
   emitNotificationUnreadCount,
 } from "../../../app/http/notificationApi";
 import { reviewApi } from "../../../app/http/reviewApi";
@@ -1044,6 +1045,26 @@ export default function MyPage() {
 
   const [qrEventId, setQrEventId] = useState("");
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleUnreadCountChange = (event) => {
+      const nextCount = Number(event?.detail?.count);
+      if (Number.isFinite(nextCount)) {
+        setUnreadCount(Math.max(0, nextCount));
+      }
+    };
+    window.addEventListener(
+      NOTIFICATION_UNREAD_COUNT_EVENT,
+      handleUnreadCountChange,
+    );
+    return () => {
+      window.removeEventListener(
+        NOTIFICATION_UNREAD_COUNT_EVENT,
+        handleUnreadCountChange,
+      );
+    };
+  }, []);
+
   const refreshSubscriptions = useCallback(async () => {
     const rows = await interestApi.getMySubscriptions(false);
     setSubscriptions(safeArray(rows));
@@ -1186,7 +1207,11 @@ export default function MyPage() {
         }
       }
       setNotifications(inboxItems);
-      setUnreadCount(Number.isFinite(unread) ? unread : inboxItems.length);
+      const nextUnreadCount = Number.isFinite(unread)
+        ? unread
+        : inboxItems.length;
+      setUnreadCount(nextUnreadCount);
+      emitNotificationUnreadCount(nextUnreadCount);
       setInterests(interestRows);
       setSubscriptions(subscriptionRows);
       if (
