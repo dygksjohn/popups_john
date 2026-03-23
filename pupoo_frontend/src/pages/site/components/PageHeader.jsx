@@ -203,7 +203,7 @@ export default function PageHeader({
     ...styles.title,
     ...titleStyle,
     // responsive overrides always win — titleStyle cannot override these
-    fontSize: isMobile ? 18 : isTablet ? 30 : (titleStyle?.fontSize ?? styles.title.fontSize),
+    fontSize: isMobile ? 21 : isTablet ? 30 : (titleStyle?.fontSize ?? styles.title.fontSize),
     lineHeight: isMobile ? "1.3" : isTablet ? "1.22" : (titleStyle?.lineHeight ?? styles.title.lineHeight),
     letterSpacing: isMobile ? "-0.3px" : (titleStyle?.letterSpacing ?? styles.title.letterSpacing),
   };
@@ -211,7 +211,7 @@ export default function PageHeader({
   const mergedSubtitleStyle = {
     ...styles.subtitle,
     ...subtitleStyle,
-    fontSize: isMobile ? 12 : isTablet ? 15 : (subtitleStyle?.fontSize ?? styles.subtitle.fontSize),
+    fontSize: isMobile ? 13 : isTablet ? 15 : (subtitleStyle?.fontSize ?? styles.subtitle.fontSize),
     margin: isMobile || isTablet ? "6px 0 0" : styles.subtitle.margin,
     lineHeight: isMobile ? 1.5 : styles.subtitle.lineHeight,
   };
@@ -313,9 +313,9 @@ export default function PageHeader({
                 flex: "0 0 auto",
                 minWidth: 0,
                 width: "auto",
-                height: 32,
-                padding: "0 14px",
-                fontSize: 13,
+                height: 34,
+                padding: "0 16px",
+                fontSize: 14,
                 fontWeight: 600,
                 fontFamily: styles.tabBase.fontFamily,
                 whiteSpace: "nowrap",
