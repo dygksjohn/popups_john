@@ -201,17 +201,19 @@ export default function PageHeader({
 
   const mergedTitleStyle = {
     ...styles.title,
-    fontSize: isMobile ? 18 : isTablet ? 30 : styles.title.fontSize,
-    lineHeight: isMobile ? "1.25" : isTablet ? "1.22" : styles.title.lineHeight,
     ...titleStyle,
+    // responsive overrides always win — titleStyle cannot override these
+    fontSize: isMobile ? 18 : isTablet ? 30 : (titleStyle?.fontSize ?? styles.title.fontSize),
+    lineHeight: isMobile ? "1.3" : isTablet ? "1.22" : (titleStyle?.lineHeight ?? styles.title.lineHeight),
+    letterSpacing: isMobile ? "-0.3px" : (titleStyle?.letterSpacing ?? styles.title.letterSpacing),
   };
 
   const mergedSubtitleStyle = {
     ...styles.subtitle,
-    fontSize: isMobile ? 12 : isTablet ? 15 : styles.subtitle.fontSize,
+    ...subtitleStyle,
+    fontSize: isMobile ? 12 : isTablet ? 15 : (subtitleStyle?.fontSize ?? styles.subtitle.fontSize),
     margin: isMobile || isTablet ? "6px 0 0" : styles.subtitle.margin,
     lineHeight: isMobile ? 1.5 : styles.subtitle.lineHeight,
-    ...subtitleStyle,
   };
 
   const breadcrumbStyle = {
@@ -254,13 +256,27 @@ export default function PageHeader({
             <div
               style={{
                 display: "flex",
-                alignItems: isMobile ? "flex-start" : "center",
-                gap: isMobile ? 10 : 12,
+                alignItems: "center",
+                gap: isMobile ? 6 : 12,
               }}
             >
               {icon && (
-                <span style={{ flexShrink: 0, transform: isMobile ? "scale(0.6)" : isTablet ? "scale(0.8)" : "none", transformOrigin: "left center" }}>
-                  {icon}
+                <span style={{
+                  flexShrink: 0,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: isMobile ? 22 : isTablet ? 34 : "auto",
+                  height: isMobile ? 22 : isTablet ? 34 : "auto",
+                  overflow: "hidden",
+                }}>
+                  <span style={{
+                    display: "inline-flex",
+                    transform: isMobile ? "scale(0.52)" : isTablet ? "scale(0.8)" : "none",
+                    transformOrigin: "center center",
+                  }}>
+                    {icon}
+                  </span>
                 </span>
               )}
               <h1 style={mergedTitleStyle}>{title}</h1>
