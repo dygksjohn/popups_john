@@ -362,12 +362,12 @@ function SessionLineup() {
                   {extended.map((s, i) => {
                     const isH = hovered === i;
                     return (
-                      <div key={i} style={{ width: CARD_W }} className="shrink-0" onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} onClick={() => navigate("/program/current")}>
-                        <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-[3/4]">
+                      <div key={i} style={{ width: CARD_W, transform: isH ? "translateY(-4px)" : "translateY(0)", transition: "transform 0.3s cubic-bezier(0.16,1,0.3,1)" }} className="shrink-0" onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} onClick={() => navigate("/program/current")}>
+                        <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-[3/4]" style={{ boxShadow: isH ? "0 8px 24px rgba(0,0,0,0.12)" : "0 1px 4px rgba(0,0,0,0.04)", transition: "box-shadow 0.3s ease" }}>
                           <img
                             src={resolveImageUrl(s.image, dogImg(s.id))}
                             alt={s.title}
-                            className={`w-full h-full object-cover transition-all duration-700 ease-out ${isH ? "scale-105" : "scale-100"}`}
+                            className={`w-full h-full object-cover transition-transform duration-500 ease-out ${isH ? "scale-[1.03]" : "scale-100"}`}
                             draggable={false}
                             onError={createImageFallbackHandler(dogImg(s.id))}
                           />
