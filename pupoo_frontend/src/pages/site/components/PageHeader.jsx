@@ -176,10 +176,11 @@ export default function PageHeader({
   const pageHeaderStyle = {
     ...styles.pageHeader,
     paddingTop: isMobile
-      ? "calc(var(--pupoo-site-header-offset, 96px) + 24px)"
+      ? "calc(var(--pupoo-site-header-offset, 96px) + 48px)"
       : isTablet
         ? "calc(var(--pupoo-site-header-height, 72px) + 36px)"
         : styles.pageHeader.paddingTop,
+    paddingBottom: isMobile ? 36 : undefined,
   };
 
   const innerStyle = {
@@ -207,7 +208,7 @@ export default function PageHeader({
 
   const mergedSubtitleStyle = {
     ...styles.subtitle,
-    fontSize: isMobile ? 13 : isTablet ? 15 : styles.subtitle.fontSize,
+    fontSize: isMobile ? 12 : isTablet ? 15 : styles.subtitle.fontSize,
     margin: isMobile || isTablet ? "6px 0 0" : styles.subtitle.margin,
     lineHeight: isMobile ? 1.5 : styles.subtitle.lineHeight,
     ...subtitleStyle,
