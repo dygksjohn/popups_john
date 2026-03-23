@@ -76,6 +76,35 @@ public class RealtimeWaitSyncQueryRepositoryImpl implements RealtimeWaitSyncQuer
     }
 
     @Override
+    public List<ProgramAppliedCountRow> findProgramAppliedCounts(Collection<Long> programIds) {
+        if (programIds == null || programIds.isEmpty()) {
+            return List.of();
+        }
+
+        String sql = """
+            select
+              pa.program_id,
+              count(*) as applied_count
+            from event_program_apply pa
+            where pa.program_id in (:programIds)
+              and pa.status = 'APPLIED'
+            group by pa.program_id
+        """;
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery(sql)
+                .setParameter("programIds", programIds)
+                .getResultList();
+
+        return rows.stream()
+                .map(row -> new ProgramAppliedCountRow(
+                        toLong(row[0]),
+                        toInt(row[1])
+                ))
+                .toList();
+    }
+
+    @Override
     public List<ProgramCheckinCountRow> findProgramCheckinCounts(
             Collection<Long> programIds,
             LocalDateTime fromInclusive,
