@@ -18,6 +18,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
@@ -25,6 +26,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.io.InputStream;
+import java.net.URI;
 
 @Service
 @ConditionalOnExpression("'${storage.mode:LOCAL}'.equalsIgnoreCase('S3')")
@@ -50,14 +52,25 @@ public class S3ObjectStorageService implements ObjectStoragePort {
         this.bucket = storageProperties.getBucket().trim();
         this.storageKeyNormalizer = storageKeyNormalizer;
         this.storageUrlResolver = storageUrlResolver;
-        this.s3Client = S3Client.builder()
+
+        var clientBuilder = S3Client.builder()
                 .region(Region.of(storageProperties.getRegion().trim()))
                 .credentialsProvider(resolveCredentialsProvider(
                         storageProperties.getAccessKeyId(),
                         storageProperties.getSecretAccessKey(),
                         storageProperties.getSessionToken()
-                ))
-                .build();
+                ));
+
+        if (StringUtils.hasText(storageProperties.getServiceEndpoint())) {
+            URI endpoint = URI.create(storageProperties.getServiceEndpoint().trim());
+            clientBuilder
+                    .endpointOverride(endpoint)
+                    .serviceConfiguration(S3Configuration.builder()
+                            .pathStyleAccessEnabled(storageProperties.isPathStyleAccess())
+                            .build());
+        }
+
+        this.s3Client = clientBuilder.build();
     }
 
     @Override

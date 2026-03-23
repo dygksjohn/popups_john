@@ -181,127 +181,132 @@ export default function KakaoJoin() {
     .kj-root {
       min-height: 100vh;
       background: #f6f6f6;
-      font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+      font-family: 'JeonjuCraftGothic', 'Pretendard', -apple-system, sans-serif;
       padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .kj-root *, .kj-root *::before, .kj-root *::after { box-sizing: border-box; font-family: inherit; }
     .kj-card {
       width: 100%;
-      max-width: 420px;
-      margin: 141px auto;
+      max-width: 520px;
+      margin: 0 auto;
       background: #fff;
-      border-radius: 24px;
-      padding: 48px 36px 40px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      border-radius: 28px;
+      padding: 56px 48px 48px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.08);
     }
     .kj-logo {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
     }
     .kj-kakao-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
       background: #FEE500;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    .kj-kakao-icon svg { display: block; }
+    .kj-kakao-icon svg { display: block; width: 28px; height: 28px; }
     .kj-title {
       text-align: center;
-      font-size: 22px;
+      font-size: 28px;
       font-weight: 800;
       color: #191919;
-      margin: 0 0 6px;
+      margin: 0 0 10px;
+      letter-spacing: -0.5px;
     }
     .kj-subtitle {
       text-align: center;
-      font-size: 14px;
+      font-size: 16px;
       color: #999;
       font-weight: 400;
-      margin: 0 0 32px;
+      margin: 0 0 36px;
     }
     .kj-step-bar {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      margin-bottom: 28px;
+      gap: 10px;
+      margin-bottom: 36px;
     }
     .kj-step-dot {
-      width: 10px;
-      height: 10px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
       background: #e5e5e5;
       transition: all 0.2s;
     }
     .kj-step-dot.active {
-      width: 28px;
-      border-radius: 5px;
+      width: 36px;
+      border-radius: 6px;
       background: #FEE500;
     }
     .kj-step-dot.done {
       background: #FEE500;
     }
     .kj-field {
-      margin-bottom: 14px;
+      margin-bottom: 20px;
     }
     .kj-label {
       display: block;
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 15px;
+      font-weight: 700;
       color: #333;
-      margin-bottom: 6px;
+      margin-bottom: 10px;
     }
     .kj-input {
       width: 100%;
-      height: 48px;
-      padding: 0 16px;
-      border-radius: 12px;
+      height: 56px;
+      padding: 0 20px;
+      border-radius: 14px;
       border: 1.5px solid #e5e5e5;
       background: #fafafa;
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 500;
       color: #191919;
       outline: none;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .kj-input:focus { border-color: #FEE500; background: #fff; }
+    .kj-input:focus { border-color: #FEE500; background: #fff; box-shadow: 0 0 0 3px rgba(254,229,0,0.15); }
     .kj-input:disabled { background: #f0f0f0; color: #999; }
     .kj-input::placeholder { color: #bbb; }
     .kj-hint {
-      margin-top: 6px;
-      font-size: 12px;
+      margin-top: 8px;
+      font-size: 13px;
       color: #999;
-      line-height: 1.4;
+      line-height: 1.5;
     }
     .kj-hint.error { color: #e54545; }
     .kj-error {
       background: #fff5f5;
       border: 1px solid #fecaca;
-      border-radius: 12px;
-      padding: 12px 16px;
-      margin-bottom: 16px;
-      font-size: 13px;
+      border-radius: 14px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      font-size: 14px;
       color: #dc2626;
       font-weight: 500;
-      line-height: 1.4;
+      line-height: 1.5;
     }
     .kj-btn-primary {
       width: 100%;
-      height: 52px;
-      border-radius: 12px;
+      height: 58px;
+      border-radius: 14px;
       border: none;
-      font-size: 16px;
-      font-weight: 700;
+      font-size: 17px;
+      font-weight: 800;
       cursor: pointer;
       transition: all 0.15s;
-      margin-top: 8px;
+      margin-top: 12px;
       font-family: inherit;
+      letter-spacing: -0.3px;
     }
     .kj-btn-primary.kakao {
       background: #FEE500;
@@ -309,6 +314,8 @@ export default function KakaoJoin() {
     }
     .kj-btn-primary.kakao:hover:not(:disabled) {
       background: #f5dc00;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(254,229,0,0.3);
     }
     .kj-btn-primary.confirm {
       background: #191919;
@@ -316,6 +323,8 @@ export default function KakaoJoin() {
     }
     .kj-btn-primary.confirm:hover:not(:disabled) {
       background: #333;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     }
     .kj-btn-primary:disabled {
       background: #f0f0f0;
@@ -324,12 +333,12 @@ export default function KakaoJoin() {
     }
     .kj-btn-secondary {
       width: 100%;
-      height: 48px;
-      margin-top: 10px;
-      border-radius: 12px;
+      height: 54px;
+      margin-top: 12px;
+      border-radius: 14px;
       border: 1.5px solid #e5e5e5;
       background: #fff;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 600;
       color: #666;
       cursor: pointer;
@@ -341,16 +350,16 @@ export default function KakaoJoin() {
     .kj-otp-info {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 14px 16px;
+      gap: 14px;
+      padding: 18px 20px;
       background: #fffde7;
-      border-radius: 12px;
-      margin-bottom: 20px;
+      border-radius: 16px;
+      margin-bottom: 24px;
       border: 1px solid #fff3b0;
     }
     .kj-otp-info-icon {
-      width: 36px;
-      height: 36px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       background: #FEE500;
       display: flex;
@@ -359,18 +368,18 @@ export default function KakaoJoin() {
       flex-shrink: 0;
     }
     .kj-otp-info-text {
-      font-size: 13px;
+      font-size: 15px;
       color: #666;
-      line-height: 1.5;
+      line-height: 1.6;
     }
     .kj-otp-info-text strong { color: #191919; font-weight: 700; }
     .kj-divider {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin: 20px 0;
+      margin: 24px 0;
       color: #ccc;
-      font-size: 12px;
+      font-size: 13px;
     }
     .kj-divider::before, .kj-divider::after {
       content: '';
@@ -380,13 +389,13 @@ export default function KakaoJoin() {
     }
     .kj-loading-init {
       text-align: center;
-      padding: 60px 20px;
+      padding: 80px 20px;
       color: #999;
-      font-size: 15px;
+      font-size: 17px;
     }
     @media (max-width: 480px) {
-      .kj-card { padding: 36px 24px 32px; border-radius: 20px; }
-      .kj-title { font-size: 20px; }
+      .kj-card { padding: 44px 28px 36px; border-radius: 24px; max-width: 100%; }
+      .kj-title { font-size: 24px; }
     }
   `;
 

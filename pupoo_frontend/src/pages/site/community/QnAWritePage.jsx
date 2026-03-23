@@ -51,7 +51,9 @@ function InProgressBox() {
       }}
     >
       <Loader2 size={14} style={{ flexShrink: 0, animation: "spin 1s linear infinite" }} />
-      등록 중입니다. 기다려 주세요.
+      <span style={{ whiteSpace: "pre-line" }}>
+        {"깨끗한 커뮤니티 조성을 위해 AI가 게시글 콘텐츠를 검토 중입니다.\n잠시만 기다려주세요"}
+      </span>
     </div>
   );
 }
@@ -107,6 +109,7 @@ export default function QnAWritePage() {
     if (!hasMeaningfulCommunityContent(content)) return "내용을 입력해 주세요.";
     return "";
   }, [content, title]);
+  const isFormLocked = saving || Boolean(successMessage);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -137,17 +140,17 @@ export default function QnAWritePage() {
       if (!isMountedRef.current) return;
 
       const created = unwrap(res);
-      const createdQnaId = Number(created?.qnaId);
 
       try {
         localStorage.removeItem(DRAFT_KEY_QNA);
       } catch (_) {}
 
-      setSuccessMessage("등록 완료");
-      setTimeout(() => {
-        if (!isMountedRef.current) return;
-        navigate("/community/qna");
-      }, 1500);
+      if (created?.moderationHidden) {
+        setSuccessMessage("질문이 등록되었습니다. 질문 내용이 정책에 위반될 수 있어 숨김처리 되었습니다.");
+      } else {
+        setSuccessMessage("질문이 등록되었습니다.");
+      }
+      setSaving(false);
     } catch (err) {
       console.error("[QnAWritePage] create failed:", err);
       if (!isMountedRef.current) return;
@@ -190,7 +193,7 @@ export default function QnAWritePage() {
           <button
             type="submit"
             form="community-qna-write-form"
-            disabled={saving}
+            disabled={isFormLocked}
             style={{
               height: 44,
               padding: "0 18px",
@@ -200,8 +203,8 @@ export default function QnAWritePage() {
               fontSize: 14,
               fontWeight: 800,
               color: "#fff",
-              cursor: saving ? "not-allowed" : "pointer",
-              opacity: saving ? 0.6 : 1,
+              cursor: isFormLocked ? "not-allowed" : "pointer",
+              opacity: isFormLocked ? 0.6 : 1,
             }}
           >
             {saving ? "등록 중..." : "등록하기"}
@@ -219,8 +222,8 @@ export default function QnAWritePage() {
           style={{
             display: "grid",
             gap: 18,
-            pointerEvents: saving ? "none" : undefined,
-            opacity: saving ? 0.75 : 1,
+            pointerEvents: isFormLocked ? "none" : undefined,
+            opacity: isFormLocked ? 0.75 : 1,
           }}
         >
           <label style={{ display: "grid", gap: 8 }}>
@@ -229,8 +232,8 @@ export default function QnAWritePage() {
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="질문 제목을 입력해 주세요"
-              disabled={saving}
-              readOnly={saving}
+              disabled={isFormLocked}
+              readOnly={isFormLocked}
               style={{
                 height: 46,
                 borderRadius: 10,
@@ -238,7 +241,7 @@ export default function QnAWritePage() {
                 padding: "0 14px",
                 fontSize: 14,
                 color: "#0f172a",
-                background: saving ? "#f1f5f9" : "#fff",
+                background: isFormLocked ? "#f1f5f9" : "#fff",
               }}
             />
           </label>

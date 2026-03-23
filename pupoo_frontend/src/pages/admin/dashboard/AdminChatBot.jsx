@@ -126,7 +126,7 @@ const STATE_BUBBLES = {
    - hover: 멈추고 말풍선 ("클릭해봐요!")
    - leave: 다시 걷기
    ══════════════════════════════════════════════ */
-function DogCharacter({ onClick, mobile = false }) {
+function DogCharacter({ onClick, mobile = false, rightStyle, shiftTransition }) {
   const [hovered, setHovered] = useState(false);
   const [bubble, setBubble] = useState(null);
   const [bubbleAnim, setBubbleAnim] = useState("bubblePop");
@@ -205,12 +205,15 @@ function DogCharacter({ onClick, mobile = false }) {
       style={{
         position: "fixed",
         bottom: mobile ? "calc(env(safe-area-inset-bottom, 0px) + 76px)" : 12,
-        right: mobile ? 10 : 14,
+        right:
+          rightStyle ??
+          (mobile ? "calc(10px + var(--admin-board-panel-offset, 0px))" : "calc(14px + var(--admin-board-panel-offset, 0px))"),
         zIndex: 10000,
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        transition: shiftTransition,
       }}
       onClick={onClick}
       onMouseEnter={handleMouseEnter}
@@ -547,6 +550,15 @@ export default function AdminChatBot() {
 
   const mobilePanelBottom = "calc(env(safe-area-inset-bottom, 0px) + 132px)";
   const mobileButtonBottom = "calc(env(safe-area-inset-bottom, 0px) + 84px)";
+  /** 게시판 관리 작성/수정 슬라이드 패널 열릴 때 boardManage에서 --admin-board-panel-offset 설정 */
+  const panelShift = "var(--admin-board-panel-offset, 0px)";
+  const rightChatOpen = isMobile
+    ? `calc(10px + ${panelShift})`
+    : `calc(28px + ${panelShift})`;
+  const rightFabClosed = isMobile
+    ? `calc(10px + ${panelShift})`
+    : `calc(14px + ${panelShift})`;
+  const shiftTransition = "right 0.26s cubic-bezier(0.22, 1, 0.36, 1)";
 
   const handleKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
   const handleClear = () => { clearMessages(); setHasChats(false); };
@@ -559,7 +571,7 @@ export default function AdminChatBot() {
       {/* ── 채팅 패널 ── */}
       {isOpen && (
         <div style={{
-          position: "fixed", bottom: isMobile ? mobilePanelBottom : 96, right: isMobile ? 10 : 28,
+          position: "fixed", bottom: isMobile ? mobilePanelBottom : 96, right: rightChatOpen,
           width: isMobile ? "min(calc(100vw - 16px), 336px)" : 380,
           maxWidth: isMobile ? "calc(100vw - 16px)" : 380,
           height: isMobile ? "min(calc(100dvh - env(safe-area-inset-bottom, 0px) - 84px), 468px)" : 560,
@@ -567,6 +579,7 @@ export default function AdminChatBot() {
           boxShadow: "0 25px 60px rgba(0,0,0,0.18), 0 6px 20px rgba(0,0,0,0.08)",
           display: "flex", flexDirection: "column", overflow: "hidden",
           zIndex: 9999, animation: "chatSlideUp .32s cubic-bezier(.34,1.2,.64,1)", fontFamily: ds.ff,
+          transition: shiftTransition,
         }}>
           {/* 헤더 */}
           <div style={{
@@ -627,11 +640,11 @@ export default function AdminChatBot() {
         <button
           onClick={toggle}
           style={{
-            position: "fixed", bottom: isMobile ? mobileButtonBottom : 28, right: isMobile ? 10 : 28,
+            position: "fixed", bottom: isMobile ? mobileButtonBottom : 28, right: rightChatOpen,
             width: isMobile ? 48 : 56, height: isMobile ? 48 : 56, borderRadius: "50%", border: "none",
             background: "#fff", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 10000, transition: "all .2s",
+            zIndex: 10000, transition: `all .2s, ${shiftTransition}`,
             boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.08)"; }}
@@ -640,7 +653,7 @@ export default function AdminChatBot() {
           <X size={isMobile ? 20 : 22} color="#9CA3AF" strokeWidth={2.2} />
         </button>
       ) : (
-        <DogCharacter onClick={toggle} mobile={isMobile} />
+        <DogCharacter onClick={toggle} mobile={isMobile} rightStyle={rightFabClosed} shiftTransition={shiftTransition} />
       )}
     </>
   );

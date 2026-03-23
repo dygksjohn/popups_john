@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Pencil, Trash2, X, AlertTriangle, Loader2, ShieldAlert, Upload, FileText, CheckCircle } from "lucide-react";
+import { Plus, Trash2, X, AlertTriangle, Loader2, ShieldAlert, Upload, FileText, CheckCircle, ScrollText, Search, History } from "lucide-react";
 import ds from "../shared/designTokens";
 import { boardApi } from "../../../app/http/boardApi";
 import {
   bannedWordApi,
+  moderationLogsApi,
   policyApi,
   BANNED_WORD_CATEGORIES,
 } from "../../../app/http/bannedWordApi";
@@ -333,9 +334,339 @@ const spinStyle = `
 @keyframes spin { to { transform: rotate(360deg); } }
 `;
 
+const BANNED_PAGE_SIZE = 10;
+const LOG_PAGE_SIZE = 10;
+const POLICY_UPLOAD_HISTORY_PAGE_SIZE = 10;
+
+function truncate(str, max = 48) {
+  if (str == null || str === "") return "-";
+  const s = String(str);
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
+
+/** board_banned_logs.content_type 표시용 */
+function logContentTypeLabel(code) {
+  if (!code) return "-";
+  const c = String(code).toUpperCase();
+  if (c === "POST") return "게시글";
+  if (c === "COMMENT") return "댓글";
+  return code;
+}
+
+/** posts.status (게시글 로그일 때 contentPostStatus) */
+function logPostStatusLabel(code) {
+  if (!code) return "-";
+  const c = String(code).toUpperCase();
+  if (c === "HIDDEN") return "숨김";
+  if (c === "PUBLISHED") return "공개";
+  if (c === "DRAFT") return "임시";
+  return code;
+}
+
+/** 사유 컬럼: 줄바꿈·다중 공백을 한 줄로 */
+function ragReasonOneLine(s) {
+  if (s == null || s === "") return "-";
+  return String(s).replace(/\s+/g, " ").trim();
+}
+
+/* ══════════════════════════════════════════════
+   AI 모더레이션 BLOCK 로그 (페이징)
+   — 금지어 관리의 게시판 선택과 별도: 기본은 전체(모든 게시판·댓글)
+   ══════════════════════════════════════════════ */
+function ModerationLogSection({ boards }) {
+  /** null = 전체 게시판 (API boardId 미전송) */
+  const [logBoardFilter, setLogBoardFilter] = useState(null);
+  const [logPage, setLogPage] = useState(0);
+  const [logItems, setLogItems] = useState([]);
+  const [logLoading, setLogLoading] = useState(false);
+  /** totalElements·size로 계산 (목록 건수와 페이지 수 일치, 범위 초과 방지) */
+  const [logTotalPages, setLogTotalPages] = useState(0);
+  const [logTotalElements, setLogTotalElements] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLogLoading(true);
+      try {
+        const res = await moderationLogsApi.list(
+          logPage,
+          LOG_PAGE_SIZE,
+          logBoardFilter ?? undefined
+        );
+        if (cancelled) return;
+
+        const totalElements = Number(res?.totalElements ?? 0);
+        const pageSize = Number(res?.size ?? LOG_PAGE_SIZE) || LOG_PAGE_SIZE;
+        const computedTotalPages =
+          totalElements === 0 ? 0 : Math.ceil(totalElements / pageSize);
+
+        if (computedTotalPages > 0 && logPage >= computedTotalPages) {
+          setLogPage(computedTotalPages - 1);
+          return;
+        }
+
+        setLogItems(res?.content ?? []);
+        setLogTotalElements(totalElements);
+        setLogTotalPages(computedTotalPages);
+      } catch (e) {
+        console.warn("[ModerationLogSection] 로그 로드 실패:", e);
+        if (!cancelled) {
+          setLogItems([]);
+          setLogTotalPages(0);
+          setLogTotalElements(0);
+        }
+      } finally {
+        if (!cancelled) setLogLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [logPage, logBoardFilter]);
+
+  const boardName = (id) =>
+    boards.find((b) => b.boardId === id)?.name ||
+    boards.find((b) => b.boardId === id)?.boardType ||
+    (id != null ? `#${id}` : "-");
+
+  return (
+    <div
+      style={{
+        background: ds.bg,
+        borderRadius: 12,
+        border: `1px solid ${ds.line}`,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: "10px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 10,
+          borderBottom: `1px solid ${ds.line}`,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <ScrollText size={17} color={ds.brand} />
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: ds.ink }}>
+            AI 모더레이션 BLOCK 로그
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <label style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4, display: "flex", alignItems: "center", gap: 6 }}>
+            게시판
+            <select
+              value={logBoardFilter ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setLogBoardFilter(v === "" ? null : Number(v));
+                setLogPage(0);
+              }}
+              style={{
+                padding: "5px 10px",
+                borderRadius: 8,
+                border: `1px solid ${ds.line}`,
+                background: ds.bg,
+                fontSize: 12.5,
+                fontFamily: ds.ff,
+                color: ds.ink,
+                cursor: "pointer",
+                minWidth: 160,
+              }}
+            >
+              <option value="">전체 (모든 게시판·댓글)</option>
+              {boards.map((b) => (
+                <option key={b.boardId} value={b.boardId}>
+                  {b.name || b.boardType || `게시판 #${b.boardId}`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4 }}>
+            총 {logTotalElements}건
+          </span>
+        </div>
+      </div>
+
+      {logLoading && (
+        <div style={{ padding: 40, textAlign: "center" }}>
+          <Loader2 size={24} color={ds.ink4} style={{ animation: "spin 1s linear infinite" }} />
+          <div style={{ fontSize: 12, color: ds.ink4, marginTop: 10 }}>로그 불러오는 중...</div>
+        </div>
+      )}
+
+      {!logLoading && logItems.length === 0 && (
+        <div style={{ padding: 36, textAlign: "center", color: ds.ink4, fontSize: 12.5 }}>
+          기록된 로그가 없습니다.
+        </div>
+      )}
+
+      {!logLoading && logItems.length > 0 && (
+        <>
+          <div style={{ overflowX: "auto" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "128px 72px 72px 64px 64px 100px 72px 52px 52px minmax(160px, 1fr)",
+                gap: 8,
+                padding: "6px 14px",
+                borderBottom: `1px solid ${ds.line}`,
+                fontSize: 10,
+                fontWeight: 700,
+                color: ds.ink4,
+                textTransform: "uppercase",
+                letterSpacing: "0.02em",
+                minWidth: 920,
+              }}
+            >
+              <span>일시</span>
+              <span>게시판</span>
+              <span>유형</span>
+              <span>글ID</span>
+              <span>유저</span>
+              <span>탐지</span>
+              <span>조치</span>
+              <span>노출</span>
+              <span>AI</span>
+              <span>사유</span>
+            </div>
+            {logItems.map((row) => (
+              <div
+                key={row.logId}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "128px 72px 72px 64px 64px 100px 72px 52px 52px minmax(160px, 1fr)",
+                  gap: 8,
+                  alignItems: "center",
+                  padding: "5px 14px",
+                  borderBottom: `1px solid ${ds.lineSoft}`,
+                  fontSize: 11.5,
+                  color: ds.ink3,
+                  minWidth: 920,
+                }}
+              >
+                <span style={{ fontSize: 11, color: ds.ink4, whiteSpace: "nowrap" }}>
+                  {fmtDateTime(row.createdAt)}
+                </span>
+                <span
+                  style={{ fontWeight: 600, color: ds.ink, fontSize: 11 }}
+                  title={row.boardId != null ? String(row.boardId) : ""}
+                >
+                  {truncate(boardName(row.boardId), 10)}
+                </span>
+                <span style={{ fontSize: 11 }} title={row.contentType ?? ""}>
+                  {logContentTypeLabel(row.contentType)}
+                </span>
+                <span style={{ fontSize: 11, color: ds.ink4 }}>{row.contentId ?? "-"}</span>
+                <span style={{ fontSize: 11, color: ds.ink4 }}>{row.userId ?? "-"}</span>
+                <span
+                  style={{ fontWeight: 600, color: ds.ink, fontSize: 11 }}
+                  title={row.detectedWord}
+                >
+                  {truncate(row.detectedWord, 12)}
+                </span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: "#B45309" }}>
+                  {row.filterActionTaken ?? "-"}
+                </span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: ds.ink3 }} title={row.contentPostStatus ?? ""}>
+                  {logPostStatusLabel(row.contentPostStatus)}
+                </span>
+                <span style={{ fontSize: 11, color: ds.ink4 }}>
+                  {row.aiScore != null ? row.aiScore.toFixed(2) : "-"}
+                </span>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: ds.ink4,
+                    lineHeight: 1.25,
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    overflowX: "auto",
+                    overflowY: "hidden",
+                    whiteSpace: "nowrap",
+                    WebkitOverflowScrolling: "touch",
+                    scrollbarWidth: "thin",
+                  }}
+                  title={row.ragReason != null ? String(row.ragReason) : ""}
+                >
+                  {ragReasonOneLine(row.ragReason)}
+                </div>
+              </div>
+            ))}
+          </div>
+          {logTotalPages > 1 && (
+            <div
+              style={{
+                padding: "8px 14px",
+                borderTop: `1px solid ${ds.line}`,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setLogPage((p) => Math.max(0, p - 1))}
+                disabled={logPage <= 0}
+                style={{
+                  padding: "5px 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${ds.line}`,
+                  background: ds.bg,
+                  fontSize: 12,
+                  color: logPage <= 0 ? ds.ink4 : ds.ink3,
+                  cursor: logPage <= 0 ? "default" : "pointer",
+                  fontFamily: ds.ff,
+                }}
+              >
+                이전
+              </button>
+              <span style={{ fontSize: 12, color: ds.ink4 }}>
+                {logPage + 1} / {logTotalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setLogPage((p) => Math.min(logTotalPages - 1, p + 1))}
+                disabled={logPage >= logTotalPages - 1}
+                style={{
+                  padding: "5px 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${ds.line}`,
+                  background: ds.bg,
+                  fontSize: 12,
+                  color: logPage >= logTotalPages - 1 ? ds.ink4 : ds.ink3,
+                  cursor: logPage >= logTotalPages - 1 ? "default" : "pointer",
+                  fontFamily: ds.ff,
+                }}
+              >
+                다음
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════
    정책 파일 업로드/적용 섹션
    ══════════════════════════════════════════════ */
+function policyStatusStyle(status) {
+  const s = (status || "").toUpperCase();
+  if (s === "SUCCESS") return { bg: "#DCFCE7", color: "#166534", label: "성공" };
+  if (s === "FAILED") return { bg: "#FEE2E2", color: "#991B1B", label: "실패" };
+  if (s === "PENDING") return { bg: "#FEF9C3", color: "#854D0E", label: "처리중" };
+  if (s === "DISPATCHED") return { bg: "#E0E7FF", color: "#3730A3", label: "오케스트레이트" };
+  return { bg: ds.card, color: ds.ink3, label: status || "-" };
+}
+
 function PolicySection({ showToast }) {
   const [activePolicy, setActivePolicy] = useState(null);
   const [policyLoading, setPolicyLoading] = useState(true);
@@ -343,6 +674,37 @@ function PolicySection({ showToast }) {
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
   const fileInputRef = useRef(null);
+
+  const [histPage, setHistPage] = useState(0);
+  const [histItems, setHistItems] = useState([]);
+  const [histLoading, setHistLoading] = useState(false);
+  const [histTotalPages, setHistTotalPages] = useState(0);
+  const [histTotalElements, setHistTotalElements] = useState(0);
+
+  const loadUploadHistory = useCallback(async (page) => {
+    setHistLoading(true);
+    try {
+      const res = await policyApi.listUploads(page, POLICY_UPLOAD_HISTORY_PAGE_SIZE);
+      const totalElements = Number(res?.totalElements ?? 0);
+      const pageSize = Number(res?.size ?? POLICY_UPLOAD_HISTORY_PAGE_SIZE) || POLICY_UPLOAD_HISTORY_PAGE_SIZE;
+      const computedTotalPages = totalElements === 0 ? 0 : Math.ceil(totalElements / pageSize);
+      let targetPage = page;
+      if (computedTotalPages > 0 && targetPage >= computedTotalPages) {
+        targetPage = computedTotalPages - 1;
+      }
+      setHistPage(targetPage);
+      setHistItems(res?.content ?? []);
+      setHistTotalElements(totalElements);
+      setHistTotalPages(computedTotalPages);
+    } catch (e) {
+      console.warn("[PolicySection] 업로드 이력 로드 실패:", e);
+      setHistItems([]);
+      setHistTotalPages(0);
+      setHistTotalElements(0);
+    } finally {
+      setHistLoading(false);
+    }
+  }, []);
 
   const fetchActivePolicy = useCallback(async () => {
     setPolicyLoading(true);
@@ -360,6 +722,10 @@ function PolicySection({ showToast }) {
   useEffect(() => {
     fetchActivePolicy();
   }, [fetchActivePolicy]);
+
+  useEffect(() => {
+    loadUploadHistory(histPage);
+  }, [histPage, loadUploadHistory]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -380,10 +746,15 @@ function PolicySection({ showToast }) {
     try {
       const result = await policyApi.upload(selectedFile);
       setUploadResult(result);
-      showToast("정책이 반영되었습니다.");
+      if (String(result?.status).toLowerCase() === "dispatched") {
+        showToast("Orchestrate 로 전달되었습니다. 스킬이 pupoo_ai 를 호출해 반영합니다.");
+      } else {
+        showToast("정책이 반영되었습니다.");
+      }
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      fetchActivePolicy();
+      await fetchActivePolicy();
+      await loadUploadHistory(0);
     } catch (e) {
       const msg = e?.response?.data?.message || e?.response?.data?.data?.message || "정책 반영에 실패했습니다.";
       showToast(msg, "error");
@@ -538,7 +909,7 @@ function PolicySection({ showToast }) {
             <div
               style={{
                 marginTop: 10,
-                background: ds.greenSoft,
+                background: String(uploadResult.status).toLowerCase() === "dispatched" ? "#EEF2FF" : ds.greenSoft,
                 borderRadius: 8,
                 padding: "10px 14px",
                 display: "flex",
@@ -546,17 +917,174 @@ function PolicySection({ showToast }) {
                 gap: 8,
               }}
             >
-              <CheckCircle size={15} color="#22C55E" style={{ marginTop: 1, flexShrink: 0 }} />
-              <div style={{ fontSize: 12, color: "#22C55E", fontWeight: 600, lineHeight: 1.5 }}>
-                반영 완료 — {uploadResult.activeFilename}
-                <br />
-                <span style={{ fontWeight: 400, color: ds.ink3, fontSize: 11.5 }}>
-                  컬렉션: {uploadResult.activeCollection} | 청크: {uploadResult.chunkCount}개
-                </span>
+              <CheckCircle
+                size={15}
+                color={String(uploadResult.status).toLowerCase() === "dispatched" ? "#4F46E5" : "#22C55E"}
+                style={{ marginTop: 1, flexShrink: 0 }}
+              />
+              <div
+                style={{
+                  fontSize: 12,
+                  color: String(uploadResult.status).toLowerCase() === "dispatched" ? "#3730A3" : "#22C55E",
+                  fontWeight: 600,
+                  lineHeight: 1.5,
+                }}
+              >
+                {String(uploadResult.status).toLowerCase() === "dispatched" ? (
+                  <>
+                    Orchestrate 전달 완료 — {uploadResult.activeFilename || uploadResult.originalFilename || "정책 파일"}
+                    <br />
+                    <span style={{ fontWeight: 400, color: ds.ink3, fontSize: 11.5 }}>
+                      이력 ID: {uploadResult.policyUploadId ?? "—"} · Milvus 반영은 스킬 파이프라인 완료 후 확인하세요.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    반영 완료 — {uploadResult.activeFilename}
+                    <br />
+                    <span style={{ fontWeight: 400, color: ds.ink3, fontSize: 11.5 }}>
+                      이력 ID: {uploadResult.policyUploadId ?? "—"} | 컬렉션: {uploadResult.activeCollection} | 청크:{" "}
+                      {uploadResult.chunkCount}개
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           )}
         </div>
+      </div>
+
+      {/* 정책 파일 업로드 이력 (DB moderation_policy_uploads) */}
+      <div style={{ borderTop: `1px solid ${ds.line}`, padding: "14px 20px 18px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <History size={17} color={ds.brand} />
+            <span style={{ fontSize: 13.5, fontWeight: 800, color: ds.ink }}>정책 업로드 이력</span>
+          </div>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4 }}>총 {histTotalElements}건</span>
+        </div>
+
+        {histLoading ? (
+          <div style={{ padding: 28, textAlign: "center" }}>
+            <Loader2 size={22} color={ds.ink4} style={{ animation: "spin 1s linear infinite" }} />
+            <div style={{ fontSize: 12, color: ds.ink4, marginTop: 8 }}>이력 불러오는 중...</div>
+          </div>
+        ) : histItems.length === 0 ? (
+          <div style={{ fontSize: 12.5, color: ds.ink4, padding: "12px 0" }}>등록된 업로드 이력이 없습니다.</div>
+        ) : (
+          <>
+            <div style={{ overflowX: "auto", borderRadius: 8, border: `1px solid ${ds.lineSoft}` }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, fontFamily: ds.ff }}>
+                <thead>
+                  <tr style={{ background: ds.card, color: ds.ink4, textAlign: "left" }}>
+                    <th style={{ padding: "8px 10px", fontWeight: 700 }}>ID</th>
+                    <th style={{ padding: "8px 10px", fontWeight: 700 }}>업로드 시각</th>
+                    <th style={{ padding: "8px 10px", fontWeight: 700 }}>파일명</th>
+                    <th style={{ padding: "8px 10px", fontWeight: 700 }}>AI</th>
+                    <th style={{ padding: "8px 10px", fontWeight: 700 }}>저장소</th>
+                    <th style={{ padding: "8px 10px", fontWeight: 700 }}>URI / 위치</th>
+                    <th style={{ padding: "8px 10px", fontWeight: 700 }}>Milvus</th>
+                    <th style={{ padding: "8px 10px", fontWeight: 700 }}>비고</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {histItems.map((row) => {
+                    const st = policyStatusStyle(row.aiApplyStatus);
+                    const uri = row.storageUri;
+                    const isHttp = uri && /^https?:\/\//i.test(String(uri));
+                    return (
+                      <tr key={row.policyUploadId} style={{ borderTop: `1px solid ${ds.lineSoft}`, color: ds.ink }}>
+                        <td style={{ padding: "8px 10px", fontWeight: 700 }}>{row.policyUploadId}</td>
+                        <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>{fmtDateTime(row.uploadedAt)}</td>
+                        <td style={{ padding: "8px 10px", maxWidth: 160 }} title={row.originalFilename}>
+                          <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {row.originalFilename || "-"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "2px 8px",
+                              borderRadius: 6,
+                              fontWeight: 700,
+                              fontSize: 10.5,
+                              background: st.bg,
+                              color: st.color,
+                            }}
+                          >
+                            {st.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: "8px 10px", whiteSpace: "nowrap", color: ds.ink3 }}>
+                          {row.storageProvider ? `${row.storageProvider}${row.storageBucket ? ` · ${truncate(row.storageBucket, 20)}` : ""}` : "—"}
+                        </td>
+                        <td style={{ padding: "8px 10px", maxWidth: 220 }} title={uri || row.storageObjectKey || ""}>
+                          {isHttp ? (
+                            <a href={uri} target="_blank" rel="noopener noreferrer" style={{ color: ds.brand, wordBreak: "break-all" }}>
+                              {truncate(uri, 56)}
+                            </a>
+                          ) : (
+                            <span style={{ color: ds.ink3, wordBreak: "break-all" }}>{truncate(uri || row.storageObjectKey, 56)}</span>
+                          )}
+                        </td>
+                        <td style={{ padding: "8px 10px", maxWidth: 140 }} title={row.milvusCollectionName || ""}>
+                          <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {row.milvusCollectionName || "—"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "8px 10px", color: ds.ink4, maxWidth: 200 }} title={row.aiErrorMessage || ""}>
+                          {row.aiApplyStatus === "FAILED" ? truncate(ragReasonOneLine(row.aiErrorMessage), 64) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {histTotalPages > 1 && (
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setHistPage((p) => Math.max(0, p - 1))}
+                  disabled={histPage <= 0}
+                  style={{
+                    padding: "5px 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${ds.line}`,
+                    background: ds.bg,
+                    fontSize: 12,
+                    color: histPage <= 0 ? ds.ink4 : ds.ink3,
+                    cursor: histPage <= 0 ? "default" : "pointer",
+                    fontFamily: ds.ff,
+                  }}
+                >
+                  이전
+                </button>
+                <span style={{ fontSize: 12, color: ds.ink4 }}>
+                  {histPage + 1} / {histTotalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setHistPage((p) => Math.min(histTotalPages - 1, p + 1))}
+                  disabled={histPage >= histTotalPages - 1}
+                  style={{
+                    padding: "5px 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${ds.line}`,
+                    background: ds.bg,
+                    fontSize: 12,
+                    color: histPage >= histTotalPages - 1 ? ds.ink4 : ds.ink3,
+                    cursor: histPage >= histTotalPages - 1 ? "default" : "pointer",
+                    fontFamily: ds.ff,
+                  }}
+                >
+                  다음
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -577,7 +1105,22 @@ export default function BannedWordsManage() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const size = 20;
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const lastSearchAppliedRef = useRef("");
+
+  /** 입력 디바운스 후 검색어 반영 + 검색 변경 시 첫 페이지로 */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const next = searchInput.trim();
+      if (lastSearchAppliedRef.current !== next) {
+        lastSearchAppliedRef.current = next;
+        setPage(0);
+      }
+      setSearchQuery(next);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const fetchBoards = useCallback(async () => {
     setBoardsLoading(true);
@@ -603,7 +1146,7 @@ export default function BannedWordsManage() {
     }
     setLoading(true);
     try {
-      const res = await bannedWordApi.list(selectedBoardId, page, size);
+      const res = await bannedWordApi.list(selectedBoardId, page, BANNED_PAGE_SIZE, searchQuery);
       setItems(res?.content ?? []);
       setTotalPages(res?.totalPages ?? 0);
       setTotalElements(res?.totalElements ?? 0);
@@ -614,7 +1157,7 @@ export default function BannedWordsManage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedBoardId, page]);
+  }, [selectedBoardId, page, searchQuery]);
 
   useEffect(() => {
     fetchBoards();
@@ -686,58 +1229,154 @@ export default function BannedWordsManage() {
     <div>
       <style>{spinStyle}</style>
 
-      {/* ── 금지어 목록 ── */}
+      {/* ── AI 모더레이션 BLOCK 로그 (상단) ── */}
+      <ModerationLogSection boards={boards} />
+
+      {/* ── 금지어/정책 영역: 챗봇 우측 공간 확보 ── */}
       <div
         style={{
-          background: ds.bg,
-          borderRadius: 12,
-          border: `1px solid ${ds.line}`,
-          overflow: "hidden",
+          display: "grid",
+          // 아이콘 중심 기준: (중심~오른쪽 끝) == (중심~테이블 오른쪽 끝)
+          // 데스크톱 기준 right(14px) + 아이콘폭(180px)/2 = 104px 이므로,
+          // 테이블 우측 경계는 화면 오른쪽에서 약 208px 지점에 배치
+          gridTemplateColumns: "minmax(0, 1fr) 208px",
+          gap: 0,
+          alignItems: "start",
+          marginTop: 20,
         }}
       >
+        <div>
+          {/* ── 금지어 목록 ── */}
+          <div
+            style={{
+              background: ds.bg,
+              borderRadius: 12,
+              border: `1px solid ${ds.line}`,
+              overflow: "hidden",
+            }}
+          >
         <div
           style={{
-            padding: "14px 20px",
+            padding: "10px 16px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             flexWrap: "wrap",
-            gap: 12,
+            gap: 10,
             borderBottom: `1px solid ${ds.line}`,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <ShieldAlert size={18} color={ds.brand} />
-              <span style={{ fontSize: 14, fontWeight: 800, color: ds.ink }}>금지어 관리</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+              minWidth: 0,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <ShieldAlert size={17} color={ds.brand} />
+              <span style={{ fontSize: 13.5, fontWeight: 800, color: ds.ink }}>금지어 목록</span>
             </div>
-            <select
-              value={selectedBoardId ?? ""}
-              onChange={(e) => {
-                setSelectedBoardId(e.target.value ? Number(e.target.value) : null);
-                setPage(0);
-              }}
+            {/* 게시판 드롭다운 + 검색창을 한 줄에 고정 (줄바꿈 시에도 붙어 있음) */}
+            <div
               style={{
-                padding: "8px 12px",
-                borderRadius: 8,
-                border: `1px solid ${ds.line}`,
-                background: ds.bg,
-                fontSize: 13,
-                fontFamily: ds.ff,
-                color: ds.ink,
-                cursor: "pointer",
-                minWidth: 160,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "nowrap",
+                flexShrink: 0,
+                minWidth: 0,
               }}
             >
-              <option value="">게시판 선택</option>
-              {boards.map((b) => (
-                <option key={b.boardId} value={b.boardId}>
-                  {b.name || b.boardType || `게시판 #${b.boardId}`}
-                </option>
-              ))}
-            </select>
+              <select
+                value={selectedBoardId ?? ""}
+                onChange={(e) => {
+                  setSelectedBoardId(e.target.value ? Number(e.target.value) : null);
+                  setPage(0);
+                  setSearchInput("");
+                  setSearchQuery("");
+                  lastSearchAppliedRef.current = "";
+                }}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                  border: `1px solid ${ds.line}`,
+                  background: ds.bg,
+                  fontSize: 12.5,
+                  fontFamily: ds.ff,
+                  color: ds.ink,
+                  cursor: "pointer",
+                  minWidth: 150,
+                  flexShrink: 0,
+                }}
+              >
+                <option value="">게시판 선택</option>
+                {boards.map((b) => (
+                  <option key={b.boardId} value={b.boardId}>
+                    {b.name || b.boardType || `게시판 #${b.boardId}`}
+                  </option>
+                ))}
+              </select>
+              {selectedBoardId && (
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "5px 10px",
+                    borderRadius: 8,
+                    border: `1px solid ${ds.line}`,
+                    background: ds.bg,
+                    width: 200,
+                    flexShrink: 0,
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <Search size={14} color={ds.ink4} style={{ flexShrink: 0 }} aria-hidden />
+                  <input
+                    type="search"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder="금지어 검색"
+                    autoComplete="off"
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 12.5,
+                      fontFamily: ds.ff,
+                      color: ds.ink,
+                      outline: "none",
+                    }}
+                  />
+                  {searchInput ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchInput("")}
+                      aria-label="검색어 지우기"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 2,
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        color: ds.ink4,
+                        borderRadius: 4,
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  ) : null}
+                </label>
+              )}
+            </div>
             {selectedBoardId && (
-              <span style={{ fontSize: 12, fontWeight: 600, color: ds.ink4 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: ds.ink4, flexShrink: 0 }}>
                 총 {totalElements}개
               </span>
             )}
@@ -787,7 +1426,9 @@ export default function BannedWordsManage() {
 
         {!boardsLoading && selectedBoardId && !loading && items.length === 0 && (
           <div style={{ padding: 60, textAlign: "center", color: ds.ink4, fontSize: 13.5 }}>
-            등록된 금지어가 없습니다. "금지어 추가"로 등록하세요.
+            {searchQuery
+              ? "검색 결과가 없습니다. 다른 검색어를 입력해 보세요."
+              : '등록된 금지어가 없습니다. "금지어 추가"로 등록하세요.'}
           </div>
         )}
 
@@ -796,11 +1437,11 @@ export default function BannedWordsManage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 120px 80px 120px 100px 80px",
-                gap: 12,
-                padding: "12px 20px",
+                gridTemplateColumns: "1fr 110px 72px 88px 72px",
+                gap: 8,
+                padding: "6px 14px",
                 borderBottom: `1px solid ${ds.line}`,
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: 700,
                 color: ds.ink4,
                 textTransform: "uppercase",
@@ -810,7 +1451,6 @@ export default function BannedWordsManage() {
               <span>금지어</span>
               <span>카테고리</span>
               <span>적용</span>
-              <span>대체어</span>
               <span>등록일</span>
               <span></span>
             </div>
@@ -819,22 +1459,22 @@ export default function BannedWordsManage() {
                 key={row.bannedWordId}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 120px 80px 120px 100px 80px",
-                  gap: 12,
+                  gridTemplateColumns: "1fr 110px 72px 88px 72px",
+                  gap: 8,
                   alignItems: "center",
-                  padding: "12px 20px",
+                  padding: "5px 14px",
                   borderBottom: `1px solid ${ds.lineSoft}`,
-                  fontSize: 13,
+                  fontSize: 12,
                   color: ds.ink3,
                 }}
               >
-                <span style={{ fontWeight: 600, color: ds.ink }}>{row.bannedWord}</span>
-                <span>{getCategoryLabel(row.category)}</span>
+                <span style={{ fontWeight: 600, color: ds.ink, lineHeight: 1.3 }}>{row.bannedWord}</span>
+                <span style={{ fontSize: 11.5, lineHeight: 1.3 }}>{getCategoryLabel(row.category)}</span>
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: 600,
-                    padding: "2px 8px",
+                    padding: "1px 6px",
                     borderRadius: 4,
                     background: row.boardId ? ds.skySoft : ds.amberSoft,
                     color: row.boardId ? ds.sky : ds.amber,
@@ -843,17 +1483,17 @@ export default function BannedWordsManage() {
                 >
                   {row.boardId ? "게시판" : "공통"}
                 </span>
-                <span style={{ color: ds.ink4 }}>{row.replacement || "-"}</span>
-                <span style={{ fontSize: 12, color: ds.ink4 }}>{fmtDate(row.createdAt)}</span>
-                <div style={{ display: "flex", gap: 4 }}>
+                <span style={{ fontSize: 11, color: ds.ink4 }}>{fmtDate(row.createdAt)}</span>
+                <div style={{ display: "flex", gap: 3 }}>
                   <button
+                    type="button"
                     onClick={() => setModal({ type: "form", item: row })}
                     style={{
-                      padding: "4px 8px",
+                      padding: "3px 6px",
                       borderRadius: 5,
                       border: `1px solid ${ds.brand}25`,
                       background: `${ds.brand}06`,
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight: 600,
                       color: ds.brand,
                       cursor: "pointer",
@@ -863,13 +1503,14 @@ export default function BannedWordsManage() {
                     수정
                   </button>
                   <button
+                    type="button"
                     onClick={() => setModal({ type: "delete", item: row })}
                     style={{
-                      padding: "4px 8px",
+                      padding: "3px 6px",
                       borderRadius: 5,
                       border: "1px solid #FECACA50",
                       background: "transparent",
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight: 600,
                       color: "#EF4444",
                       cursor: "pointer",
@@ -884,7 +1525,7 @@ export default function BannedWordsManage() {
             {totalPages > 1 && (
               <div
                 style={{
-                  padding: "12px 20px",
+                  padding: "8px 14px",
                   borderTop: `1px solid ${ds.line}`,
                   display: "flex",
                   justifyContent: "center",
@@ -893,14 +1534,15 @@ export default function BannedWordsManage() {
                 }}
               >
                 <button
+                  type="button"
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page <= 0}
                   style={{
-                    padding: "6px 12px",
+                    padding: "5px 10px",
                     borderRadius: 6,
                     border: `1px solid ${ds.line}`,
                     background: ds.bg,
-                    fontSize: 13,
+                    fontSize: 12,
                     color: page <= 0 ? ds.ink4 : ds.ink3,
                     cursor: page <= 0 ? "default" : "pointer",
                     fontFamily: ds.ff,
@@ -908,18 +1550,19 @@ export default function BannedWordsManage() {
                 >
                   이전
                 </button>
-                <span style={{ fontSize: 13, color: ds.ink4 }}>
+                <span style={{ fontSize: 12, color: ds.ink4 }}>
                   {page + 1} / {totalPages}
                 </span>
                 <button
+                  type="button"
                   onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                   disabled={page >= totalPages - 1}
                   style={{
-                    padding: "6px 12px",
+                    padding: "5px 10px",
                     borderRadius: 6,
                     border: `1px solid ${ds.line}`,
                     background: ds.bg,
-                    fontSize: 13,
+                    fontSize: 12,
                     color: page >= totalPages - 1 ? ds.ink4 : ds.ink3,
                     cursor: page >= totalPages - 1 ? "default" : "pointer",
                     fontFamily: ds.ff,
@@ -932,28 +1575,34 @@ export default function BannedWordsManage() {
           </>
         )}
 
-        {modal?.type === "form" && (
-          <FormModal
-            item={modal.item}
-            onSave={modal.item ? handleUpdate : handleCreate}
-            onClose={() => setModal(null)}
-            saving={saving}
-          />
-        )}
+          </div>
 
-        {modal?.type === "delete" && (
-          <ConfirmModal
-            title="금지어 삭제"
-            msg={`"${modal.item?.bannedWord}" 을(를) 삭제하시겠습니까?`}
-            onConfirm={handleDelete}
-            onCancel={() => setModal(null)}
-            loading={saving}
-          />
-        )}
+          {/* ── AI 정책 파일 관리 (하단) ── */}
+          <PolicySection showToast={showToast} />
+        </div>
+
+        {/* 챗봇과 겹치지 않도록 우측 여백 컬럼 */}
+        <div aria-hidden="true" />
       </div>
 
-      {/* ── 정책 파일 업로드/적용 ── */}
-      <PolicySection showToast={showToast} />
+      {modal?.type === "form" && (
+        <FormModal
+          item={modal.item}
+          onSave={modal.item ? handleUpdate : handleCreate}
+          onClose={() => setModal(null)}
+          saving={saving}
+        />
+      )}
+
+      {modal?.type === "delete" && (
+        <ConfirmModal
+          title="금지어 삭제"
+          msg={`"${modal.item?.bannedWord}" 을(를) 삭제하시겠습니까?`}
+          onConfirm={handleDelete}
+          onCancel={() => setModal(null)}
+          loading={saving}
+        />
+      )}
 
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
     </div>

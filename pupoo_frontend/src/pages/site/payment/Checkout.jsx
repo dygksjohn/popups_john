@@ -12,6 +12,7 @@ import {
   MapPin,
   CalendarDays,
   Check,
+  ShieldCheck,
 } from "lucide-react";
 
 
@@ -192,7 +193,7 @@ export default function Checkout() {
                 color: "#fff",
               }}
             >
-              <h2 style={{ fontSize: 19, fontWeight: 700, margin: 0, lineHeight: 1.45 }}>
+              <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, lineHeight: 1.4, letterSpacing: -0.3 }}>
                 {title}
               </h2>
               {eventDetail?.description && (
@@ -225,9 +226,9 @@ export default function Checkout() {
           </div>
 
           {/* ─── RIGHT: Payment ─── */}
-          <div style={{ flex: 1, padding: "36px 36px 32px", display: "flex", flexDirection: "column" }}>
+          <div style={{ flex: 1, padding: "44px 44px 40px", display: "flex", flexDirection: "column" }}>
             {/* Payment method label */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: 1, textTransform: "uppercase", marginBottom: 18 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#aaa", letterSpacing: 1, textTransform: "uppercase", marginBottom: 22 }}>
               Payment Method
             </div>
 
@@ -327,10 +328,10 @@ export default function Checkout() {
               display: "flex", justifyContent: "space-between", alignItems: "baseline",
               marginBottom: 20,
             }}>
-              <span style={{ fontSize: 14, fontWeight: 500, color: "#888" }}>총 결제금액</span>
-              <span style={{ fontSize: 28, fontWeight: 900, color: "#111", letterSpacing: -0.5 }}>
+              <span style={{ fontSize: 16, fontWeight: 600, color: "#888" }}>총 결제금액</span>
+              <span style={{ fontSize: 32, fontWeight: 900, color: "#111", letterSpacing: -0.5 }}>
                 {amount.toLocaleString()}
-                <span style={{ fontSize: 15, fontWeight: 600, marginLeft: 1 }}>원</span>
+                <span style={{ fontSize: 17, fontWeight: 600, marginLeft: 2 }}>원</span>
               </span>
             </div>
 
@@ -358,29 +359,40 @@ export default function Checkout() {
               onClick={handlePay}
               disabled={loading}
               style={{
-                width: "100%", height: 52, borderRadius: 14,
+                width: "100%", height: 60, borderRadius: 16,
                 border: "none",
                 background: method === "KAKAOPAY" ? "#FEE500" : "#111",
                 color: method === "KAKAOPAY" ? "#3C1E1E" : "#fff",
-                fontSize: 15, fontWeight: 800,
+                fontSize: 17, fontWeight: 800,
                 cursor: loading ? "not-allowed" : "pointer",
                 opacity: loading ? 0.6 : 1,
-                fontFamily: "'Noto Sans KR', sans-serif",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                fontFamily: "inherit",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                transition: "all 0.15s",
+                boxShadow: method === "KAKAOPAY"
+                  ? "0 4px 16px rgba(254,229,0,0.3)"
+                  : "0 4px 16px rgba(0,0,0,0.12)",
               }}
+              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.transform = "translateY(-1px)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
             >
               {loading ? "결제 준비 중..." : method === "KAKAOPAY" ? (
                 <>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                     <path d="M12 4C7.03 4 3 7.13 3 11c0 2.45 1.62 4.6 4.06 5.85l-1.03 3.76c-.09.32.27.57.54.38l4.37-2.93c.35.03.7.04 1.06.04 4.97 0 9-3.13 9-7s-4.03-7-9-7z" fill="#3C1E1E"/>
                   </svg>
                   카카오페이로 결제하기
                 </>
-              ) : "결제하기"}
+              ) : (
+                <>
+                  <ShieldCheck size={19} />
+                  결제하기
+                </>
+              )}
             </button>
 
-            <p style={{ textAlign: "center", margin: "10px 0 0", fontSize: 11, color: "#bbb" }}>
-              결제 시 카카오페이 결제창으로 이동합니다
+            <p style={{ textAlign: "center", margin: "14px 0 0", fontSize: 12, color: "#bbb", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+              <Lock size={11} /> 안전한 결제 환경이 보장됩니다
             </p>
           </div>
         </div>

@@ -98,7 +98,8 @@ const css = `
 
   .qr-page-bg {
     position: relative; min-height: 100vh; overflow: hidden;
-    background: #fff;
+    background: #f6f6f6;
+    font-family: 'JeonjuCraftGothic', 'Pretendard', -apple-system, sans-serif;
   }
   .qr-page-content {
     position: relative;
@@ -108,7 +109,7 @@ const css = `
     font-family: inherit;
   }
   .qr-root *, .qr-root *::before, .qr-root *::after { box-sizing: border-box; font-family: inherit; }
-  .qr-container { max-width: 960px; margin: 0 auto; padding: 28px 20px 80px; }
+  .qr-container { max-width: 960px; margin: 0 auto; padding: 36px 24px 80px; }
 
   /* ── Filter Bar ── */
   .qr-filter-bar {

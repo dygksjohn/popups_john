@@ -42,7 +42,6 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
         this.sesV2Client = sesV2Client;
         this.awsMessagingProperties = awsMessagingProperties;
         this.verificationBaseUrl = verificationBaseUrl;
-        validateSesProperties();
     }
 
     @Override
@@ -66,6 +65,7 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
         // 기능: 계정 이메일 인증 링크 메일을 SES로 발송한다.
         // 설명: 계정 인증 토큰을 확인 링크로 조합해 클릭형 메일을 보낸다.
         // 흐름: 링크 생성 -> 템플릿 생성 -> SES 호출 -> 성공 로그 또는 예외 변환 순서로 처리한다.
+        validateVerificationBaseUrl();
         sendEmail(email, buildAccountVerificationSubject(), buildAccountVerificationBody(token), "account verification");
     }
 
@@ -78,6 +78,7 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
     }
 
     private void sendEmail(String targetEmail, String subject, String body, String mailType) {
+        validateFromAddress();
         String maskedTarget = maskEmail(targetEmail);
         String fromAddress = awsMessagingProperties.getSes() != null ? awsMessagingProperties.getSes().getFromAddress() : null;
         try {
@@ -125,12 +126,12 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
     }
 
     private String resolveFromAddress() {
-        String fromAddress = awsMessagingProperties.getSes().getFromAddress();
+        String fromAddress = awsMessagingProperties.getSes().getFromAddress().trim();
         String fromName = awsMessagingProperties.getSes().getFromName();
         if (fromName == null || fromName.isBlank()) {
             return fromAddress;
         }
-        return fromName + " <" + fromAddress + ">";
+        return fromName.trim() + " <" + fromAddress + ">";
     }
 
     private String buildSignupVerificationSubject() {
@@ -156,7 +157,7 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
     }
 
     private String buildAccountVerificationBody(String token) {
-        String verifyUrl = verificationBaseUrl + "/api/auth/email/verification/confirm?token=" + token;
+        String verifyUrl = verificationBaseUrl.trim() + "/api/auth/email/verification/confirm?token=" + token;
         return "POPUPS 계정 이메일 인증을 완료하려면 아래 링크를 열어 주세요.\n\n"
                 + verifyUrl
                 + "\n\n링크는 발송 후 24시간 이내에 사용해 주세요.";
@@ -172,14 +173,19 @@ public class AwsSesEmailVerificationSender implements EmailVerificationSenderPor
                 + "\n\n서비스 화면에서 토큰을 입력해 이메일 변경을 완료해 주세요.";
     }
 
-    private void validateSesProperties() {
+    // 기능: SES 발신 주소 누락을 API 예외로 변환한다.
+    private void validateFromAddress() {
         if (awsMessagingProperties.getSes() == null
                 || awsMessagingProperties.getSes().getFromAddress() == null
                 || awsMessagingProperties.getSes().getFromAddress().isBlank()) {
-            throw new IllegalStateException("aws.ses.from-address 설정이 필요합니다.");
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AWS SES 발신 주소 설정이 필요합니다.");
         }
+    }
+
+    // 기능: 계정 인증 링크 생성에 필요한 기준 URL을 검증한다.
+    private void validateVerificationBaseUrl() {
         if (verificationBaseUrl == null || verificationBaseUrl.isBlank()) {
-            throw new IllegalStateException("verification.email.base-url 설정이 필요합니다.");
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "이메일 인증 기준 URL 설정이 필요합니다.");
         }
     }
 
