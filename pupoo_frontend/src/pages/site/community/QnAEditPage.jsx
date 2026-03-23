@@ -49,7 +49,7 @@ function InProgressBox() {
       }}
     >
       <Loader2 size={14} style={{ flexShrink: 0, animation: "spin 1s linear infinite" }} />
-      수정 중입니다. 기다려 주세요.
+      깨끗한 커뮤니티 조성을 위해 AI가 게시글 콘텐츠를 검토 중입니다.
     </div>
   );
 }
@@ -131,6 +131,7 @@ export default function QnAEditPage() {
     if (!hasMeaningfulCommunityContent(content)) return "내용을 입력해 주세요.";
     return "";
   }, [content, title]);
+  const isFormLocked = saving || Boolean(successMessage);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -149,18 +150,22 @@ export default function QnAEditPage() {
     setSuccessMessage("");
 
     try {
-      await qnaApi.update(numericQnaId, {
+      const res = await qnaApi.update(numericQnaId, {
         title: title.trim(),
         content,
       });
 
       if (!isMountedRef.current) return;
 
-      setSuccessMessage("수정 완료");
-      setTimeout(() => {
-        if (!isMountedRef.current) return;
-        navigate(`/community/qna/${qnaId}`);
-      }, 1500);
+      const updated = unwrap(res);
+      if (updated?.moderationHidden) {
+        setSuccessMessage(
+          "수정 내용이 정책에 따라 숨김 처리되었습니다. 다른 사용자에게는 노출되지 않으며, 본인은 상세에서만 확인할 수 있습니다.",
+        );
+      } else {
+        setSuccessMessage("수정 완료");
+      }
+      setSaving(false);
     } catch (err) {
       console.error("[QnAEditPage] update failed:", err);
       if (!isMountedRef.current) return;
@@ -203,7 +208,7 @@ export default function QnAEditPage() {
           <button
             type="submit"
             form="community-qna-edit-form"
-            disabled={saving || loading}
+            disabled={isFormLocked || loading}
             style={{
               height: 44,
               padding: "0 18px",
@@ -213,8 +218,8 @@ export default function QnAEditPage() {
               fontSize: 14,
               fontWeight: 800,
               color: "#fff",
-              cursor: saving || loading ? "not-allowed" : "pointer",
-              opacity: saving || loading ? 0.6 : 1,
+              cursor: isFormLocked || loading ? "not-allowed" : "pointer",
+              opacity: isFormLocked || loading ? 0.6 : 1,
             }}
           >
             {saving ? "수정 중..." : "수정하기"}
@@ -235,8 +240,8 @@ export default function QnAEditPage() {
             style={{
               display: "grid",
               gap: 18,
-              pointerEvents: saving ? "none" : undefined,
-              opacity: saving ? 0.75 : 1,
+              pointerEvents: isFormLocked ? "none" : undefined,
+              opacity: isFormLocked ? 0.75 : 1,
             }}
           >
             <label style={{ display: "grid", gap: 8 }}>
@@ -245,8 +250,8 @@ export default function QnAEditPage() {
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="질문 제목을 입력해 주세요"
-                disabled={saving}
-                readOnly={saving}
+                disabled={isFormLocked}
+                readOnly={isFormLocked}
                 style={{
                   height: 46,
                   borderRadius: 10,
@@ -254,7 +259,7 @@ export default function QnAEditPage() {
                   padding: "0 14px",
                   fontSize: 14,
                   color: "#0f172a",
-                  background: saving ? "#f1f5f9" : "#fff",
+                  background: isFormLocked ? "#f1f5f9" : "#fff",
                 }}
               />
             </label>

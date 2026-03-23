@@ -138,8 +138,12 @@ public class PostService {
         return userId != null ? userRepository.findById(userId).map(u -> u.getEmail()).orElse(null) : null;
     }
 
+    private String getWriterNickname(Long userId) {
+        return userId != null ? userRepository.findById(userId).map(u -> u.getNickname()).orElse(null) : null;
+    }
+
     private PostResponse toResponse(Post post) {
-        return PostResponse.from(post, getWriterEmail(post.getUserId()), post.getPostTitle(), post.getContent());
+        return PostResponse.from(post, getWriterEmail(post.getUserId()), getWriterNickname(post.getUserId()), post.getPostTitle(), post.getContent());
     }
 
     @Transactional
@@ -213,20 +217,42 @@ public class PostService {
         Post post = postRepository.findByPostIdAndUserIdAndDeletedFalse(postId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "No permission to update"));
 
+        applyPostUpdateWithModeration(post, req, userId);
+    }
+
+    /**
+     * 관리자 콘솔: 작성자와 무관하게 게시글 본문/제목 수정.
+     * <p>
+     * 일반 사용자 수정({@link #updatePost})과 달리 AI 모더레이션 BLOCK을 적용하지 않는다.
+     * 운영자가 정정·복구 목적으로 글을 편집할 때 사용자 글이 AI에 의해 저장 불가(400)로 막히지 않도록 한다.
+     */
+    @Transactional
+    public void adminUpdatePost(Long adminUserId, Long postId, PostUpdateRequest req) {
+        if (adminUserId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
+        Post post = postRepository.findByPostIdAndDeletedFalse(postId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Post not found"));
+
+        if (req.getPostTitle() == null || req.getPostTitle().isBlank() || req.getContent() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content is required");
+        }
+        post.updateTitleAndContent(req.getPostTitle(), req.getContent());
+    }
+
+    private void applyPostUpdateWithModeration(Post post, PostUpdateRequest req, Long userIdForModeration) {
         if (req.getPostTitle() == null || req.getPostTitle().isBlank() || req.getContent() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content is required");
         }
 
-        if (!bannedWordService.shouldSkipModeration(userId)) {
+        if (!bannedWordService.shouldSkipModeration(userIdForModeration)) {
             String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
             ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), post.getBoard().getBoardId(), "POST");
             if (modResult != null && modResult.isBlock()) {
-                // BLOCK된 요청은 로그에 남긴다.
                 bannedWordService.logAiModeration(
                         post.getBoard().getBoardId(),
                         post.getPostId(),
                         BannedLogContentType.POST,
-                        userId,
+                        userIdForModeration,
                         modResult
                 );
                 throw new BusinessException(

@@ -17,6 +17,7 @@ public class ReviewResponse {
     private String eventName;
     private Long userId;
     private String writerEmail;
+    private String writerNickname;
 
     private int rating;
     private String reviewTitle;
@@ -44,17 +45,18 @@ public class ReviewResponse {
     }
 
     public static ReviewResponse from(Review review, String eventName, String writerEmail) {
-        return from(review, eventName, writerEmail, null, null);
+        return from(review, eventName, writerEmail, null, null, null);
     }
 
     /** 마스킹된 제목·내용으로 응답 (5단계 노출 시점 마스킹) */
-    public static ReviewResponse from(Review review, String eventName, String writerEmail, String maskedTitle, String maskedContent) {
+    public static ReviewResponse from(Review review, String eventName, String writerEmail, String writerNickname, String maskedTitle, String maskedContent) {
         return ReviewResponse.builder()
                 .reviewId(review.getReviewId())
                 .eventId(review.getEventId())
                 .eventName(eventName)
                 .userId(review.getUserId())
                 .writerEmail(writerEmail)
+                .writerNickname(writerNickname)
                 .rating(review.getRating())
                 .reviewTitle(maskedTitle != null ? maskedTitle : review.getReviewTitle())
                 .content(maskedContent != null ? maskedContent : review.getContent())

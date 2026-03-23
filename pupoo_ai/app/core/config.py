@@ -1,9 +1,14 @@
+from pathlib import Path
+
 try:
     from pydantic_settings import BaseSettings, SettingsConfigDict
 except ImportError:  # pragma: no cover
     from pydantic.v1 import BaseSettings  # type: ignore
 
     SettingsConfigDict = None  # type: ignore
+
+# pupoo_ai/app/core/config.py -> parents[2] == pupoo_ai 패키지 루트 (cwd와 무관하게 .env 로드)
+_DOTENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
@@ -36,15 +41,9 @@ class Settings(BaseSettings):
     watsonx_project_id: str = ""
     watsonx_region: str = ""
     watsonx_llm_id: str = ""
-    watsonx_embedding_model_id: str = ""
-    watsonx_embedding_dim: int = 1024
-
-    # 임베딩 백엔드 선택: bge-m3 (고정)
-    embedding_backend: str = "bge-m3"
-
-    # BGE-M3 embedding-service (별도 앱) 호출 설정
-    embedding_service_url: str = "http://127.0.0.1:8001"
-    embedding_service_timeout_seconds: int = 60
+    # 기본: Granite 278M 다국어 (출력 차원 768). 모델 변경 시 dim·Milvus 컬렉션을 맞출 것.
+    watsonx_embedding_model_id: str = "ibm/granite-embedding-278m-multilingual"
+    watsonx_embedding_dim: int = 768
 
     # 기능: 정책 벡터 저장소인 Milvus 연결 정보를 정의한다.
     # 설명: moderation 정책 검색은 이 컬렉션을 기준으로 수행된다.
@@ -58,7 +57,7 @@ class Settings(BaseSettings):
 
     if SettingsConfigDict is not None:
         model_config = SettingsConfigDict(
-            env_file=".env",
+            env_file=_DOTENV_PATH,
             env_prefix="PUPOO_AI_",
             case_sensitive=False,
             extra="ignore",
@@ -68,6 +67,7 @@ class Settings(BaseSettings):
             env_prefix = "PUPOO_AI_"
             case_sensitive = False
             extra = "ignore"
+            env_file = str(_DOTENV_PATH)
 
 
 settings = Settings()

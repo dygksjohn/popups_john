@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Dict
 
@@ -22,6 +23,7 @@ from pupoo_ai.app.features.moderation.policy_apply_service import (
 )
 from pupoo_ai.app.features.moderation.policy_state import POLICY_DOC_ROOT, load_active_policy
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix=INTERNAL_API_PREFIX,
@@ -114,6 +116,7 @@ async def upload_and_activate_policy(file: UploadFile = File(...)) -> dict:
             "embedding_dim": result.embedding_dim,
         }
     except Exception as e:
+        logger.exception("정책 upload-and-activate 실패: %s", file.filename)
         raise HTTPException(status_code=500, detail=f"정책 반영 실패: {e}")
 
 

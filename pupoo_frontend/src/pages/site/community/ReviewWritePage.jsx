@@ -53,7 +53,9 @@ function InProgressBox() {
       }}
     >
       <Loader2 size={14} style={{ flexShrink: 0, animation: "spin 1s linear infinite" }} />
-      등록 중입니다. 기다려 주세요.
+      <span style={{ whiteSpace: "pre-line" }}>
+        {"깨끗한 커뮤니티 조성을 위해 AI가 게시글 콘텐츠를 검토 중입니다.\n잠시만 기다려주세요"}
+      </span>
     </div>
   );
 }
@@ -152,6 +154,7 @@ export default function ReviewWritePage() {
     if (!hasMeaningfulCommunityContent(form.content)) return "내용을 입력해 주세요.";
     return "";
   }, [form]);
+  const isFormLocked = saving || Boolean(successMessage);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -196,11 +199,8 @@ export default function ReviewWritePage() {
         localStorage.removeItem(DRAFT_KEY_REVIEW);
       } catch (_) {}
 
-      setSuccessMessage("등록 완료");
-      setTimeout(() => {
-        if (!isMountedRef.current) return;
-        navigate("/community/review");
-      }, 1500);
+      setSuccessMessage("등록 완료되었습니다.");
+      setSaving(false);
     } catch (err) {
       console.error("[ReviewWritePage] create failed:", err);
       if (!isMountedRef.current) return;
@@ -243,7 +243,7 @@ export default function ReviewWritePage() {
           <button
             type="submit"
             form="community-review-write-form"
-            disabled={saving || loading}
+            disabled={isFormLocked || loading}
             style={{
               height: 44,
               padding: "0 18px",
@@ -253,8 +253,8 @@ export default function ReviewWritePage() {
               fontSize: 14,
               fontWeight: 800,
               color: "#fff",
-              cursor: saving || loading ? "not-allowed" : "pointer",
-              opacity: saving || loading ? 0.6 : 1,
+              cursor: isFormLocked || loading ? "not-allowed" : "pointer",
+              opacity: isFormLocked || loading ? 0.6 : 1,
             }}
           >
             {saving ? "등록 중..." : "등록하기"}
@@ -275,8 +275,8 @@ export default function ReviewWritePage() {
             style={{
               display: "grid",
               gap: 18,
-              pointerEvents: saving ? "none" : undefined,
-              opacity: saving ? 0.75 : 1,
+              pointerEvents: isFormLocked ? "none" : undefined,
+              opacity: isFormLocked ? 0.75 : 1,
             }}
           >
             <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 14 }}>
@@ -285,7 +285,7 @@ export default function ReviewWritePage() {
                 <select
                   value={form.eventId}
                   onChange={(event) => handleChange("eventId", event.target.value)}
-                  disabled={saving}
+                  disabled={isFormLocked}
                   style={{
                     height: 46,
                     borderRadius: 10,
@@ -293,7 +293,7 @@ export default function ReviewWritePage() {
                     padding: "0 14px",
                     fontSize: 14,
                     color: "#0f172a",
-                    background: saving ? "#f1f5f9" : "#fff",
+                    background: isFormLocked ? "#f1f5f9" : "#fff",
                   }}
                 >
                   <option value="">행사를 선택해 주세요</option>
@@ -310,7 +310,7 @@ export default function ReviewWritePage() {
                 <select
                   value={form.rating}
                   onChange={(event) => handleChange("rating", event.target.value)}
-                  disabled={saving}
+                  disabled={isFormLocked}
                   style={{
                     height: 46,
                     borderRadius: 10,
@@ -318,7 +318,7 @@ export default function ReviewWritePage() {
                     padding: "0 14px",
                     fontSize: 14,
                     color: "#0f172a",
-                    background: saving ? "#f1f5f9" : "#fff",
+                    background: isFormLocked ? "#f1f5f9" : "#fff",
                   }}
                 >
                   {[5, 4, 3, 2, 1].map((value) => (
@@ -336,8 +336,8 @@ export default function ReviewWritePage() {
                 value={form.title}
                 onChange={(event) => handleChange("title", event.target.value)}
                 placeholder="후기 제목을 입력해 주세요"
-                disabled={saving}
-                readOnly={saving}
+                disabled={isFormLocked}
+                readOnly={isFormLocked}
                 style={{
                   height: 46,
                   borderRadius: 10,
@@ -345,7 +345,7 @@ export default function ReviewWritePage() {
                   padding: "0 14px",
                   fontSize: 14,
                   color: "#0f172a",
-                  background: saving ? "#f1f5f9" : "#fff",
+                  background: isFormLocked ? "#f1f5f9" : "#fff",
                 }}
               />
             </label>

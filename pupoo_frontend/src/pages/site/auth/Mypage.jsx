@@ -1169,9 +1169,24 @@ export default function MyPage() {
       if (!mounted) return;
       setEventMap(detailMap);
 
-      const inboxItems = safeArray(inboxData?.items);
+      let inboxItems = safeArray(inboxData?.items);
+      const inboxTotalPages = Number(inboxData?.totalPages) || 1;
+      if (inboxTotalPages > 1) {
+        try {
+          const rest = await Promise.all(
+            Array.from({ length: inboxTotalPages - 1 }, (_, idx) =>
+              notificationApi.getInbox(idx + 1, 20),
+            ),
+          );
+          rest.forEach((pageData) => {
+            inboxItems.push(...safeArray(pageData?.items));
+          });
+        } catch {
+          // 첫 페이지 데이터는 이미 확보했으므로 추가 페이지 실패는 무시한다.
+        }
+      }
       setNotifications(inboxItems);
-      setUnreadCount(unread || inboxItems.length);
+      setUnreadCount(Number.isFinite(unread) ? unread : inboxItems.length);
       setInterests(interestRows);
       setSubscriptions(subscriptionRows);
       if (
