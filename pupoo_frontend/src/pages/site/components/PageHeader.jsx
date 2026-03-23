@@ -234,10 +234,14 @@ export default function PageHeader({
   const tabsStyle = {
     ...styles.tabs,
     marginTop: isMobile ? 20 : isTablet ? 32 : styles.tabs.marginTop,
-    overflowX: isCompact ? "auto" : "visible",
+    display: isMobile ? "grid" : styles.tabs.display,
+    gridTemplateColumns: isMobile
+      ? `repeat(${Math.min(filteredCategories.length >= 5 ? 3 : 2, Math.max(filteredCategories.length, 1))}, minmax(0, 1fr))`
+      : undefined,
+    overflowX: isMobile ? "visible" : isCompact ? "auto" : "visible",
     overflowY: "hidden",
-    flexWrap: isMobile ? "nowrap" : isTablet ? "wrap" : "nowrap",
-    paddingBottom: isCompact ? 2 : 0,
+    flexWrap: isMobile ? "wrap" : isTablet ? "wrap" : "nowrap",
+    paddingBottom: isCompact && !isMobile ? 2 : 0,
     gap: isMobile ? 8 : styles.tabs.gap,
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
@@ -287,13 +291,17 @@ export default function PageHeader({
               let btnStyle = {
                 ...styles.tabBase,
                 flex: isCompact ? "0 0 auto" : styles.tabBase.flex,
-                minWidth: isMobile ? 104 : isTablet ? 132 : undefined,
+                minWidth: isMobile ? 0 : isTablet ? 132 : undefined,
+                width: isMobile ? "100%" : undefined,
+                minHeight: isMobile ? 44 : undefined,
                 padding: isMobile
-                  ? "10px 14px"
+                  ? "10px 8px"
                   : isTablet
                     ? "11px 14px"
                     : styles.tabBase.padding,
                 fontSize: isMobile ? 13.5 : isTablet ? 15 : styles.tabBase.fontSize,
+                whiteSpace: isMobile ? "normal" : styles.tabBase.whiteSpace,
+                lineHeight: isMobile ? 1.25 : undefined,
               };
 
               if (isActive) {

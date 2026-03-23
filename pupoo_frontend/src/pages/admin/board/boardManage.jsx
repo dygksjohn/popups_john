@@ -126,14 +126,9 @@ function fmtDate(dt) {
 function mapQnaFromApi(item) {
   const raw = item?.status;
   const answerStr = String(item.answer ?? item.answerContent ?? "").trim();
-  const hasAnswerMeta =
-    item.answeredAt != null ||
-    answerStr.length > 0;
+  const hasAnswerMeta = item.answeredAt != null || answerStr.length > 0;
   /** API QnaStatus(ANSWERED|WAITING) + answeredAt/본문과 일치 */
-  const isAnswered =
-    raw === "ANSWERED" ||
-    raw === "CLOSED" ||
-    hasAnswerMeta;
+  const isAnswered = raw === "ANSWERED" || raw === "CLOSED" || hasAnswerMeta;
 
   return {
     id: item.qnaId ?? item.inquiryId ?? item.id,
@@ -464,8 +459,7 @@ function DetailModal({
   const [replyText, setReplyText] = useState(item.answer || "");
   const [isReplying, setIsReplying] = useState(false);
   const hasReply = !!item.answer;
-  const qnaPub =
-    item.publicationStatus === "HIDDEN" ? "HIDDEN" : "PUBLISHED";
+  const qnaPub = item.publicationStatus === "HIDDEN" ? "HIDDEN" : "PUBLISHED";
 
   const detailKey =
     item?.qnaId ?? item?.postId ?? item?.reviewId ?? item?.id ?? "item";
@@ -570,9 +564,7 @@ function DetailModal({
                   borderBottom: `1px solid ${ds.line}`,
                 }}
               >
-                <span
-                  style={{ fontSize: 13, color: ds.ink3, fontWeight: 500 }}
-                >
+                <span style={{ fontSize: 13, color: ds.ink3, fontWeight: 500 }}>
                   {r.l}
                 </span>
                 {r.render ? (
@@ -601,7 +593,14 @@ function DetailModal({
               <span style={{ fontSize: 13, color: ds.ink3, fontWeight: 500 }}>
                 노출 상태
               </span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
                 <span
                   style={{
                     fontSize: 12,
@@ -619,7 +618,8 @@ function DetailModal({
                     padding: "5px 12px",
                     borderRadius: 6,
                     border: `1px solid ${ds.line}`,
-                    background: qnaPub === "PUBLISHED" ? `${ds.brand}12` : ds.bg,
+                    background:
+                      qnaPub === "PUBLISHED" ? `${ds.brand}12` : ds.bg,
                     fontSize: 12,
                     fontWeight: 700,
                     color: qnaPub === "PUBLISHED" ? ds.brand : ds.ink3,
@@ -788,9 +788,7 @@ function DetailModal({
                 >
                   <MessageCircle size={10} color="#fff" />
                 </div>
-                <span
-                  style={{ fontSize: 12, fontWeight: 700, color: ds.ink3 }}
-                >
+                <span style={{ fontSize: 12, fontWeight: 700, color: ds.ink3 }}>
                   {hasReply ? "답변 수정" : "운영자 답변 작성"}
                 </span>
               </div>
@@ -1138,9 +1136,7 @@ function SlidePanel({
                     <Check size={12} color="#fff" strokeWidth={3} />
                   )}
                 </div>
-                <span style={{ fontSize: 13, color: ds.ink3 }}>
-                  상단 고정
-                </span>
+                <span style={{ fontSize: 13, color: ds.ink3 }}>상단 고정</span>
               </div>
             </Field>
           )}
@@ -1338,25 +1334,59 @@ function BoardRow({
           }}
         >
           <div style={{ ...mobileTextStyle, flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                flexWrap: "wrap",
+                minWidth: 0,
+              }}
+            >
               {boardType === "free" && item.pinned && (
                 <Star size={12} color="#F59E0B" fill="#F59E0B" />
               )}
               {isQna && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <StatusPill status={item.status} />
                   {item.publicationStatus === "HIDDEN" && <QnaHiddenPill />}
                 </span>
               )}
               {isReview && item.event && (
-                <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 8px", borderRadius: 999, background: ds.lineSoft, fontSize: 11.5, fontWeight: 700, color: ds.ink3 }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "3px 8px",
+                    borderRadius: 999,
+                    background: ds.lineSoft,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    color: ds.ink3,
+                  }}
+                >
                   {item.event}
                 </span>
               )}
               {isReview && item.rating != null && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                  }}
+                >
                   <Star size={11} color="#F59E0B" fill="#F59E0B" />
-                  <span style={{ fontSize: 12, color: "#F59E0B", fontWeight: 700 }}>
+                  <span
+                    style={{ fontSize: 12, color: "#F59E0B", fontWeight: 700 }}
+                  >
                     {item.rating}
                   </span>
                 </span>
@@ -1389,7 +1419,9 @@ function BoardRow({
               <span style={{ color: ds.line }}>·</span>
               <span>{item.date}</span>
               <span style={{ color: ds.line }}>·</span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span
+                style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+              >
                 <Eye size={12} /> {item.views}
               </span>
               {boardType !== "qna" && item.answer && (
@@ -1481,9 +1513,7 @@ function BoardRow({
         background: checked ? `${ds.brand}06` : "transparent",
       }}
       onMouseEnter={(e) =>
-        (e.currentTarget.style.background = checked
-          ? `${ds.brand}0A`
-          : ds.bg)
+        (e.currentTarget.style.background = checked ? `${ds.brand}0A` : ds.bg)
       }
       onMouseLeave={(e) =>
         (e.currentTarget.style.background = checked
@@ -1521,7 +1551,15 @@ function BoardRow({
         />
       )}
       {isQna && (
-        <span style={{ marginRight: 8, flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <span
+          style={{
+            marginRight: 8,
+            flexShrink: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
           <StatusPill status={item.status} />
           {item.publicationStatus === "HIDDEN" && <QnaHiddenPill />}
         </span>
@@ -1771,11 +1809,16 @@ function BoardManageInner({ subTab }) {
 
           if (!bId) {
             try {
-              const bRes = await axiosInstance.get("/api/boards?activeOnly=true", {
-                headers: authHeaders(),
-              });
+              const bRes = await axiosInstance.get(
+                "/api/boards?activeOnly=true",
+                {
+                  headers: authHeaders(),
+                },
+              );
               const boards = bRes.data?.data || bRes.data || [];
-              const targetBoard = boards.find((b) => b.boardType === boardTypeCode);
+              const targetBoard = boards.find(
+                (b) => b.boardType === boardTypeCode,
+              );
               bId = targetBoard?.boardId || null;
               if (type === "info") {
                 setInfoBoardId(bId);
@@ -1799,7 +1842,9 @@ function BoardManageInner({ subTab }) {
               id: p.postId,
               title: p.postTitle,
               content: p.content,
-              author: p.writerNickname || (p.userId != null ? `회원 #${p.userId}` : "익명"),
+              author:
+                p.writerNickname ||
+                (p.userId != null ? `회원 #${p.userId}` : "익명"),
               date: p.createdAt?.slice(0, 10)?.replace(/-/g, ".") || "",
               views: p.viewCount || 0,
               pinned: false,
@@ -1825,7 +1870,9 @@ function BoardManageInner({ subTab }) {
               id: r.reviewId,
               title: r.reviewTitle || r.content?.slice(0, 30) || "후기",
               content: r.content,
-              author: r.writerNickname || (r.userId != null ? `회원 #${r.userId}` : "익명"),
+              author:
+                r.writerNickname ||
+                (r.userId != null ? `회원 #${r.userId}` : "익명"),
               event: evMap[r.eventId] || `행사 #${r.eventId}`,
               rating: r.rating || 5,
               date: r.createdAt?.slice(0, 10)?.replace(/-/g, ".") || "",
@@ -2038,11 +2085,16 @@ function BoardManageInner({ subTab }) {
 
           if (!bId) {
             try {
-              const bRes = await axiosInstance.get("/api/boards?activeOnly=true", {
-                headers: authHeaders(),
-              });
+              const bRes = await axiosInstance.get(
+                "/api/boards?activeOnly=true",
+                {
+                  headers: authHeaders(),
+                },
+              );
               const boards = bRes.data?.data || bRes.data || [];
-              const targetBoard = boards.find((b) => b.boardType === boardTypeCode);
+              const targetBoard = boards.find(
+                (b) => b.boardType === boardTypeCode,
+              );
               bId = targetBoard?.boardId || null;
               if (boardType === "info") {
                 setInfoBoardId(bId);
@@ -2466,7 +2518,12 @@ function BoardManageInner({ subTab }) {
                 <Trash2 size={12} /> 선택 삭제
               </button>
             )}
-            <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }}>
+            <div
+              style={{
+                position: "relative",
+                flex: isMobile ? "1 1 100%" : "0 0 auto",
+              }}
+            >
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}

@@ -97,7 +97,12 @@ export function getBoardBadge(type) {
   const badge = BOARD_BADGES[type] || BOARD_BADGES.INFO;
   return {
     text: badge.text,
+    label: badge.text,
+    shortLabel: badge.text,
     icon: badge.icon,
+    color: badge.color,
+    background: badge.background,
+    borderColor: badge.border,
     style: {
       ...BADGE_BASE_STYLE,
       color: badge.color,

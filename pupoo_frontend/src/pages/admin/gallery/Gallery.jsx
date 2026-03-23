@@ -1941,6 +1941,9 @@ function SketchCard({ item, onClick, eventMap }) {
    ═══════════════════════════════════════════ */
 export default function Gallery() {
   const tab = "user"; // 현장스케치 탭 제거, 참가자 갤러리만
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1994,6 +1997,14 @@ export default function Gallery() {
   useEffect(() => {
     fetchList(1);
   }, [fetchList]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   /* 필터링 */
   const filtered = items
@@ -2095,6 +2106,8 @@ export default function Gallery() {
     });
   };
 
+  const isMobile = viewportWidth < 768;
+
   return (
     <div>
       <style>{styles}</style>
@@ -2112,11 +2125,13 @@ export default function Gallery() {
             style={{
               padding: "12px 20px",
               display: "flex",
-              alignItems: "center",
+              alignItems: isMobile ? "stretch" : "center",
               justifyContent: "space-between",
+              flexDirection: isMobile ? "column" : "row",
+              gap: 12,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
               <Checkbox
                 checked={isAllSelected && filtered.length > 0}
                 onChange={toggleAll}
@@ -2153,7 +2168,7 @@ export default function Gallery() {
                 </span>
               )}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
               {hasSelected && (
                 <button
                   onClick={() => setModal({ type: "batchDelete" })}
@@ -2181,7 +2196,7 @@ export default function Gallery() {
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="검색"
                   style={{
-                    width: 150,
+                    width: isMobile ? "100%" : 150,
                     padding: "6px 12px 6px 30px",
                     borderRadius: 7,
                     border: `1px solid ${ds.line}`,
@@ -2237,6 +2252,9 @@ export default function Gallery() {
                   fontWeight: 700,
                   cursor: "pointer",
                   fontFamily: ds.ff,
+                  minHeight: 40,
+                  justifyContent: "center",
+                  flex: isMobile ? "1 1 100%" : "0 0 auto",
                 }}
               >
                 <Plus size={13} strokeWidth={2.5} /> 등록
@@ -2305,10 +2323,10 @@ export default function Gallery() {
         {!loading && !error && filtered.length > 0 && (
           <div
             style={{
-              padding: 20,
+              padding: isMobile ? 12 : 20,
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 16,
+              gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, 1fr)",
+              gap: isMobile ? 12 : 16,
             }}
           >
             {filtered.map((g) => (
@@ -2382,8 +2400,9 @@ export default function Gallery() {
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              gap: 4,
+              gap: isMobile ? 8 : 4,
               borderTop: `1px solid ${ds.line}`,
+              flexWrap: "wrap",
             }}
           >
             <button
@@ -2404,26 +2423,46 @@ export default function Gallery() {
             >
               <ChevronLeft size={14} color={ds.ink3} />
             </button>
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i + 1}
-                onClick={() => fetchList(i + 1)}
+            {isMobile ? (
+              <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 7,
-                  border: page === i + 1 ? "none" : `1px solid ${ds.line}`,
-                  background: page === i + 1 ? ds.brand : ds.card,
-                  color: page === i + 1 ? "#fff" : ds.ink4,
+                  minWidth: 76,
+                  height: 36,
+                  borderRadius: 999,
+                  background: ds.bg,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0 14px",
                   fontSize: 12.5,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: ds.ff,
+                  fontWeight: 800,
+                  color: ds.ink,
                 }}
               >
-                {i + 1}
-              </button>
-            ))}
+                {page} / {totalPages}
+              </div>
+            ) : (
+              Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => fetchList(i + 1)}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 7,
+                    border: page === i + 1 ? "none" : `1px solid ${ds.line}`,
+                    background: page === i + 1 ? ds.brand : ds.card,
+                    color: page === i + 1 ? "#fff" : ds.ink4,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: ds.ff,
+                  }}
+                >
+                  {i + 1}
+                </button>
+              ))
+            )}
             <button
               disabled={page >= totalPages}
               onClick={() => fetchList(page + 1)}

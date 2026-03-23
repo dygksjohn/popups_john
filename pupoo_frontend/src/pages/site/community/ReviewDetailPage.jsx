@@ -272,7 +272,7 @@ export default function ReviewDetailPage() {
       pageSubtitle="행사에 참여한 사용자의 실제 후기를 확인하세요"
       currentPath="/community/review"
       badgeType="REVIEW"
-      articleTitle={loading ? "불러오는 중" : review?.reviewTitle || "행사 후기"}
+      articleTitle={loading ? "불러오는 중" : review?.reviewTitle || review?.title || "행사 후기"}
       metaItems={metaItems}
       content={error ? `<p>${error}</p>` : review?.content || "<p>내용이 없습니다.</p>"}
       extraHead={

@@ -148,6 +148,9 @@ function PageButton({ disabled, onClick, children }) {
 }
 
 export default function AdminLogManage() {
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
   const [page, setPage] = useState(0);
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
@@ -217,7 +220,16 @@ export default function AdminLogManage() {
     return () => clearInterval(timerId);
   }, [loadLogs]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
   const currentLogs = logsPage.content;
+  const isMobile = viewportWidth < 768;
   const failedCount = useMemo(
     () => currentLogs.filter((log) => log.failed).length,
     [currentLogs],
@@ -307,7 +319,9 @@ export default function AdminLogManage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(280px, 1.6fr) minmax(180px, 0.9fr) auto",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "minmax(280px, 1.6fr) minmax(180px, 0.9fr) auto",
             gap: 12,
           }}
         >
@@ -358,7 +372,8 @@ export default function AdminLogManage() {
               borderColor: `${ds.brand}55`,
               background: ds.brand,
               color: "#fff",
-              minWidth: 104,
+              minWidth: isMobile ? 0 : 104,
+              width: isMobile ? "100%" : "auto",
             }}
           >
             검색
@@ -369,7 +384,7 @@ export default function AdminLogManage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fit, minmax(220px, 1fr))",
           gap: 14,
         }}
       >
@@ -410,6 +425,125 @@ export default function AdminLogManage() {
           </div>
         </div>
 
+        {isMobile ? (
+          <div style={{ display: "grid", gap: 12, padding: 12 }}>
+            {loading ? (
+              <div
+                style={{
+                  padding: "56px 18px",
+                  textAlign: "center",
+                  color: ds.ink3,
+                  fontSize: 13.5,
+                }}
+              >
+                관리자 로그를 불러오는 중입니다.
+              </div>
+            ) : error ? (
+              <div
+                style={{
+                  padding: "40px 18px",
+                  textAlign: "center",
+                  color: ds.red,
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                }}
+              >
+                {error}
+              </div>
+            ) : currentLogs.length === 0 ? (
+              <div
+                style={{
+                  padding: "56px 18px",
+                  textAlign: "center",
+                  color: ds.ink3,
+                  fontSize: 13.5,
+                }}
+              >
+                조회된 관리자 로그가 없습니다.
+              </div>
+            ) : (
+              currentLogs.map((log) => {
+                const targetMeta = resolveTargetMeta(log.targetType);
+                return (
+                  <div
+                    key={log.logId}
+                    style={{
+                      border: `1px solid ${ds.line}`,
+                      borderRadius: 12,
+                      background: ds.bg,
+                      padding: 14,
+                      display: "grid",
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                      <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+                        <div style={{ color: ds.inkW, fontSize: 14, fontWeight: 800, wordBreak: "break-word" }}>
+                          {log.actionLabel || log.action || "-"}
+                        </div>
+                        <div style={{ color: ds.ink4, fontSize: 11.5 }}>
+                          {formatDateTime(log.createdAt)}
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "5px 10px",
+                          borderRadius: 999,
+                          fontSize: 11.5,
+                          fontWeight: 800,
+                          color: log.failed ? ds.red : ds.green,
+                          background: log.failed ? ds.redSoft : ds.greenSoft,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {log.failed ? <AlertTriangle size={13} /> : <Check size={13} />}
+                        {log.failed ? "실패" : "성공"}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          padding: "5px 10px",
+                          borderRadius: 999,
+                          fontSize: 11.5,
+                          fontWeight: 800,
+                          color: targetMeta.color,
+                          background: targetMeta.background,
+                        }}
+                      >
+                        {targetMeta.label}
+                      </span>
+                      <span style={{ fontSize: 12, color: ds.ink3, fontWeight: 700 }}>
+                        대상 ID {log.targetId ?? "-"}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "grid", gap: 4 }}>
+                      <div style={{ color: ds.inkW, fontSize: 13, fontWeight: 700 }}>
+                        {log.adminName || `관리자 #${log.adminId}`}
+                      </div>
+                      <div style={{ color: ds.ink4, fontSize: 11.5, wordBreak: "break-word" }}>
+                        ID {log.adminId}
+                        {log.adminEmail ? ` · ${log.adminEmail}` : ""}
+                      </div>
+                      {log.errorCode ? (
+                        <div style={{ color: ds.red, fontSize: 11.5 }}>
+                          오류 코드: {log.errorCode}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : (
         <div style={{ overflowX: "auto" }}>
           <table
             style={{
@@ -603,15 +737,17 @@ export default function AdminLogManage() {
             </tbody>
           </table>
         </div>
+        )}
 
         <div
           style={{
             padding: "16px 20px",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: isMobile ? "stretch" : "center",
             gap: 12,
             flexWrap: "wrap",
+            flexDirection: isMobile ? "column" : "row",
           }}
         >
           <div style={{ fontSize: 12.5, color: ds.ink3 }}>
@@ -619,7 +755,7 @@ export default function AdminLogManage() {
             {Math.max(logsPage.totalPages, 1).toLocaleString()} 페이지
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto" }}>
             <PageButton
               disabled={page <= 0}
               onClick={() => setPage((prev) => Math.max(prev - 1, 0))}

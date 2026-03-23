@@ -590,9 +590,21 @@ export default function Closed() {
   const [downloading, setDownloading] = useState(false);
   const [programFilter, setProgramFilter] = useState("전체");
   const [visibleCount, setVisibleCount] = useState(5);
+  const [programVisibleCount, setProgramVisibleCount] = useState(3);
   const [searchFocused, setSearchFocused] = useState(false);
   const [yearOpen, setYearOpen] = useState(false);
   const yearDropRef = useRef(null);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -647,8 +659,14 @@ export default function Closed() {
     });
   }, [events, query, year, month]);
 
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const featuredEventCount = isMobile ? 4 : isTablet ? 6 : 8;
+  const listLoadStep = isMobile ? 4 : 5;
+  const programLoadStep = isMobile ? 3 : 6;
+
   useEffect(() => {
-    setVisibleCount(5);
+    setVisibleCount(listLoadStep);
     if (!filtered.length) {
       setSelectedId(null);
       return;
@@ -656,7 +674,7 @@ export default function Closed() {
     if (!filtered.some((event) => event.id === selectedId)) {
       setSelectedId(filtered[0].id);
     }
-  }, [filtered, selectedId]);
+  }, [filtered, listLoadStep, selectedId]);
 
   const selected = filtered.find((event) => event.id === selectedId) ?? filtered[0] ?? null;
   const totalParticipants = filtered.reduce((sum, event) => sum + event.participants, 0);
@@ -719,6 +737,14 @@ export default function Closed() {
     return selectedPrograms.filter((p) => getProgramCategoryMeta(p?.category).label === programFilter);
   }, [selectedPrograms, programFilter]);
 
+  const visiblePrograms = isMobile
+    ? filteredPrograms.slice(0, programVisibleCount)
+    : filteredPrograms;
+
+  useEffect(() => {
+    setProgramVisibleCount(programLoadStep);
+  }, [selected?.id, programFilter, programLoadStep]);
+
   const handleDownload = useCallback(() => {
     if (!selected || downloading) return;
     setDownloading(true);
@@ -753,8 +779,12 @@ export default function Closed() {
         title="종료 행사"
         subtitle="종료된 행사 결과를 행사별 그래프로 확인하세요"
         icon={<ArchiveX size={42} color="#1a4fd6" strokeWidth={1.6} />}
-        titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
-        subtitleStyle={{ fontSize: 20 }}
+        titleStyle={{
+          fontSize: isMobile ? 30 : isTablet ? 38 : 46,
+          lineHeight: isMobile ? "1.25" : isTablet ? "52px" : "66px",
+          letterSpacing: isMobile ? "-0.04em" : "-1px",
+        }}
+        subtitleStyle={{ fontSize: isMobile ? 14 : isTablet ? 17 : 20 }}
         categories={SERVICE_CATEGORIES}
         currentPath="/event/closed"
         onNavigate={(path) => navigate(path)}
@@ -762,18 +792,30 @@ export default function Closed() {
 
       <main
         style={{
-          width: "min(1400px, calc(100% - 40px))",
+          width: isMobile ? "calc(100% - 24px)" : "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
-          padding: "32px 0 72px",
+          padding: isMobile ? "18px 0 48px" : isTablet ? "24px 0 60px" : "32px 0 72px",
         }}
       >
         {loading ? <PageLoading /> : null}
         {!loading && error ? <EmptyState type="error" message="종료 행사를 불러오지 못했습니다" description="네트워크 연결을 확인하고 다시 시도해 주세요." /> : null}
         {!loading && !error ? (
           <>
-            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "flex-end", marginBottom: 18 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                alignItems: isMobile ? "stretch" : "center",
+                justifyContent: "flex-end",
+                flexDirection: isMobile ? "column" : "row",
+                marginBottom: 18,
+              }}
+            >
               {/* 연도 선택 드롭다운 */}
-              <div ref={yearDropRef} style={{ position: "relative", minWidth: 180 }}>
+              <div
+                ref={yearDropRef}
+                style={{ position: "relative", minWidth: isMobile ? 0 : 180, width: isMobile ? "100%" : undefined }}
+              >
                 <button
                   type="button"
                   onClick={() => setYearOpen((v) => !v)}
@@ -847,13 +889,13 @@ export default function Closed() {
 
               {/* 월 선택 드롭다운 - 연도 선택 시에만 */}
               {year !== "all" && (
-                <div style={{ position: "relative", minWidth: 140 }}>
+                <div style={{ position: "relative", minWidth: isMobile ? 0 : 140, width: isMobile ? "100%" : undefined }}>
                   <MonthDropdown month={month} setMonth={setMonth} />
                 </div>
               )}
 
               {/* 검색창 */}
-              <div style={{ position: "relative", width: 280 }}>
+              <div style={{ position: "relative", width: isMobile ? "100%" : 280 }}>
                 <Search
                   size={16}
                   color={searchFocused ? "#2563eb" : "#94a3b8"}
@@ -896,21 +938,31 @@ export default function Closed() {
             {/* ── 종료 행사 선택 카드 ── */}
             {filtered.length > 0 && (
               <section style={{ marginBottom: 28, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 20, overflow: "hidden" }}>
-                <div style={{ padding: "18px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div
+                  style={{
+                    padding: isMobile ? "16px" : "18px 24px",
+                    borderBottom: "1px solid #f1f5f9",
+                    display: "flex",
+                    alignItems: isMobile ? "flex-start" : "center",
+                    justifyContent: "space-between",
+                    flexDirection: isMobile ? "column" : "row",
+                    gap: isMobile ? 10 : 12,
+                  }}
+                >
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Archive size={16} color="#94a3b8" />
                     <span style={{ fontSize: 15, fontWeight: 700, color: "#555" }}>종료 행사</span>
                     <span style={{ fontSize: 14, fontWeight: 600, color: "#bbb" }}>{filtered.length}</span>
                   </div>
                   {selected && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, background: "#2563eb", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, background: "#2563eb", color: "#fff", fontSize: 13, fontWeight: 700, maxWidth: "100%" }}>
                       <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", opacity: 0.6 }} />
                       {selected.title}
                     </span>
                   )}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 0 }}>
-                  {filtered.slice(0, 8).map((event, idx) => {
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(4, 1fr)", gap: 0 }}>
+                  {filtered.slice(0, featuredEventCount).map((event, idx) => {
                     const active = event.id === selected?.id;
                     return (
                       <button
@@ -920,11 +972,11 @@ export default function Closed() {
                         style={{
                           position: "relative",
                           border: "none",
-                          borderRight: (idx % 4 !== 3) ? "1px solid #f1f5f9" : "none",
+                          borderRight: !isMobile && ((isTablet && idx % 2 !== 1) || (!isTablet && idx % 4 !== 3)) ? "1px solid #f1f5f9" : "none",
                           borderBottom: "1px solid #f1f5f9",
                           borderLeft: active ? "3px solid #2563eb" : "3px solid transparent",
                           background: active ? "#eff6ff" : "#fff",
-                          padding: "20px 20px",
+                          padding: isMobile ? "16px" : "20px 20px",
                           cursor: "pointer",
                           textAlign: "left",
                           transition: "all 0.15s",
@@ -944,7 +996,7 @@ export default function Closed() {
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, color: "#999" }}>
                             <Calendar size={11} /> {event.dateLabel}
                           </span>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, color: "#999", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, color: "#999", minWidth: 0, whiteSpace: isMobile ? "normal" : "nowrap", overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis" }}>
                             <MapPin size={11} /> {event.location}
                           </span>
                         </div>
@@ -958,7 +1010,7 @@ export default function Closed() {
                     );
                   })}
                 </div>
-                {filtered.length > 8 && (
+                {filtered.length > featuredEventCount && (
                   <div style={{ textAlign: "center", padding: "14px 0", borderTop: "1px solid #f1f5f9" }}>
                     <span style={{ fontSize: 13, color: "#94a3b8" }}>아래 목록에서 더 많은 행사를 확인하세요</span>
                   </div>
@@ -968,12 +1020,20 @@ export default function Closed() {
 
             {selected ? (
               <>
-                <section ref={topSectionRef} style={{ display: "grid", gridTemplateColumns: "minmax(320px, 0.82fr) minmax(0, 1.18fr)", gap: 18, marginBottom: 18 }}>
-                  <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, overflow: "hidden", boxShadow: "0 18px 36px rgba(15,23,42,0.05)", minHeight: 420 }}>
+                <section
+                  ref={topSectionRef}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "1fr" : "minmax(320px, 0.82fr) minmax(0, 1.18fr)",
+                    gap: 18,
+                    marginBottom: 18,
+                  }}
+                >
+                  <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, overflow: "hidden", boxShadow: "0 18px 36px rgba(15,23,42,0.05)", minHeight: isMobile ? 220 : 420 }}>
                     {selected.image ? (
-                      <img src={resolveImageUrl(selected.image)} alt={selected.title} style={{ width: "100%", height: "100%", minHeight: 420, objectFit: "cover", display: "block" }} />
+                      <img src={resolveImageUrl(selected.image)} alt={selected.title} style={{ width: "100%", height: "100%", minHeight: isMobile ? 220 : 420, maxHeight: isMobile ? 300 : "none", objectFit: "cover", display: "block" }} />
                     ) : (
-                      <div style={{ minHeight: 420, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, color: "#94a3b8", background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)" }}>
+                      <div style={{ minHeight: isMobile ? 220 : 420, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, color: "#94a3b8", background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)" }}>
                         <ImageOff size={36} />
                         <span style={{ fontSize: 15, fontWeight: 700 }}>행사 이미지가 없습니다.</span>
                       </div>
@@ -981,8 +1041,8 @@ export default function Closed() {
                   </div>
 
                   <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, overflow: "hidden", boxShadow: "0 18px 36px rgba(15,23,42,0.05)" }}>
-                    <div style={{ padding: "26px 28px", borderBottom: "1px solid #eef2f7", background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{ padding: isMobile ? "18px 16px" : "26px 28px", borderBottom: "1px solid #eef2f7", background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "flex-start", flexDirection: isMobile ? "column" : "row", gap: 12 }}>
                         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 999, background: "#eff6ff", color: "#1d4ed8", fontSize: 15, fontWeight: 500 }}>
                           <Archive size={12} /> 선택된 종료 행사
                         </div>
@@ -997,6 +1057,8 @@ export default function Closed() {
                             color: "#fff",
                             display: "inline-flex", alignItems: "center", gap: 8,
                             fontSize: 15, fontWeight: 700, cursor: downloading ? "default" : "pointer",
+                            width: isMobile ? "100%" : "auto",
+                            justifyContent: "center",
                             transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                             transform: downloading ? "scale(0.95)" : "scale(1)",
                             opacity: downloading ? 0.8 : 1,
@@ -1013,17 +1075,17 @@ export default function Closed() {
                           {downloading ? "다운로드 중..." : "결과 이미지"}
                         </button>
                       </div>
-                      <h2 style={{ margin: "14px 0 10px", fontSize: 36, lineHeight: 1.2, fontWeight: 900, color: "#0f172a" }}>{selected.title}</h2>
-                      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", color: "#64748b", fontSize: 15 }}>
+                      <h2 style={{ margin: "14px 0 10px", fontSize: isMobile ? 24 : 36, lineHeight: 1.2, fontWeight: 900, color: "#0f172a" }}>{selected.title}</h2>
+                      <div style={{ display: "flex", gap: isMobile ? 10 : 16, flexWrap: "wrap", color: "#64748b", fontSize: isMobile ? 13 : 15 }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Calendar size={14} /> {selected.dateLabel}</span>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><MapPin size={14} /> {selected.location}</span>
                       </div>
                     </div>
-                    <div style={{ padding: 28 }}>
-                      <p style={{ margin: 0, fontSize: 16, lineHeight: 1.8, color: "#475569" }}>
+                    <div style={{ padding: isMobile ? 16 : 28 }}>
+                      <p style={{ margin: 0, fontSize: isMobile ? 14 : 16, lineHeight: 1.8, color: "#475569" }}>
                         {selected.description || "등록된 행사 설명이 없습니다."}
                       </p>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14, marginTop: 22 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: isMobile ? 10 : 14, marginTop: 22 }}>
                         <DonutStatCard
                           icon={<Users size={16} color="#2563eb" />}
                           label="참가자수"
@@ -1108,8 +1170,8 @@ export default function Closed() {
                           <div style={{ padding: "28px 0 10px", fontSize: 15, color: "#94a3b8" }}>연결된 프로그램이 없습니다.</div>
                         ) : (
                           <div style={{ marginTop: 18 }}>
-                            <div className="closed-prog-scroll" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, maxHeight: 440, overflowY: "auto", paddingRight: 4 }}>
-                              {filteredPrograms.map((program, index) => {
+                            <div className="closed-prog-scroll" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 12, maxHeight: isMobile ? "none" : 440, overflowY: isMobile ? "visible" : "auto", paddingRight: isMobile ? 0 : 4 }}>
+                              {visiblePrograms.map((program, index) => {
                                 const categoryMeta = getProgramCategoryMeta(program?.category);
                                 return (
                                   <div
@@ -1141,7 +1203,7 @@ export default function Closed() {
                                     <div style={{ fontSize: 17, fontWeight: 700, color: "#111", lineHeight: 1.5 }}>
                                       {program?.programTitle || "프로그램"}
                                     </div>
-                                    <div style={{ display: "flex", gap: 14, fontSize: 14, color: "#999" }}>
+                                    <div style={{ display: "flex", gap: 14, fontSize: 14, color: "#999", flexDirection: isMobile ? "column" : "row" }}>
                                       <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                                         <Calendar size={12} />
                                         {fmtProgramSchedule(program?.startAt, program?.endAt)}
@@ -1168,7 +1230,37 @@ export default function Closed() {
                                 );
                               })}
                             </div>
-                            {filteredPrograms.length > 4 && (
+                            {isMobile && filteredPrograms.length > visiblePrograms.length && (
+                              <div style={{ paddingTop: 14 }}>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setProgramVisibleCount((prev) =>
+                                      Math.min(prev + programLoadStep, filteredPrograms.length),
+                                    )
+                                  }
+                                  style={{
+                                    width: "100%",
+                                    minHeight: 42,
+                                    borderRadius: 12,
+                                    border: "1px solid #dbe3ee",
+                                    background: "#f8fafc",
+                                    color: "#475569",
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: 8,
+                                  }}
+                                >
+                                  <ChevronDown size={14} />
+                                  프로그램 더보기 ({filteredPrograms.length - visiblePrograms.length}개 남음)
+                                </button>
+                              </div>
+                            )}
+                            {!isMobile && filteredPrograms.length > 4 && (
                               <div style={{ textAlign: "center", padding: "24px 0 12px" }}>
                                 <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, color: "#94a3b8", fontWeight: 500, letterSpacing: "0.5px" }}>
                                   <ChevronDown size={14} /> 스크롤하여 더보기 ({filteredPrograms.length - 4}개 더)
@@ -1188,7 +1280,7 @@ export default function Closed() {
             ) : null}
 
             <section style={{ borderRadius: 24, border: "1px solid #e2e8f0", background: "#fff", overflow: "hidden", boxShadow: "0 18px 36px rgba(15,23,42,0.05)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #e2e8f0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 8 : 12, padding: isMobile ? "16px" : "20px 24px", borderBottom: "1px solid #e2e8f0" }}>
                 <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>종료 행사 목록</div>
                 <div style={{ fontSize: 12, color: "#94a3b8" }}>{filtered.length}개 행사</div>
               </div>
@@ -1200,7 +1292,7 @@ export default function Closed() {
                     {filtered.slice(0, visibleCount).map((event) => {
                       const active = event.id === selected?.id;
                       return (
-                        <div key={event.id} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 170px 110px 140px 110px", alignItems: "center", gap: 16, padding: "16px 24px", borderTop: "1px solid #f1f5f9", background: active ? "#eff6ff" : "#f9fafb" }}>
+                        <div key={event.id} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) 170px 110px 140px 110px", alignItems: "center", gap: isMobile ? 12 : 16, padding: isMobile ? "16px" : "16px 24px", borderTop: "1px solid #f1f5f9", background: active ? "#eff6ff" : "#f9fafb" }}>
                           <button type="button" onClick={() => handleSelectEvent(event.id)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer", display: "grid", gap: 6 }}>
                             <div style={{ fontSize: 15, fontWeight: 600, color: "rgb(121,121,121)" }}>{event.title}</div>
                             <div style={{ fontSize: 12, color: "rgb(121,121,121)" }}>{event.dateLabel} · {event.location}</div>
@@ -1253,7 +1345,7 @@ export default function Closed() {
                             type="button"
                             onClick={() => handleSelectEvent(event.id)}
                             style={{
-                              justifySelf: "end", height: 36, padding: "5px 25px", borderRadius: 999,
+                              justifySelf: isMobile ? "stretch" : "end", height: 40, padding: isMobile ? "0 16px" : "5px 25px", borderRadius: 999,
                               border: "none",
                               background: active ? "#1e293b" : "rgb(235,235,235)",
                               color: active ? "#fff" : "rgb(89,89,89)",
@@ -1272,10 +1364,10 @@ export default function Closed() {
                     })}
                   </div>
                   {visibleCount < filtered.length && (
-                    <div style={{ padding: "16px 24px", borderTop: "1px solid #f1f5f9" }}>
+                    <div style={{ padding: isMobile ? "16px" : "16px 24px", borderTop: "1px solid #f1f5f9" }}>
                       <button
                         type="button"
-                        onClick={() => setVisibleCount((v) => v + 5)}
+                        onClick={() => setVisibleCount((v) => v + listLoadStep)}
                         style={{
                           width: "100%", height: 44, borderRadius: 12,
                           border: "1.5px solid #e2e8f0", background: "#f8fafc",

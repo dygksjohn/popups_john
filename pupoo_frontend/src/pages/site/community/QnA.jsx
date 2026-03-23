@@ -24,11 +24,7 @@ import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 
-const FILTER_OPTIONS = [
-  "전체",
-  "답변완료",
-  "대기중",
-];
+const FILTER_OPTIONS = ["전체", "답변완료", "대기중"];
 const SORT_OPTIONS = [
   { key: "recent", label: "최신순" },
   { key: "views", label: "조회순" },
@@ -47,7 +43,10 @@ function toTimestamp(value) {
 }
 
 function hasAnswer(item) {
-  return Boolean(String(item?.answerContent ?? "").trim()) || Boolean(item?.answeredAt);
+  return (
+    Boolean(String(item?.answerContent ?? "").trim()) ||
+    Boolean(item?.answeredAt)
+  );
 }
 
 /** 숨김(HIDDEN) 질문 — 목록에서 답변 상태 배지 숨김 */
@@ -376,7 +375,6 @@ function WriteModal({ item, onSave, onClose, saving }) {
 
 /* main component */
 
-
 export default function ServicePage() {
   const navigate = useNavigate();
   const badge = getBoardBadge("QNA");
@@ -419,7 +417,9 @@ export default function ServicePage() {
       const fetchSize = 100;
       const firstRes = await qnaApi.list(1, fetchSize);
       const firstData = unwrap(firstRes) || {};
-      const rows = Array.isArray(firstData.content) ? [...firstData.content] : [];
+      const rows = Array.isArray(firstData.content)
+        ? [...firstData.content]
+        : [];
       const lastPage = Math.max(1, Number(firstData.totalPages) || 1);
 
       if (lastPage > 1) {
@@ -458,9 +458,15 @@ export default function ServicePage() {
       const matchFilter = filter === "전체" || filter === statusLabel;
       const matchSearch =
         !keyword ||
-        String(q?.title || "").toLowerCase().includes(keyword) ||
-        String(q?.content || "").toLowerCase().includes(keyword) ||
-        String(q?.answerContent || "").toLowerCase().includes(keyword);
+        String(q?.title || "")
+          .toLowerCase()
+          .includes(keyword) ||
+        String(q?.content || "")
+          .toLowerCase()
+          .includes(keyword) ||
+        String(q?.answerContent || "")
+          .toLowerCase()
+          .includes(keyword);
       return matchFilter && matchSearch;
     });
   }, [filter, items, search]);
@@ -481,7 +487,8 @@ export default function ServicePage() {
   const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pagedItems = useMemo(
-    () => sortedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    () =>
+      sortedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
     [currentPage, sortedItems],
   );
 
@@ -499,13 +506,14 @@ export default function ServicePage() {
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
 
   const currentSortLabel =
-    SORT_OPTIONS.find((option) => option.key === sortKey)?.label ||
-    "최신순";
+    SORT_OPTIONS.find((option) => option.key === sortKey)?.label || "최신순";
 
   useEffect(() => {
     const h = (e) => {
-      if (filterDdRef.current && !filterDdRef.current.contains(e.target)) setFilterDdOpen(false);
-      if (sortDdRef.current && !sortDdRef.current.contains(e.target)) setSortMenuOpen(false);
+      if (filterDdRef.current && !filterDdRef.current.contains(e.target))
+        setFilterDdOpen(false);
+      if (sortDdRef.current && !sortDdRef.current.contains(e.target))
+        setSortMenuOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -580,7 +588,11 @@ export default function ServicePage() {
               ? "min(1400px, calc(100% - 32px))"
               : "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
-          padding: isMobile ? "20px 0 40px" : isTablet ? "28px 0 52px" : "40px 0 64px",
+          padding: isMobile
+            ? "20px 0 40px"
+            : isTablet
+              ? "28px 0 52px"
+              : "40px 0 64px",
           fontFamily: "'Noto Sans KR', sans-serif",
         }}
       >
@@ -600,31 +612,128 @@ export default function ServicePage() {
             총 {totalElements}건
           </span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: isMobile ? 16 : 999, height: isMobile ? "auto" : 42, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: isMobile ? 6 : 0, rowGap: isMobile ? 6 : 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: isMobile ? "100%" : "auto",
+              flexWrap: isMobile ? "wrap" : "nowrap",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0,
+                background: "#f3f4f6",
+                borderRadius: isMobile ? 16 : 999,
+                height: isMobile ? "auto" : 42,
+                width: isMobile ? "100%" : "auto",
+                flexWrap: isMobile ? "wrap" : "nowrap",
+                padding: isMobile ? 6 : 0,
+                rowGap: isMobile ? 6 : 0,
+              }}
+            >
               {/* status dropdown */}
-              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={filterDdRef}>
+              <div
+                style={{
+                  position: "relative",
+                  flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto",
+                }}
+                ref={filterDdRef}
+              >
                 <button
                   type="button"
                   onClick={() => setFilterDdOpen((v) => !v)}
-                  style={{ height: 42, width: isMobile ? "100%" : "auto", padding: "0 36px 0 14px", border: isMobile ? "1px solid #dbe2ea" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 999 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 120, display: "inline-flex", alignItems: "center", gap: 7 }}
+                  style={{
+                    height: 42,
+                    width: isMobile ? "100%" : "auto",
+                    padding: "0 36px 0 14px",
+                    border: isMobile ? "1px solid #dbe2ea" : "none",
+                    background: isMobile ? "#fff" : "transparent",
+                    borderRadius: isMobile ? 999 : 0,
+                    color: "#9ca3af",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    whiteSpace: "nowrap",
+                    minWidth: isMobile ? 0 : 120,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                  }}
                 >
                   <ListFilter size={14} style={{ color: "#9ca3af" }} />
                   {filter}
                 </button>
-                <ChevronDown size={15} style={{ position: "absolute", right: 12, top: "50%", transform: filterDdOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)", color: "#9ca3af", pointerEvents: "none", transition: "transform .15s ease" }} />
+                <ChevronDown
+                  size={15}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: filterDdOpen
+                      ? "translateY(-50%) rotate(180deg)"
+                      : "translateY(-50%)",
+                    color: "#9ca3af",
+                    pointerEvents: "none",
+                    transition: "transform .15s ease",
+                  }}
+                />
                 {filterDdOpen && (
-                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, minWidth: 200, background: "#fff", borderRadius: 16, padding: "8px 0", boxShadow: "0 4px 24px rgba(0,0,0,.10)", zIndex: 50, maxHeight: 280, overflowY: "auto" }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 8px)",
+                      left: 0,
+                      minWidth: 200,
+                      background: "#fff",
+                      borderRadius: 16,
+                      padding: "8px 0",
+                      boxShadow: "0 4px 24px rgba(0,0,0,.10)",
+                      zIndex: 50,
+                      maxHeight: 280,
+                      overflowY: "auto",
+                    }}
+                  >
                     {FILTER_OPTIONS.map((opt) => (
                       <button
                         key={opt}
                         type="button"
-                        onClick={() => { setFilter(opt); setFilterDdOpen(false); }}
-                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", color: filter === opt ? "#111827" : "#6b7280", fontSize: 13, fontWeight: filter === opt ? 600 : 500, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                        onClick={() => {
+                          setFilter(opt);
+                          setFilterDdOpen(false);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          width: "100%",
+                          padding: "11px 16px",
+                          border: "none",
+                          background: "none",
+                          color: filter === opt ? "#111827" : "#6b7280",
+                          fontSize: 13,
+                          fontWeight: filter === opt ? 600 : 500,
+                          cursor: "pointer",
+                          textAlign: "left",
+                          fontFamily: "inherit",
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = "#f9fafb")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "none")
+                        }
                       >
-                        <ListFilter size={14} style={{ color: "#9ca3af", flexShrink: 0 }} />
+                        <ListFilter
+                          size={14}
+                          style={{ color: "#9ca3af", flexShrink: 0 }}
+                        />
                         {opt}
                       </button>
                     ))}
@@ -632,31 +741,116 @@ export default function ServicePage() {
                 )}
               </div>
 
-              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
+              {!isMobile && (
+                <div
+                  style={{
+                    width: 1,
+                    height: 20,
+                    background: "#dbe2ea",
+                    flexShrink: 0,
+                  }}
+                />
+              )}
 
               {/* sort button */}
-              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={sortDdRef}>
+              <div
+                style={{
+                  position: "relative",
+                  flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto",
+                }}
+                ref={sortDdRef}
+              >
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((prev) => !prev)}
-                  style={{ height: 42, width: isMobile ? "100%" : "auto", padding: "0 36px 0 14px", border: isMobile ? "1px solid #dbe2ea" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 999 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 110, display: "inline-flex", alignItems: "center", gap: 7 }}
+                  style={{
+                    height: 42,
+                    width: isMobile ? "100%" : "auto",
+                    padding: "0 36px 0 14px",
+                    border: isMobile ? "1px solid #dbe2ea" : "none",
+                    background: isMobile ? "#fff" : "transparent",
+                    borderRadius: isMobile ? 999 : 0,
+                    color: "#9ca3af",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    whiteSpace: "nowrap",
+                    minWidth: isMobile ? 0 : 110,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                  }}
                 >
                   <SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />
                   {currentSortLabel}
                 </button>
-                <ChevronDown size={15} style={{ position: "absolute", right: 12, top: "50%", transform: sortMenuOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)", color: "#9ca3af", pointerEvents: "none", transition: "transform .15s ease" }} />
+                <ChevronDown
+                  size={15}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: sortMenuOpen
+                      ? "translateY(-50%) rotate(180deg)"
+                      : "translateY(-50%)",
+                    color: "#9ca3af",
+                    pointerEvents: "none",
+                    transition: "transform .15s ease",
+                  }}
+                />
                 {sortMenuOpen && (
-                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, minWidth: 200, background: "#fff", borderRadius: 16, padding: "8px 0", boxShadow: "0 4px 24px rgba(0,0,0,.10)", zIndex: 50, maxHeight: 280, overflowY: "auto" }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 8px)",
+                      left: 0,
+                      minWidth: 200,
+                      background: "#fff",
+                      borderRadius: 16,
+                      padding: "8px 0",
+                      boxShadow: "0 4px 24px rgba(0,0,0,.10)",
+                      zIndex: 50,
+                      maxHeight: 280,
+                      overflowY: "auto",
+                    }}
+                  >
                     {SORT_OPTIONS.map((option) => (
                       <button
                         key={option.key}
                         type="button"
-                        onClick={() => { setSortKey(option.key); setSortMenuOpen(false); }}
-                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", color: sortKey === option.key ? "#111827" : "#6b7280", fontSize: 13, fontWeight: sortKey === option.key ? 600 : 500, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f9fafb")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                        onClick={() => {
+                          setSortKey(option.key);
+                          setSortMenuOpen(false);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          width: "100%",
+                          padding: "11px 16px",
+                          border: "none",
+                          background: "none",
+                          color: sortKey === option.key ? "#111827" : "#6b7280",
+                          fontSize: 13,
+                          fontWeight: sortKey === option.key ? 600 : 500,
+                          cursor: "pointer",
+                          textAlign: "left",
+                          fontFamily: "inherit",
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = "#f9fafb")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "none")
+                        }
                       >
-                        <SlidersHorizontal size={14} style={{ color: "#9ca3af", flexShrink: 0 }} />
+                        <SlidersHorizontal
+                          size={14}
+                          style={{ color: "#9ca3af", flexShrink: 0 }}
+                        />
                         {option.label}
                       </button>
                     ))}
@@ -664,10 +858,26 @@ export default function ServicePage() {
                 )}
               </div>
 
-              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
+              {!isMobile && (
+                <div
+                  style={{
+                    width: 1,
+                    height: 20,
+                    background: "#dbe2ea",
+                    flexShrink: 0,
+                  }}
+                />
+              )}
 
               {/* search input */}
-              <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "1 1 auto", minWidth: 0, width: isMobile ? "100%" : "auto" }}>
+              <div
+                style={{
+                  position: "relative",
+                  flex: isMobile ? "1 1 100%" : "1 1 auto",
+                  minWidth: 0,
+                  width: isMobile ? "100%" : "auto",
+                }}
+              >
                 <Search
                   size={16}
                   strokeWidth={2}
@@ -734,39 +944,50 @@ export default function ServicePage() {
         </div>
 
         {/* loading */}
-        {loading && (
-          <PageLoading message="질문 목록을 불러오는 중입니다" />
-        )}
+        {loading && <PageLoading message="질문 목록을 불러오는 중입니다" />}
 
         {/* error */}
         {!loading && error && (
-          <EmptyState type="error" message="질문 목록을 불러오지 못했습니다." description="네트워크 연결을 확인하고 다시 시도해 주세요." />
+          <EmptyState
+            type="error"
+            message="질문 목록을 불러오지 못했습니다."
+            description="네트워크 연결을 확인하고 다시 시도해 주세요."
+          />
         )}
 
         {/* list */}
         {!loading && !error && (
           <div>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "12px 16px",
-              background: "#f9fafb",
-              borderTop: "2px solid #333",
-              borderBottom: "1px solid #e5e7eb",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#6b7280",
-            }}>
-              <span style={{ width: 60, textAlign: "center", flexShrink: 0 }}>번호</span>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "12px 16px",
+                background: "#f9fafb",
+                borderTop: "2px solid #333",
+                borderBottom: "1px solid #e5e7eb",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#6b7280",
+              }}
+            >
+              <span style={{ width: 60, textAlign: "center", flexShrink: 0 }}>
+                번호
+              </span>
               <span style={{ flex: 1, textAlign: "center" }}>제목</span>
-              <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
-              <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
+              <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>
+                작성자
+              </span>
+              <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>
+                등록일
+              </span>
             </div>
             {pagedItems.map((q, index) => {
               const isClosed = hasAnswer(q);
               const statusLabel = isClosed ? "답변완료" : "대기중";
               const hiddenRow = isQnaHiddenRow(q);
-              const rowNumber = totalElements - ((currentPage - 1) * PAGE_SIZE) - index;
+              const rowNumber =
+                totalElements - (currentPage - 1) * PAGE_SIZE - index;
               const authorLabel =
                 q?.writerNickname ||
                 q?.author ||
@@ -797,9 +1018,29 @@ export default function ServicePage() {
                       (e.currentTarget.style.background = "transparent")
                     }
                   >
-                    {!isMobile && <span style={{ width: 60, textAlign: "center", fontSize: 14, color: "#9ca3af", flexShrink: 0 }}>{rowNumber}</span>}
+                    {!isMobile && (
+                      <span
+                        style={{
+                          width: 60,
+                          textAlign: "center",
+                          fontSize: 14,
+                          color: "#9ca3af",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {rowNumber}
+                      </span>
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                          minWidth: 0,
+                        }}
+                      >
                         {hiddenRow ? (
                           <span
                             style={{
@@ -876,23 +1117,58 @@ export default function ServicePage() {
                         </span>
                       </div>
                       {isMobile && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            flexWrap: "wrap",
+                            marginTop: 6,
+                            fontSize: 13,
+                            color: "#6b7280",
+                          }}
+                        >
                           <span>{authorLabel}</span>
                           <span style={{ color: "#cbd5e1" }}>·</span>
-                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(q.createdAt)}</span>
+                          <span
+                            style={{ color: "#9ca3af", whiteSpace: "nowrap" }}
+                          >
+                            {fmtDate(q.createdAt)}
+                          </span>
                         </div>
                       )}
                     </div>
-                    {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>{authorLabel}</span>}
                     {!isMobile && (
-                      <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                      <span
+                        style={{
+                          width: 100,
+                          textAlign: "center",
+                          fontSize: 14,
+                          color: "#6b7280",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {authorLabel}
+                      </span>
+                    )}
+                    {!isMobile && (
+                      <span
+                        style={{
+                          width: 100,
+                          textAlign: "center",
+                          fontSize: 14,
+                          color: "#9ca3af",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                        }}
+                      >
                         {fmtDate(q.createdAt)}
                       </span>
                     )}
                   </div>
                 </div>
-                );
-              })}
+              );
+            })}
 
             {pagedItems.length === 0 && (
               <div
@@ -953,7 +1229,3 @@ export default function ServicePage() {
     </>
   );
 }
-
-
-
-

@@ -53,7 +53,8 @@ export default function NoticeDetailPage() {
   }, [notice]);
 
   const scopeBadge = getNoticeScopeBadge(notice?.scope);
-  const eventLabel = notice?.eventName
+  const isEventNotice = String(notice?.scope || "").toUpperCase() === "EVENT";
+  const eventLabel = isEventNotice && notice?.eventName
     ? normalizeEventTitle(notice.eventName, notice)
     : "";
 

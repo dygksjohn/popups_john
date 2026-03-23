@@ -17,6 +17,27 @@ function fmtDate(value) {
   ).padStart(2, "0")}`;
 }
 
+function hasAnswer(item) {
+  const normalizedStatus = String(item?.status ?? item?.answerStatus ?? "")
+    .trim()
+    .toUpperCase();
+  if (
+    ["CLOSED", "ANSWERED", "COMPLETED", "RESOLVED", "DONE"].includes(
+      normalizedStatus,
+    )
+  ) {
+    return true;
+  }
+  if (["OPEN", "PENDING", "WAITING", "UNANSWERED"].includes(normalizedStatus)) {
+    return false;
+  }
+  return (
+    Boolean(String(item?.answerContent ?? item?.answer ?? "").trim()) ||
+    Boolean(item?.answeredAt) ||
+    Boolean(item?.answerDate)
+  );
+}
+
 export default function QnADetailPage() {
   const navigate = useNavigate();
   const { qnaId } = useParams();
@@ -83,7 +104,10 @@ export default function QnADetailPage() {
       },
     ];
     if (item.publicationStatus === "HIDDEN") {
-      rows.push({ label: "노출", value: "숨김 (다른 사용자에게는 목록·검색에 마스킹)" });
+      rows.push({
+        label: "노출",
+        value: "숨김 (다른 사용자에게는 목록·검색에 마스킹)",
+      });
     }
     return rows;
   }, [item]);
