@@ -716,13 +716,13 @@ export default function PupooHeader() {
     const root = document.documentElement;
     root.style.setProperty("--pupoo-site-header-height", `${headerHeight}px`);
     root.style.setProperty("--pupoo-site-header-offset", `${compactTopOffset}px`);
-    root.style.setProperty("--pupoo-site-quicknav-height", `${mobileShortcutHeight}px`);
+    root.style.setProperty("--pupoo-site-quicknav-height", "0px");
     return () => {
       root.style.removeProperty("--pupoo-site-header-height");
       root.style.removeProperty("--pupoo-site-header-offset");
       root.style.removeProperty("--pupoo-site-quicknav-height");
     };
-  }, [headerHeight, compactTopOffset, mobileShortcutHeight]);
+  }, [headerHeight, compactTopOffset]);
 
   const handleNavClick = (menuKey) => {
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey));
