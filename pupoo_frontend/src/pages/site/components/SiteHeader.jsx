@@ -743,11 +743,11 @@ export default function PupooHeader() {
   const textColor = isWhiteMode ? "#222" : "#fff";
   const iconColor = isWhiteMode ? "#222" : "#fff";
   const mobileActionIconStyle = {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
-    border: isWhiteMode ? "1px solid #e7ebf0" : "1px solid rgba(255,255,255,0.18)",
-    background: isWhiteMode ? "#fff" : "rgba(255,255,255,0.12)",
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    border: "none",
+    background: "none",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",

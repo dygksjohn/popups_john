@@ -348,7 +348,7 @@ function SessionLineup() {
         <RevealSection>
           <div className="text-center mb-10">
             <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">PuPoo Session</p>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">현재 행사에서 운영 중인 프로그램</h2>
+            <h2 className="text-xl md:text-3xl font-bold text-gray-900 mb-4 leading-tight">현재 행사에서 운영 중인 프로그램</h2>
             <button onClick={() => navigate("/program/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#02A17E" }}>전체 프로그램 보기</button>
           </div>
         </RevealSection>
@@ -669,7 +669,7 @@ export default function Home() {
           className="absolute left-1/2 -translate-x-1/2"
           style={{
             bottom: isMobile
-              ? "calc(env(safe-area-inset-bottom, 0px) + 12px)"
+              ? "calc(env(safe-area-inset-bottom, 0px) + 40px)"
               : 64,
             width: isMobile ? "min(256px, calc(100vw - 44px))" : 300,
           }}
