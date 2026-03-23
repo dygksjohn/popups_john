@@ -200,16 +200,16 @@ export default function PageHeader({
 
   const mergedTitleStyle = {
     ...styles.title,
-    fontSize: isMobile ? 30 : isTablet ? 36 : styles.title.fontSize,
-    lineHeight: isMobile ? "1.12" : isTablet ? "1.22" : styles.title.lineHeight,
+    fontSize: isMobile ? 22 : isTablet ? 32 : styles.title.fontSize,
+    lineHeight: isMobile ? "1.2" : isTablet ? "1.22" : styles.title.lineHeight,
     ...titleStyle,
   };
 
   const mergedSubtitleStyle = {
     ...styles.subtitle,
-    fontSize: isMobile ? 15 : isTablet ? 17 : styles.subtitle.fontSize,
-    margin: isMobile || isTablet ? "10px 0 0" : styles.subtitle.margin,
-    lineHeight: isMobile ? 1.55 : styles.subtitle.lineHeight,
+    fontSize: isMobile ? 13 : isTablet ? 15 : styles.subtitle.fontSize,
+    margin: isMobile || isTablet ? "6px 0 0" : styles.subtitle.margin,
+    lineHeight: isMobile ? 1.5 : styles.subtitle.lineHeight,
     ...subtitleStyle,
   };
 
@@ -259,7 +259,11 @@ export default function PageHeader({
                 gap: isMobile ? 10 : 12,
               }}
             >
-              {icon && <span style={{ flexShrink: 0 }}>{icon}</span>}
+              {icon && (
+                <span style={{ flexShrink: 0, transform: isMobile ? "scale(0.6)" : isTablet ? "scale(0.8)" : "none", transformOrigin: "left center" }}>
+                  {icon}
+                </span>
+              )}
               <h1 style={mergedTitleStyle}>{title}</h1>
             </div>
             {subtitle && <p style={mergedSubtitleStyle}>{subtitle}</p>}
