@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX, Menu, ChevronDown, ChevronRight } from "lucide-react";
@@ -8,6 +8,7 @@ import {
   emitNotificationUnreadCount,
 } from "../../../app/http/notificationApi";
 import { eventApi } from "../../../app/http/eventApi";
+import { connectNotificationStream } from "../../../features/notification/api/notificationStream";
 import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const FONT = "'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
@@ -612,6 +613,9 @@ export default function PupooHeader() {
   );
   const [unreadCount, setUnreadCount] = useState(0);
   const unreadCountRef = useRef(0);
+  const streamRef = useRef(null);
+  const reconnectTimerRef = useRef(null);
+  const reconnectAttemptRef = useRef(0);
   const headerRef = useRef(null);
   const location = useLocation();
   const isHome = location.pathname === "/";
@@ -641,32 +645,85 @@ export default function PupooHeader() {
     unreadCountRef.current = unreadCount;
   }, [unreadCount]);
 
-  useEffect(() => {
-    if (!isAuthed) {
+  const syncUnreadCount = useCallback(async ({ forceEmit = false } = {}) => {
+    try {
+      const nextCount = Math.max(
+        0,
+        Number(await notificationApi.getUnreadCount()) || 0,
+      );
+      const prevCount = unreadCountRef.current;
+      unreadCountRef.current = nextCount;
+      setUnreadCount(nextCount);
+      if (forceEmit || prevCount !== nextCount) {
+        emitNotificationUnreadCount(nextCount);
+      }
+    } catch {
       unreadCountRef.current = 0;
       setUnreadCount(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthed) {
+      streamRef.current?.close?.();
+      streamRef.current = null;
+      if (reconnectTimerRef.current) {
+        window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      reconnectAttemptRef.current = 0;
+      unreadCountRef.current = 0;
+      setUnreadCount(0);
+      emitNotificationUnreadCount(0);
       return;
     }
+
     let disposed = false;
-    const syncUnreadCount = async ({ forceEmit = false } = {}) => {
-      try {
-        const nextCount = Math.max(0, Number(await notificationApi.getUnreadCount()) || 0);
-        if (disposed) return;
-        const prevCount = unreadCountRef.current;
-        unreadCountRef.current = nextCount;
-        setUnreadCount(nextCount);
-        if (forceEmit || prevCount !== nextCount) emitNotificationUnreadCount(nextCount);
-      } catch {
-        if (disposed) return;
-        unreadCountRef.current = 0;
-        setUnreadCount(0);
+
+    const clearReconnectTimer = () => {
+      if (reconnectTimerRef.current) {
+        window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
       }
     };
+
+    const closeStream = () => {
+      streamRef.current?.close?.();
+      streamRef.current = null;
+    };
+
+    const scheduleReconnect = () => {
+      if (disposed) return;
+      clearReconnectTimer();
+      const attempt = Math.min(reconnectAttemptRef.current + 1, 5);
+      reconnectAttemptRef.current = attempt;
+      const delay = Math.min(1000 * 2 ** (attempt - 1), 30000);
+      reconnectTimerRef.current = window.setTimeout(() => {
+        reconnectTimerRef.current = null;
+        connectStream();
+      }, delay);
+    };
+
+    const connectStream = () => {
+      if (disposed) return;
+      closeStream();
+      streamRef.current = connectNotificationStream({
+        onOpen: () => {
+          reconnectAttemptRef.current = 0;
+        },
+        onNotification: () => {
+          syncUnreadCount();
+        },
+        onError: () => {
+          closeStream();
+          scheduleReconnect();
+        },
+      });
+    };
+
     syncUnreadCount({ forceEmit: true });
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      syncUnreadCount();
-    }, 5000);
+    connectStream();
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") syncUnreadCount();
     };
@@ -675,11 +732,12 @@ export default function PupooHeader() {
     window.addEventListener("focus", handleWindowFocus);
     return () => {
       disposed = true;
-      window.clearInterval(intervalId);
+      clearReconnectTimer();
+      closeStream();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [isAuthed]);
+  }, [isAuthed, syncUnreadCount]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -748,6 +806,7 @@ export default function PupooHeader() {
     borderRadius: 8,
     border: "none",
     background: "none",
+    position: "relative",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -878,6 +937,25 @@ export default function PupooHeader() {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
         }
+        .kakao-unread-badge {
+          position: absolute;
+          top: 4px;
+          right: 3px;
+          min-width: 17px;
+          height: 17px;
+          padding: 0 4px;
+          border-radius: 999px;
+          background: #ef4444;
+          color: #fff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          font-weight: 700;
+          line-height: 1;
+          pointer-events: none;
+          box-shadow: 0 0 0 2px #fff;
+        }
         /* ?? CTA Button ?? */
         .kakao-cta {
           display: inline-flex;
@@ -936,12 +1014,23 @@ export default function PupooHeader() {
             height: 38px;
             border-radius: 10px;
           }
+          .kakao-unread-badge {
+            top: 2px;
+            right: 1px;
+            min-width: 16px;
+            height: 16px;
+            font-size: 9px;
+          }
         }
         @media (max-width: 767px) {
           .kakao-icon-btn {
             width: 34px;
             height: 34px;
             border-radius: 9px;
+          }
+          .kakao-unread-badge {
+            top: 1px;
+            right: 0;
           }
         }
       `}</style>
@@ -1066,6 +1155,11 @@ export default function PupooHeader() {
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
                   >
                     <UserCircle size={20} color={iconColor} strokeWidth={1.8} />
+                    {unreadCount > 0 ? (
+                      <span className="kakao-unread-badge">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    ) : null}
                     <span className="ktt">마이페이지</span>
                   </Link>
                   <button
@@ -1117,6 +1211,11 @@ export default function PupooHeader() {
                   }}
                 >
                   <UserCircle size={18} color={iconColor} strokeWidth={1.8} />
+                  {unreadCount > 0 ? (
+                    <span className="kakao-unread-badge">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  ) : null}
                 </Link>
               ) : (
                 <Link
