@@ -513,6 +513,7 @@ export default function JoinNormal() {
   const [emailRequested, setEmailRequested] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [emailCode, setEmailCode] = useState("");
+  const [emailRequestMessage, setEmailRequestMessage] = useState("");
   const [otpCooldown, setOtpCooldown] = useState(0);
 
   useEffect(() => {
@@ -624,13 +625,12 @@ export default function JoinNormal() {
 
   const requestEmailVerification = async () => {
     if (loading || !signupKey) return;
-    setError(""); setLoading(true);
+    setError(""); setEmailRequestMessage(""); setLoading(true);
     try {
-      const res = await authApi.signupEmailRequest({ signupKey });
-      const body = res?.data ?? res;
-      const devCode = body?.data?.devCode || body?.devCode || body?.data?.code || "";
-      if (devCode) setEmailCode(devCode);
+      await authApi.signupEmailRequest({ signupKey });
+      setEmailCode("");
       setEmailRequested(true);
+      setEmailRequestMessage("이메일을 확인해 주세요. 받은 인증 코드를 입력하면 가입을 완료할 수 있습니다.");
     } catch (err) { setUserError(err?.response?.data?.message ?? err?.message ?? "이메일 인증 요청에 실패했습니다."); }
     finally { setLoading(false); }
   };
@@ -638,10 +638,11 @@ export default function JoinNormal() {
   const confirmEmailVerification = async () => {
     if (loading || !signupKey) return;
     if (!emailCode.trim()) return setError("인증 코드를 입력하세요.");
-    setError(""); setLoading(true);
+    setError(""); setEmailRequestMessage(""); setLoading(true);
     try {
       await authApi.signupEmailConfirm({ signupKey, code: emailCode.trim() });
       setEmailVerified(true);
+      setEmailRequestMessage("이메일 인증이 완료되었습니다.");
     } catch (err) { setUserError(err?.response?.data?.message ?? err?.message ?? "인증 확인에 실패했습니다."); }
     finally { setLoading(false); }
   };
@@ -1002,7 +1003,7 @@ export default function JoinNormal() {
                 </div>
               )}
               <div style={{ marginTop: 20, textAlign: "center" }}>
-                <button type="button" className="btn-text-link" disabled={loading} onClick={() => { setStep("FORM"); setSignupKey(null); setOtpCode(""); setEmailRequested(false); setEmailVerified(false); setEmailCode(""); }}>
+                <button type="button" className="btn-text-link" disabled={loading} onClick={() => { setStep("FORM"); setSignupKey(null); setOtpCode(""); setEmailRequested(false); setEmailVerified(false); setEmailCode(""); setEmailRequestMessage(""); }}>
                   이전 단계로 돌아가기
                 </button>
               </div>
@@ -1040,6 +1041,9 @@ export default function JoinNormal() {
                   <div style={{ fontSize: 14, color: "#888", marginBottom: 4 }}>
                     <b style={{ color: "#6c5ce7" }}>{form.email}</b> 로 발송되었습니다
                   </div>
+                  {emailRequestMessage && (
+                    <HintBanner icon={Mail}>{emailRequestMessage}</HintBanner>
+                  )}
                   <div className="verify-input-row" style={{ marginTop: 32 }}>
                     <input className="fi" type="text" value={emailCode} onChange={(e) => setEmailCode(e.target.value)} placeholder="인증 코드 입력" autoFocus disabled={loading} style={{ maxWidth: 280, textAlign: "center", fontSize: 18 }} />
                   </div>

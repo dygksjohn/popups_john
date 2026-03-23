@@ -183,8 +183,8 @@ export default function MypageProfileEdit() {
   const [nicknameCheckMsg, setNicknameCheckMsg] = useState("");
   const [nicknameChecked, setNicknameChecked] = useState(false);
 
-  const [emailVerifyToken, setEmailVerifyToken] = useState("");
   const [emailVerifyInput, setEmailVerifyInput] = useState("");
+  const [emailRequestMessage, setEmailRequestMessage] = useState("");
   const [emailChanging, setEmailChanging] = useState(false);
   const [emailConfirming, setEmailConfirming] = useState(false);
 
@@ -295,9 +295,10 @@ export default function MypageProfileEdit() {
 
   const requestEmailChange = async () => {
     try {
-      setEmailChanging(true); setGlobalError("");
-      const res = await authApi.requestEmailChange({ newEmail: (form.nextEmail || "").trim() });
-      setEmailVerifyToken(String(res?.devToken || ""));
+      setEmailChanging(true); setGlobalError(""); setEmailRequestMessage("");
+      await authApi.requestEmailChange({ newEmail: (form.nextEmail || "").trim() });
+      setEmailVerifyInput("");
+      setEmailRequestMessage("이메일을 확인해 주세요. 메일의 인증 링크를 클릭한 뒤 변경 내용을 다시 확인해 주세요.");
     } catch (error) { setGlobalError(resolveErrorMessage(error, "이메일 인증 요청에 실패했습니다.")); }
     finally { setEmailChanging(false); }
   };
@@ -305,8 +306,9 @@ export default function MypageProfileEdit() {
   const confirmEmailChange = async () => {
     try {
       setEmailConfirming(true); setGlobalError("");
-      await authApi.confirmEmailChange({ token: (emailVerifyInput || emailVerifyToken || "").trim() });
-      setEmailVerifyToken(""); setEmailVerifyInput("");
+      await authApi.confirmEmailChange({ token: emailVerifyInput.trim() });
+      setEmailVerifyInput("");
+      setEmailRequestMessage("");
       setForm((prev) => ({ ...prev, nextEmail: "" }));
       await refreshMe();
     } catch (error) { setGlobalError(resolveErrorMessage(error, "이메일 변경 확인에 실패했습니다.")); }
@@ -487,7 +489,7 @@ export default function MypageProfileEdit() {
                       변경확인
                     </button>
                   </div>
-                  {emailVerifyToken && <div className="pe-dev-token">devToken: {emailVerifyToken}</div>}
+                  {emailRequestMessage && <div className="pe-field-msg success">{emailRequestMessage}</div>}
                 </div>
 
                 {/* 휴대전화 변경 */}
