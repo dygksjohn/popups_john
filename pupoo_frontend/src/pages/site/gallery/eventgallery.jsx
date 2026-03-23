@@ -542,6 +542,7 @@ export default function EventGallery() {
   const sortDdRef = useRef(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [meUserId, setMeUserId] = useState(null);
   const [likedMap, setLikedMap] = useState({});
   const [viewer, setViewer] = useState(null);
@@ -574,18 +575,34 @@ export default function EventGallery() {
     setLoading(true);
     setError("");
     try {
-      const res = selectedEventId ? await galleryApi.getListByEvent(Number(selectedEventId), { page: 0, size: 200 }) : await galleryApi.getList({ page: 0, size: 200 });
+      const keyword = search.trim();
+      const sort = sortOption === "likes" ? "likes" : "latest";
+      const res = selectedEventId
+        ? await galleryApi.getListByEvent(Number(selectedEventId), {
+            page: page - 1,
+            size: PAGE_SIZE,
+            sort,
+            keyword: keyword || undefined,
+          })
+        : await galleryApi.getList({
+            page: page - 1,
+            size: PAGE_SIZE,
+            sort,
+            keyword: keyword || undefined,
+          });
       const data = res?.data?.data ?? res?.data;
       const rows = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : [];
       setGalleries(rows.map(normalizeGallery));
+      setTotalPages(Math.max(1, Number(data?.totalPages ?? 1) || 1));
     } catch (err) {
       console.error("[EventGallery] gallery load failed:", err);
       setGalleries([]);
+      setTotalPages(1);
       setError(err?.response?.data?.message || "네트워크 연결을 확인하고 다시 시도해 주세요.");
     } finally {
       setLoading(false);
     }
-  }, [selectedEventId]);
+  }, [selectedEventId, page, search, sortOption]);
 
   useEffect(() => { loadEvents(); }, [loadEvents]);
   useEffect(() => { loadGalleries(); }, [loadGalleries]);
@@ -598,22 +615,12 @@ export default function EventGallery() {
     userApi.getMe().then((data) => setMeUserId(data?.userId ?? null)).catch(() => setMeUserId(null));
   }, [isAuthed]);
 
-  const filteredGalleries = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    const list = galleries.filter((gallery) => {
-      const eventName = String(eventNameMap[String(gallery.eventId)] || `행사 ${gallery.eventId}`).toLowerCase();
-      return !keyword || String(gallery.title || "").toLowerCase().includes(keyword) || String(gallery.description || "").toLowerCase().includes(keyword) || eventName.includes(keyword);
-    });
-    return [...list].sort((a, b) => {
-      if (sortOption === "views") return b.viewCount - a.viewCount;
-      if (sortOption === "likes") return b.likeCount - a.likeCount;
-      return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
-    });
-  }, [eventNameMap, galleries, search, sortOption]);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredGalleries.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedGalleries = useMemo(() => filteredGalleries.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE), [currentPage, filteredGalleries]);
+  const pagedGalleries = galleries;
   const currentSortLabel =
     SORT_OPTIONS.find((item) => item.value === sortOption)?.label ||
     "최신순";

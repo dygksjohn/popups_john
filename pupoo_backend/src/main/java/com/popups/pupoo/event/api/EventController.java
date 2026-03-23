@@ -56,10 +56,12 @@ public class EventController {
     @GetMapping("/{eventId}/galleries")
     public ApiResponse<PageResponse<GalleryResponse>> getEventGalleries(
             @PathVariable("eventId") Long eventId,
-            Pageable pageable
+            Pageable pageable,
+            @RequestParam(name = "sort", required = false) String sort,
+            @RequestParam(name = "keyword", required = false) String keyword
     ) {
         return ApiResponse.success(
-                PageResponse.from(galleryService.listByEventId(eventId, pageable.getPageNumber(), pageable.getPageSize()))
+                PageResponse.from(galleryService.listByEventId(eventId, pageable.getPageNumber(), pageable.getPageSize(), sort, keyword))
         );
     }
 }

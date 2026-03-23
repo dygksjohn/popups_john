@@ -10,7 +10,6 @@ import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import BadgeTag from "./shared/BadgeTag";
 
 const PAGE_SIZE = 10;
-const FETCH_SIZE = 100;
 const SORT_OPTIONS = [
   { key: "recent", label: "최신순" },
   { key: "views", label: "조회순" },
@@ -42,75 +41,48 @@ export default function CommunityFaq() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetchFaqs = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const firstRes = await axiosInstance.get("/api/faqs", {
-        params: { page: 0, size: FETCH_SIZE, sort: "createdAt,desc" },
+      const keyword = search.trim();
+      const sort = sortKey === "views" ? "viewCount,desc" : "createdAt,desc";
+
+      const res = await axiosInstance.get("/api/faqs", {
+        params: {
+          page: Math.max(0, Number(page) - 1),
+          size: PAGE_SIZE,
+          sort,
+          searchType: "TITLE",
+          keyword: keyword || undefined,
+        },
       });
-      const firstData = firstRes.data?.data || firstRes.data || {};
-      const rows = Array.isArray(firstData.content) ? [...firstData.content] : [];
-      const totalPages = Math.max(1, Number(firstData.totalPages) || 1);
 
-      if (totalPages > 1) {
-        const rest = await Promise.all(
-          Array.from({ length: totalPages - 1 }, (_, index) =>
-            axiosInstance.get("/api/faqs", {
-              params: { page: index + 1, size: FETCH_SIZE, sort: "createdAt,desc" },
-            }),
-          ),
-        );
-
-        rest.forEach((response) => {
-          const data = response.data?.data || response.data || {};
-          const content = Array.isArray(data.content) ? data.content : [];
-          rows.push(...content);
-        });
-      }
-
+      const data = res?.data?.data ?? res?.data ?? {};
+      const rows = Array.isArray(data?.content) ? data.content : [];
       setItems(rows);
+      setTotalElements(Number(data?.totalElements ?? 0) || 0);
+      setTotalPages(Math.max(1, Number(data?.totalPages ?? 1) || 1));
     } catch (err) {
       console.error("[Community FAQ] list fetch failed:", err);
       setError("FAQ 목록을 불러오지 못했습니다.");
       setItems([]);
+      setTotalElements(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, search, sortKey]);
 
   useEffect(() => {
     fetchFaqs();
   }, [fetchFaqs]);
 
-  const filteredItems = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    if (!keyword) return items;
-    return items.filter((item) =>
-      String(item?.title || "").toLowerCase().includes(keyword),
-    );
-  }, [items, search]);
-
-  const sortedItems = useMemo(() => {
-    const rows = [...filteredItems];
-    rows.sort((a, b) => {
-      if (sortKey === "views") {
-        const diff = Number(b?.viewCount || 0) - Number(a?.viewCount || 0);
-        if (diff !== 0) return diff;
-      }
-      return toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
-    });
-    return rows;
-  }, [filteredItems, sortKey]);
-
-  const totalElements = sortedItems.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedItems = useMemo(
-    () => sortedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [currentPage, sortedItems],
-  );
+  const pagedItems = items;
 
   useEffect(() => {
     setPage(1);

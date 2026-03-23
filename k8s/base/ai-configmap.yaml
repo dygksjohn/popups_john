@@ -12,7 +12,7 @@ data:
   # watsonx (비밀 아닌 엔드포인트·모델 ID)
   PUPOO_AI_WATSONX_URL: "https://us-south.ml.cloud.ibm.com"
   PUPOO_AI_WATSONX_REGION: "us-south"
-  PUPOO_AI_WATSONX_LLM_ID: "ibm/granite-13b-instruct-v2"
+  PUPOO_AI_WATSONX_LLM_ID: "meta-llama/llama-3-3-70b-instruct"
   PUPOO_AI_WATSONX_EMBEDDING_MODEL_ID: "ibm/granite-embedding-278m-multilingual"
   PUPOO_AI_WATSONX_EMBEDDING_DIM: "768"
   # Milvus: 클러스터 내 서비스 DNS로 교체 (예: 동일 네임스페이스면 서비스 이름만)

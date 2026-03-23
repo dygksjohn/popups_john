@@ -23,6 +23,7 @@ import { reviewReplyApi } from "../../../app/http/replyApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import { htmlToPlainText } from "./shared/communityHtml";
+import BadgeTag from "./shared/BadgeTag";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 
 const PAGE_SIZE = 10;
@@ -108,156 +109,67 @@ export default function Review() {
   const ratingDdRef = useRef(null);
   const sortDdRef = useRef(null);
   const [items, setItems] = useState([]);
-  const [commentCountMap, setCommentCountMap] = useState({});
-  const [eventNameMap, setEventNameMap] = useState({});
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
 
-  const loadReviews = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const rows = [];
-      let pageIndex = 0;
-      let finished = false;
+  const fetchReviews = useCallback(
+    async (pageNum) => {
+      setLoading(true);
+      setError("");
+      try {
+        const keyword = search.trim();
+        const rating =
+          ratingFilter === "ALL" ? undefined : Number(ratingFilter);
 
-      while (!finished && pageIndex < 20) {
+        const sortKeyParam =
+          sortOption === "latest" ? undefined : sortOption;
+
         const data = await reviewApi.list({
-          page: pageIndex,
-          size: REVIEW_FETCH_SIZE,
-          rating: ratingFilter === "ALL" ? undefined : Number(ratingFilter),
+          page: Math.max(0, Number(pageNum) - 1),
+          size: PAGE_SIZE,
+          searchType: "TITLE_CONTENT",
+          keyword: keyword || undefined,
+          rating,
+          sortKey: sortKeyParam,
         });
+
         const content = Array.isArray(data?.content) ? data.content : [];
-        rows.push(...content);
-
-        const totalPages = Number(data?.totalPages) || 0;
-        finished =
-          Boolean(data?.last) ||
-          totalPages === 0 ||
-          pageIndex + 1 >= totalPages;
-        pageIndex += 1;
-      }
-
-      setItems(rows);
-
-      const eventIds = [
-        ...new Set(rows.map((row) => row?.eventId).filter(Boolean)),
-      ];
-      if (eventIds.length > 0) {
-        const entries = await Promise.all(
-          eventIds.map(async (eventId) => {
-            try {
-              const res = await eventApi.getEventDetail(eventId);
-              const eventDetail = res?.data?.data || {};
-              return [
-                eventId,
-                normalizeEventTitle(
-                  eventDetail?.eventName || `행사 ${eventId}`,
-                  eventDetail,
-                ),
-              ];
-            } catch {
-              return [eventId, `행사 ${eventId}`];
-            }
-          }),
+        setItems(content);
+        setTotalElements(Number(data?.totalElements ?? 0) || 0);
+        setTotalPages(Math.max(1, Number(data?.totalPages ?? 1) || 1));
+      } catch (err) {
+        console.error("[Review] load failed:", err);
+        setItems([]);
+        setTotalElements(0);
+        setTotalPages(1);
+        setError(
+          err?.response?.data?.message ||
+            "행사 후기를 불러오지 못했습니다.",
         );
-        setEventNameMap(Object.fromEntries(entries));
-      } else {
-        setEventNameMap({});
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("[Review] load failed:", err);
-      setItems([]);
-      setError(
-        err?.response?.data?.message || "행사 후기를 불러오지 못했습니다.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [ratingFilter]);
+    },
+    [search, ratingFilter, sortOption],
+  );
 
   useEffect(() => {
-    loadReviews();
-  }, [loadReviews]);
+    fetchReviews(page);
+  }, [fetchReviews, page]);
 
   useEffect(() => {
     setPage(1);
   }, [search, ratingFilter, sortOption]);
 
   useEffect(() => {
-    if (!items.length) return;
-    const pendingItems = items.filter(
-      (item) => commentCountMap[item.reviewId] == null,
-    );
-    if (!pendingItems.length) return;
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
-    const loadCounts = async () => {
-      const pairs = await Promise.all(
-        pendingItems.map(async (item) => {
-          try {
-            const data = await reviewReplyApi.list(item.reviewId, 0, 1);
-            const total = Number(data?.totalElements);
-            const count = Number.isFinite(total)
-              ? total
-              : Array.isArray(data?.content)
-                ? data.content.length
-                : 0;
-            return [item.reviewId, count];
-          } catch {
-            return [item.reviewId, 0];
-          }
-        }),
-      );
-
-      setCommentCountMap((prev) => ({
-        ...prev,
-        ...Object.fromEntries(pairs),
-      }));
-    };
-
-    loadCounts().catch(() => {});
-  }, [commentCountMap, items]);
-
-  const sortedFilteredItems = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    const filtered = items.filter((item) => {
-      const eventName = String(
-        eventNameMap[item.eventId] || item.eventName || "",
-      ).toLowerCase();
-      const title = String(item.reviewTitle || "").toLowerCase();
-      const text = htmlToPlainText(item.content || "").toLowerCase();
-      return (
-        !keyword ||
-        title.includes(keyword) ||
-        text.includes(keyword) ||
-        eventName.includes(keyword)
-      );
-    });
-
-    return [...filtered].sort((a, b) => {
-      if (sortOption === "views") {
-        return Number(b.viewCount || 0) - Number(a.viewCount || 0);
-      }
-      if (sortOption === "comments") {
-        return (
-          Number(commentCountMap[b.reviewId] || 0) -
-          Number(commentCountMap[a.reviewId] || 0)
-        );
-      }
-      return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
-    });
-  }, [commentCountMap, eventNameMap, items, search, sortOption]);
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(sortedFilteredItems.length / PAGE_SIZE),
-  );
   const currentPage = Math.min(page, totalPages);
-  const pagedItems = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return sortedFilteredItems.slice(start, start + PAGE_SIZE);
-  }, [currentPage, sortedFilteredItems]);
+  const pagedItems = items;
 
   const currentSortLabel =
     SORT_OPTIONS.find((option) => option.value === sortOption)?.label ||
@@ -338,7 +250,7 @@ export default function Review() {
           }}
         >
           <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>
-            총 {sortedFilteredItems.length}개
+            총 {totalElements}개
           </span>
 
           <div
@@ -717,13 +629,8 @@ export default function Review() {
                 </div>
               )}
               {pagedItems.map((item, index) => {
-                const commentCount = Number(
-                  commentCountMap[item.reviewId] || 0,
-                );
-                const eventLabel =
-                  eventNameMap[item.eventId] ||
-                  item.eventName ||
-                  `행사 ${item.eventId}`;
+                const commentCount = Number(item?.commentCount ?? 0);
+                const eventLabel = item?.eventName || `행사 ${item.eventId}`;
                 const reviewTitle =
                   item.reviewTitle || item.title || "행사 후기";
                 const authorLabel =
@@ -735,7 +642,7 @@ export default function Review() {
                   (item?.userId ? `회원 #${item.userId}` : "익명 사용자");
                 const maskedAuthorLabel = maskDisplayName(authorLabel, 10);
                 const rowNumber =
-                  sortedFilteredItems.length -
+                  totalElements -
                   (currentPage - 1) * PAGE_SIZE -
                   index;
                 return (

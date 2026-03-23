@@ -293,9 +293,9 @@ export default function PageHeader({
 
               let btnStyle = {
                 ...styles.tabBase,
-                flex: "0 0 auto",
+                flex: isCompact ? "0 0 auto" : 1,
                 minWidth: 0,
-                width: "auto",
+                width: isCompact ? "auto" : "100%",
                 minHeight: isMobile ? 34 : 44,
                 padding: isMobile
                   ? "0 14px"

@@ -561,8 +561,9 @@ export default function FreeBoard() {
     typeof window === "undefined" ? 1440 : window.innerWidth,
   );
 
-  const [allItems, setAllItems] = useState([]);
-  const [commentCountMap, setCommentCountMap] = useState({});
+  const [items, setItems] = useState([]);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
@@ -582,40 +583,54 @@ export default function FreeBoard() {
   const [writeSaving, setWriteSaving] = useState(false);
   const [writeError, setWriteError] = useState("");
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const rows = [];
-      let pageIndex = 0;
-      let finished = false;
+  const fetchPage = useCallback(
+    async (pageNum) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const keyword = search.trim();
 
-      while (!finished && pageIndex < 20) {
+        const sort =
+          sortKey === "views"
+            ? "viewCount,desc"
+            : sortKey === "recent"
+              ? "createdAt,desc"
+              : undefined;
+        const sortKeyParam = sortKey === "comments" ? "comments" : undefined;
+
         const d = await postApi.listByBoardType("FREE", {
-          page: pageIndex,
-          size: 50,
-          sort: "createdAt,desc",
+          page: Math.max(0, Number(pageNum) - 1),
+          size: PAGE_SIZE,
+          searchType: "TITLE_CONTENT",
+          keyword: keyword || undefined,
+          sort: sort || undefined,
+          sortKey: sortKeyParam,
         });
-        const content = Array.isArray(d?.content) ? d.content : [];
-        rows.push(...content);
-        const totalPages = Number(d?.totalPages) || 0;
-        finished = Boolean(d?.last) || totalPages === 0 || pageIndex + 1 >= totalPages;
-        pageIndex += 1;
-      }
 
-      setAllItems(rows);
-      setPage(1);
-    } catch (e) {
-      console.error("[FreeBoard] list fetch failed:", e);
-      setError("자유게시판 목록을 불러오지 못했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        const content = Array.isArray(d?.content) ? d.content : [];
+        setItems(content);
+        setTotalElements(Number(d?.totalElements ?? 0) || 0);
+        setTotalPages(Math.max(1, Number(d?.totalPages ?? 1) || 1));
+      } catch (e) {
+        console.error("[FreeBoard] list fetch failed:", e);
+        setError("자유게시판 목록을 불러오지 못했습니다.");
+        setItems([]);
+        setTotalElements(0);
+        setTotalPages(1);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [search, sortKey],
+  );
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    setPage(1);
+  }, [search, sortKey]);
+
+  useEffect(() => {
+    fetchPage(page);
+  }, [fetchPage, page]);
 
   useEffect(() => {
     let mounted = true;
@@ -637,89 +652,12 @@ export default function FreeBoard() {
     };
   }, []);
 
-  const loadCommentCounts = useCallback(async (rows) => {
-    const targets = rows.filter((row) => commentCountMap[row.postId] == null);
-    if (targets.length === 0) return;
-
-    const pairs = await Promise.all(
-      targets.map(async (row) => {
-        try {
-          const d = await postReplyApi.list(row.postId, 0, 1);
-          const total = Number(d?.totalElements);
-          const count = Number.isFinite(total)
-            ? total
-            : Array.isArray(d?.content)
-              ? d.content.length
-              : 0;
-          return [row.postId, count];
-        } catch {
-          return [row.postId, 0];
-        }
-      }),
-    );
-
-    setCommentCountMap((prev) => {
-      const next = { ...prev };
-      pairs.forEach(([postId, count]) => {
-        next[postId] = count;
-      });
-      return next;
-    });
-  }, [commentCountMap]);
-
-  const filteredItems = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return allItems;
-    return allItems.filter((item) => {
-      const title = String(item?.postTitle || "").toLowerCase();
-      const content = String(item?.content || "").toLowerCase();
-      return title.includes(q) || content.includes(q);
-    });
-  }, [allItems, search]);
-
-  const sortedItems = useMemo(() => {
-    const rows = [...filteredItems];
-    rows.sort((a, b) => {
-      if (sortKey === "views") {
-        const diff = (b?.viewCount ?? 0) - (a?.viewCount ?? 0);
-        if (diff !== 0) return diff;
-      } else if (sortKey === "comments") {
-        const diff =
-          (commentCountMap[b?.postId] ?? 0) - (commentCountMap[a?.postId] ?? 0);
-        if (diff !== 0) return diff;
-      }
-      return toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
-    });
-    return rows;
-  }, [filteredItems, sortKey, commentCountMap]);
-
-  const totalElements = sortedItems.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
-  const pageSafe = Math.min(page, totalPages);
-  const pagedItems = sortedItems.slice(
-    (pageSafe - 1) * PAGE_SIZE,
-    pageSafe * PAGE_SIZE,
-  );
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, sortKey]);
-
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  useEffect(() => {
-    if (pagedItems.length > 0) {
-      loadCommentCounts(pagedItems).catch(() => {});
-    }
-  }, [pagedItems, loadCommentCounts]);
-
-  useEffect(() => {
-    if (sortKey === "comments" && filteredItems.length > 0) {
-      loadCommentCounts(filteredItems).catch(() => {});
-    }
-  }, [sortKey, filteredItems, loadCommentCounts]);
+  const pageSafe = Math.min(page, totalPages);
+  const pagedItems = items;
 
   const loadReplies = useCallback(async (postId) => {
     setReplyLoading(true);
@@ -771,7 +709,7 @@ export default function FreeBoard() {
     try {
       const detail = await postApi.get(item.postId);
       setSelected(detail);
-      setAllItems((prev) =>
+      setItems((prev) =>
         prev.map((row) => (row.postId === detail.postId ? { ...row, ...detail } : row)),
       );
       await Promise.all([loadReplies(detail.postId), loadAttachment(detail.postId)]);
@@ -842,7 +780,7 @@ export default function FreeBoard() {
         await fileApi.upload(file, "POST", createdPostId);
       }
       setWriteModalOpen(false);
-      await fetchAll();
+      await fetchPage(1);
     } catch (err) {
       console.error("[FreeBoard] create failed:", err);
       setWriteError(err?.response?.data?.error?.message || "글 등록에 실패했습니다.");
@@ -1070,9 +1008,9 @@ export default function FreeBoard() {
                         <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
                           {item.postTitle}
                         </span>
-                        {(commentCountMap[item.postId] ?? 0) > 0 && (
+                        {(item?.commentCount ?? 0) > 0 && (
                           <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
-                            +{commentCountMap[item.postId] ?? 0}
+                            +{item?.commentCount ?? 0}
                           </span>
                         )}
                       </div>
