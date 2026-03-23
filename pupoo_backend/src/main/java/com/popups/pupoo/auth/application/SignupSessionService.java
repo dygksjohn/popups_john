@@ -427,7 +427,7 @@ public class SignupSessionService {
     }
 
     private String buildOtpMessage(String otp, int ttlMinutes) {
-        return "[POPUPS] 인증번호는 " + otp + " 입니다. (" + ttlMinutes + "분 이내 입력)";
+        return "[PUPOO] 인증번호는 " + otp + " 입니다.";
     }
 
     private String normalizePhone(String phone) {

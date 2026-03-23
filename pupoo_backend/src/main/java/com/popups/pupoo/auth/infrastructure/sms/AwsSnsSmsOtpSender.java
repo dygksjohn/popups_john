@@ -2,24 +2,17 @@ package com.popups.pupoo.auth.infrastructure.sms;
 
 import com.popups.pupoo.auth.config.AwsMessagingProperties;
 import com.popups.pupoo.auth.port.SmsOtpSenderPort;
+import com.popups.pupoo.auth.support.KoreanPhoneNumberNormalizer;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sns.SnsClient;
-import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
+import software.amazon.awssdk.services.sns.model.PublishResponse;
 import software.amazon.awssdk.services.sns.model.SnsException;
 
-import java.util.HashMap;
-import java.util.Map;
-
-/**
- * 기능: AWS SNS를 사용해 인증 SMS OTP를 발송한다.
- * 설명: 인증 서비스가 만든 OTP 메시지를 SNS Publish 호출로 전송한다.
- * 흐름: 메시지 속성 구성 -> Publish 호출 -> 성공 로그 또는 예외 변환 순서로 처리한다.
- */
 public class AwsSnsSmsOtpSender implements SmsOtpSenderPort {
 
     private static final Logger log = LoggerFactory.getLogger(AwsSnsSmsOtpSender.class);
@@ -27,81 +20,56 @@ public class AwsSnsSmsOtpSender implements SmsOtpSenderPort {
     private final String provider;
     private final SnsClient snsClient;
     private final AwsMessagingProperties awsMessagingProperties;
+    private final boolean enabled;
 
     public AwsSnsSmsOtpSender(
             String provider,
             SnsClient snsClient,
-            AwsMessagingProperties awsMessagingProperties
+            AwsMessagingProperties awsMessagingProperties,
+            boolean enabled
     ) {
         this.provider = provider;
         this.snsClient = snsClient;
         this.awsMessagingProperties = awsMessagingProperties;
+        this.enabled = enabled;
     }
 
     @Override
     public void sendOtp(String phone, String message) {
-        // 기능: OTP SMS 메시지를 SNS로 발송한다.
-        // 설명: 도메인 서비스가 준비한 메시지를 수신 번호 기준으로 단건 publish 한다.
-        // 흐름: 메시지 속성 생성 -> SNS publish 호출 -> 성공 로그 또는 예외 변환 순서로 진행한다.
-        String maskedPhone = maskPhone(phone);
-        AwsMessagingProperties.Sms smsProperties = awsMessagingProperties.getSms();
-        String smsRegion = smsProperties != null ? smsProperties.getRegion() : null;
-        boolean hasOriginationNumber = smsProperties != null && hasText(smsProperties.getOriginationNumber());
-        boolean hasSenderId = smsProperties != null && hasText(smsProperties.getSenderId());
+        if (!enabled) {
+            throw new BusinessException(ErrorCode.SMS_DISABLED, "SMS 발송이 비활성화되어 있습니다.");
+        }
+
+        String normalizedPhone = KoreanPhoneNumberNormalizer.normalizeToE164(phone);
+        String maskedPhone = maskPhone(normalizedPhone);
+        String smsRegion = awsMessagingProperties.getSms() != null ? awsMessagingProperties.getSms().getRegion() : null;
+
         try {
-            snsClient.publish(
+            PublishResponse response = snsClient.publish(
                     PublishRequest.builder()
-                            .phoneNumber(phone)
+                            .phoneNumber(normalizedPhone)
                             .message(message)
-                            .messageAttributes(buildMessageAttributes())
                             .build()
             );
 
-            log.info("[AUTH_SMS_PROVIDER={}] SNS sms sent. phone={}, region={}, originationConfigured={}, senderIdConfigured={}",
+            log.info(
+                    "[AUTH_SMS_PROVIDER={}] SNS sms sent. phone={}, region={}, messageId={}",
                     provider,
                     maskedPhone,
                     blankToPlaceholder(smsRegion),
-                    hasOriginationNumber,
-                    hasSenderId);
+                    blankToPlaceholder(response.messageId())
+            );
         } catch (SnsException | SdkClientException e) {
-            log.error("[AUTH_SMS_PROVIDER={}] SNS sms failed. phone={}, region={}, originationConfigured={}, senderIdConfigured={}, reason={}",
+            log.error(
+                    "[AUTH_SMS_PROVIDER={}] SNS sms failed. phone={}, region={}, reason={}",
                     provider,
                     maskedPhone,
                     blankToPlaceholder(smsRegion),
-                    hasOriginationNumber,
-                    hasSenderId,
                     e.getMessage(),
-                    e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "인증 SMS 발송에 실패했습니다.");
-        }
-    }
-
-    private Map<String, MessageAttributeValue> buildMessageAttributes() {
-        Map<String, MessageAttributeValue> attributes = new HashMap<>();
-
-        String originationNumber = awsMessagingProperties.getSms().getOriginationNumber();
-        if (originationNumber != null && !originationNumber.isBlank()) {
-            attributes.put(
-                    "AWS.SNS.SMS.OriginationNumber",
-                    MessageAttributeValue.builder()
-                            .dataType("String")
-                            .stringValue(originationNumber)
-                            .build()
+                    e
             );
+            throw new BusinessException(ErrorCode.SMS_SEND_FAILED, "인증번호 문자 발송에 실패했습니다.");
         }
-
-        String senderId = awsMessagingProperties.getSms().getSenderId();
-        if (senderId != null && !senderId.isBlank()) {
-            attributes.put(
-                    "AWS.SNS.SMS.SenderID",
-                    MessageAttributeValue.builder()
-                            .dataType("String")
-                            .stringValue(senderId)
-                            .build()
-            );
-        }
-
-        return attributes;
     }
 
     private String maskPhone(String phone) {
@@ -114,11 +82,7 @@ public class AwsSnsSmsOtpSender implements SmsOtpSenderPort {
         return phone.substring(0, Math.min(3, phone.length())) + "****" + phone.substring(phone.length() - 2);
     }
 
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
-    }
-
     private String blankToPlaceholder(String value) {
-        return hasText(value) ? value : "<empty>";
+        return value != null && !value.isBlank() ? value : "<empty>";
     }
 }
