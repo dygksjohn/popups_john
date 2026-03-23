@@ -28,6 +28,8 @@ public class EndpointPolicy {
             "/api/auth/login",
             "/api/auth/refresh",
             "/api/auth/logout",
+            "/api/auth/sms/send",
+            "/api/auth/sms/verify",
 
             "/api/auth/signup/start",
             "/api/auth/signup/verify-otp",

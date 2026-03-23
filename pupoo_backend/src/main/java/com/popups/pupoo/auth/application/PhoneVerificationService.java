@@ -235,7 +235,7 @@ public class PhoneVerificationService {
     }
 
     private String buildOtpMessage(String code) {
-        return "[POPUPS] 인증번호는 " + code + " 입니다. (" + otpTtlMinutes + "분 이내 입력)";
+        return "[PUPOO] 인증번호는 " + code + " 입니다.";
     }
 
     private String normalizePhone(String phone) {
