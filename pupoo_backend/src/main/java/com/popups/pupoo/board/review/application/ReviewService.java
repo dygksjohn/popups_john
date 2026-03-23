@@ -16,6 +16,7 @@ import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.search.SearchType;
 import com.popups.pupoo.event.persistence.EventRepository;
+import com.popups.pupoo.reply.persistence.ReviewCommentRepository;
 import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
@@ -24,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +34,7 @@ import java.time.LocalDateTime;
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
+    private final ReviewCommentRepository reviewCommentRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
     private final ModerationClient moderationClient;
@@ -95,36 +99,66 @@ public class ReviewService {
     }
 
     public Page<ReviewResponse> list(SearchType searchType, String keyword, int page, int size, Integer rating) {
+        return list(searchType, keyword, page, size, rating, "latest");
+    }
+
+    public Page<ReviewResponse> list(SearchType searchType,
+                                       String keyword,
+                                       int page,
+                                       int size,
+                                       Integer rating,
+                                       String sortKey) {
         validatePageRequest(page, size);
         PageRequest pageable = PageRequest.of(page, size);
 
+        Byte ratingByte = null;
         if (rating != null && rating >= 1 && rating <= 5) {
-            byte ratingByte = rating.byteValue();
-            if (searchType == SearchType.WRITER) {
-                Long writerId = parseLongOrNull(keyword);
-                if (writerId == null) {
-                    return reviewRepository.findByDeletedFalseAndReviewStatusAndRating(ReviewStatus.PUBLIC, ratingByte, pageable)
-                            .map(this::toResponse);
-                }
-                return reviewRepository.searchPublicByWriter(ReviewStatus.PUBLIC, writerId, pageable)
-                        .map(this::toResponse);
-            }
-            if (keyword == null || keyword.isBlank()) {
-                return reviewRepository.findByDeletedFalseAndReviewStatusAndRating(ReviewStatus.PUBLIC, ratingByte, pageable)
-                        .map(this::toResponse);
-            }
-            return reviewRepository.searchPublicByContentAndRating(ReviewStatus.PUBLIC, keyword, ratingByte, pageable)
-                    .map(this::toResponse);
+            ratingByte = rating.byteValue();
         }
 
-        return switch (searchType) {
-            case WRITER -> {
-                Long writerId = parseLongOrNull(keyword);
-                yield reviewRepository.searchPublicByWriter(ReviewStatus.PUBLIC, writerId, pageable).map(this::toResponse);
-            }
-            case CONTENT, TITLE, TITLE_CONTENT -> reviewRepository.searchPublicByContent(ReviewStatus.PUBLIC, keyword, pageable)
-                    .map(this::toResponse);
+        Long writerId = null;
+        if (searchType == SearchType.WRITER) {
+            writerId = parseLongOrNull(keyword);
+        }
+
+        String keywordEffective = (keyword == null || keyword.isBlank()) ? null : keyword;
+
+        String sk = (sortKey == null || sortKey.isBlank()) ? "latest" : sortKey.trim().toLowerCase();
+        Page<Review> resultPage = switch (sk) {
+            case "comments" -> reviewRepository.searchPublicSortedByCommentCount(
+                    ReviewStatus.PUBLIC,
+                    ratingByte,
+                    keywordEffective,
+                    writerId,
+                    pageable
+            );
+            case "views" -> reviewRepository.searchPublicSortedByViews(
+                    ReviewStatus.PUBLIC,
+                    ratingByte,
+                    keywordEffective,
+                    writerId,
+                    pageable
+            );
+            default -> reviewRepository.searchPublicSortedByLatest(
+                    ReviewStatus.PUBLIC,
+                    ratingByte,
+                    keywordEffective,
+                    writerId,
+                    pageable
+            );
         };
+
+        List<Review> reviews = resultPage.getContent();
+        Map<Long, Long> commentCountMap = fetchCommentCounts(reviews);
+        List<ReviewResponse> content = reviews.stream()
+                .map(r -> {
+                    Long reviewId = r.getReviewId();
+                    long cnt = reviewId != null ? commentCountMap.getOrDefault(reviewId, 0L) : 0L;
+                    return toResponse(r, cnt);
+                })
+                .toList();
+
+        return new PageImpl<>(content, resultPage.getPageable(), resultPage.getTotalElements());
     }
 
     public Page<ReviewResponse> list(int page, int size) {
@@ -263,6 +297,10 @@ public class ReviewService {
     }
 
     private ReviewResponse toResponse(Review r) {
+        return toResponse(r, 0L);
+    }
+
+    private ReviewResponse toResponse(Review r, long commentCount) {
         String eventName = eventRepository.findById(r.getEventId()).map(e -> e.getEventName()).orElse(null);
         String writerEmail = null;
         String writerNickname = null;
@@ -271,6 +309,20 @@ public class ReviewService {
             writerEmail = u.map(user -> user.getEmail()).orElse(null);
             writerNickname = u.map(user -> user.getNickname()).orElse(null);
         }
-        return ReviewResponse.from(r, eventName, writerEmail, writerNickname, r.getReviewTitle(), r.getContent());
+        return ReviewResponse.from(r, eventName, writerEmail, writerNickname, r.getReviewTitle(), r.getContent(), commentCount);
+    }
+
+    private Map<Long, Long> fetchCommentCounts(List<Review> reviews) {
+        if (reviews == null || reviews.isEmpty()) return new HashMap<>();
+        List<Long> reviewIds = reviews.stream().map(Review::getReviewId).toList();
+        List<Object[]> rows = reviewCommentRepository.countByReviewIds(reviewIds);
+        Map<Long, Long> map = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) continue;
+            Long reviewId = row[0] != null ? ((Number) row[0]).longValue() : null;
+            Long cnt = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            if (reviewId != null) map.put(reviewId, cnt);
+        }
+        return map;
     }
 }

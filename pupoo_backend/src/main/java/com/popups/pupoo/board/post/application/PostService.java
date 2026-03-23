@@ -15,6 +15,7 @@ import com.popups.pupoo.board.post.dto.PostCreateRequest;
 import com.popups.pupoo.board.post.dto.PostResponse;
 import com.popups.pupoo.board.post.dto.PostUpdateRequest;
 import com.popups.pupoo.board.post.persistence.PostRepository;
+import com.popups.pupoo.reply.persistence.PostCommentRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.search.SearchType;
@@ -25,7 +26,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PostService {
 
     private final PostRepository postRepository;
+    private final PostCommentRepository postCommentRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
     private final ModerationClient moderationClient;
@@ -63,34 +67,59 @@ public class PostService {
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, String keyword, Pageable pageable) {
-        return getPublicPosts(boardId, (BoardType) null, keyword, pageable);
+        return getPublicPosts(boardId, (BoardType) null, SearchType.TITLE_CONTENT, keyword, pageable, null);
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, String keyword, Pageable pageable) {
-        Long resolvedBoardId = resolveBoardId(boardId, boardType);
-        Page<Post> page = postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
-        List<PostResponse> content = page.getContent().stream().map(this::toResponse).toList();
-        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
+        return getPublicPosts(boardId, boardType, SearchType.TITLE_CONTENT, keyword, pageable, null);
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, SearchType searchType, String keyword, Pageable pageable) {
-        return getPublicPosts(boardId, null, searchType, keyword, pageable);
+        return getPublicPosts(boardId, null, searchType, keyword, pageable, null);
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, SearchType searchType, String keyword, Pageable pageable) {
+        return getPublicPosts(boardId, boardType, searchType, keyword, pageable, null);
+    }
+
+    public Page<PostResponse> getPublicPosts(Long boardId,
+                                              BoardType boardType,
+                                              SearchType searchType,
+                                              String keyword,
+                                              Pageable pageable,
+                                              String sortKey) {
         Long resolvedBoardId = resolveBoardId(boardId, boardType);
         SearchType effectiveType = (searchType != null) ? searchType : SearchType.TITLE_CONTENT;
 
-        Page<Post> page = switch (effectiveType) {
-            case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
-            case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
-            case WRITER -> {
-                Long writerId = parseLongOrNull(keyword);
-                yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable);
-            }
-            default -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
-        };
-        List<PostResponse> content = page.getContent().stream().map(this::toResponse).toList();
+        Page<Post> page;
+        if ("comments".equalsIgnoreCase(sortKey)) {
+            page = switch (effectiveType) {
+                case TITLE -> postRepository.searchByTitleSortedByCommentCount(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+                case CONTENT -> postRepository.searchByContentSortedByCommentCount(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+                case WRITER -> {
+                    Long writerId = parseLongOrNull(keyword);
+                    if (writerId == null) yield Page.empty(pageable);
+                    yield postRepository.searchByWriterSortedByCommentCount(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable);
+                }
+                default -> postRepository.searchByTitleContentSortedByCommentCount(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+            };
+        } else {
+            page = switch (effectiveType) {
+                case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+                case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+                case WRITER -> {
+                    Long writerId = parseLongOrNull(keyword);
+                    yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable);
+                }
+                default -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+            };
+        }
+
+        List<Post> posts = page.getContent();
+        Map<Long, Long> commentCountMap = fetchCommentCounts(posts);
+        List<PostResponse> content = posts.stream()
+                .map(p -> toResponse(p, commentCountMap.getOrDefault(p.getPostId(), 0L)))
+                .toList();
         return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
@@ -143,7 +172,32 @@ public class PostService {
     }
 
     private PostResponse toResponse(Post post) {
-        return PostResponse.from(post, getWriterEmail(post.getUserId()), getWriterNickname(post.getUserId()), post.getPostTitle(), post.getContent());
+        return toResponse(post, null);
+    }
+
+    private PostResponse toResponse(Post post, Long commentCount) {
+        return PostResponse.from(
+                post,
+                getWriterEmail(post.getUserId()),
+                getWriterNickname(post.getUserId()),
+                post.getPostTitle(),
+                post.getContent(),
+                commentCount
+        );
+    }
+
+    private Map<Long, Long> fetchCommentCounts(List<Post> posts) {
+        if (posts == null || posts.isEmpty()) return Map.of();
+        List<Long> postIds = posts.stream().map(Post::getPostId).toList();
+        List<Object[]> rows = postCommentRepository.countByPostIds(postIds);
+        Map<Long, Long> map = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) continue;
+            Long postId = row[0] != null ? ((Number) row[0]).longValue() : null;
+            Long cnt = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            if (postId != null) map.put(postId, cnt);
+        }
+        return map;
     }
 
     @Transactional

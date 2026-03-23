@@ -44,4 +44,13 @@ public interface ReviewCommentRepository extends JpaRepository<ReviewComment, Lo
                                    @Param("to") LocalDateTime to,
                                    @Param("commentIds") List<Long> commentIds,
                                    Pageable pageable);
+
+    @Query("""
+        select c.reviewId, count(c)
+        from ReviewComment c
+        where c.deleted = false
+          and c.reviewId in :reviewIds
+        group by c.reviewId
+        """)
+    List<Object[]> countByReviewIds(@Param("reviewIds") List<Long> reviewIds);
 }

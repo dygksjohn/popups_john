@@ -162,6 +162,10 @@ public class QnaService {
      * HIDDEN 행은 관리자가 아니면 목록에서 마스킹.
      */
     public Page<QnaResponse> list(int page, int size, String statusFilter) {
+        return list(page, size, statusFilter, null, "recent");
+    }
+
+    public Page<QnaResponse> list(int page, int size, String statusFilter, String keyword, String sortKey) {
         validatePageRequest(page, size);
         Boolean answeredOnly = null;
         if (statusFilter != null && !statusFilter.isBlank()) {
@@ -173,9 +177,13 @@ public class QnaService {
         }
         Long viewerId = securityUtil.currentUserIdOrNull();
         boolean viewerIsAdmin = securityUtil.isAdmin();
-        Page<Post> result = answeredOnly != null
-                ? qnaRepository.findAllQnaVisibleWithAnsweredFilter(QNA_PUBLIC_LIST_STATUSES, answeredOnly, PageRequest.of(page, size))
-                : qnaRepository.findAllQnaVisible(QNA_PUBLIC_LIST_STATUSES, PageRequest.of(page, size));
+        String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+        String sk = (sortKey == null || sortKey.isBlank()) ? "recent" : sortKey.trim().toLowerCase();
+        PageRequest pageable = PageRequest.of(page, size);
+
+        Page<Post> result = "views".equals(sk)
+                ? qnaRepository.searchAllQnaVisibleViews(QNA_PUBLIC_LIST_STATUSES, answeredOnly, kw, pageable)
+                : qnaRepository.searchAllQnaVisibleRecent(QNA_PUBLIC_LIST_STATUSES, answeredOnly, kw, pageable);
         return result.map(p -> toListItemResponse(p, viewerIsAdmin, viewerId));
     }
 

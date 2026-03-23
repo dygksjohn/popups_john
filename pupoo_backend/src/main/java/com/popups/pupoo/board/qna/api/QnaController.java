@@ -58,8 +58,10 @@ public class QnaController {
     @GetMapping
     public ApiResponse<PageResponse<QnaResponse>> list(@RequestParam(defaultValue = "0") int page,
                                                        @RequestParam(defaultValue = "10") int size,
-                                                       @RequestParam(required = false) String statusFilter) {
-        return ApiResponse.success(PageResponse.from(qnaService.list(page, size, statusFilter)));
+                                                       @RequestParam(required = false) String statusFilter,
+                                                       @RequestParam(required = false) String keyword,
+                                                       @RequestParam(required = false) String sortKey) {
+        return ApiResponse.success(PageResponse.from(qnaService.list(page, size, statusFilter, keyword, sortKey)));
     }
 
     /**
