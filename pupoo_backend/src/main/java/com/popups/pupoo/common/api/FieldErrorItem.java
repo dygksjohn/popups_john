@@ -1,8 +1,7 @@
-// file: src/main/java/com/popups/pupoo/common/api/FieldErrorItem.java
 package com.popups.pupoo.common.api;
 
 /**
- * Validation 오류를 프론트에서 필드 단위로 표시하기 위한 DTO.
+ * Validation 오류를 프론트에서 필드 단위로 표시하기 위한 DTO다.
  */
 public class FieldErrorItem {
 

@@ -17,7 +17,6 @@ const PAGE_SIZE = 10;
 
 const SORT_OPTIONS = [
   { key: "recent", label: "최신순" },
-  { key: "views", label: "조회순" },
   { key: "oldest", label: "오래된순" },
 ];
 
@@ -302,6 +301,7 @@ export default function Notice() {
                 <span style={{ flex: 1, textAlign: "center" }}>제목</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
+                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>조회수</span>
               </div>
               )}
               {paged.map((notice, index) => {
@@ -402,6 +402,8 @@ export default function Notice() {
                           <span>관리자</span>
                           <span style={{ color: "#cbd5e1" }}>{"\u00b7"}</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(notice.createdAt)}</span>
+                          <span style={{ color: "#cbd5e1" }}>{"\u00b7"}</span>
+                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>조회수 {Number(notice?.viewCount ?? 0)}</span>
                         </div>
                       )}
                     </div>
@@ -409,6 +411,11 @@ export default function Notice() {
                     {!isMobile && (
                       <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
                         {fmtDate(notice.createdAt)}
+                      </span>
+                    )}
+                    {!isMobile && (
+                      <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {Number(notice?.viewCount ?? 0)}
                       </span>
                     )}
                   </div>

@@ -1,18 +1,17 @@
-// file: src/main/java/com/popups/pupoo/adminlog/application/AdminLogService.java
 package com.popups.pupoo.common.audit.application;
 
+import com.popups.pupoo.auth.security.util.SecurityUtil;
+import com.popups.pupoo.common.audit.domain.enums.AdminLogResult;
 import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.common.audit.domain.model.AdminLog;
 import com.popups.pupoo.common.audit.persistence.AdminLogRepository;
-import com.popups.pupoo.auth.security.util.SecurityUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
-/**
- * 관리자 작업 로그 적재 서비스.
- * 주의: 운영 안정성을 위해 로그 적재 실패가 본 기능을 막지 않도록 한다.
- */
 @Service
 @RequiredArgsConstructor
 public class AdminLogService {
@@ -22,16 +21,52 @@ public class AdminLogService {
 
     @Transactional
     public void write(String action, AdminTargetType targetType, Long targetId) {
+        write(action, targetType, targetId, AdminLogResult.SUCCESS, null);
+    }
+
+    @Transactional
+    public void writeFailure(String action, AdminTargetType targetType, Long targetId, String errorCode) {
+        write(action, targetType, targetId, AdminLogResult.FAIL, errorCode);
+    }
+
+    @Transactional
+    public void write(String action,
+                      AdminTargetType targetType,
+                      Long targetId,
+                      AdminLogResult result,
+                      String errorCode) {
         try {
             Long adminId = securityUtil.currentUserId();
             adminLogRepository.save(AdminLog.builder()
                     .adminId(adminId)
                     .action(action)
+                    .result(result == null ? AdminLogResult.SUCCESS : result)
+                    .errorCode(errorCode)
+                    .ipAddress(resolveClientIp())
                     .targetType(targetType)
                     .targetId(targetId)
                     .build());
         } catch (Exception ignored) {
-            // 운영 감사 로그는 중요하지만, 로그 적재 실패가 본 기능을 실패시키면 운영 장애가 된다.
+            // Admin logging must not block admin operations.
         }
+    }
+
+    private String resolveClientIp() {
+        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes)) {
+            return null;
+        }
+
+        HttpServletRequest request = attributes.getRequest();
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+
+        return request.getRemoteAddr();
     }
 }

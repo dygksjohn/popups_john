@@ -5,7 +5,7 @@ import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.IdResponse;
 import com.popups.pupoo.notice.application.NoticeAdminService;
-import com.popups.pupoo.notice.application.NoticeService;
+import com.popups.pupoo.notice.domain.enums.NoticeStatus;
 import com.popups.pupoo.notice.dto.NoticeCreateRequest;
 import com.popups.pupoo.notice.dto.NoticeResponse;
 import com.popups.pupoo.notice.dto.NoticeUpdateRequest;
@@ -27,21 +27,24 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/admin/notices")
 public class AdminNoticeController {
 
-    private final NoticeService noticeService;
     private final NoticeAdminService noticeAdminService;
     private final SecurityUtil securityUtil;
 
     @GetMapping
     public ApiResponse<Page<NoticeResponse>> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) NoticeStatus status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String scope,
+            @RequestParam(required = false) Boolean pinned
     ) {
-        return ApiResponse.success(noticeService.list(page, size));
+        return ApiResponse.success(noticeAdminService.list(page, size, status, keyword, scope, pinned));
     }
 
     @GetMapping("/{id}")
     public ApiResponse<NoticeResponse> get(@PathVariable Long id) {
-        return ApiResponse.success(noticeService.get(id));
+        return ApiResponse.success(noticeAdminService.get(id));
     }
 
     @PostMapping
@@ -52,7 +55,11 @@ public class AdminNoticeController {
 
     @PatchMapping("/{id}")
     public ApiResponse<NoticeResponse> update(@PathVariable Long id, @Valid @RequestBody NoticeUpdateRequest request) {
-        return ApiResponse.success(noticeAdminService.update(id, request));
+        NoticeResponse response = noticeAdminService.update(id, request);
+        if (request.getScope() != null || request.getEventId() != null) {
+            return ApiResponse.success(response, "scope/eventId는 수정되지 않음");
+        }
+        return ApiResponse.success(response);
     }
 
     @DeleteMapping("/{id}")

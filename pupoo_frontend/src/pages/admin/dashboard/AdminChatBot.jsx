@@ -126,7 +126,7 @@ const STATE_BUBBLES = {
    - hover: 멈추고 말풍선 ("클릭해봐요!")
    - leave: 다시 걷기
    ══════════════════════════════════════════════ */
-function DogCharacter({ onClick, mobile = false }) {
+function DogCharacter({ onClick, mobile = false, rightStyle, shiftTransition }) {
   const [hovered, setHovered] = useState(false);
   const [bubble, setBubble] = useState(null);
   const [bubbleAnim, setBubbleAnim] = useState("bubblePop");
@@ -205,12 +205,15 @@ function DogCharacter({ onClick, mobile = false }) {
       style={{
         position: "fixed",
         bottom: mobile ? "calc(env(safe-area-inset-bottom, 0px) + 76px)" : 12,
-        right: mobile ? 10 : 14,
+        right:
+          rightStyle ??
+          (mobile ? "calc(10px + var(--admin-board-panel-offset, 0px))" : "calc(14px + var(--admin-board-panel-offset, 0px))"),
         zIndex: 10000,
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        transition: shiftTransition,
       }}
       onClick={onClick}
       onMouseEnter={handleMouseEnter}
@@ -361,7 +364,421 @@ function BotAvatar({ size = 28 }) {
   return <MiniDogLottie size={size} />;
 }
 
-function Bubble({ msg, isLast, mobile = false }) {
+function executeLabel(confirmation) {
+  const executeType = confirmation?.executeType || confirmation?.type;
+  const labels = {
+    SAVE_NOTICE: "공지 저장",
+    SEND_NOTIFICATION_DRAFT: "저장된 초안 발송",
+    SEND_EVENT_NOTIFICATION: "이벤트 알림 발송",
+    SEND_BROADCAST_NOTIFICATION: "전체 알림 발송",
+  };
+  return labels[executeType] || "확인 후 실행";
+}
+
+function executeActionLabel(confirmation) {
+  const actionKey = confirmation?.actionKey;
+  const executeType = confirmation?.executeType || confirmation?.type;
+  const actionLabels = {
+    notice_create: "공지 저장",
+    notice_update: "공지 수정 저장",
+    notice_hide: "공지 숨김",
+    notification_draft_delete: "알림 초안 삭제",
+    notification_draft_send: "저장된 초안 발송",
+    notification_event_send: "이벤트 알림 발송",
+    notification_broadcast_send: "전체 알림 발송",
+  };
+  const executeLabels = {
+    SAVE_NOTICE: "공지 저장",
+    SEND_NOTIFICATION_DRAFT: "저장된 초안 발송",
+    SEND_EVENT_NOTIFICATION: "이벤트 알림 발송",
+    SEND_BROADCAST_NOTIFICATION: "전체 알림 발송",
+  };
+  return actionLabels[actionKey] || executeLabels[executeType] || "확인 후 실행";
+}
+
+function buildActionPayloadSummary(actionKey, payload) {
+  if (!payload) return [];
+  const summaries = [];
+
+  if (actionKey?.startsWith("notice")) {
+    if (payload.noticeId) summaries.push(`공지 ID ${payload.noticeId}`);
+    if (payload.status) summaries.push(`상태 ${payload.status}`);
+  }
+  if (actionKey?.startsWith("notification")) {
+    if (payload.notificationId) summaries.push(`알림 ID ${payload.notificationId}`);
+    if (payload.eventId) summaries.push(`행사 ID ${payload.eventId}`);
+    if (payload.targetType) summaries.push(`대상 ${payload.targetType}`);
+    if (payload.targetId != null) summaries.push(`대상 ID ${payload.targetId}`);
+  }
+  if (payload.title) summaries.push(`제목 ${payload.title}`);
+
+  return summaries;
+}
+
+function summaryTitle(summaryType) {
+  const titles = {
+    congestion: "혼잡도 요약",
+    applicants: "신청자 수 요약",
+    refund: "환불 현황 요약",
+    notices: "공지 운영 현황",
+    notifications: "알림 운영 현황",
+  };
+  return titles[summaryType] || "요약";
+}
+
+function renderSummaryGrid(items, summaryType, mobile = false) {
+  if (!items?.length) return null;
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        display: "grid",
+        gridTemplateColumns: mobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+        gap: 8,
+      }}
+    >
+      {items.map((item) => (
+        <div
+          key={`${summaryType}-${item.label}`}
+          style={{
+            background: "#F9FAFB",
+            border: "1px solid #E5E7EB",
+            borderRadius: 12,
+            padding: "10px 12px",
+          }}
+        >
+          <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>{item.label}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1F2937" }}>
+            {item.value}
+            {item.meta != null ? ` / ${item.meta}` : ""}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SummaryCard({ summary, mobile = false }) {
+  if (!summary?.items?.length) return null;
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        display: "grid",
+        gridTemplateColumns: mobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+        gap: 8,
+      }}
+    >
+      {summary.items.map((item) => (
+        <div
+          key={`${summary.summaryType}-${item.label}`}
+          style={{
+            background: "#F9FAFB",
+            border: "1px solid #E5E7EB",
+            borderRadius: 12,
+            padding: "10px 12px",
+          }}
+        >
+          <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>{item.label}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1F2937" }}>
+            {item.value}
+            {item.meta != null ? ` · ${item.meta}` : ""}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function UnsupportedCard({ messageType, executionInfo, mobile = false }) {
+  if (messageType !== "unsupported" && !executionInfo) return null;
+
+  const supported = executionInfo?.supported;
+  const reason =
+    executionInfo?.reason ||
+    (supported === false ? "현재 요청한 동작은 backend 계약 기준으로 실행할 수 없습니다." : null);
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#FEF2F2",
+        border: "1px solid #FECACA",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#B91C1C", fontWeight: 700, marginBottom: 6 }}>
+        미지원 또는 제한 사항
+      </div>
+      <div style={{ fontSize: 12.5, color: "#7F1D1D", lineHeight: 1.55 }}>
+        {reason || "현재 요청은 안내만 가능하며 실행 버튼은 제공되지 않습니다."}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmCard({ confirmation, onConfirm, mobile = false }) {
+  if (!confirmation) return null;
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#FFF7ED",
+        border: "1px solid #FED7AA",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#9A3412", fontWeight: 700, marginBottom: 8 }}>
+        확인 후 실행
+      </div>
+      <button
+        type="button"
+        onClick={onConfirm}
+        style={{
+          width: "100%",
+          border: "none",
+          borderRadius: 10,
+          background: "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
+          color: "#fff",
+          padding: "10px 12px",
+          fontSize: 12.5,
+          fontWeight: 700,
+          cursor: "pointer",
+          fontFamily: ds.ff,
+        }}
+      >
+        확인하고 실행
+      </button>
+    </div>
+  );
+}
+
+function ActionSummaryCard({ summary, mobile = false }) {
+  if (!summary?.items?.length && !summary?.sections?.length) return null;
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 14,
+        background: "#FFFFFF",
+        border: "1px solid #E5E7EB",
+        display: "grid",
+        gap: 10,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 11.5, color: "#6B7280", fontWeight: 700, marginBottom: 4 }}>
+          {summaryTitle(summary.summaryType)}
+        </div>
+        <div style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>
+          {summary.summaryType === "applicants"
+            ? "행사 신청과 프로그램 신청 현황을 함께 정리했습니다."
+            : "운영 현황을 바로 확인할 수 있도록 주요 수치를 정리했습니다."}
+        </div>
+      </div>
+      {renderSummaryGrid(summary.items, summary.summaryType, mobile)}
+      {summary?.sections?.length
+        ? summary.sections.map((section) => (
+            <div
+              key={section.key}
+              style={{
+                background: "#F9FAFB",
+                border: "1px solid #E5E7EB",
+                borderRadius: 12,
+                padding: "12px",
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>
+                {section.title}
+              </div>
+              {renderSummaryGrid(section.items, `${summary.summaryType}-${section.key}`, mobile)}
+            </div>
+          ))
+        : null}
+    </div>
+  );
+}
+
+function ActionUnsupportedCard({ messageType, executionInfo, mobile = false }) {
+  const isUnsupported = messageType === "unsupported" || executionInfo?.supported === false;
+  if (!isUnsupported) return null;
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#FEF2F2",
+        border: "1px solid #FECACA",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#B91C1C", fontWeight: 700, marginBottom: 6 }}>
+        현재 지원되지 않는 기능
+      </div>
+      <div style={{ fontSize: 12.5, color: "#7F1D1D", lineHeight: 1.55 }}>
+        {executionInfo?.reason || "해당 기능은 현재 지원되지 않습니다."}
+      </div>
+    </div>
+  );
+}
+
+function ActionValidationCard({ messageType, executionInfo, mobile = false }) {
+  if (messageType !== "validation") return null;
+  const missingFields = executionInfo?.missingFields || [];
+  const fieldLabels = {
+    title: "제목",
+    content: "내용",
+    eventId: "행사 ID",
+    targetType: "대상 유형",
+    targetId: "대상 ID",
+  };
+  const fieldGuides = {
+    title: "실행할 제목을 입력해 주세요.",
+    content: "실행할 내용을 입력해 주세요.",
+    eventId: "대상 행사 ID를 먼저 선택해 주세요.",
+    targetType: "알림을 보낼 대상 유형을 선택해 주세요.",
+    targetId: "알림을 보낼 대상 ID를 확인해 주세요.",
+  };
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#FFF7ED",
+        border: "1px solid #FED7AA",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#9A3412", fontWeight: 700, marginBottom: 6 }}>
+        추가 정보 필요
+      </div>
+      <div style={{ fontSize: 12.5, color: "#9A3412", lineHeight: 1.55 }}>
+        {executionInfo?.reason || "실행 전에 채워야 할 정보가 있습니다. 안내된 화면이나 초안을 먼저 확인해 주세요."}
+      </div>
+      {missingFields.length ? (
+        <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
+          <div style={{ fontSize: 11.5, color: "#C2410C", lineHeight: 1.5 }}>
+            누락 필드: {missingFields.map((field) => fieldLabels[field] || field).join(", ")}
+          </div>
+          {missingFields.map((field) => (
+            <div key={field} style={{ fontSize: 11.5, color: "#9A3412", lineHeight: 1.5 }}>
+              {(fieldLabels[field] || field)}: {fieldGuides[field] || "필수 값을 먼저 채워 주세요."}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ActionHintCard({ messageType, mobile = false }) {
+  if (messageType !== "ambiguous" && messageType !== "low_confidence") return null;
+  const title = messageType === "ambiguous" ? "의도 선택이 필요합니다" : "다시 입력이 필요합니다";
+  const description =
+    messageType === "ambiguous"
+      ? "조회, 화면 이동, 초안 작성, 실행 요청 중 어떤 작업인지 한 번만 더 골라서 말씀해 주세요."
+      : "의도는 가까웠지만 아직 충분히 명확하지 않습니다. 대상과 작업을 함께 적어 주시면 더 정확하게 처리할 수 있습니다.";
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#EFF6FF",
+        border: "1px solid #BFDBFE",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#1D4ED8", fontWeight: 700, marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 12.5, color: "#1E3A8A", lineHeight: 1.55 }}>{description}</div>
+    </div>
+  );
+}
+
+function ActionConfirmCard({ confirmation, onConfirm, mobile = false }) {
+  if (!confirmation) return null;
+  const label = executeActionLabel(confirmation);
+  const actionKey = confirmation?.actionKey;
+  const descriptions = {
+    SAVE_NOTICE: "현재 화면의 공지 초안을 backend 저장 계약에 맞춰 저장합니다.",
+    SEND_NOTIFICATION_DRAFT: "저장된 알림 초안을 즉시 발송합니다.",
+    SEND_EVENT_NOTIFICATION: "이벤트 대상 알림을 즉시 발송합니다.",
+    SEND_BROADCAST_NOTIFICATION: "전체 대상 알림을 즉시 발송합니다.",
+  };
+  const executeType = confirmation?.executeType || confirmation?.type;
+  const payload = confirmation?.payload || {};
+  const payloadSummary = buildActionPayloadSummary(actionKey, payload);
+  const actionDescriptions = {
+    notice_create: "현재 공지 초안을 저장합니다.",
+    notice_update: "현재 선택된 공지의 수정 내용을 저장합니다.",
+    notice_hide: "현재 선택된 공지를 숨김 상태로 저장합니다.",
+    notification_draft_delete: "현재 선택된 알림 초안을 삭제합니다.",
+    notification_draft_send: "저장된 알림 초안을 즉시 발송합니다.",
+    notification_event_send: "행사 대상을 기준으로 이벤트 알림을 즉시 발송합니다.",
+    notification_broadcast_send: "전체 대상을 향한 알림을 즉시 발송합니다.",
+  };
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#FFF7ED",
+        border: "1px solid #FED7AA",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#9A3412", fontWeight: 700, marginBottom: 8 }}>
+        실행 확인
+      </div>
+      <div style={{ fontSize: 12.5, color: "#9A3412", lineHeight: 1.5, marginBottom: 10 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}</div>
+        <div>{actionDescriptions[actionKey] || descriptions[executeType] || "확인 후 바로 실행됩니다."}</div>
+        {payloadSummary.length ? (
+          <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
+            {payloadSummary.map((item) => (
+              <div key={item} style={{ fontSize: 11.5, color: "#9A3412", lineHeight: 1.45 }}>
+                {item}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={onConfirm}
+        style={{
+          width: "100%",
+          border: "none",
+          borderRadius: 10,
+          background: "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
+          color: "#fff",
+          padding: "10px 12px",
+          fontSize: 12.5,
+          fontWeight: 700,
+          cursor: "pointer",
+          fontFamily: ds.ff,
+        }}
+      >
+        {label} 진행
+      </button>
+    </div>
+  );
+}
+
+function Bubble({ msg, isLast, mobile = false, onConfirm }) {
   const isBot = msg.role === "bot";
   return (
     <div className="cb-msg" style={{ display: "flex", flexDirection: isBot ? "row" : "row-reverse", alignItems: "flex-end", gap: 8, marginBottom: 6 }}>
@@ -380,6 +797,11 @@ function Bubble({ msg, isLast, mobile = false }) {
         <span style={{ fontSize: 10, color: "#B0B0B0", padding: "0 4px", opacity: isLast ? 1 : 0 }}>
           {fmt(msg.ts)}
         </span>
+        {isBot && <ActionSummaryCard summary={msg.summary} mobile={mobile} />}
+        {isBot && <ActionHintCard messageType={msg.messageType} mobile={mobile} />}
+        {isBot && <ActionValidationCard messageType={msg.messageType} executionInfo={msg.executionInfo} mobile={mobile} />}
+        {isBot && <ActionUnsupportedCard messageType={msg.messageType} executionInfo={msg.executionInfo} mobile={mobile} />}
+        {isBot && <ActionConfirmCard confirmation={msg.confirmation} onConfirm={onConfirm} mobile={mobile} />}
       </div>
     </div>
   );
@@ -518,7 +940,7 @@ export default function AdminChatBot() {
   const {
     isOpen, toggle, close,
     messages, input, setInput,
-    isTyping, sendMessage, clearMessages,
+    isTyping, sendMessage, clearMessages, confirmExecute,
   } = useChatBot();
 
   const bottomRef = useRef(null);
@@ -547,6 +969,15 @@ export default function AdminChatBot() {
 
   const mobilePanelBottom = "calc(env(safe-area-inset-bottom, 0px) + 132px)";
   const mobileButtonBottom = "calc(env(safe-area-inset-bottom, 0px) + 84px)";
+  /** 게시판 관리 작성/수정 슬라이드 패널 열릴 때 boardManage에서 --admin-board-panel-offset 설정 */
+  const panelShift = "var(--admin-board-panel-offset, 0px)";
+  const rightChatOpen = isMobile
+    ? `calc(10px + ${panelShift})`
+    : `calc(28px + ${panelShift})`;
+  const rightFabClosed = isMobile
+    ? `calc(10px + ${panelShift})`
+    : `calc(14px + ${panelShift})`;
+  const shiftTransition = "right 0.26s cubic-bezier(0.22, 1, 0.36, 1)";
 
   const handleKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
   const handleClear = () => { clearMessages(); setHasChats(false); };
@@ -559,7 +990,7 @@ export default function AdminChatBot() {
       {/* ── 채팅 패널 ── */}
       {isOpen && (
         <div style={{
-          position: "fixed", bottom: isMobile ? mobilePanelBottom : 96, right: isMobile ? 10 : 28,
+          position: "fixed", bottom: isMobile ? mobilePanelBottom : 96, right: rightChatOpen,
           width: isMobile ? "min(calc(100vw - 16px), 336px)" : 380,
           maxWidth: isMobile ? "calc(100vw - 16px)" : 380,
           height: isMobile ? "min(calc(100dvh - env(safe-area-inset-bottom, 0px) - 84px), 468px)" : 560,
@@ -567,6 +998,7 @@ export default function AdminChatBot() {
           boxShadow: "0 25px 60px rgba(0,0,0,0.18), 0 6px 20px rgba(0,0,0,0.08)",
           display: "flex", flexDirection: "column", overflow: "hidden",
           zIndex: 9999, animation: "chatSlideUp .32s cubic-bezier(.34,1.2,.64,1)", fontFamily: ds.ff,
+          transition: shiftTransition,
         }}>
           {/* 헤더 */}
           <div style={{
@@ -609,7 +1041,7 @@ export default function AdminChatBot() {
             <>
               <div className="cb-panel" style={{ flex: 1, overflowY: "auto", padding: isMobile ? "14px 12px 6px" : "16px 14px 6px", background: "#F9FAFB" }}>
                 {messages.map((msg, i) => (
-                  <Bubble key={msg.id} msg={msg} isLast={isLastInGroup(i)} mobile={isMobile} />
+                  <Bubble key={msg.id} msg={msg} isLast={isLastInGroup(i)} mobile={isMobile} onConfirm={confirmExecute} />
                 ))}
                 {isTyping && <Typing mobile={isMobile} />}
                 <div ref={bottomRef} />
@@ -627,11 +1059,11 @@ export default function AdminChatBot() {
         <button
           onClick={toggle}
           style={{
-            position: "fixed", bottom: isMobile ? mobileButtonBottom : 28, right: isMobile ? 10 : 28,
+            position: "fixed", bottom: isMobile ? mobileButtonBottom : 28, right: rightChatOpen,
             width: isMobile ? 48 : 56, height: isMobile ? 48 : 56, borderRadius: "50%", border: "none",
             background: "#fff", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 10000, transition: "all .2s",
+            zIndex: 10000, transition: `all .2s, ${shiftTransition}`,
             boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.08)"; }}
@@ -640,7 +1072,7 @@ export default function AdminChatBot() {
           <X size={isMobile ? 20 : 22} color="#9CA3AF" strokeWidth={2.2} />
         </button>
       ) : (
-        <DogCharacter onClick={toggle} mobile={isMobile} />
+        <DogCharacter onClick={toggle} mobile={isMobile} rightStyle={rightFabClosed} shiftTransition={shiftTransition} />
       )}
     </>
   );

@@ -1,4 +1,3 @@
-// file: src/main/java/com/popups/pupoo/common/api/ErrorResponse.java
 package com.popups.pupoo.common.api;
 
 import java.time.LocalDateTime;
@@ -14,8 +13,8 @@ public class ErrorResponse {
     private LocalDateTime timestamp;
 
     /**
-     * Validation 등 필드 단위 오류 정보.
-     * - 정책: 에러 응답은 fieldErrors를 포함한다.
+     * Validation 오류의 필드 단위 상세 정보다.
+     * 에러 응답은 항상 fieldErrors를 포함한다.
      */
     private List<FieldErrorItem> fieldErrors;
 

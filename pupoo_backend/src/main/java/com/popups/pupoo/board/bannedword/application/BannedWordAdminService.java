@@ -23,11 +23,15 @@ public class BannedWordAdminService {
     private final BoardRepository boardRepository;
 
     @Transactional(readOnly = true)
-    public Page<BannedWordResponse> list(Long boardId, Pageable pageable) {
+    public Page<BannedWordResponse> list(Long boardId, String keyword, Pageable pageable) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "게시판을 찾을 수 없습니다."));
-        return bannedWordRepository.findByBoardIdOrGlobal(board.getBoardId(), pageable)
-                .map(BannedWordResponse::from);
+        String q = keyword != null ? keyword.trim() : "";
+        Page<BannedWord> page = q.isEmpty()
+                ? bannedWordRepository.findByBoardIdOrGlobal(board.getBoardId(), pageable)
+                : bannedWordRepository.findByBoardIdOrGlobalAndBannedWordContainingIgnoreCase(
+                        board.getBoardId(), q, pageable);
+        return page.map(BannedWordResponse::from);
     }
 
     @Transactional

@@ -44,4 +44,13 @@ public interface PostCommentRepository extends JpaRepository<PostComment, Long> 
                                  @Param("to") LocalDateTime to,
                                  @Param("commentIds") List<Long> commentIds,
                                  Pageable pageable);
+
+    @Query("""
+        select c.postId, count(c)
+        from PostComment c
+        where c.deleted = false
+          and c.postId in :postIds
+        group by c.postId
+        """)
+    List<Object[]> countByPostIds(@Param("postIds") List<Long> postIds);
 }

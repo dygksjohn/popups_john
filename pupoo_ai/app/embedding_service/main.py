@@ -20,6 +20,7 @@ class EmbedResponse(BaseModel):
     vectors: List[List[float]] = Field(..., description="texts와 같은 순서의 벡터 리스트")
 
 
+# 레거시: 로컬 BGE-M3 전용 마이크로서비스. 메인 pupoo-ai 는 watsonx 임베딩을 사용한다.
 _model = None
 _model_id = "BAAI/bge-m3"
 _dim = 1024

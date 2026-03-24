@@ -57,6 +57,7 @@ public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long
             Collection<ApplyStatus> statuses
     );
 
+    long countByStatus(ApplyStatus status);
     long countByProgramIdAndStatusIn(Long programId, Collection<ApplyStatus> statuses);
     long countByProgramIdAndCheckedInAtIsNotNull(Long programId);
     long countByProgramIdAndCheckedInAtBetween(Long programId, LocalDateTime fromInclusive, LocalDateTime toInclusive);

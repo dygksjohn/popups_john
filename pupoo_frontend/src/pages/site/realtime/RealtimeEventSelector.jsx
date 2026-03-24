@@ -142,7 +142,7 @@ const selectorStyles = `
     outline: none;
     font-family: inherit;
   }
-  .rte-search-input::placeholder { color: #9ca3af; }
+  .rte-search-input::placeholder { color: #9ca3af; font-family: inherit; }
   .rte-search-icon {
     position: absolute;
     left: 14px;

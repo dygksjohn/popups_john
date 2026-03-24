@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PolicyUploadActivateResponse {
+    /** moderation_policy_uploads.policy_upload_id */
+    private Long policyUploadId;
     private String status;
     private String activeCollection;
     private String activeFilename;

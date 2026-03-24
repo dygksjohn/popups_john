@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -71,6 +72,11 @@ public class StorageController {
     public ApiResponse<FileResponse> getByPostId(@PathVariable Long postId) {
         FileResponse file = storageService.getFileByPostId(postId);
         return ApiResponse.success(file);
+    }
+
+    @GetMapping("/by-post/{postId}/list")
+    public ApiResponse<List<FileResponse>> getListByPostId(@PathVariable Long postId) {
+        return ApiResponse.success(storageService.getFilesByPostId(postId));
     }
 
     @GetMapping("/{fileId}")

@@ -49,7 +49,7 @@ function InProgressBox() {
       }}
     >
       <Loader2 size={14} style={{ flexShrink: 0, animation: "spin 1s linear infinite" }} />
-      수정 중입니다. 기다려 주세요.
+      깨끗한 커뮤니티 조성을 위해 AI가 게시글 콘텐츠를 검토 중입니다.
     </div>
   );
 }
@@ -138,6 +138,7 @@ export default function ReviewEditPage() {
     if (!hasMeaningfulCommunityContent(form.content)) return "내용을 입력해 주세요.";
     return "";
   }, [form]);
+  const isFormLocked = saving || Boolean(successMessage);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -168,11 +169,8 @@ export default function ReviewEditPage() {
 
       if (!isMountedRef.current) return;
 
-      setSuccessMessage("수정 완료");
-      setTimeout(() => {
-        if (!isMountedRef.current) return;
-        navigate(`/community/review/${reviewId}`);
-      }, 1500);
+      setSuccessMessage("수정 완료되었습니다.");
+      setSaving(false);
     } catch (err) {
       console.error("[ReviewEditPage] update failed:", err);
       if (!isMountedRef.current) return;
@@ -215,7 +213,7 @@ export default function ReviewEditPage() {
           <button
             type="submit"
             form="community-review-edit-form"
-            disabled={saving || loading}
+            disabled={isFormLocked || loading}
             style={{
               height: 44,
               padding: "0 18px",
@@ -225,8 +223,8 @@ export default function ReviewEditPage() {
               fontSize: 14,
               fontWeight: 800,
               color: "#fff",
-              cursor: saving || loading ? "not-allowed" : "pointer",
-              opacity: saving || loading ? 0.6 : 1,
+              cursor: isFormLocked || loading ? "not-allowed" : "pointer",
+              opacity: isFormLocked || loading ? 0.6 : 1,
             }}
           >
             {saving ? "수정 중..." : "수정하기"}
@@ -247,8 +245,8 @@ export default function ReviewEditPage() {
             style={{
               display: "grid",
               gap: 18,
-              pointerEvents: saving ? "none" : undefined,
-              opacity: saving ? 0.75 : 1,
+              pointerEvents: isFormLocked ? "none" : undefined,
+              opacity: isFormLocked ? 0.75 : 1,
             }}
           >
             <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 14 }}>
@@ -275,7 +273,7 @@ export default function ReviewEditPage() {
                 <select
                   value={form.rating}
                   onChange={(event) => handleChange("rating", event.target.value)}
-                  disabled={saving}
+                  disabled={isFormLocked}
                   style={{
                     height: 46,
                     borderRadius: 10,
@@ -283,7 +281,7 @@ export default function ReviewEditPage() {
                     padding: "0 14px",
                     fontSize: 14,
                     color: "#0f172a",
-                    background: saving ? "#f1f5f9" : "#fff",
+                    background: isFormLocked ? "#f1f5f9" : "#fff",
                   }}
                 >
                   {[5, 4, 3, 2, 1].map((value) => (
@@ -301,8 +299,8 @@ export default function ReviewEditPage() {
                 value={form.title}
                 onChange={(event) => handleChange("title", event.target.value)}
                 placeholder="후기 제목을 입력해 주세요"
-                disabled={saving}
-                readOnly={saving}
+                disabled={isFormLocked}
+                readOnly={isFormLocked}
                 style={{
                   height: 46,
                   borderRadius: 10,
@@ -310,7 +308,7 @@ export default function ReviewEditPage() {
                   padding: "0 14px",
                   fontSize: 14,
                   color: "#0f172a",
-                  background: saving ? "#f1f5f9" : "#fff",
+                  background: isFormLocked ? "#f1f5f9" : "#fff",
                 }}
               />
             </label>

@@ -15,6 +15,7 @@ import com.popups.pupoo.board.post.dto.PostCreateRequest;
 import com.popups.pupoo.board.post.dto.PostResponse;
 import com.popups.pupoo.board.post.dto.PostUpdateRequest;
 import com.popups.pupoo.board.post.persistence.PostRepository;
+import com.popups.pupoo.reply.persistence.PostCommentRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.search.SearchType;
@@ -25,7 +26,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PostService {
 
     private final PostRepository postRepository;
+    private final PostCommentRepository postCommentRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
     private final ModerationClient moderationClient;
@@ -63,34 +67,63 @@ public class PostService {
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, String keyword, Pageable pageable) {
-        return getPublicPosts(boardId, (BoardType) null, keyword, pageable);
+        return getPublicPosts(boardId, (BoardType) null, SearchType.TITLE_CONTENT, keyword, pageable, null);
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, String keyword, Pageable pageable) {
-        Long resolvedBoardId = resolveBoardId(boardId, boardType);
-        Page<Post> page = postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
-        List<PostResponse> content = page.getContent().stream().map(this::toResponse).toList();
-        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
+        return getPublicPosts(boardId, boardType, SearchType.TITLE_CONTENT, keyword, pageable, null);
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, SearchType searchType, String keyword, Pageable pageable) {
-        return getPublicPosts(boardId, null, searchType, keyword, pageable);
+        return getPublicPosts(boardId, null, searchType, keyword, pageable, null);
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId, BoardType boardType, SearchType searchType, String keyword, Pageable pageable) {
+        return getPublicPosts(boardId, boardType, searchType, keyword, pageable, null);
+    }
+
+    public Page<PostResponse> getPublicPosts(Long boardId,
+                                              BoardType boardType,
+                                              SearchType searchType,
+                                              String keyword,
+                                              Pageable pageable,
+                                              String sortKey) {
         Long resolvedBoardId = resolveBoardId(boardId, boardType);
         SearchType effectiveType = (searchType != null) ? searchType : SearchType.TITLE_CONTENT;
 
-        Page<Post> page = switch (effectiveType) {
-            case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
-            case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
-            case WRITER -> {
-                Long writerId = parseLongOrNull(keyword);
-                yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable);
-            }
-            default -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
-        };
-        List<PostResponse> content = page.getContent().stream().map(this::toResponse).toList();
+        Page<Post> page;
+        String normalizedSortKey = sortKey == null ? "" : sortKey.trim().toLowerCase();
+        if ("comments".equals(normalizedSortKey)
+                || "comment".equals(normalizedSortKey)
+                || "commentcount".equals(normalizedSortKey)) {
+            String publishedStatus = PostStatus.PUBLISHED.name();
+            page = switch (effectiveType) {
+                case TITLE -> postRepository.searchByTitleSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageable);
+                case CONTENT -> postRepository.searchByContentSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageable);
+                case WRITER -> {
+                    Long writerId = parseLongOrNull(keyword);
+                    if (writerId == null) yield Page.empty(pageable);
+                    yield postRepository.searchByWriterSortedByCommentCount(resolvedBoardId, writerId, publishedStatus, pageable);
+                }
+                default -> postRepository.searchByTitleContentSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageable);
+            };
+        } else {
+            page = switch (effectiveType) {
+                case TITLE -> postRepository.searchByTitle(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+                case CONTENT -> postRepository.searchByContent(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+                case WRITER -> {
+                    Long writerId = parseLongOrNull(keyword);
+                    yield postRepository.searchByWriter(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable);
+                }
+                default -> postRepository.search(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+            };
+        }
+
+        List<Post> posts = page.getContent();
+        Map<Long, Long> commentCountMap = fetchCommentCounts(posts);
+        List<PostResponse> content = posts.stream()
+                .map(p -> toResponse(p, commentCountMap.getOrDefault(p.getPostId(), 0L)))
+                .toList();
         return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
@@ -138,8 +171,37 @@ public class PostService {
         return userId != null ? userRepository.findById(userId).map(u -> u.getEmail()).orElse(null) : null;
     }
 
+    private String getWriterNickname(Long userId) {
+        return userId != null ? userRepository.findById(userId).map(u -> u.getNickname()).orElse(null) : null;
+    }
+
     private PostResponse toResponse(Post post) {
-        return PostResponse.from(post, getWriterEmail(post.getUserId()), post.getPostTitle(), post.getContent());
+        return toResponse(post, null);
+    }
+
+    private PostResponse toResponse(Post post, Long commentCount) {
+        return PostResponse.from(
+                post,
+                getWriterEmail(post.getUserId()),
+                getWriterNickname(post.getUserId()),
+                post.getPostTitle(),
+                post.getContent(),
+                commentCount
+        );
+    }
+
+    private Map<Long, Long> fetchCommentCounts(List<Post> posts) {
+        if (posts == null || posts.isEmpty()) return Map.of();
+        List<Long> postIds = posts.stream().map(Post::getPostId).toList();
+        List<Object[]> rows = postCommentRepository.countByPostIds(postIds);
+        Map<Long, Long> map = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) continue;
+            Long postId = row[0] != null ? ((Number) row[0]).longValue() : null;
+            Long cnt = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            if (postId != null) map.put(postId, cnt);
+        }
+        return map;
     }
 
     @Transactional
@@ -213,20 +275,42 @@ public class PostService {
         Post post = postRepository.findByPostIdAndUserIdAndDeletedFalse(postId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "No permission to update"));
 
+        applyPostUpdateWithModeration(post, req, userId);
+    }
+
+    /**
+     * 관리자 콘솔: 작성자와 무관하게 게시글 본문/제목 수정.
+     * <p>
+     * 일반 사용자 수정({@link #updatePost})과 달리 AI 모더레이션 BLOCK을 적용하지 않는다.
+     * 운영자가 정정·복구 목적으로 글을 편집할 때 사용자 글이 AI에 의해 저장 불가(400)로 막히지 않도록 한다.
+     */
+    @Transactional
+    public void adminUpdatePost(Long adminUserId, Long postId, PostUpdateRequest req) {
+        if (adminUserId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
+        Post post = postRepository.findByPostIdAndDeletedFalse(postId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Post not found"));
+
+        if (req.getPostTitle() == null || req.getPostTitle().isBlank() || req.getContent() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content is required");
+        }
+        post.updateTitleAndContent(req.getPostTitle(), req.getContent());
+    }
+
+    private void applyPostUpdateWithModeration(Post post, PostUpdateRequest req, Long userIdForModeration) {
         if (req.getPostTitle() == null || req.getPostTitle().isBlank() || req.getContent() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content is required");
         }
 
-        if (!bannedWordService.shouldSkipModeration(userId)) {
+        if (!bannedWordService.shouldSkipModeration(userIdForModeration)) {
             String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
             ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), post.getBoard().getBoardId(), "POST");
             if (modResult != null && modResult.isBlock()) {
-                // BLOCK된 요청은 로그에 남긴다.
                 bannedWordService.logAiModeration(
                         post.getBoard().getBoardId(),
                         post.getPostId(),
                         BannedLogContentType.POST,
-                        userId,
+                        userIdForModeration,
                         modResult
                 );
                 throw new BusinessException(

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "./api/authApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { useAuth } from "./AuthProvider";
+import { NaverBrandMark } from "../../../shared/ui/NaverBrandMark";
 
 // ?? Social button (reusable) ??????????????????????????????????????????????????
 const SocialButton = ({ onClick, style, children, compact = false }) => {
@@ -66,15 +67,6 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const AppleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 384 512">
-    <path
-      fill="currentColor"
-      d="M318.7 268.5c-.3-63.1 51.5-93.4 53.9-94.9-29.4-42.9-75.2-48.8-91.5-49.5-38.9-3.9-76 22.9-95.8 22.9-19.8 0-50.3-22.3-82.7-21.7-42.6.6-81.9 24.8-103.9 63.1-44.3 76.7-11.4 190 31.8 252.4 21.1 30.6 46.2 64.9 79.2 63.6 31.7-1.3 43.7-20.5 82-20.5s49.2 20.5 82.7 19.9c34.2-.6 55.8-31.1 76.7-61.8 24.3-35.6 34.3-70 34.9-71.8-.8-.4-66.9-25.7-67.2-101.8zM251.3 81.6c17.5-21.2 29.4-50.6 26.2-79.6-25.2 1-55.6 16.8-73.6 38-16.2 18.7-30.4 48.6-26.6 77.3 28.1 2.2 56.5-14.3 74-35.7z"
-    />
-  </svg>
-);
-
 // ?? Animated geometric shapes for the left panel ?????????????????????????????
 const FloatingShape = ({ style }) => (
   <div
@@ -98,6 +90,10 @@ const LoginPage = ({ leftBgImage = null }) => {
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
   const KAKAO_REDIRECT_URI =
     import.meta.env.VITE_KAKAO_REDIRECT_URI || defaultKakaoRedirectUri;
+  const defaultNaverRedirectUri = `${window.location.origin}/naver/callback`;
+  const NAVER_CLIENT_ID = import.meta.env.VITE_NAVER_CLIENT_ID;
+  const NAVER_REDIRECT_URI =
+    import.meta.env.VITE_NAVER_REDIRECT_URI || defaultNaverRedirectUri;
   const resolvePostLoginRedirect = () => {
     const target =
       location.state?.from ||
@@ -127,6 +123,27 @@ const LoginPage = ({ leftBgImage = null }) => {
       prompt: "login",
     });
     window.location.href = `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
+  };
+
+  const handleNaverLogin = () => {
+    if (!NAVER_CLIENT_ID || !NAVER_REDIRECT_URI) {
+      console.error("Naver env missing");
+      return;
+    }
+
+    const redirectTo = resolvePostLoginRedirect();
+    sessionStorage.setItem("post_login_redirect", redirectTo);
+
+    const state = `${crypto.randomUUID()}${Date.now()}`;
+    sessionStorage.setItem("naver_oauth_state", state);
+
+    const params = new URLSearchParams({
+      response_type: "code",
+      client_id: NAVER_CLIENT_ID,
+      redirect_uri: NAVER_REDIRECT_URI,
+      state,
+    });
+    window.location.href = `https://nid.naver.com/oauth2.0/authorize?${params.toString()}`;
   };
 
   useEffect(() => {
@@ -587,20 +604,23 @@ const LoginPage = ({ leftBgImage = null }) => {
                   <span>Google로 로그인</span>
                 </SocialButton>
 
-                {/* Apple */}
+                {/* Naver */}
                 <SocialButton
-                  onClick={() => handleSocialClick("Apple")}
+                  onClick={handleNaverLogin}
                   compact={isMobile}
                   style={{
-                    background: "#000000",
+                    background: "#03C75A",
                     color: "#FFFFFF",
-                    opacity: 0.35,
-                    filter: "grayscale(0.7)",
-                    cursor: "pointer",
+                    boxShadow: "0 6px 16px rgba(3,199,90,0.22)",
                   }}
                 >
-                  <AppleIcon />
-                  <span>Apple로 로그인</span>
+                  <NaverBrandMark
+                    size={isMobile ? 18 : 20}
+                    rounded={4}
+                    background="#FFFFFF"
+                    color="#03C75A"
+                  />
+                  <span>naver로 로그인</span>
                 </SocialButton>
               </div>
             </div>

@@ -6,8 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * 기능: AWS 인증 발송 연동 설정을 바인딩한다.
- * 설명: 리전, SES 발신자, SNS 발신 번호/발신자 ID를 설정 기반으로 관리한다.
- * 흐름: config 계층이 이 값을 사용해 AWS 클라이언트와 어댑터를 생성한다.
+ * 설명: 리전, SES 발신자, SNS 발신 번호와 발신자 ID를 설정 기반으로 관리한다.
+ * 흐름: config 계층에서 값을 주입받아 AWS 클라이언트와 발송 구현체가 사용한다.
  */
 @Getter
 @Setter

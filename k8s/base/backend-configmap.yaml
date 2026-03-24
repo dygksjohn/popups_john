@@ -7,6 +7,9 @@ data:
   SPRING_PROFILES_ACTIVE: "prod"
   SERVER_PORT: "8080"
   AI_SERVICE_BASE_URL: "http://pupoo-ai:80"
+  # Spring property: ai.moderation.base-url=${AI_MODERATION_BASE_URL:...}
+  AI_MODERATION_BASE_URL: "http://pupoo-ai:80"
+  # Backward-compat: (기존에 넣어두신 키) 남겨둬도 무방하지만, Spring은 AI_MODERATION_* 키를 우선으로 읽습니다.
   APP_AI_MODERATION_BASE_URL: "http://pupoo-ai:80"
   STORAGE_MODE: "S3"
   STORAGE_S3_BUCKET: "pupoo-storage"
@@ -15,3 +18,7 @@ data:
   APP_STORAGE_CDN_BASE_URL: "https://cdn.pupoo.site"
   SPRING_DATASOURCE_URL: "jdbc:mysql://pupoo-rds.cluster-xxxxxxxx.ap-northeast-2.rds.amazonaws.com:3306/pupoodb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
   APP_CORS_ALLOWED_ORIGIN_PATTERNS: "https://app.pupoo.com,https://admin.pupoo.com,https://pupoo.site,https://www.pupoo.site"
+
+  # 정책문서 업로드&반영: cos/orchestrate는 보류. Spring이 Orchestrate로 위임하지 않게 명시적으로 OFF
+  AI_ORCHESTRATE_ENABLED: "false"
+  AI_ORCHESTRATE_MODE: "OFF"
