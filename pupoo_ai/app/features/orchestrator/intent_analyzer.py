@@ -19,7 +19,7 @@ class IntentAnalyzer:
 
         if "혼잡도" in normalized and "요약" in normalized:
             return IntentResult(intent_type="summary", target="congestion")
-        if any(keyword in normalized for keyword in ("신청자 수 요약", "신청자수 요약", "신청자 요약")):
+        if any(keyword in normalized for keyword in ("신청 현황 요약", "신청자수 요약", "신청자 요약")):
             return IntentResult(intent_type="summary", target="applicants")
         if "환불" in normalized and "요약" in normalized:
             return IntentResult(intent_type="summary", target="refund")

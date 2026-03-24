@@ -29,7 +29,7 @@ class IntentAnalyzerTest(unittest.TestCase):
         self.assertEqual(result.target, "notice")
 
     def test_applicants_summary_intent(self):
-        result = self.analyzer.analyze("신청자 수 요약")
+        result = self.analyzer.analyze("신청자수 요약")
         self.assertIsNotNone(result)
         self.assertEqual(result.intent_type, "summary")
         self.assertEqual(result.target, "applicants")
