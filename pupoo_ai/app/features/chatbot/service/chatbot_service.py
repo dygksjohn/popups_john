@@ -26,13 +26,13 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
     if intent is not None:
         if intent.intent_type == "ambiguous":
             return ChatResponse(
-                message="조회 요청인지 실행 요청인지 하나로 특정하지 못했습니다. 예를 들어 '혼잡도 요약' 또는 '공지 저장'처럼 조금 더 구체적으로 말씀해 주세요.",
+                message="어떤 작업을 하시려는지 확인이 필요해요. 조회인지 실행인지 조금 더 구체적으로 말씀해 주세요.",
                 messageType="ambiguous",
                 actions=[],
             )
         if intent.intent_type == "low_confidence":
             return ChatResponse(
-                message="의도를 확실히 잡지 못했습니다. 조회, 화면 이동, 초안 작성, 발송 중 무엇을 원하는지 조금 더 구체적으로 말씀해 주세요.",
+                message="요청을 정확히 이해하지 못했어요. 조금 더 자세히 알려주실 수 있을까요?",
                 messageType="low_confidence",
                 actions=[],
             )
@@ -57,5 +57,5 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
     reply = await invoke_bedrock(messages)
     reply_text = str(reply or "").strip()
     if not reply_text:
-        reply_text = "운영 업무를 이어서 도와드릴게요. 이동, 요약, 초안 생성, 실행이 필요하면 말씀해 주세요."
+        reply_text = "무엇을 도와드릴까요? 조회, 화면 이동, 초안 작성, 실행 요청을 말씀해 주세요."
     return ChatResponse(message=reply_text, actions=[])
