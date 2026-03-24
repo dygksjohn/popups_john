@@ -111,7 +111,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> searchByTitleContentSortedByCommentCount(
             @Param("boardId") Long boardId,
             @Param("keyword") String keyword,
-            @Param("status") PostStatus status,
+            @Param("status") String status,
             Pageable pageable
     );
 
@@ -148,7 +148,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> searchByTitleSortedByCommentCount(
             @Param("boardId") Long boardId,
             @Param("keyword") String keyword,
-            @Param("status") PostStatus status,
+            @Param("status") String status,
             Pageable pageable
     );
 
@@ -185,7 +185,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> searchByContentSortedByCommentCount(
             @Param("boardId") Long boardId,
             @Param("keyword") String keyword,
-            @Param("status") PostStatus status,
+            @Param("status") String status,
             Pageable pageable
     );
 
@@ -214,7 +214,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> searchByWriterSortedByCommentCount(
             @Param("boardId") Long boardId,
             @Param("writerId") Long writerId,
-            @Param("status") PostStatus status,
+            @Param("status") String status,
             Pageable pageable
     );
 

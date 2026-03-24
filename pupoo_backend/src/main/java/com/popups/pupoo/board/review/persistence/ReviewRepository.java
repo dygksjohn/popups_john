@@ -157,7 +157,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
           )
         """, nativeQuery = true)
     Page<Review> searchPublicSortedByCommentCount(
-            @Param("status") ReviewStatus status,
+            @Param("status") String status,
             @Param("rating") Byte rating,
             @Param("keyword") String keyword,
             @Param("writerId") Long writerId,

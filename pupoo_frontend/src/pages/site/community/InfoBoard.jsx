@@ -99,7 +99,7 @@ function Overlay({ children, onClose }) {
 function WriteModal({ onClose, onSave, saving, errorMessage }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [localError, setLocalError] = useState("");
 
   const handleSubmit = () => {
@@ -115,7 +115,7 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
     onSave({
       title: title.trim(),
       content,
-      file,
+      files,
     });
   };
 
@@ -254,7 +254,8 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
           </label>
           <input
             type="file"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            multiple
+            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
             style={{
               width: "100%",
               padding: "9px 10px",
@@ -265,8 +266,10 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
               background: "#fff",
             }}
           />
-          {file ? (
-            <div style={{ marginTop: 8, fontSize: 12, color: "#475569" }}>선택됨: {file.name}</div>
+          {files.length > 0 ? (
+            <div style={{ marginTop: 8, fontSize: 12, color: "#475569" }}>
+              선택됨: {files.map((file) => file.name).join(", ")}
+            </div>
           ) : null}
         </div>
 
@@ -326,7 +329,7 @@ function DetailModal({
   onReplyTextChange,
   onReplySubmit,
   replySubmitting,
-  attachment,
+  attachments,
   attachmentLoading,
   attachmentError,
 }) {
@@ -443,24 +446,29 @@ function DetailModal({
           <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>첨부파일</div>
           {attachmentLoading ? (
         <div style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>첨부파일 정보를 불러오는 중입니다.</div>
-          ) : attachment ? (
-            <a
-              href={toPublicAssetUrl(attachment.publicPath)}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 13,
-                color: "#028A6C",
-                textDecoration: "none",
-                fontWeight: 600,
-              }}
-            >
-              <Paperclip size={13} />
-                {attachment.originalName || "첨부파일 다운로드"}
-            </a>
+          ) : attachments.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {attachments.map((attachment) => (
+                <a
+                  key={attachment.fileId}
+                  href={toPublicAssetUrl(attachment.publicPath)}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 13,
+                    color: "#028A6C",
+                    textDecoration: "none",
+                    fontWeight: 600,
+                  }}
+                >
+                  <Paperclip size={13} />
+                  {attachment.originalName || "첨부파일 다운로드"}
+                </a>
+              ))}
+            </div>
           ) : (
             <div style={{ fontSize: 12, color: "#94A3B8" }}>첨부파일이 없습니다.</div>
           )}
@@ -575,7 +583,7 @@ export default function InfoBoard() {
   const [replyText, setReplyText] = useState("");
   const [replyError, setReplyError] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
-  const [attachment, setAttachment] = useState(null);
+  const [attachments, setAttachments] = useState([]);
   const [attachmentLoading, setAttachmentLoading] = useState(false);
   const [attachmentError, setAttachmentError] = useState("");
   const [infoBoardId, setInfoBoardId] = useState(null);
@@ -679,21 +687,15 @@ export default function InfoBoard() {
     }
   }, []);
 
-  const loadAttachment = useCallback(async (postId) => {
+  const loadAttachments = useCallback(async (postId) => {
     setAttachmentLoading(true);
     setAttachmentError("");
     try {
-      const data = await fileApi.getByPostId(postId);
-      setAttachment(data || null);
+      const data = await fileApi.getListByPostId(postId);
+      setAttachments(Array.isArray(data) ? data : []);
     } catch (err) {
-      const status = err?.response?.status;
-      if (status === 404) {
-        setAttachment(null);
-        setAttachmentError("");
-      } else {
-        setAttachment(null);
+      setAttachments([]);
       setAttachmentError("첨부파일을 불러오지 못했습니다.");
-      }
     } finally {
       setAttachmentLoading(false);
     }
@@ -704,7 +706,7 @@ export default function InfoBoard() {
     setDetailLoading(true);
     setReplyText("");
     setReplyError("");
-    setAttachment(null);
+    setAttachments([]);
     setAttachmentError("");
     try {
       const detail = await postApi.get(item.postId);
@@ -712,21 +714,21 @@ export default function InfoBoard() {
       setItems((prev) =>
         prev.map((row) => (row.postId === detail.postId ? { ...row, ...detail } : row)),
       );
-      await Promise.all([loadReplies(detail.postId), loadAttachment(detail.postId)]);
+      await Promise.all([loadReplies(detail.postId), loadAttachments(detail.postId)]);
     } catch (err) {
       console.error("[InfoBoard] detail fetch failed:", err);
       setReplyError("상세 정보를 불러오지 못했습니다.");
     } finally {
       setDetailLoading(false);
     }
-  }, [loadReplies, loadAttachment]);
+  }, [loadReplies, loadAttachments]);
 
   const closeDetail = () => {
     setSelected(null);
     setReplies([]);
     setReplyText("");
     setReplyError("");
-    setAttachment(null);
+    setAttachments([]);
     setAttachmentError("");
     setAttachmentLoading(false);
   };
@@ -757,7 +759,7 @@ export default function InfoBoard() {
     }
   };
 
-  const submitPost = async ({ title, content, file }) => {
+  const submitPost = async ({ title, content, files }) => {
     if (!tokenStore.getAccess()) {
       setWriteError("글쓰기는 로그인이 필요합니다.");
       return;
@@ -776,8 +778,8 @@ export default function InfoBoard() {
         content,
       });
       const createdPostId = Number(created?.postId ?? created);
-      if (file && createdPostId) {
-        await fileApi.upload(file, "POST", createdPostId);
+      if (Array.isArray(files) && files.length > 0 && createdPostId) {
+        await Promise.all(files.map((file) => fileApi.upload(file, "POST", createdPostId)));
       }
       setWriteModalOpen(false);
       await fetchPage(1);
@@ -970,6 +972,7 @@ export default function InfoBoard() {
                 <span style={{ flex: 1, textAlign: "center" }}>제목</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
+                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>조회수</span>
               </div>
               {pagedItems.map((item, index) => {
                 const rowNumber = totalElements - ((pageSafe - 1) * PAGE_SIZE) - index;
@@ -1006,18 +1009,20 @@ export default function InfoBoard() {
                         <BadgeTag badge={badge} style={isMobile ? { ...badge.style, padding: "4px 10px", fontSize: 11 } : undefined} />
                         <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
                           {item.postTitle}
+                          {(item?.commentCount ?? 0) > 0 && (
+                            <span style={{ fontWeight: 700 }}>
+                              {`\u00A0\u00A0+${item?.commentCount ?? 0}`}
+                            </span>
+                          )}
                         </span>
-                        {(item?.commentCount ?? 0) > 0 && (
-                          <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
-                            +{item?.commentCount ?? 0}
-                          </span>
-                        )}
                       </div>
                       {isMobile && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
                           <span>{maskedAuthorLabel}</span>
                           <span style={{ color: "#cbd5e1" }}>·</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(item.createdAt)}</span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
+                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>조회수 {Number(item?.viewCount ?? 0)}</span>
                         </div>
                       )}
                     </div>
@@ -1025,6 +1030,11 @@ export default function InfoBoard() {
                     {!isMobile && (
                       <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
                         {fmtDate(item.createdAt)}
+                      </span>
+                    )}
+                    {!isMobile && (
+                      <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {Number(item?.viewCount ?? 0)}
                       </span>
                     )}
                   </div>
@@ -1058,7 +1068,7 @@ export default function InfoBoard() {
         onReplyTextChange={setReplyText}
         onReplySubmit={submitReply}
         replySubmitting={replySubmitting}
-        attachment={attachment}
+        attachments={attachments}
         attachmentLoading={attachmentLoading}
         attachmentError={attachmentError}
       />

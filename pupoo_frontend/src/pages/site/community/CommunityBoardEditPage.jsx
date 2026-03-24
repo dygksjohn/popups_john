@@ -95,6 +95,8 @@ export default function CommunityBoardEditPage({
   const [error, setError] = useState("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [initialTitle, setInitialTitle] = useState("");
+  const [initialContent, setInitialContent] = useState("");
   const [file, setFile] = useState(null);
   const [existingAttachment, setExistingAttachment] = useState(null);
 
@@ -118,8 +120,12 @@ export default function CommunityBoardEditPage({
       try {
         const detail = await postApi.get(numericPostId);
         if (!mounted) return;
-        setTitle(detail.postTitle || "");
-        setContent(detail.content || "");
+        const loadedTitle = detail.postTitle || "";
+        const loadedContent = detail.content || "";
+        setTitle(loadedTitle);
+        setContent(loadedContent);
+        setInitialTitle(loadedTitle);
+        setInitialContent(loadedContent);
 
         try {
           const att = await fileApi.getByPostId(numericPostId);
@@ -162,15 +168,37 @@ export default function CommunityBoardEditPage({
     setSuccessMessage("");
 
     try {
-      await postApi.update(numericPostId, {
-        postTitle: title.trim(),
-        content,
-      });
+      const nextTitle = title.trim();
+      const hasPostContentChange =
+        nextTitle !== String(initialTitle || "").trim() || content !== String(initialContent || "");
+
+      // 파일만 교체하는 경우, 본문 수정 API(모더레이션 포함)를 건너뛰고 첨부 업로드만 수행한다.
+      if (hasPostContentChange) {
+        await postApi.update(numericPostId, {
+          postTitle: nextTitle,
+          content,
+        });
+      }
 
       if (!isMountedRef.current) return;
 
       if (file) {
+        if (existingAttachment?.fileId) {
+          try {
+            await fileApi.delete(existingAttachment.fileId);
+          } catch (_) {
+            // 기존 첨부 삭제 실패는 신규 업로드를 막지 않는다.
+          }
+        }
         await fileApi.upload(file, "POST", numericPostId);
+        setExistingAttachment({
+          fileId: null,
+          originalName: file.name,
+        });
+      }
+      if (hasPostContentChange) {
+        setInitialTitle(nextTitle);
+        setInitialContent(content);
       }
       if (!isMountedRef.current) return;
 

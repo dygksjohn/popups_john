@@ -51,6 +51,17 @@ export const fileApi = {
   },
 
   /**
+   * GET /api/files/by-post/{postId}/list — 게시글 첨부 목록 조회
+   * @returns {Promise<Array<{ fileId, originalName, publicPath }>>}
+   */
+  getListByPostId(postId) {
+    if (postId == null) throw new Error("fileApi.getListByPostId: postId is required");
+    return axiosInstance
+      .get(`/api/files/by-post/${postId}/list`)
+      .then((res) => unwrap(res) ?? []);
+  },
+
+  /**
    * GET /api/files/{fileId}/download — 다운로드(302 리다이렉트)
    * 브라우저에서 링크로 열거나 publicPath 직접 사용 가능.
    */

@@ -27,7 +27,7 @@ import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 const FILTER_OPTIONS = ["전체", "답변완료", "대기중"];
 const SORT_OPTIONS = [
   { key: "recent", label: "최신순" },
-  { key: "views", label: "조회순" },
+  { key: "oldest", label: "오래된순" },
 ];
 
 /* date formatter */
@@ -40,6 +40,20 @@ function fmtDate(dt) {
 function toTimestamp(value) {
   const time = Date.parse(String(value || ""));
   return Number.isFinite(time) ? time : 0;
+}
+
+function maskDisplayName(value, maxUnits) {
+  const src = String(value || "").trim();
+  if (!src) return "";
+  let used = 0;
+  let out = "";
+  for (const ch of src) {
+    const units = ch.charCodeAt(0) <= 127 ? 1 : 2;
+    if (used + units > maxUnits) return `${out}*`;
+    out += ch;
+    used += units;
+  }
+  return out;
 }
 
 function hasAnswer(item) {
@@ -418,7 +432,7 @@ export default function ServicePage() {
     try {
       const statusFilterParam =
         filter === "답변완료" ? "ANSWERED" : filter === "대기중" ? "WAITING" : undefined;
-      const sortKeyParam = sortKey === "views" ? "views" : "recent";
+      const sortKeyParam = sortKey === "oldest" ? "oldest" : "recent";
       const keyword = search.trim();
 
       const res = await qnaApi.list(page, PAGE_SIZE, {
@@ -536,6 +550,7 @@ export default function ServicePage() {
         currentPath={currentPath}
         onNavigate={setCurrentPath}
       />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} .board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
       <main
         style={{
           width: isMobile
@@ -950,6 +965,7 @@ export default function ServicePage() {
                 q?.nickname ||
                 q?.userName ||
                 (q?.userId ? `회원 #${q.userId}` : "익명 사용자");
+              const maskedAuthorLabel = maskDisplayName(authorLabel, 10);
 
               return (
                 <div
@@ -1084,7 +1100,7 @@ export default function ServicePage() {
                             color: "#6b7280",
                           }}
                         >
-                          <span>{authorLabel}</span>
+                          <span>{maskedAuthorLabel}</span>
                           <span style={{ color: "#cbd5e1" }}>·</span>
                           <span
                             style={{ color: "#9ca3af", whiteSpace: "nowrap" }}
@@ -1104,7 +1120,7 @@ export default function ServicePage() {
                           flexShrink: 0,
                         }}
                       >
-                        {authorLabel}
+                        {maskedAuthorLabel}
                       </span>
                     )}
                     {!isMobile && (

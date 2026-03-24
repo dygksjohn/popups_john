@@ -124,9 +124,10 @@ public class ReviewService {
         String keywordEffective = (keyword == null || keyword.isBlank()) ? null : keyword;
 
         String sk = (sortKey == null || sortKey.isBlank()) ? "latest" : sortKey.trim().toLowerCase();
+        String publicStatus = ReviewStatus.PUBLIC.name();
         Page<Review> resultPage = switch (sk) {
-            case "comments" -> reviewRepository.searchPublicSortedByCommentCount(
-                    ReviewStatus.PUBLIC,
+            case "comments", "comment", "commentcount" -> reviewRepository.searchPublicSortedByCommentCount(
+                    publicStatus,
                     ratingByte,
                     keywordEffective,
                     writerId,

@@ -251,6 +251,7 @@ export default function CommunityFaq() {
                 <span style={{ flex: 1, textAlign: "center" }}>제목</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
+                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>조회수</span>
               </div>}
               {pagedItems.map((faq, index) => {
                 const rowNumber = totalElements - ((currentPage - 1) * PAGE_SIZE) - index;
@@ -288,11 +289,14 @@ export default function CommunityFaq() {
                           <span>관리자</span>
                           <span style={{ color: "#cbd5e1" }}>·</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(faq.createdAt)}</span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
+                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>조회수 {Number(faq?.viewCount ?? 0)}</span>
                         </div>
                       )}
                     </div>
                     {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>관리자</span>}
                     {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtDate(faq.createdAt)}</span>}
+                    {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>{Number(faq?.viewCount ?? 0)}</span>}
                   </div>
                 );
               })}

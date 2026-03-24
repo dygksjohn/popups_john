@@ -7,6 +7,7 @@ import { reportApi } from "../../../app/http/reportApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { userApi } from "../../../app/http/userApi";
 import { fileApi } from "../../../app/http/fileApi";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 import CommunityDetailLayout from "./shared/CommunityDetailLayout";
 import ReportModal from "../components/ReportModal";
 
@@ -409,7 +410,7 @@ export default function CommunityPostDetailPage({
             </div>
             {attachment ? (
               <a
-                href={fileApi.getDownloadUrl(attachment.fileId)}
+                href={toPublicAssetUrl(attachment.publicPath)}
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: "#028A6C", fontSize: 14, fontWeight: 700, textDecoration: "none" }}

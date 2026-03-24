@@ -92,16 +92,20 @@ public class PostService {
         SearchType effectiveType = (searchType != null) ? searchType : SearchType.TITLE_CONTENT;
 
         Page<Post> page;
-        if ("comments".equalsIgnoreCase(sortKey)) {
+        String normalizedSortKey = sortKey == null ? "" : sortKey.trim().toLowerCase();
+        if ("comments".equals(normalizedSortKey)
+                || "comment".equals(normalizedSortKey)
+                || "commentcount".equals(normalizedSortKey)) {
+            String publishedStatus = PostStatus.PUBLISHED.name();
             page = switch (effectiveType) {
-                case TITLE -> postRepository.searchByTitleSortedByCommentCount(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
-                case CONTENT -> postRepository.searchByContentSortedByCommentCount(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+                case TITLE -> postRepository.searchByTitleSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageable);
+                case CONTENT -> postRepository.searchByContentSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageable);
                 case WRITER -> {
                     Long writerId = parseLongOrNull(keyword);
                     if (writerId == null) yield Page.empty(pageable);
-                    yield postRepository.searchByWriterSortedByCommentCount(resolvedBoardId, writerId, PostStatus.PUBLISHED, pageable);
+                    yield postRepository.searchByWriterSortedByCommentCount(resolvedBoardId, writerId, publishedStatus, pageable);
                 }
-                default -> postRepository.searchByTitleContentSortedByCommentCount(resolvedBoardId, keyword, PostStatus.PUBLISHED, pageable);
+                default -> postRepository.searchByTitleContentSortedByCommentCount(resolvedBoardId, keyword, publishedStatus, pageable);
             };
         } else {
             page = switch (effectiveType) {

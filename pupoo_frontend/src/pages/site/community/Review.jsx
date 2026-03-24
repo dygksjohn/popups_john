@@ -31,11 +31,11 @@ const REVIEW_FETCH_SIZE = 100;
 
 const RATING_OPTIONS = [
   { value: "ALL", label: "별점 전체" },
-  { value: "1", label: "1점" },
-  { value: "2", label: "2점" },
-  { value: "3", label: "3점" },
-  { value: "4", label: "4점" },
   { value: "5", label: "5점" },
+  { value: "4", label: "4점" },
+  { value: "3", label: "3점" },
+  { value: "2", label: "2점" },
+  { value: "1", label: "1점" },
 ];
 
 const SORT_OPTIONS = [
@@ -626,6 +626,11 @@ export default function Review() {
                   >
                     등록일
                   </span>
+                  <span
+                    style={{ width: 100, textAlign: "center", flexShrink: 0 }}
+                  >
+                    조회수
+                  </span>
                 </div>
               )}
               {pagedItems.map((item, index) => {
@@ -737,17 +742,11 @@ export default function Review() {
                           }}
                         >
                           {displayReviewListTitle(item)}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 12,
-                            color: "#9ca3af",
-                            fontWeight: 600,
-                            flexShrink: 0,
-                            marginLeft: 6,
-                          }}
-                        >
-                          +{commentCount}
+                          {commentCount > 0 && (
+                            <span style={{ fontWeight: 700 }}>
+                              {`\u00A0\u00A0+${commentCount}`}
+                            </span>
+                          )}
                         </span>
                       </div>
                       {isMobile && (
@@ -782,6 +781,12 @@ export default function Review() {
                             style={{ color: "#9ca3af", whiteSpace: "nowrap" }}
                           >
                             {fmtDate(item.createdAt)}
+                          </span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
+                          <span
+                            style={{ color: "#9ca3af", whiteSpace: "nowrap" }}
+                          >
+                            조회수 {Number(item?.viewCount ?? 0)}
                           </span>
                         </div>
                       )}
@@ -841,6 +846,20 @@ export default function Review() {
                         }}
                       >
                         {fmtDate(item.createdAt)}
+                      </span>
+                    )}
+                    {!isMobile && (
+                      <span
+                        style={{
+                          width: 100,
+                          textAlign: "center",
+                          fontSize: 13,
+                          color: "#9ca3af",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {Number(item?.viewCount ?? 0)}
                       </span>
                     )}
                   </div>

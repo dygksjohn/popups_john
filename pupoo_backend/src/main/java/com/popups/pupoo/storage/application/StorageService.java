@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -102,7 +103,7 @@ public class StorageService {
                     ? StoredFile.forPost(originalName, key, uploaderId, contentId)
                     : StoredFile.forNotice(originalName, key, uploaderId, contentId);
 
-            StoredFile saved = storedFileRepository.save(storedFile);
+            StoredFile saved = storedFileRepository.save(Objects.requireNonNull(storedFile));
             String publicPath = storageUrlResolver.toPublicUrlFromKey(key);
 
             return UploadResponse.of(saved.getFileId(), saved.getOriginalName(), storedName, publicPath);
@@ -182,6 +183,22 @@ public class StorageService {
                     return FileResponse.of(f.getFileId(), f.getOriginalName(), publicPath);
                 })
                 .orElse(null);
+    }
+
+    /**
+     * 게시글에 연결된 첨부파일 목록을 조회한다.
+     * soft delete 된 파일은 제외한다.
+     */
+    @Transactional(readOnly = true)
+    public List<FileResponse> getFilesByPostId(Long postId) {
+        return storedFileRepository.findAllByPostIdAndDeletedAtIsNullOrderByFileIdDesc(postId)
+                .stream()
+                .map(f -> {
+                    String key = toKey(f);
+                    String publicPath = storageUrlResolver.toPublicUrlFromKey(key);
+                    return FileResponse.of(f.getFileId(), f.getOriginalName(), publicPath);
+                })
+                .toList();
     }
 
     @Transactional(readOnly = true)
