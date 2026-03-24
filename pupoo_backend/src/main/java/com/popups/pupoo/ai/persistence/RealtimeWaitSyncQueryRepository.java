@@ -19,6 +19,13 @@ public interface RealtimeWaitSyncQueryRepository {
             LocalDateTime toExclusive
     );
 
+    List<BoothAverageStayRow> findRecentBoothAverageStays(
+            Collection<Long> boothIds,
+            LocalDateTime fromInclusive,
+            LocalDateTime toExclusive,
+            int sampleSize
+    );
+
     List<ActiveBoothRow> findActiveBooths(LocalDateTime baseTime);
 
     record RunningProgramRow(
@@ -38,6 +45,9 @@ public interface RealtimeWaitSyncQueryRepository {
     record ProgramCheckinCountRow(Long programId, int checkinCount) {
     }
 
-    record ActiveBoothRow(Long boothId) {
+    record BoothAverageStayRow(Long boothId, BigDecimal avgStayMinutes, int sampleCount) {
+    }
+
+    record ActiveBoothRow(Long boothId, Integer concurrency) {
     }
 }
