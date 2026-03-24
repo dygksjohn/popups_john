@@ -1,11 +1,11 @@
 // file: src/main/java/com/popups/pupoo/auth/security/authentication/filter/JwtAuthenticationFilter.java
 package com.popups.pupoo.auth.security.authentication.filter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popups.pupoo.auth.token.JwtProvider;
 import com.popups.pupoo.common.api.ApiResponse;
 import com.popups.pupoo.common.api.ErrorResponse;
 import com.popups.pupoo.common.exception.ErrorCode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,12 +21,14 @@ import java.util.List;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final String NOTIFICATION_STREAM_PATH = "/api/notifications/stream";
+
     private final JwtProvider jwtProvider;
 
     /**
-     * ObjectMapper는 반드시 Spring Boot가 관리하는 Bean(ObjectMapper)을 주입받아 사용한다.
-     * - 이유: LocalDateTime 등 Java Time 직렬화 모듈(JSR-310)이 자동 등록된 ObjectMapper를 사용해야 한다.
-     * - new ObjectMapper()를 쓰면 JavaTimeModule 누락으로 401 응답 직렬화 중 500이 발생할 수 있다.
+     * ObjectMapper는 Spring Boot가 관리하는 Bean을 주입받아 사용한다.
+     * - 이유: LocalDateTime 등 Java Time 직렬화 모듈(JSR-310)이 등록된 ObjectMapper를 써야 한다.
+     * - new ObjectMapper()를 쓰면 JavaTimeModule 누락으로 401 응답 직렬화 중 500이 날 수 있다.
      */
     private final ObjectMapper objectMapper;
 
@@ -43,13 +45,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String accessToken = resolveBearerToken(request);
 
-            // Authorization 헤더가 없으면 "미인증"으로 다음 필터로 넘긴다.
+            // 인증 토큰이 없으면 미인증 상태로 다음 필터로 넘긴다.
             if (accessToken == null) {
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            // Authorization 헤더가 있는 경우는 strict 정책으로 검증 실패 시 즉시 401
+            // 토큰이 있는 요청은 strict 정책으로 검증 실패 시 즉시 401 처리한다.
             jwtProvider.validateAccessToken(accessToken);
 
             Long userId = jwtProvider.getUserId(accessToken);
@@ -68,18 +70,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /**
      * Bearer 토큰 추출
-     * - Authorization 헤더 없으면 null (anonymous로 처리)
-     * - 헤더가 있는데 형식이 틀리면 strict 401
+     * - Authorization 헤더 없으면 null (anonymous 처리)
+     * - SSE 스트림은 access_token query 파라미터를 보조로 허용
+     * - 헤더가 있는데 형식이 다르면 strict 401
      */
     private String resolveBearerToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
 
-        // Authorization 헤더가 없으면 토큰이 없는 요청으로 처리
         if (header == null || header.isBlank()) {
+            String queryToken = resolveSseAccessToken(request);
+            if (queryToken != null) {
+                return queryToken;
+            }
             return null;
         }
 
-        // Authorization 헤더가 존재하는데 Bearer 규칙이 아니면 strict 401 대상
         if (!header.startsWith("Bearer ")) {
             throw new IllegalArgumentException("Invalid Authorization header format");
         }
@@ -90,6 +95,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return token;
+    }
+
+    // EventSource는 Authorization 헤더를 붙일 수 없어 SSE 경로에 한해 query token을 허용한다.
+    private String resolveSseAccessToken(HttpServletRequest request) {
+        if (!NOTIFICATION_STREAM_PATH.equals(request.getRequestURI())) {
+            return null;
+        }
+
+        String token = request.getParameter("access_token");
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+
+        return token.trim();
     }
 
     private void writeUnauthorized(HttpServletResponse response, HttpServletRequest request) throws IOException {
@@ -111,26 +130,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * ✅ JWT 필터를 아예 타지 않아야 하는 경로들
-     * - /api/auth/** : 로그인/리프레시/로그아웃/회원가입/OAuth 등은 permitAll이며 쿠키 기반 처리도 포함
+     * JWT 필터를 타지 않아도 되는 경로
+     * - /api/auth/** : 로그인/refresh/logout/OAuth
      * - OPTIONS : 프리플라이트
-     * - swagger/actuator 등 운영 편의(선택)
+     * - swagger/actuator : 운영 점검용
      */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
 
-        // Preflight
         if (HttpMethod.OPTIONS.matches(request.getMethod())) {
             return true;
         }
 
-        // ✅ auth 전체 스킵 (logout 포함)
         if (path.startsWith("/api/auth/")) {
             return true;
         }
 
-        // (선택) 문서/헬스체크 스킵
         if (path.startsWith("/swagger-ui/")
                 || path.startsWith("/v3/api-docs/")
                 || path.equals("/actuator/health")

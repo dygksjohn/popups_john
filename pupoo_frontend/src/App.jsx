@@ -50,6 +50,8 @@ import JoinSocial from "./pages/site/auth/join/JoinSocial";
 import KakaoCallback from "./pages/site/auth/KakaoCallback";
 import KakaoJoin from "./pages/site/auth/join/KakaoJoin";
 import KakaoOtp from "./pages/site/auth/join/KakaoOtp";
+import NaverCallback from "./pages/site/auth/NaverCallback";
+import NaverJoin from "./pages/site/auth/join/NaverJoin";
 
 /* Payment */
 import Checkout from "./pages/site/payment/Checkout";
@@ -472,6 +474,8 @@ export default function App() {
             }
           />
           <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
+          <Route path="/naver/callback" element={<NaverCallback />} />
+          <Route path="/auth/callback" element={<NaverCallback />} />
           <Route
             path="/auth/join/kakao"
             element={
@@ -488,6 +492,14 @@ export default function App() {
               </PublicOnly>
             }
           />
+          <Route
+            path="/auth/join/naver"
+            element={
+              <PublicOnly>
+                <NaverJoin />
+              </PublicOnly>
+            }
+          />
           <Route path="/join" element={<JoinSelect />} />
           <Route path="/find-password" element={<FindPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
@@ -501,6 +513,14 @@ export default function App() {
           <Route path="/event/eventschedule" element={<EventSchedule />} />
           <Route path="/payment/checkout" element={<Checkout />} />
           <Route path="/payment/approve" element={<PaymentApprove />} />
+          <Route
+            path="/payment/cancel"
+            element={<Navigate to="/registration/paymenthistory" replace />}
+          />
+          <Route
+            path="/payment/fail"
+            element={<Navigate to="/registration/paymenthistory" replace />}
+          />
           <Route
             path="/program/experience/:eventId?"
             element={<Experience />}

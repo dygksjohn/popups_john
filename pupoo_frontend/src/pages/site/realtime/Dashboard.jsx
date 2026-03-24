@@ -66,6 +66,13 @@ const styles = `
   }
   .rt-root *, .rt-root *::before, .rt-root *::after { box-sizing: border-box; font-family: inherit; }
   .rt-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
+  .rt-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
   .rt-back-btn {
     display: inline-flex;
     align-items: center;
@@ -82,6 +89,43 @@ const styles = `
     margin-bottom: 20px;
     font-family: inherit;
     letter-spacing: -0.01em;
+  }
+  .rt-top-actions .rt-back-btn { margin-bottom: 0; }
+  .rt-event-mode-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+  .rt-mode-btn {
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background: #f3f4f6;
+    color: #6b7280;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .rt-mode-btn.active {
+    background: #02A17E;
+    color: #fff;
+    border-color: #02A17E;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+  }
+  .rt-mode-btn:hover {
+    background: #e5e7eb;
+    border-color: #cbd5e1;
+    color: #4b5563;
+  }
+  .rt-mode-btn.active:hover {
+    background: #028A6C;
+    border-color: #028A6C;
+    color: #fff;
   }
   .rt-back-btn:hover {
     background: #1f2937;
@@ -494,11 +538,12 @@ const styles = `
   }
   .rt-prediction-bottom {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
     align-items: stretch;
   }
   .rt-prediction-chart-card {
+    grid-column: span 2;
     border: 1px solid #e8ecf2;
     border-radius: 16px;
     background: #fff;
@@ -526,6 +571,7 @@ const styles = `
     min-width: 0;
   }
   .rt-prediction-near-card {
+    grid-column: span 1;
     border: 1px solid #e8ecf2;
     border-radius: 16px;
     background: #fff;
@@ -533,6 +579,10 @@ const styles = `
     display: flex;
     flex-direction: column;
     gap: 10px;
+    height: 472px;
+    max-height: 472px;
+    min-height: 0;
+    overflow: hidden;
     box-shadow: 0 1px 4px rgba(0,0,0,0.03);
   }
   .rt-prediction-near-title {
@@ -580,9 +630,16 @@ const styles = `
   .rt-near-timeline {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 8px;
     flex: 1;
+    min-height: 0;
+    padding-right: 4px;
     overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+  .rt-near-timeline .rt-timeline-item {
+    min-height: 64px;
+    padding: 12px 16px;
   }
   .rt-near-item {
     display: flex;
@@ -1143,6 +1200,13 @@ const styles = `
     .rt-prediction-bottom {
       grid-template-columns: 1fr;
     }
+    .rt-prediction-near-card {
+      height: auto;
+      max-height: none;
+    }
+    .rt-near-timeline {
+      max-height: 360px;
+    }
     .rt-program-grid {
       grid-template-columns: 1fr;
     }
@@ -1152,6 +1216,9 @@ const styles = `
   @media (max-width: 640px) {
     .rt-container { padding: 20px 16px 48px; }
     .rt-container.selector-mode { padding-top: 88px; }
+    .rt-top-actions { align-items: stretch; }
+    .rt-event-mode-nav { width: 100%; margin-left: 0; }
+    .rt-mode-btn { flex: 1 1 calc(50% - 8px); min-width: 132px; }
     .rt-hero-kpi-grid {
       grid-template-columns: 1fr;
       width: 100%;
@@ -1198,6 +1265,12 @@ export const SUBTITLE_MAP = {
   "/realtime/checkinstatus": "참가자 체크인 현황을 실시간으로 확인합니다",
   "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 확인합니다",
 };
+const EVENT_REALTIME_BUTTONS = [
+  { key: "dashboard", label: "통합현황", path: "/realtime/dashboard", tone: "dashboard" },
+  { key: "waiting", label: "대기현황", path: "/realtime/waitingstatus", tone: "waiting" },
+  { key: "checkin", label: "체크인 현황", path: "/realtime/checkinstatus", tone: "checkin" },
+  { key: "vote", label: "투표현황", path: "/realtime/votestatus", tone: "vote" },
+];
 
 const FALLBACK_HOURS = Array.from({ length: 12 }, (_, index) => 10 + index);
 const FULL_DAY_HOURS = Array.from({ length: 24 }, (_, index) => index);
@@ -2084,11 +2157,6 @@ function DashboardContent({ eventId }) {
     return clamp(Math.round(sum / measuredCongestions.length), 0, 100);
   }, [measuredCongestions]);
 
-  const hotBoothCount = useMemo(
-    () => measuredCongestions.filter((row) => row.congestionPercent >= 80).length,
-    [measuredCongestions],
-  );
-
   const hourlyAverageCongestion = useMemo(() => {
     const samples = toArray(hourlyRows)
       .map((row) =>
@@ -2753,7 +2821,7 @@ function DashboardContent({ eventId }) {
         const rightTime = right.measuredAt ? new Date(right.measuredAt).getTime() : 0;
         return rightTime - leftTime;
       })
-      .slice(0, 6)
+      .slice(0, 12)
       .map((row) => {
         const programId = Number(row?.programId);
         const programName = Number.isFinite(programId) ? programNameMap.get(programId) : null;
@@ -2766,7 +2834,7 @@ function DashboardContent({ eventId }) {
 
     if (liveItems.length > 0) return liveItems;
 
-    return congestionRows.slice(0, 6).map((row) => ({
+    return congestionRows.slice(0, 12).map((row) => ({
       time: "--:--",
       text: `${row.placeName || "현장 프로그램"}의 실시간 혼잡 데이터를 수집 중입니다.`,
       color: "#9ca3af",
@@ -3061,105 +3129,50 @@ function DashboardContent({ eventId }) {
                     </span>
                   ) : null}
                 </div>
+                <div className="rt-chart-guide">{chartGuideText}</div>
               </div>
             </div>
 
             <div className="rt-prediction-near-card">
-              <div className="rt-prediction-near-title">가까운 시간대 예측</div>
-              <div className="rt-prediction-near-sub">
-                현재 상태에서 곧 어떻게 변할지 시간 순서로 확인하세요.
+              <div className="rt-prediction-near-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <Activity size={14} color="#6366f1" />
+                  현장 참고 알림
+                </span>
+                <span className="rt-card-tag">15초마다 갱신</span>
               </div>
-              {aiTimelinePreview.length > 0 ? (
-                <div className="rt-near-timeline">
-                  {aiTimelinePreview.slice(0, 6).map((point) => {
-                    const score = Math.round(point.score);
-                    const meta = resolveCongestionMeta(score);
-                    const wait = estimateWaitMinutes(score);
-                    const nearColor = isEndedEvent ? "#9ca3af" : meta.color;
-                    return (
-                      <div key={`${point.time}-${point.score}`} className="rt-near-item">
-                        <span className="rt-near-time">{formatKoreanTime(point.time)}</span>
-                        <span className="rt-near-dot" style={{ background: nearColor }} />
-                        <span className="rt-near-status" style={{ color: nearColor }}>{meta.label}</span>
-                        <span className="rt-near-detail">대기 약 {wait}분</span>
-                        <div className="rt-near-bar-wrap">
-                          <div className="rt-near-bar-track">
-                            <div className="rt-near-bar-fill" style={{ width: `${score}%`, background: nearColor }} />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rt-prediction-empty">
-                  예측 데이터가 준비되면 가까운 시간대 흐름을 안내해 드릴게요.
-                </div>
-              )}
+
+              <div className="rt-timeline rt-near-timeline">
+                {activities.length === 0 ? (
+                  <div className="rt-empty">
+                    <span className="rt-empty-strong">실시간 참고 정보가 아직 없습니다</span>
+                    곧 최신 혼잡 반영 내역이 표시됩니다.
+                  </div>
+                ) : (
+                  activities.map((activity, index) => (
+                    <div
+                      key={`${activity.time}-${index}`}
+                      className={`rt-timeline-item anim-slide-right ${timelineVisible.includes(index) ? "visible" : ""}`}
+                    >
+                      <div
+                        className="rt-timeline-dot"
+                        style={{ background: activity.color }}
+                      />
+                      <div className="rt-timeline-time">{activity.time}</div>
+                      <div className="rt-timeline-text">{activity.text}</div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="rt-chart-guide">{chartGuideText}</div>
 
         {aiErrorMsg ? (
           <div style={{ marginTop: 12, fontSize: 12, color: "#b91c1c" }}>{aiErrorMsg}</div>
         ) : null}
       </div>
-
-      <div className="rt-card">
-        <div className="rt-card-accent" style={{ background: "#6366f1" }} />
-        <div className="rt-card-header">
-          <div className="rt-card-title">
-            <div className="rt-card-title-icon">
-              <Activity size={14} color="#6366f1" />
-            </div>
-            현장 참고 알림
-          </div>
-          <span className="rt-card-tag">15초마다 갱신</span>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 14, color: "#6b7280", margin: "0 0 16px", fontWeight: 500 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#3DBFA0", boxShadow: "0 0 4px #3DBFA0", flexShrink: 0 }} />
-            실시간 수집 <strong style={{ color: "#111827", fontWeight: 700 }}>{measuredCongestions.length}</strong>개 지점
-          </span>
-          <span style={{ color: "#e0e0e0" }}>|</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: hotBoothCount > 0 ? "#ef4444" : "#d1d5db", boxShadow: hotBoothCount > 0 ? "0 0 4px #ef4444" : "none", flexShrink: 0 }} />
-            혼잡 주의 <strong style={{ color: hotBoothCount > 0 ? "#ef4444" : "#111827", fontWeight: 700 }}>{hotBoothCount}</strong>개
-          </span>
-          <span style={{ color: "#e0e0e0" }}>|</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: hasQueuePrograms ? "#22c55e" : "#d1d5db", boxShadow: hasQueuePrograms ? "0 0 4px #22c55e" : "none", flexShrink: 0 }} />
-            {hasQueuePrograms ? "대기 정보 반영 중" : "집계 대기 중"}
-          </span>
-        </div>
-
-        <div className="rt-timeline">
-          {activities.length === 0 ? (
-            <div className="rt-empty">
-              <span className="rt-empty-strong">실시간 참고 정보가 아직 없습니다</span>
-              곧 최신 혼잡 반영 내역이 표시됩니다.
-            </div>
-          ) : (
-            activities.map((activity, index) => (
-              <div
-                key={`${activity.time}-${index}`}
-                className={`rt-timeline-item anim-slide-right ${timelineVisible.includes(index) ? "visible" : ""}`}
-              >
-                <div
-                  className="rt-timeline-dot"
-                  style={{ background: activity.color }}
-                />
-                <div className="rt-timeline-time">{activity.time}</div>
-                <div className="rt-timeline-text">{activity.text}</div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-      </div>
+    </div>
     </>
   );
 }
@@ -3186,10 +3199,24 @@ export default function Dashboard() {
       <main className={`rt-container${eventId ? "" : " selector-mode"}`}>
         {eventId ? (
           <>
-            <button className="rt-back-btn" onClick={() => navigate("/realtime/dashboard")}>
-              <ArrowLeft size={15} />
-              목록으로
-            </button>
+            <div className="rt-top-actions">
+              <button className="rt-back-btn" onClick={() => navigate("/realtime/dashboard")}>
+                <ArrowLeft size={15} />
+                목록으로
+              </button>
+              <div className="rt-event-mode-nav">
+                {EVENT_REALTIME_BUTTONS.map((button) => (
+                  <button
+                    key={button.key}
+                    type="button"
+                    className={`rt-mode-btn ${button.tone}${button.key === "dashboard" ? " active" : ""}`}
+                    onClick={() => navigate(`${button.path}/${eventId}`)}
+                  >
+                    {button.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <DashboardContent eventId={eventId} />
           </>
         ) : (

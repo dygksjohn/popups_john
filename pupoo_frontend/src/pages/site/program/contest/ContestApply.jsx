@@ -480,7 +480,7 @@ export default function ContestApply() {
                     등록된 반려동물이 없습니다.
                   </div>
                   <button
-                    onClick={() => navigate("/mypage/pet")}
+                    onClick={() => navigate("/mypage/pets/new")}
                     style={{
                       padding: "9px 20px",
                       borderRadius: 10,

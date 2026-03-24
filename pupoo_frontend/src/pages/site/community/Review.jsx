@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import CommunityPagination from "./shared/CommunityPagination";
 import {
   Search,
@@ -22,6 +22,7 @@ import { eventApi } from "../../../app/http/eventApi";
 import { reviewReplyApi } from "../../../app/http/replyApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
+import BadgeTag from "./shared/BadgeTag";
 import { htmlToPlainText } from "./shared/communityHtml";
 import BadgeTag from "./shared/BadgeTag";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
@@ -97,6 +98,7 @@ function renderStars(rating = 0, size = 14) {
 
 export default function Review() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const badge = getBoardBadge("REVIEW");
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window === "undefined" ? 1440 : window.innerWidth,
@@ -124,8 +126,7 @@ export default function Review() {
         const rating =
           ratingFilter === "ALL" ? undefined : Number(ratingFilter);
 
-        const sortKeyParam =
-          sortOption === "latest" ? undefined : sortOption;
+        const sortKeyParam = sortOption === "latest" ? undefined : sortOption;
 
         const data = await reviewApi.list({
           page: Math.max(0, Number(pageNum) - 1),
@@ -146,8 +147,7 @@ export default function Review() {
         setTotalElements(0);
         setTotalPages(1);
         setError(
-          err?.response?.data?.message ||
-            "행사 후기를 불러오지 못했습니다.",
+          err?.response?.data?.message || "행사 후기를 불러오지 못했습니다.",
         );
       } finally {
         setLoading(false);
@@ -639,17 +639,13 @@ export default function Review() {
                 const reviewTitle =
                   item.reviewTitle || item.title || "행사 후기";
                 const authorLabel =
-                  item?.writerNickname ||
-                  item?.writerEmail ||
                   item?.author ||
                   item?.nickname ||
                   item?.userName ||
                   (item?.userId ? `회원 #${item.userId}` : "익명 사용자");
                 const maskedAuthorLabel = maskDisplayName(authorLabel, 10);
                 const rowNumber =
-                  totalElements -
-                  (currentPage - 1) * PAGE_SIZE -
-                  index;
+                  totalElements - (currentPage - 1) * PAGE_SIZE - index;
                 return (
                   <div
                     key={item.reviewId}
@@ -775,7 +771,7 @@ export default function Review() {
                             {renderStars(Number(item.rating || 0), 12)}
                           </span>
                           <span style={{ color: "#cbd5e1" }}>·</span>
-                          <span>{maskedAuthorLabel}</span>
+                          <span>{authorLabel}</span>
                           <span style={{ color: "#cbd5e1" }}>·</span>
                           <span
                             style={{ color: "#9ca3af", whiteSpace: "nowrap" }}

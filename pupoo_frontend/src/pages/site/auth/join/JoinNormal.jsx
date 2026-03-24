@@ -4,6 +4,7 @@ import { authApi } from "../api/authApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
 import { petApi } from "../../../../features/pet/api/petApi";
+import { getSmsRequestErrorMessage, normalizeDigits, toKoreanPhoneE164 } from "../../../../features/auth/utils/smsAuth";
 import {
   ClipboardCheck, PenLine, Smartphone, Mail,
   Check, ChevronDown, Info, Clock, ShieldCheck,
@@ -460,7 +461,7 @@ function getApiData(res) {
   if (res && typeof res === "object" && "data" in res) return res.data;
   return null;
 }
-const digitsOnly = (s) => (s || "").replace(/[^0-9]/g, "");
+const digitsOnly = normalizeDigits;
 
 function parsePetsForCreate(pets) {
   const rows = Array.isArray(pets) ? pets : [];
@@ -513,6 +514,7 @@ export default function JoinNormal() {
   const [emailRequested, setEmailRequested] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [emailCode, setEmailCode] = useState("");
+  const [emailRequestMessage, setEmailRequestMessage] = useState("");
   const [otpCooldown, setOtpCooldown] = useState(0);
 
   useEffect(() => {
@@ -553,6 +555,7 @@ export default function JoinNormal() {
     if (!m2 || !m3) return "";
     return `${digitsOnly(form.mobile1)}${m2}${m3}`;
   }, [form.mobile1, form.mobile2, form.mobile3]);
+  const phoneMobileE164 = useMemo(() => toKoreanPhoneE164(phoneMobileDigits), [phoneMobileDigits]);
 
   const socialStateFromRoute = location.state?.signupType === "SOCIAL" ? location.state : null;
   const socialStateFromStorage = (() => {
@@ -592,8 +595,8 @@ export default function JoinNormal() {
     setLoading(true); setError("");
     try {
       const payload = isSocial
-        ? { signupType: "SOCIAL", socialProvider: socialState.socialProvider ?? "KAKAO", socialProviderUid: socialState.socialProviderUid, email: form.email.trim(), nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileDigits }
-        : { signupType: "EMAIL", email: form.email.trim(), password: form.password, nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileDigits };
+        ? { signupType: "SOCIAL", socialProvider: socialState.socialProvider ?? "KAKAO", socialProviderUid: socialState.socialProviderUid, email: form.email.trim(), nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileE164 }
+        : { signupType: "EMAIL", email: form.email.trim(), password: form.password, nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileE164 };
       const res = await authApi.signupStart(payload);
       const data = getApiData(res); const key = data?.signupKey;
       if (!key) throw new Error("가입 세션 생성에 실패했습니다. 다시 시도해주세요.");
@@ -617,20 +620,19 @@ export default function JoinNormal() {
     if (!otpCode.trim()) throw new Error("인증번호를 입력하세요.");
     setLoading(true); setError("");
     try {
-      await authApi.signupVerifyOtp({ signupKey, phone: phoneMobileDigits, otpCode: otpCode.trim() });
+      await authApi.signupVerifyOtp({ signupKey, phone: phoneMobileE164, otpCode: otpCode.trim() });
       setStep("COMPLETE");
     } finally { setLoading(false); }
   };
 
   const requestEmailVerification = async () => {
     if (loading || !signupKey) return;
-    setError(""); setLoading(true);
+    setError(""); setEmailRequestMessage(""); setLoading(true);
     try {
-      const res = await authApi.signupEmailRequest({ signupKey });
-      const body = res?.data ?? res;
-      const devCode = body?.data?.devCode || body?.devCode || body?.data?.code || "";
-      if (devCode) setEmailCode(devCode);
+      await authApi.signupEmailRequest({ signupKey });
+      setEmailCode("");
       setEmailRequested(true);
+      setEmailRequestMessage("이메일을 확인해 주세요. 받은 인증 코드를 입력하면 가입을 완료할 수 있습니다.");
     } catch (err) { setUserError(err?.response?.data?.message ?? err?.message ?? "이메일 인증 요청에 실패했습니다."); }
     finally { setLoading(false); }
   };
@@ -638,10 +640,11 @@ export default function JoinNormal() {
   const confirmEmailVerification = async () => {
     if (loading || !signupKey) return;
     if (!emailCode.trim()) return setError("인증 코드를 입력하세요.");
-    setError(""); setLoading(true);
+    setError(""); setEmailRequestMessage(""); setLoading(true);
     try {
       await authApi.signupEmailConfirm({ signupKey, code: emailCode.trim() });
       setEmailVerified(true);
+      setEmailRequestMessage("이메일 인증이 완료되었습니다.");
     } catch (err) { setUserError(err?.response?.data?.message ?? err?.message ?? "인증 확인에 실패했습니다."); }
     finally { setLoading(false); }
   };
@@ -671,7 +674,13 @@ export default function JoinNormal() {
       if (step === "FORM") { await signupStart(); return; }
       if (step === "OTP") { await verifyOtp(); return; }
       if (step === "COMPLETE") { await completeSignup(); return; }
-    } catch (err) { setUserError(err?.response?.data?.message ?? err?.message); }
+    } catch (err) {
+      if (step === "FORM") {
+        setUserError(getSmsRequestErrorMessage(err));
+        return;
+      }
+      setUserError(err?.response?.data?.message ?? err?.message);
+    }
   };
 
   const stepIndex = step === "AGREE" ? 0 : step === "FORM" ? 1 : step === "OTP" ? 2 : 3;
@@ -1002,7 +1011,7 @@ export default function JoinNormal() {
                 </div>
               )}
               <div style={{ marginTop: 20, textAlign: "center" }}>
-                <button type="button" className="btn-text-link" disabled={loading} onClick={() => { setStep("FORM"); setSignupKey(null); setOtpCode(""); setEmailRequested(false); setEmailVerified(false); setEmailCode(""); }}>
+                <button type="button" className="btn-text-link" disabled={loading} onClick={() => { setStep("FORM"); setSignupKey(null); setOtpCode(""); setEmailRequested(false); setEmailVerified(false); setEmailCode(""); setEmailRequestMessage(""); }}>
                   이전 단계로 돌아가기
                 </button>
               </div>
@@ -1040,6 +1049,9 @@ export default function JoinNormal() {
                   <div style={{ fontSize: 14, color: "#888", marginBottom: 4 }}>
                     <b style={{ color: "#6c5ce7" }}>{form.email}</b> 로 발송되었습니다
                   </div>
+                  {emailRequestMessage && (
+                    <HintBanner icon={Mail}>{emailRequestMessage}</HintBanner>
+                  )}
                   <div className="verify-input-row" style={{ marginTop: 32 }}>
                     <input className="fi" type="text" value={emailCode} onChange={(e) => setEmailCode(e.target.value)} placeholder="인증 코드 입력" autoFocus disabled={loading} style={{ maxWidth: 280, textAlign: "center", fontSize: 18 }} />
                   </div>

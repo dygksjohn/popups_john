@@ -4,6 +4,7 @@ import { mypageApi } from "./api/mypageApi";
 import { authApi } from "./api/authApi";
 import { userApi } from "../../../features/user/api/userApi";
 import { resolveErrorMessage, toFieldMessageMap } from "../../../features/shared/forms/formError";
+import { formatPhoneForDisplay, getSmsRequestErrorMessage, normalizeDigits, toKoreanPhoneE164 } from "../../../features/auth/utils/smsAuth";
 import {
   Mail, Smartphone, KeyRound, ShieldCheck, AlertCircle, ArrowLeft, Check,
 } from "lucide-react";
@@ -183,8 +184,8 @@ export default function MypageProfileEdit() {
   const [nicknameCheckMsg, setNicknameCheckMsg] = useState("");
   const [nicknameChecked, setNicknameChecked] = useState(false);
 
-  const [emailVerifyToken, setEmailVerifyToken] = useState("");
   const [emailVerifyInput, setEmailVerifyInput] = useState("");
+  const [emailRequestMessage, setEmailRequestMessage] = useState("");
   const [emailChanging, setEmailChanging] = useState(false);
   const [emailConfirming, setEmailConfirming] = useState(false);
 
@@ -295,9 +296,10 @@ export default function MypageProfileEdit() {
 
   const requestEmailChange = async () => {
     try {
-      setEmailChanging(true); setGlobalError("");
-      const res = await authApi.requestEmailChange({ newEmail: (form.nextEmail || "").trim() });
-      setEmailVerifyToken(String(res?.devToken || ""));
+      setEmailChanging(true); setGlobalError(""); setEmailRequestMessage("");
+      await authApi.requestEmailChange({ newEmail: (form.nextEmail || "").trim() });
+      setEmailVerifyInput("");
+      setEmailRequestMessage("이메일을 확인해 주세요. 메일의 인증 링크를 클릭한 뒤 변경 내용을 다시 확인해 주세요.");
     } catch (error) { setGlobalError(resolveErrorMessage(error, "이메일 인증 요청에 실패했습니다.")); }
     finally { setEmailChanging(false); }
   };
@@ -305,8 +307,9 @@ export default function MypageProfileEdit() {
   const confirmEmailChange = async () => {
     try {
       setEmailConfirming(true); setGlobalError("");
-      await authApi.confirmEmailChange({ token: (emailVerifyInput || emailVerifyToken || "").trim() });
-      setEmailVerifyToken(""); setEmailVerifyInput("");
+      await authApi.confirmEmailChange({ token: emailVerifyInput.trim() });
+      setEmailVerifyInput("");
+      setEmailRequestMessage("");
       setForm((prev) => ({ ...prev, nextEmail: "" }));
       await refreshMe();
     } catch (error) { setGlobalError(resolveErrorMessage(error, "이메일 변경 확인에 실패했습니다.")); }
@@ -316,7 +319,7 @@ export default function MypageProfileEdit() {
   const requestPhoneChange = async () => {
     try {
       setPhoneChanging(true); setGlobalError("");
-      const res = await authApi.requestPhoneChange({ phone: (form.nextPhone || "").trim() });
+      const res = await authApi.requestPhoneChange({ phone: toKoreanPhoneE164(normalizeDigits(form.nextPhone)) });
       setPhoneVerifyCode(String(res?.devCode || ""));
     } catch (error) { setGlobalError(resolveErrorMessage(error, "휴대전화 인증 요청에 실패했습니다.")); }
     finally { setPhoneChanging(false); }
@@ -325,7 +328,7 @@ export default function MypageProfileEdit() {
   const confirmPhoneChange = async () => {
     try {
       setPhoneConfirming(true); setGlobalError("");
-      await authApi.confirmPhoneChange({ phone: (form.nextPhone || "").trim(), code: (phoneCodeInput || phoneVerifyCode || "").trim() });
+      await authApi.confirmPhoneChange({ phone: toKoreanPhoneE164(normalizeDigits(form.nextPhone)), code: (phoneCodeInput || phoneVerifyCode || "").trim() });
       setPhoneVerifyCode(""); setPhoneCodeInput("");
       setForm((prev) => ({ ...prev, nextPhone: "" }));
       await refreshMe();
@@ -487,7 +490,7 @@ export default function MypageProfileEdit() {
                       변경확인
                     </button>
                   </div>
-                  {emailVerifyToken && <div className="pe-dev-token">devToken: {emailVerifyToken}</div>}
+                  {emailRequestMessage && <div className="pe-field-msg success">{emailRequestMessage}</div>}
                 </div>
 
                 {/* 휴대전화 변경 */}
@@ -500,7 +503,7 @@ export default function MypageProfileEdit() {
                       className="pe-fi"
                       name="nextPhone"
                       value={form.nextPhone}
-                      onChange={handleChange}
+                      onChange={(e) => setForm((prev) => ({ ...prev, nextPhone: normalizeDigits(e.target.value) }))}
                       placeholder="새 휴대전화번호"
                       disabled={phoneChanging || phoneConfirming}
                     />
@@ -521,6 +524,7 @@ export default function MypageProfileEdit() {
                     </button>
                   </div>
                   {phoneVerifyCode && <div className="pe-dev-token">devCode: {phoneVerifyCode}</div>}
+                  {!!form.nextPhone && <div className="pe-field-helper">전송 번호: {formatPhoneForDisplay(form.nextPhone)}</div>}
                 </div>
               </div>
 

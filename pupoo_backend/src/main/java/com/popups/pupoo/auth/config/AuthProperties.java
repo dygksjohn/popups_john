@@ -58,5 +58,11 @@ public class AuthProperties {
     @Setter
     public static class Sms {
         private String provider = "dev";
+        private boolean enabled = true;
+        private int otpExpirySeconds = 300;
+        private int resendCooldownSeconds = 60;
+        private int maxRequestsPerMinute = 1;
+        private int maxRequestsPerDay = 5;
+        private int maxVerifyFailures = 5;
     }
 }

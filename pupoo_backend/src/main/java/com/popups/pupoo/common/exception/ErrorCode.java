@@ -96,6 +96,15 @@ public enum ErrorCode {
     PHONE_OTP_INVALID(HttpStatus.BAD_REQUEST, "A4016", "Invalid phone OTP"),
     PHONE_OTP_EXPIRED(HttpStatus.BAD_REQUEST, "A4017", "Phone OTP expired"),
     PHONE_OTP_TOO_MANY_ATTEMPTS(HttpStatus.BAD_REQUEST, "A4018", "Too many OTP attempts"),
+    SMS_DISABLED(HttpStatus.SERVICE_UNAVAILABLE, "A5031", "SMS delivery is disabled"),
+    SMS_PHONE_NUMBER_INVALID(HttpStatus.BAD_REQUEST, "A40010", "Invalid SMS phone number format"),
+    SMS_OTP_NOT_FOUND(HttpStatus.NOT_FOUND, "A40410", "SMS OTP request not found"),
+    SMS_OTP_MISMATCH(HttpStatus.BAD_REQUEST, "A40011", "SMS OTP does not match"),
+    SMS_OTP_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "A4297", "SMS OTP resend cooldown"),
+    SMS_OTP_VERIFY_BLOCKED(HttpStatus.TOO_MANY_REQUESTS, "A4295", "SMS OTP verification blocked"),
+    SMS_OTP_REQUEST_LIMIT(HttpStatus.TOO_MANY_REQUESTS, "A4296", "SMS OTP request limit exceeded"),
+    SMS_SEND_FAILED(HttpStatus.BAD_GATEWAY, "A5021", "SMS send failed"),
+    REDIS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "A5032", "Redis is unavailable"),
 
     // =========================
     // Auth - Signup Session

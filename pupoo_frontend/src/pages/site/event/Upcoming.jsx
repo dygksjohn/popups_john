@@ -18,6 +18,7 @@ import {
   BellRing,
   Tag,
   CalendarClock,
+  Check,
 } from "lucide-react";
 
 export const SERVICE_CATEGORIES = [
@@ -134,12 +135,22 @@ const styles = `
   .up-alarm-btn.off:hover { border-color: #2563eb; color: #2563eb; }
   .up-alarm-btn.on { border: 1px solid #2563eb; background: #eff6ff; color: #2563eb; }
   .up-pre-btn {
-    height: 34px; padding: 0 14px; border-radius: 8px; border: none;
+    height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid transparent;
     font-size: 14.5px; font-weight: 700; cursor: pointer; font-family: inherit;
     background: #1a4fd6; color: #fff; transition: all 0.15s;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   }
   .up-pre-btn:hover { background: #1640b8; }
   .up-pre-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .up-pre-btn.done {
+    background: #ecfdf5;
+    color: #15803d;
+    border-color: #bbf7d0;
+    opacity: 0.9;
+  }
+  .up-pre-btn.done:hover {
+    background: #ecfdf5;
+  }
 
   @media (max-width: 900px) {
     .up-grid { grid-template-columns: 1fr; }
@@ -282,6 +293,7 @@ export default function Upcoming() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submittingId, setSubmittingId] = useState(null);
+  const [appliedEventIds, setAppliedEventIds] = useState(() => new Set());
 
   useEffect(() => {
     let mounted = true;
@@ -332,6 +344,42 @@ export default function Upcoming() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchMyAppliedEvents = async () => {
+      if (!tokenStore.getAccess()) {
+        if (mounted) setAppliedEventIds(new Set());
+        return;
+      }
+
+      try {
+        const res = await axiosInstance.get("/api/users/me/event-registrations", {
+          params: { page: 0, size: 200, sort: "appliedAt,desc" },
+        });
+        const content = res?.data?.data?.content ?? [];
+        const activeStatuses = new Set(["APPLIED", "APPROVED"]);
+        const next = new Set(
+          content
+            .filter(
+              (item) =>
+                activeStatuses.has(String(item?.status || "").toUpperCase()) &&
+                item?.eventId != null,
+            )
+            .map((item) => Number(item.eventId)),
+        );
+        if (mounted) setAppliedEventIds(next);
+      } catch {
+        if (mounted) setAppliedEventIds(new Set());
+      }
+    };
+
+    fetchMyAppliedEvents();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const filtered = events.filter((e) => {
     const matchQ = e.title.includes(query) || e.category.includes(query);
     const matchF = filter === "all" || e.category === filter;
@@ -350,6 +398,11 @@ export default function Upcoming() {
   const handlePreApply = async (ev, clickEvent) => {
     clickEvent.stopPropagation();
     if (!ev?.id || submittingId) return;
+
+    if (appliedEventIds.has(Number(ev.id))) {
+      navigate("/registration/applyhistory");
+      return;
+    }
 
     if (!tokenStore.getAccess()) {
       navigate("/auth/login", {
@@ -371,10 +424,20 @@ export default function Upcoming() {
       await axiosInstance.post("/api/event-registrations", {
         eventId: Number(ev.id),
       });
+      setAppliedEventIds((prev) => {
+        const next = new Set(prev);
+        next.add(Number(ev.id));
+        return next;
+      });
       navigate(`/payment/checkout?${params.toString()}`);
     } catch (e) {
       if (e?.response?.status === 409) {
-        navigate(`/payment/checkout?${params.toString()}`);
+        setAppliedEventIds((prev) => {
+          const next = new Set(prev);
+          next.add(Number(ev.id));
+          return next;
+        });
+        navigate("/registration/applyhistory");
       } else if (e?.response?.status === 401) {
         navigate("/auth/login", {
           state: { from: `${location.pathname}${location.search}` },
@@ -484,6 +547,7 @@ export default function Upcoming() {
               color: "#374151",
             };
             const isOn = alarms[ev.id];
+            const isApplied = appliedEventIds.has(Number(ev.id));
             return (
               <div
                 key={ev.id}
@@ -543,11 +607,20 @@ export default function Upcoming() {
                         {isOn ? "알림 ON" : "알림"}
                       </button>
                       <button
-                        className="up-pre-btn"
+                        className={`up-pre-btn${isApplied ? " done" : ""}`}
                         onClick={(e) => handlePreApply(ev, e)}
                         disabled={submittingId === ev.id}
                       >
-                        {submittingId === ev.id ? "처리중" : "사전신청"}
+                        {submittingId === ev.id
+                          ? "처리중"
+                          : isApplied
+                            ? (
+                              <>
+                                <Check size={13} />
+                                접수 완료
+                              </>
+                            )
+                            : "사전신청"}
                       </button>
                     </div>
                   </div>

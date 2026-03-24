@@ -34,6 +34,13 @@ const styles = `
   .wt-root *, .wt-root *::before, .wt-root *::after { box-sizing: border-box; font-family: inherit; }
   .wt-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
   .wt-container.selector-mode { padding-top: 32px; }
+  .wt-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
 
   .wt-back-btn {
     display: inline-flex;
@@ -51,6 +58,43 @@ const styles = `
     margin-bottom: 20px;
     font-family: inherit;
     letter-spacing: -0.01em;
+  }
+  .wt-top-actions .wt-back-btn { margin-bottom: 0; }
+  .wt-event-mode-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+  .wt-mode-btn {
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background: #f3f4f6;
+    color: #6b7280;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .wt-mode-btn.active {
+    background: #02A17E;
+    color: #fff;
+    border-color: #02A17E;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+  }
+  .wt-mode-btn:hover {
+    background: #e5e7eb;
+    border-color: #cbd5e1;
+    color: #4b5563;
+  }
+  .wt-mode-btn.active:hover {
+    background: #028A6C;
+    border-color: #028A6C;
+    color: #fff;
   }
   .wt-back-btn:hover {
     background: #1f2937;
@@ -556,6 +600,9 @@ const styles = `
   @media (max-width: 640px) {
     .wt-container { padding: 20px 16px 48px; }
     .wt-container.selector-mode { padding-top: 88px; }
+    .wt-top-actions { align-items: stretch; }
+    .wt-event-mode-nav { width: 100%; margin-left: 0; }
+    .wt-mode-btn { flex: 1 1 calc(50% - 8px); min-width: 132px; }
     .wt-hero-title { font-size: 22px; }
     .wt-hero-kpi-grid {
       grid-template-columns: 1fr;
@@ -579,6 +626,12 @@ export const SERVICE_CATEGORIES = [
   { label: "진행중 행사", path: "/realtime/waitingstatus?status=live", countKey: "live" },
   { label: "예정 행사", path: "/realtime/waitingstatus?status=upcoming", countKey: "upcoming" },
   { label: "종료 행사", path: "/realtime/waitingstatus?status=ended", countKey: "ended" },
+];
+const EVENT_REALTIME_BUTTONS = [
+  { key: "dashboard", label: "통합현황", path: "/realtime/dashboard" },
+  { key: "waiting", label: "대기현황", path: "/realtime/waitingstatus" },
+  { key: "checkin", label: "체크인 현황", path: "/realtime/checkinstatus" },
+  { key: "vote", label: "투표현황", path: "/realtime/votestatus" },
 ];
 
 const ZONE_NAME_MAP = {
@@ -1452,10 +1505,24 @@ export default function WaitingStatus() {
       <main className={`wt-container${eventId ? "" : " selector-mode"}`}>
         {eventId ? (
           <>
-            <button className="wt-back-btn" onClick={() => navigate("/realtime/waitingstatus")}>
-              <ArrowLeft size={15} />
-              목록으로
-            </button>
+            <div className="wt-top-actions">
+              <button className="wt-back-btn" onClick={() => navigate("/realtime/waitingstatus")}>
+                <ArrowLeft size={15} />
+                목록으로
+              </button>
+              <div className="wt-event-mode-nav">
+                {EVENT_REALTIME_BUTTONS.map((button) => (
+                  <button
+                    key={button.key}
+                    type="button"
+                    className={`wt-mode-btn${button.key === "waiting" ? " active" : ""}`}
+                    onClick={() => navigate(`${button.path}/${eventId}`)}
+                  >
+                    {button.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <WaitingContent eventId={eventId} />
           </>
         ) : (

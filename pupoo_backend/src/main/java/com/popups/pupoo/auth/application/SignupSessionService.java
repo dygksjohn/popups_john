@@ -68,6 +68,7 @@ public class SignupSessionService {
     private final int emailTtlMinutes;
     private final int emailMaxFailCount;
     private final boolean exposeDevCode;
+    private final String smsProvider;
     private final boolean refreshCookieSecure;
     private final int refreshCookieMaxAgeSeconds;
 
@@ -89,6 +90,7 @@ public class SignupSessionService {
             @Value("${signup.email.ttl-minutes:10}") int emailTtlMinutes,
             @Value("${signup.email.max-fail-count:5}") int emailMaxFailCount,
             @Value("${verification.dev.expose:true}") boolean exposeDevCode,
+            @Value("${auth.sms.provider:dev}") String smsProvider,
             @Value("${auth.refresh.cookie.secure:true}") boolean refreshCookieSecure,
             @Value("${auth.refresh.cookie.max-age-seconds:1209600}") int refreshCookieMaxAgeSeconds
     ) {
@@ -109,6 +111,7 @@ public class SignupSessionService {
         this.emailTtlMinutes = emailTtlMinutes;
         this.emailMaxFailCount = emailMaxFailCount;
         this.exposeDevCode = exposeDevCode;
+        this.smsProvider = smsProvider;
         this.refreshCookieSecure = refreshCookieSecure;
         this.refreshCookieMaxAgeSeconds = refreshCookieMaxAgeSeconds;
     }
@@ -193,7 +196,7 @@ public class SignupSessionService {
                 otpCooldownSeconds,
                 remaining,
                 saved.getExpiresAt(),
-                exposeDevCode ? otp : null
+                shouldExposeSmsCode() ? otp : null
         );
     }
 
@@ -424,7 +427,7 @@ public class SignupSessionService {
     }
 
     private String buildOtpMessage(String otp, int ttlMinutes) {
-        return "[POPUPS] 인증번호는 " + otp + " 입니다. (" + ttlMinutes + "분 이내 입력)";
+        return "[PUPOO] 인증번호는 " + otp + " 입니다.";
     }
 
     private String normalizePhone(String phone) {
@@ -440,6 +443,11 @@ public class SignupSessionService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    // 기능: SMS가 dev provider면 OTP를 테스트 응답에 노출한다.
+    private boolean shouldExposeSmsCode() {
+        return exposeDevCode || (smsProvider != null && "dev".equalsIgnoreCase(smsProvider.trim()));
     }
 
     /**
