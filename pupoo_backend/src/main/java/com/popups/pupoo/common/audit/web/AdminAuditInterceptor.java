@@ -49,7 +49,15 @@ public class AdminAuditInterceptor implements HandlerInterceptor {
         }
 
         if (isFailure(response, ex)) {
-            action = truncate(action + "|FAIL|" + resolveFailureCode(response, ex), 255);
+            String errorCode = resolveFailureCode(response, ex);
+            action = truncate(action + "|FAIL|" + errorCode, 255);
+            adminLogService.writeFailure(
+                    action,
+                    resolveTargetType(request.getRequestURI()),
+                    resolveTargetId(request.getRequestURI()),
+                    errorCode
+            );
+            return;
         }
 
         adminLogService.write(
