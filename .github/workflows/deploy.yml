@@ -342,6 +342,51 @@ jobs:
             fi
           done
 
+      - name: Sync AI runtime secrets
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PUPOO_AI_DB_PASSWORD: ${{ secrets.PUPOO_AI_DB_PASSWORD }}
+          PUPOO_AI_INTERNAL_TOKEN: ${{ secrets.PUPOO_AI_INTERNAL_TOKEN }}
+          PUPOO_AI_WATSONX_API_KEY: ${{ secrets.PUPOO_AI_WATSONX_API_KEY }}
+          PUPOO_AI_WATSONX_PROJECT_ID: ${{ secrets.PUPOO_AI_WATSONX_PROJECT_ID }}
+        run: |
+          CURRENT_AI_SERVICE_INTERNAL_TOKEN="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AI_SERVICE_INTERNAL_TOKEN}' | base64 -d)"
+
+          AI_INTERNAL_TOKEN="${PUPOO_AI_INTERNAL_TOKEN:-${CURRENT_AI_SERVICE_INTERNAL_TOKEN}}"
+
+          if [ -z "${AI_INTERNAL_TOKEN}" ]; then
+            echo "PUPOO_AI_INTERNAL_TOKEN is missing and existing AI_SERVICE_INTERNAL_TOKEN could not be read"
+            exit 1
+          fi
+
+          if [ -z "${PUPOO_AI_DB_PASSWORD}" ]; then
+            echo "PUPOO_AI_DB_PASSWORD secret is required"
+            exit 1
+          fi
+
+          if [ -z "${PUPOO_AI_WATSONX_API_KEY}" ]; then
+            echo "PUPOO_AI_WATSONX_API_KEY secret is required"
+            exit 1
+          fi
+
+          if [ -z "${PUPOO_AI_WATSONX_PROJECT_ID}" ]; then
+            echo "PUPOO_AI_WATSONX_PROJECT_ID secret is required"
+            exit 1
+          fi
+
+          cat > /tmp/pupoo-ai-secret-patch.yaml <<EOF
+          stringData:
+            OPENAI_API_KEY: "${OPENAI_API_KEY}"
+            PUPOO_AI_DB_PASSWORD: "${PUPOO_AI_DB_PASSWORD}"
+            PUPOO_AI_INTERNAL_TOKEN: "${AI_INTERNAL_TOKEN}"
+            PUPOO_AI_WATSONX_API_KEY: "${PUPOO_AI_WATSONX_API_KEY}"
+            PUPOO_AI_WATSONX_PROJECT_ID: "${PUPOO_AI_WATSONX_PROJECT_ID}"
+          EOF
+
+          kubectl -n "${EKS_NAMESPACE:-pupoo}" patch secret pupoo-ai-secret \
+            --type merge \
+            --patch-file /tmp/pupoo-ai-secret-patch.yaml
+
       - name: Apply base manifests
         run: kubectl apply -k k8s/base
 

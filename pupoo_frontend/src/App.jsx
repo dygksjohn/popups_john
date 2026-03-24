@@ -13,6 +13,7 @@ import { adminNoticeApi, getToken, clearToken } from "./api/noticeApi";
 
 /* admin */
 import Dashboard from "./pages/admin/dashboard/Dashboard";
+import AdminChatBot from "./pages/admin/dashboard/AdminChatBot";
 import BoardManage from "./pages/admin/board/boardManage";
 import NoticeManage from "./pages/admin/board/Notice";
 import EventManage from "./pages/admin/event/eventManage";
@@ -224,6 +225,10 @@ function LegacyProgramRedirect({ target }) {
 }
 
 export default function App() {
+  const location = useLocation();
+  const showAdminChatBot =
+    location.pathname.startsWith("/admin") && location.pathname !== "/admin/login";
+
   return (
     <>
       <ScrollToTop />
@@ -642,6 +647,7 @@ export default function App() {
           />
         </Route>
       </Routes>
+      {showAdminChatBot ? <AdminChatBot /> : null}
     </>
   );
 }

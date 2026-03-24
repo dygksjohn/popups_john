@@ -3,6 +3,7 @@ package com.popups.pupoo.notification.application;
 
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.event.persistence.EventRepository;
 import com.popups.pupoo.notification.domain.enums.InboxTargetType;
 import com.popups.pupoo.notification.domain.enums.NotificationChannel;
 import com.popups.pupoo.notification.domain.enums.NotificationType;
@@ -51,6 +52,7 @@ public class NotificationService {
     private final NotificationSettingsRepository notificationSettingsRepository;
     private final NotificationSendRepository notificationSendRepository;
     private final UserRepository userRepository;
+    private final EventRepository eventRepository;
     private final NotificationSender notificationSender;
     private final NotificationSseService notificationSseService;
 
@@ -59,6 +61,7 @@ public class NotificationService {
                                NotificationSettingsRepository notificationSettingsRepository,
                                NotificationSendRepository notificationSendRepository,
                                UserRepository userRepository,
+                               EventRepository eventRepository,
                                NotificationSender notificationSender,
                                NotificationSseService notificationSseService) {
         this.notificationRepository = notificationRepository;
@@ -66,6 +69,7 @@ public class NotificationService {
         this.notificationSettingsRepository = notificationSettingsRepository;
         this.notificationSendRepository = notificationSendRepository;
         this.userRepository = userRepository;
+        this.eventRepository = eventRepository;
         this.notificationSender = notificationSender;
         this.notificationSseService = notificationSseService;
     }
@@ -159,6 +163,8 @@ public class NotificationService {
 
     @Transactional
     public AdminNotificationPublishResult publishAdminEventNotification(Long adminUserId, NotificationCreateRequest request) {
+        validateEventNotificationRequest(request);
+
         Notification notification = Notification.create(request.getType(), request.getTitle(), request.getContent());
         notificationRepository.save(notification);
 
@@ -394,5 +400,15 @@ public class NotificationService {
 
     public int countAllActiveRecipients() {
         return notificationInboxRepository.countAllActiveUsers();
+    }
+
+    private void validateEventNotificationRequest(NotificationCreateRequest request) {
+        Long eventId = request.getEventId();
+        if (eventId == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "eventId is required");
+        }
+        if (!eventRepository.existsById(eventId)) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "event not found: " + eventId);
+        }
     }
 }

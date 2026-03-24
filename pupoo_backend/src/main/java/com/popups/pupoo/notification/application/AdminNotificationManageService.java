@@ -135,14 +135,14 @@ public class AdminNotificationManageService {
     private AdminNotificationSaveCommand toSaveCommand(AdminNotificationDraftRequest request,
                                                        Long adminUserId,
                                                        AdminNotificationStatus status) {
-        AdminAlertMode alertMode = AdminAlertMode.from(request.getAlertMode());
+        AdminAlertMode alertMode = resolveAlertMode(request.getAlertMode());
         if (alertMode == AdminAlertMode.EVENT) {
             Long eventId = request.getEventId();
             if (eventId == null) {
-                throw new BusinessException(ErrorCode.INVALID_REQUEST);
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "eventId is required when alertMode is EVENT");
             }
             Event event = eventRepository.findById(eventId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "event not found: " + eventId));
             List<RecipientScope> scopes = notificationService.normalizeAdminRecipientScopes(
                     request.getRecipientScope(),
                     request.getRecipientScopes()
@@ -246,5 +246,16 @@ public class AdminNotificationManageService {
                 .distinct()
                 .reduce((left, right) -> left + ", " + right)
                 .orElse("관심 구독자");
+    }
+
+    private AdminAlertMode resolveAlertMode(String rawValue) {
+        try {
+            return AdminAlertMode.from(rawValue);
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "alertMode must be one of EVENT, IMPORTANT, SYSTEM"
+            );
+        }
     }
 }

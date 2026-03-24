@@ -7,6 +7,8 @@ data:
   PORT: "8000"
   PUPOO_AI_SERVICE_NAME: "pupoo-ai"
   PUPOO_AI_LOG_LEVEL: "INFO"
+  PUPOO_AI_BACKEND_BASE_URL: "http://pupoo-backend:80"
+  PUPOO_AI_BACKEND_TIMEOUT_SECONDS: "15"
   PUPOO_AI_AWS_REGION: "us-east-1"
   PUPOO_AI_BEDROCK_MODEL_ID: "us.amazon.nova-lite-v1:0"
   # watsonx (비밀 아닌 엔드포인트·모델 ID)

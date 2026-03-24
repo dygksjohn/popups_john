@@ -45,6 +45,6 @@ class AwsSesEmailVerificationSenderTest {
                 () -> sender.sendAccountVerificationEmail("user@example.com", "token")
         );
 
-        assertEquals("이메일 인증 기준 URL 설정이 필요합니다.", exception.getMessage());
+        assertEquals("이메일 인증 기본 URL 설정이 필요합니다.", exception.getMessage());
     }
 }
