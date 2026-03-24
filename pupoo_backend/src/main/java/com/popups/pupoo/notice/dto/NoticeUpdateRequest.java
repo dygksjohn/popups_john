@@ -20,4 +20,8 @@ public class NoticeUpdateRequest {
 
     @NotNull(message = "status is required")
     private NoticeStatus status;
+
+    private String scope;
+
+    private Long eventId;
 }

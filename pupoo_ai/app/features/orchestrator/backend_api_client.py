@@ -25,6 +25,9 @@ class BackendApiClient:
     async def get_ai_summary(self) -> dict[str, Any]:
         return await self._request("GET", "/api/admin/ai/summary")
 
+    async def get_ai_capabilities(self) -> dict[str, Any]:
+        return await self._request("GET", "/api/admin/ai/capabilities")
+
     async def create_notice(self, payload: dict[str, Any]) -> dict[str, Any]:
         return await self._request("POST", "/api/admin/notices", json=payload)
 
@@ -36,6 +39,9 @@ class BackendApiClient:
 
     async def update_notification_draft(self, notification_id: int, payload: dict[str, Any]) -> dict[str, Any]:
         return await self._request("PUT", f"/api/admin/notifications/{notification_id}", json=payload)
+
+    async def delete_notification_draft(self, notification_id: int) -> dict[str, Any]:
+        return await self._request("DELETE", f"/api/admin/notifications/{notification_id}")
 
     async def send_notification(self, notification_id: int) -> dict[str, Any]:
         return await self._request("POST", f"/api/admin/notifications/{notification_id}/send")

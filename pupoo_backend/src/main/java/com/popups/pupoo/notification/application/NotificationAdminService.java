@@ -1,4 +1,3 @@
-// file: src/main/java/com/popups/pupoo/notification/application/NotificationAdminService.java
 package com.popups.pupoo.notification.application;
 
 import com.popups.pupoo.common.audit.application.AdminLogService;
@@ -11,8 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 관리자 알림 발행과 관리자 감사 로그 기록을 연결하는 서비스다.
- * 실제 채널 fan-out은 `NotificationService`에 위임하고, 여기서는 관리자 행위를 감사 로그로 남긴다.
+ * 관리자 알림 발송과 관리자 감사 로그 기록을 연결하는 서비스다.
+ * 실제 fan-out은 NotificationService에 위임하고, 여기서는 관리자 행위를 감사 로그로 남긴다.
  */
 @Service
 public class NotificationAdminService {
@@ -27,7 +26,7 @@ public class NotificationAdminService {
     }
 
     /**
-     * 특정 행사 대상 관리자 알림을 발행한다.
+     * 특정 행사 대상 관리자 알림을 발송한다.
      */
     @Transactional
     public AdminNotificationPublishResult publishByEvent(NotificationCreateRequest request, Long adminUserId) {
@@ -37,8 +36,8 @@ public class NotificationAdminService {
     }
 
     /**
-     * 전체 방송형 관리자 알림을 발행한다.
-     * 알림 타입에 따라 감사 로그 대상 타입을 시스템 또는 공지로 분기한다.
+     * 전체 발송 관리자 알림을 발송한다.
+     * 알림 타입에 따라 감사 로그 대상은 시스템 또는 공지로 구분한다.
      */
     @Transactional
     public AdminNotificationPublishResult publishBroadcast(NotificationBroadcastRequest request, Long adminUserId) {

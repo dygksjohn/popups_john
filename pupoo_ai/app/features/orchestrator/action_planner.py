@@ -8,6 +8,7 @@ from pupoo_ai.app.features.orchestrator.intent_analyzer import IntentResult
 class PlannedAction:
     intent_type: str
     target: str
+    action_key: str
     requires_confirmation: bool = False
     metadata: dict = field(default_factory=dict)
 
@@ -17,6 +18,10 @@ class ActionPlanner:
         metadata = {
             "current_page": context.current_page,
             "route": context.route,
+            "action_key": intent.action_key,
+            "slots": dict(intent.slots or {}),
+            "score": intent.score,
+            "confidence": intent.confidence,
             "capabilities": {
                 "notice": self._resolve_notice_capabilities(context),
                 "notification": self._resolve_notification_capabilities(context),
@@ -32,12 +37,52 @@ class ActionPlanner:
         if context.notification_execution is not None:
             metadata["notification_execution"] = context.notification_execution.model_dump(by_alias=True)
 
-        return PlannedAction(
+        planned_action = PlannedAction(
             intent_type=intent.intent_type,
             target=intent.target,
+            action_key=intent.action_key,
             requires_confirmation=intent.requires_confirmation,
             metadata=metadata,
         )
+        return self._apply_capability_gate(planned_action)
+
+    def _apply_capability_gate(self, planned_action: PlannedAction) -> PlannedAction:
+        if planned_action.intent_type != "execute":
+            return planned_action
+
+        metadata = planned_action.metadata or {}
+        action_key = planned_action.action_key
+        notice_capability = (metadata.get("capabilities") or {}).get("notice") or {}
+        notification_capability = (metadata.get("capabilities") or {}).get("notification") or {}
+
+        if action_key in {"notice_create", "notice_update", "notice_hide"}:
+            if "SAVE_NOTICE" in (notice_capability.get("supportedExecuteTypes") or []):
+                return planned_action
+            metadata["unsupportedReason"] = "현재 공지 상태로는 저장 실행을 바로 지원하지 않습니다."
+            return PlannedAction("unsupported", "unsupported_capability", action_key, False, metadata)
+
+        notification_type_map = {
+            "notification_draft_delete": None,
+            "notification_draft_send": "SEND_NOTIFICATION_DRAFT",
+            "notification_event_send": "SEND_EVENT_NOTIFICATION",
+            "notification_broadcast_send": "SEND_BROADCAST_NOTIFICATION",
+        }
+        required_execute_type = notification_type_map.get(action_key)
+        if action_key == "notification_draft_delete":
+            has_notification_id = bool((metadata.get("slots") or {}).get("notificationId") or (metadata.get("notification_draft") or {}).get("notificationId"))
+            if has_notification_id:
+                return planned_action
+            metadata["unsupportedReason"] = "현재 알림 초안이 연결되지 않아 삭제 실행을 바로 지원하지 않습니다."
+            return PlannedAction("unsupported", "unsupported_capability", action_key, False, metadata)
+
+        if required_execute_type and required_execute_type in (notification_capability.get("supportedExecuteTypes") or []):
+            return planned_action
+
+        if required_execute_type:
+            metadata["unsupportedReason"] = "현재 초안 상태로는 요청한 알림 실행을 바로 지원하지 않습니다."
+            return PlannedAction("unsupported", "unsupported_capability", action_key, False, metadata)
+
+        return planned_action
 
     def _resolve_notice_capabilities(self, context: ChatContext) -> dict:
         execution = (

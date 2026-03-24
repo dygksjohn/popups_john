@@ -16,7 +16,7 @@ from pupoo_ai.app.features.orchestrator.intent_analyzer import IntentAnalyzer
 
 
 async def chat(request: ChatRequest, authorization: str | None = None) -> ChatResponse:
-    intent = IntentAnalyzer().analyze(request.message)
+    intent = IntentAnalyzer().analyze(request.message, request.context)
     backend_client = BackendApiClient(authorization)
     execute_handler = ExecuteActionHandler()
 
@@ -24,6 +24,18 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
         return await execute_handler.confirm(request.confirmation.model_dump(), backend_client)
 
     if intent is not None:
+        if intent.intent_type == "ambiguous":
+            return ChatResponse(
+                message="조회 요청인지 실행 요청인지 하나로 특정하지 못했습니다. 예를 들어 '혼잡도 요약' 또는 '공지 저장'처럼 조금 더 구체적으로 말씀해 주세요.",
+                messageType="ambiguous",
+                actions=[],
+            )
+        if intent.intent_type == "low_confidence":
+            return ChatResponse(
+                message="의도를 확실히 잡지 못했습니다. 조회, 화면 이동, 초안 작성, 발송 중 무엇을 원하는지 조금 더 구체적으로 말씀해 주세요.",
+                messageType="low_confidence",
+                actions=[],
+            )
         planned_action = ActionPlanner().plan(intent, request.context)
         if planned_action.intent_type == "navigation":
             return NavigationActionHandler().handle(planned_action)

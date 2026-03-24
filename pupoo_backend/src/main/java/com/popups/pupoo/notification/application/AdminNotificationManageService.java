@@ -1,5 +1,7 @@
 package com.popups.pupoo.notification.application;
 
+import com.popups.pupoo.common.audit.application.AdminLogService;
+import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.event.domain.model.Event;
@@ -34,15 +36,18 @@ public class AdminNotificationManageService {
     private final EventRepository eventRepository;
     private final NotificationAdminService notificationAdminService;
     private final NotificationService notificationService;
+    private final AdminLogService adminLogService;
 
     public AdminNotificationManageService(AdminNotificationRepository adminNotificationRepository,
                                           EventRepository eventRepository,
                                           NotificationAdminService notificationAdminService,
-                                          NotificationService notificationService) {
+                                          NotificationService notificationService,
+                                          AdminLogService adminLogService) {
         this.adminNotificationRepository = adminNotificationRepository;
         this.eventRepository = eventRepository;
         this.notificationAdminService = notificationAdminService;
         this.notificationService = notificationService;
+        this.adminLogService = adminLogService;
     }
 
     public List<AdminNotificationItemResponse> list() {
@@ -55,6 +60,7 @@ public class AdminNotificationManageService {
     public AdminNotificationItemResponse createDraft(AdminNotificationDraftRequest request, Long adminUserId) {
         AdminNotificationSaveCommand command = toSaveCommand(request, adminUserId, AdminNotificationStatus.DRAFT);
         Long adminNotificationId = adminNotificationRepository.save(command);
+        adminLogService.write("ADMIN_NOTIFICATION_CREATE", AdminTargetType.OTHER, adminNotificationId);
         return adminNotificationRepository.findVisibleById(adminNotificationId)
                 .map(this::toResponse)
                 .orElseThrow(() -> new IllegalStateException("Failed to load admin notification draft"));
@@ -71,6 +77,7 @@ public class AdminNotificationManageService {
                 stored.status()
         );
         adminNotificationRepository.update(adminNotificationId, command);
+        adminLogService.write("ADMIN_NOTIFICATION_UPDATE", AdminTargetType.OTHER, adminNotificationId);
         return adminNotificationRepository.findVisibleById(adminNotificationId)
                 .map(this::toResponse)
                 .orElseThrow(() -> new IllegalStateException("Failed to load admin notification"));
@@ -80,6 +87,7 @@ public class AdminNotificationManageService {
     public void delete(Long adminNotificationId) {
         getVisibleItem(adminNotificationId);
         adminNotificationRepository.softDelete(adminNotificationId);
+        adminLogService.write("ADMIN_NOTIFICATION_DELETE", AdminTargetType.OTHER, adminNotificationId);
     }
 
     @Transactional
@@ -122,6 +130,7 @@ public class AdminNotificationManageService {
                 result.targetCount(),
                 LocalDateTime.now()
         );
+        adminLogService.write("ADMIN_NOTIFICATION_SEND", AdminTargetType.OTHER, adminNotificationId);
         return adminNotificationRepository.findVisibleById(adminNotificationId)
                 .map(this::toResponse)
                 .orElseThrow(() -> new IllegalStateException("Failed to load sent admin notification"));
