@@ -348,7 +348,7 @@ function SessionLineup() {
         <RevealSection>
           <div className="text-center mb-10">
             <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">PuPoo Session</p>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">현재 행사에서 운영 중인 프로그램</h2>
+            <h2 className="text-xl md:text-3xl font-bold text-gray-900 mb-4 leading-tight">현재 행사에서 운영 중인 프로그램</h2>
             <button onClick={() => navigate("/program/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#02A17E" }}>전체 프로그램 보기</button>
           </div>
         </RevealSection>
@@ -362,12 +362,12 @@ function SessionLineup() {
                   {extended.map((s, i) => {
                     const isH = hovered === i;
                     return (
-                      <div key={i} style={{ width: CARD_W }} className="shrink-0" onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} onClick={() => navigate("/program/current")}>
-                        <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-[3/4]">
+                      <div key={i} style={{ width: CARD_W, transform: isH ? "translateY(-4px)" : "translateY(0)", transition: "transform 0.3s cubic-bezier(0.16,1,0.3,1)" }} className="shrink-0" onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} onClick={() => navigate("/program/current")}>
+                        <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-[3/4]" style={{ boxShadow: isH ? "0 8px 24px rgba(0,0,0,0.12)" : "0 1px 4px rgba(0,0,0,0.04)", transition: "box-shadow 0.3s ease" }}>
                           <img
                             src={resolveImageUrl(s.image, dogImg(s.id))}
                             alt={s.title}
-                            className={`w-full h-full object-cover transition-all duration-700 ease-out ${isH ? "scale-105" : "scale-100"}`}
+                            className={`w-full h-full object-cover transition-transform duration-500 ease-out ${isH ? "scale-[1.03]" : "scale-100"}`}
                             draggable={false}
                             onError={createImageFallbackHandler(dogImg(s.id))}
                           />
@@ -669,7 +669,7 @@ export default function Home() {
           className="absolute left-1/2 -translate-x-1/2"
           style={{
             bottom: isMobile
-              ? "calc(env(safe-area-inset-bottom, 0px) + 12px)"
+              ? "calc(env(safe-area-inset-bottom, 0px) + 40px)"
               : 64,
             width: isMobile ? "min(256px, calc(100vw - 44px))" : 300,
           }}

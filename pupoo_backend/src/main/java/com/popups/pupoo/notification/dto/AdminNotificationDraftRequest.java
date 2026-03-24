@@ -9,13 +9,13 @@ import java.util.List;
 @Getter
 public class AdminNotificationDraftRequest {
 
-    @NotBlank
+    @NotBlank(message = "title is required")
     private String title;
 
-    @NotBlank
+    @NotBlank(message = "content is required")
     private String content;
 
-    @NotBlank
+    @NotBlank(message = "alertMode is required")
     private String alertMode;
 
     private Long eventId;

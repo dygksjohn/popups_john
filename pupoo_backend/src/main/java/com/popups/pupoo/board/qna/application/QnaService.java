@@ -2,14 +2,15 @@
 package com.popups.pupoo.board.qna.application;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.popups.pupoo.auth.security.util.SecurityUtil;
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
-import com.popups.pupoo.board.bannedword.application.ModerationBlockMessageResolver;
 import com.popups.pupoo.board.bannedword.application.ModerationClient;
 import com.popups.pupoo.board.bannedword.application.ModerationResult;
 import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
@@ -26,6 +27,8 @@ import com.popups.pupoo.board.qna.dto.QnaUpdateRequest;
 import com.popups.pupoo.board.qna.persistence.QnaRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.notification.application.NotificationService;
+import com.popups.pupoo.notification.domain.enums.InboxTargetType;
 import com.popups.pupoo.user.persistence.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -33,23 +36,27 @@ import lombok.RequiredArgsConstructor;
 /**
  * 사용자 QnA 게시글 생성과 공개 조회를 담당한다.
  * 답변 여부는 answeredAt 존재 여부를 기준으로 WAITING/ANSWERED로 계산한다.
+ * <p>
+ * AI 모더레이션 BLOCK 시 QnA는 {@link PostStatus#HIDDEN}으로 저장되며, 목록에서는 마스킹된다.
  */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class QnaService {
 
+    private static final List<PostStatus> QNA_PUBLIC_LIST_STATUSES = List.of(PostStatus.PUBLISHED, PostStatus.HIDDEN);
+
     private final QnaRepository qnaRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
     private final ModerationClient moderationClient;
-    private final ModerationBlockMessageResolver moderationBlockMessageResolver;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
+    private final SecurityUtil securityUtil;
+    private final NotificationService notificationService;
 
     /**
-     * QNA 게시판에 공개 상태의 질문 글을 생성한다.
-     * 차단 정책에 걸리면 저장하지 않고 moderation 로그만 남긴다.
+     * QnA 작성. AI 모더레이션 BLOCK이면 DB에 HIDDEN으로 저장하고 로그에 contentId를 남긴다(예외 없음).
      */
     @Transactional
     public QnaResponse create(Long userId, QnaCreateRequest request) {
@@ -65,16 +72,35 @@ public class QnaService {
             String textToModerate = (request.getTitle() != null ? request.getTitle() : "") + " " + (request.getContent() != null ? request.getContent() : "");
             modResult = moderationClient.moderate(textToModerate.trim(), qnaBoard.getBoardId(), "POST");
             if (modResult != null && modResult.isBlock()) {
+                Post hidden = Post.builder()
+                        .board(qnaBoard)
+                        .userId(userId)
+                        .postTitle(request.getTitle())
+                        .content(request.getContent())
+                        .fileAttached("N")
+                        .status(PostStatus.HIDDEN)
+                        .viewCount(0)
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .deleted(false)
+                        .commentEnabled(false)
+                        .build();
+                Post saved = qnaRepository.save(hidden);
                 bannedWordService.logAiModeration(
                         qnaBoard.getBoardId(),
-                        null,
+                        saved.getPostId(),
                         BannedLogContentType.POST,
                         userId,
                         modResult
                 );
-                // 기술/서버 장애 등으로 BLOCK 된 경우에도 reason/stack을 반영해 안내문구를 다르게 노출한다.
-                String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("QnA", modResult);
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED, msg);
+                notificationService.publishUserNoticeNotification(
+                        userId,
+                        "질문 숨김 등록 안내",
+                        saved.getPostId() + "번 질문 게시글이 숨김글로 등록되었습니다. 관리자 확인후 답변 드리겠습니다. 감사합니다.",
+                        InboxTargetType.NOTICE,
+                        saved.getPostId()
+                );
+                return buildQnaResponse(saved, saved.getViewCount(), false, true);
             }
         }
 
@@ -93,21 +119,38 @@ public class QnaService {
                 .build();
 
         Post saved = qnaRepository.save(post);
-        return toResponse(saved);
+        return buildQnaResponse(saved, saved.getViewCount(), false, false);
     }
 
     /**
-     * 사용자 QnA 상세 조회는 공개 상태 글만 허용하고 조회수 증가를 함께 수행한다.
+     * 상세: 공개(PUBLISHED)는 누구나, 숨김(HIDDEN)은 작성자·관리자만 본문 조회 가능.
      */
     @Transactional
     public QnaResponse get(Long qnaId) {
-        Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
+        Post post = qnaRepository.findQnaById(qnaId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
+        if (post.isDeleted()) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다.");
+        }
 
-        postRepository.increaseViewCount(post.getPostId());
-        int viewCountAfter = postRepository.getViewCountByPostId(post.getPostId());
+        Long viewerId = securityUtil.currentUserIdOrNull();
+        boolean admin = securityUtil.isAdmin();
 
-        return toResponse(post, viewCountAfter);
+        if (post.getStatus() == PostStatus.PUBLISHED) {
+            postRepository.increaseViewCount(post.getPostId());
+            int viewCountAfter = postRepository.getViewCountByPostId(post.getPostId());
+            return buildQnaResponse(post, viewCountAfter, false, false);
+        }
+        if (post.getStatus() == PostStatus.HIDDEN) {
+            boolean canView = admin || (viewerId != null && viewerId.equals(post.getUserId()));
+            if (!canView) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다.");
+            }
+            postRepository.increaseViewCount(post.getPostId());
+            int viewCountAfter = postRepository.getViewCountByPostId(post.getPostId());
+            return buildQnaResponse(post, viewCountAfter, false, false);
+        }
+        throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다.");
     }
 
     public Page<QnaResponse> list(int page, int size) {
@@ -115,9 +158,14 @@ public class QnaService {
     }
 
     /**
-     * WAITING/ANSWERED 필터는 answeredAt 존재 여부 기준으로 해석한다.
+     * WAITING/ANSWERED 필터는 answeredAt 존재 여부 기준.
+     * HIDDEN 행은 관리자가 아니면 목록에서 마스킹.
      */
     public Page<QnaResponse> list(int page, int size, String statusFilter) {
+        return list(page, size, statusFilter, null, "recent");
+    }
+
+    public Page<QnaResponse> list(int page, int size, String statusFilter, String keyword, String sortKey) {
         validatePageRequest(page, size);
         Boolean answeredOnly = null;
         if (statusFilter != null && !statusFilter.isBlank()) {
@@ -127,19 +175,38 @@ public class QnaService {
                 answeredOnly = false;
             }
         }
-        Page<Post> result = answeredOnly != null
-                ? qnaRepository.findAllQnaPublishedWithAnsweredFilter(PostStatus.PUBLISHED, answeredOnly, PageRequest.of(page, size))
-                : qnaRepository.findAllQnaPublished(PostStatus.PUBLISHED, PageRequest.of(page, size));
-        return result.map(this::toResponse);
+        Long viewerId = securityUtil.currentUserIdOrNull();
+        boolean viewerIsAdmin = securityUtil.isAdmin();
+        String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+        String sk = (sortKey == null || sortKey.isBlank()) ? "recent" : sortKey.trim().toLowerCase();
+        PageRequest pageable = PageRequest.of(page, size);
+        // 답변완료/대기중 필터에서는 숨김글(HIDDEN)을 목록에서 제외한다.
+        List<PostStatus> statusesForList = answeredOnly == null
+                ? QNA_PUBLIC_LIST_STATUSES
+                : List.of(PostStatus.PUBLISHED);
+
+        Page<Post> result = switch (sk) {
+            case "oldest" -> qnaRepository.searchAllQnaVisibleOldest(statusesForList, answeredOnly, kw, pageable);
+            case "views" -> qnaRepository.searchAllQnaVisibleViews(statusesForList, answeredOnly, kw, pageable);
+            default -> qnaRepository.searchAllQnaVisibleRecent(statusesForList, answeredOnly, kw, pageable);
+        };
+        return result.map(p -> toListItemResponse(p, viewerIsAdmin, viewerId));
     }
 
     /**
-     * 수정은 작성자 본인만 허용하며, 현재 구현에서는 공개 상태 질문만 수정 가능하다.
+     * 수정: 공개·숨김(HIDDEN) 질문. BLOCK 시 내용 반영 후 HIDDEN 유지 및 로그(예외 없음).
+     * 모더레이션 통과 시 HIDDEN이었다면 공개(PUBLISHED)로 복구한다.
      */
     @Transactional
     public QnaResponse update(Long userId, Long qnaId, QnaUpdateRequest request) {
-        Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
+        Post post = qnaRepository.findQnaById(qnaId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
+        if (post.isDeleted()) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다.");
+        }
+        if (post.getStatus() != PostStatus.PUBLISHED && post.getStatus() != PostStatus.HIDDEN) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다.");
+        }
 
         if (!post.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "수정 권한이 없습니다.");
@@ -153,38 +220,44 @@ public class QnaService {
                     + (request.getContent() != null ? request.getContent() : "");
             ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), qnaBoardId, "POST");
             if (modResult != null && modResult.isBlock()) {
+                post.updateTitleAndContent(request.getTitle(), request.getContent());
+                post.hide();
+                Post saved = qnaRepository.save(post);
                 bannedWordService.logAiModeration(
                         qnaBoardId, qnaId, BannedLogContentType.POST, userId, modResult);
-                String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("QnA", modResult);
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED, msg);
+                return buildQnaResponse(saved, saved.getViewCount(), false, true);
             }
         }
 
         post.updateTitleAndContent(request.getTitle(), request.getContent());
+        if (post.getStatus() == PostStatus.HIDDEN) {
+            post.restore();
+        }
 
         Post saved = qnaRepository.save(post);
-        return toResponse(saved);
+        return buildQnaResponse(saved, saved.getViewCount(), false, false);
     }
 
     /**
-     * 삭제는 숨김 처리 후 deleted 플래그를 세우는 soft delete 흐름이다.
+     * 삭제: 작성자 본인의 미삭제 QnA(공개·숨김) 처리.
      */
     @Transactional
     public void delete(Long userId, Long qnaId) {
-        Post post = qnaRepository.findQnaPublishedById(qnaId, PostStatus.PUBLISHED)
+        Post post = qnaRepository.findQnaById(qnaId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다."));
-
+        if (post.isDeleted()) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "QnA가 존재하지 않습니다.");
+        }
         if (!post.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "삭제 권한이 없습니다.");
         }
-
         post.hide();
         post.markDeleted();
         qnaRepository.save(post);
     }
 
     /**
-     * close는 삭제와 달리 질문을 유지한 채 추가 답변 흐름만 종료한다.
+     * 마감: 공개 질문만 HIDDEN 처리.
      */
     @Transactional
     public void close(Long userId, Long qnaId) {
@@ -199,9 +272,6 @@ public class QnaService {
         qnaRepository.save(post);
     }
 
-    /**
-     * 과도한 페이지 요청으로 인한 조회 부하를 막기 위해 범위를 제한한다.
-     */
     private void validatePageRequest(int page, int size) {
         if (page < 0) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "page는 0 이상이어야 합니다.");
@@ -211,25 +281,46 @@ public class QnaService {
         }
     }
 
-    private QnaResponse toResponse(Post post) {
-        return toResponse(post, post.getViewCount());
+    private QnaResponse toListItemResponse(Post post, boolean viewerIsAdmin, Long viewerId) {
+        boolean isOwner = viewerId != null && viewerId.equals(post.getUserId());
+        boolean masked = post.getStatus() == PostStatus.HIDDEN && !viewerIsAdmin && !isOwner;
+        return buildQnaResponse(post, post.getViewCount(), masked, false);
     }
 
-    private QnaResponse toResponse(Post post, int viewCount) {
-        String writerEmail = post.getUserId() != null
-                ? userRepository.findById(post.getUserId()).map(u -> u.getEmail()).orElse(null)
-                : null;
-        Long boardId = post.getBoard() != null ? post.getBoard().getBoardId() : null;
+    /**
+     * @param maskContent HIDDEN이면 제목·본문·답변 마스킹(관리자 목록은 비마스킹)
+     * @param moderationHidden AI 차단으로 숨김 저장된 경우(작성자 응답 안내)
+     */
+    private QnaResponse buildQnaResponse(Post post, int viewCount, boolean maskContent, boolean moderationHidden) {
+        String writerEmail = null;
+        String writerNickname = null;
+        if (post.getUserId() != null) {
+            var u = userRepository.findById(post.getUserId());
+            writerEmail = u.map(user -> user.getEmail()).orElse(null);
+            writerNickname = u.map(user -> user.getNickname()).orElse(null);
+        }
+
+        String title = maskContent ? "관리자 확인후 답변 예정입니다" : post.getPostTitle();
+        String content = maskContent ? "" : post.getContent();
+        String answerContent = maskContent ? null : post.getAnswerContent();
+        LocalDateTime answeredAt = maskContent ? null : post.getAnsweredAt();
+
+        QnaStatus qnaStatus = post.getAnsweredAt() == null ? QnaStatus.WAITING : QnaStatus.ANSWERED;
+
         return QnaResponse.builder()
                 .qnaId(post.getPostId())
                 .boardId(post.getBoard().getBoardId())
                 .userId(post.getUserId())
                 .writerEmail(writerEmail)
-                .title(post.getPostTitle())
-                .content(post.getContent())
-                .status(post.getAnsweredAt() == null ? QnaStatus.WAITING : QnaStatus.ANSWERED)
-                .answerContent(post.getAnswerContent())
-                .answeredAt(post.getAnsweredAt())
+                .writerNickname(writerNickname)
+                .title(title)
+                .content(content)
+                .status(qnaStatus)
+                .answerContent(answerContent)
+                .answeredAt(answeredAt)
+                .publicationStatus(post.getStatus().name())
+                .masked(maskContent)
+                .moderationHidden(moderationHidden)
                 .viewCount(viewCount)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())

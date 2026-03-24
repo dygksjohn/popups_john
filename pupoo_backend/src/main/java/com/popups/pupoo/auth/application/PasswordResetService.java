@@ -41,6 +41,7 @@ public class PasswordResetService {
     private final EmailVerificationSenderPort emailVerificationSenderPort;
     private final String hashSalt;
     private final int tokenTtlMinutes;
+    private final boolean exposeDevCode;
 
     public PasswordResetService(
             UserRepository userRepository,
@@ -49,7 +50,8 @@ public class PasswordResetService {
             PasswordEncoder passwordEncoder,
             EmailVerificationSenderPort emailVerificationSenderPort,
             @Value("${verification.hash.salt:__MISSING__}") String hashSalt,
-            @Value("${verification.password-reset.ttl-minutes:30}") int tokenTtlMinutes
+            @Value("${verification.password-reset.ttl-minutes:30}") int tokenTtlMinutes,
+            @Value("${verification.dev.expose:false}") boolean exposeDevCode
     ) {
         this.userRepository = userRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
@@ -58,6 +60,7 @@ public class PasswordResetService {
         this.emailVerificationSenderPort = emailVerificationSenderPort;
         this.hashSalt = hashSalt;
         this.tokenTtlMinutes = tokenTtlMinutes;
+        this.exposeDevCode = exposeDevCode;
     }
 
     /**
@@ -87,7 +90,7 @@ public class PasswordResetService {
         passwordResetTokenRepository.save(new PasswordResetToken(user.getUserId(), tokenHash, expiresAt));
         emailVerificationSenderPort.sendPasswordResetEmail(user.getEmail(), verificationCode);
 
-        return new PasswordResetRequestResponse(expiresAt, verificationCode);
+        return new PasswordResetRequestResponse(expiresAt, exposeDevCode ? verificationCode : null);
     }
 
     /**

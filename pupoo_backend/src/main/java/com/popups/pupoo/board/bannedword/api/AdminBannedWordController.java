@@ -25,9 +25,10 @@ public class AdminBannedWordController {
     public ApiResponse<PageResponse<BannedWordResponse>> list(
             @PathVariable Long boardId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String q) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "bannedWordId"));
-        return ApiResponse.success(PageResponse.from(bannedWordAdminService.list(boardId, pageable)));
+        return ApiResponse.success(PageResponse.from(bannedWordAdminService.list(boardId, q, pageable)));
     }
 
     @PostMapping("/boards/{boardId}/banned-words")

@@ -143,6 +143,24 @@ export const authApi = {
   // 기능: 마이페이지 이메일 변경 인증을 요청한다.
   // 설명: 새 이메일로 인증 토큰을 보내고, 최종 변경은 confirm 성공 시점에만 확정한다.
   // 흐름: 새 이메일 전달 -> 인증 발송 응답 수신 -> 확인 단계 대기.
+  naverExchange(payload, options) {
+    return apiClient.post("/api/auth/oauth/naver/exchange", payload, {
+      ...options,
+      fallbackMessage: "네이버 코드 교환에 실패했습니다.",
+    });
+  },
+
+  naverLogin(payload, options = {}) {
+    return apiClient.post("/api/auth/oauth/naver/login", payload, {
+      ...options,
+      config: {
+        withCredentials: true,
+        ...(options?.config || {}),
+      },
+      fallbackMessage: "네이버 로그인 처리에 실패했습니다.",
+    });
+  },
+
   requestEmailChange(payload, options) {
     return apiClient.post("/api/users/me/email-change/request", payload, {
       ...options,

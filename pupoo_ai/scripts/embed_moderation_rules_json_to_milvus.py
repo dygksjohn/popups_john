@@ -2,7 +2,7 @@
 입력: pupoo_ai/policy_docs/moderation_rules.json
 출력: Milvus에 버전/타임스탬프 기반 새 컬렉션을 생성 후 upsert 수행(활성화는 하지 않음)
 
-- 임베딩은 현재 구조의 embedding-service(BGE-M3) 호출을 사용한다.
+- 임베딩은 watsonx.ai Embeddings API(langchain_ibm)를 사용한다.
 """
 
 from __future__ import annotations

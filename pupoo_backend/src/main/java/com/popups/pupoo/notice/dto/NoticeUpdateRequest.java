@@ -9,15 +9,19 @@ import lombok.Getter;
 @Getter
 public class NoticeUpdateRequest {
 
-    @NotBlank
+    @NotBlank(message = "title is required")
     private String title;
 
-    @NotBlank
+    @NotBlank(message = "content is required")
     private String content;
 
-    @NotNull
+    @NotNull(message = "pinned is required")
     private Boolean pinned;
 
-    @NotNull
+    @NotNull(message = "status is required")
     private NoticeStatus status;
+
+    private String scope;
+
+    private Long eventId;
 }

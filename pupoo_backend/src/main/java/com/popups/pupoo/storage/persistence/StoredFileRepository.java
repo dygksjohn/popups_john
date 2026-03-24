@@ -14,6 +14,8 @@ public interface StoredFileRepository extends JpaRepository<StoredFile, Long> {
 
     Optional<StoredFile> findByPostIdAndDeletedAtIsNull(Long postId);
 
+    List<StoredFile> findAllByPostIdAndDeletedAtIsNullOrderByFileIdDesc(Long postId);
+
     Optional<StoredFile> findByNoticeIdAndDeletedAtIsNull(Long noticeId);
 
     List<StoredFile> findTop100ByDeletedAtIsNotNullAndObjectDeletedAtIsNullAndDeletedAtBefore(LocalDateTime cutoff);

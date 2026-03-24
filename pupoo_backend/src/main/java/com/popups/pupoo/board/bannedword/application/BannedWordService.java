@@ -7,6 +7,7 @@ import com.popups.pupoo.board.bannedword.persistence.BoardBannedLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -33,8 +34,11 @@ public class BannedWordService {
     /**
      * Log AI moderation result. On save failure (e.g. missing ai_score/rag_reason columns), does not fail the request.
      * 현재 ACTION 도메인은 PASS/BLOCK만 사용하므로, BLOCK이 아닌 경우는 로그를 남기지 않는다.
+     * <p>
+     * 호출부(PostService 등)가 같은 트랜잭션에서 {@link com.popups.pupoo.common.exception.BusinessException}을 던지면
+     * 기본 전파(REQUIRED)로는 로그 INSERT까지 롤백되므로, 별도 트랜잭션으로 커밋한다.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logAiModeration(Long boardId, Long contentId, BannedLogContentType contentType, Long userId,
                                 ModerationResult result) {
         if (result == null || boardId == null) return;

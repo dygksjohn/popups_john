@@ -1,6 +1,7 @@
 // file: src/main/java/com/popups/pupoo/adminlog/domain/model/AdminLog.java
 package com.popups.pupoo.common.audit.domain.model;
 
+import com.popups.pupoo.common.audit.domain.enums.AdminLogResult;
 import com.popups.pupoo.common.audit.domain.enums.AdminTargetType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -29,6 +30,16 @@ public class AdminLog {
 
     @Column(name = "action", nullable = false, length = 255)
     private String action;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "result", nullable = false, columnDefinition = "ENUM('SUCCESS','FAIL')")
+    private AdminLogResult result;
+
+    @Column(name = "error_code", length = 50)
+    private String errorCode;
+
+    @Column(name = "ip_address", length = 50)
+    private String ipAddress;
 
     @Enumerated(EnumType.STRING)
     @Column(

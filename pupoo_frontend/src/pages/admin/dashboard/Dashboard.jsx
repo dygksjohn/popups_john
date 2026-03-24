@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import AdminChatBot from "./AdminChatBot";
 import {
   AlertTriangle,
   Home,
@@ -188,7 +187,7 @@ const DEFAULT_PAGE_TABS = {
     { id: "review", label: "행사후기" },
     { id: "qna", label: "질문·답변" },
     { id: "faq", label: "자주 묻는 질문" },
-    { id: "banned", label: "금지어 관리" },
+    { id: "banned", label: "모더레이션 시스템" },
   ],
   gallery: [{ id: "all", label: "갤러리" }],
   notice: [{ id: "all", label: "공지사항", count: 5 }],
@@ -892,7 +891,6 @@ export default function Dashboard() {
           {renderPage()}
         </div>
       </main>
-      <AdminChatBot />
     </div>
   );
 }

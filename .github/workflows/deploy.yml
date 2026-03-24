@@ -35,6 +35,8 @@ jobs:
       VITE_ASSET_BASE_URL: ${{ vars.VITE_ASSET_BASE_URL || 'https://cdn.pupoo.site' }}
       VITE_KAKAO_REST_KEY: ${{ vars.VITE_KAKAO_REST_KEY }}
       VITE_KAKAO_REDIRECT_URI: ${{ vars.VITE_KAKAO_REDIRECT_URI }}
+      VITE_NAVER_CLIENT_ID: ${{ vars.VITE_NAVER_CLIENT_ID }}
+      VITE_NAVER_REDIRECT_URI: ${{ vars.VITE_NAVER_REDIRECT_URI }}
       VITE_KAKAO_MAP_KEY: ${{ vars.VITE_KAKAO_MAP_KEY || 'b338ac0a2a4b79c4fdffe57afe4591c4' }}
 
     steps:
@@ -253,9 +255,17 @@ jobs:
           AWS_AUTH_MESSAGING_ACCESS_KEY_ID: ${{ secrets.AWS_AUTH_MESSAGING_ACCESS_KEY_ID }}
           AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY: ${{ secrets.AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY }}
           SES_FROM_EMAIL: ${{ secrets.SES_FROM_EMAIL }}
+          AUTH_EMAIL_PROVIDER: ${{ vars.AUTH_EMAIL_PROVIDER || 'aws-ses' }}
+          AUTH_SMS_PROVIDER: ${{ vars.AUTH_SMS_PROVIDER || 'dev' }}
           AUTH_AWS_REGION: ${{ vars.AUTH_AWS_REGION }}
           AUTH_SMS_REGION: ${{ vars.AUTH_SMS_REGION }}
+          AWS_SES_FROM_NAME: ${{ vars.AWS_SES_FROM_NAME || 'POPUPS' }}
+          VERIFICATION_EMAIL_BASE_URL: ${{ vars.VERIFICATION_EMAIL_BASE_URL || 'https://api.pupoo.site' }}
+          VERIFICATION_DEV_EXPOSE: ${{ vars.VERIFICATION_DEV_EXPOSE || 'false' }}
           APP_FRONTEND_BASE_URL: ${{ vars.APP_FRONTEND_BASE_URL || 'https://www.pupoo.site' }}
+          NAVER_OAUTH_CLIENT_ID: ${{ secrets.NAVER_OAUTH_CLIENT_ID }}
+          NAVER_OAUTH_CLIENT_SECRET: ${{ secrets.NAVER_OAUTH_CLIENT_SECRET }}
+          NAVER_OAUTH_REDIRECT_URI: ${{ secrets.NAVER_OAUTH_REDIRECT_URI }}
           KAKAOPAY_APPROVAL_URL: ${{ secrets.KAKAOPAY_APPROVAL_URL }}
           KAKAOPAY_CANCEL_URL: ${{ secrets.KAKAOPAY_CANCEL_URL }}
           KAKAOPAY_FAIL_URL: ${{ secrets.KAKAOPAY_FAIL_URL }}
@@ -274,8 +284,6 @@ jobs:
           fi
           CURRENT_AI_SERVICE_INTERNAL_TOKEN="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AI_SERVICE_INTERNAL_TOKEN}' | base64 -d)"
           MODERATION_INTERNAL_TOKEN="${APP_AI_MODERATION_INTERNAL_TOKEN:-${CURRENT_AI_SERVICE_INTERNAL_TOKEN}}"
-          EMAIL_PROVIDER="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AUTH_EMAIL_PROVIDER}' | base64 -d 2>/dev/null || true)"
-          SMS_PROVIDER="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AUTH_SMS_PROVIDER}' | base64 -d 2>/dev/null || true)"
           SMS_ORIGINATION_NUMBER="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AWS_SMS_ORIGINATION_NUMBER}' | base64 -d 2>/dev/null || true)"
           SMS_SENDER_ID="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AWS_SMS_SENDER_ID}' | base64 -d 2>/dev/null || true)"
 
@@ -284,11 +292,13 @@ jobs:
             exit 1
           fi
 
-          if [ -z "${EMAIL_PROVIDER}" ]; then
-            EMAIL_PROVIDER="aws-ses"
+          if [ -z "${AUTH_AWS_REGION}" ]; then
+            echo "AUTH_AWS_REGION variable is required"
+            exit 1
           fi
-          if [ -z "${SMS_PROVIDER}" ]; then
-            SMS_PROVIDER="aws-sns"
+          if [ -z "${VERIFICATION_EMAIL_BASE_URL}" ]; then
+            echo "VERIFICATION_EMAIL_BASE_URL variable is required"
+            exit 1
           fi
           KAKAOPAY_APPROVAL_URL="${KAKAOPAY_APPROVAL_URL:-${APP_FRONTEND_BASE_URL}/payment/approve?paymentId={paymentId}}"
           KAKAOPAY_CANCEL_URL="${KAKAOPAY_CANCEL_URL:-${APP_FRONTEND_BASE_URL}/payment/cancel?paymentId={paymentId}}"
@@ -299,16 +309,22 @@ jobs:
             OPENAI_API_KEY: "${OPENAI_API_KEY}"
             OPENAI_IMAGE_MODEL: "${OPENAI_IMAGE_MODEL}"
             APP_AI_MODERATION_INTERNAL_TOKEN: "${MODERATION_INTERNAL_TOKEN}"
-            AUTH_EMAIL_PROVIDER: "${EMAIL_PROVIDER}"
-            AUTH_SMS_PROVIDER: "${SMS_PROVIDER}"
+            AUTH_EMAIL_PROVIDER: "${AUTH_EMAIL_PROVIDER}"
+            AUTH_SMS_PROVIDER: "${AUTH_SMS_PROVIDER}"
             AWS_REGION: "${AUTH_AWS_REGION}"
             AWS_SMS_REGION: "${AUTH_SMS_REGION}"
             AWS_AUTH_MESSAGING_ACCESS_KEY_ID: "${AWS_AUTH_MESSAGING_ACCESS_KEY_ID}"
             AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY: "${AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY}"
             AWS_SES_FROM_ADDRESS: "${SES_FROM_EMAIL}"
+            AWS_SES_FROM_NAME: "${AWS_SES_FROM_NAME}"
+            VERIFICATION_EMAIL_BASE_URL: "${VERIFICATION_EMAIL_BASE_URL}"
+            VERIFICATION_DEV_EXPOSE: "${VERIFICATION_DEV_EXPOSE}"
             AWS_SMS_ORIGINATION_NUMBER: "${SMS_ORIGINATION_NUMBER}"
             AWS_SMS_SENDER_ID: "${SMS_SENDER_ID}"
             APP_FRONTEND_BASE_URL: "${APP_FRONTEND_BASE_URL}"
+            NAVER_OAUTH_CLIENT_ID: "${NAVER_OAUTH_CLIENT_ID}"
+            NAVER_OAUTH_CLIENT_SECRET: "${NAVER_OAUTH_CLIENT_SECRET}"
+            NAVER_OAUTH_REDIRECT_URI: "${NAVER_OAUTH_REDIRECT_URI}"
             KAKAOPAY_APPROVAL_URL: "${KAKAOPAY_APPROVAL_URL}"
             KAKAOPAY_CANCEL_URL: "${KAKAOPAY_CANCEL_URL}"
             KAKAOPAY_FAIL_URL: "${KAKAOPAY_FAIL_URL}"
@@ -325,6 +341,51 @@ jobs:
                 -p="[ { \"op\": \"remove\", \"path\": \"/data/${legacy_key}\" } ]"
             fi
           done
+
+      - name: Sync AI runtime secrets
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PUPOO_AI_DB_PASSWORD: ${{ secrets.PUPOO_AI_DB_PASSWORD }}
+          PUPOO_AI_INTERNAL_TOKEN: ${{ secrets.PUPOO_AI_INTERNAL_TOKEN }}
+          PUPOO_AI_WATSONX_API_KEY: ${{ secrets.PUPOO_AI_WATSONX_API_KEY }}
+          PUPOO_AI_WATSONX_PROJECT_ID: ${{ secrets.PUPOO_AI_WATSONX_PROJECT_ID }}
+        run: |
+          CURRENT_AI_SERVICE_INTERNAL_TOKEN="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AI_SERVICE_INTERNAL_TOKEN}' | base64 -d)"
+
+          AI_INTERNAL_TOKEN="${PUPOO_AI_INTERNAL_TOKEN:-${CURRENT_AI_SERVICE_INTERNAL_TOKEN}}"
+
+          if [ -z "${AI_INTERNAL_TOKEN}" ]; then
+            echo "PUPOO_AI_INTERNAL_TOKEN is missing and existing AI_SERVICE_INTERNAL_TOKEN could not be read"
+            exit 1
+          fi
+
+          if [ -z "${PUPOO_AI_DB_PASSWORD}" ]; then
+            echo "PUPOO_AI_DB_PASSWORD secret is required"
+            exit 1
+          fi
+
+          if [ -z "${PUPOO_AI_WATSONX_API_KEY}" ]; then
+            echo "PUPOO_AI_WATSONX_API_KEY secret is required"
+            exit 1
+          fi
+
+          if [ -z "${PUPOO_AI_WATSONX_PROJECT_ID}" ]; then
+            echo "PUPOO_AI_WATSONX_PROJECT_ID secret is required"
+            exit 1
+          fi
+
+          cat > /tmp/pupoo-ai-secret-patch.yaml <<EOF
+          stringData:
+            OPENAI_API_KEY: "${OPENAI_API_KEY}"
+            PUPOO_AI_DB_PASSWORD: "${PUPOO_AI_DB_PASSWORD}"
+            PUPOO_AI_INTERNAL_TOKEN: "${AI_INTERNAL_TOKEN}"
+            PUPOO_AI_WATSONX_API_KEY: "${PUPOO_AI_WATSONX_API_KEY}"
+            PUPOO_AI_WATSONX_PROJECT_ID: "${PUPOO_AI_WATSONX_PROJECT_ID}"
+          EOF
+
+          kubectl -n "${EKS_NAMESPACE:-pupoo}" patch secret pupoo-ai-secret \
+            --type merge \
+            --patch-file /tmp/pupoo-ai-secret-patch.yaml
 
       - name: Apply base manifests
         run: kubectl apply -k k8s/base

@@ -13,6 +13,7 @@ import { adminNoticeApi, getToken, clearToken } from "./api/noticeApi";
 
 /* admin */
 import Dashboard from "./pages/admin/dashboard/Dashboard";
+import AdminChatBot from "./pages/admin/dashboard/AdminChatBot";
 import BoardManage from "./pages/admin/board/boardManage";
 import NoticeManage from "./pages/admin/board/Notice";
 import EventManage from "./pages/admin/event/eventManage";
@@ -50,6 +51,8 @@ import JoinSocial from "./pages/site/auth/join/JoinSocial";
 import KakaoCallback from "./pages/site/auth/KakaoCallback";
 import KakaoJoin from "./pages/site/auth/join/KakaoJoin";
 import KakaoOtp from "./pages/site/auth/join/KakaoOtp";
+import NaverCallback from "./pages/site/auth/NaverCallback";
+import NaverJoin from "./pages/site/auth/join/NaverJoin";
 
 /* Payment */
 import Checkout from "./pages/site/payment/Checkout";
@@ -222,6 +225,10 @@ function LegacyProgramRedirect({ target }) {
 }
 
 export default function App() {
+  const location = useLocation();
+  const showAdminChatBot =
+    location.pathname.startsWith("/admin") && location.pathname !== "/admin/login";
+
   return (
     <>
       <ScrollToTop />
@@ -472,6 +479,8 @@ export default function App() {
             }
           />
           <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
+          <Route path="/naver/callback" element={<NaverCallback />} />
+          <Route path="/auth/callback" element={<NaverCallback />} />
           <Route
             path="/auth/join/kakao"
             element={
@@ -485,6 +494,14 @@ export default function App() {
             element={
               <PublicOnly>
                 <KakaoOtp />
+              </PublicOnly>
+            }
+          />
+          <Route
+            path="/auth/join/naver"
+            element={
+              <PublicOnly>
+                <NaverJoin />
               </PublicOnly>
             }
           />
@@ -630,6 +647,7 @@ export default function App() {
           />
         </Route>
       </Routes>
+      {showAdminChatBot ? <AdminChatBot /> : null}
     </>
   );
 }

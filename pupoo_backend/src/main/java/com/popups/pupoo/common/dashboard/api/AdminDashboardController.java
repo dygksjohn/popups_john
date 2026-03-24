@@ -9,6 +9,7 @@ import com.popups.pupoo.common.dashboard.dto.DashboardEventResponse;
 import com.popups.pupoo.common.dashboard.dto.DashboardPastEventResponse;
 import com.popups.pupoo.common.dashboard.dto.DashboardProgramResponse;
 import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.MessageResponse;
 import com.popups.pupoo.event.application.EventAdminService;
 import com.popups.pupoo.event.dto.AdminEventCreateRequest;
 import com.popups.pupoo.event.dto.AdminEventUpdateRequest;
@@ -140,9 +141,9 @@ public class AdminDashboardController {
      * DELETE /api/admin/dashboard/program-applies/{applyId}
      */
     @DeleteMapping("/program-applies/{applyId}")
-    public ApiResponse<Void> deleteApply(@PathVariable Long applyId) {
+    public ApiResponse<MessageResponse> deleteApply(@PathVariable Long applyId) {
         programApplyService.adminHardDelete(applyId);
-        return ApiResponse.success(null);
+        return ApiResponse.success(new MessageResponse("PROGRAM_APPLY_DELETED"));
     }
 
     /**

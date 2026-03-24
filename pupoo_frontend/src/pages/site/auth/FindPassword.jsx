@@ -9,7 +9,6 @@ export default function FindPassword() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
-  const [issuedCode, setIssuedCode] = useState("");
   const [codeRequested, setCodeRequested] = useState(false);
   const [requestingCode, setRequestingCode] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
@@ -36,25 +35,19 @@ export default function FindPassword() {
     sessionStorage.removeItem(PASSWORD_RESET_CONTEXT_KEY);
 
     try {
-      const response = await authApi.passwordResetRequest({
+      await authApi.passwordResetRequest({
         email: email.trim(),
         phone: phone.trim(),
       });
-      const nextCode = String(response?.verificationCode || "");
-      setIssuedCode(nextCode);
-      setVerificationCode(nextCode);
+
+      setVerificationCode("");
       setCodeRequested(true);
-      setSuccessMessage(
-        nextCode
-          ? "인증번호를 자동으로 입력했습니다. 확인 버튼을 눌러 진행해 주세요."
-          : "인증번호를 요청했습니다. 이메일 또는 휴대전화로 받은 인증번호를 입력해 주세요.",
-      );
+      setSuccessMessage("이메일을 확인해 주세요. 받은 인증번호를 입력하면 비밀번호를 재설정할 수 있습니다.");
     } catch (error) {
       const message =
         error?.message ||
         "인증번호 발급에 실패했습니다. 잠시 후 다시 시도해 주세요.";
       setErrorMessage(message);
-      setIssuedCode("");
       setVerificationCode("");
       setCodeRequested(false);
     } finally {
@@ -127,7 +120,7 @@ export default function FindPassword() {
       >
         <h1 style={{ margin: 0, fontSize: 24, color: "#1F2937" }}>비밀번호 찾기</h1>
         <p style={{ marginTop: 10, marginBottom: 20, color: "#6B7280", fontSize: 14 }}>
-          가입한 이메일과 휴대전화 번호로 인증번호를 발급받아 비밀번호를 재설정합니다.
+          가입한 이메일과 휴대전화 번호로 인증번호를 확인한 뒤 비밀번호를 재설정합니다.
         </p>
 
         <form onSubmit={handleRequestCode} style={{ display: "grid", gap: 10 }}>

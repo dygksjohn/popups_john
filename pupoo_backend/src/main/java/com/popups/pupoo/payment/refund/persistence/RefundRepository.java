@@ -42,6 +42,8 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
 
     Page<Refund> findByStatus(RefundStatus status, Pageable pageable);
 
+    long countByStatus(RefundStatus status);
+
     @Query("""
         select
           r.refundId as refundId,

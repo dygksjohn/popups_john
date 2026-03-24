@@ -12,13 +12,13 @@ import java.util.List;
 @Getter
 public class NotificationBroadcastRequest {
 
-    @NotNull
+    @NotNull(message = "type is required")
     private NotificationType type;
 
-    @NotBlank
+    @NotBlank(message = "title is required")
     private String title;
 
-    @NotBlank
+    @NotBlank(message = "content is required")
     private String content;
 
     private InboxTargetType targetType;

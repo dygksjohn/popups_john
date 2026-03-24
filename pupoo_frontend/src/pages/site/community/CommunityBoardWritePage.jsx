@@ -53,7 +53,9 @@ function InProgressBox() {
       }}
     >
       <Loader2 size={14} style={{ flexShrink: 0, animation: "spin 1s linear infinite" }} />
-      등록 중입니다. 기다려 주세요.
+      <span style={{ whiteSpace: "pre-line" }}>
+        {"깨끗한 커뮤니티 조성을 위해 AI가 게시글 콘텐츠를 검토 중입니다.\n잠시만 기다려주세요"}
+      </span>
     </div>
   );
 }
@@ -173,6 +175,7 @@ export default function CommunityBoardWritePage({
 
   const isMobile = viewportWidth < 768;
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const isFormLocked = saving || Boolean(successMessage);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -221,11 +224,8 @@ export default function CommunityBoardWritePage({
         localStorage.removeItem(draftKey);
       } catch (_) {}
 
-      setSuccessMessage("등록 완료");
-      setTimeout(() => {
-        if (!isMountedRef.current) return;
-        navigate(currentPath);
-      }, 1500);
+      setSuccessMessage("등록 완료되었습니다.");
+      setSaving(false);
     } catch (err) {
       console.error("[CommunityBoardWritePage] create failed:", err);
       if (!isMountedRef.current) return;
@@ -265,7 +265,7 @@ export default function CommunityBoardWritePage({
           <button
             type="submit"
             form="community-board-write-form"
-            disabled={saving || loading}
+            disabled={isFormLocked || loading}
             style={{
               height: 44,
               padding: "0 18px",
@@ -275,8 +275,8 @@ export default function CommunityBoardWritePage({
               fontSize: 14,
               fontWeight: 800,
               color: "#fff",
-              cursor: saving || loading ? "not-allowed" : "pointer",
-              opacity: saving || loading ? 0.6 : 1,
+              cursor: isFormLocked || loading ? "not-allowed" : "pointer",
+              opacity: isFormLocked || loading ? 0.6 : 1,
               width: isMobile ? "100%" : "auto",
             }}
           >
@@ -299,8 +299,8 @@ export default function CommunityBoardWritePage({
               display: "grid",
               gap: isMobile ? 14 : isTablet ? 16 : 18,
               position: "relative",
-              pointerEvents: saving ? "none" : undefined,
-              opacity: saving ? 0.75 : 1,
+              pointerEvents: isFormLocked ? "none" : undefined,
+              opacity: isFormLocked ? 0.75 : 1,
             }}
           >
             <label style={{ display: "grid", gap: 8 }}>
@@ -309,8 +309,8 @@ export default function CommunityBoardWritePage({
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="제목을 입력해 주세요"
-                disabled={saving}
-                readOnly={saving}
+                disabled={isFormLocked}
+                readOnly={isFormLocked}
                 style={{
                   height: 46,
                   borderRadius: 10,
@@ -318,7 +318,7 @@ export default function CommunityBoardWritePage({
                   padding: isMobile ? "0 12px" : "0 14px",
                   fontSize: 14,
                   color: "#0f172a",
-                  background: saving ? "#f1f5f9" : "#fff",
+                  background: isFormLocked ? "#f1f5f9" : "#fff",
                 }}
               />
             </label>
@@ -336,16 +336,16 @@ export default function CommunityBoardWritePage({
             <label
               style={{
                 display: "block",
-                cursor: saving ? "not-allowed" : "pointer",
+                cursor: isFormLocked ? "not-allowed" : "pointer",
                 border: "1px solid #e2e8f0",
                 borderRadius: 14,
                 padding: isMobile ? "16px" : isTablet ? "18px" : "18px 20px",
-                background: saving ? "#f1f5f9" : "#f8fafc",
+                background: isFormLocked ? "#f1f5f9" : "#f8fafc",
               }}
             >
               <input
                 type="file"
-                disabled={saving}
+                disabled={isFormLocked}
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 style={{ position: "absolute", width: 0, height: 0, opacity: 0, overflow: "hidden" }}
               />

@@ -123,7 +123,7 @@ const styles = `
   .ct-card-tag { font-size: 11px; font-weight: 600; color: #868e9c; background: #f3f4f7; padding: 4px 10px; border-radius: 100px; }
 
   /* Contest list */
-  .ct-contest-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .ct-contest-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
   .ct-contest-item {
     position: relative; overflow: hidden; padding: 0;
     border-radius: 16px;

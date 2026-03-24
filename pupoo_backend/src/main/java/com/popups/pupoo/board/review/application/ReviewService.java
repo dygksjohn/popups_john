@@ -16,6 +16,7 @@ import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.search.SearchType;
 import com.popups.pupoo.event.persistence.EventRepository;
+import com.popups.pupoo.reply.persistence.ReviewCommentRepository;
 import com.popups.pupoo.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
@@ -24,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +34,7 @@ import java.time.LocalDateTime;
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
+    private final ReviewCommentRepository reviewCommentRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
     private final ModerationClient moderationClient;
@@ -46,7 +50,10 @@ public class ReviewService {
 
         ModerationResult modResult = null;
         if (!bannedWordService.shouldSkipModeration(userId)) {
-            modResult = moderationClient.moderate(request.getContent() != null ? request.getContent() : "", reviewBoardId, "POST");
+            String effectiveTitle = resolveReviewTitleForModeration(
+                    request.getReviewTitle(), request.getContent());
+            String textToModerate = buildReviewModerationText(effectiveTitle, request.getContent());
+            modResult = moderationClient.moderate(textToModerate, reviewBoardId, "POST");
             if (modResult != null && modResult.isBlock()) {
                 // 생성 단계에서 BLOCK 된 후기 역시 로그에 남긴다 (contentId는 아직 없음).
                 bannedWordService.logAiModeration(
@@ -62,7 +69,8 @@ public class ReviewService {
             }
         }
 
-        String reviewTitle = deriveTitleFromContent(request.getContent());
+        // 저장 제목은 모더레이션과 동일: 요청 제목이 있으면 사용, 없으면 본문 첫 줄 유도
+        String reviewTitle = resolveReviewTitleForModeration(request.getReviewTitle(), request.getContent());
 
         Review review = Review.builder()
                 .eventId(request.getEventId())
@@ -91,36 +99,67 @@ public class ReviewService {
     }
 
     public Page<ReviewResponse> list(SearchType searchType, String keyword, int page, int size, Integer rating) {
+        return list(searchType, keyword, page, size, rating, "latest");
+    }
+
+    public Page<ReviewResponse> list(SearchType searchType,
+                                       String keyword,
+                                       int page,
+                                       int size,
+                                       Integer rating,
+                                       String sortKey) {
         validatePageRequest(page, size);
         PageRequest pageable = PageRequest.of(page, size);
 
+        Byte ratingByte = null;
         if (rating != null && rating >= 1 && rating <= 5) {
-            byte ratingByte = rating.byteValue();
-            if (searchType == SearchType.WRITER) {
-                Long writerId = parseLongOrNull(keyword);
-                if (writerId == null) {
-                    return reviewRepository.findByDeletedFalseAndReviewStatusAndRating(ReviewStatus.PUBLIC, ratingByte, pageable)
-                            .map(this::toResponse);
-                }
-                return reviewRepository.searchPublicByWriter(ReviewStatus.PUBLIC, writerId, pageable)
-                        .map(this::toResponse);
-            }
-            if (keyword == null || keyword.isBlank()) {
-                return reviewRepository.findByDeletedFalseAndReviewStatusAndRating(ReviewStatus.PUBLIC, ratingByte, pageable)
-                        .map(this::toResponse);
-            }
-            return reviewRepository.searchPublicByContentAndRating(ReviewStatus.PUBLIC, keyword, ratingByte, pageable)
-                    .map(this::toResponse);
+            ratingByte = rating.byteValue();
         }
 
-        return switch (searchType) {
-            case WRITER -> {
-                Long writerId = parseLongOrNull(keyword);
-                yield reviewRepository.searchPublicByWriter(ReviewStatus.PUBLIC, writerId, pageable).map(this::toResponse);
-            }
-            case CONTENT, TITLE, TITLE_CONTENT -> reviewRepository.searchPublicByContent(ReviewStatus.PUBLIC, keyword, pageable)
-                    .map(this::toResponse);
+        Long writerId = null;
+        if (searchType == SearchType.WRITER) {
+            writerId = parseLongOrNull(keyword);
+        }
+
+        String keywordEffective = (keyword == null || keyword.isBlank()) ? null : keyword;
+
+        String sk = (sortKey == null || sortKey.isBlank()) ? "latest" : sortKey.trim().toLowerCase();
+        String publicStatus = ReviewStatus.PUBLIC.name();
+        Page<Review> resultPage = switch (sk) {
+            case "comments", "comment", "commentcount" -> reviewRepository.searchPublicSortedByCommentCount(
+                    publicStatus,
+                    ratingByte,
+                    keywordEffective,
+                    writerId,
+                    pageable
+            );
+            case "views" -> reviewRepository.searchPublicSortedByViews(
+                    ReviewStatus.PUBLIC,
+                    ratingByte,
+                    keywordEffective,
+                    writerId,
+                    pageable
+            );
+            default -> reviewRepository.searchPublicSortedByLatest(
+                    ReviewStatus.PUBLIC,
+                    ratingByte,
+                    keywordEffective,
+                    writerId,
+                    pageable
+            );
         };
+
+        List<Review> reviews = resultPage.getContent();
+        Map<Long, Long> commentCountMap = fetchCommentCounts(reviews);
+        List<ReviewResponse> content = reviews.stream()
+                .map(r -> {
+                    Long reviewId = r.getReviewId();
+                    long cnt = reviewId != null ? commentCountMap.getOrDefault(reviewId, 0L) : 0L;
+                    return toResponse(r, cnt);
+                })
+                .toList();
+
+        return new PageImpl<>(content, resultPage.getPageable(), resultPage.getTotalElements());
     }
 
     public Page<ReviewResponse> list(int page, int size) {
@@ -152,8 +191,9 @@ public class ReviewService {
                 .map(b -> b.getBoardId()).orElse(null);
 
         if (!bannedWordService.shouldSkipModeration(userId) && reviewBoardId != null) {
-            ModerationResult modResult = moderationClient.moderate(
-                    request.getContent() != null ? request.getContent() : "", reviewBoardId, "POST");
+            String effectiveTitle = resolveReviewTitleForUpdate(request, review);
+            String textToModerate = buildReviewModerationText(effectiveTitle, request.getContent());
+            ModerationResult modResult = moderationClient.moderate(textToModerate, reviewBoardId, "POST");
             if (modResult != null && modResult.isBlock()) {
                 bannedWordService.logAiModeration(
                         reviewBoardId, reviewId, BannedLogContentType.POST, userId, modResult);
@@ -216,6 +256,38 @@ public class ReviewService {
         return firstLine.length() > 255 ? firstLine.substring(0, 255) : firstLine;
     }
 
+    /**
+     * AI 모더레이션 입력: 제목 + 본문 (게시글 PostService와 동일하게 결합).
+     */
+    private static String buildReviewModerationText(String title, String content) {
+        String t = title != null ? title.trim() : "";
+        String c = content != null ? content : "";
+        return (t + " " + c).trim();
+    }
+
+    /**
+     * 생성 시 모더레이션에 쓸 제목: 요청에 제목이 있으면 그대로, 없으면 본문에서 유도(저장 로직과 동일).
+     */
+    private static String resolveReviewTitleForModeration(String reviewTitle, String content) {
+        if (reviewTitle != null && !reviewTitle.isBlank()) {
+            return reviewTitle.trim();
+        }
+        return deriveTitleFromContent(content);
+    }
+
+    /**
+     * 수정 시 모더레이션에 쓸 제목: {@link ReviewService#update} 의 reviewTitle 빌더와 동일한 규칙.
+     */
+    private static String resolveReviewTitleForUpdate(ReviewUpdateRequest request, Review review) {
+        if (request.getReviewTitle() != null) {
+            return request.getReviewTitle().trim();
+        }
+        if (review.getReviewTitle() != null) {
+            return review.getReviewTitle().trim();
+        }
+        return deriveTitleFromContent(request.getContent());
+    }
+
     private void validatePageRequest(int page, int size) {
         if (page < 0) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "page는 0 이상이어야 합니다.");
@@ -226,9 +298,32 @@ public class ReviewService {
     }
 
     private ReviewResponse toResponse(Review r) {
+        return toResponse(r, 0L);
+    }
+
+    private ReviewResponse toResponse(Review r, long commentCount) {
         String eventName = eventRepository.findById(r.getEventId()).map(e -> e.getEventName()).orElse(null);
-        String writerEmail = userRepository.findById(r.getUserId()).map(u -> u.getEmail()).orElse(null);
-        Long reviewBoardId = boardRepository.findByBoardType(BoardType.REVIEW).map(b -> b.getBoardId()).orElse(null);
-        return ReviewResponse.from(r, eventName, writerEmail, r.getReviewTitle(), r.getContent());
+        String writerEmail = null;
+        String writerNickname = null;
+        if (r.getUserId() != null) {
+            var u = userRepository.findById(r.getUserId());
+            writerEmail = u.map(user -> user.getEmail()).orElse(null);
+            writerNickname = u.map(user -> user.getNickname()).orElse(null);
+        }
+        return ReviewResponse.from(r, eventName, writerEmail, writerNickname, r.getReviewTitle(), r.getContent(), commentCount);
+    }
+
+    private Map<Long, Long> fetchCommentCounts(List<Review> reviews) {
+        if (reviews == null || reviews.isEmpty()) return new HashMap<>();
+        List<Long> reviewIds = reviews.stream().map(Review::getReviewId).toList();
+        List<Object[]> rows = reviewCommentRepository.countByReviewIds(reviewIds);
+        Map<Long, Long> map = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) continue;
+            Long reviewId = row[0] != null ? ((Number) row[0]).longValue() : null;
+            Long cnt = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            if (reviewId != null) map.put(reviewId, cnt);
+        }
+        return map;
     }
 }

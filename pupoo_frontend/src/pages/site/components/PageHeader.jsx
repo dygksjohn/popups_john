@@ -176,10 +176,11 @@ export default function PageHeader({
   const pageHeaderStyle = {
     ...styles.pageHeader,
     paddingTop: isMobile
-      ? "calc(var(--pupoo-site-header-offset, 96px) + 24px)"
+      ? "calc(var(--pupoo-site-header-offset, 96px) + 48px)"
       : isTablet
         ? "calc(var(--pupoo-site-header-height, 72px) + 36px)"
         : styles.pageHeader.paddingTop,
+    paddingBottom: isMobile ? 36 : undefined,
   };
 
   const innerStyle = {
@@ -200,16 +201,16 @@ export default function PageHeader({
 
   const mergedTitleStyle = {
     ...styles.title,
-    fontSize: isMobile ? 30 : isTablet ? 36 : styles.title.fontSize,
-    lineHeight: isMobile ? "1.12" : isTablet ? "1.22" : styles.title.lineHeight,
+    fontSize: isMobile ? 18 : isTablet ? 30 : styles.title.fontSize,
+    lineHeight: isMobile ? "1.25" : isTablet ? "1.22" : styles.title.lineHeight,
     ...titleStyle,
   };
 
   const mergedSubtitleStyle = {
     ...styles.subtitle,
-    fontSize: isMobile ? 15 : isTablet ? 17 : styles.subtitle.fontSize,
-    margin: isMobile || isTablet ? "10px 0 0" : styles.subtitle.margin,
-    lineHeight: isMobile ? 1.55 : styles.subtitle.lineHeight,
+    fontSize: isMobile ? 12 : isTablet ? 15 : styles.subtitle.fontSize,
+    margin: isMobile || isTablet ? "6px 0 0" : styles.subtitle.margin,
+    lineHeight: isMobile ? 1.5 : styles.subtitle.lineHeight,
     ...subtitleStyle,
   };
 
@@ -233,18 +234,16 @@ export default function PageHeader({
 
   const tabsStyle = {
     ...styles.tabs,
-    marginTop: isMobile ? 20 : isTablet ? 32 : styles.tabs.marginTop,
-    display: isMobile ? "grid" : styles.tabs.display,
-    gridTemplateColumns: isMobile
-      ? `repeat(${Math.min(filteredCategories.length >= 5 ? 3 : 2, Math.max(filteredCategories.length, 1))}, minmax(0, 1fr))`
-      : undefined,
-    overflowX: isMobile ? "visible" : isCompact ? "auto" : "visible",
+    marginTop: isMobile ? 16 : isTablet ? 32 : styles.tabs.marginTop,
+    display: "flex",
+    flexWrap: "nowrap",
+    overflowX: isMobile ? "auto" : isCompact ? "auto" : "visible",
     overflowY: "hidden",
-    flexWrap: isMobile ? "wrap" : isTablet ? "wrap" : "nowrap",
-    paddingBottom: isCompact && !isMobile ? 2 : 0,
-    gap: isMobile ? 8 : styles.tabs.gap,
+    gap: isMobile ? 6 : styles.tabs.gap,
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    paddingBottom: isMobile ? 4 : isCompact ? 2 : 0,
   };
 
   return (
@@ -259,7 +258,11 @@ export default function PageHeader({
                 gap: isMobile ? 10 : 12,
               }}
             >
-              {icon && <span style={{ flexShrink: 0 }}>{icon}</span>}
+              {icon && (
+                <span style={{ flexShrink: 0, transform: isMobile ? "scale(0.6)" : isTablet ? "scale(0.8)" : "none", transformOrigin: "left center" }}>
+                  {icon}
+                </span>
+              )}
               <h1 style={mergedTitleStyle}>{title}</h1>
             </div>
             {subtitle && <p style={mergedSubtitleStyle}>{subtitle}</p>}
@@ -290,18 +293,19 @@ export default function PageHeader({
 
               let btnStyle = {
                 ...styles.tabBase,
-                flex: isCompact ? "0 0 auto" : styles.tabBase.flex,
-                minWidth: isMobile ? 0 : isTablet ? 132 : undefined,
-                width: isMobile ? "100%" : undefined,
-                minHeight: isMobile ? 44 : undefined,
+                flex: isCompact ? "0 0 auto" : 1,
+                minWidth: 0,
+                width: isCompact ? "auto" : "100%",
+                minHeight: isMobile ? 34 : 44,
                 padding: isMobile
-                  ? "10px 8px"
+                  ? "0 14px"
                   : isTablet
                     ? "11px 14px"
                     : styles.tabBase.padding,
-                fontSize: isMobile ? 13.5 : isTablet ? 15 : styles.tabBase.fontSize,
-                whiteSpace: isMobile ? "normal" : styles.tabBase.whiteSpace,
-                lineHeight: isMobile ? 1.25 : undefined,
+                fontSize: isMobile ? 13 : isTablet ? 15 : styles.tabBase.fontSize,
+                whiteSpace: "nowrap",
+                borderRadius: isMobile ? 999 : 0,
+                lineHeight: isMobile ? "34px" : undefined,
               };
 
               if (isActive) {

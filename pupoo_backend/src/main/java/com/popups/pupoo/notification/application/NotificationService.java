@@ -3,6 +3,7 @@ package com.popups.pupoo.notification.application;
 
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
+import com.popups.pupoo.event.persistence.EventRepository;
 import com.popups.pupoo.notification.domain.enums.InboxTargetType;
 import com.popups.pupoo.notification.domain.enums.NotificationChannel;
 import com.popups.pupoo.notification.domain.enums.NotificationType;
@@ -19,6 +20,7 @@ import com.popups.pupoo.notification.dto.NotificationInboxResponse;
 import com.popups.pupoo.notification.dto.NotificationListResponse;
 import com.popups.pupoo.notification.dto.NotificationResponse;
 import com.popups.pupoo.notification.dto.NotificationSettingsResponse;
+import com.popups.pupoo.notification.dto.NotificationSsePayload;
 import com.popups.pupoo.notification.persistence.NotificationInboxRepository;
 import com.popups.pupoo.notification.persistence.NotificationRepository;
 import com.popups.pupoo.notification.persistence.NotificationSendRepository;
@@ -29,20 +31,17 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
- * 인앱 알림 조회와 관리자 발행을 함께 담당한다.
- *
- * - notification: 발행 원문
- * - notification_inbox: 사용자별 미열람 인앱 알림
- * - notification_send: 채널별 발행 이력
- *
- * 현재 읽음 정책은 inbox 행 삭제 방식이다.
+ * 알림 조회와 발행을 담당한다.
  */
 @Service
 @Transactional(readOnly = true)
@@ -53,20 +52,26 @@ public class NotificationService {
     private final NotificationSettingsRepository notificationSettingsRepository;
     private final NotificationSendRepository notificationSendRepository;
     private final UserRepository userRepository;
+    private final EventRepository eventRepository;
     private final NotificationSender notificationSender;
+    private final NotificationSseService notificationSseService;
 
     public NotificationService(NotificationRepository notificationRepository,
                                NotificationInboxRepository notificationInboxRepository,
                                NotificationSettingsRepository notificationSettingsRepository,
                                NotificationSendRepository notificationSendRepository,
                                UserRepository userRepository,
-                               NotificationSender notificationSender) {
+                               EventRepository eventRepository,
+                               NotificationSender notificationSender,
+                               NotificationSseService notificationSseService) {
         this.notificationRepository = notificationRepository;
         this.notificationInboxRepository = notificationInboxRepository;
         this.notificationSettingsRepository = notificationSettingsRepository;
         this.notificationSendRepository = notificationSendRepository;
         this.userRepository = userRepository;
+        this.eventRepository = eventRepository;
         this.notificationSender = notificationSender;
+        this.notificationSseService = notificationSseService;
     }
 
     public NotificationListResponse getMyInbox(Long userId, Pageable pageable) {
@@ -84,10 +89,6 @@ public class NotificationService {
         );
     }
 
-    /**
-     * 아직 읽지 않은 인앱 알림 개수를 반환한다.
-     * 헤더 배지 표시에 사용된다.
-     */
     public long getUnreadCount(Long userId) {
         return notificationInboxRepository.countByUserId(userId);
     }
@@ -97,9 +98,7 @@ public class NotificationService {
         NotificationInbox inbox = notificationInboxRepository.findByInboxIdAndUserId(inboxId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        // 인앱 알림은 읽는 시점에 inbox 행을 제거한다.
         notificationInboxRepository.delete(inbox);
-
         return new NotificationResponse(inbox.getTargetType(), inbox.getTargetId());
     }
 
@@ -119,9 +118,6 @@ public class NotificationService {
         return NotificationSettingsResponse.from(settings);
     }
 
-    /**
-     * 이벤트 관심 등록자 대상 인앱 알림을 발행한다.
-     */
     @Transactional
     public void publishEventInterestNotification(Long eventId,
                                                  NotificationType type,
@@ -132,15 +128,43 @@ public class NotificationService {
         Notification notification = Notification.create(type, title, content);
         notificationRepository.save(notification);
 
-        fanoutInbox(eventId, notification.getNotificationId(), targetType, targetId, RecipientScope.INTEREST_SUBSCRIBERS);
+        LinkedHashSet<Long> recipientUserIds = resolveRecipientUserIds(eventId, List.of(RecipientScope.INTEREST_SUBSCRIBERS));
+        fanoutInbox(recipientUserIds, notification, targetType, targetId);
+        publishSseAfterCommit(recipientUserIds, new NotificationSsePayload(type.name(), targetType.name(), targetId));
     }
 
-    /**
-     * 관리자 이벤트 알림은 채널별로 fan-out 전략이 다르다.
-     * APP은 inbox row를 만들고, EMAIL/SMS는 실제 수신 대상을 해석해 바로 전송한다.
-     */
+    @Transactional
+    public void publishUserNoticeNotification(Long userId,
+                                              String title,
+                                              String content,
+                                              InboxTargetType targetType,
+                                              Long targetId) {
+        if (userId == null || !userRepository.existsById(userId)) {
+            return;
+        }
+
+        Notification notification = Notification.create(NotificationType.SYSTEM, title, content);
+        notificationRepository.save(notification);
+        notificationInboxRepository.save(NotificationInbox.create(userId, notification, targetType, targetId));
+        notificationSendRepository.save(
+                NotificationSend.create(notification, userId, SenderType.SYSTEM, NotificationChannel.APP)
+        );
+        notificationSender.send(
+                new NotificationSender.SendCommand(
+                        notification.getNotificationId(),
+                        userId,
+                        userId,
+                        SenderType.SYSTEM,
+                        NotificationChannel.APP
+                )
+        );
+        publishSseAfterCommit(userId, new NotificationSsePayload(NotificationType.SYSTEM.name(), targetType.name(), targetId));
+    }
+
     @Transactional
     public AdminNotificationPublishResult publishAdminEventNotification(Long adminUserId, NotificationCreateRequest request) {
+        validateEventNotificationRequest(request);
+
         Notification notification = Notification.create(request.getType(), request.getTitle(), request.getContent());
         notificationRepository.save(notification);
 
@@ -149,9 +173,14 @@ public class NotificationService {
         int targetCount = countAdminEventRecipients(request.getEventId(), scopes);
 
         if (channels.contains(NotificationChannel.APP)) {
-            fanoutInbox(request.getEventId(), notification, request.getTargetType(), request.getTargetId(), scopes);
+            LinkedHashSet<Long> recipientUserIds = resolveRecipientUserIds(request.getEventId(), scopes);
+            fanoutInbox(recipientUserIds, notification, request.getTargetType(), request.getTargetId());
             notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.APP));
             notificationSender.send(new NotificationSender.SendCommand(notification.getNotificationId(), null, adminUserId, SenderType.ADMIN, NotificationChannel.APP));
+            publishSseAfterCommit(
+                    recipientUserIds,
+                    new NotificationSsePayload(request.getType().name(), request.getTargetType().name(), request.getTargetId())
+            );
         }
 
         if (channels.contains(NotificationChannel.EMAIL)) {
@@ -178,7 +207,8 @@ public class NotificationService {
         List<NotificationChannel> channels = normalizeChannels(request.getChannels());
         InboxTargetType targetType = request.getTargetType() == null ? InboxTargetType.NOTICE : request.getTargetType();
         Long targetId = request.getTargetId() == null ? 0L : request.getTargetId();
-        int targetCount = countAllActiveRecipients();
+        List<Long> activeUserIds = userRepository.findActiveUserIds();
+        int targetCount = activeUserIds.size();
 
         if (channels.contains(NotificationChannel.APP)) {
             targetCount = notificationInboxRepository.fanoutInboxByAllActiveUsers(
@@ -188,6 +218,10 @@ public class NotificationService {
             );
             notificationSendRepository.save(NotificationSend.create(notification, adminUserId, SenderType.ADMIN, NotificationChannel.APP));
             notificationSender.send(new NotificationSender.SendCommand(notification.getNotificationId(), null, adminUserId, SenderType.ADMIN, NotificationChannel.APP));
+            publishSseAfterCommit(
+                    activeUserIds,
+                    new NotificationSsePayload(request.getType().name(), targetType.name(), targetId)
+            );
         }
 
         if (channels.contains(NotificationChannel.EMAIL)) {
@@ -233,48 +267,20 @@ public class NotificationService {
         return normalizeAdminRecipientScopes(request.getRecipientScope(), request.getRecipientScopes());
     }
 
-    private void fanoutInbox(Long eventId,
-                             Long notificationId,
-                             InboxTargetType targetType,
-                             Long targetId,
-                             RecipientScope scope) {
-        if (scope == RecipientScope.INTEREST_SUBSCRIBERS) {
-            notificationInboxRepository.fanoutInboxByEventInterest(eventId, notificationId, targetType.name(), targetId);
-            return;
-        }
-
-        if (scope == RecipientScope.EVENT_REGISTRANTS) {
-            notificationInboxRepository.fanoutInboxByEventRegistrants(eventId, notificationId, targetType.name(), targetId);
-            return;
-        }
-
-        if (scope == RecipientScope.EVENT_PAYERS) {
-            notificationInboxRepository.fanoutInboxByEventPayers(eventId, notificationId, targetType.name(), targetId);
-            return;
-        }
-
-        throw new BusinessException(ErrorCode.INVALID_REQUEST);
-    }
-
-    private void fanoutInbox(Long eventId,
+    private void fanoutInbox(Collection<Long> recipientUserIds,
                              Notification notification,
                              InboxTargetType targetType,
-                             Long targetId,
-                             List<RecipientScope> scopes) {
-        LinkedHashSet<Long> recipientUserIds = resolveRecipientUserIds(eventId, scopes);
-        if (recipientUserIds.isEmpty()) {
+                             Long targetId) {
+        if (recipientUserIds == null || recipientUserIds.isEmpty()) {
             return;
         }
+
         List<NotificationInbox> inboxes = recipientUserIds.stream()
                 .map(userId -> NotificationInbox.create(userId, notification, targetType, targetId))
                 .toList();
         notificationInboxRepository.saveAll(inboxes);
     }
 
-    /**
-     * 이메일과 SMS는 사용자 설정과 대상 범위를 모두 반영해 실제 수신 대상을 해석한다.
-     * 인앱과 달리 inbox row는 만들지 않는다.
-     */
     private void fanoutSendOnly(Long eventId,
                                 Long notificationId,
                                 List<RecipientScope> scopes,
@@ -299,6 +305,31 @@ public class NotificationService {
         }
 
         throw new BusinessException(ErrorCode.INVALID_REQUEST);
+    }
+
+    private void publishSseAfterCommit(Long userId, NotificationSsePayload payload) {
+        publishSseAfterCommit(List.of(userId), payload);
+    }
+
+    private void publishSseAfterCommit(Collection<Long> userIds, NotificationSsePayload payload) {
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+
+        List<Long> recipients = userIds.stream().distinct().toList();
+        Runnable action = () -> notificationSseService.sendNotification(recipients, payload);
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
+            }
+        });
     }
 
     private List<String> resolveEmails(Long eventId, RecipientScope scope) {
@@ -369,5 +400,21 @@ public class NotificationService {
 
     public int countAllActiveRecipients() {
         return notificationInboxRepository.countAllActiveUsers();
+    }
+
+    private void validateEventNotificationRequest(NotificationCreateRequest request) {
+        Long eventId = request.getEventId();
+        if (eventId == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "eventId is required");
+        }
+        if (!eventRepository.existsById(eventId)) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "event not found: " + eventId);
+        }
+        if (request.getTargetType() == InboxTargetType.EVENT && !eventId.equals(request.getTargetId())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "targetId must match eventId when targetType is EVENT"
+            );
+        }
     }
 }

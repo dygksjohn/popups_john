@@ -53,6 +53,28 @@ public class GalleryService {
                 .map(this::toResponse);
     }
 
+    public Page<GalleryResponse> list(int page, int size, String sortOption, String keyword) {
+        PageRequest pageable = PageRequest.of(page, size);
+        String sk = sortOption == null ? "latest" : sortOption.trim().toLowerCase();
+        String kw = (keyword == null || keyword.isBlank()) ? null : keyword;
+
+        Page<Gallery> res = "likes".equals(sk)
+                ? galleryRepository.searchByKeywordSortedByLikes(GalleryStatus.PUBLIC, kw, pageable)
+                : galleryRepository.searchByKeywordSortedByLatest(GalleryStatus.PUBLIC, kw, pageable);
+        return res.map(this::toResponse);
+    }
+
+    public Page<GalleryResponse> listByEventId(Long eventId, int page, int size, String sortOption, String keyword) {
+        PageRequest pageable = PageRequest.of(page, size);
+        String sk = sortOption == null ? "latest" : sortOption.trim().toLowerCase();
+        String kw = (keyword == null || keyword.isBlank()) ? null : keyword;
+
+        Page<Gallery> res = "likes".equals(sk)
+                ? galleryRepository.searchByEventIdAndKeywordSortedByLikes(eventId, GalleryStatus.PUBLIC, kw, pageable)
+                : galleryRepository.searchByEventIdAndKeywordSortedByLatest(eventId, GalleryStatus.PUBLIC, kw, pageable);
+        return res.map(this::toResponse);
+    }
+
     @Transactional
     public GalleryLikeResponse like(Long userId, Long galleryId) {
         Gallery gallery = galleryRepository.findByGalleryIdAndGalleryStatus(galleryId, GalleryStatus.PUBLIC)
