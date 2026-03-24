@@ -364,7 +364,286 @@ function BotAvatar({ size = 28 }) {
   return <MiniDogLottie size={size} />;
 }
 
-function Bubble({ msg, isLast, mobile = false }) {
+function executeLabel(confirmation) {
+  const executeType = confirmation?.executeType || confirmation?.type;
+  const labels = {
+    SAVE_NOTICE: "공지 저장",
+    SEND_NOTIFICATION_DRAFT: "저장된 초안 발송",
+    SEND_EVENT_NOTIFICATION: "이벤트 알림 발송",
+    SEND_BROADCAST_NOTIFICATION: "전체 알림 발송",
+  };
+  return labels[executeType] || "확인 후 실행";
+}
+
+function summaryTitle(summaryType) {
+  const titles = {
+    congestion: "혼잡도 요약",
+    applicants: "신청자 수 요약",
+    refund: "환불 현황 요약",
+    notices: "공지 운영 현황",
+    notifications: "알림 운영 현황",
+  };
+  return titles[summaryType] || "요약";
+}
+
+function renderSummaryGrid(items, summaryType, mobile = false) {
+  if (!items?.length) return null;
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        display: "grid",
+        gridTemplateColumns: mobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+        gap: 8,
+      }}
+    >
+      {items.map((item) => (
+        <div
+          key={`${summaryType}-${item.label}`}
+          style={{
+            background: "#F9FAFB",
+            border: "1px solid #E5E7EB",
+            borderRadius: 12,
+            padding: "10px 12px",
+          }}
+        >
+          <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>{item.label}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1F2937" }}>
+            {item.value}
+            {item.meta != null ? ` / ${item.meta}` : ""}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SummaryCard({ summary, mobile = false }) {
+  if (!summary?.items?.length) return null;
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        display: "grid",
+        gridTemplateColumns: mobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+        gap: 8,
+      }}
+    >
+      {summary.items.map((item) => (
+        <div
+          key={`${summary.summaryType}-${item.label}`}
+          style={{
+            background: "#F9FAFB",
+            border: "1px solid #E5E7EB",
+            borderRadius: 12,
+            padding: "10px 12px",
+          }}
+        >
+          <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>{item.label}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1F2937" }}>
+            {item.value}
+            {item.meta != null ? ` · ${item.meta}` : ""}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function UnsupportedCard({ messageType, executionInfo, mobile = false }) {
+  if (messageType !== "unsupported" && !executionInfo) return null;
+
+  const supported = executionInfo?.supported;
+  const reason =
+    executionInfo?.reason ||
+    (supported === false ? "현재 요청한 동작은 backend 계약 기준으로 실행할 수 없습니다." : null);
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#FEF2F2",
+        border: "1px solid #FECACA",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#B91C1C", fontWeight: 700, marginBottom: 6 }}>
+        미지원 또는 제한 사항
+      </div>
+      <div style={{ fontSize: 12.5, color: "#7F1D1D", lineHeight: 1.55 }}>
+        {reason || "현재 요청은 안내만 가능하며 실행 버튼은 제공되지 않습니다."}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmCard({ confirmation, onConfirm, mobile = false }) {
+  if (!confirmation) return null;
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#FFF7ED",
+        border: "1px solid #FED7AA",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#9A3412", fontWeight: 700, marginBottom: 8 }}>
+        확인 후 실행
+      </div>
+      <button
+        type="button"
+        onClick={onConfirm}
+        style={{
+          width: "100%",
+          border: "none",
+          borderRadius: 10,
+          background: "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
+          color: "#fff",
+          padding: "10px 12px",
+          fontSize: 12.5,
+          fontWeight: 700,
+          cursor: "pointer",
+          fontFamily: ds.ff,
+        }}
+      >
+        확인하고 실행
+      </button>
+    </div>
+  );
+}
+
+function ActionSummaryCard({ summary, mobile = false }) {
+  if (!summary?.items?.length && !summary?.sections?.length) return null;
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 14,
+        background: "#FFFFFF",
+        border: "1px solid #E5E7EB",
+        display: "grid",
+        gap: 10,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 11.5, color: "#6B7280", fontWeight: 700, marginBottom: 4 }}>
+          {summaryTitle(summary.summaryType)}
+        </div>
+        <div style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.55 }}>
+          {summary.summaryType === "applicants"
+            ? "행사 신청과 프로그램 신청 현황을 함께 정리했습니다."
+            : "운영 현황을 바로 확인할 수 있도록 주요 수치를 정리했습니다."}
+        </div>
+      </div>
+      {renderSummaryGrid(summary.items, summary.summaryType, mobile)}
+      {summary?.sections?.length
+        ? summary.sections.map((section) => (
+            <div
+              key={section.key}
+              style={{
+                background: "#F9FAFB",
+                border: "1px solid #E5E7EB",
+                borderRadius: 12,
+                padding: "12px",
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>
+                {section.title}
+              </div>
+              {renderSummaryGrid(section.items, `${summary.summaryType}-${section.key}`, mobile)}
+            </div>
+          ))
+        : null}
+    </div>
+  );
+}
+
+function ActionUnsupportedCard({ messageType, executionInfo, mobile = false }) {
+  const isUnsupported = messageType === "unsupported" || executionInfo?.supported === false;
+  if (!isUnsupported) return null;
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#FEF2F2",
+        border: "1px solid #FECACA",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#B91C1C", fontWeight: 700, marginBottom: 6 }}>
+        미지원 기능 안내
+      </div>
+      <div style={{ fontSize: 12.5, color: "#7F1D1D", lineHeight: 1.55 }}>
+        {executionInfo?.reason || "현재 요청은 안내만 가능하며 실행 버튼은 제공되지 않습니다."}
+      </div>
+    </div>
+  );
+}
+
+function ActionConfirmCard({ confirmation, onConfirm, mobile = false }) {
+  if (!confirmation) return null;
+  const label = executeLabel(confirmation);
+  const descriptions = {
+    SAVE_NOTICE: "현재 화면의 공지 초안을 backend 저장 계약에 맞춰 저장합니다.",
+    SEND_NOTIFICATION_DRAFT: "저장된 알림 초안을 즉시 발송합니다.",
+    SEND_EVENT_NOTIFICATION: "이벤트 대상 알림을 즉시 발송합니다.",
+    SEND_BROADCAST_NOTIFICATION: "전체 대상 알림을 즉시 발송합니다.",
+  };
+  const executeType = confirmation?.executeType || confirmation?.type;
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#FFF7ED",
+        border: "1px solid #FED7AA",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#9A3412", fontWeight: 700, marginBottom: 8 }}>
+        실행 확인
+      </div>
+      <div style={{ fontSize: 12.5, color: "#9A3412", lineHeight: 1.5, marginBottom: 10 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}</div>
+        <div>{descriptions[executeType] || "확인 후 바로 실행됩니다."}</div>
+      </div>
+      <button
+        type="button"
+        onClick={onConfirm}
+        style={{
+          width: "100%",
+          border: "none",
+          borderRadius: 10,
+          background: "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
+          color: "#fff",
+          padding: "10px 12px",
+          fontSize: 12.5,
+          fontWeight: 700,
+          cursor: "pointer",
+          fontFamily: ds.ff,
+        }}
+      >
+        {label} 진행
+      </button>
+    </div>
+  );
+}
+
+function Bubble({ msg, isLast, mobile = false, onConfirm }) {
   const isBot = msg.role === "bot";
   return (
     <div className="cb-msg" style={{ display: "flex", flexDirection: isBot ? "row" : "row-reverse", alignItems: "flex-end", gap: 8, marginBottom: 6 }}>
@@ -383,6 +662,9 @@ function Bubble({ msg, isLast, mobile = false }) {
         <span style={{ fontSize: 10, color: "#B0B0B0", padding: "0 4px", opacity: isLast ? 1 : 0 }}>
           {fmt(msg.ts)}
         </span>
+        {isBot && <ActionSummaryCard summary={msg.summary} mobile={mobile} />}
+        {isBot && <ActionUnsupportedCard messageType={msg.messageType} executionInfo={msg.executionInfo} mobile={mobile} />}
+        {isBot && <ActionConfirmCard confirmation={msg.confirmation} onConfirm={onConfirm} mobile={mobile} />}
       </div>
     </div>
   );
@@ -521,7 +803,7 @@ export default function AdminChatBot() {
   const {
     isOpen, toggle, close,
     messages, input, setInput,
-    isTyping, sendMessage, clearMessages,
+    isTyping, sendMessage, clearMessages, confirmExecute,
   } = useChatBot();
 
   const bottomRef = useRef(null);
@@ -622,7 +904,7 @@ export default function AdminChatBot() {
             <>
               <div className="cb-panel" style={{ flex: 1, overflowY: "auto", padding: isMobile ? "14px 12px 6px" : "16px 14px 6px", background: "#F9FAFB" }}>
                 {messages.map((msg, i) => (
-                  <Bubble key={msg.id} msg={msg} isLast={isLastInGroup(i)} mobile={isMobile} />
+                  <Bubble key={msg.id} msg={msg} isLast={isLastInGroup(i)} mobile={isMobile} onConfirm={confirmExecute} />
                 ))}
                 {isTyping && <Typing mobile={isMobile} />}
                 <div ref={bottomRef} />

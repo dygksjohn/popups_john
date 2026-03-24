@@ -103,6 +103,8 @@ const normalizeAlertItem = (item) => {
 };
 
 const buildDraftPayload = (item) => ({
+  notificationId: item.id ?? item.notificationId ?? null,
+  status: item.status ?? "draft",
   title: item.title,
   content: item.content,
   alertMode: item.alertMode,
@@ -114,6 +116,64 @@ const buildDraftPayload = (item) => ({
   recipientScope: item.recipientScope ?? null,
   recipientScopes: item.recipientScopes ?? [],
 });
+
+const NOTIFICATION_DRAFT_KEY = "pupoo_admin_chatbot_notification_draft";
+const NOTIFICATION_SYNC_EVENT = "pupoo-admin-chatbot-sync-notification";
+
+const buildNotificationExecution = (item) => {
+  const notificationId = item?.id ?? item?.notificationId ?? null;
+  const alertMode = String(item?.alertMode ?? "event").toLowerCase();
+
+  if (notificationId != null) {
+    return {
+      supported: true,
+      executeType: "SEND_NOTIFICATION_DRAFT",
+      targetType: "NOTIFICATION_DRAFT",
+      status: String(item?.status ?? "draft").toUpperCase(),
+      supportedExecuteTypes: ["SEND_NOTIFICATION_DRAFT"],
+    };
+  }
+
+  if (alertMode === "event" && item?.eventId) {
+    return {
+      supported: true,
+      executeType: "SEND_EVENT_NOTIFICATION",
+      targetType: "EVENT_NOTIFICATION",
+      status: String(item?.status ?? "draft").toUpperCase(),
+      supportedExecuteTypes: ["SEND_EVENT_NOTIFICATION"],
+    };
+  }
+
+  if (alertMode === "important" || alertMode === "system") {
+    return {
+      supported: true,
+      executeType: "SEND_BROADCAST_NOTIFICATION",
+      targetType: "BROADCAST_NOTIFICATION",
+      status: String(item?.status ?? "draft").toUpperCase(),
+      supportedExecuteTypes: ["SEND_BROADCAST_NOTIFICATION"],
+    };
+  }
+
+  return {
+    supported: false,
+    reason: "현재 알림 초안은 발송 대상이 확정되지 않아 바로 실행할 수 없습니다.",
+    unsupportedActions: ["SCHEDULE_NOTIFICATION"],
+  };
+};
+
+const syncNotificationDraft = (detail) => {
+  if (typeof window === "undefined") return;
+  if (detail == null) {
+    sessionStorage.removeItem(NOTIFICATION_DRAFT_KEY);
+  } else {
+    sessionStorage.setItem(NOTIFICATION_DRAFT_KEY, JSON.stringify(detail));
+  }
+  window.dispatchEvent(
+    new CustomEvent(NOTIFICATION_SYNC_EVENT, {
+      detail,
+    }),
+  );
+};
 
 const resolveErrorMessage = (error, fallback) =>
   error?.response?.data?.error?.message || error?.message || fallback;
@@ -492,6 +552,7 @@ function SlidePanel({
   isEdit,
   events = [],
   filter = "all",
+  onDraftChange,
 }) {
   const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
   const initialCreateFilter = useMemo(() => {
@@ -640,6 +701,39 @@ function SlidePanel({
     });
   }, [panelMode, specialOptions]);
 
+  const buildDraftSnapshot = useCallback(() => {
+    const recipientScopes =
+      panelMode === "event" ? normalizeRecipientScopes(form.recipientScopes) : [];
+    const selectedEvent =
+      events.find((event) => String(event.eventId) === String(form.eventId)) || null;
+    const specialTargetLabel = resolveSpecialTargetLabel(panelMode);
+
+    return {
+      ...form,
+      id: item?.id ?? form.id ?? null,
+      notificationId: item?.id ?? form.id ?? form.notificationId ?? null,
+      alertMode: panelMode,
+      notificationType:
+        panelMode === "system" ? "SYSTEM" : panelMode === "important" ? "NOTICE" : "EVENT",
+      eventId: panelMode === "event" && form.eventId ? Number(form.eventId) : null,
+      eventName: panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
+      eventStatus: panelMode === "event" ? selectedEvent?.status ?? null : null,
+      alertTargetLabel:
+        panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
+      specialTargetKey: panelMode === "event" ? "" : form.specialTargetKey,
+      recipientScope: panelMode === "event" ? recipientScopes[0] ?? null : null,
+      recipientScopes: panelMode === "event" ? recipientScopes : [],
+      target:
+        panelMode === "event" ? resolveRecipientTargetLabel(recipientScopes) : specialTargetLabel,
+      targetCount: panelMode === "event" ? form.targetCount ?? 0 : null,
+      status: form.status ?? "draft",
+    };
+  }, [events, form, item?.id, panelMode]);
+
+  useEffect(() => {
+    onDraftChange?.(buildDraftSnapshot());
+  }, [buildDraftSnapshot, onDraftChange]);
+
   const handleSave = async () => {
     if (!form.title || !form.content) {
       setErr("제목과 내용은 필수입니다.");
@@ -655,40 +749,8 @@ function SlidePanel({
       setErr("발송 대상을 1개 이상 선택해 주세요.");
       return;
     }
-    const normalizedRecipientScopes = normalizeRecipientScopes(recipientScopes);
-    const selectedEvent =
-      events.find((e) => String(e.eventId) === String(form.eventId)) || null;
-    const specialTargetLabel = resolveSpecialTargetLabel(panelMode);
     try {
-      await onSave({
-        ...form,
-        alertMode: panelMode,
-        notificationType:
-          panelMode === "system"
-            ? "SYSTEM"
-            : panelMode === "important"
-              ? "NOTICE"
-              : "EVENT",
-        eventId:
-          panelMode === "event" && form.eventId ? Number(form.eventId) : null,
-        eventName:
-          panelMode === "event"
-            ? selectedEvent?.eventName ?? ""
-            : specialTargetLabel,
-        eventStatus: panelMode === "event" ? selectedEvent?.status ?? null : null,
-        alertTargetLabel:
-          panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
-        specialTargetKey: panelMode === "event" ? "" : form.specialTargetKey,
-        recipientScope:
-          panelMode === "event" ? normalizedRecipientScopes[0] : null,
-        recipientScopes:
-          panelMode === "event" ? normalizedRecipientScopes : [],
-        target:
-          panelMode === "event"
-            ? resolveRecipientTargetLabel(normalizedRecipientScopes)
-            : specialTargetLabel,
-        targetCount: panelMode === "event" ? form.targetCount ?? 0 : null,
-      });
+      await onSave(buildDraftSnapshot());
     } catch (error) {
       setErr(resolveErrorMessage(error, "저장에 실패했습니다."));
     }
@@ -1028,7 +1090,57 @@ export default function AlertManage() {
   const [search, setSearch] = useState("");
   const [eventStatusFilter, setEventStatusFilter] = useState("all");
   const [selected, setSelected] = useState([]);
+  const [prefillExecution, setPrefillExecution] = useState(null);
   const show = (msg, type = "success") => setToast({ msg, type });
+  const syncPanelDraft = useCallback((draft) => {
+    if (!draft) return;
+    const detail = {
+      formData: buildDraftPayload(draft),
+      execution: buildNotificationExecution(draft),
+    };
+    setPrefillExecution(detail.execution);
+    syncNotificationDraft(detail);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const applyPrefill = (payload) => {
+      const formData = payload?.formData || payload;
+      if (!formData) return;
+      setPrefillExecution(payload?.execution || null);
+      setPanel({
+        type: "create",
+        item: {
+          ...formData,
+          alertMode: formData.alertMode || "event",
+          recipientScopes: formData.recipientScopes || ["INTEREST_SUBSCRIBERS"],
+        },
+        filter:
+          formData.alertMode === "system"
+            ? "system"
+            : formData.alertMode === "important"
+              ? "important"
+              : "all",
+      });
+    };
+
+    const savedDraft = sessionStorage.getItem(NOTIFICATION_DRAFT_KEY);
+    if (savedDraft) {
+      try {
+        applyPrefill(JSON.parse(savedDraft));
+      } catch {
+        // ignore storage parse failure
+      }
+    }
+
+    const handlePrefill = (event) => {
+        applyPrefill(event?.detail);
+      };
+
+    window.addEventListener("pupoo-admin-chatbot-prefill-notification", handlePrefill);
+    return () => window.removeEventListener("pupoo-admin-chatbot-prefill-notification", handlePrefill);
+  }, []);
   const loadItems = useCallback(async () => {
     const list = await adminNotificationApi.list();
     setItems(Array.isArray(list) ? list.map(normalizeAlertItem) : []);
@@ -1105,6 +1217,14 @@ export default function AlertManage() {
   const totalTarget = visible
     .filter((e) => e.status === "sent")
     .reduce((a, b) => a + Number(b.targetCount || 0), 0);
+  const prefillExecutionLabel =
+    prefillExecution?.executeType === "SEND_NOTIFICATION_DRAFT"
+      ? "저장된 초안 발송 가능"
+      : prefillExecution?.executeType === "SEND_EVENT_NOTIFICATION"
+        ? "이벤트 알림 발송 가능"
+        : prefillExecution?.executeType === "SEND_BROADCAST_NOTIFICATION"
+          ? "전체 알림 발송 가능"
+          : null;
   const eventFilterCounts = useMemo(
     () =>
       visible.reduce(
@@ -1151,12 +1271,16 @@ export default function AlertManage() {
 
   const handleCreate = async (f) => {
     await adminNotificationApi.createDraft(buildDraftPayload(f));
+    syncNotificationDraft(null);
+    setPrefillExecution(null);
     await loadItems();
     setPanel(null);
     show("알림이 저장되었습니다.");
   };
   const handleUpdate = async (f) => {
     await adminNotificationApi.updateDraft(f.id, buildDraftPayload(f));
+    syncNotificationDraft(null);
+    setPrefillExecution(null);
     await loadItems();
     setPanel(null);
     show("알림이 수정되었습니다.");
@@ -1200,6 +1324,38 @@ export default function AlertManage() {
   return (
     <div>
       <style>{styles}</style>
+      {prefillExecution && (
+        <div
+          style={{
+            marginBottom: 14,
+            background: prefillExecution.supported ? "#EFF6FF" : "#FEF2F2",
+            border: `1px solid ${prefillExecution.supported ? "#BFDBFE" : "#FECACA"}`,
+            color: prefillExecution.supported ? "#1D4ED8" : "#991B1B",
+            borderRadius: 10,
+            padding: "12px 14px",
+            fontSize: 12.5,
+            fontWeight: 600,
+            lineHeight: 1.6,
+          }}
+        >
+          {prefillExecution.supported
+            ? "챗봇 초안이 채워졌습니다. 즉시 발송은 가능하지만 예약 발송은 backend 미지원입니다."
+            : prefillExecution.reason || "현재 요청은 실행이 제한됩니다."}
+        </div>
+      )}
+
+      {prefillExecution?.supported && prefillExecutionLabel ? (
+        <div
+          style={{
+            marginBottom: 14,
+            color: "#1D4ED8",
+            fontSize: 12.5,
+            fontWeight: 700,
+          }}
+        >
+          {prefillExecutionLabel}
+        </div>
+      ) : null}
 
       <div
         style={{
@@ -1756,10 +1912,12 @@ export default function AlertManage() {
 
       {panel?.type === "create" && (
         <SlidePanel
+          item={panel.item}
           events={events}
           filter={panel.filter || eventStatusFilter}
           onSave={handleCreate}
           onClose={() => setPanel(null)}
+          onDraftChange={syncPanelDraft}
         />
       )}
       {panel?.type === "edit" && (
@@ -1770,6 +1928,7 @@ export default function AlertManage() {
           filter={panel.filter || eventStatusFilter}
           onSave={handleUpdate}
           onClose={() => setPanel(null)}
+          onDraftChange={syncPanelDraft}
         />
       )}
       {modal?.type === "delete" && (
