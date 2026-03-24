@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import AdminChatBot from "./AdminChatBot";
 import {
   AlertTriangle,
   Home,
@@ -892,7 +891,6 @@ export default function Dashboard() {
           {renderPage()}
         </div>
       </main>
-      <AdminChatBot />
     </div>
   );
 }
