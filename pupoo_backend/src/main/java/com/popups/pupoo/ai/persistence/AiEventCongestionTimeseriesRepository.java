@@ -21,6 +21,12 @@ public interface AiEventCongestionTimeseriesRepository extends JpaRepository<AiE
             LocalDateTime timestampMinute
     );
 
+    List<AiEventCongestionTimeseries> findByEventIdAndTimestampMinuteBetweenOrderByTimestampMinuteAsc(
+            Long eventId,
+            LocalDateTime from,
+            LocalDateTime to
+    );
+
     List<AiEventCongestionTimeseries> findByTimestampMinuteAndEventIdIn(
             LocalDateTime timestampMinute,
             Collection<Long> eventIds
@@ -30,6 +36,29 @@ public interface AiEventCongestionTimeseriesRepository extends JpaRepository<AiE
             Collection<Long> eventIds,
             LocalDateTime timestampMinute,
             Pageable pageable
+    );
+
+    @Query(
+            value = """
+                    select ranked.*
+                    from (
+                        select
+                            a.*,
+                            row_number() over (
+                                partition by a.event_id
+                                order by a.timestamp_minute desc, a.event_timeseries_id desc
+                            ) as rn
+                        from ai_event_congestion_timeseries a
+                        where a.event_id in (:eventIds)
+                          and a.timestamp_minute <= :baseTime
+                    ) ranked
+                    where ranked.rn = 1
+                    """,
+            nativeQuery = true
+    )
+    List<AiEventCongestionTimeseries> findLatestByEventIdsBeforeOrAt(
+            @Param("eventIds") Collection<Long> eventIds,
+            @Param("baseTime") LocalDateTime baseTime
     );
 
     @Modifying

@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -120,6 +121,13 @@ public class RealtimeWaitSyncService {
                                 normalizedStaySampleSize
                         )
                 );
+        Map<Long, AiCongestionAggregationQueryRepository.BoothQrLogCountRow> boothLogMap =
+                aiCongestionAggregationQueryRepository.findBoothQrLogCounts(queueWindowFrom, baseTime).stream()
+                        .collect(Collectors.toMap(
+                                AiCongestionAggregationQueryRepository.BoothQrLogCountRow::boothId,
+                                Function.identity(),
+                                (left, right) -> left
+                        ));
 
         Map<Long, BoothProgramAggregate> boothProgramAggregateMap = new HashMap<>();
         List<ExperienceWait> programUpserts = new ArrayList<>(runningPrograms.size());
@@ -130,9 +138,18 @@ public class RealtimeWaitSyncService {
                     Math.max(appliedCountMap.getOrDefault(programId, 0), 0)
             );
             queueCount += weightedAppliedCount;
-            int concurrency = resolveProgramConcurrency(program.capacity());
             double avgStayMinutes = resolveAverageStayMinutes(program.boothId(), boothAverageStayMap);
-            int waitMin = calculateWaitMinByStay(queueCount, avgStayMinutes, concurrency);
+            double throughputPerMin = resolveProgramThroughputPerMinute(program.throughputPerMin());
+            int concurrentCapacity = resolveProgramConcurrentCapacity(
+                    program.boothId(),
+                    boothConcurrencyMap,
+                    boothLogMap,
+                    boothAverageStayMap,
+                    queueLookback
+            );
+            int waitMin = throughputPerMin > 0.0d
+                    ? calculateWaitMinByThroughput(queueCount, throughputPerMin)
+                    : calculateWaitMinByStay(queueCount, avgStayMinutes, concurrentCapacity);
 
             ExperienceWait wait = existingProgramWaitMap.get(programId);
             if (wait == null) {
@@ -168,31 +185,14 @@ public class RealtimeWaitSyncService {
                         (left, right) -> left
                 ));
 
-        Map<Long, AiCongestionAggregationQueryRepository.BoothQrLogCountRow> boothLogMap =
-                aiCongestionAggregationQueryRepository.findBoothQrLogCounts(queueWindowFrom, baseTime).stream()
-                        .collect(Collectors.toMap(
-                                AiCongestionAggregationQueryRepository.BoothQrLogCountRow::boothId,
-                                Function.identity(),
-                                (left, right) -> left
-                        ));
-
         List<BoothWait> boothUpserts = new ArrayList<>(activeBoothIds.size());
         for (Long boothId : activeBoothIds) {
             BoothProgramAggregate programAggregate = boothProgramAggregateMap.getOrDefault(
                     boothId,
                     BoothProgramAggregate.ZERO
             );
-            AiCongestionAggregationQueryRepository.BoothQrLogCountRow boothLog = boothLogMap.get(boothId);
-            int checkins = boothLog == null ? 0 : Math.max(boothLog.checkins(), 0);
-            int checkouts = boothLog == null ? 0 : Math.max(boothLog.checkouts(), 0);
-
-            int flowBacklogCount = Math.max(checkins - checkouts, 0);
-            int waitCount = Math.max(programAggregate.waitCount(), flowBacklogCount);
-
-            int concurrency = resolveBoothConcurrency(boothConcurrencyMap.get(boothId));
-            double avgStayMinutes = resolveAverageStayMinutes(boothId, boothAverageStayMap);
-            int stayBasedWaitMin = calculateWaitMinByStay(waitCount, avgStayMinutes, concurrency);
-            int waitMin = waitCount <= 0 ? 0 : Math.max(programAggregate.waitMin(), stayBasedWaitMin);
+            int waitCount = Math.max(programAggregate.waitCount(), 0);
+            int waitMin = waitCount <= 0 ? 0 : Math.max(programAggregate.waitMin(), 0);
 
             BoothWait wait = existingBoothWaitMap.get(boothId);
             if (wait == null) {
@@ -281,11 +281,84 @@ public class RealtimeWaitSyncService {
         return Math.max(0.0d, Math.min(configuredWeight, 1.0d));
     }
 
-    private int resolveProgramConcurrency(Integer capacity) {
-        if (capacity == null || capacity <= 0) {
+    private double resolveProgramThroughputPerMinute(BigDecimal throughputPerMin) {
+        if (throughputPerMin == null) {
+            return 0.0d;
+        }
+        return normalizeThroughputPerMinute(throughputPerMin.doubleValue());
+    }
+
+    private double normalizeThroughputPerMinute(double throughputPerMin) {
+        if (Double.isNaN(throughputPerMin) || Double.isInfinite(throughputPerMin) || throughputPerMin <= 0.0d) {
+            return 0.0d;
+        }
+        return throughputPerMin;
+    }
+
+    private int resolveProgramConcurrentCapacity(
+            Long boothId,
+            Map<Long, Integer> boothConcurrencyMap,
+            Map<Long, AiCongestionAggregationQueryRepository.BoothQrLogCountRow> boothLogMap,
+            Map<Long, Double> boothAverageStayMap,
+            int lookbackMinutes
+    ) {
+        return resolveObservedConcurrentCapacity(
+                boothId,
+                boothConcurrencyMap,
+                boothLogMap,
+                boothAverageStayMap,
+                lookbackMinutes
+        );
+    }
+
+    private int resolveBoothConcurrentCapacity(
+            Long boothId,
+            Map<Long, Integer> boothConcurrencyMap,
+            Map<Long, AiCongestionAggregationQueryRepository.BoothQrLogCountRow> boothLogMap,
+            Map<Long, Double> boothAverageStayMap,
+            int lookbackMinutes
+    ) {
+        return resolveObservedConcurrentCapacity(
+                boothId,
+                boothConcurrencyMap,
+                boothLogMap,
+                boothAverageStayMap,
+                lookbackMinutes
+        );
+    }
+
+    private int resolveObservedConcurrentCapacity(
+            Long boothId,
+            Map<Long, Integer> boothConcurrencyMap,
+            Map<Long, AiCongestionAggregationQueryRepository.BoothQrLogCountRow> boothLogMap,
+            Map<Long, Double> boothAverageStayMap,
+            int lookbackMinutes
+    ) {
+        if (boothId == null) {
             return MIN_CONCURRENCY;
         }
-        return Math.max(capacity, MIN_CONCURRENCY);
+        int fallbackConcurrency = resolveBoothConcurrency(
+                boothConcurrencyMap == null ? null : boothConcurrencyMap.get(boothId)
+        );
+        if (boothLogMap == null || boothLogMap.isEmpty()) {
+            return fallbackConcurrency;
+        }
+
+        AiCongestionAggregationQueryRepository.BoothQrLogCountRow boothLog = boothLogMap.get(boothId);
+        if (boothLog == null) {
+            return fallbackConcurrency;
+        }
+
+        int checkins = Math.max(boothLog.checkins(), 0);
+        int safeLookbackMinutes = Math.max(lookbackMinutes, 1);
+        if (checkins <= 0) {
+            return fallbackConcurrency;
+        }
+
+        double avgStayMinutes = resolveAverageStayMinutes(boothId, boothAverageStayMap);
+        double observedThroughputPerMin = checkins / (double) safeLookbackMinutes;
+        int observedConcurrency = (int) Math.ceil(observedThroughputPerMin * avgStayMinutes);
+        return Math.max(observedConcurrency, MIN_CONCURRENCY);
     }
 
     private int resolveBoothConcurrency(Integer concurrency) {
@@ -326,6 +399,19 @@ public class RealtimeWaitSyncService {
         int safeConcurrency = Math.max(concurrency, MIN_CONCURRENCY);
         double safeStayMinutes = normalizeStayMinutes(avgStayMinutes);
         double estimated = (waitCount * safeStayMinutes) / safeConcurrency;
+        int estimatedMinutes = (int) Math.ceil(Math.max(estimated, 0.0d));
+        return Math.min(Math.max(estimatedMinutes, 0), MAX_WAIT_MINUTES);
+    }
+
+    private int calculateWaitMinByThroughput(int waitCount, double throughputPerMin) {
+        if (waitCount <= 0) {
+            return 0;
+        }
+        double safeThroughputPerMin = normalizeThroughputPerMinute(throughputPerMin);
+        if (safeThroughputPerMin <= 0.0d) {
+            return 0;
+        }
+        double estimated = waitCount / safeThroughputPerMin;
         int estimatedMinutes = (int) Math.ceil(Math.max(estimated, 0.0d));
         return Math.min(Math.max(estimatedMinutes, 0), MAX_WAIT_MINUTES);
     }

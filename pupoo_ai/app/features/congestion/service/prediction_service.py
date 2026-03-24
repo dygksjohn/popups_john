@@ -9,8 +9,15 @@
 """
 
 import math
+import logging
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from pathlib import Path
+from threading import Lock
+from typing import Any
 
+import joblib
+import numpy as np
 from pupoo_ai.app.core.config import settings
 from pupoo_ai.app.features.congestion.dto.prediction_models import (
     EventPredictionRequest,
@@ -24,6 +31,12 @@ from pupoo_ai.app.features.congestion.dto.prediction_models import (
 )
 from pupoo_ai.app.features.congestion.inference.lightgbm_registry import LightGbmCongestionRegistry
 from pupoo_ai.app.features.congestion.inference.lstm_baseline import LstmCalibrationRegistry
+from pupoo_ai.app.infrastructure.rds import db_connection, is_rds_configured
+
+try:
+    from lightgbm import LGBMRegressor
+except Exception:  # pragma: no cover - optional runtime fallback
+    LGBMRegressor = None
 
 FIVE_MINUTES = timedelta(minutes=5)
 # 기능: 추천 후보 전환 판단에 사용하는 기본 혼잡도 임계치다.
@@ -61,6 +74,31 @@ _FIXED_SOLAR_HOLIDAYS = {
     (10, 9),  # Hangul Day
     (12, 25), # Christmas
 }
+_LOCAL_EVENT_ADAPTOR_LOOKBACK = 12
+_LOCAL_EVENT_ADAPTOR_MIN_SAMPLES = 30
+_LOCAL_EVENT_ADAPTOR_FORECAST_STEPS = 12
+_LOCAL_EVENT_ADAPTOR_RETRAIN_INTERVAL = timedelta(minutes=20)
+_LOCAL_EVENT_ADAPTOR_MAX_CACHE_SIZE = 64
+_LOCAL_EVENT_ADAPTOR_MAX_AGE = timedelta(hours=12)
+_LOCAL_ADAPTOR_HISTORY_BASE_OFFSET = timedelta(days=365 * 20)
+_LOCAL_ADAPTOR_MODEL_VERSION_PREFIX = "local-adapt-v1"
+_LOCAL_ADAPTOR_DB_WRITE_INTERVAL = timedelta(minutes=30)
+
+
+@dataclass
+class _OngoingEventAdaptor:
+    event_id: int
+    trained_at: datetime
+    model: Any
+    lookback: int
+    train_count: int
+    signature: tuple[float, float, float]
+
+
+_EVENT_ADAPTOR_CACHE: dict[int, _OngoingEventAdaptor] = {}
+_EVENT_ADAPTOR_LOCK = Lock()
+_EVENT_ADAPTOR_DB_LAST_WRITTEN_AT: dict[int, datetime] = {}
+logger = logging.getLogger(__name__)
 
 
 def _clamp_score(value: float) -> float:
@@ -239,6 +277,323 @@ def _build_time_points(start_at: datetime, end_at: datetime) -> list[datetime]:
     return points
 
 
+def _sanitize_local_adaptor_sequence(input_sequence: list[float] | None) -> list[float]:
+    if not isinstance(input_sequence, list):
+        return []
+    sanitized: list[float] = []
+    for value in input_sequence:
+        try:
+            sanitized.append(_clamp100(float(value)))
+        except (TypeError, ValueError):
+            continue
+    return sanitized
+
+
+def _local_sequence_signature(sequence: list[float]) -> tuple[float, float, float]:
+    if not sequence:
+        return 0.0, 0.0, 0.0
+    recent = sequence[-18:]
+    return (
+        round(float(np.mean(recent)), 2),
+        round(float(np.std(recent)), 2),
+        round(float(recent[-1]), 2),
+    )
+
+
+def _resolve_local_adaptor_dir() -> Path:
+    if settings.congestion_model_dir:
+        base_dir = Path(settings.congestion_model_dir).expanduser().resolve()
+    else:
+        base_dir = Path(__file__).resolve().parents[4] / "artifacts" / "congestion"
+    return base_dir / "local_event_adaptors"
+
+
+def _local_adaptor_file_path(event_id: int) -> Path:
+    return _resolve_local_adaptor_dir() / f"event_{event_id}.joblib"
+
+
+def _persist_local_adaptor_to_disk(adaptor: _OngoingEventAdaptor) -> None:
+    try:
+        path = _local_adaptor_file_path(adaptor.event_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "eventId": adaptor.event_id,
+            "trainedAt": adaptor.trained_at.isoformat(),
+            "lookback": adaptor.lookback,
+            "trainCount": adaptor.train_count,
+            "signature": list(adaptor.signature),
+            "model": adaptor.model,
+        }
+        temp_path = path.with_suffix(".tmp")
+        joblib.dump(payload, temp_path)
+        temp_path.replace(path)
+    except Exception:
+        logger.exception("Failed to persist local event adaptor. eventId=%s", adaptor.event_id)
+
+
+def _load_local_adaptor_from_disk(event_id: int, base_time: datetime) -> _OngoingEventAdaptor | None:
+    try:
+        path = _local_adaptor_file_path(event_id)
+        if not path.exists():
+            return None
+        payload = joblib.load(path)
+        if not isinstance(payload, dict):
+            return None
+
+        trained_at_raw = payload.get("trainedAt")
+        trained_at = (
+            datetime.fromisoformat(str(trained_at_raw))
+            if isinstance(trained_at_raw, str)
+            else base_time
+        )
+        if (base_time - trained_at) > _LOCAL_EVENT_ADAPTOR_MAX_AGE:
+            return None
+
+        model = payload.get("model")
+        lookback = int(payload.get("lookback") or _LOCAL_EVENT_ADAPTOR_LOOKBACK)
+        train_count = int(payload.get("trainCount") or 0)
+        signature_raw = payload.get("signature") or [0.0, 0.0, 0.0]
+        signature = (
+            float(signature_raw[0]),
+            float(signature_raw[1]),
+            float(signature_raw[2]),
+        )
+        if model is None:
+            return None
+
+        return _OngoingEventAdaptor(
+            event_id=event_id,
+            trained_at=trained_at,
+            model=model,
+            lookback=lookback,
+            train_count=max(0, train_count),
+            signature=signature,
+        )
+    except Exception:
+        logger.exception("Failed to load local event adaptor from disk. eventId=%s", event_id)
+        return None
+
+
+def _record_local_adaptor_history(
+    adaptor: _OngoingEventAdaptor,
+    base_time: datetime,
+    local_avg: float,
+    local_peak: float,
+) -> None:
+    if not is_rds_configured():
+        return
+
+    with _EVENT_ADAPTOR_LOCK:
+        last_written = _EVENT_ADAPTOR_DB_LAST_WRITTEN_AT.get(adaptor.event_id)
+        if last_written and (base_time - last_written) < _LOCAL_ADAPTOR_DB_WRITE_INTERVAL:
+            return
+
+    model_version = f"{_LOCAL_ADAPTOR_MODEL_VERSION_PREFIX}-n{adaptor.train_count}"
+    if len(model_version) > 50:
+        model_version = model_version[:50]
+    level = _level_from_score(local_peak)
+    history_base_time = base_time - _LOCAL_ADAPTOR_HISTORY_BASE_OFFSET
+    sql = """
+        INSERT INTO ai_prediction_logs (
+            target_type,
+            event_id,
+            program_id,
+            prediction_base_time,
+            predicted_avg_score_60m,
+            predicted_peak_score_60m,
+            predicted_level,
+            model_version,
+            source_type
+        ) VALUES (
+            'EVENT',
+            %s,
+            NULL,
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            'BATCH'
+        )
+    """
+    try:
+        with db_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    sql,
+                    (
+                        int(adaptor.event_id),
+                        history_base_time,
+                        float(_clamp_score(local_avg)),
+                        float(_clamp_score(max(local_peak, local_avg))),
+                        int(level),
+                        model_version,
+                    ),
+                )
+        with _EVENT_ADAPTOR_LOCK:
+            _EVENT_ADAPTOR_DB_LAST_WRITTEN_AT[adaptor.event_id] = base_time
+    except Exception:
+        logger.exception("Failed to write local adaptor history to DB. eventId=%s", adaptor.event_id)
+
+
+def _build_local_adaptor_rows(sequence: list[float], lookback: int) -> tuple[np.ndarray, np.ndarray]:
+    samples: list[list[float]] = []
+    targets: list[float] = []
+    for index in range(lookback, len(sequence)):
+        samples.append(sequence[index - lookback : index])
+        targets.append(sequence[index])
+    if not samples:
+        return np.empty((0, lookback), dtype=np.float32), np.empty((0,), dtype=np.float32)
+    return np.asarray(samples, dtype=np.float32), np.asarray(targets, dtype=np.float32)
+
+
+def _is_local_adaptor_usable(sequence: list[float]) -> bool:
+    if len(sequence) < (_LOCAL_EVENT_ADAPTOR_LOOKBACK + _LOCAL_EVENT_ADAPTOR_MIN_SAMPLES):
+        return False
+    recent = sequence[-24:]
+    return float(np.std(recent)) >= 0.8
+
+
+def _should_retrain_local_adaptor(
+    adaptor: _OngoingEventAdaptor,
+    signature: tuple[float, float, float],
+    base_time: datetime,
+) -> bool:
+    if (base_time - adaptor.trained_at) >= _LOCAL_EVENT_ADAPTOR_RETRAIN_INTERVAL:
+        return True
+
+    mean_shift = abs(signature[0] - adaptor.signature[0])
+    std_shift = abs(signature[1] - adaptor.signature[1])
+    last_shift = abs(signature[2] - adaptor.signature[2])
+    return mean_shift >= 3.5 or std_shift >= 2.5 or last_shift >= 5.0
+
+
+def _train_local_event_adaptor(
+    event_id: int,
+    sequence: list[float],
+    base_time: datetime,
+) -> _OngoingEventAdaptor | None:
+    if LGBMRegressor is None:
+        return None
+    if not _is_local_adaptor_usable(sequence):
+        return None
+
+    lookback = _LOCAL_EVENT_ADAPTOR_LOOKBACK
+    X_train, y_train = _build_local_adaptor_rows(sequence, lookback)
+    if X_train.shape[0] < _LOCAL_EVENT_ADAPTOR_MIN_SAMPLES:
+        return None
+
+    model = LGBMRegressor(
+        objective="regression",
+        n_estimators=96,
+        learning_rate=0.07,
+        num_leaves=31,
+        min_child_samples=4,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        random_state=int(event_id % 100_000),
+        verbosity=-1,
+    )
+    model.fit(X_train, y_train)
+    return _OngoingEventAdaptor(
+        event_id=event_id,
+        trained_at=base_time,
+        model=model,
+        lookback=lookback,
+        train_count=int(X_train.shape[0]),
+        signature=_local_sequence_signature(sequence),
+    )
+
+
+def _get_local_event_adaptor(request: EventPredictionRequest) -> tuple[_OngoingEventAdaptor, list[float]] | None:
+    if not _is_ongoing_request(request):
+        return None
+
+    sequence = _sanitize_local_adaptor_sequence(request.inputSequence)
+    if not _is_local_adaptor_usable(sequence):
+        return None
+
+    event_id = int(request.eventId)
+    signature = _local_sequence_signature(sequence)
+    base_time = request.baseTime
+
+    with _EVENT_ADAPTOR_LOCK:
+        cached = _EVENT_ADAPTOR_CACHE.get(event_id)
+        if cached is None:
+            disk_loaded = _load_local_adaptor_from_disk(event_id, base_time)
+            if disk_loaded is not None:
+                _EVENT_ADAPTOR_CACHE[event_id] = disk_loaded
+                cached = disk_loaded
+        retrain_required = cached is None or _should_retrain_local_adaptor(cached, signature, base_time)
+        if retrain_required:
+            trained = _train_local_event_adaptor(event_id, sequence, base_time)
+            if trained is None:
+                return None
+            _EVENT_ADAPTOR_CACHE[event_id] = trained
+            _persist_local_adaptor_to_disk(trained)
+            if len(_EVENT_ADAPTOR_CACHE) > _LOCAL_EVENT_ADAPTOR_MAX_CACHE_SIZE:
+                oldest_event_id = min(_EVENT_ADAPTOR_CACHE, key=lambda key: _EVENT_ADAPTOR_CACHE[key].trained_at)
+                _EVENT_ADAPTOR_CACHE.pop(oldest_event_id, None)
+            cached = trained
+
+    return cached, sequence
+
+
+def _apply_ongoing_event_local_adaptor(
+    request: EventPredictionRequest,
+    avg_score: float,
+    peak_score: float,
+    timeline_base_score: float,
+    confidence: float,
+) -> tuple[float, float, float, float]:
+    bundle = _get_local_event_adaptor(request)
+    if bundle is None:
+        return avg_score, peak_score, timeline_base_score, confidence
+
+    adaptor, sequence = bundle
+    history = list(sequence)
+    forecast_scores: list[float] = []
+    steps = max(6, min(_LOCAL_EVENT_ADAPTOR_FORECAST_STEPS, len(history) // 2))
+
+    for _ in range(steps):
+        window = np.asarray(history[-adaptor.lookback :], dtype=np.float32).reshape(1, adaptor.lookback)
+        predicted = _clamp_score(float(adaptor.model.predict(window)[0]))
+        forecast_scores.append(predicted)
+        history.append(predicted)
+
+    if not forecast_scores:
+        return avg_score, peak_score, timeline_base_score, confidence
+
+    local_avg = _clamp_score(float(np.mean(forecast_scores)))
+    local_peak = _clamp_score(float(np.max(forecast_scores)))
+    recent_volatility = float(np.std(sequence[-24:]))
+    blend_weight = min(0.72, 0.50 + (adaptor.train_count / 120.0))
+    if recent_volatility < 1.2:
+        blend_weight *= 0.7
+
+    blended_avg = _clamp_score((avg_score * (1.0 - blend_weight)) + (local_avg * blend_weight))
+    peak_weight = min(0.75, blend_weight * 0.95)
+    blended_peak = _clamp_score(
+        max(
+            blended_avg,
+            (peak_score * (1.0 - peak_weight)) + (local_peak * peak_weight),
+        )
+    )
+    timeline_weight = min(0.65, blend_weight * 0.9)
+    blended_timeline = _clamp_score(
+        (timeline_base_score * (1.0 - timeline_weight)) + (local_avg * timeline_weight)
+    )
+    adaptor_confidence = min(0.93, 0.72 + min(adaptor.train_count / 160.0, 0.16))
+    blended_confidence = round(max(confidence, adaptor_confidence), 2)
+    _record_local_adaptor_history(
+        adaptor=adaptor,
+        base_time=request.baseTime,
+        local_avg=local_avg,
+        local_peak=local_peak,
+    )
+    return blended_avg, blended_peak, blended_timeline, blended_confidence
+
+
 def _resolve_probe_time_for_date(
     target_date: date,
     start_at: datetime,
@@ -365,14 +720,22 @@ def _event_base_score(request: EventPredictionRequest) -> float:
     avg_wait_per_running_program = _safe_div(request.totalWaitCount, max(running_programs, 1))
     wait_density_pressure = _clamp01(_safe_div(avg_wait_per_running_program, max(wait_baseline_per_program, 1.0)))
     wait_time_pressure = _clamp01(_safe_div(request.averageWaitMinutes, max(target_wait_min, 1)))
+    preregistration_pressure = _clamp01(_safe_div(request.preRegisteredCount, max(capacity_baseline, 1)))
+    participant_conversion_pressure = _clamp01(
+        _safe_div(request.participantCount, max(request.preRegisteredCount, 1))
+    )
+    inside_occupancy_pressure = _clamp01(_safe_div(request.currentInsideCount, max(capacity_baseline * 0.75, 1.0)))
     operation_relief = _clamp01(_safe_div(running_programs, max(total_programs, 1)))
 
     event_unit_score = (
-        (0.22 * entry_pressure)
-        + (0.30 * wait_pressure)
-        + (0.23 * wait_density_pressure)
-        + (0.30 * wait_time_pressure)
-        - (0.05 * operation_relief)
+        (0.10 * entry_pressure)
+        + (0.16 * wait_pressure)
+        + (0.10 * wait_density_pressure)
+        + (0.14 * wait_time_pressure)
+        + (0.22 * preregistration_pressure)
+        + (0.18 * participant_conversion_pressure)
+        + (0.14 * inside_occupancy_pressure)
+        - (0.04 * operation_relief)
     )
 
     live_score = event_unit_score * 100.0
@@ -482,16 +845,55 @@ def _signal_blend_score(request: EventPredictionRequest) -> float:
 
 
 def _event_runtime_context_score(request: EventPredictionRequest) -> float:
+    participant_signal = _clamp100(
+        _safe_div(float(request.participantCount), max(float(request.preRegisteredCount), 1.0)) * 100.0
+    )
+    inside_signal = _clamp100(
+        _safe_div(float(request.currentInsideCount), max(float(request.capacityBaseline), 1.0)) * 100.0
+    )
+    registration_quality_signal = _clamp100(
+        _safe_div(float(request.approvedRegistrationCount), max(float(request.preRegisteredCount), 1.0)) * 100.0
+    )
     weighted = (
-        (0.12 * _clamp100(request.applicationTrendScore))
-        + (0.18 * _clamp100(request.applyConversionScore))
-        + (0.18 * _clamp100(request.queueOperationScore))
-        + (0.20 * _clamp100(request.zoneDensityScore))
-        + (0.10 * _clamp100(request.stayTimeScore))
-        + (0.14 * _clamp100(request.manualCongestionScore))
-        + (0.02 * _clamp100(request.revisitScore))
-        + (0.02 * _clamp100(request.voteHeatScore))
-        + (0.04 * _clamp100(request.paymentIntentScore))
+        (0.04 * _clamp100(request.applicationTrendScore))
+        + (0.06 * _clamp100(request.applyConversionScore))
+        + (0.06 * _clamp100(request.queueOperationScore))
+        + (0.08 * _clamp100(request.zoneDensityScore))
+        + (0.04 * _clamp100(request.stayTimeScore))
+        + (0.12 * _clamp100(request.manualCongestionScore))
+        + (0.24 * participant_signal)
+        + (0.20 * inside_signal)
+        + (0.14 * registration_quality_signal)
+        + (0.01 * _clamp100(request.revisitScore))
+        + (0.01 * _clamp100(request.voteHeatScore))
+        + (0.0 * _clamp100(request.paymentIntentScore))
+    )
+    return _clamp_score(weighted)
+
+
+def _event_live_anchor_score(request: EventPredictionRequest) -> float:
+    participant_signal = _clamp100(
+        _safe_div(float(request.participantCount), max(float(request.preRegisteredCount), 1.0)) * 100.0
+    )
+    inside_signal = _clamp100(
+        _safe_div(float(request.currentInsideCount), max(float(request.capacityBaseline), 1.0)) * 100.0
+    )
+    prereg_signal = _clamp100(
+        _safe_div(float(request.preRegisteredCount), max(float(request.capacityBaseline), 1.0)) * 100.0
+    )
+    wait_signal = _clamp100(
+        _safe_div(float(request.averageWaitMinutes), max(float(request.targetWaitMin), 1.0)) * 100.0
+    )
+    manual_signal = _clamp100(request.manualCongestionScore)
+    queue_signal = _clamp100(request.queueOperationScore)
+
+    weighted = (
+        (0.35 * manual_signal)
+        + (0.30 * participant_signal)
+        + (0.18 * inside_signal)
+        + (0.12 * prereg_signal)
+        + (0.03 * queue_signal)
+        + (0.02 * wait_signal)
     )
     return _clamp_score(weighted)
 
@@ -511,8 +913,10 @@ def _apply_event_context_calibration(
         context_score = _planned_contextual_score(request)
         blend_weight = 0.35
     elif _is_ongoing_request(request):
-        context_score = _event_runtime_context_score(request)
-        blend_weight = 0.20
+        runtime_context = _event_runtime_context_score(request)
+        live_anchor = _event_live_anchor_score(request)
+        context_score = _clamp_score((runtime_context * 0.20) + (live_anchor * 0.80))
+        blend_weight = 0.58
     else:
         context_score = _signal_blend_score(request)
         blend_weight = 0.12
@@ -642,6 +1046,13 @@ def predict_event(request: EventPredictionRequest) -> PredictionResult:
         confidence = model_prediction.confidence
         fallback_used = False
 
+    avg_score, peak_score, timeline_base_score, confidence = _apply_ongoing_event_local_adaptor(
+        request=request,
+        avg_score=avg_score,
+        peak_score=peak_score,
+        timeline_base_score=timeline_base_score,
+        confidence=confidence,
+    )
     avg_score, peak_score, timeline_base_score, lstm_avg_score = _apply_event_context_calibration(
         request=request,
         avg_score=avg_score,
