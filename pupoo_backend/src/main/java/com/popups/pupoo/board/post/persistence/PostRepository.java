@@ -71,6 +71,153 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                       @Param("status") PostStatus status,
                       Pageable pageable);
 
+    /**
+     * 댓글 수 기준(삭제되지 않은 댓글) 내림차순 정렬 + 페이징.
+     * - Free/Info 게시판 목록에서 `commentCount` 기반 정렬이 필요할 때 사용.
+     * - ORDER BY에 correlated subquery를 사용해 전체 데이터 기준 정렬을 보장한다.
+     */
+    @Query(value = """
+        SELECT p.*
+        FROM posts p
+        WHERE p.board_id = :boardId
+          AND p.is_deleted = 0
+          AND p.status = :status
+          AND (
+            :keyword is null
+            OR :keyword = ''
+            OR p.post_title LIKE CONCAT('%', :keyword, '%')
+            OR p.content LIKE CONCAT('%', :keyword, '%')
+          )
+        ORDER BY (
+            SELECT COUNT(*)
+            FROM post_comments c
+            WHERE c.post_id = p.post_id
+              AND c.is_deleted = 0
+        ) DESC,
+        p.created_at DESC
+        """, countQuery = """
+        SELECT COUNT(*)
+        FROM posts p
+        WHERE p.board_id = :boardId
+          AND p.is_deleted = 0
+          AND p.status = :status
+          AND (
+            :keyword is null
+            OR :keyword = ''
+            OR p.post_title LIKE CONCAT('%', :keyword, '%')
+            OR p.content LIKE CONCAT('%', :keyword, '%')
+          )
+        """, nativeQuery = true)
+    Page<Post> searchByTitleContentSortedByCommentCount(
+            @Param("boardId") Long boardId,
+            @Param("keyword") String keyword,
+            @Param("status") String status,
+            Pageable pageable
+    );
+
+    @Query(value = """
+        SELECT p.*
+        FROM posts p
+        WHERE p.board_id = :boardId
+          AND p.is_deleted = 0
+          AND p.status = :status
+          AND (
+            :keyword is null
+            OR :keyword = ''
+            OR p.post_title LIKE CONCAT('%', :keyword, '%')
+          )
+        ORDER BY (
+            SELECT COUNT(*)
+            FROM post_comments c
+            WHERE c.post_id = p.post_id
+              AND c.is_deleted = 0
+        ) DESC,
+        p.created_at DESC
+        """, countQuery = """
+        SELECT COUNT(*)
+        FROM posts p
+        WHERE p.board_id = :boardId
+          AND p.is_deleted = 0
+          AND p.status = :status
+          AND (
+            :keyword is null
+            OR :keyword = ''
+            OR p.post_title LIKE CONCAT('%', :keyword, '%')
+          )
+        """, nativeQuery = true)
+    Page<Post> searchByTitleSortedByCommentCount(
+            @Param("boardId") Long boardId,
+            @Param("keyword") String keyword,
+            @Param("status") String status,
+            Pageable pageable
+    );
+
+    @Query(value = """
+        SELECT p.*
+        FROM posts p
+        WHERE p.board_id = :boardId
+          AND p.is_deleted = 0
+          AND p.status = :status
+          AND (
+            :keyword is null
+            OR :keyword = ''
+            OR p.content LIKE CONCAT('%', :keyword, '%')
+          )
+        ORDER BY (
+            SELECT COUNT(*)
+            FROM post_comments c
+            WHERE c.post_id = p.post_id
+              AND c.is_deleted = 0
+        ) DESC,
+        p.created_at DESC
+        """, countQuery = """
+        SELECT COUNT(*)
+        FROM posts p
+        WHERE p.board_id = :boardId
+          AND p.is_deleted = 0
+          AND p.status = :status
+          AND (
+            :keyword is null
+            OR :keyword = ''
+            OR p.content LIKE CONCAT('%', :keyword, '%')
+          )
+        """, nativeQuery = true)
+    Page<Post> searchByContentSortedByCommentCount(
+            @Param("boardId") Long boardId,
+            @Param("keyword") String keyword,
+            @Param("status") String status,
+            Pageable pageable
+    );
+
+    @Query(value = """
+        SELECT p.*
+        FROM posts p
+        WHERE p.board_id = :boardId
+          AND p.is_deleted = 0
+          AND p.status = :status
+          AND p.user_id = :writerId
+        ORDER BY (
+            SELECT COUNT(*)
+            FROM post_comments c
+            WHERE c.post_id = p.post_id
+              AND c.is_deleted = 0
+        ) DESC,
+        p.created_at DESC
+        """, countQuery = """
+        SELECT COUNT(*)
+        FROM posts p
+        WHERE p.board_id = :boardId
+          AND p.is_deleted = 0
+          AND p.status = :status
+          AND p.user_id = :writerId
+        """, nativeQuery = true)
+    Page<Post> searchByWriterSortedByCommentCount(
+            @Param("boardId") Long boardId,
+            @Param("writerId") Long writerId,
+            @Param("status") String status,
+            Pageable pageable
+    );
+
     Optional<Post> findByPostIdAndDeletedFalse(Long postId);
 
     @Query("""

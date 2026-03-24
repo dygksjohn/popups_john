@@ -144,7 +144,7 @@ spec:
             - name: APP_STORAGE_PUBLIC_BASE_URL
               value: "https://pupoo-storage.s3.ap-northeast-2.amazonaws.com"
             - name: APP_STORAGE_CDN_BASE_URL
-              value: "https://cdn-pupoo.duckdns.org"
+              value: "https://cdn.pupoo.site
             - name: APP_STORAGE_BUCKET
               value: "pupoo-uploads"
             - name: APP_STORAGE_REGION

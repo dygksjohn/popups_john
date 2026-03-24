@@ -99,7 +99,7 @@ function Overlay({ children, onClose }) {
 function WriteModal({ onClose, onSave, saving, errorMessage }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [localError, setLocalError] = useState("");
 
   const handleSubmit = () => {
@@ -115,7 +115,7 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
     onSave({
       title: title.trim(),
       content,
-      file,
+      files,
     });
   };
 
@@ -254,7 +254,8 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
           </label>
           <input
             type="file"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            multiple
+            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
             style={{
               width: "100%",
               padding: "9px 10px",
@@ -265,8 +266,10 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
               background: "#fff",
             }}
           />
-          {file ? (
-            <div style={{ marginTop: 8, fontSize: 12, color: "#475569" }}>선택됨: {file.name}</div>
+          {files.length > 0 ? (
+            <div style={{ marginTop: 8, fontSize: 12, color: "#475569" }}>
+              선택됨: {files.map((file) => file.name).join(", ")}
+            </div>
           ) : null}
         </div>
 
@@ -326,7 +329,7 @@ function DetailModal({
   onReplyTextChange,
   onReplySubmit,
   replySubmitting,
-  attachment,
+  attachments,
   attachmentLoading,
   attachmentError,
 }) {
@@ -443,24 +446,29 @@ function DetailModal({
           <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>첨부파일</div>
           {attachmentLoading ? (
         <div style={{ fontSize: 14, fontWeight: 500, color: "#adb5bd" }}>첨부파일 정보를 불러오는 중입니다.</div>
-          ) : attachment ? (
-            <a
-              href={toPublicAssetUrl(attachment.publicPath)}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 13,
-                color: "#028A6C",
-                textDecoration: "none",
-                fontWeight: 600,
-              }}
-            >
-              <Paperclip size={13} />
-                {attachment.originalName || "첨부파일 다운로드"}
-            </a>
+          ) : attachments.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {attachments.map((attachment) => (
+                <a
+                  key={attachment.fileId}
+                  href={toPublicAssetUrl(attachment.publicPath)}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 13,
+                    color: "#028A6C",
+                    textDecoration: "none",
+                    fontWeight: 600,
+                  }}
+                >
+                  <Paperclip size={13} />
+                  {attachment.originalName || "첨부파일 다운로드"}
+                </a>
+              ))}
+            </div>
           ) : (
             <div style={{ fontSize: 12, color: "#94A3B8" }}>첨부파일이 없습니다.</div>
           )}
@@ -561,8 +569,9 @@ export default function InfoBoard() {
     typeof window === "undefined" ? 1440 : window.innerWidth,
   );
 
-  const [allItems, setAllItems] = useState([]);
-  const [commentCountMap, setCommentCountMap] = useState({});
+  const [items, setItems] = useState([]);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
@@ -574,7 +583,7 @@ export default function InfoBoard() {
   const [replyText, setReplyText] = useState("");
   const [replyError, setReplyError] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
-  const [attachment, setAttachment] = useState(null);
+  const [attachments, setAttachments] = useState([]);
   const [attachmentLoading, setAttachmentLoading] = useState(false);
   const [attachmentError, setAttachmentError] = useState("");
   const [infoBoardId, setInfoBoardId] = useState(null);
@@ -582,40 +591,54 @@ export default function InfoBoard() {
   const [writeSaving, setWriteSaving] = useState(false);
   const [writeError, setWriteError] = useState("");
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const rows = [];
-      let pageIndex = 0;
-      let finished = false;
+  const fetchPage = useCallback(
+    async (pageNum) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const keyword = search.trim();
 
-      while (!finished && pageIndex < 20) {
+        const sort =
+          sortKey === "views"
+            ? "viewCount,desc"
+            : sortKey === "recent"
+              ? "createdAt,desc"
+              : undefined;
+        const sortKeyParam = sortKey === "comments" ? "comments" : undefined;
+
         const d = await postApi.listByBoardType("INFO", {
-          page: pageIndex,
-          size: 50,
-          sort: "createdAt,desc",
+          page: Math.max(0, Number(pageNum) - 1),
+          size: PAGE_SIZE,
+          searchType: "TITLE_CONTENT",
+          keyword: keyword || undefined,
+          sort: sort || undefined,
+          sortKey: sortKeyParam,
         });
-        const content = Array.isArray(d?.content) ? d.content : [];
-        rows.push(...content);
-        const totalPages = Number(d?.totalPages) || 0;
-        finished = Boolean(d?.last) || totalPages === 0 || pageIndex + 1 >= totalPages;
-        pageIndex += 1;
-      }
 
-      setAllItems(rows);
-      setPage(1);
-    } catch (e) {
-      console.error("[InfoBoard] list fetch failed:", e);
-      setError("정보게시판 목록을 불러오지 못했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        const content = Array.isArray(d?.content) ? d.content : [];
+        setItems(content);
+        setTotalElements(Number(d?.totalElements ?? 0) || 0);
+        setTotalPages(Math.max(1, Number(d?.totalPages ?? 1) || 1));
+      } catch (e) {
+        console.error("[InfoBoard] list fetch failed:", e);
+        setError("정보게시판 목록을 불러오지 못했습니다.");
+        setItems([]);
+        setTotalElements(0);
+        setTotalPages(1);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [search, sortKey],
+  );
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    setPage(1);
+  }, [search, sortKey]);
+
+  useEffect(() => {
+    fetchPage(page);
+  }, [fetchPage, page]);
 
   useEffect(() => {
     let mounted = true;
@@ -637,89 +660,12 @@ export default function InfoBoard() {
     };
   }, []);
 
-  const loadCommentCounts = useCallback(async (rows) => {
-    const targets = rows.filter((row) => commentCountMap[row.postId] == null);
-    if (targets.length === 0) return;
-
-    const pairs = await Promise.all(
-      targets.map(async (row) => {
-        try {
-          const d = await postReplyApi.list(row.postId, 0, 1);
-          const total = Number(d?.totalElements);
-          const count = Number.isFinite(total)
-            ? total
-            : Array.isArray(d?.content)
-              ? d.content.length
-              : 0;
-          return [row.postId, count];
-        } catch {
-          return [row.postId, 0];
-        }
-      }),
-    );
-
-    setCommentCountMap((prev) => {
-      const next = { ...prev };
-      pairs.forEach(([postId, count]) => {
-        next[postId] = count;
-      });
-      return next;
-    });
-  }, [commentCountMap]);
-
-  const filteredItems = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return allItems;
-    return allItems.filter((item) => {
-      const title = String(item?.postTitle || "").toLowerCase();
-      const content = String(item?.content || "").toLowerCase();
-      return title.includes(q) || content.includes(q);
-    });
-  }, [allItems, search]);
-
-  const sortedItems = useMemo(() => {
-    const rows = [...filteredItems];
-    rows.sort((a, b) => {
-      if (sortKey === "views") {
-        const diff = (b?.viewCount ?? 0) - (a?.viewCount ?? 0);
-        if (diff !== 0) return diff;
-      } else if (sortKey === "comments") {
-        const diff =
-          (commentCountMap[b?.postId] ?? 0) - (commentCountMap[a?.postId] ?? 0);
-        if (diff !== 0) return diff;
-      }
-      return toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
-    });
-    return rows;
-  }, [filteredItems, sortKey, commentCountMap]);
-
-  const totalElements = sortedItems.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
-  const pageSafe = Math.min(page, totalPages);
-  const pagedItems = sortedItems.slice(
-    (pageSafe - 1) * PAGE_SIZE,
-    pageSafe * PAGE_SIZE,
-  );
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, sortKey]);
-
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  useEffect(() => {
-    if (pagedItems.length > 0) {
-      loadCommentCounts(pagedItems).catch(() => {});
-    }
-  }, [pagedItems, loadCommentCounts]);
-
-  useEffect(() => {
-    if (sortKey === "comments" && filteredItems.length > 0) {
-      loadCommentCounts(filteredItems).catch(() => {});
-    }
-  }, [sortKey, filteredItems, loadCommentCounts]);
+  const pageSafe = Math.min(page, totalPages);
+  const pagedItems = items;
 
   const loadReplies = useCallback(async (postId) => {
     setReplyLoading(true);
@@ -741,21 +687,15 @@ export default function InfoBoard() {
     }
   }, []);
 
-  const loadAttachment = useCallback(async (postId) => {
+  const loadAttachments = useCallback(async (postId) => {
     setAttachmentLoading(true);
     setAttachmentError("");
     try {
-      const data = await fileApi.getByPostId(postId);
-      setAttachment(data || null);
+      const data = await fileApi.getListByPostId(postId);
+      setAttachments(Array.isArray(data) ? data : []);
     } catch (err) {
-      const status = err?.response?.status;
-      if (status === 404) {
-        setAttachment(null);
-        setAttachmentError("");
-      } else {
-        setAttachment(null);
+      setAttachments([]);
       setAttachmentError("첨부파일을 불러오지 못했습니다.");
-      }
     } finally {
       setAttachmentLoading(false);
     }
@@ -766,29 +706,29 @@ export default function InfoBoard() {
     setDetailLoading(true);
     setReplyText("");
     setReplyError("");
-    setAttachment(null);
+    setAttachments([]);
     setAttachmentError("");
     try {
       const detail = await postApi.get(item.postId);
       setSelected(detail);
-      setAllItems((prev) =>
+      setItems((prev) =>
         prev.map((row) => (row.postId === detail.postId ? { ...row, ...detail } : row)),
       );
-      await Promise.all([loadReplies(detail.postId), loadAttachment(detail.postId)]);
+      await Promise.all([loadReplies(detail.postId), loadAttachments(detail.postId)]);
     } catch (err) {
       console.error("[InfoBoard] detail fetch failed:", err);
       setReplyError("상세 정보를 불러오지 못했습니다.");
     } finally {
       setDetailLoading(false);
     }
-  }, [loadReplies, loadAttachment]);
+  }, [loadReplies, loadAttachments]);
 
   const closeDetail = () => {
     setSelected(null);
     setReplies([]);
     setReplyText("");
     setReplyError("");
-    setAttachment(null);
+    setAttachments([]);
     setAttachmentError("");
     setAttachmentLoading(false);
   };
@@ -819,7 +759,7 @@ export default function InfoBoard() {
     }
   };
 
-  const submitPost = async ({ title, content, file }) => {
+  const submitPost = async ({ title, content, files }) => {
     if (!tokenStore.getAccess()) {
       setWriteError("글쓰기는 로그인이 필요합니다.");
       return;
@@ -838,11 +778,11 @@ export default function InfoBoard() {
         content,
       });
       const createdPostId = Number(created?.postId ?? created);
-      if (file && createdPostId) {
-        await fileApi.upload(file, "POST", createdPostId);
+      if (Array.isArray(files) && files.length > 0 && createdPostId) {
+        await Promise.all(files.map((file) => fileApi.upload(file, "POST", createdPostId)));
       }
       setWriteModalOpen(false);
-      await fetchAll();
+      await fetchPage(1);
     } catch (err) {
       console.error("[InfoBoard] create failed:", err);
       setWriteError(err?.response?.data?.error?.message || "글 등록에 실패했습니다.");
@@ -1032,6 +972,7 @@ export default function InfoBoard() {
                 <span style={{ flex: 1, textAlign: "center" }}>제목</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
+                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>조회수</span>
               </div>
               {pagedItems.map((item, index) => {
                 const rowNumber = totalElements - ((pageSafe - 1) * PAGE_SIZE) - index;
@@ -1068,18 +1009,20 @@ export default function InfoBoard() {
                         <BadgeTag badge={badge} style={isMobile ? { ...badge.style, padding: "4px 10px", fontSize: 11 } : undefined} />
                         <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: isMobile ? "clip" : "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap", wordBreak: "keep-all", overflowWrap: "break-word" }}>
                           {item.postTitle}
+                          {(item?.commentCount ?? 0) > 0 && (
+                            <span style={{ fontWeight: 700 }}>
+                              {`\u00A0\u00A0+${item?.commentCount ?? 0}`}
+                            </span>
+                          )}
                         </span>
-                        {(commentCountMap[item.postId] ?? 0) > 0 && (
-                          <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
-                            +{commentCountMap[item.postId] ?? 0}
-                          </span>
-                        )}
                       </div>
                       {isMobile && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, fontSize: 13, color: "#6b7280" }}>
                           <span>{maskedAuthorLabel}</span>
                           <span style={{ color: "#cbd5e1" }}>·</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(item.createdAt)}</span>
+                          <span style={{ color: "#cbd5e1" }}>·</span>
+                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>조회수 {Number(item?.viewCount ?? 0)}</span>
                         </div>
                       )}
                     </div>
@@ -1087,6 +1030,11 @@ export default function InfoBoard() {
                     {!isMobile && (
                       <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
                         {fmtDate(item.createdAt)}
+                      </span>
+                    )}
+                    {!isMobile && (
+                      <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {Number(item?.viewCount ?? 0)}
                       </span>
                     )}
                   </div>
@@ -1120,7 +1068,7 @@ export default function InfoBoard() {
         onReplyTextChange={setReplyText}
         onReplySubmit={submitReply}
         replySubmitting={replySubmitting}
-        attachment={attachment}
+        attachments={attachments}
         attachmentLoading={attachmentLoading}
         attachmentError={attachmentError}
       />

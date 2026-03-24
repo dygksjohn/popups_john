@@ -66,6 +66,78 @@ public interface QnaRepository extends JpaRepository<Post, Long> {
         join p.board b
         where b.boardType = com.popups.pupoo.board.boardinfo.domain.enums.BoardType.QNA
           and p.deleted = false
+          and p.status in :statuses
+          and (:answeredOnly is null or ((:answeredOnly = true and p.answeredAt is not null) or (:answeredOnly = false and p.answeredAt is null)))
+          and (
+                :keyword is null
+             or :keyword = ''
+             or p.postTitle like concat('%', :keyword, '%')
+             or p.content like concat('%', :keyword, '%')
+             or p.answerContent like concat('%', :keyword, '%')
+          )
+        order by p.createdAt desc
+    """)
+    Page<Post> searchAllQnaVisibleRecent(
+            @Param("statuses") List<PostStatus> statuses,
+            @Param("answeredOnly") Boolean answeredOnly,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    @Query("""
+        select p
+        from Post p
+        join p.board b
+        where b.boardType = com.popups.pupoo.board.boardinfo.domain.enums.BoardType.QNA
+          and p.deleted = false
+          and p.status in :statuses
+          and (:answeredOnly is null or ((:answeredOnly = true and p.answeredAt is not null) or (:answeredOnly = false and p.answeredAt is null)))
+          and (
+                :keyword is null
+             or :keyword = ''
+             or p.postTitle like concat('%', :keyword, '%')
+             or p.content like concat('%', :keyword, '%')
+             or p.answerContent like concat('%', :keyword, '%')
+          )
+        order by p.viewCount desc, p.createdAt desc
+    """)
+    Page<Post> searchAllQnaVisibleViews(
+            @Param("statuses") List<PostStatus> statuses,
+            @Param("answeredOnly") Boolean answeredOnly,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    @Query("""
+        select p
+        from Post p
+        join p.board b
+        where b.boardType = com.popups.pupoo.board.boardinfo.domain.enums.BoardType.QNA
+          and p.deleted = false
+          and p.status in :statuses
+          and (:answeredOnly is null or ((:answeredOnly = true and p.answeredAt is not null) or (:answeredOnly = false and p.answeredAt is null)))
+          and (
+                :keyword is null
+             or :keyword = ''
+             or p.postTitle like concat('%', :keyword, '%')
+             or p.content like concat('%', :keyword, '%')
+             or p.answerContent like concat('%', :keyword, '%')
+          )
+        order by p.createdAt asc
+    """)
+    Page<Post> searchAllQnaVisibleOldest(
+            @Param("statuses") List<PostStatus> statuses,
+            @Param("answeredOnly") Boolean answeredOnly,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    @Query("""
+        select p
+        from Post p
+        join p.board b
+        where b.boardType = com.popups.pupoo.board.boardinfo.domain.enums.BoardType.QNA
+          and p.deleted = false
           and p.status = :status
           and p.postId = :postId
     """)

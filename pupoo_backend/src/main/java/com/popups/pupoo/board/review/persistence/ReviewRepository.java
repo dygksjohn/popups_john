@@ -67,6 +67,103 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
                                      @Param("writerId") Long writerId,
                                      Pageable pageable);
 
+    @Query("""
+        select r
+        from Review r
+        join Event e on e.eventId = r.eventId
+        where r.deleted = false
+          and r.reviewStatus = :status
+          and (:rating is null or r.rating = :rating)
+          and (:writerId is null or r.userId = :writerId)
+          and (
+                :keyword is null
+             or :keyword = ''
+             or r.reviewTitle like concat('%', :keyword, '%')
+             or r.content like concat('%', :keyword, '%')
+             or e.eventName like concat('%', :keyword, '%')
+          )
+        order by r.createdAt desc, r.reviewId desc
+        """)
+    Page<Review> searchPublicSortedByLatest(
+            @Param("status") ReviewStatus status,
+            @Param("rating") Byte rating,
+            @Param("keyword") String keyword,
+            @Param("writerId") Long writerId,
+            Pageable pageable
+    );
+
+    @Query("""
+        select r
+        from Review r
+        join Event e on e.eventId = r.eventId
+        where r.deleted = false
+          and r.reviewStatus = :status
+          and (:rating is null or r.rating = :rating)
+          and (:writerId is null or r.userId = :writerId)
+          and (
+                :keyword is null
+             or :keyword = ''
+             or r.reviewTitle like concat('%', :keyword, '%')
+             or r.content like concat('%', :keyword, '%')
+             or e.eventName like concat('%', :keyword, '%')
+          )
+        order by r.viewCount desc, r.createdAt desc, r.reviewId desc
+        """)
+    Page<Review> searchPublicSortedByViews(
+            @Param("status") ReviewStatus status,
+            @Param("rating") Byte rating,
+            @Param("keyword") String keyword,
+            @Param("writerId") Long writerId,
+            Pageable pageable
+    );
+
+    @Query(value = """
+        SELECT r.*
+        FROM reviews r
+        JOIN event e ON e.event_id = r.event_id
+        WHERE r.is_deleted = 0
+          AND r.review_status = :status
+          AND (:rating is null OR r.rating = :rating)
+          AND (:writerId is null OR r.user_id = :writerId)
+          AND (
+                :keyword is null
+             OR :keyword = ''
+             OR r.review_title LIKE CONCAT('%', :keyword, '%')
+             OR r.content LIKE CONCAT('%', :keyword, '%')
+             OR e.event_name LIKE CONCAT('%', :keyword, '%')
+          )
+        ORDER BY (
+            SELECT COUNT(*)
+            FROM review_comments c
+            WHERE c.review_id = r.review_id
+              AND c.is_deleted = 0
+        ) DESC,
+        r.created_at DESC,
+        r.review_id DESC
+        """, countQuery = """
+        SELECT COUNT(*)
+        FROM reviews r
+        JOIN event e ON e.event_id = r.event_id
+        WHERE r.is_deleted = 0
+          AND r.review_status = :status
+          AND (:rating is null OR r.rating = :rating)
+          AND (:writerId is null OR r.user_id = :writerId)
+          AND (
+                :keyword is null
+             OR :keyword = ''
+             OR r.review_title LIKE CONCAT('%', :keyword, '%')
+             OR r.content LIKE CONCAT('%', :keyword, '%')
+             OR e.event_name LIKE CONCAT('%', :keyword, '%')
+          )
+        """, nativeQuery = true)
+    Page<Review> searchPublicSortedByCommentCount(
+            @Param("status") String status,
+            @Param("rating") Byte rating,
+            @Param("keyword") String keyword,
+            @Param("writerId") Long writerId,
+            Pageable pageable
+    );
+
     /**
      * 관리자 모더레이션 큐 조회용: 삭제/블라인드 포함 검색.
      */

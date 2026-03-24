@@ -12,7 +12,7 @@ data:
   # watsonx (비밀 아닌 엔드포인트·모델 ID)
   PUPOO_AI_WATSONX_URL: "https://us-south.ml.cloud.ibm.com"
   PUPOO_AI_WATSONX_REGION: "us-south"
-  PUPOO_AI_WATSONX_LLM_ID: "ibm/granite-13b-instruct-v2"
+  PUPOO_AI_WATSONX_LLM_ID: "meta-llama/llama-3-3-70b-instruct"
   PUPOO_AI_WATSONX_EMBEDDING_MODEL_ID: "ibm/granite-embedding-278m-multilingual"
   PUPOO_AI_WATSONX_EMBEDDING_DIM: "768"
   # Milvus: 클러스터 내 서비스 DNS로 교체 (예: 동일 네임스페이스면 서비스 이름만)
@@ -20,3 +20,11 @@ data:
   PUPOO_AI_MILVUS_PORT: "19530"
   PUPOO_AI_MILVUS_TLS: "false"
   PUPOO_AI_MILVUS_COLLECTION: "policy_vectors"
+
+  # 정책 TXT -> DB 키워드 병합 -> 임베딩을 위해 RDS를 사용합니다.
+  # Spring 우선순위: AI 설정에서 db_url/db_host/user/name 중 값이 있으면 사용됩니다.
+  # (password는 secret으로 분리)
+  PUPOO_AI_DB_HOST: "pupoodb.c50c2i048hc8.ap-northeast-2.rds.amazonaws.com"
+  PUPOO_AI_DB_PORT: "3306"
+  PUPOO_AI_DB_USER: "pupoo"
+  PUPOO_AI_DB_NAME: "pupoodb"
