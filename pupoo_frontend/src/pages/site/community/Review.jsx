@@ -24,7 +24,6 @@ import { tokenStore } from "../../../app/http/tokenStore";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import BadgeTag from "./shared/BadgeTag";
 import { htmlToPlainText } from "./shared/communityHtml";
-import BadgeTag from "./shared/BadgeTag";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 
 const PAGE_SIZE = 10;
