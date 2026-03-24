@@ -608,11 +608,25 @@ function SlidePanel({ item, initialForm, onSave, onClose, isEdit, saving, onDraf
               style={inputStyle}
               value={form.scope}
               onChange={(e) => set("scope", e.target.value)}
+              disabled={isEdit}
             >
               <option value="ALL">전체</option>
               <option value="EVENT">이벤트</option>
             </select>
           </Field>
+          {isEdit && (
+            <div
+              style={{
+                marginTop: -10,
+                marginBottom: 16,
+                fontSize: 11.5,
+                color: ds.ink4,
+                lineHeight: 1.5,
+              }}
+            >
+              공지 수정 API는 범위를 변경하지 않습니다.
+            </div>
+          )}
           <Field label="상태">
             <select
               style={inputStyle}

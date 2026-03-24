@@ -49,13 +49,19 @@ class SummaryActionHandler:
             congestion = summary.get("congestion") or {}
             notices = summary.get("notices") or {}
             notifications = summary.get("notifications") or {}
+            notice_total = (
+                int(notices.get("publishedCount") or 0)
+                + int(notices.get("draftCount") or 0)
+                + int(notices.get("hiddenCount") or 0)
+            )
+            notification_total = int(notifications.get("draftCount") or 0) + int(notifications.get("sentCount") or 0)
             payload = {
                 "summaryType": "congestion",
                 "title": "혼잡도 요약",
                 "items": [
-                    {"label": "진행 중 행사", "value": int(congestion.get("ongoingCount") or 0)},
-                    {"label": "예정 행사", "value": int(congestion.get("plannedCount") or 0)},
-                    {"label": "종료 행사", "value": int(congestion.get("endedCount") or 0)},
+                    {"label": "진행 중 행사", "value": int(congestion.get("ongoingEventCount") or 0)},
+                    {"label": "예정 행사", "value": int(congestion.get("plannedEventCount") or 0)},
+                    {"label": "종료 행사", "value": int(congestion.get("endedEventCount") or 0)},
                     {"label": "오늘 체크인", "value": int(congestion.get("todayCheckinCount") or 0)},
                 ],
                 "sections": [
@@ -63,17 +69,17 @@ class SummaryActionHandler:
                         "key": "notices",
                         "title": "공지 운영 현황",
                         "items": [
-                            {"label": "전체 공지", "value": int(notices.get("totalCount") or 0)},
-                            {"label": "상단 고정", "value": int(notices.get("pinnedCount") or 0)},
+                            {"label": "전체 공지", "value": notice_total},
                             {"label": "게시 중", "value": int(notices.get("publishedCount") or 0)},
                             {"label": "임시 저장", "value": int(notices.get("draftCount") or 0)},
+                            {"label": "숨김", "value": int(notices.get("hiddenCount") or 0)},
                         ],
                     },
                     {
                         "key": "notifications",
                         "title": "알림 운영 현황",
                         "items": [
-                            {"label": "전체 알림", "value": int(notifications.get("totalCount") or 0)},
+                            {"label": "전체 알림", "value": notification_total},
                             {"label": "초안", "value": int(notifications.get("draftCount") or 0)},
                             {"label": "발송 완료", "value": int(notifications.get("sentCount") or 0)},
                         ],
@@ -320,6 +326,9 @@ class UnsupportedActionHandler:
 
 
 class ExecuteActionHandler:
+    def validation_failure(self, message: str) -> ChatResponse:
+        return ChatResponse(message=message, messageType="validation", actions=[])
+
     def prepare(self, planned_action: PlannedAction, context: ChatContext) -> ChatResponse:
         if planned_action.target == "save_notice":
             if context.notice_draft is None or not context.notice_draft.title.strip():
@@ -355,9 +364,16 @@ class ExecuteActionHandler:
 
             execute_type = self._resolve_notification_execute_type(planned_action, context)
             if execute_type is None:
-                return self.unsupported(
+                return self.validation_failure(
                     "현재 알림 초안은 backend capability 기준으로 바로 실행할 수 없습니다. 화면에서 대상과 발송 방식을 먼저 확인해 주세요."
                 )
+
+            if execute_type == "SEND_EVENT_NOTIFICATION":
+                validation_error = self._validate_event_notification_payload(
+                    context.notification_draft.model_dump(by_alias=True)
+                )
+                if validation_error is not None:
+                    return self.validation_failure(validation_error)
 
             label = self._resolve_notification_label(execute_type)
             payload = {
@@ -391,11 +407,12 @@ class ExecuteActionHandler:
                 "title": payload.get("title", ""),
                 "content": payload.get("content", ""),
                 "pinned": bool(payload.get("pinned", False)),
-                "scope": payload.get("scope") or "ALL",
-                "eventId": payload.get("eventId"),
                 "status": status,
             }
             notice_id = payload.get("noticeId")
+            if not notice_id:
+                body["scope"] = payload.get("scope") or "ALL"
+                body["eventId"] = payload.get("eventId")
             saved = (
                 await backend_client.update_notice(int(notice_id), body)
                 if notice_id
@@ -463,6 +480,9 @@ class ExecuteActionHandler:
             )
 
         if confirmation_type == "SEND_EVENT_NOTIFICATION":
+            validation_error = self._validate_event_notification_payload(payload)
+            if validation_error is not None:
+                return self.validation_failure(validation_error)
             event_payload = self._build_event_notification_body(payload)
             sent = await backend_client.send_event_notification(event_payload)
             return ChatResponse(
@@ -577,6 +597,15 @@ class ExecuteActionHandler:
             "recipientScopes": payload.get("recipientScopes") or [],
         }
 
+    def _validate_event_notification_payload(self, payload: dict) -> str | None:
+        if payload.get("eventId") is None:
+            return "이벤트 알림 발송에는 eventId가 필요합니다."
+        if not payload.get("targetType"):
+            return "이벤트 알림 발송에는 targetType이 필요합니다."
+        if payload.get("targetId") is None:
+            return "이벤트 알림 발송에는 targetId가 필요합니다."
+        return None
+
     def _build_event_notification_body(self, payload: dict) -> dict:
         event_id = payload.get("eventId")
         if event_id is None:
@@ -597,8 +626,8 @@ class ExecuteActionHandler:
             "type": payload.get("notificationType") or "EVENT",
             "title": payload.get("title", ""),
             "content": payload.get("content", ""),
-            "targetType": payload.get("targetType") or "EVENT",
-            "targetId": payload.get("targetId") or event_id,
+            "targetType": payload.get("targetType"),
+            "targetId": payload.get("targetId"),
             "eventId": event_id,
             "channels": payload.get("channels") or ["APP"],
             "recipientScope": recipient_scopes[0],
@@ -631,7 +660,12 @@ def _infer_notification_execute_type(draft: NotificationDraftContext) -> str | N
     alert_mode = str(draft.alert_mode or "").lower()
     if draft.notification_id is not None:
         return "SEND_NOTIFICATION_DRAFT"
-    if alert_mode == "event" and draft.event_id is not None:
+    if (
+        alert_mode == "event"
+        and draft.event_id is not None
+        and draft.target_type
+        and draft.target_id is not None
+    ):
         return "SEND_EVENT_NOTIFICATION"
     if alert_mode in {"important", "system", "broadcast"}:
         return "SEND_BROADCAST_NOTIFICATION"

@@ -71,6 +71,8 @@ class ExecuteActionHandlerPrepareTest(unittest.TestCase):
             notificationDraft=NotificationDraftContext(
                 title="행사 알림",
                 content="알림 내용",
+                targetType="EVENT",
+                targetId=12,
                 alertMode="event",
                 eventId=12,
                 recipientScopes=["INTEREST_SUBSCRIBERS"],
@@ -131,9 +133,9 @@ class FakeBackendClient:
     async def get_ai_summary(self):
         return {
             "congestion": {
-                "ongoingCount": 2,
-                "plannedCount": 3,
-                "endedCount": 4,
+                "ongoingEventCount": 2,
+                "plannedEventCount": 3,
+                "endedEventCount": 4,
                 "todayCheckinCount": 21,
             },
             "applicants": {
@@ -155,14 +157,11 @@ class FakeBackendClient:
                 },
             },
             "notices": {
-                "totalCount": 12,
-                "pinnedCount": 2,
                 "publishedCount": 6,
                 "draftCount": 3,
                 "hiddenCount": 3,
             },
             "notifications": {
-                "totalCount": 20,
                 "draftCount": 5,
                 "sentCount": 15,
             },
@@ -221,6 +220,8 @@ class ExecuteActionHandlerConfirmTest(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(client.updated_notice_body["status"], "PUBLISHED")
+        self.assertNotIn("scope", client.updated_notice_body)
+        self.assertNotIn("eventId", client.updated_notice_body)
         self.assertIn("noticeId=3", response.message)
         self.assertEqual(response.actions[0].payload["formData"]["noticeId"], 3)
 
@@ -232,6 +233,8 @@ class ExecuteActionHandlerConfirmTest(unittest.IsolatedAsyncioTestCase):
                 "payload": {
                     "title": "행사 알림",
                     "content": "안내",
+                    "targetType": "EVENT",
+                    "targetId": 12,
                     "alertMode": "event",
                     "eventId": 12,
                     "recipientScopes": ["INTEREST_SUBSCRIBERS"],
@@ -243,6 +246,24 @@ class ExecuteActionHandlerConfirmTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client.sent_event_body["eventId"], 12)
         self.assertIn("12명", response.message)
         self.assertFalse(response.actions[0].payload["execution"]["supported"])
+
+    async def test_confirm_event_notification_requires_target_fields(self):
+        client = FakeBackendClient()
+        response = await ExecuteActionHandler().confirm(
+            {
+                "executeType": "SEND_EVENT_NOTIFICATION",
+                "payload": {
+                    "title": "행사 알림",
+                    "content": "안내",
+                    "alertMode": "event",
+                    "eventId": 12,
+                },
+            },
+            client,
+        )
+
+        self.assertEqual(response.message_type, "validation")
+        self.assertIsNone(client.sent_event_body)
 
     async def test_confirm_broadcast_notification(self):
         client = FakeBackendClient()

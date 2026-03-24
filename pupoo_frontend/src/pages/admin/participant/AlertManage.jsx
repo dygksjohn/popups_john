@@ -107,12 +107,16 @@ const buildDraftPayload = (item) => ({
   status: item.status ?? "draft",
   title: item.title,
   content: item.content,
+  notificationType: item.notificationType ?? "EVENT",
   alertMode: item.alertMode,
   eventId: item.eventId,
   eventName: item.eventName,
   eventStatus: item.eventStatus,
   alertTargetLabel: item.alertTargetLabel,
   specialTargetKey: item.specialTargetKey,
+  targetType: item.targetType ?? null,
+  targetId: item.targetId ?? null,
+  channels: item.channels ?? ["APP"],
   recipientScope: item.recipientScope ?? null,
   recipientScopes: item.recipientScopes ?? [],
 });
@@ -135,6 +139,13 @@ const buildNotificationExecution = (item) => {
   }
 
   if (alertMode === "event" && item?.eventId) {
+    if (!item?.targetType || item?.targetId == null) {
+      return {
+        supported: false,
+        reason: "이벤트 알림 발송에는 eventId, targetType, targetId가 모두 필요합니다.",
+        unsupportedActions: ["SCHEDULE_NOTIFICATION"],
+      };
+    }
     return {
       supported: true,
       executeType: "SEND_EVENT_NOTIFICATION",
@@ -715,6 +726,15 @@ function SlidePanel({
       alertMode: panelMode,
       notificationType:
         panelMode === "system" ? "SYSTEM" : panelMode === "important" ? "NOTICE" : "EVENT",
+      targetType:
+        panelMode === "event"
+          ? "EVENT"
+          : panelMode === "system"
+            ? "SYSTEM"
+            : "NOTICE",
+      targetId:
+        panelMode === "event" && form.eventId ? Number(form.eventId) : 0,
+      channels: ["APP"],
       eventId: panelMode === "event" && form.eventId ? Number(form.eventId) : null,
       eventName: panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
       eventStatus: panelMode === "event" ? selectedEvent?.status ?? null : null,

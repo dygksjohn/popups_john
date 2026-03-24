@@ -79,8 +79,6 @@ export const adminNoticeApi = {
         title: data.title,
         content: data.content || "",
         pinned: data.pinned ?? false,
-        scope: data.scope || "ALL",
-        eventId: data.eventId || null,
         status: data.status || "PUBLISHED",
       },
       { headers: authHeaders() },

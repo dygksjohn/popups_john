@@ -73,11 +73,15 @@ async function requestChat({ history, userMessage, context, confirmation }) {
   }
 
   if (!response.ok || payload?.success === false) {
-    const message =
+    const error = new Error(
       payload?.data?.message ||
-      payload?.error?.message ||
-      "AI 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
-    throw new Error(message);
+        payload?.error?.message ||
+        "AI 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    );
+    error.messageType = payload?.data?.messageType || "error";
+    error.status = response.status;
+    error.code = payload?.code || null;
+    throw error;
   }
 
   return payload?.data || { message: "응답을 받지 못했습니다.", messageType: "default", actions: [] };
@@ -247,7 +251,7 @@ export function useChatBot() {
             role: "bot",
             text: error?.message || "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
             ts: new Date(),
-            messageType: "error",
+            messageType: error?.messageType || "error",
             summary: null,
             confirmation: null,
             executionInfo: null,
@@ -302,10 +306,10 @@ export function useChatBot() {
           role: "bot",
           text: error?.message || "실행 처리 중 오류가 발생했습니다.",
           ts: new Date(),
-          messageType: "error",
-          summary: null,
-          confirmation: null,
-          executionInfo: null,
+            messageType: error?.messageType || "error",
+            summary: null,
+            confirmation: null,
+            executionInfo: null,
         },
       ]);
     } finally {

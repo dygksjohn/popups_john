@@ -21,12 +21,16 @@ class NotificationDraftContext(BaseModel):
     title: str = ""
     content: str = ""
     status: str = "DRAFT"
+    notification_type: str = Field(default="EVENT", alias="notificationType")
     alert_mode: str = Field(default="event", alias="alertMode")
     event_id: int | None = Field(default=None, alias="eventId")
     event_name: str = Field(default="", alias="eventName")
     event_status: str = Field(default="", alias="eventStatus")
     alert_target_label: str = Field(default="", alias="alertTargetLabel")
     special_target_key: str = Field(default="", alias="specialTargetKey")
+    target_type: str | None = Field(default=None, alias="targetType")
+    target_id: int | None = Field(default=None, alias="targetId")
+    channels: list[str] = Field(default_factory=list)
     recipient_scope: str | None = Field(default=None, alias="recipientScope")
     recipient_scopes: list[str] = Field(default_factory=list, alias="recipientScopes")
 

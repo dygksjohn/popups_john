@@ -14,28 +14,28 @@ import java.util.List;
 @Getter
 public class NotificationCreateRequest {
 
-    @NotNull
+    @NotNull(message = "type is required")
     private NotificationType type;
 
-    @NotBlank
+    @NotBlank(message = "title is required")
     private String title;
 
-    @NotBlank
+    @NotBlank(message = "content is required")
     private String content;
 
     /**
      * 클릭 시 이동 정보
      */
-    @NotNull
+    @NotNull(message = "targetType is required")
     private InboxTargetType targetType;
 
-    @NotNull
+    @NotNull(message = "targetId is required")
     private Long targetId;
 
     /**
      * interest/참가자/예매자 기반 fan-out을 위한 이벤트 ID
      */
-    @NotNull
+    @NotNull(message = "eventId is required")
     private Long eventId;
 
     /**
