@@ -21,6 +21,7 @@ import {
 } from "./useRealtimeAnimations";
 import { programApi } from "../../../app/http/programApi";
 import { eventApi } from "../../../app/http/eventApi";
+import { adminRealtimeApi } from "../../../app/http/adminRealtimeApi";
 import {
   createImageFallbackHandler,
   resolveImageUrl,
@@ -103,6 +104,33 @@ const styles = `
   }
   .vt-back-btn:hover { background: #1f2937; border-color: #1f2937; }
   .vt-back-btn:active { transform: scale(0.97); }
+  .vt-live-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .vt-live-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .vt-live-actions {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    min-width: max-content;
+  }
+  .vt-live-time {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
 
   /* ── 히어로 ── */
   .vt-hero {
@@ -284,16 +312,18 @@ const styles = `
     .vt-main-grid { grid-template-columns: 1fr; }
     .vt-ranking-list { max-height: 420px; }
   }
-  @media (max-width: 640px) {
-    .vt-container { padding: 20px 16px 48px; }
-    .vt-top-actions { align-items: stretch; }
-    .vt-event-mode-nav { width: 100%; margin-left: 0; }
-    .vt-mode-btn { flex: 1 1 calc(50% - 8px); min-width: 132px; }
-    .vt-hero { padding: 22px 18px; }
-    .vt-hero-title { font-size: 22px; }
-    .vt-hero-kpi-value { font-size: 28px; }
-    .vt-card { padding: 20px 18px; }
-    .vt-detail-metrics { grid-template-columns: 1fr; }
+	  @media (max-width: 640px) {
+	    .vt-container { padding: 20px 16px 48px; }
+	    .vt-top-actions { align-items: stretch; }
+	    .vt-event-mode-nav { width: 100%; margin-left: 0; }
+	    .vt-mode-btn { flex: 1 1 calc(50% - 8px); min-width: 132px; }
+	    .vt-live-header { flex-wrap: wrap; }
+	    .vt-live-actions { width: 100%; justify-content: flex-end; }
+	    .vt-hero { padding: 22px 18px; }
+	    .vt-hero-title { font-size: 22px; }
+	    .vt-hero-kpi-value { font-size: 28px; }
+	    .vt-card { padding: 20px 18px; }
+	    .vt-detail-metrics { grid-template-columns: 1fr; }
     .vt-selector-head-left { width: 100%; }
   }
 `;
@@ -362,6 +392,11 @@ function statusClassName(status) {
 function toNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toArray(value) {
+  if (Array.isArray(value?.content)) return value.content;
+  return Array.isArray(value) ? value : [];
 }
 
 function toCandidateRows(payload) {
@@ -457,8 +492,9 @@ function VoteContent({ eventId }) {
   const [lastLoadedAt, setLastLoadedAt] = useState(new Date());
   const loadedRef = useRef(false);
   const activeKeyRef = useRef(null);
+  const inFlightRef = useRef(false);
   const [manualRefreshSeed, setManualRefreshSeed] = useState(0);
-  const { tick } = useAutoRefresh(5000);
+  const { tick } = useAutoRefresh(15000);
   const { spinning, refresh } = useRefresh(
     () => setManualRefreshSeed((value) => value + 1),
     850,
@@ -475,11 +511,14 @@ function VoteContent({ eventId }) {
     setEventDetail(null);
     loadedRef.current = false;
     activeKeyRef.current = null;
+    inFlightRef.current = false;
   }, [eventId]);
 
   useEffect(() => {
     let cancelled = false;
     const fetchVoteBoard = async () => {
+      if (document.visibilityState === "hidden") return;
+      if (inFlightRef.current) return;
       if (!eventId) {
         if (!cancelled) {
           setContests([]);
@@ -488,11 +527,64 @@ function VoteContent({ eventId }) {
         return;
       }
 
+      inFlightRef.current = true;
       const firstLoad = !loadedRef.current;
       if (firstLoad) setLoading(true);
       setErrorMsg("");
 
       try {
+        const response = await adminRealtimeApi.getVoteStatusSnapshot(Number(eventId));
+        const snapshot = response?.data?.data ?? response?.data ?? null;
+        if (!snapshot || typeof snapshot !== "object") {
+          throw new Error("Vote snapshot is empty.");
+        }
+
+        const mappedContests = toArray(snapshot?.contests).map((contest) => {
+          const contestItems = toArray(contest?.items).map((item, index) => ({
+            applyId: Number(item?.applyId),
+            name: item?.name || `참가자 #${item?.applyId ?? "-"}`,
+            imageUrl: item?.imageUrl || null,
+            ownerNickname: item?.ownerNickname || "보호자 정보 없음",
+            votes: toNumber(item?.votes),
+            rank: Number(item?.rank ?? index + 1),
+            pct: Number(item?.pct ?? 0),
+            gapFromLeader: toNumber(item?.gapFromLeader),
+            gapFromPrevious: toNumber(item?.gapFromPrevious),
+            status: item?.status || "UNKNOWN",
+          }));
+
+          return {
+            key: contest?.key || `contest-${contest?.programId}`,
+            programId: Number(contest?.programId),
+            title: contest?.title || `콘테스트 #${contest?.programId ?? "-"}`,
+            status: contest?.status || toContestStatus(contest),
+            totalVotes: toNumber(contest?.totalVotes),
+            participantCount: toNumber(contest?.participantCount ?? contestItems.length),
+            items: contestItems,
+            startAt: contest?.startAt || null,
+            endAt: contest?.endAt || null,
+          };
+        });
+
+        if (cancelled) return;
+        setEventDetail(snapshot?.eventSummary || null);
+        setContests(mappedContests);
+        setActiveContestKey((prev) => {
+          if (prev && mappedContests.some((contest) => contest.key === prev)) {
+            return prev;
+          }
+          return mappedContests[0]?.key ?? null;
+        });
+        setLastLoadedAt(
+          snapshot?.metadata?.serverTime ||
+          snapshot?.voteSummary?.latestUpdatedAt ||
+          snapshot?.voteSummary?.latestVoteAt ||
+          new Date(),
+        );
+        loadedRef.current = true;
+        return;
+
+        /* legacy fan-out path removed
         const [programs, eventResponse] = await Promise.all([
           programApi.getAllProgramsByEvent({
             eventId: Number(eventId),
@@ -553,6 +645,7 @@ function VoteContent({ eventId }) {
           return mapped[0]?.key ?? null;
         });
         loadedRef.current = true;
+        */
       } catch (error) {
         if (!cancelled) {
           setErrorMsg(
@@ -561,6 +654,7 @@ function VoteContent({ eventId }) {
           );
         }
       } finally {
+        inFlightRef.current = false;
         if (!cancelled && firstLoad) setLoading(false);
       }
     };
@@ -653,10 +747,7 @@ function VoteContent({ eventId }) {
       {errorMsg ? <div className="vt-inline-banner">{errorMsg}</div> : null}
 
       <section className="vt-live-header">
-        <div
-          className="vt-live-meta"
-          style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}
-        >
+        <div className="vt-live-meta">
           <span
             className="vt-live-badge"
             style={{
@@ -680,23 +771,20 @@ function VoteContent({ eventId }) {
             />
             LIVE 집계
           </span>
-          <span
-            className="vt-live-time"
-            style={{ color: "#6b7280", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}
-          >
-            마지막 갱신 {lastUpdated}
-          </span>
         </div>
-        <button className="vt-refresh-btn" onClick={refresh} aria-label="새로고침">
-          <RefreshCw
-            size={15}
-            style={{
-              animation: spinning
-                ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)"
-                : "none",
-            }}
-          />
-        </button>
+        <div className="vt-live-actions">
+          <span className="vt-live-time">마지막 갱신 {lastUpdated}</span>
+          <button className="vt-refresh-btn" onClick={refresh} aria-label="새로고침">
+            <RefreshCw
+              size={15}
+              style={{
+                animation: spinning
+                  ? "anim-spin 0.8s cubic-bezier(0.4,0,0.2,1)"
+                  : "none",
+              }}
+            />
+          </button>
+        </div>
       </section>
 
       <section className="vt-card vt-selector-wrap">

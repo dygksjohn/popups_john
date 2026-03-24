@@ -11,6 +11,8 @@ import java.util.Optional;
 
 public interface QrCodeRepository extends JpaRepository<QrCode, Long> {
 
+    long countByEvent_EventId(Long eventId);
+
     @Query("""
         select q
         from QrCode q

@@ -27,6 +27,7 @@ public class RealtimeWaitSyncQueryRepositoryImpl implements RealtimeWaitSyncQuer
             join event e on e.event_id = p.event_id
             where p.start_at <= :baseTime
               and p.end_at > :baseTime
+              and p.category = 'EXPERIENCE'
               and e.start_at <= :baseTime
               and e.end_at > :baseTime
         """;
@@ -220,7 +221,7 @@ public class RealtimeWaitSyncQueryRepositoryImpl implements RealtimeWaitSyncQuer
                   sum(
                     case
                       when p.start_at <= :baseTime and p.end_at > :baseTime
-                        then greatest(coalesce(p.capacity, 0), 0)
+                        then 1
                       else 0
                     end
                   ),
