@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface NoticeRepository extends JpaRepository<Notice, Long> {
 
+    long countByStatus(NoticeStatus status);
+
     // 공개 조회: PUBLISHED 상태 공지만 조회
     Page<Notice> findByStatus(NoticeStatus status, Pageable pageable);
 
@@ -107,5 +109,25 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
         where n.noticeId = :noticeId
         """)
     int increaseViewCount(@Param("noticeId") Long noticeId);
+
+    @Query("""
+        select n
+        from Notice n
+        where (:status is null or n.status = :status)
+          and (:scope is null or lower(n.scope) = lower(:scope))
+          and (:pinned is null or n.pinned = :pinned)
+          and (
+                :keyword is null
+             or :keyword = ''
+             or n.noticeTitle like concat('%', :keyword, '%')
+             or n.content like concat('%', :keyword, '%')
+          )
+        order by n.pinned desc, n.createdAt desc, n.noticeId desc
+        """)
+    Page<Notice> searchAdmin(@Param("status") NoticeStatus status,
+                             @Param("keyword") String keyword,
+                             @Param("scope") String scope,
+                             @Param("pinned") Boolean pinned,
+                             Pageable pageable);
 
 }

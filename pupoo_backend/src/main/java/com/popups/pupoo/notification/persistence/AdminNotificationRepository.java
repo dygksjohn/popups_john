@@ -6,7 +6,6 @@ import com.popups.pupoo.notification.domain.enums.NotificationType;
 import com.popups.pupoo.notification.domain.enums.RecipientScope;
 import com.popups.pupoo.notification.dto.AdminNotificationSaveCommand;
 import com.popups.pupoo.notification.dto.AdminNotificationStoredItem;
-import jakarta.annotation.PostConstruct;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -54,37 +53,6 @@ public class AdminNotificationRepository {
             Objects.requireNonNull(toLocalDateTime(rs.getTimestamp("updated_at")))
     );
 
-    @PostConstruct
-    void ensureTable() {
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS admin_notification (
-                    admin_notification_id BIGINT NOT NULL AUTO_INCREMENT,
-                    admin_user_id BIGINT NOT NULL,
-                    notification_id BIGINT NULL,
-                    title VARCHAR(255) NOT NULL,
-                    content TEXT NOT NULL,
-                    alert_mode VARCHAR(20) NOT NULL,
-                    notification_type VARCHAR(20) NOT NULL,
-                    event_id BIGINT NULL,
-                    event_name VARCHAR(255) NULL,
-                    event_status VARCHAR(20) NULL,
-                    alert_target_label VARCHAR(255) NOT NULL,
-                    special_target_key VARCHAR(60) NULL,
-                    recipient_scopes VARCHAR(255) NULL,
-                    target_count INT NULL,
-                    status VARCHAR(20) NOT NULL,
-                    sent_at DATETIME NULL,
-                    deleted TINYINT(1) NOT NULL DEFAULT 0,
-                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    PRIMARY KEY (admin_notification_id),
-                    KEY idx_admin_notification_status (status, deleted),
-                    KEY idx_admin_notification_event (event_id),
-                    KEY idx_admin_notification_created_at (created_at)
-                ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
-                """);
-    }
-
     public List<AdminNotificationStoredItem> findVisibleAll() {
         return jdbcTemplate.query("""
                 SELECT admin_notification_id, admin_user_id, notification_id, title, content,
@@ -108,6 +76,16 @@ public class AdminNotificationRepository {
                   AND deleted = 0
                 """, rowMapper, adminNotificationId);
         return rows.stream().findFirst();
+    }
+
+    public long countVisibleByStatus(AdminNotificationStatus status) {
+        Long count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM admin_notification
+                WHERE deleted = 0
+                  AND status = ?
+                """, Long.class, status.name());
+        return count == null ? 0L : count;
     }
 
     public Long save(AdminNotificationSaveCommand command) {
