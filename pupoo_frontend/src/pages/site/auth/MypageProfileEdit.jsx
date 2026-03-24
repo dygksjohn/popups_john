@@ -4,6 +4,7 @@ import { mypageApi } from "./api/mypageApi";
 import { authApi } from "./api/authApi";
 import { userApi } from "../../../features/user/api/userApi";
 import { resolveErrorMessage, toFieldMessageMap } from "../../../features/shared/forms/formError";
+import { formatPhoneForDisplay, getSmsRequestErrorMessage, normalizeDigits, toKoreanPhoneE164 } from "../../../features/auth/utils/smsAuth";
 import {
   Mail, Smartphone, KeyRound, ShieldCheck, AlertCircle, ArrowLeft, Check,
 } from "lucide-react";
@@ -318,7 +319,7 @@ export default function MypageProfileEdit() {
   const requestPhoneChange = async () => {
     try {
       setPhoneChanging(true); setGlobalError("");
-      const res = await authApi.requestPhoneChange({ phone: (form.nextPhone || "").trim() });
+      const res = await authApi.requestPhoneChange({ phone: toKoreanPhoneE164(normalizeDigits(form.nextPhone)) });
       setPhoneVerifyCode(String(res?.devCode || ""));
     } catch (error) { setGlobalError(resolveErrorMessage(error, "휴대전화 인증 요청에 실패했습니다.")); }
     finally { setPhoneChanging(false); }
@@ -327,7 +328,7 @@ export default function MypageProfileEdit() {
   const confirmPhoneChange = async () => {
     try {
       setPhoneConfirming(true); setGlobalError("");
-      await authApi.confirmPhoneChange({ phone: (form.nextPhone || "").trim(), code: (phoneCodeInput || phoneVerifyCode || "").trim() });
+      await authApi.confirmPhoneChange({ phone: toKoreanPhoneE164(normalizeDigits(form.nextPhone)), code: (phoneCodeInput || phoneVerifyCode || "").trim() });
       setPhoneVerifyCode(""); setPhoneCodeInput("");
       setForm((prev) => ({ ...prev, nextPhone: "" }));
       await refreshMe();
@@ -502,7 +503,7 @@ export default function MypageProfileEdit() {
                       className="pe-fi"
                       name="nextPhone"
                       value={form.nextPhone}
-                      onChange={handleChange}
+                      onChange={(e) => setForm((prev) => ({ ...prev, nextPhone: normalizeDigits(e.target.value) }))}
                       placeholder="새 휴대전화번호"
                       disabled={phoneChanging || phoneConfirming}
                     />
@@ -523,6 +524,7 @@ export default function MypageProfileEdit() {
                     </button>
                   </div>
                   {phoneVerifyCode && <div className="pe-dev-token">devCode: {phoneVerifyCode}</div>}
+                  {!!form.nextPhone && <div className="pe-field-helper">전송 번호: {formatPhoneForDisplay(form.nextPhone)}</div>}
                 </div>
               </div>
 

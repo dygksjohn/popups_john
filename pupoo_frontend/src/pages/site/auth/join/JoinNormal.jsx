@@ -4,6 +4,7 @@ import { authApi } from "../api/authApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
 import { petApi } from "../../../../features/pet/api/petApi";
+import { getSmsRequestErrorMessage, normalizeDigits, toKoreanPhoneE164 } from "../../../../features/auth/utils/smsAuth";
 import {
   ClipboardCheck, PenLine, Smartphone, Mail,
   Check, ChevronDown, Info, Clock, ShieldCheck,
@@ -460,7 +461,7 @@ function getApiData(res) {
   if (res && typeof res === "object" && "data" in res) return res.data;
   return null;
 }
-const digitsOnly = (s) => (s || "").replace(/[^0-9]/g, "");
+const digitsOnly = normalizeDigits;
 
 function parsePetsForCreate(pets) {
   const rows = Array.isArray(pets) ? pets : [];
@@ -554,6 +555,7 @@ export default function JoinNormal() {
     if (!m2 || !m3) return "";
     return `${digitsOnly(form.mobile1)}${m2}${m3}`;
   }, [form.mobile1, form.mobile2, form.mobile3]);
+  const phoneMobileE164 = useMemo(() => toKoreanPhoneE164(phoneMobileDigits), [phoneMobileDigits]);
 
   const socialStateFromRoute = location.state?.signupType === "SOCIAL" ? location.state : null;
   const socialStateFromStorage = (() => {
@@ -593,8 +595,8 @@ export default function JoinNormal() {
     setLoading(true); setError("");
     try {
       const payload = isSocial
-        ? { signupType: "SOCIAL", socialProvider: socialState.socialProvider ?? "KAKAO", socialProviderUid: socialState.socialProviderUid, email: form.email.trim(), nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileDigits }
-        : { signupType: "EMAIL", email: form.email.trim(), password: form.password, nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileDigits };
+        ? { signupType: "SOCIAL", socialProvider: socialState.socialProvider ?? "KAKAO", socialProviderUid: socialState.socialProviderUid, email: form.email.trim(), nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileE164 }
+        : { signupType: "EMAIL", email: form.email.trim(), password: form.password, nickname: form.nickname.trim() || form.email.split("@")[0], phone: phoneMobileE164 };
       const res = await authApi.signupStart(payload);
       const data = getApiData(res); const key = data?.signupKey;
       if (!key) throw new Error("가입 세션 생성에 실패했습니다. 다시 시도해주세요.");
@@ -618,7 +620,7 @@ export default function JoinNormal() {
     if (!otpCode.trim()) throw new Error("인증번호를 입력하세요.");
     setLoading(true); setError("");
     try {
-      await authApi.signupVerifyOtp({ signupKey, phone: phoneMobileDigits, otpCode: otpCode.trim() });
+      await authApi.signupVerifyOtp({ signupKey, phone: phoneMobileE164, otpCode: otpCode.trim() });
       setStep("COMPLETE");
     } finally { setLoading(false); }
   };
@@ -672,7 +674,13 @@ export default function JoinNormal() {
       if (step === "FORM") { await signupStart(); return; }
       if (step === "OTP") { await verifyOtp(); return; }
       if (step === "COMPLETE") { await completeSignup(); return; }
-    } catch (err) { setUserError(err?.response?.data?.message ?? err?.message); }
+    } catch (err) {
+      if (step === "FORM") {
+        setUserError(getSmsRequestErrorMessage(err));
+        return;
+      }
+      setUserError(err?.response?.data?.message ?? err?.message);
+    }
   };
 
   const stepIndex = step === "AGREE" ? 0 : step === "FORM" ? 1 : step === "OTP" ? 2 : 3;

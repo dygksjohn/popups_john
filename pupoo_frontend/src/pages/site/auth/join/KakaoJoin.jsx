@@ -3,14 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { authApi } from "../api/authApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
+import { getSmsRequestErrorMessage, normalizeDigits, toKoreanPhoneE164 } from "../../../../features/auth/utils/smsAuth";
 
 const STEP = {
   INIT: "INIT",
   FORM: "FORM",
   OTP: "OTP",
 };
-
-const normalizeDigits = (s) => (s || "").replace(/[^0-9]/g, "");
 
 export default function KakaoJoin() {
   const navigate = useNavigate();
@@ -64,19 +63,20 @@ export default function KakaoJoin() {
   const emailTrim = (email || "").trim();
   const nickTrim = (nickname || "").trim() || "kakao_user";
   const phoneDigits = normalizeDigits(phone);
+  const phoneE164 = toKoreanPhoneE164(phoneDigits);
 
   const canSendOtp =
     !loading &&
     step === STEP.FORM &&
     !!providerUid &&
     !!emailTrim && // ✅ 정책 A: 이메일 필수
-    phoneDigits.length >= 10;
+    !!phoneE164;
 
   const canVerify =
     !loading &&
     step === STEP.OTP &&
     !!signupKey &&
-    phoneDigits.length >= 10 &&
+    !!phoneE164 &&
     (otpCode || "").trim().length >= 4;
 
   /**
@@ -110,7 +110,7 @@ export default function KakaoJoin() {
         email: emailTrim,
         password: tempPassword,
         nickname: nickTrim,
-        phone: phoneDigits,
+        phone: phoneE164,
       });
 
       const key = res?.signupKey;
@@ -129,6 +129,7 @@ export default function KakaoJoin() {
       }
     } catch (e) {
       console.error(e);
+      return setError(getSmsRequestErrorMessage(e));
       setError(e?.response?.data?.message ?? e?.message ?? "OTP 발송 실패");
     } finally {
       setLoading(false);
@@ -145,7 +146,7 @@ export default function KakaoJoin() {
     try {
       await authApi.signupVerifyOtp({
         signupKey,
-        phone: phoneDigits,
+        phone: phoneE164,
         otpCode: (otpCode || "").trim(),
       });
 
@@ -170,6 +171,7 @@ export default function KakaoJoin() {
       navigate("/", { replace: true });
     } catch (e) {
       console.error(e);
+      return setError("인증번호를 확인해주세요.");
       setError(e?.response?.data?.message ?? e?.message ?? "가입 실패");
     } finally {
       setLoading(false);
@@ -478,7 +480,7 @@ export default function KakaoJoin() {
                 <input
                   className="kj-input"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(normalizeDigits(e.target.value))}
                   placeholder="01012345678"
                   disabled={loading}
                   inputMode="tel"

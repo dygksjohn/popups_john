@@ -9,9 +9,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 import software.amazon.awssdk.services.sns.model.SnsException;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class AwsSnsSmsOtpSender implements SmsOtpSenderPort {
 
@@ -45,12 +49,12 @@ public class AwsSnsSmsOtpSender implements SmsOtpSenderPort {
         String smsRegion = awsMessagingProperties.getSms() != null ? awsMessagingProperties.getSms().getRegion() : null;
 
         try {
-            PublishResponse response = snsClient.publish(
-                    PublishRequest.builder()
-                            .phoneNumber(normalizedPhone)
-                            .message(message)
-                            .build()
-            );
+            PublishRequest publishRequest = PublishRequest.builder()
+                    .phoneNumber(normalizedPhone)
+                    .message(message)
+                    .messageAttributes(buildMessageAttributes())
+                    .build();
+            PublishResponse response = snsClient.publish(publishRequest);
 
             log.info(
                     "[AUTH_SMS_PROVIDER={}] SNS sms sent. phone={}, region={}, messageId={}",
@@ -84,5 +88,31 @@ public class AwsSnsSmsOtpSender implements SmsOtpSenderPort {
 
     private String blankToPlaceholder(String value) {
         return value != null && !value.isBlank() ? value : "<empty>";
+    }
+
+    private Map<String, MessageAttributeValue> buildMessageAttributes() {
+        Map<String, MessageAttributeValue> attributes = new HashMap<>();
+
+        AwsMessagingProperties.Sms sms = awsMessagingProperties.getSms();
+        if (sms == null) {
+            return attributes;
+        }
+
+        putStringAttribute(attributes, "AWS.SNS.SMS.OriginationNumber", sms.getOriginationNumber());
+        putStringAttribute(attributes, "AWS.SNS.SMS.SenderID", sms.getSenderId());
+        return attributes;
+    }
+
+    private void putStringAttribute(Map<String, MessageAttributeValue> attributes, String key, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        attributes.put(
+                key,
+                MessageAttributeValue.builder()
+                        .dataType("String")
+                        .stringValue(value.trim())
+                        .build()
+        );
     }
 }

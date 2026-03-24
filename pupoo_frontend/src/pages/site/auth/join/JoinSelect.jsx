@@ -206,7 +206,7 @@ export default function JoinSelect() {
       <div className="js-outer">
         <div className="js-card">
           <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a", marginBottom: 24 }}>
-            네이버 회원가입
+            회원가입
           </div>
           <p className="js-desc">반려생활과 연결되는 계정 경험, 지금 시작해 보세요.</p>
 
@@ -247,7 +247,7 @@ export default function JoinSelect() {
                     <Icon />
                   )}
                   {provider.id === "naver"
-                    ? "naver로 로그인"
+                    ? "네이버로 계속하기"
                     : `${provider.label}로 계속하기`}
                 </button>
               );

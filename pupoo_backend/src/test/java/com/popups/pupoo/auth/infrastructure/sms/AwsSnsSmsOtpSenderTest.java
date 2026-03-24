@@ -21,7 +21,34 @@ import static org.mockito.Mockito.when;
 class AwsSnsSmsOtpSenderTest {
 
     @Test
-    void publishesNormalizedPhoneNumberWithoutMessageAttributes() {
+    void publishesNormalizedPhoneNumberWithConfiguredMessageAttributes() {
+        SnsClient snsClient = mock(SnsClient.class);
+        when(snsClient.publish(any(PublishRequest.class)))
+                .thenReturn(PublishResponse.builder().messageId("message-1").build());
+
+        AwsMessagingProperties properties = new AwsMessagingProperties();
+        properties.getSms().setRegion("ap-northeast-2");
+        properties.getSms().setOriginationNumber("+821012345678");
+        properties.getSms().setSenderId("PUPOO");
+        AwsSnsSmsOtpSender sender = new AwsSnsSmsOtpSender("aws-sns", snsClient, properties, true);
+
+        sender.sendOtp("01012345678", "[PUPOO] OTP 123456");
+
+        ArgumentCaptor<PublishRequest> captor = ArgumentCaptor.forClass(PublishRequest.class);
+        verify(snsClient).publish(captor.capture());
+        assertEquals("+821012345678", captor.getValue().phoneNumber());
+        assertEquals(
+                "+821012345678",
+                captor.getValue().messageAttributes().get("AWS.SNS.SMS.OriginationNumber").stringValue()
+        );
+        assertEquals(
+                "PUPOO",
+                captor.getValue().messageAttributes().get("AWS.SNS.SMS.SenderID").stringValue()
+        );
+    }
+
+    @Test
+    void omitsBlankMessageAttributes() {
         SnsClient snsClient = mock(SnsClient.class);
         when(snsClient.publish(any(PublishRequest.class)))
                 .thenReturn(PublishResponse.builder().messageId("message-1").build());
@@ -30,11 +57,10 @@ class AwsSnsSmsOtpSenderTest {
         properties.getSms().setRegion("ap-northeast-2");
         AwsSnsSmsOtpSender sender = new AwsSnsSmsOtpSender("aws-sns", snsClient, properties, true);
 
-        sender.sendOtp("01012345678", "[PUPOO] 인증번호는 123456 입니다.");
+        sender.sendOtp("01012345678", "[PUPOO] OTP 123456");
 
         ArgumentCaptor<PublishRequest> captor = ArgumentCaptor.forClass(PublishRequest.class);
         verify(snsClient).publish(captor.capture());
-        assertEquals("+821012345678", captor.getValue().phoneNumber());
         assertTrue(captor.getValue().messageAttributes() == null || captor.getValue().messageAttributes().isEmpty());
     }
 
@@ -49,7 +75,7 @@ class AwsSnsSmsOtpSenderTest {
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> sender.sendOtp("12345", "[PUPOO] 인증번호는 123456 입니다.")
+                () -> sender.sendOtp("12345", "[PUPOO] OTP 123456")
         );
 
         assertEquals(ErrorCode.SMS_PHONE_NUMBER_INVALID, exception.getErrorCode());
@@ -70,7 +96,7 @@ class AwsSnsSmsOtpSenderTest {
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> sender.sendOtp("01012345678", "[PUPOO] 인증번호는 123456 입니다.")
+                () -> sender.sendOtp("01012345678", "[PUPOO] OTP 123456")
         );
 
         assertEquals(ErrorCode.SMS_SEND_FAILED, exception.getErrorCode());
