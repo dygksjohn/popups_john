@@ -134,6 +134,8 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/analytics/events").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/analytics/events/*/congestion-by-hour").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/dashboard/realtime/events/*/congestions").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/realtime/events").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/realtime/events/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/program-applies/programs/*/candidates").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/speakers").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/speakers/*").permitAll()

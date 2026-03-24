@@ -1,49 +1,255 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+
+from pupoo_ai.app.features.chatbot.dto.request import ChatContext
+from pupoo_ai.app.features.orchestrator.slot_extractor import SlotExtractor
+
+
+SYNONYM_REPLACEMENTS: tuple[tuple[str, str], ...] = (
+    ("보여줘", "조회"),
+    ("보여", "조회"),
+    ("알려줘", "조회"),
+    ("알려", "조회"),
+    ("조회해줘", "조회"),
+    ("조회", "조회"),
+    ("써줘", "작성"),
+    ("써", "작성"),
+    ("만들어줘", "작성"),
+    ("만들어", "작성"),
+    ("만들", "작성"),
+    ("생성", "작성"),
+    ("등록", "작성"),
+    ("올려줘", "발행"),
+    ("올려", "발행"),
+    ("발행", "발행"),
+    ("저장해줘", "저장"),
+    ("저장", "저장"),
+    ("보내줘", "발송"),
+    ("보내", "발송"),
+    ("전송", "발송"),
+    ("날려줘", "발송"),
+    ("날려", "발송"),
+    ("가자", "이동"),
+    ("가줘", "이동"),
+    ("들어가", "이동"),
+    ("열어줘", "이동"),
+    ("열어", "이동"),
+)
+
+KEYWORD_GROUPS: dict[str, tuple[str, ...]] = {
+    "congestion": ("혼잡", "붐비", "대기", "체크인", "현황"),
+    "applicants": ("신청자", "참가자", "신청", "등록", "접수"),
+    "refund": ("환불", "취소"),
+    "notice": ("공지", "공지사항", "공지문"),
+    "notification": ("알림", "메시지", "푸시", "안내"),
+    "event": ("행사", "이벤트"),
+    "broadcast": ("전체", "전원", "브로드캐스트", "전체공지", "전체알림"),
+    "query": ("조회", "요약", "정리", "현황", "상태", "통계", "얼마", "몇"),
+    "navigate": ("이동", "화면", "페이지", "열기", "열어", "보기"),
+    "create": ("작성", "초안", "문구"),
+    "update": ("수정", "고쳐", "바꿔", "편집", "업데이트"),
+    "hide": ("숨김", "숨겨", "내려", "비공개", "감춰"),
+    "delete": ("삭제", "지워", "없애"),
+    "execute": ("저장", "발행", "발송", "실행", "확인", "진행"),
+    "schedule": ("예약", "나중", "예약발송"),
+    "capabilities": ("기능", "가능", "지원", "무엇", "뭐", "capabilities"),
+    "dashboard": ("대시보드", "메인", "홈"),
+    "notice_page": ("공지관리", "공지페이지", "공지화면", "공지작성"),
+    "notification_page": ("알림관리", "알림페이지", "알림화면"),
+    "event_page": ("행사관리", "행사페이지", "이벤트관리", "이벤트페이지", "행사등록"),
+    "refund_page": ("환불관리", "환불페이지", "환불화면"),
+}
 
 
 @dataclass(slots=True)
 class IntentResult:
     intent_type: str
     target: str
+    action_key: str
     requires_confirmation: bool = False
+    slots: dict = field(default_factory=dict)
+    score: int = 0
+    confidence: str = "low"
+
+
+@dataclass(slots=True)
+class Candidate:
+    action_key: str
+    intent_type: str
+    target: str
+    threshold: int
+    requires_confirmation: bool = False
+    score: int = 0
 
 
 class IntentAnalyzer:
-    def analyze(self, message: str) -> IntentResult | None:
+    def __init__(self) -> None:
+        self._slot_extractor = SlotExtractor()
+
+    def analyze(self, message: str, context: ChatContext | None = None) -> IntentResult | None:
         normalized = self._normalize(message)
+        if not normalized:
+            return None
 
-        if any(keyword in normalized for keyword in ("공지 작성 페이지", "공지 페이지")):
-            return IntentResult(intent_type="navigation", target="notice")
-        if any(keyword in normalized for keyword in ("행사 등록 페이지", "행사 등록", "행사 관리 페이지")):
-            return IntentResult(intent_type="navigation", target="event")
+        compact = self._compact(normalized)
+        scored = [candidate for candidate in self._score_candidates(normalized, compact, context) if candidate.score > 0]
+        if not scored:
+            return None
 
-        if "혼잡도" in normalized and "요약" in normalized:
-            return IntentResult(intent_type="summary", target="congestion")
-        if any(keyword in normalized for keyword in ("신청 현황 요약", "신청자수 요약", "신청자 요약")):
-            return IntentResult(intent_type="summary", target="applicants")
-        if "환불" in normalized and "요약" in normalized:
-            return IntentResult(intent_type="summary", target="refund")
+        scored.sort(key=lambda candidate: candidate.score, reverse=True)
+        best = scored[0]
+        second = scored[1] if len(scored) > 1 else None
 
-        if any(keyword in normalized for keyword in ("공지 초안", "공지문", "공지 초안 생성")):
-            return IntentResult(intent_type="draft", target="notice")
-        if any(keyword in normalized for keyword in ("알림 문구", "알림 초안", "알림 문구 생성")):
-            return IntentResult(intent_type="draft", target="notification")
+        if (
+            second is not None
+            and best.score >= best.threshold
+            and second.score >= second.threshold
+            and best.score - second.score <= 1
+        ):
+            return IntentResult(
+                intent_type="ambiguous",
+                target="unknown",
+                action_key="ambiguous",
+                score=best.score,
+                confidence="medium",
+            )
 
-        if any(keyword in normalized for keyword in ("알림 예약 발송", "알림 발송 예약", "예약 발송")):
-            return IntentResult(intent_type="unsupported", target="schedule_notification")
+        if best.score < best.threshold:
+            return IntentResult(
+                intent_type="low_confidence",
+                target="unknown",
+                action_key="low_confidence",
+                score=best.score,
+                confidence="low",
+            )
 
-        if any(keyword in normalized for keyword in ("공지 저장", "공지 등록")):
-            return IntentResult(intent_type="execute", target="save_notice", requires_confirmation=True)
-        if any(keyword in normalized for keyword in ("저장된 초안 발송", "초안 발송", "임시 저장 알림 발송")):
-            return IntentResult(intent_type="execute", target="send_notification_draft", requires_confirmation=True)
-        if any(keyword in normalized for keyword in ("이벤트 알림 발송", "행사 알림 발송")):
-            return IntentResult(intent_type="execute", target="send_event_notification", requires_confirmation=True)
-        if any(keyword in normalized for keyword in ("전체 알림 발송", "브로드캐스트 알림 발송", "전체 공지 알림 발송")):
-            return IntentResult(intent_type="execute", target="send_broadcast_notification", requires_confirmation=True)
-        if any(keyword in normalized for keyword in ("알림 발송", "알림 보내기")):
-            return IntentResult(intent_type="execute", target="send_notification", requires_confirmation=True)
+        slots = self._slot_extractor.extract(message, context, best.action_key).slots
+        confidence = "high" if best.score >= best.threshold + 2 else "medium"
+        return IntentResult(
+            intent_type=best.intent_type,
+            target=best.target,
+            action_key=best.action_key,
+            requires_confirmation=best.requires_confirmation,
+            slots=slots,
+            score=best.score,
+            confidence=confidence,
+        )
 
-        return None
+    def _score_candidates(self, normalized: str, compact: str, context: ChatContext | None) -> list[Candidate]:
+        return [
+            Candidate("notification_schedule_send", "unsupported", "schedule_notification", threshold=3, score=self._score_schedule(compact)),
+            Candidate("capabilities_get", "summary", "capabilities", threshold=3, score=self._score_capabilities(compact)),
+            Candidate("navigate_dashboard", "navigation", "dashboard", threshold=4, score=self._score_navigation(compact, "dashboard")),
+            Candidate("navigate_notice_manage", "navigation", "notice", threshold=4, score=self._score_navigation(compact, "notice_page")),
+            Candidate("navigate_notification_manage", "navigation", "notification", threshold=4, score=self._score_navigation(compact, "notification_page")),
+            Candidate("navigate_event_manage", "navigation", "event", threshold=4, score=self._score_navigation(compact, "event_page")),
+            Candidate("navigate_refund_manage", "navigation", "refund", threshold=4, score=self._score_navigation(compact, "refund_page")),
+            Candidate("summary_get", "summary", "congestion", threshold=4, score=self._score_summary(compact, "congestion")),
+            Candidate("applicants_get", "summary", "applicants", threshold=4, score=self._score_summary(compact, "applicants")),
+            Candidate("refund_get", "summary", "refund", threshold=4, score=self._score_summary(compact, "refund")),
+            Candidate("prefill_notice_form", "draft", "notice", threshold=5, score=self._score_notice_draft(compact)),
+            Candidate("prefill_notification_form", "draft", "notification", threshold=5, score=self._score_notification_draft(compact)),
+            Candidate("notice_create", "execute", "save_notice", threshold=6, requires_confirmation=True, score=self._score_notice_execute(compact, context, "create")),
+            Candidate("notice_update", "execute", "save_notice", threshold=6, requires_confirmation=True, score=self._score_notice_execute(compact, context, "update")),
+            Candidate("notice_hide", "execute", "save_notice", threshold=6, requires_confirmation=True, score=self._score_notice_execute(compact, context, "hide")),
+            Candidate("notification_draft_create", "execute", "save_notification_draft", threshold=6, requires_confirmation=True, score=self._score_notification_execute(compact, context, "draft_create")),
+            Candidate("notification_draft_update", "execute", "save_notification_draft", threshold=6, requires_confirmation=True, score=self._score_notification_execute(compact, context, "draft_update")),
+            Candidate("notification_draft_delete", "execute", "delete_notification_draft", threshold=7, requires_confirmation=True, score=self._score_notification_execute(compact, context, "delete")),
+            Candidate("notification_draft_send", "execute", "send_notification_draft", threshold=7, requires_confirmation=True, score=self._score_notification_execute(compact, context, "draft_send")),
+            Candidate("notification_event_send", "execute", "send_event_notification", threshold=7, requires_confirmation=True, score=self._score_notification_execute(compact, context, "event_send")),
+            Candidate("notification_broadcast_send", "execute", "send_broadcast_notification", threshold=7, requires_confirmation=True, score=self._score_notification_execute(compact, context, "broadcast_send")),
+        ]
+
+    def _score_schedule(self, compact: str) -> int:
+        return self._group_score(compact, "schedule", 2) + self._group_score(compact, "notification", 1) + self._group_score(compact, "execute", 1)
+
+    def _score_capabilities(self, compact: str) -> int:
+        return self._group_score(compact, "capabilities", 2)
+
+    def _score_navigation(self, compact: str, page_group: str) -> int:
+        return self._group_score(compact, "navigate", 2) + self._group_score(compact, page_group, 3)
+
+    def _score_summary(self, compact: str, entity_group: str) -> int:
+        return self._group_score(compact, entity_group, 2) + self._group_score(compact, "query", 2)
+
+    def _score_notice_draft(self, compact: str) -> int:
+        score = self._group_score(compact, "notice", 2) + self._group_score(compact, "create", 2)
+        if self._contains_any(compact, ("초안", "하나", "작성")):
+            score += 1
+        return score
+
+    def _score_notification_draft(self, compact: str) -> int:
+        score = self._group_score(compact, "notification", 2) + self._group_score(compact, "create", 2)
+        if self._contains_any(compact, ("초안", "하나", "작성")):
+            score += 1
+        return score
+
+    def _score_notice_execute(self, compact: str, context: ChatContext | None, mode: str) -> int:
+        score = self._group_score(compact, "notice", 2) + self._group_score(compact, "execute", 2)
+        if mode == "create":
+            score += self._contains_any(compact, ("저장", "발행")) * 2
+        if mode == "update":
+            score += self._group_score(compact, "update", 3)
+            if context and context.notice_draft is not None and context.notice_draft.notice_id is not None:
+                score += 3
+                if self._contains_any(compact, ("이공지", "현재공지", "공지")):
+                    score += 1
+        if mode == "hide":
+            score += self._group_score(compact, "hide", 3)
+            if context and context.notice_draft is not None and context.notice_draft.notice_id is not None:
+                score += 2
+                if self._contains_any(compact, ("이공지", "현재공지", "공지")):
+                    score += 1
+        return score
+
+    def _score_notification_execute(self, compact: str, context: ChatContext | None, mode: str) -> int:
+        score = self._group_score(compact, "notification", 2) + self._group_score(compact, "execute", 2)
+        if mode == "draft_create":
+            score += self._group_score(compact, "create", 2)
+            if self._contains_any(compact, ("저장", "초안", "작성")):
+                score += 2
+            if context and context.notification_draft is not None and context.notification_draft.notification_id is None:
+                score += 1
+        if mode == "draft_update":
+            score += self._group_score(compact, "update", 3)
+            if self._contains_any(compact, ("저장", "수정", "변경")):
+                score += 2
+            if context and context.notification_draft is not None and context.notification_draft.notification_id is not None:
+                score += 3
+        if mode == "delete":
+            score += self._group_score(compact, "delete", 3)
+            if context and context.notification_draft is not None and context.notification_draft.notification_id is not None:
+                score += 1
+        if mode == "draft_send":
+            if context and context.notification_draft is not None and context.notification_draft.notification_id is not None:
+                score += 3
+            if self._contains_any(compact, ("초안", "저장된", "임시저장")):
+                score += 3
+        if mode == "event_send":
+            score += self._group_score(compact, "event", 2)
+            if re.search(r"(?:행사|이벤트)(?:id)?\d+|\d+번(?:행사|이벤트)", compact):
+                score += 3
+        if mode == "broadcast_send":
+            score += self._group_score(compact, "broadcast", 3)
+            if self._contains_any(compact, ("공지",)):
+                score += 1
+            if self._contains_any(compact, ("전체알림", "전체공지", "전원알림")):
+                score += 2
+        return score
+
+    def _group_score(self, compact: str, group_name: str, weight: int) -> int:
+        return weight if self._contains_any(compact, KEYWORD_GROUPS[group_name]) else 0
+
+    def _contains_any(self, compact: str, terms: tuple[str, ...]) -> bool:
+        return any(term in compact for term in terms)
 
     def _normalize(self, message: str) -> str:
-        return " ".join(str(message or "").lower().split())
+        normalized = str(message or "").lower().strip()
+        for source, target in SYNONYM_REPLACEMENTS:
+            normalized = normalized.replace(source, target)
+        return normalized
+
+    def _compact(self, message: str) -> str:
+        return re.sub(r"[\s\W_]+", "", message)

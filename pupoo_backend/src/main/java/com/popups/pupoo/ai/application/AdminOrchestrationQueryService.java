@@ -98,7 +98,7 @@ public class AdminOrchestrationQueryService {
                                 List.of(ApplyStatus.APPLIED.name(), ApplyStatus.WAITING.name(), ApplyStatus.APPROVED.name()),
                                 "activeCount = APPLIED + APPROVED",
                                 "activeCount = APPLIED + WAITING + APPROVED",
-                                "checkedInCount는 CHECKED_IN 상태 건수이다."
+                                "checkedInCount는 CHECKED_IN 상태 건수다."
                         )
                 ),
                 new AdminOrchestrationSummaryResponse.NoticeSummary(
@@ -140,7 +140,7 @@ public class AdminOrchestrationQueryService {
                         true,
                         "/api/admin/notices",
                         "/api/admin/notices/{id}",
-                        "공지 저장은 request.status 값으로 DRAFT, PUBLISHED, HIDDEN 중 하나를 명시한다."
+                        "공지 저장 시 request.status 값으로 DRAFT, PUBLISHED, HIDDEN 중 하나를 명시한다."
                 ),
                 new AdminOrchestrationCapabilitiesResponse.NotificationCapability(
                         true,
@@ -152,7 +152,7 @@ public class AdminOrchestrationQueryService {
                         false,
                         "/api/admin/notifications",
                         "/api/admin/notifications/{adminNotificationId}/send",
-                        "예약 발송은 RDS admin_notification 스키마에 scheduled_at와 예약 상태가 없어 미지원이다."
+                        "예약 발송은 RDS admin_notification 스키마에 scheduled_at과 예약 상태가 없어 미지원이다."
                 ),
                 new AdminOrchestrationCapabilitiesResponse.RefundCapability(
                         true,
@@ -183,7 +183,7 @@ public class AdminOrchestrationQueryService {
                                 true,
                                 "POST/PATCH",
                                 "/api/admin/notices 또는 /api/admin/notices/{id}",
-                                "신규 저장은 status=HIDDEN, 기존 공지는 PATCH 또는 DELETE 흐름을 사용한다."
+                                "신규 저장 시 status=HIDDEN, 기존 공지는 PATCH 또는 DELETE 흐름을 사용한다."
                         ),
                         new AdminOrchestrationCapabilitiesResponse.ActionCapability(
                                 "notification_draft_create",
@@ -211,14 +211,14 @@ public class AdminOrchestrationQueryService {
                                 true,
                                 "POST",
                                 "/api/admin/notifications/{adminNotificationId}/send",
-                                "저장된 알림 초안을 즉시 발송한다."
+                                "저장한 알림 초안을 즉시 발송한다."
                         ),
                         new AdminOrchestrationCapabilitiesResponse.ActionCapability(
                                 "notification_event_send",
                                 true,
                                 "POST",
                                 "/api/admin/notifications/event",
-                                "이벤트 기준 알림을 즉시 발송한다."
+                                "이벤트 기반 알림을 즉시 발송한다."
                         ),
                         new AdminOrchestrationCapabilitiesResponse.ActionCapability(
                                 "notification_broadcast_send",

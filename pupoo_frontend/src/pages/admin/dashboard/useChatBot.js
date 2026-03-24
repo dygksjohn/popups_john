@@ -39,11 +39,56 @@ function resolveCurrentPage(pathname) {
   return "";
 }
 
+function resolveErrorMessage(payload) {
+  return (
+    payload?.message ||
+    payload?.data?.message ||
+    payload?.error?.message ||
+    "AI 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+  );
+}
+
+function resolveActionKey(action) {
+  if (action?.payload?.actionKey) return action.payload.actionKey;
+  if (action?.type === "PREFILL_FORM") {
+    return action?.payload?.formType === "notice" ? "prefill_notice_form" : "prefill_notification_form";
+  }
+  if (action?.type === "NAVIGATE") {
+    const route = action?.payload?.route || "";
+    if (route.startsWith("/admin/dashboard")) return "navigate_dashboard";
+    if (route.startsWith("/admin/board/notice")) return "navigate_notice_manage";
+    if (route.startsWith("/admin/participant/alert")) return "navigate_notification_manage";
+    if (route.startsWith("/admin/event")) return "navigate_event_manage";
+    if (route.startsWith("/admin/refunds")) return "navigate_refund_manage";
+  }
+  if (action?.type === "SHOW_SUMMARY") {
+    return action?.payload?.summaryType === "capabilities" ? "capabilities_get" : "summary_get";
+  }
+  return null;
+}
+
+function normalizeActions(actions) {
+  return (actions || []).map((action) => ({
+    ...action,
+    actionKey: resolveActionKey(action),
+    payload: {
+      ...(action?.payload || {}),
+      actionKey: action?.payload?.actionKey || resolveActionKey(action),
+    },
+  }));
+}
+
 async function requestChat({ history, userMessage, context, confirmation }) {
   const url = buildRequestUrl(API_BASE_URL, "/api/chatbot/chat");
   const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    const error = new Error("로그인이 필요합니다. 관리자 계정으로 다시 로그인해 주세요.");
+    error.messageType = "unauthorized";
+    error.status = 401;
+    throw error;
+  }
   const headers = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  headers.Authorization = `Bearer ${token}`;
 
   let response;
   try {
@@ -73,14 +118,18 @@ async function requestChat({ history, userMessage, context, confirmation }) {
   }
 
   if (!response.ok || payload?.success === false) {
-    const error = new Error(
-      payload?.data?.message ||
-        payload?.error?.message ||
-        "AI 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
-    );
+    const error = new Error(resolveErrorMessage(payload));
     error.messageType = payload?.data?.messageType || "error";
     error.status = response.status;
     error.code = payload?.code || null;
+    if (response.status === 401) {
+      error.message = "로그인이 필요합니다. 관리자 계정으로 다시 로그인해 주세요.";
+      error.messageType = "unauthorized";
+    }
+    if (response.status === 403) {
+      error.message = "관리자 권한이 필요합니다. 권한을 확인해 주세요.";
+      error.messageType = "forbidden";
+    }
     throw error;
   }
 
@@ -88,7 +137,7 @@ async function requestChat({ history, userMessage, context, confirmation }) {
 }
 
 function enrichBotMessage(baseMessage, response) {
-  const actions = response?.actions || [];
+  const actions = normalizeActions(response?.actions);
   const summaryAction = actions.find((action) => action?.type === "SHOW_SUMMARY");
   const confirmAction = actions.find((action) => action?.type === "CONFIRM_EXECUTE");
   const prefillAction = actions.find((action) => action?.type === "PREFILL_FORM");
@@ -98,7 +147,12 @@ function enrichBotMessage(baseMessage, response) {
     messageType: response?.messageType || "default",
     summary: summaryAction?.payload || null,
     confirmation: confirmAction?.payload || null,
-    executionInfo: prefillAction?.payload?.execution || null,
+    executionInfo: prefillAction?.payload?.execution
+      ? {
+          ...prefillAction.payload.execution,
+          actionKey: prefillAction.payload.actionKey,
+        }
+      : null,
   };
 }
 
@@ -120,6 +174,7 @@ export function useChatBot() {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [noticeDraft, setNoticeDraft] = useState(() => readJsonStorage(NOTICE_DRAFT_KEY));
   const [notificationDraft, setNotificationDraft] = useState(() => readJsonStorage(NOTIFICATION_DRAFT_KEY));
   const [pendingConfirmation, setPendingConfirmation] = useState(null);
@@ -162,44 +217,55 @@ export function useChatBot() {
 
   const applyActions = useCallback(
     (actions) => {
-      actions.forEach((action) => {
-        if (action?.type === "NAVIGATE" && action?.payload?.route) {
-          navigate(action.payload.route);
-        }
-
-        if (action?.type === "PREFILL_FORM") {
-          const formType = action?.payload?.formType;
-          const route = action?.payload?.route;
-          const storedPayload = {
-            formData: action?.payload?.formData || {},
-            execution: action?.payload?.execution || null,
-          };
-
-          if (formType === "notice") {
-            setNoticeDraft(storedPayload);
+      normalizeActions(actions).forEach((action) => {
+        switch (action?.actionKey) {
+          case "navigate_dashboard":
+          case "navigate_notice_manage":
+          case "navigate_notification_manage":
+          case "navigate_event_manage":
+          case "navigate_refund_manage":
+            if (action?.payload?.route) navigate(action.payload.route);
+            break;
+          case "prefill_notice_form": {
+            const storedPayload = {
+              formData: action?.payload?.formData || {},
+              execution: action?.payload?.execution
+                ? { ...action.payload.execution, actionKey: action.payload.actionKey }
+                : null,
+            };
             writeJsonStorage(NOTICE_DRAFT_KEY, storedPayload);
-            if (route) navigate(route);
-            window.dispatchEvent(
-              new CustomEvent("pupoo-admin-chatbot-prefill-notice", {
-                detail: storedPayload,
-              }),
-            );
+            setNoticeDraft(storedPayload);
+            if (action?.payload?.route) navigate(action.payload.route);
+            window.dispatchEvent(new CustomEvent("pupoo-admin-chatbot-prefill-notice", { detail: storedPayload }));
+            break;
           }
-
-          if (formType === "notification") {
-            setNotificationDraft(storedPayload);
+          case "prefill_notification_form": {
+            const storedPayload = {
+              formData: action?.payload?.formData || {},
+              execution: action?.payload?.execution
+                ? { ...action.payload.execution, actionKey: action.payload.actionKey }
+                : null,
+            };
             writeJsonStorage(NOTIFICATION_DRAFT_KEY, storedPayload);
-            if (route) navigate(route);
-            window.dispatchEvent(
-              new CustomEvent("pupoo-admin-chatbot-prefill-notification", {
-                detail: storedPayload,
-              }),
-            );
+            setNotificationDraft(storedPayload);
+            if (action?.payload?.route) navigate(action.payload.route);
+            window.dispatchEvent(new CustomEvent("pupoo-admin-chatbot-prefill-notification", { detail: storedPayload }));
+            break;
           }
-        }
-
-        if (action?.type === "CONFIRM_EXECUTE") {
-          setPendingConfirmation(action.payload || null);
+          case "notice_create":
+          case "notice_update":
+          case "notice_hide":
+          case "notification_draft_create":
+          case "notification_draft_update":
+          case "notification_draft_delete":
+          case "notification_draft_send":
+          case "notification_event_send":
+          case "notification_broadcast_send":
+            setPendingConfirmation(action.payload || null);
+            break;
+          default:
+            if (action?.type === "NAVIGATE" && action?.payload?.route) navigate(action.payload.route);
+            break;
         }
       });
     },
@@ -265,7 +331,7 @@ export function useChatBot() {
   );
 
   const confirmExecute = useCallback(async () => {
-    if (!pendingConfirmation || isTyping) return;
+    if (!pendingConfirmation || isTyping || isConfirming) return;
 
     const userMessage = {
       id: idRef.current++,
@@ -276,6 +342,7 @@ export function useChatBot() {
 
     setMessages((prev) => [...prev, userMessage]);
     setIsTyping(true);
+    setIsConfirming(true);
 
     try {
       const response = await requestChat({
@@ -314,8 +381,9 @@ export function useChatBot() {
       ]);
     } finally {
       setIsTyping(false);
+      setIsConfirming(false);
     }
-  }, [applyActions, currentContext, isTyping, messages, pendingConfirmation]);
+  }, [applyActions, currentContext, isConfirming, isTyping, messages, pendingConfirmation]);
 
   const clearMessages = useCallback(() => {
     setPendingConfirmation(null);
@@ -341,6 +409,7 @@ export function useChatBot() {
     input,
     setInput,
     isTyping,
+    isConfirming,
     sendMessage,
     clearMessages,
     confirmExecute,

@@ -375,6 +375,49 @@ function executeLabel(confirmation) {
   return labels[executeType] || "확인 후 실행";
 }
 
+function executeActionLabel(confirmation) {
+  const actionKey = confirmation?.actionKey;
+  const executeType = confirmation?.executeType || confirmation?.type;
+  if (actionKey === "notification_draft_create") return "알림 초안 저장";
+  if (actionKey === "notification_draft_update") return "알림 초안 수정 저장";
+  if (executeType === "SAVE_NOTIFICATION_DRAFT") return "알림 초안 저장";
+  const actionLabels = {
+    notice_create: "공지 저장",
+    notice_update: "공지 수정 저장",
+    notice_hide: "공지 숨김",
+    notification_draft_delete: "알림 초안 삭제",
+    notification_draft_send: "저장된 초안 발송",
+    notification_event_send: "이벤트 알림 발송",
+    notification_broadcast_send: "전체 알림 발송",
+  };
+  const executeLabels = {
+    SAVE_NOTICE: "공지 저장",
+    SEND_NOTIFICATION_DRAFT: "저장된 초안 발송",
+    SEND_EVENT_NOTIFICATION: "이벤트 알림 발송",
+    SEND_BROADCAST_NOTIFICATION: "전체 알림 발송",
+  };
+  return actionLabels[actionKey] || executeLabels[executeType] || "확인 후 실행";
+}
+
+function buildActionPayloadSummary(actionKey, payload) {
+  if (!payload) return [];
+  const summaries = [];
+
+  if (actionKey?.startsWith("notice")) {
+    if (payload.noticeId) summaries.push(`공지 ID ${payload.noticeId}`);
+    if (payload.status) summaries.push(`상태 ${payload.status}`);
+  }
+  if (actionKey?.startsWith("notification")) {
+    if (payload.notificationId) summaries.push(`알림 ID ${payload.notificationId}`);
+    if (payload.eventId) summaries.push(`행사 ID ${payload.eventId}`);
+    if (payload.targetType) summaries.push(`대상 ${payload.targetType}`);
+    if (payload.targetId != null) summaries.push(`대상 ID ${payload.targetId}`);
+  }
+  if (payload.title) summaries.push(`제목 ${payload.title}`);
+
+  return summaries;
+}
+
 function summaryTitle(summaryType) {
   const titles = {
     congestion: "혼잡도 요약",
@@ -500,6 +543,7 @@ function ConfirmCard({ confirmation, onConfirm, mobile = false }) {
       <button
         type="button"
         onClick={onConfirm}
+        disabled={isConfirming}
         style={{
           width: "100%",
           border: "none",
@@ -509,7 +553,8 @@ function ConfirmCard({ confirmation, onConfirm, mobile = false }) {
           padding: "10px 12px",
           fontSize: 12.5,
           fontWeight: 700,
-          cursor: "pointer",
+          cursor: isConfirming ? "default" : "pointer",
+          opacity: isConfirming ? 0.6 : 1,
           fontFamily: ds.ff,
         }}
       >
@@ -584,18 +629,93 @@ function ActionUnsupportedCard({ messageType, executionInfo, mobile = false }) {
       }}
     >
       <div style={{ fontSize: 11.5, color: "#B91C1C", fontWeight: 700, marginBottom: 6 }}>
-        미지원 기능 안내
+        현재 지원되지 않는 기능
       </div>
       <div style={{ fontSize: 12.5, color: "#7F1D1D", lineHeight: 1.55 }}>
-        {executionInfo?.reason || "현재 요청은 안내만 가능하며 실행 버튼은 제공되지 않습니다."}
+        {executionInfo?.reason || "해당 기능은 현재 지원되지 않습니다."}
       </div>
     </div>
   );
 }
 
-function ActionConfirmCard({ confirmation, onConfirm, mobile = false }) {
+function ActionValidationCard({ messageType, executionInfo, mobile = false }) {
+  if (messageType !== "validation") return null;
+  const missingFields = executionInfo?.missingFields || [];
+  const fieldLabels = {
+    title: "제목",
+    content: "내용",
+    eventId: "행사 ID",
+    targetType: "대상 유형",
+    targetId: "대상 ID",
+  };
+  const fieldGuides = {
+    title: "실행할 제목을 입력해 주세요.",
+    content: "실행할 내용을 입력해 주세요.",
+    eventId: "대상 행사 ID를 먼저 선택해 주세요.",
+    targetType: "알림을 보낼 대상 유형을 선택해 주세요.",
+    targetId: "알림을 보낼 대상 ID를 확인해 주세요.",
+  };
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#FFF7ED",
+        border: "1px solid #FED7AA",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#9A3412", fontWeight: 700, marginBottom: 6 }}>
+        추가 정보 필요
+      </div>
+      <div style={{ fontSize: 12.5, color: "#9A3412", lineHeight: 1.55 }}>
+        {executionInfo?.reason || "실행 전에 채워야 할 정보가 있습니다. 안내된 화면이나 초안을 먼저 확인해 주세요."}
+      </div>
+      {missingFields.length ? (
+        <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
+          <div style={{ fontSize: 11.5, color: "#C2410C", lineHeight: 1.5 }}>
+            누락 필드: {missingFields.map((field) => fieldLabels[field] || field).join(", ")}
+          </div>
+          {missingFields.map((field) => (
+            <div key={field} style={{ fontSize: 11.5, color: "#9A3412", lineHeight: 1.5 }}>
+              {(fieldLabels[field] || field)}: {fieldGuides[field] || "필수 값을 먼저 채워 주세요."}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ActionHintCard({ messageType, mobile = false }) {
+  if (messageType !== "ambiguous" && messageType !== "low_confidence") return null;
+  const title = messageType === "ambiguous" ? "의도 선택이 필요합니다" : "다시 입력이 필요합니다";
+  const description =
+    messageType === "ambiguous"
+      ? "조회, 화면 이동, 초안 작성, 실행 요청 중 어떤 작업인지 한 번만 더 골라서 말씀해 주세요."
+      : "의도는 가까웠지만 아직 충분히 명확하지 않습니다. 대상과 작업을 함께 적어 주시면 더 정확하게 처리할 수 있습니다.";
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        width: "100%",
+        padding: mobile ? "10px 12px" : "12px 14px",
+        borderRadius: 12,
+        background: "#EFF6FF",
+        border: "1px solid #BFDBFE",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: "#1D4ED8", fontWeight: 700, marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 12.5, color: "#1E3A8A", lineHeight: 1.55 }}>{description}</div>
+    </div>
+  );
+}
+
+function ActionConfirmCard({ confirmation, onConfirm, isConfirming = false, mobile = false }) {
   if (!confirmation) return null;
-  const label = executeLabel(confirmation);
+  const label = executeActionLabel(confirmation);
+  const actionKey = confirmation?.actionKey;
   const descriptions = {
     SAVE_NOTICE: "현재 화면의 공지 초안을 backend 저장 계약에 맞춰 저장합니다.",
     SEND_NOTIFICATION_DRAFT: "저장된 알림 초안을 즉시 발송합니다.",
@@ -603,6 +723,17 @@ function ActionConfirmCard({ confirmation, onConfirm, mobile = false }) {
     SEND_BROADCAST_NOTIFICATION: "전체 대상 알림을 즉시 발송합니다.",
   };
   const executeType = confirmation?.executeType || confirmation?.type;
+  const payload = confirmation?.payload || {};
+  const payloadSummary = buildActionPayloadSummary(actionKey, payload);
+  const actionDescriptions = {
+    notice_create: "현재 공지 초안을 저장합니다.",
+    notice_update: "현재 선택된 공지의 수정 내용을 저장합니다.",
+    notice_hide: "현재 선택된 공지를 숨김 상태로 저장합니다.",
+    notification_draft_delete: "현재 선택된 알림 초안을 삭제합니다.",
+    notification_draft_send: "저장된 알림 초안을 즉시 발송합니다.",
+    notification_event_send: "행사 대상을 기준으로 이벤트 알림을 즉시 발송합니다.",
+    notification_broadcast_send: "전체 대상을 향한 알림을 즉시 발송합니다.",
+  };
   return (
     <div
       style={{
@@ -619,11 +750,21 @@ function ActionConfirmCard({ confirmation, onConfirm, mobile = false }) {
       </div>
       <div style={{ fontSize: 12.5, color: "#9A3412", lineHeight: 1.5, marginBottom: 10 }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}</div>
-        <div>{descriptions[executeType] || "확인 후 바로 실행됩니다."}</div>
+        <div>{actionDescriptions[actionKey] || descriptions[executeType] || "확인 후 바로 실행됩니다."}</div>
+        {payloadSummary.length ? (
+          <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
+            {payloadSummary.map((item) => (
+              <div key={item} style={{ fontSize: 11.5, color: "#9A3412", lineHeight: 1.45 }}>
+                {item}
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
       <button
         type="button"
         onClick={onConfirm}
+        disabled={isConfirming}
         style={{
           width: "100%",
           border: "none",
@@ -633,7 +774,8 @@ function ActionConfirmCard({ confirmation, onConfirm, mobile = false }) {
           padding: "10px 12px",
           fontSize: 12.5,
           fontWeight: 700,
-          cursor: "pointer",
+          cursor: isConfirming ? "default" : "pointer",
+          opacity: isConfirming ? 0.6 : 1,
           fontFamily: ds.ff,
         }}
       >
@@ -643,7 +785,7 @@ function ActionConfirmCard({ confirmation, onConfirm, mobile = false }) {
   );
 }
 
-function Bubble({ msg, isLast, mobile = false, onConfirm }) {
+function Bubble({ msg, isLast, mobile = false, onConfirm, isConfirming = false }) {
   const isBot = msg.role === "bot";
   return (
     <div className="cb-msg" style={{ display: "flex", flexDirection: isBot ? "row" : "row-reverse", alignItems: "flex-end", gap: 8, marginBottom: 6 }}>
@@ -663,8 +805,10 @@ function Bubble({ msg, isLast, mobile = false, onConfirm }) {
           {fmt(msg.ts)}
         </span>
         {isBot && <ActionSummaryCard summary={msg.summary} mobile={mobile} />}
+        {isBot && <ActionHintCard messageType={msg.messageType} mobile={mobile} />}
+        {isBot && <ActionValidationCard messageType={msg.messageType} executionInfo={msg.executionInfo} mobile={mobile} />}
         {isBot && <ActionUnsupportedCard messageType={msg.messageType} executionInfo={msg.executionInfo} mobile={mobile} />}
-        {isBot && <ActionConfirmCard confirmation={msg.confirmation} onConfirm={onConfirm} mobile={mobile} />}
+        {isBot && <ActionConfirmCard confirmation={msg.confirmation} onConfirm={onConfirm} isConfirming={isConfirming} mobile={mobile} />}
       </div>
     </div>
   );
@@ -803,7 +947,7 @@ export default function AdminChatBot() {
   const {
     isOpen, toggle, close,
     messages, input, setInput,
-    isTyping, sendMessage, clearMessages, confirmExecute,
+    isTyping, isConfirming, sendMessage, clearMessages, confirmExecute,
   } = useChatBot();
 
   const bottomRef = useRef(null);
@@ -904,7 +1048,7 @@ export default function AdminChatBot() {
             <>
               <div className="cb-panel" style={{ flex: 1, overflowY: "auto", padding: isMobile ? "14px 12px 6px" : "16px 14px 6px", background: "#F9FAFB" }}>
                 {messages.map((msg, i) => (
-                  <Bubble key={msg.id} msg={msg} isLast={isLastInGroup(i)} mobile={isMobile} onConfirm={confirmExecute} />
+                  <Bubble key={msg.id} msg={msg} isLast={isLastInGroup(i)} mobile={isMobile} onConfirm={confirmExecute} isConfirming={isConfirming} />
                 ))}
                 {isTyping && <Typing mobile={isMobile} />}
                 <div ref={bottomRef} />

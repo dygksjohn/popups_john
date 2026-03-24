@@ -10,11 +10,8 @@ from pupoo_ai.app.features.chatbot.dto.request import (  # noqa: E402
     NoticeDraftContext,
     NotificationDraftContext,
 )
-from pupoo_ai.app.features.orchestrator.action_planner import ActionPlanner  # noqa: E402
-from pupoo_ai.app.features.orchestrator.handlers import (  # noqa: E402
-    ExecuteActionHandler,
-    SummaryActionHandler,
-)
+from pupoo_ai.app.features.orchestrator.action_planner import ActionPlanner, validate_action_executable  # noqa: E402
+from pupoo_ai.app.features.orchestrator.handlers import ExecuteActionHandler, SummaryActionHandler  # noqa: E402
 from pupoo_ai.app.features.orchestrator.intent_analyzer import IntentAnalyzer  # noqa: E402
 
 
@@ -22,113 +19,64 @@ class IntentAnalyzerTest(unittest.TestCase):
     def setUp(self):
         self.analyzer = IntentAnalyzer()
 
-    def test_notice_navigation_intent(self):
-        result = self.analyzer.analyze("공지 작성 페이지로 이동")
-        self.assertIsNotNone(result)
-        self.assertEqual(result.intent_type, "navigation")
-        self.assertEqual(result.target, "notice")
-
-    def test_applicants_summary_intent(self):
-        result = self.analyzer.analyze("신청자수 요약")
+    def test_congestion_summary_phrase(self):
+        result = self.analyzer.analyze("지금 붐비는 곳 알려줘")
         self.assertIsNotNone(result)
         self.assertEqual(result.intent_type, "summary")
-        self.assertEqual(result.target, "applicants")
+        self.assertEqual(result.target, "congestion")
+        self.assertEqual(result.action_key, "summary_get")
 
-    def test_schedule_notification_is_unsupported(self):
-        result = self.analyzer.analyze("알림 예약 발송")
+    def test_notice_draft_phrase(self):
+        result = self.analyzer.analyze("공지 하나 만들어줘")
         self.assertIsNotNone(result)
-        self.assertEqual(result.intent_type, "unsupported")
-        self.assertEqual(result.target, "schedule_notification")
+        self.assertEqual(result.intent_type, "draft")
+        self.assertEqual(result.target, "notice")
+        self.assertEqual(result.action_key, "prefill_notice_form")
 
+    def test_event_notification_phrase(self):
+        result = self.analyzer.analyze("행사 12번 알림 보내줘")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.intent_type, "execute")
+        self.assertEqual(result.action_key, "notification_event_send")
+        self.assertEqual(result.confidence, "high")
+        self.assertEqual(result.slots["eventId"], 12)
+        self.assertEqual(result.slots["targetType"], "EVENT")
+        self.assertEqual(result.slots["targetId"], 12)
 
-class ExecuteActionHandlerPrepareTest(unittest.TestCase):
-    def test_prepare_notice_confirmation(self):
-        context = ChatContext(
-            noticeDraft=NoticeDraftContext(
-                title="행사 공지",
-                content="공지 내용",
-                pinned=False,
-                scope="ALL",
-                status="DRAFT",
-            ),
-            noticeExecution=ExecutionContext(
-                supported=True,
-                executeType="SAVE_NOTICE",
-                supportedExecuteTypes=["SAVE_NOTICE"],
-            ),
-        )
-        planned_action = ActionPlanner().plan(
-            IntentAnalyzer().analyze("공지 저장"),
-            context,
-        )
-        response = ExecuteActionHandler().prepare(planned_action=planned_action, context=context)
+    def test_broadcast_phrase(self):
+        result = self.analyzer.analyze("전체 알림 보내")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.intent_type, "execute")
+        self.assertEqual(result.action_key, "notification_broadcast_send")
 
-        self.assertEqual(response.actions[0].type, "CONFIRM_EXECUTE")
-        self.assertEqual(response.actions[0].payload["executeType"], "SAVE_NOTICE")
+    def test_event_notification_without_event_id_is_low_confidence(self):
+        result = self.analyzer.analyze("행사 알림 보내줘")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.intent_type, "low_confidence")
+        self.assertEqual(result.action_key, "low_confidence")
 
-    def test_prepare_event_notification_confirmation(self):
-        context = ChatContext(
-            notificationDraft=NotificationDraftContext(
-                title="행사 알림",
-                content="알림 내용",
-                targetType="EVENT",
-                targetId=12,
-                alertMode="event",
-                eventId=12,
-                recipientScopes=["INTEREST_SUBSCRIBERS"],
-            ),
-            notificationExecution=ExecutionContext(
-                supported=True,
-                executeType="SEND_EVENT_NOTIFICATION",
-                targetType="EVENT_NOTIFICATION",
-                supportedExecuteTypes=["SEND_EVENT_NOTIFICATION"],
-            ),
-        )
-        planned_action = ActionPlanner().plan(
-            IntentAnalyzer().analyze("이벤트 알림 발송"),
-            context,
-        )
-        response = ExecuteActionHandler().prepare(planned_action=planned_action, context=context)
+    def test_notice_update_without_target_is_low_confidence(self):
+        result = self.analyzer.analyze("공지 수정해줘")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.intent_type, "low_confidence")
+        self.assertEqual(result.action_key, "low_confidence")
 
-        self.assertEqual(response.actions[0].payload["executeType"], "SEND_EVENT_NOTIFICATION")
-        self.assertEqual(response.actions[0].payload["targetType"], "EVENT_NOTIFICATION")
-
-    def test_prepare_broadcast_notification_confirmation(self):
-        context = ChatContext(
-            notificationDraft=NotificationDraftContext(
-                title="전체 공지 알림",
-                content="알림 내용",
-                alertMode="important",
-            ),
-            notificationExecution=ExecutionContext(
-                supported=True,
-                executeType="SEND_BROADCAST_NOTIFICATION",
-                targetType="BROADCAST_NOTIFICATION",
-                supportedExecuteTypes=["SEND_BROADCAST_NOTIFICATION"],
-            ),
-        )
-        planned_action = ActionPlanner().plan(
-            IntentAnalyzer().analyze("전체 알림 발송"),
-            context,
-        )
-        response = ExecuteActionHandler().prepare(planned_action=planned_action, context=context)
-
-        self.assertEqual(response.actions[0].payload["executeType"], "SEND_BROADCAST_NOTIFICATION")
-
-    def test_prepare_unknown_execute_is_unsupported(self):
-        response = ExecuteActionHandler().prepare(
-            planned_action=type("PlannedAction", (), {"target": "schedule_notification", "metadata": {}})(),
-            context=ChatContext(),
-        )
-        self.assertEqual(response.message_type, "unsupported")
+    def test_notice_related_phrase_is_ambiguous(self):
+        result = self.analyzer.analyze("공지 관련 처리해줘")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.intent_type, "low_confidence")
+        self.assertEqual(result.action_key, "low_confidence")
 
 
 class FakeBackendClient:
     def __init__(self):
-        self.created_notice_body = None
-        self.updated_notice_body = None
+        self.deleted_notification_id = None
         self.sent_event_body = None
-        self.sent_broadcast_body = None
+        self.saved_notification_body = None
+        self.saved_notification_id = None
+        self.broadcast_body = None
+        self.saved_notice_body = None
+        self.saved_notice_id = None
 
     async def get_ai_summary(self):
         return {
@@ -156,34 +104,31 @@ class FakeBackendClient:
                     "activeCount": 3,
                 },
             },
-            "notices": {
-                "publishedCount": 6,
-                "draftCount": 3,
-                "hiddenCount": 3,
-            },
-            "notifications": {
-                "draftCount": 5,
-                "sentCount": 15,
-            },
-            "refunds": {
-                "totalCount": 9,
-                "requestedCount": 3,
-                "approvedCount": 2,
-                "rejectedCount": 1,
-                "completedCount": 3,
-            },
+            "notices": {"publishedCount": 6, "draftCount": 3, "hiddenCount": 3},
+            "notifications": {"draftCount": 5, "sentCount": 15},
+            "refunds": {"totalCount": 9, "requestedCount": 3, "approvedCount": 2, "rejectedCount": 1, "completedCount": 3},
         }
 
-    async def create_notice(self, body):
-        self.created_notice_body = body
-        return {"noticeId": 99, "status": body["status"]}
+    async def get_ai_capabilities(self):
+        return {
+            "actions": [
+                {"action": "notice_create", "supported": True, "method": "POST", "path": "/api/admin/notices"},
+                {"action": "notification_schedule_send", "supported": False, "description": "unsupported"},
+            ]
+        }
 
-    async def update_notice(self, notice_id, body):
-        self.updated_notice_body = {"noticeId": notice_id, **body}
-        return {"noticeId": notice_id, "status": body["status"]}
+    async def delete_notification_draft(self, notification_id):
+        self.deleted_notification_id = notification_id
+        return {"message": "deleted"}
 
     async def update_notification_draft(self, notification_id, body):
+        self.saved_notification_id = notification_id
+        self.saved_notification_body = body
         return {"id": notification_id, **body}
+
+    async def create_notification_draft(self, body):
+        self.saved_notification_body = body
+        return {"id": 31, **body}
 
     async def send_notification(self, notification_id):
         return {"id": notification_id, "targetCount": 15}
@@ -193,118 +138,193 @@ class FakeBackendClient:
         return {"targetCount": 12}
 
     async def send_broadcast_notification(self, body):
-        self.sent_broadcast_body = body
-        return {"targetCount": 230}
+        self.broadcast_body = body
+        return {"targetCount": 42}
+
+    async def create_notice(self, body):
+        self.saved_notice_body = body
+        return {"noticeId": 17, **body}
+
+    async def update_notice(self, notice_id, body):
+        self.saved_notice_id = notice_id
+        self.saved_notice_body = body
+        return {"noticeId": notice_id, **body}
 
 
-class ExecuteActionHandlerConfirmTest(unittest.IsolatedAsyncioTestCase):
-    async def test_confirm_notice_hide_status(self):
-        client = FakeBackendClient()
-        response = await ExecuteActionHandler().confirm(
-            {"executeType": "SAVE_NOTICE", "payload": {"title": "숨김 공지", "status": "HIDDEN"}},
-            client,
+class ExecuteActionHandlerTest(unittest.IsolatedAsyncioTestCase):
+    async def test_notice_create_requires_backend_fields(self):
+        result = validate_action_executable(
+            "notice_create",
+            {},
+            {"title": "공지", "content": "", "status": "DRAFT"},
+            {"notice": {"supportedExecuteTypes": ["SAVE_NOTICE"]}, "notification": {}},
         )
+        self.assertEqual(result["status"], "validation")
+        self.assertEqual(set(result["missingFields"]), {"scope", "content", "pinned"})
 
-        self.assertEqual(client.created_notice_body["status"], "HIDDEN")
-        self.assertIn("status=HIDDEN", response.message)
-        self.assertEqual(response.actions[0].payload["formData"]["status"], "HIDDEN")
-
-    async def test_confirm_notice_publish_status(self):
-        client = FakeBackendClient()
-        response = await ExecuteActionHandler().confirm(
-            {
-                "executeType": "SAVE_NOTICE",
-                "payload": {"noticeId": 3, "title": "게시 공지", "status": "PUBLISHED"},
-            },
-            client,
+    async def test_event_notification_requires_event_id(self):
+        context = ChatContext(
+            notificationDraft=NotificationDraftContext(title="행사 안내", content="본문", alertMode="event"),
+            notificationExecution=ExecutionContext(supported=False, supportedExecuteTypes=[]),
         )
-
-        self.assertEqual(client.updated_notice_body["status"], "PUBLISHED")
-        self.assertNotIn("scope", client.updated_notice_body)
-        self.assertNotIn("eventId", client.updated_notice_body)
-        self.assertIn("noticeId=3", response.message)
-        self.assertEqual(response.actions[0].payload["formData"]["noticeId"], 3)
-
-    async def test_confirm_event_notification(self):
-        client = FakeBackendClient()
-        response = await ExecuteActionHandler().confirm(
-            {
-                "executeType": "SEND_EVENT_NOTIFICATION",
-                "payload": {
-                    "title": "행사 알림",
-                    "content": "안내",
-                    "targetType": "EVENT",
-                    "targetId": 12,
-                    "alertMode": "event",
-                    "eventId": 12,
-                    "recipientScopes": ["INTEREST_SUBSCRIBERS"],
-                },
-            },
-            client,
+        planned_action = ActionPlanner().plan(
+            IntentAnalyzer().analyze("행사 알림 보내줘", context),
+            context,
         )
+        self.assertEqual(planned_action.intent_type, "low_confidence")
 
-        self.assertEqual(client.sent_event_body["eventId"], 12)
-        self.assertIn("12명", response.message)
-        self.assertFalse(response.actions[0].payload["execution"]["supported"])
-
-    async def test_confirm_event_notification_requires_target_fields(self):
-        client = FakeBackendClient()
-        response = await ExecuteActionHandler().confirm(
-            {
-                "executeType": "SEND_EVENT_NOTIFICATION",
-                "payload": {
-                    "title": "행사 알림",
-                    "content": "안내",
-                    "alertMode": "event",
-                    "eventId": 12,
-                },
-            },
-            client,
+    async def test_broadcast_prepare_reports_missing_fields(self):
+        context = ChatContext(
+            notificationDraft=NotificationDraftContext(title="제목", content="", alertMode="important"),
+            notificationExecution=ExecutionContext(supported=True, supportedExecuteTypes=["SEND_BROADCAST_NOTIFICATION"]),
         )
-
+        planned_action = ActionPlanner().plan(
+            IntentAnalyzer().analyze("전체 알림 보내", context),
+            context,
+        )
+        response = ExecuteActionHandler().prepare(planned_action, context)
         self.assertEqual(response.message_type, "validation")
-        self.assertIsNone(client.sent_event_body)
+        self.assertEqual(response.actions[0].type, "PREFILL_FORM")
+        self.assertEqual(response.actions[0].payload["execution"]["missingFields"], ["content"])
 
-    async def test_confirm_broadcast_notification(self):
+    async def test_event_notification_invalid_target_combo_returns_validation(self):
+        result = validate_action_executable(
+            "notification_event_send",
+            {},
+            {
+                "notificationType": "EVENT",
+                "title": "행사 알림",
+                "content": "본문",
+                "eventId": 12,
+                "targetType": "USER",
+                "targetId": 99,
+            },
+            {"notice": {}, "notification": {"supportedExecuteTypes": ["SEND_EVENT_NOTIFICATION"]}},
+        )
+        self.assertEqual(result["status"], "validation")
+        self.assertEqual(result["missingFields"], ["targetType", "targetId"])
+
+    async def test_confirm_notification_delete(self):
+        client = FakeBackendClient()
+        response = await ExecuteActionHandler().confirm(
+            {"executeType": "DELETE_NOTIFICATION_DRAFT", "payload": {"notificationId": 5}},
+            client,
+        )
+        self.assertEqual(client.deleted_notification_id, 5)
+        self.assertEqual(response.message, "알림 초안 삭제가 완료됐어요.")
+
+    async def test_confirm_event_notification_applies_defaults(self):
         client = FakeBackendClient()
         response = await ExecuteActionHandler().confirm(
             {
-                "executeType": "SEND_BROADCAST_NOTIFICATION",
+                "executeType": "SEND_EVENT_NOTIFICATION",
                 "payload": {
-                    "title": "전체 알림",
+                    "title": "행사 알림",
                     "content": "안내",
-                    "alertMode": "important",
+                    "alertMode": "event",
+                    "eventId": 12,
                 },
             },
             client,
         )
+        self.assertEqual(client.sent_event_body["targetType"], "EVENT")
+        self.assertEqual(client.sent_event_body["targetId"], 12)
+        self.assertIn("12", response.message)
 
-        self.assertEqual(client.sent_broadcast_body["type"], "NOTICE")
-        self.assertIn("230명", response.message)
-        self.assertEqual(response.actions[0].payload["execution"]["targetType"], "BROADCAST_NOTIFICATION")
-
-    async def test_confirm_schedule_notification_is_unsupported(self):
+    async def test_confirm_notification_draft_create_calls_backend_create(self):
         client = FakeBackendClient()
         response = await ExecuteActionHandler().confirm(
-            {"executeType": "SCHEDULE_NOTIFICATION", "payload": {}},
+            {
+                "executeType": "SAVE_NOTIFICATION_DRAFT",
+                "actionKey": "notification_draft_create",
+                "payload": {
+                    "title": "행사 알림 초안",
+                    "content": "본문",
+                    "alertMode": "event",
+                    "eventId": 12,
+                    "notificationType": "EVENT",
+                },
+            },
             client,
         )
-        self.assertEqual(response.message_type, "unsupported")
+        self.assertIsNone(client.saved_notification_id)
+        self.assertEqual(client.saved_notification_body["title"], "행사 알림 초안")
+        self.assertEqual(response.actions[0].payload["formData"]["notificationId"], 31)
+
+    async def test_confirm_notification_draft_update_calls_backend_update(self):
+        client = FakeBackendClient()
+        response = await ExecuteActionHandler().confirm(
+            {
+                "executeType": "SAVE_NOTIFICATION_DRAFT",
+                "actionKey": "notification_draft_update",
+                "payload": {
+                    "notificationId": 9,
+                    "title": "수정된 초안",
+                    "content": "본문",
+                    "alertMode": "important",
+                    "notificationType": "NOTICE",
+                },
+            },
+            client,
+        )
+        self.assertEqual(client.saved_notification_id, 9)
+        self.assertEqual(client.saved_notification_body["title"], "수정된 초안")
+        self.assertEqual(response.actions[0].payload["formData"]["notificationId"], 9)
+
+    async def test_prepare_notification_draft_create_returns_confirm(self):
+        context = ChatContext(
+            notificationDraft=NotificationDraftContext(title="알림 초안", content="본문", alertMode="important", notificationType="NOTICE"),
+            notificationExecution=ExecutionContext(supported=False, supportedExecuteTypes=[]),
+        )
+        planned_action = ActionPlanner().plan(
+            IntentAnalyzer().analyze("알림 초안 저장해줘", context),
+            context,
+        )
+        response = ExecuteActionHandler().prepare(planned_action, context)
+        self.assertEqual(response.actions[0].type, "CONFIRM_EXECUTE")
+        self.assertEqual(response.actions[0].payload["executeType"], "SAVE_NOTIFICATION_DRAFT")
+
+    async def test_notice_hide_confirmation_carries_action_key(self):
+        context = ChatContext(
+            noticeDraft=NoticeDraftContext(noticeId=7, title="운영 공지", content="본문", status="PUBLISHED"),
+            noticeExecution=ExecutionContext(supported=True, executeType="SAVE_NOTICE", supportedExecuteTypes=["SAVE_NOTICE"]),
+        )
+        planned_action = ActionPlanner().plan(IntentAnalyzer().analyze("이 공지 숨겨줘", context), context)
+        response = ExecuteActionHandler().prepare(planned_action, context)
+        self.assertEqual(response.actions[0].payload["actionKey"], "notice_hide")
+
+    async def test_event_execute_without_capability_is_unsupported_in_planner(self):
+        context = ChatContext(
+            notificationDraft=NotificationDraftContext(title="행사 안내", content="본문", alertMode="event"),
+            notificationExecution=ExecutionContext(supported=False, supportedExecuteTypes=[]),
+        )
+        planned_action = ActionPlanner().plan(
+            IntentAnalyzer().analyze("행사 12번 알림 보내줘", context),
+            context,
+        )
+        self.assertEqual(planned_action.intent_type, "unsupported")
+        self.assertEqual(planned_action.target, "unsupported_capability")
+
+    async def test_notice_update_without_notice_id_returns_low_confidence(self):
+        result = validate_action_executable(
+            "notice_update",
+            {},
+            {"title": "운영 공지", "content": "본문", "status": "PUBLISHED", "pinned": False},
+            {"notice": {"supportedExecuteTypes": ["SAVE_NOTICE"]}, "notification": {}},
+        )
+        self.assertEqual(result["status"], "low_confidence")
+        self.assertEqual(result["missingFields"], ["noticeId"])
 
 
 class SummaryActionHandlerTest(unittest.IsolatedAsyncioTestCase):
-    async def test_applicants_summary_sections(self):
+    async def test_capabilities_summary(self):
         client = FakeBackendClient()
         response = await SummaryActionHandler().handle(
-            type("PlannedAction", (), {"target": "applicants"})(),
+            type("PlannedAction", (), {"target": "capabilities"})(),
             client,
         )
-
         self.assertEqual(response.actions[0].type, "SHOW_SUMMARY")
-        payload = response.actions[0].payload
-        self.assertEqual(payload["summaryType"], "applicants")
-        self.assertEqual(payload["title"], "신청자 수 요약")
-        self.assertEqual(len(payload["sections"]), 2)
+        self.assertEqual(response.actions[0].payload["summaryType"], "capabilities")
 
 
 if __name__ == "__main__":

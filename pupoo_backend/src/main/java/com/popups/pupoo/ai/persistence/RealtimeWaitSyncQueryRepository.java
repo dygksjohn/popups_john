@@ -11,10 +11,19 @@ public interface RealtimeWaitSyncQueryRepository {
 
     List<ProgramQueueCountRow> findProgramQueueCounts(Collection<Long> programIds);
 
+    List<ProgramAppliedCountRow> findProgramAppliedCounts(Collection<Long> programIds);
+
     List<ProgramCheckinCountRow> findProgramCheckinCounts(
             Collection<Long> programIds,
             LocalDateTime fromInclusive,
             LocalDateTime toExclusive
+    );
+
+    List<BoothAverageStayRow> findRecentBoothAverageStays(
+            Collection<Long> boothIds,
+            LocalDateTime fromInclusive,
+            LocalDateTime toExclusive,
+            int sampleSize
     );
 
     List<ActiveBoothRow> findActiveBooths(LocalDateTime baseTime);
@@ -30,9 +39,15 @@ public interface RealtimeWaitSyncQueryRepository {
     record ProgramQueueCountRow(Long programId, int queueCount) {
     }
 
+    record ProgramAppliedCountRow(Long programId, int appliedCount) {
+    }
+
     record ProgramCheckinCountRow(Long programId, int checkinCount) {
     }
 
-    record ActiveBoothRow(Long boothId) {
+    record BoothAverageStayRow(Long boothId, BigDecimal avgStayMinutes, int sampleCount) {
+    }
+
+    record ActiveBoothRow(Long boothId, Integer concurrency) {
     }
 }

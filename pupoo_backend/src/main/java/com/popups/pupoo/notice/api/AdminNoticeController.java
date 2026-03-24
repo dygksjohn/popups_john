@@ -55,7 +55,11 @@ public class AdminNoticeController {
 
     @PatchMapping("/{id}")
     public ApiResponse<NoticeResponse> update(@PathVariable Long id, @Valid @RequestBody NoticeUpdateRequest request) {
-        return ApiResponse.success(noticeAdminService.update(id, request));
+        NoticeResponse response = noticeAdminService.update(id, request);
+        if (request.getScope() != null || request.getEventId() != null) {
+            return ApiResponse.success(response, "scope/eventId는 수정되지 않음");
+        }
+        return ApiResponse.success(response);
     }
 
     @DeleteMapping("/{id}")

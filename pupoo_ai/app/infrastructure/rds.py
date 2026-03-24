@@ -1,16 +1,12 @@
-"""RDS 연결 유틸리티.
-
-기능:
-- 환경 설정에서 DB 연결 정보를 해석하고 상태 점검용 연결을 제공한다.
-
-설명:
-- AI 서비스는 읽기/헬스체크 성격의 접근만 여기서 수행한다.
-"""
+"""RDS connection utilities."""
 
 from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
+import os
+import re
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
@@ -21,7 +17,6 @@ from pupoo_ai.app.core.config import settings
 
 @dataclass(frozen=True)
 class DbConnectionConfig:
-    # 기능: 실제 접속에 사용할 DB 연결 파라미터를 보관한다.
     host: str
     port: int
     user: str
@@ -35,8 +30,6 @@ class DbConnectionConfig:
 
 
 def _parse_db_url(db_url: str) -> dict[str, Any]:
-    # 기능: 단일 DB URL을 세부 접속 정보로 분해한다.
-    # 설명: 개별 설정값보다 DB URL이 우선 제공된 경우를 지원한다.
     parsed = urlparse(db_url)
     if parsed.scheme not in {"mysql", "mysql+pymysql"}:
         raise ValueError("Unsupported DB URL scheme. Expected mysql:// or mysql+pymysql://")
@@ -52,31 +45,89 @@ def _parse_db_url(db_url: str) -> dict[str, Any]:
     }
 
 
-def is_rds_configured() -> bool:
-    # 기능: RDS 설정이 최소한으로 채워졌는지 확인한다.
-    if settings.db_url.strip():
-        return True
-    return all(
-        [
-            settings.db_host.strip(),
-            settings.db_user.strip(),
-            settings.db_name.strip(),
-        ]
+def _parse_jdbc_mysql_url(jdbc_url: str) -> dict[str, Any]:
+    normalized = jdbc_url.strip()
+    if normalized.startswith("jdbc:"):
+        normalized = normalized[5:]
+    if not normalized:
+        return {}
+    try:
+        return _parse_db_url(normalized)
+    except Exception:
+        return {}
+
+
+def _extract_default_from_placeholder(value: str) -> str:
+    match = re.search(r"\$\{[^:}]+:(.+)}", value)
+    if not match:
+        return value.strip()
+    return match.group(1).strip()
+
+
+def _read_backend_datasource_defaults() -> dict[str, str]:
+    # Local fallback: reuse backend datasource defaults when AI env is empty.
+    candidate = (
+        Path(__file__).resolve().parents[3]
+        / "pupoo_backend"
+        / "src"
+        / "main"
+        / "resources"
+        / "application.properties"
     )
+    if not candidate.exists():
+        return {}
+
+    defaults: dict[str, str] = {}
+    try:
+        for raw_line in candidate.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip()
+            if key == "spring.datasource.url":
+                defaults["url"] = _extract_default_from_placeholder(value)
+            elif key == "spring.datasource.username":
+                defaults["user"] = _extract_default_from_placeholder(value)
+            elif key == "spring.datasource.password":
+                defaults["password"] = _extract_default_from_placeholder(value)
+    except Exception:
+        return {}
+    return defaults
 
 
 def resolve_db_config() -> DbConnectionConfig:
-    # 기능: 분산된 환경 설정을 최종 DB 접속 설정으로 정규화한다.
-    # 설명: DB URL과 개별 필드가 함께 있을 수 있어 빈 값 보완 규칙을 한곳에 모은다.
     parsed_url: dict[str, Any] = {}
     if settings.db_url.strip():
         parsed_url = _parse_db_url(settings.db_url.strip())
+    else:
+        env_jdbc = os.getenv("SPRING_DATASOURCE_URL", "").strip()
+        if env_jdbc:
+            parsed_url = _parse_jdbc_mysql_url(env_jdbc)
 
-    host = settings.db_host.strip() or parsed_url.get("host", "")
-    port = settings.db_port or parsed_url.get("port", 3306)
-    user = settings.db_user.strip() or parsed_url.get("user", "")
-    password = settings.db_password or parsed_url.get("password", "")
-    database = settings.db_name.strip() or parsed_url.get("database", "")
+    backend_defaults = _read_backend_datasource_defaults()
+    backend_url_parsed = (
+        _parse_jdbc_mysql_url(backend_defaults.get("url", ""))
+        if backend_defaults.get("url")
+        else {}
+    )
+
+    host = settings.db_host.strip() or parsed_url.get("host", "") or backend_url_parsed.get("host", "")
+    port = settings.db_port or parsed_url.get("port", 3306) or backend_url_parsed.get("port", 3306)
+    user = (
+        settings.db_user.strip()
+        or parsed_url.get("user", "")
+        or os.getenv("SPRING_DATASOURCE_USERNAME", "").strip()
+        or backend_defaults.get("user", "")
+    )
+    password = (
+        settings.db_password
+        or parsed_url.get("password", "")
+        or os.getenv("SPRING_DATASOURCE_PASSWORD", "")
+        or backend_defaults.get("password", "")
+    )
+    database = settings.db_name.strip() or parsed_url.get("database", "") or backend_url_parsed.get("database", "")
     ssl_ca = settings.db_ssl_ca.strip() or parsed_url.get("ssl_ca", "")
 
     if not all([host, user, database]):
@@ -96,9 +147,15 @@ def resolve_db_config() -> DbConnectionConfig:
     )
 
 
+def is_rds_configured() -> bool:
+    try:
+        resolve_db_config()
+        return True
+    except Exception:
+        return False
+
+
 def create_connection() -> pymysql.connections.Connection:
-    # 기능: pymysql 연결 객체를 생성한다.
-    # 설명: SSL CA가 있으면 SSL 연결 설정을 함께 적용한다.
     config = resolve_db_config()
     connection_kwargs: dict[str, Any] = {
         "host": config.host,
@@ -120,7 +177,6 @@ def create_connection() -> pymysql.connections.Connection:
 
 @contextmanager
 def db_connection():
-    # 기능: DB 연결을 컨텍스트 매니저로 감싼다.
     connection = create_connection()
     try:
         yield connection
@@ -129,8 +185,6 @@ def db_connection():
 
 
 def check_connection() -> dict[str, Any]:
-    # 기능: RDS 연결 가능 여부를 헬스체크용 payload로 반환한다.
-    # 흐름: 설정 해석 -> 연결 생성 -> `SELECT 1` 실행 -> 결과 정리.
     config = resolve_db_config()
     with db_connection() as connection:
         with connection.cursor() as cursor:

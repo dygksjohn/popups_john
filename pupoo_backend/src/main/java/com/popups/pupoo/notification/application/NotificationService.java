@@ -410,5 +410,11 @@ public class NotificationService {
         if (!eventRepository.existsById(eventId)) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "event not found: " + eventId);
         }
+        if (request.getTargetType() == InboxTargetType.EVENT && !eventId.equals(request.getTargetId())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "targetId must match eventId when targetType is EVENT"
+            );
+        }
     }
 }

@@ -16,6 +16,8 @@ import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { aiApi } from "../../../app/http/aiApi";
 import { normalizePrediction } from "./aiCongestionViewModel";
+import { adminRealtimeApi } from "../../../app/http/adminRealtimeApi";
+import { useAutoRefresh } from "./useRealtimeAnimations";
 
 const STATUS_CONFIG = {
   live: {
@@ -654,9 +656,19 @@ const congestionLevelToPercent = (value) => {
   return Math.min(Math.round(numeric * 20), 100);
 };
 
+const toCongestionLevelOrNull = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  if (numeric < 1 || numeric > 5) return null;
+  return numeric;
+};
+
 const summarizeRealtimeCongestionPercent = (rows) => {
   const values = toArray(rows)
-    .map((row) => congestionLevelToPercent(row?.congestionLevel))
+    .map((row) => toCongestionLevelOrNull(row?.congestionLevel))
+    .filter((value) => value !== null)
+    .map((level) => congestionLevelToPercent(level))
     .filter((value) => Number.isFinite(value));
   if (values.length === 0) return null;
   return Math.max(
@@ -666,6 +678,40 @@ const summarizeRealtimeCongestionPercent = (rows) => {
       Math.round(values.reduce((sum, value) => sum + value, 0) / values.length),
     ),
   );
+};
+
+const safePercent = (value) =>
+  Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+
+const resolveEventCongestionPercent = ({
+  rawStatus,
+  measuredAverage,
+  hourlyAverage,
+  aiAverage,
+}) => {
+  const normalizedStatus = String(rawStatus ?? "").toUpperCase();
+  const isPlanned =
+    normalizedStatus === "PLANNED" ||
+    normalizedStatus === "PENDING" ||
+    normalizedStatus === "UPCOMING";
+
+  const measured = measuredAverage == null ? 0 : safePercent(measuredAverage);
+  const hourly = hourlyAverage == null ? 0 : safePercent(hourlyAverage);
+  const ai = aiAverage == null ? 0 : safePercent(aiAverage);
+
+  if (isPlanned) {
+    return safePercent(ai || 0);
+  }
+  if (measured > 0) {
+    return measured;
+  }
+  if (ai > 0) {
+    return ai;
+  }
+  if (hourly > 0) {
+    return hourly;
+  }
+  return safePercent(ai || 0);
 };
 
 const hexToRgb = (hex) => {
@@ -845,6 +891,44 @@ const FILTER_VALUES = new Set(["all", "live", "upcoming"]);
 const normalizeFilterValue = (value) =>
   FILTER_VALUES.has(String(value)) ? String(value) : "all";
 
+const EVENT_SELECTOR_CACHE_PREFIX = "realtime:event-selector:v1";
+const EVENT_SELECTOR_CACHE_TTL_MILLIS = 5 * 60 * 1000;
+
+const buildEventSelectorCacheKey = (metricType, programCategory) =>
+  `${EVENT_SELECTOR_CACHE_PREFIX}:${metricType || "dashboard"}:${programCategory || "all"}`;
+
+const readEventSelectorCache = (key) => {
+  if (!key) return null;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const ts = Number(parsed?.ts);
+    if (!Number.isFinite(ts) || Date.now() - ts > EVENT_SELECTOR_CACHE_TTL_MILLIS) {
+      return null;
+    }
+    const events = Array.isArray(parsed?.events) ? parsed.events : null;
+    return events ? events : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeEventSelectorCache = (key, events) => {
+  if (!key || !Array.isArray(events)) return;
+  try {
+    window.sessionStorage.setItem(
+      key,
+      JSON.stringify({
+        ts: Date.now(),
+        events,
+      }),
+    );
+  } catch {
+    // ignore storage failures
+  }
+};
+
 async function fetchAdminData(url, params, fallback) {
   try {
     const response = await axiosInstance.get(url, {
@@ -927,7 +1011,11 @@ const METRIC_CONFIGS = {
 export default function RealtimeEventSelector({ onSelectEvent, pageTitle, programCategory, onCountsReady, metricType = "dashboard" }) {
   const theme = THEME_CONFIGS[metricType] || THEME_CONFIGS.dashboard;
   const navigate = useNavigate();
-  const location = useLocation();
+  const { tick } = useAutoRefresh(15000);
+  const cacheKey = useMemo(
+    () => buildEventSelectorCacheKey(metricType, programCategory),
+    [metricType, programCategory],
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState(() =>
@@ -938,6 +1026,9 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
   const [ddOpen, setDdOpen] = useState(false);
   const [selectedDropdownFilter, setSelectedDropdownFilter] = useState("all");
   const ddRef = useRef(null);
+  const inFlightRef = useRef(false);
+  const lastAutoRefreshTickRef = useRef(tick);
+  const hasSeedDataRef = useRef(false);
 
   const DROPDOWN_FILTERS = [
     { key: "all", label: "전체 행사" },
@@ -953,19 +1044,23 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const currentRealtimePath = useMemo(() => {
-    const pathname = String(location.pathname || "");
-    if (pathname.startsWith("/realtime/dashboard")) return "/realtime/dashboard";
-    if (pathname.startsWith("/realtime/waitingstatus")) return "/realtime/waitingstatus";
-    if (pathname.startsWith("/realtime/checkinstatus")) return "/realtime/checkinstatus";
-    if (pathname.startsWith("/realtime/votestatus")) return "/realtime/votestatus";
-    return "";
-  }, [location.pathname]);
-
   useEffect(() => {
     const nextFilter = normalizeFilterValue(searchParams.get("status"));
     setFilter((prev) => (prev === nextFilter ? prev : nextFilter));
   }, [searchParams]);
+
+  useEffect(() => {
+    const cachedEvents = readEventSelectorCache(cacheKey);
+    if (cachedEvents) {
+      setEvents(cachedEvents);
+      setLoading(false);
+      hasSeedDataRef.current = true;
+      return;
+    }
+    hasSeedDataRef.current = false;
+    setEvents([]);
+    setLoading(true);
+  }, [cacheKey]);
 
   const handleFilterChange = (nextFilter) => {
     const normalized = normalizeFilterValue(nextFilter);
@@ -988,184 +1083,177 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
   useEffect(() => {
     let mounted = true;
 
-    const load = async () => {
-      setLoading(true);
+    const load = async ({ preserveLoading = false } = {}) => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      if (!preserveLoading && mounted) setLoading(true);
 
       try {
-        const [eventsResponse, performanceRows] = await Promise.all([
-          eventApi.getEvents({ page: 0, size: 120, sort: "startAt,asc" }),
-          fetchAdminData("/api/analytics/events", { page: 0, size: 200 }, []),
-        ]);
+        const response = await adminRealtimeApi.getEventsSnapshot();
+        const payload = unwrapData(response, {});
+        const eventRows = toArray(payload?.events);
 
-        const rawEvents = toArray(unwrapData(eventsResponse, { content: [] }));
-        const performanceMap = new Map(
-          toArray(performanceRows).map((row) => [Number(row.eventId), row]),
-        );
-
-        const sortedEvents = sortRealtimeEventsByPriority(
-          rawEvents.map((event) => {
-            const rawStatus = String(event?.status ?? "").toUpperCase();
-            return {
-              ...event,
-              rawStatus,
-              status: toAdminStatus(rawStatus),
-              selectorStatus: toSelectorStatus(rawStatus),
-            };
-          }),
-        );
-
-        const eventAvailabilityMap = programCategory
-          ? new Map(
-              await Promise.all(
-                sortedEvents.map(async (event) => {
-                  try {
-                    const response = await programApi.getPrograms({
-                      eventId: Number(event.eventId),
-                      category: programCategory,
-                      page: 0,
-                      size: 1,
-                      sort: "startAt,asc",
-                    });
-                    const totalElements = Number(response?.data?.data?.totalElements ?? 0);
-                    return [Number(event.eventId), totalElements > 0];
-                  } catch {
-                    return [Number(event.eventId), false];
-                  }
-                }),
-              ),
-            )
-          : null;
-
-        const visibleEvents = eventAvailabilityMap
-          ? sortedEvents.filter((event) => eventAvailabilityMap.get(Number(event.eventId)))
-          : sortedEvents;
-
-        const congestionTargets = visibleEvents.filter((event) => {
-          const status = String(event.status).toLowerCase();
-          return status === "active" || status === "pending" || status === "ended";
+        const filteredByCategory = eventRows.filter((row) => {
+          if (!programCategory) return true;
+          if (programCategory === "CONTEST") {
+            return Number(row?.contestProgramCount ?? 0) > 0;
+          }
+          return Number(row?.programCount ?? 0) > 0;
         });
 
-        const congestionEntries = await Promise.all(
-          congestionTargets.map(async (event) => {
-            const eventId = Number(event.eventId);
-            const status = String(event.status).toLowerCase();
-
-            if (status === "active") {
-              const payload = await fetchAdminData(
-                `/api/dashboard/realtime/events/${event.eventId}/congestions`,
-                { limit: 200 },
-                [],
-              );
-              const realtimePercent = summarizeRealtimeCongestionPercent(payload);
-              if (realtimePercent != null) {
-                return [eventId, realtimePercent];
-              }
-            }
-
-            if (status === "ended") {
-              const hourlyPayload = await fetchAdminData(
-                `/api/analytics/events/${event.eventId}/congestion-by-hour`,
-                {},
-                [],
-              );
-              const hourlyValues = toArray(hourlyPayload)
-                .map((row) =>
-                  congestionLevelToPercent(
-                    row?.avgCongestionLevel ?? row?.avgCongestion ?? row?.avg_level,
-                  ),
-                )
-                .filter((value) => Number.isFinite(value) && value > 0);
-              const hourlyAverage = hourlyValues.length
-                ? Math.round(
-                    hourlyValues.reduce((sum, value) => sum + value, 0) /
-                      hourlyValues.length,
-                  )
-                : null;
-
-              if (hourlyAverage != null) {
-                return [eventId, hourlyAverage];
-              }
-            }
-
-            // For active/pending/ended events: realtime/hourly fallback (or primary for pending) with AI prediction.
-            try {
-              const aiRangeParams = resolveEventAiRangeParams(event, status);
-              const aiResponse = await aiApi.predictEventCongestion(eventId, aiRangeParams);
-              const aiPrediction = normalizePrediction(unwrapData(aiResponse, null));
-              const aiAverage = aiPrediction
-                ? Math.round(Number(aiPrediction.avgScore) || 0)
-                : null;
-              return [eventId, Number.isFinite(aiAverage) ? aiAverage : null];
-            } catch {
-              return [eventId, null];
-            }
-          }),
-        );
-
-        const congestionMap = new Map(congestionEntries);
-
-        if (!mounted) return;
-
-        setEvents(
-          visibleEvents.map((event, index) => {
-            const rawStatus = String(event.rawStatus ?? event.status ?? "").toUpperCase();
-            const selectorStatus = event.selectorStatus || toSelectorStatus(rawStatus);
-            const performance = performanceMap.get(Number(event.eventId));
-            const registrations =
-              Number(
-                performance?.activeRegistrationCount ??
-                performance?.approvedRegistrationCount,
-              ) || 0;
-            const checkedInRaw = Number(performance?.checkinCount) || 0;
+        const mappedRows = sortRealtimeEventsByPriority(
+          filteredByCategory.map((row) => {
+            const rawStatus = String(row?.rawStatus ?? row?.status ?? "").toUpperCase();
+            const selectorStatus =
+              String(row?.selectorStatus || "").toLowerCase() || toSelectorStatus(rawStatus);
+            const registrations = Number(row?.registrations ?? 0) || 0;
+            const checkedInRaw = Number(row?.checkedIn ?? 0) || 0;
             const checkedIn = rawStatus === "PLANNED" ? 0 : checkedInRaw;
-            const measuredCongestion = congestionMap.get(Number(event.eventId));
-            const congestion =
-              measuredCongestion != null
-                ? measuredCongestion
-                : selectorStatus === "ended"
-                  ? 0
-                  : null;
-            const checkinRate = registrations > 0 && selectorStatus !== "upcoming"
-              ? Math.round((checkedIn / registrations) * 100) : null;
-            const waitingCount = Number(performance?.waitingCount) || 0;
-            const avgWaitMin = Number(performance?.avgWaitingMinutes ?? performance?.avgWaitMin) || null;
-            const voteCount = Number(performance?.voteCount ?? performance?.totalVotes) || null;
-            const programCount = Number(performance?.programCount ?? performance?.totalPrograms) || null;
-            const voteRate = registrations > 0 && voteCount != null
-              ? Math.round((voteCount / registrations) * 100) : null;
+            const voteCount = Number(row?.voteCount ?? 0) || 0;
+
             return {
-              id: event.eventId,
-              name: event.eventName,
-              date: formatDateRange(event.startAt, event.endAt),
-              location: event.location || "\uC7A5\uC18C \uC815\uBCF4 \uC5C6\uC74C",
+              id: Number(row?.eventId),
+              name: row?.eventName || "행사 정보 없음",
+              startAt: row?.startAt ?? null,
+              endAt: row?.endAt ?? null,
+              date: formatDateRange(row?.startAt, row?.endAt),
+              location: row?.location || "장소 정보 없음",
               rawStatus,
+              selectorStatus,
               status: selectorStatus,
               registrations,
               checkedIn,
-              checkinRate,
-              congestion,
-              waitingCount,
-              avgWaitMin,
+              checkinRate:
+                Number.isFinite(Number(row?.checkinRate)) ? Number(row?.checkinRate) : null,
+              congestion:
+                row?.congestion == null
+                  ? selectorStatus === "ended" ? 0 : null
+                  : Number(row.congestion),
+              waitingCount: Number(row?.waitingCount ?? 0) || 0,
+              avgWaitMin:
+                Number.isFinite(Number(row?.avgWaitMin)) ? Number(row.avgWaitMin) : null,
               voteCount,
-              voteRate,
-              programCount,
-              delay: index * 60,
+              voteRate:
+                Number.isFinite(Number(row?.voteRate))
+                  ? Number(row.voteRate)
+                  : registrations > 0
+                    ? Math.round((voteCount / registrations) * 100)
+                    : null,
+              programCount: Number(row?.programCount ?? 0) || 0,
             };
           }),
-        );
+        ).map((row, index) => ({
+          ...row,
+          delay: index * 60,
+        }));
+
+        if (!mounted) return;
+        setEvents(mappedRows);
+        writeEventSelectorCache(cacheKey, mappedRows);
+        hasSeedDataRef.current = true;
+        setLoading(false);
       } catch (error) {
         console.error("[RealtimeEventSelector] load failed:", error);
-        if (mounted) setEvents([]);
+        if (mounted) {
+          if (!hasSeedDataRef.current) {
+            setEvents([]);
+          }
+          setLoading(false);
+        }
       } finally {
-        if (mounted) setLoading(false);
+        inFlightRef.current = false;
+        if (mounted && !preserveLoading) setLoading(false);
       }
     };
 
+    load({ preserveLoading: hasSeedDataRef.current });
+    return () => {
+      mounted = false;
+    };
+  }, [programCategory, cacheKey]);
+
+  useEffect(() => {
+    if (lastAutoRefreshTickRef.current === tick) return;
+    lastAutoRefreshTickRef.current = tick;
+    if (document.visibilityState === "hidden") return;
+
+    let mounted = true;
+    const load = async () => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      try {
+        const response = await adminRealtimeApi.getEventsSnapshot();
+        const payload = unwrapData(response, {});
+        const eventRows = toArray(payload?.events);
+        const filteredByCategory = eventRows.filter((row) => {
+          if (!programCategory) return true;
+          if (programCategory === "CONTEST") {
+            return Number(row?.contestProgramCount ?? 0) > 0;
+          }
+          return Number(row?.programCount ?? 0) > 0;
+        });
+        const mappedRows = sortRealtimeEventsByPriority(
+          filteredByCategory.map((row) => {
+            const rawStatus = String(row?.rawStatus ?? row?.status ?? "").toUpperCase();
+            const selectorStatus =
+              String(row?.selectorStatus || "").toLowerCase() || toSelectorStatus(rawStatus);
+            const registrations = Number(row?.registrations ?? 0) || 0;
+            const checkedInRaw = Number(row?.checkedIn ?? 0) || 0;
+            const checkedIn = rawStatus === "PLANNED" ? 0 : checkedInRaw;
+            const voteCount = Number(row?.voteCount ?? 0) || 0;
+            return {
+              id: Number(row?.eventId),
+              name: row?.eventName || "행사 정보 없음",
+              startAt: row?.startAt ?? null,
+              endAt: row?.endAt ?? null,
+              date: formatDateRange(row?.startAt, row?.endAt),
+              location: row?.location || "장소 정보 없음",
+              rawStatus,
+              selectorStatus,
+              status: selectorStatus,
+              registrations,
+              checkedIn,
+              checkinRate:
+                Number.isFinite(Number(row?.checkinRate)) ? Number(row?.checkinRate) : null,
+              congestion:
+                row?.congestion == null
+                  ? selectorStatus === "ended" ? 0 : null
+                  : Number(row.congestion),
+              waitingCount: Number(row?.waitingCount ?? 0) || 0,
+              avgWaitMin:
+                Number.isFinite(Number(row?.avgWaitMin)) ? Number(row.avgWaitMin) : null,
+              voteCount,
+              voteRate:
+                Number.isFinite(Number(row?.voteRate))
+                  ? Number(row.voteRate)
+                  : registrations > 0
+                    ? Math.round((voteCount / registrations) * 100)
+                    : null,
+              programCount: Number(row?.programCount ?? 0) || 0,
+            };
+          }),
+        ).map((row, index) => ({
+          ...row,
+          delay: index * 60,
+        }));
+        if (mounted) {
+          setEvents(mappedRows);
+          writeEventSelectorCache(cacheKey, mappedRows);
+          hasSeedDataRef.current = true;
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("[RealtimeEventSelector] auto refresh failed:", error);
+        if (mounted) setLoading(false);
+      } finally {
+        inFlightRef.current = false;
+      }
+    };
     load();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [programCategory, tick, cacheKey]);
 
   const filtered = useMemo(() => {
     return events.filter((event) => {
@@ -1251,7 +1339,7 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
         </div>
 
         <div className="rte-event-list">
-          {loading ? (
+          {loading && events.length === 0 ? (
             <PageLoading message="행사 목록을 불러오는 중입니다" />
           ) : filtered.length === 0 ? (
             events.length === 0

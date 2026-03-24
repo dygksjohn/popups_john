@@ -16,7 +16,7 @@ from pupoo_ai.app.features.orchestrator.intent_analyzer import IntentAnalyzer
 
 
 async def chat(request: ChatRequest, authorization: str | None = None) -> ChatResponse:
-    intent = IntentAnalyzer().analyze(request.message)
+    intent = IntentAnalyzer().analyze(request.message, request.context)
     backend_client = BackendApiClient(authorization)
     execute_handler = ExecuteActionHandler()
 
@@ -24,6 +24,18 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
         return await execute_handler.confirm(request.confirmation.model_dump(), backend_client)
 
     if intent is not None:
+        if intent.intent_type == "ambiguous":
+            return ChatResponse(
+                message="어떤 작업을 하시려는지 확인이 필요해요. 조회인지 실행인지 조금 더 구체적으로 말씀해 주세요.",
+                messageType="ambiguous",
+                actions=[],
+            )
+        if intent.intent_type == "low_confidence":
+            return ChatResponse(
+                message="요청을 정확히 이해하지 못했어요. 조금 더 자세히 알려주실 수 있을까요?",
+                messageType="low_confidence",
+                actions=[],
+            )
         planned_action = ActionPlanner().plan(intent, request.context)
         if planned_action.intent_type == "navigation":
             return NavigationActionHandler().handle(planned_action)
@@ -45,5 +57,5 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
     reply = await invoke_bedrock(messages)
     reply_text = str(reply or "").strip()
     if not reply_text:
-        reply_text = "운영 업무를 이어서 도와드릴게요. 이동, 요약, 초안 생성, 실행이 필요하면 말씀해 주세요."
+        reply_text = "무엇을 도와드릴까요? 조회, 화면 이동, 초안 작성, 실행 요청을 말씀해 주세요."
     return ChatResponse(message=reply_text, actions=[])
