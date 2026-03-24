@@ -13,6 +13,9 @@ import com.popups.pupoo.notice.dto.NoticeUpdateRequest;
 import com.popups.pupoo.notice.persistence.NoticeRepository;
 import com.popups.pupoo.event.persistence.EventRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +29,33 @@ public class NoticeAdminService {
     private final NoticeRepository noticeRepository;
     private final EventRepository eventRepository;
     private final AdminLogService adminLogService;
+
+    public Page<NoticeResponse> list(int page,
+                                     int size,
+                                     NoticeStatus status,
+                                     String keyword,
+                                     String scope,
+                                     Boolean pinned) {
+        validatePageRequest(page, size);
+        PageRequest pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Order.desc("pinned"), Sort.Order.desc("createdAt"), Sort.Order.desc("noticeId"))
+        );
+        return noticeRepository.searchAdmin(
+                status,
+                normalizeKeyword(keyword),
+                normalizeScope(scope),
+                pinned,
+                pageable
+        ).map(this::toResponse);
+    }
+
+    public NoticeResponse get(Long noticeId) {
+        Notice notice = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "공지사항이 존재하지 않습니다."));
+        return toResponse(notice);
+    }
 
     /**
      * 공지사항 생성(관리자)
@@ -108,5 +138,33 @@ public class NoticeAdminService {
                 .updatedAt(n.getUpdatedAt())
                 .viewCount(n.getViewCount())
                 .build();
+    }
+
+    private void validatePageRequest(int page, int size) {
+        if (page < 0) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "page must be greater than or equal to 0");
+        }
+        if (size < 1 || size > 100) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "size must be between 1 and 100");
+        }
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String normalized = keyword.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String normalizeScope(String scope) {
+        if (scope == null) {
+            return null;
+        }
+        String normalized = scope.trim();
+        if (normalized.isEmpty() || "all".equalsIgnoreCase(normalized)) {
+            return null;
+        }
+        return normalized;
     }
 }

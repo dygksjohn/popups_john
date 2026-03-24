@@ -69,18 +69,18 @@ public class AdminAuditAspect {
                     Long targetId = resolveTargetId(adminAudit, ctx);
 
                     if (error != null) {
-                        String suffix;
+                        String errorCode;
                         if (error instanceof BusinessException be) {
-                            suffix = "|FAIL|" + be.getErrorCode().name();
+                            errorCode = be.getErrorCode().name();
                         } else {
-                            suffix = "|FAIL|" + ErrorCode.INTERNAL_ERROR.name();
+                            errorCode = ErrorCode.INTERNAL_ERROR.name();
                         }
-                        action = truncate(action + suffix, 255);
+                        action = truncate(action + "|FAIL|" + errorCode, 255);
+                        adminLogService.writeFailure(action, targetType, targetId, errorCode);
                     } else {
                         action = truncate(action, 255);
+                        adminLogService.write(action, targetType, targetId);
                     }
-
-                    adminLogService.write(action, targetType, targetId);
                     markRequestLogged();
                 }
             } catch (Exception ignored) {

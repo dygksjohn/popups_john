@@ -31,10 +31,37 @@ const styles = `
 .board-row:hover .board-actions{opacity:1}
 `;
 
+const NOTICE_DRAFT_KEY = "pupoo_admin_chatbot_notice_draft";
+const NOTICE_SYNC_EVENT = "pupoo-admin-chatbot-sync-notice";
+
 function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function buildNoticeExecution(form) {
+  return {
+    supported: true,
+    executeType: "SAVE_NOTICE",
+    targetType: "NOTICE",
+    status: form?.status || "DRAFT",
+    supportedExecuteTypes: ["SAVE_NOTICE"],
+  };
+}
+
+function syncNoticeDraft(detail) {
+  if (typeof window === "undefined") return;
+  if (detail == null) {
+    sessionStorage.removeItem(NOTICE_DRAFT_KEY);
+  } else {
+    sessionStorage.setItem(NOTICE_DRAFT_KEY, JSON.stringify(detail));
+  }
+  window.dispatchEvent(
+    new CustomEvent(NOTICE_SYNC_EVENT, {
+      detail,
+    }),
+  );
 }
 
 function Toast({ msg, type = "success", onDone }) {
@@ -427,19 +454,34 @@ function DetailModal({ item, onClose, onEdit, onDelete }) {
 }
 
 /* ── 슬라이드 패널 ── */
-function SlidePanel({ item, onSave, onClose, isEdit, saving }) {
+function SlidePanel({ item, initialForm, onSave, onClose, isEdit, saving, onDraftChange }) {
   const [form, setForm] = useState(
     item
       ? {
+          noticeId: item.noticeId ?? null,
           title: item.title,
           content: item.content || "",
           pinned: item.pinned ?? false,
           scope: item.scope || "ALL",
+          status: item.status || "PUBLISHED",
         }
-      : { title: "", content: "", pinned: false, scope: "ALL" },
+      : initialForm
+        ? {
+            noticeId: initialForm.noticeId ?? null,
+            title: initialForm.title || "",
+            content: initialForm.content || "",
+            pinned: initialForm.pinned ?? false,
+            scope: initialForm.scope || "ALL",
+            status: initialForm.status || "DRAFT",
+          }
+        : { noticeId: null, title: "", content: "", pinned: false, scope: "ALL", status: "PUBLISHED" },
   );
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const [err, setErr] = useState("");
+
+  useEffect(() => {
+    onDraftChange?.(form);
+  }, [form, onDraftChange]);
 
   const handleSave = () => {
     if (!form.title.trim()) {
@@ -571,6 +613,17 @@ function SlidePanel({ item, onSave, onClose, isEdit, saving }) {
               <option value="EVENT">이벤트</option>
             </select>
           </Field>
+          <Field label="상태">
+            <select
+              style={inputStyle}
+              value={form.status}
+              onChange={(e) => set("status", e.target.value)}
+            >
+              <option value="PUBLISHED">PUBLISHED</option>
+              <option value="DRAFT">DRAFT</option>
+              <option value="HIDDEN">HIDDEN</option>
+            </select>
+          </Field>
           <label
             style={{
               display: "flex",
@@ -663,6 +716,7 @@ export default function Notice() {
   const [removing, setRemoving] = useState(null);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(new Set());
+  const [prefillExecution, setPrefillExecution] = useState(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -672,7 +726,43 @@ export default function Notice() {
     return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const applyPrefill = (payload) => {
+      const formData = payload?.formData || payload;
+      if (!formData) return;
+      setPrefillExecution(payload?.execution || null);
+      setPanel({ type: "create", initialForm: formData });
+    };
+
+    const savedDraft = sessionStorage.getItem(NOTICE_DRAFT_KEY);
+    if (savedDraft) {
+      try {
+        applyPrefill(JSON.parse(savedDraft));
+      } catch {
+        // ignore storage parse failure
+      }
+    }
+
+    const handlePrefill = (event) => {
+        applyPrefill(event?.detail);
+      };
+
+    window.addEventListener("pupoo-admin-chatbot-prefill-notice", handlePrefill);
+    return () => window.removeEventListener("pupoo-admin-chatbot-prefill-notice", handlePrefill);
+  }, []);
+
   const showToast = (msg, type = "success") => setToast({ msg, type });
+  const syncPanelDraft = useCallback((form) => {
+    if (!form) return;
+    const detail = {
+      formData: form,
+      execution: buildNoticeExecution(form),
+    };
+    setPrefillExecution(detail.execution);
+    syncNoticeDraft(detail);
+  }, []);
 
   const fetchList = useCallback(async (p = 1) => {
     setLoading(true);
@@ -724,6 +814,8 @@ export default function Notice() {
     setSaving(true);
     try {
       await adminNoticeApi.create(form);
+      syncNoticeDraft(null);
+      setPrefillExecution(null);
       setPanel(null);
       showToast("공지사항이 등록되었습니다.");
       fetchList(1);
@@ -739,6 +831,8 @@ export default function Notice() {
     setSaving(true);
     try {
       await adminNoticeApi.update(panel.item.noticeId, form);
+      syncNoticeDraft(null);
+      setPrefillExecution(null);
       setPanel(null);
       showToast("공지사항이 수정되었습니다.");
       fetchList(page);
@@ -815,6 +909,25 @@ export default function Notice() {
   return (
     <div>
       <style>{styles}</style>
+      {prefillExecution && (
+        <div
+          style={{
+            marginBottom: 14,
+            background: prefillExecution.supported ? "#EFF6FF" : "#FEF2F2",
+            border: `1px solid ${prefillExecution.supported ? "#BFDBFE" : "#FECACA"}`,
+            color: prefillExecution.supported ? "#1D4ED8" : "#991B1B",
+            borderRadius: 10,
+            padding: "12px 14px",
+            fontSize: 12.5,
+            fontWeight: 600,
+            lineHeight: 1.6,
+          }}
+        >
+          {prefillExecution.supported
+            ? `챗봇 초안이 채워졌습니다. 현재 저장 상태는 ${prefillExecution.status || "DRAFT"} 기준입니다.`
+            : prefillExecution.reason || "현재 요청은 실행이 제한됩니다."}
+        </div>
+      )}
       <div
         style={{
           background: ds.card,
@@ -1333,9 +1446,11 @@ export default function Notice() {
 
       {panel?.type === "create" && (
         <SlidePanel
+          initialForm={panel.initialForm}
           onSave={handleCreate}
           onClose={() => setPanel(null)}
           saving={saving}
+          onDraftChange={syncPanelDraft}
         />
       )}
       {panel?.type === "edit" && (
@@ -1345,6 +1460,7 @@ export default function Notice() {
           onSave={handleUpdate}
           onClose={() => setPanel(null)}
           saving={saving}
+          onDraftChange={syncPanelDraft}
         />
       )}
       {modal?.type === "detail" && (

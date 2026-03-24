@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     db_ssl_ca: str = ""
     congestion_model_enabled: bool = True
     congestion_model_dir: str = ""
+    backend_base_url: str = ""
+    backend_timeout_seconds: float = 15.0
 
     # watsonx.ai 설정 (RAG용)
     watsonx_api_key: str = ""

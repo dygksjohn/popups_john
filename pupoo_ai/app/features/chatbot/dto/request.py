@@ -6,10 +6,63 @@ class MessageItem(BaseModel):
     content: str = Field(..., description="메시지 내용")
 
 
+class NoticeDraftContext(BaseModel):
+    notice_id: int | None = Field(default=None, alias="noticeId")
+    title: str = ""
+    content: str = ""
+    pinned: bool = False
+    scope: str = "ALL"
+    event_id: int | None = Field(default=None, alias="eventId")
+    status: str = "PUBLISHED"
+
+
+class NotificationDraftContext(BaseModel):
+    notification_id: int | None = Field(default=None, alias="notificationId")
+    title: str = ""
+    content: str = ""
+    status: str = "DRAFT"
+    alert_mode: str = Field(default="event", alias="alertMode")
+    event_id: int | None = Field(default=None, alias="eventId")
+    event_name: str = Field(default="", alias="eventName")
+    event_status: str = Field(default="", alias="eventStatus")
+    alert_target_label: str = Field(default="", alias="alertTargetLabel")
+    special_target_key: str = Field(default="", alias="specialTargetKey")
+    recipient_scope: str | None = Field(default=None, alias="recipientScope")
+    recipient_scopes: list[str] = Field(default_factory=list, alias="recipientScopes")
+
+
+class ExecutionContext(BaseModel):
+    supported: bool = False
+    action: str | None = None
+    execute_type: str | None = Field(default=None, alias="executeType")
+    target_type: str | None = Field(default=None, alias="targetType")
+    status: str | None = None
+    reason: str | None = None
+    requested_action: str | None = Field(default=None, alias="requestedAction")
+    unsupported_actions: list[str] = Field(default_factory=list, alias="unsupportedActions")
+    supported_execute_types: list[str] = Field(default_factory=list, alias="supportedExecuteTypes")
+
+
+class ChatContext(BaseModel):
+    current_page: str = Field(default="", alias="currentPage")
+    route: str = ""
+    notice_draft: NoticeDraftContext | None = Field(default=None, alias="noticeDraft")
+    notice_execution: ExecutionContext | None = Field(default=None, alias="noticeExecution")
+    notification_draft: NotificationDraftContext | None = Field(default=None, alias="notificationDraft")
+    notification_execution: ExecutionContext | None = Field(default=None, alias="notificationExecution")
+
+
+class PendingConfirmation(BaseModel):
+    type: str
+    payload: dict = Field(default_factory=dict)
+
+
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000, description="사용자 입력 메시지")
     history: list[MessageItem] = Field(
         default_factory=list,
         max_length=20,
-        description="이전 대화 이력 (최대 20개)",
+        description="이전 대화 이력",
     )
+    context: ChatContext = Field(default_factory=ChatContext)
+    confirmation: PendingConfirmation | None = None
