@@ -120,7 +120,7 @@ export function attachInterceptors(instance, options = {}) {
 
     const path = normalizeUrlPath(config?.url);
     const access = isAdminRequestPath(path)
-      ? getAdminAccessToken()
+      ? (getAdminAccessToken() || tokenStore.getAccess())
       : tokenStore.getAccess();
 
     if (access) {

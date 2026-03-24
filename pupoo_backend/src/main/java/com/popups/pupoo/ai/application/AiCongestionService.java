@@ -136,6 +136,19 @@ public class AiCongestionService {
     }
 
     public AiCongestionPredictionResponse predictEvent(Long eventId, LocalDateTime from, LocalDateTime to) {
+        return predictEventInternal(eventId, from, to, true);
+    }
+
+    public AiCongestionPredictionResponse predictEventForRealtime(Long eventId, LocalDateTime from, LocalDateTime to) {
+        return predictEventInternal(eventId, from, to, false);
+    }
+
+    private AiCongestionPredictionResponse predictEventInternal(
+            Long eventId,
+            LocalDateTime from,
+            LocalDateTime to,
+            boolean persistLog
+    ) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EVENT_NOT_FOUND));
         LocalDateTime baseTime = LocalDateTime.now();
@@ -143,10 +156,17 @@ public class AiCongestionService {
         EventCongestionPolicy policy = findEventPolicy(eventId);
         TimeWindow predictionWindow = resolveEventPredictionWindow(event, from, to);
         HistoricalBaseline historicalBaseline = collectHistoricalEventBaseline(baseTime);
+        EventRegistrationSnapshot registrationSnapshot = collectEventRegistrationSnapshot(eventId);
 
         int entryCount = countEventFlowCount(eventId, QrCheckType.CHECKIN, baseTime);
         int checkoutCount = countEventFlowCount(eventId, QrCheckType.CHECKOUT, baseTime);
-        int activeApplyCount = countEventActiveApplies(eventId);
+        int activeApplyCount = registrationSnapshot.preRegisteredCount();
+        int preRegisteredCount = registrationSnapshot.preRegisteredCount();
+        int approvedRegistrationCount = registrationSnapshot.approvedCount();
+        int totalCheckinCount = countEventTotalFlowCount(eventId, QrCheckType.CHECKIN);
+        int totalCheckoutCount = countEventTotalFlowCount(eventId, QrCheckType.CHECKOUT);
+        int participantCount = countDistinctEventParticipants(eventId);
+        int currentInsideCount = Math.max(totalCheckinCount - totalCheckoutCount, 0);
         int runningProgramCount = (int) programs.stream().filter(this::isRunningNow).count();
         int totalProgramCount = programs.size();
         WaitAggregate waitAggregate = collectEventWaitMetrics(eventId, programs);
@@ -162,6 +182,9 @@ public class AiCongestionService {
                 entryCount,
                 checkoutCount,
                 activeApplyCount,
+                preRegisteredCount,
+                participantCount,
+                currentInsideCount,
                 runningProgramCount,
                 totalProgramCount,
                 waitAggregate.totalWaitCount(),
@@ -189,6 +212,10 @@ public class AiCongestionService {
                 entryCount,
                 checkoutCount,
                 activeApplyCount,
+                preRegisteredCount,
+                approvedRegistrationCount,
+                participantCount,
+                currentInsideCount,
                 runningProgramCount,
                 totalProgramCount,
                 waitAggregate.totalWaitCount(),
@@ -216,7 +243,10 @@ public class AiCongestionService {
         AiCongestionPredictionResponse response = aiInferenceClient.predictEvent(request)
                 .orElseGet(() -> fallbackEventPrediction(event, baseTime, request));
         response = enforceScoreWaitConsistency(response);
-        savePredictionLog(response);
+        response = applyMeasuredHistoryBeforeBaseTime(response, event.getEventId(), baseTime);
+        if (persistLog) {
+            savePredictionLog(response);
+        }
         return response;
     }
 
@@ -491,6 +521,9 @@ public class AiCongestionService {
                 request.entryCount(),
                 request.checkoutCount(),
                 request.activeApplyCount(),
+                request.preRegisteredCount(),
+                request.participantCount(),
+                request.currentInsideCount(),
                 request.runningProgramCount(),
                 request.totalProgramCount(),
                 request.totalWaitCount(),
@@ -690,9 +723,16 @@ public class AiCongestionService {
     }
 
     private int countEventActiveApplies(Long eventId) {
+        return collectEventRegistrationSnapshot(eventId).preRegisteredCount();
+    }
+
+    private EventRegistrationSnapshot collectEventRegistrationSnapshot(Long eventId) {
         long applied = eventRegistrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.APPLIED);
         long approved = eventRegistrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.APPROVED);
-        return Math.toIntExact(applied + approved);
+        return new EventRegistrationSnapshot(
+                Math.toIntExact(applied),
+                Math.toIntExact(approved)
+        );
     }
 
     private int countEventFlowCount(Long eventId, QrCheckType checkType, LocalDateTime baseTime) {
@@ -709,6 +749,16 @@ public class AiCongestionService {
     private int countProgramActiveApplies(Long programId) {
         long active = programApplyRepository.countByProgramIdAndStatusIn(programId, PROGRAM_ACTIVE_STATUSES);
         return Math.toIntExact(active);
+    }
+
+    private int countEventTotalFlowCount(Long eventId, QrCheckType checkType) {
+        long count = qrCheckinRepository.countByQrCode_Event_EventIdAndCheckType(eventId, checkType);
+        return Math.toIntExact(count);
+    }
+
+    private int countDistinctEventParticipants(Long eventId) {
+        long count = qrCheckinRepository.countDistinctCheckinUsersByEventId(eventId);
+        return Math.toIntExact(count);
     }
 
     private int countProgramCheckins(Long programId, LocalDateTime baseTime) {
@@ -1028,6 +1078,9 @@ public class AiCongestionService {
             int entryCount,
             int checkoutCount,
             int activeApplyCount,
+            int preRegisteredCount,
+            int participantCount,
+            int currentInsideCount,
             int runningProgramCount,
             int totalProgramCount,
             int totalWaitCount,
@@ -1049,13 +1102,19 @@ public class AiCongestionService {
         double avgWaitPerRunningProgram = safeDiv(totalWaitCount, Math.max(runningProgramCount, 1));
         double waitDensityPressure = clamp01(safeDiv(avgWaitPerRunningProgram, Math.max(waitBaselinePerProgram, 1.0)));
         double waitTimePressure = clamp01(safeDiv(averageWaitMinutes, Math.max(targetWaitMin, 1)));
+        double preRegistrationPressure = clamp01(safeDiv(preRegisteredCount, Math.max(capacityBaseline, 1)));
+        double participantConversionPressure = clamp01(safeDiv(participantCount, Math.max(preRegisteredCount, 1)));
+        double insideOccupancyPressure = clamp01(safeDiv(currentInsideCount, Math.max(capacityBaseline * 0.75, 1.0)));
         double operationRelief = clamp01(safeDiv(runningProgramCount, Math.max(totalProgramCount, 1)));
 
-        double eventUnitScore = (0.22 * entryPressure)
-                + (0.30 * waitPressure)
-                + (0.23 * waitDensityPressure)
-                + (0.30 * waitTimePressure)
-                - (0.05 * operationRelief);
+        double eventUnitScore = (0.10 * entryPressure)
+                + (0.16 * waitPressure)
+                + (0.10 * waitDensityPressure)
+                + (0.14 * waitTimePressure)
+                + (0.22 * preRegistrationPressure)
+                + (0.18 * participantConversionPressure)
+                + (0.14 * insideOccupancyPressure)
+                - (0.04 * operationRelief);
 
         double liveScore = eventUnitScore * 100.0;
         boolean forecastMode = netEntryCount <= 0
@@ -1204,6 +1263,127 @@ public class AiCongestionService {
                 calendarAdjustedTimeline,
                 normalizedLstmTimeline
         );
+    }
+
+    private AiCongestionPredictionResponse applyMeasuredHistoryBeforeBaseTime(
+            AiCongestionPredictionResponse response,
+            Long eventId,
+            LocalDateTime baseTime
+    ) {
+        if (response == null || eventId == null || baseTime == null) {
+            return response;
+        }
+        if (!AiPredictionTargetType.EVENT.name().equalsIgnoreCase(response.targetType())) {
+            return response;
+        }
+
+        List<AiTimelinePoint> timeline = response.timeline() == null ? List.of() : response.timeline();
+        if (timeline.isEmpty()) {
+            return response;
+        }
+
+        LocalDateTime timelineStart = timeline.stream()
+                .map(AiTimelinePoint::time)
+                .filter(java.util.Objects::nonNull)
+                .min(LocalDateTime::compareTo)
+                .orElse(null);
+        if (timelineStart == null || baseTime.isBefore(timelineStart)) {
+            return response;
+        }
+
+        List<AiEventCongestionTimeseries> measuredSnapshots = aiEventCongestionTimeseriesRepository
+                .findByEventIdAndTimestampMinuteBetweenOrderByTimestampMinuteAsc(
+                        eventId,
+                        timelineStart,
+                        baseTime
+                );
+        if (measuredSnapshots.isEmpty()) {
+            return response;
+        }
+
+        TreeMap<LocalDateTime, Double> measuredScoreByPoint = new TreeMap<>();
+        for (AiEventCongestionTimeseries snapshot : measuredSnapshots) {
+            if (snapshot.getTimestampMinute() == null || snapshot.getCongestionScore() == null) {
+                continue;
+            }
+            measuredScoreByPoint.put(
+                    alignToFive(snapshot.getTimestampMinute()),
+                    clampScore(snapshot.getCongestionScore().doubleValue())
+            );
+        }
+        if (measuredScoreByPoint.isEmpty()) {
+            return response;
+        }
+
+        List<AiTimelinePoint> blendedTimeline = applyMeasuredScoresToTimeline(
+                timeline,
+                measuredScoreByPoint,
+                baseTime
+        );
+        List<AiTimelinePoint> blendedLstmTimeline = applyMeasuredScoresToTimeline(
+                response.lstmTimeline() == null ? List.of() : response.lstmTimeline(),
+                measuredScoreByPoint,
+                baseTime
+        );
+
+        return new AiCongestionPredictionResponse(
+                response.targetType(),
+                response.eventId(),
+                response.programId(),
+                response.baseTime(),
+                response.predictedAvgScore(),
+                response.predictedPeakScore(),
+                response.predictedLevel(),
+                response.predictedWaitMinutes(),
+                response.confidence(),
+                response.lstmPredictedAvgScore(),
+                response.fallbackUsed(),
+                blendedTimeline,
+                blendedLstmTimeline
+        );
+    }
+
+    private List<AiTimelinePoint> applyMeasuredScoresToTimeline(
+            List<AiTimelinePoint> timeline,
+            TreeMap<LocalDateTime, Double> measuredScoreByPoint,
+            LocalDateTime baseTime
+    ) {
+        if (timeline == null || timeline.isEmpty()) {
+            return List.of();
+        }
+        if (measuredScoreByPoint == null || measuredScoreByPoint.isEmpty()) {
+            return timeline;
+        }
+
+        List<AiTimelinePoint> replaced = new ArrayList<>(timeline.size());
+        for (AiTimelinePoint point : timeline) {
+            if (point.time() == null || point.time().isAfter(baseTime)) {
+                replaced.add(point);
+                continue;
+            }
+
+            Double measuredScore = measuredScoreByPoint.get(point.time());
+            if (measuredScore == null) {
+                Map.Entry<LocalDateTime, Double> floor = measuredScoreByPoint.floorEntry(point.time());
+                if (floor != null) {
+                    measuredScore = floor.getValue();
+                }
+            }
+
+            if (measuredScore == null) {
+                replaced.add(point);
+                continue;
+            }
+
+            double normalizedScore = clampScore(measuredScore);
+            replaced.add(new AiTimelinePoint(
+                    point.time(),
+                    normalizedScore,
+                    levelFromScore(normalizedScore),
+                    normalizeWaitByScore(normalizedScore, point.waitMinutes())
+            ));
+        }
+        return replaced;
     }
 
     private List<AiTimelinePoint> applyCalendarAdjustment(List<AiTimelinePoint> timeline) {
@@ -1385,6 +1565,12 @@ public class AiCongestionService {
     }
 
     private record HistoricalBaseline(double endedScore, double ongoingScore) {
+    }
+
+    private record EventRegistrationSnapshot(int appliedCount, int approvedCount) {
+        int preRegisteredCount() {
+            return Math.max(0, appliedCount + approvedCount);
+        }
     }
 
     private record WaitAggregate(int totalWaitCount, double averageWaitMinutes) {

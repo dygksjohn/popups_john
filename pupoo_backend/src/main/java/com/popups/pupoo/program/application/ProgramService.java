@@ -38,9 +38,11 @@ public class ProgramService {
                 .orElseThrow(() -> new EntityNotFoundException("PROGRAM_NOT_FOUND"));
         ProgramResponse base = toResponse(program);
 
-        ExperienceWaitResponse wait = experienceWaitRepository.findByProgramId(programId)
+        ExperienceWaitResponse wait = program.getCategory() == ProgramCategory.EXPERIENCE
+                ? experienceWaitRepository.findByProgramId(programId)
                 .map(ExperienceWaitResponse::from)
-                .orElse(null);
+                .orElse(null)
+                : null;
 
         return ProgramResponse.builder()
                 .programId(base.getProgramId())

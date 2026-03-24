@@ -1,179 +1,210 @@
--- Scenario 2: Cooldown after spike
--- Goal: Force outflow and lower congestion right after S1 window.
+-- Scenario 2 (NOW-based): forecast from now to remaining event time
+-- Goal:
+--   1) Persist EVENT/PROGRAM prediction logs continuously from now to event end.
+--   2) Reflect "remaining horizon" congestion changes for the ongoing event.
 
 START TRANSACTION;
 
 SET @s2_event_id := 3;
-SET @s2_start := CAST('2026-03-22 14:30:00' AS DATETIME);
-SET @s2_end := CAST('2026-03-22 15:10:00' AS DATETIME);
-SET @s2_qr_id := COALESCE(
-  (SELECT MIN(qr_id) FROM qr_codes WHERE event_id = @s2_event_id),
-  (SELECT MIN(qr_id) FROM qr_codes)
-);
+SET @s2_now := NOW();
+SET @s2_event_end := CAST(COALESCE(
+  (SELECT end_at FROM event WHERE event_id = @s2_event_id),
+  DATE_ADD(@s2_now, INTERVAL 12 HOUR)
+ ) AS DATETIME);
 
-DROP TEMPORARY TABLE IF EXISTS tmp_s2_booths;
-CREATE TEMPORARY TABLE tmp_s2_booths AS
-SELECT b.booth_id, b.zone, b.place_name
-FROM booths b
-WHERE b.event_id = @s2_event_id
-ORDER BY b.booth_id
-LIMIT 4;
+-- If event end is in the past, fallback horizon to +6h.
+SET @s2_now_ts := UNIX_TIMESTAMP(@s2_now);
+SET @s2_event_end_ts := UNIX_TIMESTAMP(@s2_event_end);
+SET @s2_horizon_ts := IF(@s2_event_end_ts > (@s2_now_ts + 21600), @s2_event_end_ts, (@s2_now_ts + 21600));
+SET @s2_horizon_end := FROM_UNIXTIME(@s2_horizon_ts);
+
+-- Keep this model_version idempotent.
+DELETE FROM ai_prediction_logs
+WHERE model_version = 'scenario-s2-remaining-horizon'
+  AND event_id = @s2_event_id;
 
 DROP TEMPORARY TABLE IF EXISTS tmp_s2_programs;
 CREATE TEMPORARY TABLE tmp_s2_programs AS
-SELECT p.program_id, p.booth_id, b.zone, b.place_name
-FROM event_program p
-JOIN booths b ON b.booth_id = p.booth_id
-WHERE p.event_id = @s2_event_id
-  AND p.booth_id IN (SELECT booth_id FROM tmp_s2_booths)
-ORDER BY p.program_id
-LIMIT 6;
+SELECT
+  x.program_id,
+  ROW_NUMBER() OVER (ORDER BY x.priority, x.program_id) AS ord
+FROM (
+  SELECT p.program_id, 0 AS priority
+  FROM event_program p
+  WHERE p.event_id = @s2_event_id
+    AND p.program_id IN (9703101, 9703102, 9703103, 9703104)
+  UNION ALL
+  SELECT p.program_id, 1 AS priority
+  FROM event_program p
+  WHERE p.event_id = @s2_event_id
+    AND p.program_id NOT IN (9703101, 9703102, 9703103, 9703104)
+) x
+ORDER BY x.priority, x.program_id
+LIMIT 2;
 
-INSERT INTO qr_logs (log_id, qr_id, booth_id, check_type, checked_at)
-WITH RECURSIVE minute_seq AS (
-  SELECT @s2_start AS ts
+-- EVENT forecast (30-minute buckets until event end).
+INSERT INTO ai_prediction_logs (
+  prediction_log_id, target_type, event_id, program_id, prediction_base_time,
+  predicted_avg_score_60m, predicted_peak_score_60m, predicted_level,
+  model_version, source_type, created_at
+)
+WITH RECURSIVE slots AS (
+  SELECT 0 AS rn, @s2_now AS ts
   UNION ALL
-  SELECT DATE_ADD(ts, INTERVAL 1 MINUTE)
-  FROM minute_seq
-  WHERE ts < @s2_end
-),
-light_inflow AS (
-  SELECT 1 AS n
-  UNION ALL
-  SELECT n + 1 FROM light_inflow WHERE n < 2
-),
-payload AS (
-  SELECT
-    ROW_NUMBER() OVER (ORDER BY m.ts, b.booth_id, s.n) AS rn,
-    b.booth_id,
-    DATE_ADD(m.ts, INTERVAL s.n SECOND) AS checked_at
-  FROM minute_seq m
-  JOIN tmp_s2_booths b
-  JOIN light_inflow s
+  SELECT rn + 1, DATE_ADD(ts, INTERVAL 30 MINUTE)
+  FROM slots
+  WHERE ts < @s2_horizon_end
+    AND rn < 960
 )
 SELECT
-  920000000 + rn AS log_id,
-  @s2_qr_id AS qr_id,
-  booth_id,
-  'CHECKIN',
-  checked_at
-FROM payload
-ON DUPLICATE KEY UPDATE
-  qr_id = VALUES(qr_id),
-  booth_id = VALUES(booth_id),
-  check_type = VALUES(check_type),
-  checked_at = VALUES(checked_at);
-
-INSERT INTO qr_logs (log_id, qr_id, booth_id, check_type, checked_at)
-WITH RECURSIVE minute_seq AS (
-  SELECT @s2_start AS ts
-  UNION ALL
-  SELECT DATE_ADD(ts, INTERVAL 1 MINUTE)
-  FROM minute_seq
-  WHERE ts < @s2_end
-),
-heavy_outflow AS (
-  SELECT 1 AS n
-  UNION ALL
-  SELECT n + 1 FROM heavy_outflow WHERE n < 9
-),
-payload AS (
+  978000000 + d.rn AS prediction_log_id,
+  'EVENT' AS target_type,
+  @s2_event_id AS event_id,
+  NULL AS program_id,
+  d.ts AS prediction_base_time,
+  GREATEST(5.00, d.peak - 12.00) AS predicted_avg_score_60m,
+  d.peak AS predicted_peak_score_60m,
+  CASE
+    WHEN d.peak <= 20 THEN 1
+    WHEN d.peak <= 40 THEN 2
+    WHEN d.peak <= 60 THEN 3
+    WHEN d.peak <= 80 THEN 4
+    ELSE 5
+  END AS predicted_level,
+  'scenario-s2-remaining-horizon' AS model_version,
+  'BATCH' AS source_type,
+  @s2_now AS created_at
+FROM (
   SELECT
-    ROW_NUMBER() OVER (ORDER BY m.ts, b.booth_id, s.n) AS rn,
-    b.booth_id,
-    DATE_ADD(m.ts, INTERVAL (25 + s.n) SECOND) AS checked_at
-  FROM minute_seq m
-  JOIN tmp_s2_booths b
-  JOIN heavy_outflow s
+    s.rn,
+    s.ts,
+    LEAST(
+      100.00,
+      GREATEST(
+        28.00,
+        CASE
+          WHEN HOUR(s.ts) BETWEEN 10 AND 12 THEN 74.00
+          WHEN HOUR(s.ts) BETWEEN 13 AND 16 THEN 86.00
+          WHEN HOUR(s.ts) BETWEEN 17 AND 19 THEN 72.00
+          WHEN HOUR(s.ts) BETWEEN 20 AND 22 THEN 62.00
+          ELSE 48.00
+        END
+        + CASE WHEN WEEKDAY(s.ts) IN (5, 6) THEN 6.00 ELSE 0.00 END
+        + CASE WHEN MOD(s.rn, 6) = 0 THEN 5.00 ELSE 0.00 END
+      )
+    ) AS peak
+  FROM slots s
+) d
+WHERE d.ts <= @s2_horizon_end
+ON DUPLICATE KEY UPDATE
+  prediction_base_time = VALUES(prediction_base_time),
+  predicted_avg_score_60m = VALUES(predicted_avg_score_60m),
+  predicted_peak_score_60m = VALUES(predicted_peak_score_60m),
+  predicted_level = VALUES(predicted_level),
+  model_version = VALUES(model_version),
+  source_type = VALUES(source_type),
+  created_at = VALUES(created_at);
+
+-- PROGRAM forecast (same buckets, per selected program).
+INSERT INTO ai_prediction_logs (
+  prediction_log_id, target_type, event_id, program_id, prediction_base_time,
+  predicted_avg_score_60m, predicted_peak_score_60m, predicted_level,
+  model_version, source_type, created_at
+)
+WITH RECURSIVE slots AS (
+  SELECT 0 AS rn, @s2_now AS ts
+  UNION ALL
+  SELECT rn + 1, DATE_ADD(ts, INTERVAL 30 MINUTE)
+  FROM slots
+  WHERE ts < @s2_horizon_end
+    AND rn < 960
 )
 SELECT
-  920100000 + rn AS log_id,
-  @s2_qr_id AS qr_id,
-  booth_id,
-  'CHECKOUT',
-  checked_at
-FROM payload
-ON DUPLICATE KEY UPDATE
-  qr_id = VALUES(qr_id),
-  booth_id = VALUES(booth_id),
-  check_type = VALUES(check_type),
-  checked_at = VALUES(checked_at);
-
-UPDATE booth_waits bw
-JOIN tmp_s2_booths b ON b.booth_id = bw.booth_id
-SET
-  bw.wait_count = GREATEST(1, COALESCE(bw.wait_count, 1) - 80),
-  bw.wait_min = GREATEST(2, COALESCE(bw.wait_min, 2) - 12),
-  bw.updated_at = @s2_end;
-
-INSERT INTO booth_waits (wait_id, booth_id, wait_count, wait_min, updated_at)
-SELECT
-  921000000 + ROW_NUMBER() OVER (ORDER BY booth_id) AS wait_id,
-  booth_id,
-  20 AS wait_count,
-  5 AS wait_min,
-  @s2_end AS updated_at
-FROM tmp_s2_booths
-ON DUPLICATE KEY UPDATE
-  wait_count = VALUES(wait_count),
-  wait_min = VALUES(wait_min),
-  updated_at = VALUES(updated_at);
-
-UPDATE experience_waits ew
-JOIN tmp_s2_programs p ON p.program_id = ew.program_id
-SET
-  ew.wait_count = GREATEST(0, COALESCE(ew.wait_count, 0) - 70),
-  ew.wait_min = GREATEST(1, COALESCE(ew.wait_min, 1) - 10),
-  ew.updated_at = @s2_end;
-
-INSERT INTO experience_waits (wait_id, program_id, wait_count, wait_min, updated_at)
-SELECT
-  921100000 + ROW_NUMBER() OVER (ORDER BY program_id) AS wait_id,
-  program_id,
-  18 AS wait_count,
-  4 AS wait_min,
-  @s2_end AS updated_at
-FROM tmp_s2_programs
-ON DUPLICATE KEY UPDATE
-  wait_count = VALUES(wait_count),
-  wait_min = VALUES(wait_min),
-  updated_at = VALUES(updated_at);
-
-INSERT INTO congestions (congestion_id, program_id, zone, place_name, congestion_level, measured_at)
-WITH RECURSIVE point_seq AS (
-  SELECT @s2_start AS ts
-  UNION ALL
-  SELECT DATE_ADD(ts, INTERVAL 5 MINUTE)
-  FROM point_seq
-  WHERE ts < @s2_end
-),
-payload AS (
+  978100000 + (p.ord * 2000) + d.rn AS prediction_log_id,
+  'PROGRAM' AS target_type,
+  @s2_event_id AS event_id,
+  p.program_id AS program_id,
+  d.ts AS prediction_base_time,
+  GREATEST(5.00, p.program_peak - 10.00) AS predicted_avg_score_60m,
+  p.program_peak AS predicted_peak_score_60m,
+  CASE
+    WHEN p.program_peak <= 20 THEN 1
+    WHEN p.program_peak <= 40 THEN 2
+    WHEN p.program_peak <= 60 THEN 3
+    WHEN p.program_peak <= 80 THEN 4
+    ELSE 5
+  END AS predicted_level,
+  'scenario-s2-remaining-horizon' AS model_version,
+  'BATCH' AS source_type,
+  @s2_now AS created_at
+FROM (
   SELECT
-    ROW_NUMBER() OVER (ORDER BY p.program_id, t.ts) AS rn,
-    p.program_id,
-    p.zone,
-    p.place_name,
-    IF(MOD(ROW_NUMBER() OVER (ORDER BY p.program_id, t.ts), 2) = 0, 2, 3) AS lvl,
-    DATE_ADD(t.ts, INTERVAL 35 SECOND) AS measured_at
-  FROM tmp_s2_programs p
-  JOIN point_seq t
-)
-SELECT
-  922000000 + rn AS congestion_id,
-  program_id,
-  zone,
-  place_name,
-  lvl,
-  measured_at
-FROM payload
+    s.rn,
+    s.ts,
+    LEAST(
+      100.00,
+      GREATEST(
+        28.00,
+        CASE
+          WHEN HOUR(s.ts) BETWEEN 10 AND 12 THEN 74.00
+          WHEN HOUR(s.ts) BETWEEN 13 AND 16 THEN 86.00
+          WHEN HOUR(s.ts) BETWEEN 17 AND 19 THEN 72.00
+          WHEN HOUR(s.ts) BETWEEN 20 AND 22 THEN 62.00
+          ELSE 48.00
+        END
+        + CASE WHEN WEEKDAY(s.ts) IN (5, 6) THEN 6.00 ELSE 0.00 END
+        + CASE WHEN MOD(s.rn, 6) = 0 THEN 5.00 ELSE 0.00 END
+      )
+    ) AS base_peak
+  FROM slots s
+) d
+JOIN (
+  SELECT
+    tp.program_id,
+    tp.ord,
+    d2.rn,
+    d2.ts,
+    LEAST(
+      100.00,
+      GREATEST(
+        20.00,
+        d2.base_peak - ((tp.ord - 1) * 8.00) + CASE WHEN MOD(d2.rn, 4) = 0 THEN 4.00 ELSE 0.00 END
+      )
+    ) AS program_peak
+  FROM tmp_s2_programs tp
+  JOIN (
+    SELECT
+      s.rn,
+      s.ts,
+      LEAST(
+        100.00,
+        GREATEST(
+          28.00,
+          CASE
+            WHEN HOUR(s.ts) BETWEEN 10 AND 12 THEN 74.00
+            WHEN HOUR(s.ts) BETWEEN 13 AND 16 THEN 86.00
+            WHEN HOUR(s.ts) BETWEEN 17 AND 19 THEN 72.00
+            WHEN HOUR(s.ts) BETWEEN 20 AND 22 THEN 62.00
+            ELSE 48.00
+          END
+          + CASE WHEN WEEKDAY(s.ts) IN (5, 6) THEN 6.00 ELSE 0.00 END
+          + CASE WHEN MOD(s.rn, 6) = 0 THEN 5.00 ELSE 0.00 END
+        )
+      ) AS base_peak
+    FROM slots s
+  ) d2 ON 1 = 1
+) p
+  ON p.rn = d.rn AND p.ts = d.ts
+WHERE d.ts <= @s2_horizon_end
 ON DUPLICATE KEY UPDATE
-  program_id = VALUES(program_id),
-  zone = VALUES(zone),
-  place_name = VALUES(place_name),
-  congestion_level = VALUES(congestion_level),
-  measured_at = VALUES(measured_at);
+  prediction_base_time = VALUES(prediction_base_time),
+  predicted_avg_score_60m = VALUES(predicted_avg_score_60m),
+  predicted_peak_score_60m = VALUES(predicted_peak_score_60m),
+  predicted_level = VALUES(predicted_level),
+  model_version = VALUES(model_version),
+  source_type = VALUES(source_type),
+  created_at = VALUES(created_at);
 
 DROP TEMPORARY TABLE IF EXISTS tmp_s2_programs;
-DROP TEMPORARY TABLE IF EXISTS tmp_s2_booths;
 
 COMMIT;

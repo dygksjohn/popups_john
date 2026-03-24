@@ -21,6 +21,7 @@ import { formatKoreanTime } from "./aiCongestionViewModel";
 import { boothApi } from "../../../app/http/boothApi";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
+import { adminRealtimeApi } from "../../../app/http/adminRealtimeApi";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -190,11 +191,25 @@ const styles = `
   }
   .wt-hero-visitor {
     display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .wt-hero-visitor-item {
+    display: flex;
     align-items: center;
     gap: 10px;
+  }
+  .wt-hero-visitor-item + .wt-hero-visitor-item {
+    padding-top: 10px;
+    border-top: 1px dashed #e5e7eb;
+  }
+  .wt-hero-visitor-name {
     font-size: 15px;
-    color: #9ca3af;
-    font-weight: 500;
+    color: #111827;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .wt-hero-visitor-dot {
     width: 10px;
@@ -204,15 +219,6 @@ const styles = `
     box-shadow: 0 0 6px rgba(99,102,241,0.4);
     animation: wt-pulse 1.6s ease-in-out infinite;
     flex-shrink: 0;
-  }
-  .wt-hero-visitor strong {
-    font-weight: 800;
-    color: #111827;
-    font-size: 16px;
-  }
-  .wt-hero-visitor-sep {
-    color: #d1d5db;
-    font-size: 12px;
   }
   .wt-hero-footer {
     display: flex;
@@ -248,6 +254,33 @@ const styles = `
     display: flex;
     align-items: baseline;
     gap: 4px;
+  }
+  .wt-hero-kpi-split {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 40px;
+  }
+  .wt-hero-kpi-split-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .wt-hero-kpi-split-row + .wt-hero-kpi-split-row {
+    padding-top: 8px;
+    border-top: 1px dashed #e5e7eb;
+  }
+  .wt-hero-kpi-split-label {
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 700;
+  }
+  .wt-hero-kpi-split-value {
+    font-size: 18px;
+    color: #111827;
+    font-weight: 800;
+    letter-spacing: -0.01em;
   }
   .wt-hero-kpi-value {
     font-size: 38px;
@@ -611,6 +644,8 @@ const styles = `
       margin-top: 14px;
     }
     .wt-hero-kpi-value { font-size: 26px; }
+    .wt-hero-kpi-split-value { font-size: 16px; }
+    .wt-hero-visitor-name { font-size: 13px; }
     .wt-card { padding: 22px 18px; }
     .wt-program-list { grid-template-columns: 1fr; }
     .wt-booth-list { grid-template-columns: 1fr; }
@@ -744,6 +779,23 @@ function getWaitMinuteDisplay(waitMin, waitCount) {
   return `약 ${minutes}분`;
 }
 
+function getWaitTimeWithTeamDisplay(waitMin, waitCount) {
+  const minutes = toNumberOrNull(waitMin);
+  const count = toNumberOrNull(waitCount);
+  if (minutes === null || count === null) return "집계 중";
+  return `${getWaitMinuteDisplay(waitMin, waitCount)}(${count}팀)`;
+}
+
+function getCongestionScore(waitCount, waitMin) {
+  const count = toNumberOrNull(waitCount);
+  const minutes = toNumberOrNull(waitMin);
+  if (count === null || minutes === null) return null;
+
+  const minuteScore = Math.min(100, Math.max(0, minutes * 4));
+  const countScore = Math.min(100, Math.max(0, count * 5));
+  return Math.round(minuteScore * 0.7 + countScore * 0.3);
+}
+
 function getCongestionGuideText(tone) {
   if (tone === "relaxed") return "지금 참여하기 좋아요";
   if (tone === "normal") return "무난하게 이용 가능해요";
@@ -788,12 +840,39 @@ async function getAllBoothsByEvent(eventId) {
   return all;
 }
 
+async function settleWithConcurrency(items, worker, concurrency = 8) {
+  const list = Array.isArray(items) ? items : [];
+  if (list.length === 0) return [];
+
+  const size = Math.max(1, Math.min(concurrency, list.length));
+  const results = new Array(list.length);
+  let cursor = 0;
+
+  const runner = async () => {
+    while (true) {
+      const current = cursor;
+      cursor += 1;
+      if (current >= list.length) break;
+      try {
+        const value = await worker(list[current], current);
+        results[current] = { status: "fulfilled", value };
+      } catch (reason) {
+        results[current] = { status: "rejected", reason };
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: size }, () => runner()));
+  return results;
+}
+
 function mapBoothWait(detail) {
   if (!detail) return null;
 
   const waitCount = toNumberOrNull(detail.wait?.waitCount);
   const waitMin = toNumberOrNull(detail.wait?.waitMin);
   const congestion = getCongestionStatus(waitCount, waitMin);
+  const congestionScore = getCongestionScore(waitCount, waitMin);
 
   return {
     id: `booth-${detail.boothId}`,
@@ -806,6 +885,7 @@ function mapBoothWait(detail) {
     waitMin,
     congestionLabel: congestion.label,
     congestionTone: congestion.tone,
+    congestionScore,
     statusText: getStatusText(waitCount, waitMin),
     updatedAt: detail.wait?.updatedAt || detail.updatedAt || detail.createdAt || null,
   };
@@ -875,6 +955,7 @@ function WaitingContent({ eventId }) {
   const [congestionView, setCongestionView] = useState("program");
   const [congestionSortOrder, setCongestionSortOrder] = useState("busy");
   const [showAll, setShowAll] = useState(false);
+  const inFlightRef = useRef(false);
   const listRef = useRef(null);
   const INITIAL_COUNT = 6;
   const COLLAPSED_HEIGHT = 580;
@@ -891,61 +972,87 @@ function WaitingContent({ eventId }) {
         return;
       }
 
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
       if (!preserveLoading) setLoading(true);
 
       try {
-        const [eventResponse, booths, programListResponse] = await Promise.all([
-          eventApi.getEventDetail(numericEventId),
-          getAllBoothsByEvent(numericEventId),
-          programApi.getAllProgramsByEvent({
-            eventId: numericEventId,
-            category: "EXPERIENCE",
-            sort: "startAt,asc",
-            pageSize: 200,
-          }),
-        ]);
+        const response = await adminRealtimeApi.getWaitingStatusSnapshot(numericEventId);
+        const snapshot = unwrapData(response, null);
+        if (!snapshot || typeof snapshot !== "object") {
+          throw new Error("Waiting snapshot is empty.");
+        }
 
-        const programs = toArray(programListResponse);
-
-        const [boothDetails, programDetails] = await Promise.all([
-          Promise.allSettled(
-            booths.map((booth) => boothApi.getBoothDetail(booth.boothId)),
-          ),
-          Promise.allSettled(
-            programs.map((program) => programApi.getProgramDetail(program.programId)),
-          ),
-        ]);
-
-        const nextBoothRows = boothDetails
-          .map((result) =>
-            result.status === "fulfilled"
-              ? mapBoothWait(unwrapData(result.value, null))
-              : null,
-          )
-          .filter(Boolean)
+        const nextBoothRows = toArray(snapshot?.boothWaitSummaries)
+          .map((row) => {
+            const waitCount = toNumberOrNull(row?.waitCount);
+            const waitMin = toNumberOrNull(row?.waitMin);
+            const fallbackCongestion = getCongestionStatus(waitCount, waitMin);
+            return {
+              id: row?.id || `booth-${row?.boothId ?? ""}`,
+              boothId: Number(row?.boothId),
+              boothTitle: row?.boothTitle || row?.placeName || `부스 ${row?.boothId ?? "-"}`,
+              zone: String(row?.zone ?? "").toUpperCase(),
+              zoneLabel: row?.zoneLabel || formatZoneName(row?.zone),
+              subText: row?.subText || "",
+              waitCount,
+              waitMin,
+              congestionLabel: row?.congestionLabel || fallbackCongestion.label,
+              congestionTone: row?.congestionTone || fallbackCongestion.tone,
+              congestionScore:
+                toNumberOrNull(row?.congestionScore) ?? getCongestionScore(waitCount, waitMin),
+              statusText: getStatusText(waitCount, waitMin),
+              updatedAt: row?.updatedAt || null,
+            };
+          })
           .sort(compareBoothRows);
 
-        const now = new Date();
-        const nextProgramRows = programDetails
-          .map((result) => {
-            if (result.status !== "fulfilled") return null;
-            const detail = unwrapData(result.value, null);
-            if (!detail) return null;
-            if (!isProgramOperatingNow(detail.startAt, detail.endAt, now)) return null;
-            return mapProgramWait(detail);
+        const nextProgramRows = toArray(snapshot?.programWaitSummaries)
+          .map((row) => {
+            const waitCount = toNumberOrNull(row?.waitCount);
+            const waitMin = toNumberOrNull(row?.waitMin);
+            const fallbackCongestion = getCongestionStatus(waitCount, waitMin);
+            return {
+              id: row?.id || `program-${row?.programId ?? ""}`,
+              programId: Number(row?.programId),
+              programTitle: row?.programTitle || `프로그램 ${row?.programId ?? "-"}`,
+              startAt: row?.startAt || null,
+              endAt: row?.endAt || null,
+              timeText: row?.timeText || formatTimeRange(row?.startAt, row?.endAt),
+              waitCount,
+              waitMin,
+              congestionLabel: row?.congestionLabel || fallbackCongestion.label,
+              congestionTone: row?.congestionTone || fallbackCongestion.tone,
+              statusText: getStatusText(waitCount, waitMin),
+              updatedAt: row?.updatedAt || null,
+            };
           })
-          .filter(Boolean)
           .sort(compareProgramRows);
 
-        setEventDetail(unwrapData(eventResponse, null));
+        const eventSummary = snapshot?.eventSummary || {};
+        setEventDetail({
+          eventId: eventSummary?.eventId ?? numericEventId,
+          eventName: eventSummary?.eventName || `행사 ${numericEventId}`,
+          status: eventSummary?.status || "",
+          startAt: eventSummary?.startAt || null,
+          endAt: eventSummary?.endAt || null,
+          location: eventSummary?.location || "",
+        });
         setProgramWaitingRows(nextProgramRows);
         setBoothWaitingRows(nextBoothRows);
         setErrorMsg("");
-        setLastLoadedAt(new Date());
+        setLastLoadedAt(
+          snapshot?.metadata?.serverTime ||
+          snapshot?.waitingSummary?.latestUpdatedAt ||
+          new Date(),
+        );
+        return;
+
       } catch (error) {
         console.error("[WaitingStatus] load failed:", error);
         setErrorMsg("대기 현황 데이터를 불러오지 못했습니다.");
       } finally {
+        inFlightRef.current = false;
         if (!preserveLoading) setLoading(false);
       }
     },
@@ -961,7 +1068,10 @@ function WaitingContent({ eventId }) {
   }, [loadData]);
 
   useEffect(() => {
-    if (!loading) loadData({ preserveLoading: true });
+    if (!loading) {
+      if (document.visibilityState === "hidden") return;
+      loadData({ preserveLoading: true });
+    }
   }, [tick, loadData, loading]);
 
   useEffect(() => {
@@ -1007,12 +1117,6 @@ function WaitingContent({ eventId }) {
       setCongestionView("program");
     }
   }, [congestionView, sortedBoothRows.length, sortedProgramRows.length]);
-  const measuredProgramRows = useMemo(
-    () =>
-      sortedProgramRows.filter((row) => row.waitCount !== null && row.waitMin !== null),
-    [sortedProgramRows],
-  );
-
   const summary = useMemo(() => {
     const operatingProgramCount = sortedProgramRows.length;
     const waitingProgramRows = sortedProgramRows.filter(
@@ -1024,20 +1128,66 @@ function WaitingContent({ eventId }) {
     );
     const immediateProgramCount = immediateProgramRows.length;
     const busiestProgram = waitingProgramRows[0] ?? sortedProgramRows[0] ?? null;
-    const maxWaitMin = waitingProgramRows.length
-      ? Math.max(...waitingProgramRows.map((row) => safeNumber(row.waitMin)))
+    const measuredProgramRows = sortedProgramRows.filter(
+      (row) => toNumberOrNull(row.waitMin) !== null,
+    );
+    const averageProgramWaitMin = measuredProgramRows.length
+      ? Math.round(
+          measuredProgramRows.reduce(
+            (total, row) => total + safeNumber(row.waitMin),
+            0,
+          ) / measuredProgramRows.length,
+        )
+      : 0;
+
+    const operatingBoothCount = sortedBoothRows.length;
+    const waitingBoothRows = sortedBoothRows.filter(
+      (row) => toNumberOrNull(row.waitMin) !== null && safeNumber(row.waitMin) > 0,
+    );
+    const waitingBoothCount = waitingBoothRows.length;
+    const busiestBooth = waitingBoothRows[0] ?? sortedBoothRows[0] ?? null;
+    const immediateBoothRows = sortedBoothRows.filter(
+      (row) => toNumberOrNull(row.waitMin) === 0,
+    );
+    const immediateBoothCount = immediateBoothRows.length;
+    const measuredBoothRows = sortedBoothRows.filter(
+      (row) => toNumberOrNull(row.waitMin) !== null,
+    );
+    const averageBoothWaitMin = measuredBoothRows.length
+      ? Math.round(
+          measuredBoothRows.reduce(
+            (total, row) => total + safeNumber(row.waitMin),
+            0,
+          ) / measuredBoothRows.length,
+        )
+      : 0;
+
+    const maxWaitMinCandidates = [
+      ...waitingProgramRows.map((row) => safeNumber(row.waitMin)),
+      ...waitingBoothRows.map((row) => safeNumber(row.waitMin)),
+    ];
+    const maxWaitMin = maxWaitMinCandidates.length
+      ? Math.max(...maxWaitMinCandidates)
       : 0;
 
     return {
       operatingProgramCount,
+      operatingBoothCount,
       waitingProgramRows,
       waitingProgramCount,
+      waitingBoothRows,
+      waitingBoothCount,
       immediateProgramRows,
       immediateProgramCount,
+      immediateBoothRows,
+      immediateBoothCount,
+      averageProgramWaitMin,
+      averageBoothWaitMin,
       maxWaitMin,
       busiestProgram,
+      busiestBooth,
     };
-  }, [measuredProgramRows, sortedProgramRows]);
+  }, [sortedBoothRows, sortedProgramRows]);
 
   const zoneDistribution = useMemo(() => {
     const map = new Map();
@@ -1050,12 +1200,18 @@ function WaitingContent({ eventId }) {
         waitTeamTotal: 0,
         waitMinTotal: 0,
         measuredCount: 0,
+        congestionScoreTotal: 0,
+        congestionScoreCount: 0,
       };
       current.boothCount += 1;
       if (row.waitCount !== null) current.waitTeamTotal += safeNumber(row.waitCount);
       if (row.waitMin !== null) {
         current.waitMinTotal += safeNumber(row.waitMin);
         current.measuredCount += 1;
+      }
+      if (row.congestionScore !== null && row.congestionScore !== undefined) {
+        current.congestionScoreTotal += safeNumber(row.congestionScore);
+        current.congestionScoreCount += 1;
       }
       map.set(key, current);
     });
@@ -1066,69 +1222,44 @@ function WaitingContent({ eventId }) {
         averageWaitMin: item.measuredCount
           ? Math.round(item.waitMinTotal / item.measuredCount)
           : 0,
+        averageCongestionScore: item.congestionScoreCount
+          ? Math.round(item.congestionScoreTotal / item.congestionScoreCount)
+          : 0,
       }))
       .sort(
         (a, b) =>
+          b.averageCongestionScore - a.averageCongestionScore ||
           b.waitTeamTotal - a.waitTeamTotal ||
           b.averageWaitMin - a.averageWaitMin ||
           a.zoneLabel.localeCompare(b.zoneLabel, "ko-KR"),
       );
   }, [sortedBoothRows]);
 
-  const zoneMaxWaitTeam = useMemo(
-    () => Math.max(1, ...zoneDistribution.map((item) => safeNumber(item.waitTeamTotal))),
-    [zoneDistribution],
-  );
-
   const programVisible = useStaggerIn(orderedProgramRows.length, 60);
   const boothVisible = useStaggerIn(orderedBoothRows.length, 40);
   const visibleBoothRows = useMemo(() => orderedBoothRows.slice(0, 12), [orderedBoothRows]);
 
-  const lastLoadedLabel = lastLoadedAt.toLocaleTimeString("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  const lastLoadedLabel = (() => {
+    const date = toDateOrNull(lastLoadedAt);
+    if (!date) return "--:--:--";
+    return date.toLocaleTimeString("ko-KR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  })();
 
   const eventName =
     eventDetail?.eventName || eventDetail?.title || `행사 ${numericEventId}`;
 
-  const heroProgram =
-    summary.waitingProgramCount > 0 ? summary.busiestProgram : null;
-  const heroProgramPreview = summary.immediateProgramRows
-    .slice(0, 2)
-    .map((row) => row.programTitle)
-    .join(", ");
-  const heroTone = heroProgram
-    ? {
-        tone: heroProgram.congestionTone,
-        label: heroProgram.congestionLabel,
-      }
-    : summary.immediateProgramCount > 0
-      ? { tone: "relaxed", label: "여유" }
-      : { tone: "pending", label: "집계 중" };
-  const heroLabel = heroProgram
-    ? "현재 가장 인기있는 프로그램"
-    : summary.immediateProgramCount > 0
-      ? "지금 바로 참여하기 좋은 프로그램"
-      : "프로그램 대기 정보";
-  const heroTitle = heroProgram
-    ? heroProgram.programTitle
-    : summary.immediateProgramCount > 0
-      ? `${summary.immediateProgramCount}개 프로그램 즉시 참여 가능`
-      : "대기 정보 집계 중";
-  const heroDescription = heroProgram
-    ? `${getWaitMinuteDisplay(heroProgram.waitMin, heroProgram.waitCount)} · ${getWaitCountDisplay(heroProgram.waitCount, heroProgram.waitMin)}`
-    : summary.immediateProgramCount > 0
-      ? `현재 대기 없이 참여 가능한 프로그램이 ${summary.immediateProgramCount}개 있어요.`
-      : "운영 프로그램의 대기 정보를 집계 중입니다.";
-  const heroSubDescription = heroProgram
-    ? getCongestionGuideText(heroProgram.congestionTone)
-    : summary.immediateProgramCount > 0
-      ? heroProgramPreview
-        ? `추천 프로그램: ${heroProgramPreview}`
-        : "프로그램 목록에서 즉시 참여 가능한 항목을 확인해 보세요."
-      : "잠시 후 다시 확인해 주세요.";
+  const heroProgram = summary.busiestProgram;
+  const heroBooth = summary.busiestBooth;
+  const heroProgramWaitText = heroProgram
+    ? getWaitTimeWithTeamDisplay(heroProgram.waitMin, heroProgram.waitCount)
+    : "집계 중";
+  const heroBoothWaitText = heroBooth
+    ? getWaitTimeWithTeamDisplay(heroBooth.waitMin, heroBooth.waitCount)
+    : "집계 중";
 
   const isProgramEmpty = !loading && sortedProgramRows.length === 0;
   const isBoothEmpty = !loading && sortedBoothRows.length === 0;
@@ -1152,10 +1283,12 @@ function WaitingContent({ eventId }) {
         : isZoneEmpty
   );
 
-  const animOperating = useCountUp(summary.operatingProgramCount, 900, 0);
-  const animImmediate = useCountUp(summary.immediateProgramCount, 900, 80);
-  const animWaiting = useCountUp(summary.waitingProgramCount, 900, 160);
-  const animMaxWait = useCountUp(summary.maxWaitMin, 900, 240);
+  const animOperatingProgram = useCountUp(summary.operatingProgramCount, 900, 0);
+  const animOperatingBooth = useCountUp(summary.operatingBoothCount, 900, 80);
+  const animImmediateProgram = useCountUp(summary.immediateProgramCount, 900, 160);
+  const animImmediateBooth = useCountUp(summary.immediateBoothCount, 900, 240);
+  const animAverageProgramWait = useCountUp(summary.averageProgramWaitMin, 900, 320);
+  const animAverageBoothWait = useCountUp(summary.averageBoothWaitMin, 900, 400);
 
   if (loading && !eventDetail) {
     return <PageLoading message="대기현황을 불러오는 중입니다" />;
@@ -1171,36 +1304,65 @@ function WaitingContent({ eventId }) {
 
   const heroKpis = [
     {
-      label: "운영 프로그램",
-      value: animOperating,
+      label: "운영프로그램",
+      value: animOperatingProgram,
       unit: "개",
-      barValue: Math.min(100, summary.operatingProgramCount * 10),
+      barValue:
+        summary.operatingProgramCount > 0
+          ? Math.round(
+              (summary.waitingProgramCount / summary.operatingProgramCount) * 100,
+            )
+          : 0,
       barColor: "#6366f1",
-      sub: "운영 중",
+      sub: `대기 중 ${summary.waitingProgramCount}개`,
+    },
+    {
+      label: "운영부스",
+      value: animOperatingBooth,
+      unit: "개",
+      barValue:
+        summary.operatingBoothCount > 0
+          ? Math.round((summary.waitingBoothCount / summary.operatingBoothCount) * 100)
+          : 0,
+      barColor: "#0ea5e9",
+      sub: `대기 중 ${summary.waitingBoothCount}개`,
     },
     {
       label: "즉시 참여 가능",
-      value: animImmediate,
-      unit: "개",
-      barValue: summary.operatingProgramCount > 0 ? Math.round((summary.immediateProgramCount / summary.operatingProgramCount) * 100) : 0,
+      splitRows: [
+        { label: "프로그램", value: `${animImmediateProgram}개` },
+        { label: "부스", value: `${animImmediateBooth}개` },
+      ],
+      showProgress: false,
+      barValue:
+        summary.operatingProgramCount + summary.operatingBoothCount > 0
+          ? Math.round(
+              ((summary.immediateProgramCount + summary.immediateBoothCount) /
+                (summary.operatingProgramCount + summary.operatingBoothCount)) *
+                100,
+            )
+          : 0,
       barColor: "#059669",
-      sub: "바로 참여 가능",
+      sub: "바로 참여 가능한 항목",
     },
     {
-      label: "대기 중",
-      value: animWaiting,
-      unit: "개",
-      barValue: summary.operatingProgramCount > 0 ? Math.round((summary.waitingProgramCount / summary.operatingProgramCount) * 100) : 0,
-      barColor: "#d97706",
-      sub: "대기 발생",
-    },
-    {
-      label: "최대 대기시간",
-      value: summary.waitingProgramCount > 0 ? animMaxWait : 0,
-      unit: summary.waitingProgramCount > 0 ? "분" : "",
-      barValue: Math.min(100, summary.maxWaitMin * 2),
-      barColor: summary.maxWaitMin >= 20 ? "#dc2626" : summary.maxWaitMin >= 10 ? "#d97706" : "#059669",
-      sub: summary.waitingProgramCount > 0 ? `${summary.waitingProgramCount}개 대기 중` : "대기 없음",
+      label: "평균 대기 시간",
+      splitRows: [
+        { label: "프로그램", value: `${animAverageProgramWait}분` },
+        { label: "부스", value: `${animAverageBoothWait}분` },
+      ],
+      showProgress: false,
+      barValue: Math.min(
+        100,
+        Math.max(summary.averageProgramWaitMin, summary.averageBoothWaitMin) * 4,
+      ),
+      barColor:
+        Math.max(summary.averageProgramWaitMin, summary.averageBoothWaitMin) >= 20
+          ? "#dc2626"
+          : Math.max(summary.averageProgramWaitMin, summary.averageBoothWaitMin) >= 10
+            ? "#d97706"
+            : "#059669",
+      sub: "항목별 평균 대기 기준",
     },
   ];
 
@@ -1228,24 +1390,47 @@ function WaitingContent({ eventId }) {
             </div>
             <hr className="wt-hero-divider" />
             <div className="wt-hero-visitor">
-              <span className="wt-hero-visitor-dot" />
-              {heroLabel}
-              <span className="wt-hero-visitor-sep">·</span>
-              {heroDescription}
+              <div className="wt-hero-visitor-item">
+                <span className="wt-hero-visitor-dot" />
+                <div className="wt-hero-visitor-name">
+                  {`가장 인기있는 프로그램 : ${heroProgram?.programTitle ?? "집계 중"}, 대기시간: ${heroProgramWaitText}`}
+                </div>
+              </div>
+              <div className="wt-hero-visitor-item">
+                <span className="wt-hero-visitor-dot" />
+                <div className="wt-hero-visitor-name">
+                  {`가장 인기있는 부스 : ${heroBooth?.boothTitle ?? "집계 중"}, 대기시간: ${heroBoothWaitText}`}
+                </div>
+              </div>
             </div>
           </div>
           <div className="wt-hero-kpi-grid">
             {heroKpis.map((item) => (
               <div key={item.label} className="wt-hero-kpi">
                 <div className="wt-hero-kpi-label">{item.label}</div>
-                <div className="wt-hero-kpi-row">
-                  <span className="wt-hero-kpi-value">{item.value}</span>
-                  {item.unit ? <span className="wt-hero-kpi-unit">{item.unit}</span> : null}
-                </div>
-                <div className="wt-hero-kpi-bar">
-                  <div className="wt-hero-kpi-bar-fill" style={{ width: `${item.barValue}%`, background: item.barColor }} />
-                </div>
-                <div className="wt-hero-kpi-sub">{item.sub}</div>
+                {item.splitRows ? (
+                  <div className="wt-hero-kpi-split">
+                    {item.splitRows.map((row) => (
+                      <div key={`${item.label}-${row.label}`} className="wt-hero-kpi-split-row">
+                        <span className="wt-hero-kpi-split-label">{row.label} :</span>
+                        <span className="wt-hero-kpi-split-value">{row.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="wt-hero-kpi-row">
+                    <span className="wt-hero-kpi-value">{item.value}</span>
+                    {item.unit ? <span className="wt-hero-kpi-unit">{item.unit}</span> : null}
+                  </div>
+                )}
+                {item.showProgress === false ? null : (
+                  <>
+                    <div className="wt-hero-kpi-bar">
+                      <div className="wt-hero-kpi-bar-fill" style={{ width: `${item.barValue}%`, background: item.barColor }} />
+                    </div>
+                    <div className="wt-hero-kpi-sub">{item.sub}</div>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -1392,7 +1577,10 @@ function WaitingContent({ eventId }) {
             >
             <div className="wt-zone-list">
               {zoneDistribution.map((item) => {
-                const zonePct = Math.round((safeNumber(item.waitTeamTotal) / zoneMaxWaitTeam) * 100);
+                const zonePct = Math.max(
+                  0,
+                  Math.min(100, safeNumber(item.averageCongestionScore)),
+                );
                 return (
                   <div key={item.zoneLabel} className="wt-zone-item">
                     <div className="wt-zone-head">
