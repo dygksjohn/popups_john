@@ -4,6 +4,7 @@ package com.popups.pupoo.auth.api;
 import com.popups.pupoo.auth.application.AuthService;
 import com.popups.pupoo.auth.application.GoogleOAuthService;
 import com.popups.pupoo.auth.application.KakaoOAuthService;
+import com.popups.pupoo.auth.application.NaverOAuthService;
 import com.popups.pupoo.auth.application.PasswordResetService;
 import com.popups.pupoo.auth.application.SignupSessionService;
 import com.popups.pupoo.auth.dto.EmailVerificationRequestResponse;
@@ -15,6 +16,8 @@ import com.popups.pupoo.auth.dto.KakaoOauthLoginRequest;
 import com.popups.pupoo.auth.dto.KakaoOauthLoginResponse;
 import com.popups.pupoo.auth.dto.LoginRequest;
 import com.popups.pupoo.auth.dto.LoginResponse;
+import com.popups.pupoo.auth.dto.NaverOauthLoginRequest;
+import com.popups.pupoo.auth.dto.NaverOauthLoginResponse;
 import com.popups.pupoo.auth.dto.PasswordResetConfirmRequest;
 import com.popups.pupoo.auth.dto.PasswordResetRequest;
 import com.popups.pupoo.auth.dto.PasswordResetRequestResponse;
@@ -58,6 +61,7 @@ public class AuthController {
     private final SignupSessionService signupSessionService;
     private final KakaoOAuthService kakaoOAuthService;
     private final GoogleOAuthService googleOAuthService;
+    private final NaverOAuthService naverOAuthService;
     private final PasswordResetService passwordResetService;
     private final boolean refreshCookieSecure;
     private final String refreshCookiePath;
@@ -66,6 +70,7 @@ public class AuthController {
                           SignupSessionService signupSessionService,
                           KakaoOAuthService kakaoOAuthService,
                           GoogleOAuthService googleOAuthService,
+                          NaverOAuthService naverOAuthService,
                           PasswordResetService passwordResetService,
                           @Value("${auth.refresh.cookie.secure:false}") boolean refreshCookieSecure,
                           @Value("${auth.refresh.cookie.path:/api/auth}") String refreshCookiePath) {
@@ -73,6 +78,7 @@ public class AuthController {
         this.signupSessionService = signupSessionService;
         this.kakaoOAuthService = kakaoOAuthService;
         this.googleOAuthService = googleOAuthService;
+        this.naverOAuthService = naverOAuthService;
         this.passwordResetService = passwordResetService;
         this.refreshCookieSecure = refreshCookieSecure;
         this.refreshCookiePath = refreshCookiePath;
@@ -162,6 +168,20 @@ public class AuthController {
             HttpServletResponse response
     ) {
         return ApiResponse.success(googleOAuthService.login(req.getCode(), req.getRedirectUri(), response));
+    }
+
+    /**
+     * 네이버 로그인 완료 후 토큰을 발급한다.
+     * 기존 회원은 access token과 refresh cookie를 받고, 신규 회원은 가입에 필요한 추가 정보를 응답받는다.
+     */
+    @PostMapping("/oauth/naver/login")
+    public ApiResponse<NaverOauthLoginResponse> naverLogin(
+            @RequestBody NaverOauthLoginRequest req,
+            HttpServletResponse response
+    ) {
+        return ApiResponse.success(
+                naverOAuthService.login(req.getCode(), req.getState(), req.getRedirectUri(), response)
+        );
     }
 
     /**
