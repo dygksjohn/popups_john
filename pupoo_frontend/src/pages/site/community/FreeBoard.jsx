@@ -548,7 +548,6 @@ export default function FreeBoard() {
   );
 
   const [allItems, setAllItems] = useState([]);
-  const [commentCountMap, setCommentCountMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
@@ -623,36 +622,6 @@ export default function FreeBoard() {
     };
   }, []);
 
-  const loadCommentCounts = useCallback(async (rows) => {
-    const targets = rows.filter((row) => commentCountMap[row.postId] == null);
-    if (targets.length === 0) return;
-
-    const pairs = await Promise.all(
-      targets.map(async (row) => {
-        try {
-          const d = await postReplyApi.list(row.postId, 0, 1);
-          const total = Number(d?.totalElements);
-          const count = Number.isFinite(total)
-            ? total
-            : Array.isArray(d?.content)
-              ? d.content.length
-              : 0;
-          return [row.postId, count];
-        } catch {
-          return [row.postId, 0];
-        }
-      }),
-    );
-
-    setCommentCountMap((prev) => {
-      const next = { ...prev };
-      pairs.forEach(([postId, count]) => {
-        next[postId] = count;
-      });
-      return next;
-    });
-  }, [commentCountMap]);
-
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return allItems;
@@ -671,13 +640,13 @@ export default function FreeBoard() {
         if (diff !== 0) return diff;
       } else if (sortKey === "comments") {
         const diff =
-          (commentCountMap[b?.postId] ?? 0) - (commentCountMap[a?.postId] ?? 0);
+          Number(b?.commentCount ?? 0) - Number(a?.commentCount ?? 0);
         if (diff !== 0) return diff;
       }
       return toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
     });
     return rows;
-  }, [filteredItems, sortKey, commentCountMap]);
+  }, [filteredItems, sortKey]);
 
   const totalElements = sortedItems.length;
   const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
@@ -695,18 +664,6 @@ export default function FreeBoard() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  useEffect(() => {
-    if (pagedItems.length > 0) {
-      loadCommentCounts(pagedItems).catch(() => {});
-    }
-  }, [pagedItems, loadCommentCounts]);
-
-  useEffect(() => {
-    if (sortKey === "comments" && filteredItems.length > 0) {
-      loadCommentCounts(filteredItems).catch(() => {});
-    }
-  }, [sortKey, filteredItems, loadCommentCounts]);
-
   const loadReplies = useCallback(async (postId) => {
     setReplyLoading(true);
     setReplyError("");
@@ -714,10 +671,6 @@ export default function FreeBoard() {
       const d = await postReplyApi.list(postId, 0, 200);
       const list = Array.isArray(d?.content) ? d.content : [];
       setReplies(list);
-      setCommentCountMap((prev) => ({
-        ...prev,
-        [postId]: Number(d?.totalElements ?? list.length) || 0,
-      }));
     } catch (err) {
       console.error("[FreeBoard] reply fetch failed:", err);
       setReplies([]);
@@ -1053,9 +1006,9 @@ export default function FreeBoard() {
                         <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {item.postTitle}
                         </span>
-                        {(commentCountMap[item.postId] ?? 0) > 0 && (
+                        {Number(item.commentCount ?? 0) > 0 && (
                           <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0 }}>
-                            ({commentCountMap[item.postId]})
+                            ({Number(item.commentCount ?? 0)})
                           </span>
                         )}
                       </div>
@@ -1114,4 +1067,3 @@ export default function FreeBoard() {
     </>
   );
 }
-

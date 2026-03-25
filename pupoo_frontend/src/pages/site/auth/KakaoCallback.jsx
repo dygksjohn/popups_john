@@ -44,9 +44,7 @@ export default function KakaoCallback() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const redirectUri =
-    import.meta.env.VITE_KAKAO_REDIRECT_URI ||
-    `${window.location.origin}/auth/kakao/callback`;
+  const redirectUri = `${window.location.origin}/auth/kakao/callback`;
   const resolvePostLoginRedirect = () => {
     const target = sessionStorage.getItem("post_login_redirect") || "/";
     return target.startsWith("/auth/") ? "/" : target;
