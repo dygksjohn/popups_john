@@ -45,6 +45,9 @@ import AdminLogManage from "../adminlog/AdminLogManage";
 import ReportManage from "../report/ReportManage";
 /**/
 
+const DASHBOARD_TARGET_KEY = "pupoo_admin_dashboard_target";
+const DASHBOARD_TARGET_EVENT = "pupoo-admin-dashboard-target";
+
 /* global animation CSS */
 
 
@@ -318,6 +321,38 @@ export default function Dashboard() {
     syncViewport();
     window.addEventListener("resize", syncViewport);
     return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const syncDashboardTarget = (nextPage) => {
+      if (!nextPage || !DEFAULT_PAGE_TABS[nextPage]) return;
+      setNav(nextPage);
+      setSubTab(null);
+      try {
+        sessionStorage.removeItem(DASHBOARD_TARGET_KEY);
+      } catch {
+        // ignore storage failures
+      }
+    };
+
+    const readStoredTarget = () => {
+      try {
+        return sessionStorage.getItem(DASHBOARD_TARGET_KEY);
+      } catch {
+        return null;
+      }
+    };
+
+    syncDashboardTarget(readStoredTarget());
+
+    const handleDashboardTarget = (event) => {
+      syncDashboardTarget(event?.detail?.page || readStoredTarget());
+    };
+
+    window.addEventListener(DASHBOARD_TARGET_EVENT, handleDashboardTarget);
+    return () => window.removeEventListener(DASHBOARD_TARGET_EVENT, handleDashboardTarget);
   }, []);
 
   const isMobile = viewportWidth < 1024;

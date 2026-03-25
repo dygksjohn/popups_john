@@ -45,7 +45,7 @@ export default function NaverCallback() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const redirectUri = `${window.location.origin}/naver/callback`;
+  const redirectUri = `${window.location.origin}${location.pathname}`;
 
   const resolvePostLoginRedirect = () => {
     const target = sessionStorage.getItem("post_login_redirect") || "/";

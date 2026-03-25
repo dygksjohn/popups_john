@@ -89,7 +89,7 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const kakaoRedirectUri = `${window.location.origin}/auth/kakao/callback`;
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
-  const naverRedirectUri = `${window.location.origin}/naver/callback`;
+  const naverRedirectUri = `${window.location.origin}/auth/naver/callback`;
   const NAVER_CLIENT_ID = import.meta.env.VITE_NAVER_CLIENT_ID;
   const resolvePostLoginRedirect = () => {
     const target =

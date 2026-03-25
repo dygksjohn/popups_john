@@ -165,8 +165,15 @@ function ComingSoon() {
 function PublicOnly({ children }) {
   const { isAuthed } = useAuth();
   const location = useLocation();
+  const hasPendingSocialJoin =
+    typeof window !== "undefined" &&
+    (
+      sessionStorage.getItem("kakao_provider_uid") ||
+      sessionStorage.getItem("naver_provider_uid") ||
+      sessionStorage.getItem("google_provider_uid")
+    );
 
-  if (isAuthed) {
+  if (isAuthed && !hasPendingSocialJoin) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
   }
 
