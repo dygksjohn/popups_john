@@ -61,23 +61,32 @@ def _ensure_collection(client: MilvusClient, collection_name: str, dim: int) -> 
     - chunk_text: varchar
     """
     if client.has_collection(collection_name):
-        return
+        try:
+            indexes = client.list_indexes(collection_name=collection_name)
+        except Exception:
+            indexes = []
+        if indexes:
+            return
+        logger.warning(
+            "Milvus 컬렉션은 존재하지만 인덱스가 없어 재생성합니다. collection=%s",
+            collection_name,
+        )
+    else:
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=dim),
+            FieldSchema(name="policy_id", dtype=DataType.VARCHAR, max_length=128),
+            FieldSchema(name="category", dtype=DataType.VARCHAR, max_length=64),
+            FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=256),
+            FieldSchema(name="chunk_text", dtype=DataType.VARCHAR, max_length=2048),
+        ]
+        schema = CollectionSchema(fields=fields, description="Policy RAG vectors")
 
-    fields = [
-        FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
-        FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=dim),
-        FieldSchema(name="policy_id", dtype=DataType.VARCHAR, max_length=128),
-        FieldSchema(name="category", dtype=DataType.VARCHAR, max_length=64),
-        FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=256),
-        FieldSchema(name="chunk_text", dtype=DataType.VARCHAR, max_length=2048),
-    ]
-    schema = CollectionSchema(fields=fields, description="Policy RAG vectors")
-
-    client.create_collection(
-        collection_name=collection_name,
-        schema=schema,
-        shards_num=2,
-    )
+        client.create_collection(
+            collection_name=collection_name,
+            schema=schema,
+            shards_num=2,
+        )
 
     metric_type = _PRIMARY_METRIC_TYPE
     index_params = IndexParams()
@@ -227,3 +236,4 @@ class PolicyVectorStore:
             search_params={"metric_type": _FALLBACK_METRIC_TYPE, "params": {"nprobe": 16}},
             output_fields=["policy_id", "category", "source", "chunk_text"],
         )
+        return results
