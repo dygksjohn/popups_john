@@ -234,7 +234,7 @@ function EventThumb({ ev }) {
       <div
         className="ev-card-thumb-fallback"
         style={{
-          display: "flex",
+          display: ev.image ? "none" : "flex",
           background: "linear-gradient(135deg, rgb(144, 196, 80) 0%, rgb(99, 234, 241) 100%)",
         }}
       >
