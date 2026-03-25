@@ -520,6 +520,10 @@ export default function App() {
             element={<Experience />}
           />
           <Route
+            path="/program/programstatus/:eventId?"
+            element={<ProgramStatus />}
+          />
+          <Route
             path="/program/current/:eventId?"
             element={<ProgramStatus statusKey="current" />}
           />
