@@ -191,7 +191,7 @@ const styles = `
   .ps-card-current-meta { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; }
   .ps-card-current-meta-row { display:flex; align-items:center; gap:6px; font-size:14px; color:#6b7280; }
   .ps-card-current-footer { margin-top:auto; padding-top:12px; border-top:1px solid #f1f3f5; }
-  .ps-card-current-progress-wrap { margin-bottom:10px; }
+  .ps-card-current-progress-wrap { display:none; }
   .ps-card-current-progress-label { display:flex; justify-content:space-between; font-size:13px; color:#9ca3af; margin-bottom:5px; }
   .ps-card-current-progress-track { height:6px; background:#f1f3f5; border-radius:100px; overflow:hidden; }
   .ps-card-current-progress-fill { height:100%; border-radius:100px; background:linear-gradient(90deg, #90C450, #6366f1); transition:width 0.6s ease; }

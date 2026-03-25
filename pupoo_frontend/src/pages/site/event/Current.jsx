@@ -104,7 +104,7 @@ const styles = `
   .ev-event-meta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
   .ev-event-meta-row { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #6b7280; }
   .ev-event-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #f1f3f5; }
-  .ev-progress-wrap { margin-bottom: 10px; }
+  .ev-progress-wrap { display: none; }
   .ev-progress-label { display: flex; justify-content: space-between; font-size: 13px; color: #9ca3af; margin-bottom: 5px; }
   .ev-progress-track { height: 6px; background: #f1f3f5; border-radius: 100px; overflow: hidden; }
   .ev-progress-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, #90C450, #6366f1); transition: width 0.6s ease; }
@@ -143,7 +143,7 @@ const styles = `
     .ev-event-meta { gap: 3px; margin-bottom: 10px; }
     .ev-event-meta-row { font-size: 12.5px; }
     .ev-event-footer { padding-top: 10px; }
-    .ev-progress-wrap { margin-bottom: 8px; }
+    .ev-progress-wrap { display: none; }
     .ev-card-btn { height: 38px; font-size: 13px; border-radius: 9px; }
   }
 `;
