@@ -7,6 +7,9 @@ import { useSiteChatBot } from "./useSiteChatBot";
 const FF = "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif";
 const ACCENT = "#90C450";
 const ACCENT_GRADIENT = `linear-gradient(135deg, #90C450 0%, #7BC043 100%)`;
+const DARK = "#111827";
+const DARK_SURFACE = "#1F2937";
+const DARK_BORDER = "#374151";
 
 const chatStyles = `
 @keyframes scb-slideUp {
@@ -23,7 +26,7 @@ const chatStyles = `
 }
 .scb-msg { animation: scb-msgPop .24s ease-out; }
 .scb-panel::-webkit-scrollbar { width: 6px; }
-.scb-panel::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 999px; }
+.scb-panel::-webkit-scrollbar-thumb { background: #374151; border-radius: 999px; }
 `;
 
 function fmt(date) {
@@ -62,14 +65,14 @@ function Bubble({ msg, isLast, mobile = false }) {
           style={{
             padding: mobile ? "10px 12px" : "11px 14px",
             borderRadius: isBot ? "6px 16px 16px 16px" : "16px 6px 16px 16px",
-            background: isBot ? "#fff" : ACCENT_GRADIENT,
-            color: isBot ? "#374151" : "#fff",
+            background: isBot ? DARK_SURFACE : ACCENT_GRADIENT,
+            color: isBot ? "#e5e7eb" : "#fff",
             fontSize: mobile ? 12.5 : 13.5,
             lineHeight: 1.65,
             wordBreak: "keep-all",
             whiteSpace: "pre-line",
             boxShadow: isBot
-              ? "0 1px 4px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03)"
+              ? "none"
               : "0 3px 12px rgba(144,196,80,0.22)",
           }}
         >
@@ -89,8 +92,8 @@ function Typing({ mobile = false }) {
         style={{
           padding: mobile ? "10px 14px" : "11px 18px",
           borderRadius: "6px 16px 16px 16px",
-          background: "#fff",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03)",
+          background: DARK_SURFACE,
+          boxShadow: "none",
           display: "flex",
           gap: 5,
           alignItems: "center",
@@ -118,10 +121,10 @@ function QuickActionsSection({ actions, onSelect, mobile = false }) {
   return (
     <div style={{ width: "100%", display: "grid", gap: 8 }}>
       <div style={{ display: "grid", gap: 4 }}>
-        <div style={{ fontSize: mobile ? 15 : 16, fontWeight: 700, color: "#1F2937", textAlign: "left" }}>
+        <div style={{ fontSize: mobile ? 15 : 16, fontWeight: 700, color: "#f3f4f6", textAlign: "left" }}>
           푸리가 도와드릴 수 있어요
         </div>
-        <div style={{ fontSize: mobile ? 11.5 : 12, color: "#6B7280", lineHeight: 1.5, textAlign: "left" }}>
+        <div style={{ fontSize: mobile ? 11.5 : 12, color: "#9CA3AF", lineHeight: 1.5, textAlign: "left" }}>
           궁금한 걸 바로 눌러도 되고, 자유롭게 물어봐도 돼요.
         </div>
       </div>
@@ -138,15 +141,15 @@ function QuickActionsSection({ actions, onSelect, mobile = false }) {
               gap: 4,
               padding: mobile ? "11px 12px" : "12px 14px",
               borderRadius: 14,
-              border: "1px solid #d4edbc",
-              background: "#f6fbf0",
+              border: `1px solid ${DARK_BORDER}`,
+              background: DARK_SURFACE,
               cursor: "pointer",
               textAlign: "left",
               fontFamily: FF,
             }}
           >
-            <div style={{ fontSize: mobile ? 12.5 : 13, fontWeight: 700, color: "#3d6b12" }}>{action.label}</div>
-            <div style={{ fontSize: mobile ? 10.5 : 11.5, color: "#5a8a2a", lineHeight: 1.5 }}>{action.description}</div>
+            <div style={{ fontSize: mobile ? 12.5 : 13, fontWeight: 700, color: ACCENT }}>{action.label}</div>
+            <div style={{ fontSize: mobile ? 10.5 : 11.5, color: "#9CA3AF", lineHeight: 1.5 }}>{action.description}</div>
           </button>
         ))}
       </div>
@@ -161,8 +164,8 @@ function ShortcutStrip({ actions, onSelect, mobile = false }) {
         display: "flex",
         gap: 6,
         padding: mobile ? "8px 10px 4px" : "8px 14px 4px",
-        background: "#FAFAFA",
-        borderTop: "1px solid #F3F4F6",
+        background: DARK,
+        borderTop: `1px solid ${DARK_BORDER}`,
         overflowX: "auto",
       }}
     >
@@ -174,9 +177,9 @@ function ShortcutStrip({ actions, onSelect, mobile = false }) {
           style={{
             padding: mobile ? "6px 10px" : "7px 12px",
             borderRadius: 999,
-            border: "1px solid #E5E7EB",
-            background: "#fff",
-            color: "#6B7280",
+            border: `1px solid ${DARK_BORDER}`,
+            background: DARK_SURFACE,
+            color: "#9CA3AF",
             fontSize: mobile ? 11 : 11.5,
             cursor: "pointer",
             fontFamily: FF,
@@ -194,14 +197,14 @@ function ShortcutStrip({ actions, onSelect, mobile = false }) {
 function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobile = false }) {
   const active = input.trim() && !isTyping;
   return (
-    <div style={{ padding: mobile ? "8px 10px calc(env(safe-area-inset-bottom, 0px) + 10px)" : "10px 12px 12px", background: "#fff" }}>
+    <div style={{ padding: mobile ? "8px 10px calc(env(safe-area-inset-bottom, 0px) + 10px)" : "10px 12px 12px", background: DARK }}>
       <div
         style={{
           display: "flex",
           alignItems: "flex-end",
           gap: 8,
-          background: "#F8FAFC",
-          border: "1px solid #E5E7EB",
+          background: DARK_SURFACE,
+          border: `1px solid ${DARK_BORDER}`,
           borderRadius: 16,
           padding: mobile ? "5px 5px 5px 12px" : "6px 6px 6px 16px",
         }}
@@ -221,7 +224,7 @@ function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobi
             resize: "none",
             fontFamily: FF,
             fontSize: mobile ? 13 : 13.5,
-            color: "#1F2937",
+            color: "#e5e7eb",
             lineHeight: 1.5,
             maxHeight: 96,
             overflowY: "auto",
@@ -241,7 +244,7 @@ function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobi
             height: mobile ? 36 : 38,
             borderRadius: 12,
             border: "none",
-            background: active ? ACCENT_GRADIENT : "#E5E7EB",
+            background: active ? ACCENT_GRADIENT : DARK_BORDER,
             cursor: active ? "pointer" : "default",
             display: "flex",
             alignItems: "center",
@@ -259,12 +262,12 @@ function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobi
 
 function Welcome({ actions, onSelect, mobile = false }) {
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: mobile ? "22px 14px 14px" : "28px 20px 20px", overflow: "auto", background: "#fff" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: mobile ? "22px 14px 14px" : "28px 20px 20px", overflow: "auto", background: DARK }}>
       <Avatar />
-      <div style={{ fontSize: mobile ? 18 : 20, fontWeight: 700, color: "#1F2937", marginTop: 14, letterSpacing: -0.4 }}>
+      <div style={{ fontSize: mobile ? 18 : 20, fontWeight: 700, color: "#f3f4f6", marginTop: 14, letterSpacing: -0.4 }}>
         안녕하세요, 푸리예요 🐾
       </div>
-      <div style={{ fontSize: mobile ? 12.5 : 13, color: "#6B7280", marginTop: 6, textAlign: "center", lineHeight: 1.6 }}>
+      <div style={{ fontSize: mobile ? 12.5 : 13, color: "#9CA3AF", marginTop: 6, textAlign: "center", lineHeight: 1.6 }}>
         행사, 로그인, 결제, 환불 등 뭐든 물어봐 주세요!
       </div>
       <div style={{ width: "100%", marginTop: 18 }}>
@@ -341,8 +344,8 @@ export default function SiteChatBot() {
             maxWidth: isMobile ? "calc(100vw - 16px)" : 390,
             height: isMobile ? "min(calc(100dvh - 160px), 520px)" : 580,
             borderRadius: isMobile ? 20 : 24,
-            background: "#fff",
-            boxShadow: "0 25px 60px rgba(0,0,0,0.16), 0 8px 22px rgba(0,0,0,0.08)",
+            background: DARK,
+            boxShadow: "0 25px 60px rgba(0,0,0,0.4), 0 8px 22px rgba(0,0,0,0.2)",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
@@ -352,7 +355,7 @@ export default function SiteChatBot() {
           }}
         >
           {/* Header */}
-          <div style={{ padding: isMobile ? "14px 14px 12px" : "16px 16px 14px", background: ACCENT_GRADIENT, color: "#fff" }}>
+          <div style={{ padding: isMobile ? "14px 14px 12px" : "16px 16px 14px", background: "#0a0a0a", color: "#fff", borderBottom: `1px solid ${DARK_BORDER}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <Avatar small />
               <div style={{ flex: 1 }}>
@@ -378,7 +381,7 @@ export default function SiteChatBot() {
             <Welcome actions={welcomeActions} onSelect={triggerQuickAction} mobile={isMobile} />
           ) : (
             <>
-              <div className="scb-panel" style={{ flex: 1, overflowY: "auto", padding: isMobile ? "14px 12px 8px" : "16px 14px 8px", background: "#F9FAFB" }}>
+              <div className="scb-panel" style={{ flex: 1, overflowY: "auto", padding: isMobile ? "14px 12px 8px" : "16px 14px 8px", background: DARK }}>
                 {messages.map((msg, i) => (
                   <Bubble
                     key={msg.id}
