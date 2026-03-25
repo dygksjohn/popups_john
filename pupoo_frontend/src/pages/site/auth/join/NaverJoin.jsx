@@ -5,6 +5,11 @@ import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
 import { NaverBrandMark } from "../../../../shared/ui/NaverBrandMark";
 import {
+  clearSocialJoinState,
+  getSocialJoinState,
+  setSocialJoinState,
+} from "../socialJoinStorage";
+import {
   getSmsRequestErrorMessage,
   normalizeDigits,
   toKoreanPhoneE164,
@@ -21,28 +26,29 @@ export default function NaverJoin() {
   const { login } = useAuth();
   const didInitRef = useRef(false);
 
-  const naverSession = useMemo(
-    () => ({
-      providerUid: sessionStorage.getItem("naver_provider_uid") ?? "",
-      email: sessionStorage.getItem("naver_email") ?? "",
-      nickname: sessionStorage.getItem("naver_nickname") ?? "",
-    }),
-    [],
-  );
+  const naverSession = useMemo(() => getSocialJoinState("naver") || ({
+    providerUid: "",
+    email: "",
+    nickname: "",
+    tempPassword: "",
+    signupKey: "",
+    phone: "",
+    step: "FORM",
+  }), []);
 
   const [providerUid] = useState(naverSession.providerUid);
   const [email, setEmail] = useState(naverSession.email);
   const [nickname, setNickname] = useState(naverSession.nickname);
-  const [phone, setPhone] = useState("");
-  const [step, setStep] = useState(STEP.INIT);
-  const [signupKey, setSignupKey] = useState("");
+  const [phone, setPhone] = useState(naverSession.phone || "");
+  const [step, setStep] = useState(naverSession.step || STEP.INIT);
+  const [signupKey, setSignupKey] = useState(naverSession.signupKey || "");
   const [otpCode, setOtpCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const [tempPassword] = useState(() => {
     const key = "naver_temp_password";
-    const existing = sessionStorage.getItem(key);
+    const existing = naverSession.tempPassword || sessionStorage.getItem(key);
     if (existing) return existing;
 
     const rand = `${crypto.randomUUID()}-${Math.random().toString(36).slice(2)}`;
@@ -80,8 +86,21 @@ export default function NaverJoin() {
       return;
     }
 
-    setStep(STEP.FORM);
+    setStep(naverSession.signupKey ? STEP.OTP : STEP.FORM);
   }, [navigate, providerUid]);
+
+  useEffect(() => {
+    if (!providerUid) return;
+    setSocialJoinState("naver", {
+      providerUid,
+      email,
+      nickname,
+      tempPassword,
+      signupKey,
+      phone,
+      step,
+    });
+  }, [email, nickname, phone, providerUid, signupKey, step, tempPassword]);
 
   const sendOtp = async () => {
     if (!canSendOtp) return;
@@ -108,6 +127,15 @@ export default function NaverJoin() {
 
       setSignupKey(key);
       setStep(STEP.OTP);
+      setSocialJoinState("naver", {
+        providerUid,
+        email: emailTrim,
+        nickname: nickTrim,
+        tempPassword,
+        signupKey: key,
+        phone,
+        step: STEP.OTP,
+      });
 
       if (res?.devOtp) {
         setOtpCode(String(res.devOtp));
@@ -143,13 +171,8 @@ export default function NaverJoin() {
       tokenStore.setAccess(accessToken);
       login();
 
-      [
-        "naver_temp_password",
-        "naver_provider_uid",
-        "naver_email",
-        "naver_nickname",
-        "post_login_redirect",
-      ].forEach((key) => sessionStorage.removeItem(key));
+      clearSocialJoinState("naver");
+      sessionStorage.removeItem("post_login_redirect");
 
       navigate("/", { replace: true });
     } catch (e) {

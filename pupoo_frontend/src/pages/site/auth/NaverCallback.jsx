@@ -4,6 +4,10 @@ import { authApi } from "./api/authApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { useAuth } from "./AuthProvider";
 import { NaverBrandMark } from "../../../shared/ui/NaverBrandMark";
+import {
+  clearAllSocialJoinState,
+  setSocialJoinState,
+} from "./socialJoinStorage";
 
 const NAVER_CODE_GUARD_KEY = "naver_oauth_code_guard";
 const NAVER_STATE_KEY = "naver_oauth_state";
@@ -42,17 +46,7 @@ const clearCodeGuard = (code) => {
 };
 
 const clearPendingSocialJoin = () => {
-  [
-    "kakao_provider_uid",
-    "kakao_email",
-    "kakao_nickname",
-    "google_provider_uid",
-    "google_email",
-    "google_nickname",
-    "naver_provider_uid",
-    "naver_email",
-    "naver_nickname",
-  ].forEach((key) => sessionStorage.removeItem(key));
+  clearAllSocialJoinState();
 };
 
 export default function NaverCallback() {
@@ -144,9 +138,14 @@ export default function NaverCallback() {
           return;
         }
 
-        sessionStorage.setItem("naver_provider_uid", uid);
-        sessionStorage.setItem("naver_email", data.email ?? "");
-        sessionStorage.setItem("naver_nickname", data.nickname ?? "");
+        setSocialJoinState("naver", {
+          providerUid: uid,
+          email: data.email ?? "",
+          nickname: data.nickname ?? "",
+          signupKey: "",
+          phone: "",
+          step: "FORM",
+        });
 
         tokenStore.clear();
         navigate("/auth/join/naver", { replace: true });

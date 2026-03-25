@@ -226,7 +226,7 @@ export default function JoinSelect() {
   const NAVER_CLIENT_ID = import.meta.env.VITE_NAVER_CLIENT_ID;
   const kakaoRedirectUri = `${window.location.origin}/auth/kakao/callback`;
   const googleRedirectUri = `${window.location.origin}/auth/google/callback`;
-  const naverRedirectUri = `${window.location.origin}/auth/naver/callback`;
+  const naverRedirectUri = `${window.location.origin}/naver/callback`;
 
   const handleKakaoContinue = () => {
     tokenStore.clear();

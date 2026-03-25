@@ -3,6 +3,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "./api/authApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { useAuth } from "./AuthProvider";
+import {
+  clearAllSocialJoinState,
+  setSocialJoinState,
+} from "./socialJoinStorage";
 
 const KAKAO_CODE_GUARD_KEY = "kakao_oauth_code_guard";
 
@@ -41,17 +45,7 @@ const clearCodeGuard = (code) => {
 };
 
 const clearPendingSocialJoin = () => {
-  [
-    "kakao_provider_uid",
-    "kakao_email",
-    "kakao_nickname",
-    "google_provider_uid",
-    "google_email",
-    "google_nickname",
-    "naver_provider_uid",
-    "naver_email",
-    "naver_nickname",
-  ].forEach((key) => sessionStorage.removeItem(key));
+  clearAllSocialJoinState();
 };
 
 export default function KakaoCallback() {
@@ -143,9 +137,14 @@ export default function KakaoCallback() {
           return;
         }
 
-        sessionStorage.setItem("kakao_provider_uid", uid);
-        sessionStorage.setItem("kakao_email", data.email ?? "");
-        sessionStorage.setItem("kakao_nickname", data.nickname ?? "");
+        setSocialJoinState("kakao", {
+          providerUid: uid,
+          email: data.email ?? "",
+          nickname: data.nickname ?? "",
+          signupKey: "",
+          phone: "",
+          step: "FORM",
+        });
 
         tokenStore.clear();
         navigate("/auth/join/kakao", { replace: true });
