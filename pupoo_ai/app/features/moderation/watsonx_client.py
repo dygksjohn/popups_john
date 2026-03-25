@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-ACTION_PATTERN = re.compile(r"\b(BLOCK|PASS)\b", re.I)
+ACTION_PATTERN = re.compile(r"\b(BLOCK|PASS|WARN|REVIEW)\b", re.I)
 SCORE_PATTERN = re.compile(r"SCORE\s*:\s*([0-9.]+)", re.I)
 FLAGGED_PATTERN = re.compile(r"FLAGGED\s*:\s*([^\n]+)", re.I)
 INFERRED_PATTERN = re.compile(r"INFERRED\s*:\s*([^\n]+)", re.I)
@@ -87,6 +87,7 @@ def moderate_with_llm(
         len(user_text or ""),
         len(retrieved_docs or []),
     )
+    logger.info("Moderation input text preview: %s", (user_text or "")[:200])
 
     llm = get_llm_for_moderation()
     if not llm:
@@ -109,7 +110,7 @@ def moderate_with_llm(
 {user_text[:1000]}
 
 ## 응답 형식
-ACTION: BLOCK 또는 ACTION: PASS
+ACTION: BLOCK, WARN, REVIEW, PASS 중 하나
 SCORE: 0.0부터 1.0 사이 숫자 하나
 사유 한 줄
 FLAGGED: 입력 원문에서 직접 확인된 문제 표현 목록. 없으면 없음
@@ -126,7 +127,7 @@ INFERRED: 정책 문맥상 추론된 위반 유형 또는 표현 목록. 없으�
         for m in ACTION_PATTERN.finditer(output):
             action = m.group(1).upper()
             break
-        if action not in ("BLOCK", "PASS"):
+        if action not in ("BLOCK", "PASS", "WARN", "REVIEW"):
             logger.error("LLM output parse failed: ACTION token is missing or invalid. Treating as BLOCK.")
             return "BLOCK", None, "LLM 출력 파싱 실패(ACTION 미검출)로 차단되었습니다.", None, None
         logger.info(
