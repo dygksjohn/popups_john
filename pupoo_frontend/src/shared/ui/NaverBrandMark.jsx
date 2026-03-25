@@ -19,13 +19,13 @@ export function NaverBrandMark({
       }}
     >
       <svg
-        width={Math.round(size * 0.56)}
-        height={Math.round(size * 0.56)}
-        viewBox="0 0 24 24"
+        width={Math.round(size * 0.6)}
+        height={Math.round(size * 0.6)}
+        viewBox="0 0 20 20"
         fill="none"
       >
         <path
-          d="M6 5h4.1l3.8 5.4V5H18v14h-4.1L10.1 13.6V19H6z"
+          d="M13.56 10.74L6.22 1H1v18h5.44V9.26L13.78 19H19V1h-5.44v9.74z"
           fill={color}
         />
       </svg>

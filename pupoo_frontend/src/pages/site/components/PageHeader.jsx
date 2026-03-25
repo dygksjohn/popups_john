@@ -61,6 +61,7 @@ const styles = {
     fontWeight: 400,
     margin: "8px 0 0",
     lineHeight: 1.6,
+    whiteSpace: "pre-line",
   },
   searchArea: {
     display: "flex",
@@ -153,9 +154,9 @@ export default function PageHeader({ title, subtitle, icon, titleStyle, subtitle
   const pageHeaderStyle = {
     ...styles.pageHeader,
     paddingTop: isMobile
-      ? "calc(var(--pupoo-site-header-offset, 96px) + 20px)"
+      ? "calc(var(--pupoo-site-header-offset, 96px) + 8px)"
       : styles.pageHeader.paddingTop,
-    paddingBottom: isMobile ? 20 : undefined,
+    paddingBottom: isMobile ? 12 : undefined,
     ...(bgColor ? { backgroundColor: bgColor } : {}),
   };
 
@@ -170,6 +171,7 @@ export default function PageHeader({ title, subtitle, icon, titleStyle, subtitle
     fontSize: isMobile ? 22 : (titleStyle?.fontSize ?? styles.title.fontSize),
     lineHeight: isMobile ? "1.3" : (titleStyle?.lineHeight ?? styles.title.lineHeight),
     letterSpacing: isMobile ? "-0.5px" : (titleStyle?.letterSpacing ?? styles.title.letterSpacing),
+    marginTop: isMobile ? 25 : 0,
   };
 
   const mergedSubtitleStyle = {
@@ -183,7 +185,7 @@ export default function PageHeader({ title, subtitle, icon, titleStyle, subtitle
 
   const tabsStyle = {
     ...styles.tabs,
-    marginTop: isMobile ? 14 : styles.tabs.marginTop,
+    marginTop: isMobile ? 10 : styles.tabs.marginTop,
     flexWrap: "nowrap",
     overflowX: isMobile ? "auto" : "visible",
     overflowY: "hidden",

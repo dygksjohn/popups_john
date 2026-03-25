@@ -875,8 +875,8 @@ export default function FreeBoard() {
         >
           <span style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>총 {totalElements}개</span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", height: isMobile ? 40 : 48, flexWrap: isMobile ? "wrap" : "nowrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 0, background: isMobile ? "transparent" : "#fff", border: isMobile ? "none" : "1px solid #e2e5ea", borderRadius: 12, height: isMobile ? 40 : 48, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: 0, rowGap: isMobile ? 8 : 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", height: isMobile ? "auto" : 48, flexWrap: isMobile ? "wrap" : "nowrap", rowGap: isMobile ? 8 : 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, background: isMobile ? "transparent" : "#fff", border: isMobile ? "none" : "1px solid #e2e5ea", borderRadius: 12, height: isMobile ? "auto" : 48, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: 0, rowGap: isMobile ? 8 : 0 }}>
               {/* sort button */}
               <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }} ref={sortDdRef}>
                 <button
@@ -930,11 +930,11 @@ export default function FreeBoard() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{
-                    border: isMobile ? "1px solid #e5e7eb" : "none",
+                    border: isMobile ? "1px solid #e2e5ea" : "none",
                     background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: isMobile ? 999 : "0 12px 12px 0",
-                    height: 48,
+                    borderRadius: isMobile ? 12 : "0 12px 12px 0",
+                    height: isMobile ? 48 : 48,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",
