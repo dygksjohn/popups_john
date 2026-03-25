@@ -104,7 +104,7 @@ const styles = `
   .ev-event-meta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
   .ev-event-meta-row { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #6b7280; }
   .ev-event-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #f1f3f5; }
-  .ev-progress-wrap { display: none; }
+  .ev-progress-wrap { margin-bottom: 10px; }
   .ev-progress-label { display: flex; justify-content: space-between; font-size: 13px; color: #9ca3af; margin-bottom: 5px; }
   .ev-progress-track { height: 6px; background: #f1f3f5; border-radius: 100px; overflow: hidden; }
   .ev-progress-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, #90C450, #6366f1); transition: width 0.6s ease; }
@@ -143,7 +143,7 @@ const styles = `
     .ev-event-meta { gap: 3px; margin-bottom: 10px; }
     .ev-event-meta-row { font-size: 12.5px; }
     .ev-event-footer { padding-top: 10px; }
-    .ev-progress-wrap { display: none; }
+    .ev-progress-wrap { margin-bottom: 8px; }
     .ev-card-btn { height: 38px; font-size: 13px; border-radius: 9px; }
   }
 `;
@@ -383,9 +383,6 @@ export default function Current() {
               </div>
             ) : null}
             {filtered.map((ev) => {
-              const safeCapacity = ev.capacity && ev.capacity > 0 ? ev.capacity : 1;
-              const safeParticipants = ev.participants ?? 0;
-              const pct = Math.min(100, Math.round((safeParticipants / safeCapacity) * 100));
               return (
                 <div
                   key={ev.id}
@@ -407,18 +404,6 @@ export default function Current() {
                       </div>
                     </div>
                     <div className="ev-event-footer">
-                      <div className="ev-progress-wrap">
-                        <div className="ev-progress-label">
-                          <span>참가자 {ev.participants.toLocaleString()}명 / {ev.capacity.toLocaleString()}명</span>
-                          <span style={{ fontWeight: 700, color: pct >= 80 ? "#ef4444" : "#90C450" }}>{pct}%</span>
-                        </div>
-                        <div className="ev-progress-track">
-                          <div
-                            className="ev-progress-fill"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
                       <button
                         className="ev-card-btn"
                         onClick={(e) => {
