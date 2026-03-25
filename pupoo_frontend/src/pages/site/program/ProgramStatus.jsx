@@ -186,6 +186,7 @@ const styles = `
   }
   .ps-card-current-body { padding:16px 18px 18px; flex:1; display:flex; flex-direction:column; }
   .ps-card-current-category { font-size:13px; font-weight:700; color:#90C450; margin-bottom:6px; letter-spacing:0.3px; }
+  .ps-card-current-event { font-size:13px; font-weight:700; color:#0f766e; margin-bottom:4px; }
   .ps-card-current-title { font-size:16.5px; font-weight:700; color:#111827; margin-bottom:10px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .ps-card-current-meta { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; }
   .ps-card-current-meta-row { display:flex; align-items:center; gap:6px; font-size:14px; color:#6b7280; }
@@ -546,6 +547,32 @@ function computeDday(startAt) {
   return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 }
 
+function toSafeNonNegativeNumber(value, fallback = 0) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(0, num);
+}
+
+function resolveParticipantCount(programRow) {
+  return toSafeNonNegativeNumber(
+    programRow?.participantCount ??
+      programRow?.participants ??
+      programRow?.appliedCount ??
+      programRow?.applyCount ??
+      0,
+  );
+}
+
+function resolveCapacity(programRow, eventInfo, participants) {
+  const capacity = toSafeNonNegativeNumber(
+    programRow?.capacity ??
+      programRow?.maxParticipants ??
+      eventInfo?.capacity ??
+      0,
+  );
+  return capacity > 0 ? capacity : Math.max(participants, 0);
+}
+
 /* ── Card renderers ── */
 
 function CurrentCard({ program, onClick }) {
@@ -582,6 +609,7 @@ function CurrentCard({ program, onClick }) {
       </div>
       <div className="ps-card-current-body">
         <div className="ps-card-current-category">{program.categoryLabel}</div>
+        <div className="ps-card-current-event">{program.eventName}</div>
         <div className="ps-card-current-title">{program.title}</div>
         <div className="ps-card-current-meta">
           <div className="ps-card-current-meta-row">
@@ -894,6 +922,8 @@ export default function ProgramStatus({ statusKey = "current" }) {
               rawBaseDate,
               eventStartDate,
             );
+            const participants = resolveParticipantCount(row);
+            const capacity = resolveCapacity(row, eventInfo, participants);
             const dayIndex =
               rebasedStartAt && eventStartDate
                 ? diffDays(rebasedStartAt, eventStartDate) + 1
@@ -927,8 +957,8 @@ export default function ProgramStatus({ statusKey = "current" }) {
               status: toProgramRuntimeStatus(rebasedStartAt, rebasedEndAt),
               categoryKey: normalizedCategory,
               categoryLabel: categoryLabel(normalizedCategory),
-              capacity: Number(row?.capacity ?? row?.maxParticipants ?? eventInfo?.capacity ?? 1),
-              participants: Number(row?.participants ?? row?.appliedCount ?? 0),
+              capacity,
+              participants,
             };
           })
           .sort((a, b) => compareProgramsByPage(a, b, statusKey));

@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const css = `
   .cr-root {
@@ -7,9 +8,14 @@ const css = `
     background: #000; color: #fff; overflow: hidden;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
   }
+  .cr-bg-video {
+    position: fixed; inset: 0; z-index: 0;
+    width: 100%; height: 100%; object-fit: cover;
+    opacity: 0.3;
+  }
   .cr-scroll {
-    position: absolute; left: 0; right: 0; text-align: center;
-    animation: cr-roll 50s linear forwards;
+    position: absolute; left: 0; right: 0; text-align: center; z-index: 1;
+    animation: cr-roll 90s linear forwards;
     padding: 0 24px;
   }
   @keyframes cr-roll {
@@ -22,29 +28,29 @@ const css = `
     letter-spacing: -2px; margin-bottom: 8px;
   }
   .cr-team {
-    font-size: 14px; color: #666; letter-spacing: 6px;
+    font-size: 16px; color: #999; letter-spacing: 6px;
     text-transform: uppercase; margin-bottom: 60px;
   }
   .cr-tagline {
-    font-size: 15px; color: #555; margin-bottom: 120px;
+    font-size: 18px; color: #aaa; margin-bottom: 120px;
     font-style: italic; line-height: 1.8;
   }
 
   .cr-block { margin-bottom: 90px; }
   .cr-role-label {
-    font-size: 12px; color: #555; letter-spacing: 4px;
+    font-size: 14px; color: #888; letter-spacing: 4px;
     text-transform: uppercase; margin-bottom: 20px;
   }
   .cr-person {
-    font-size: 26px; font-weight: 700; margin-bottom: 6px;
+    font-size: 30px; font-weight: 700; margin-bottom: 8px;
     letter-spacing: 1px;
   }
   .cr-sub {
-    font-size: 14px; color: #555; margin-bottom: 8px;
+    font-size: 16px; color: #aaa; margin-bottom: 10px;
     font-style: italic; line-height: 1.7;
   }
   .cr-detail {
-    font-size: 12px; color: #444; line-height: 1.8;
+    font-size: 15px; color: #999; line-height: 1.8;
     max-width: 400px; margin: 0 auto;
   }
 
@@ -59,11 +65,11 @@ const css = `
     margin-bottom: 24px; color: #fff;
   }
   .cr-incident-item {
-    font-size: 14px; color: #666; margin-bottom: 10px;
+    font-size: 16px; color: #aaa; margin-bottom: 12px;
     line-height: 1.7;
   }
   .cr-incident-item em {
-    color: #999; font-style: normal; font-weight: 600;
+    color: #ccc; font-style: normal; font-weight: 600;
   }
 
   .cr-stats { margin-bottom: 90px; }
@@ -75,7 +81,7 @@ const css = `
     font-size: 32px; font-weight: 900; letter-spacing: -1px;
   }
   .cr-stat-label {
-    font-size: 11px; color: #555; letter-spacing: 2px;
+    font-size: 13px; color: #888; letter-spacing: 2px;
     text-transform: uppercase; margin-top: 4px;
   }
 
@@ -84,16 +90,26 @@ const css = `
     margin-bottom: 30px;
   }
   .cr-thanks {
-    font-size: 14px; color: #666; margin-bottom: 12px; line-height: 1.8;
+    font-size: 16px; color: #aaa; margin-bottom: 14px; line-height: 1.8;
   }
 
   .cr-end { margin-top: 100px; margin-bottom: 300px; }
   .cr-end-text {
-    font-size: 13px; color: #444; letter-spacing: 3px;
+    font-size: 15px; color: #888; letter-spacing: 3px;
     text-transform: uppercase; margin-bottom: 20px;
   }
   .cr-end-logo { font-size: 32px; font-weight: 900; letter-spacing: 2px; }
-  .cr-end-year { font-size: 13px; color: #444; margin-top: 6px; letter-spacing: 2px; }
+  .cr-end-year { font-size: 14px; color: #888; margin-top: 6px; letter-spacing: 2px; }
+  .cr-replay {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    z-index: 100000; background: #fff; color: #000; border: none;
+    padding: 12px 28px; border-radius: 999px; font-size: 14px; font-weight: 700;
+    cursor: pointer; font-family: inherit; letter-spacing: 1px;
+    opacity: 0; transition: opacity 0.5s;
+    pointer-events: none;
+  }
+  .cr-replay.show { opacity: 1; pointer-events: auto; }
+  .cr-replay:hover { background: #e5e5e5; }
   .cr-paw {
     font-size: 20px; margin-top: 20px;
     animation: cr-beat 1.5s ease-in-out infinite;
@@ -143,6 +159,13 @@ export default function Credits() {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [modalMsg, setModalMsg] = useState(MODAL_MESSAGES[0]);
+  const [ended, setEnded] = useState(false);
+  const [replayKey, setReplayKey] = useState(0);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setEnded(true), 90000);
+    return () => clearTimeout(timer);
+  }, [replayKey]);
 
   const handleClick = () => {
     const msg = MODAL_MESSAGES[Math.floor(Math.random() * MODAL_MESSAGES.length)];
@@ -154,9 +177,18 @@ export default function Credits() {
     <div className="cr-root" onClick={handleClick}>
       <style>{css}</style>
 
-      <div className="cr-scroll">
+      <video
+        className="cr-bg-video"
+        src={toPublicAssetUrl("/uploads/creadits/GettyImages-1191409523.mov")}
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
 
-        <div className="cr-logo">PuPoo</div>
+      <div className="cr-scroll" key={replayKey}>
+
+        <div className="cr-logo"><img src="/bottom_logo.png" alt="PuPoo" style={{ height: "1em", display: "block", margin: "0 auto" }} /></div>
         <div className="cr-team">POPUPS TEAM</div>
         <div className="cr-tagline">
           4명의 개발자가 만든<br />
@@ -172,10 +204,9 @@ export default function Credits() {
           <div className="cr-person">김멍식</div>
           <div className="cr-sub">"돈까스 먹으러 갈 사람?"</div>
           <div className="cr-detail">
-            하루 평균 3.7회 돈까스 회의 소집<br />
-            팀 회식 장소 결정권자 (만장일치 돈까스)<br />
-            코드 리뷰 중에도 돈까스 얘기 가능<br />
-            본인 曰: "돈까스는 개발의 연료입니다"
+            하루 평균 3.7회 돈까스 소집<br />
+            본인 曰: "대답안하면 돈까스"<br />
+            리트리버 선호 / 돈까스 선호
           </div>
         </div>
 
@@ -187,24 +218,19 @@ export default function Credits() {
             "아 별론데" 누적 발언 횟수: 2,847회<br />
             "아 안예쁜데" 누적 발언 횟수: 1,923회<br />
             "아 뭔가 맘에 안드는데" 누적: 3,102회<br />
-            승인까지 평균 리비전: 14.2회<br />
-            돈까스를 이 세상에서 멸종시키겠다고 선언한 사람<br />
-            (강아지 빼고 유일하게 돈까스를 싫어함)<br />
-            팀 회식 때 혼자 냉모밀 시켜먹음<br />
-            본인 曰: "돈까스는 음식이 아니야"
+            돈까스 혐오 / 도경수 선호<br />
+            → 취향 확고
           </div>
         </div>
 
         <div className="cr-block">
-          <div className="cr-role-label">Backend Developer (자칭)</div>
+          <div className="cr-role-label">Backend Developer</div>
           <div className="cr-person">이멍뭉</div>
           <div className="cr-sub">"아 내가 할게! 아 할 수 있어!"</div>
           <div className="cr-detail">
-            자신감: ████████████ 120%<br />
-            실제 진행도: ░░░░░░░░░░░░ 0%<br />
-            "거의 다 했어" 발언 후 평균 소요일: 7일<br />
-            JIRA 티켓 In Progress 세계 최장 기록 보유<br />
-            본인 曰: "이번엔 진짜로 거의 다 했어"
+            → 의욕 MAX<br />
+            건드리면 반응 바로 와서 타격감 좋음<br />
+            본인 曰: 설치류 선호
           </div>
         </div>
 
@@ -213,11 +239,11 @@ export default function Credits() {
           <div className="cr-person">최멍철</div>
           <div className="cr-sub">...</div>
           <div className="cr-detail">
-            대사 없음. 코드로 말하는 사람.<br />
-            커밋 수 1위, 발언 수 꼴찌<br />
-            회의 중 카메라 OFF, 마이크 OFF<br />
-            근데 다음 날 보면 다 되어 있음<br />
-            유일하게 야근 안 하는데 제일 많이 함
+            묵묵하게 자기 일 꾸준히 처리<br />
+            티 안 나게 다 해놓는 스타일<br />
+            → 조용한 하드캐리형<br />
+            웬만한 일에는 크게 반응 없음<br />
+            그래서 가끔 장난 쳐도 괜찮을지 살짝 궁금해짐
           </div>
         </div>
 
@@ -227,15 +253,22 @@ export default function Credits() {
         <div className="cr-incident">
           <div className="cr-incident-title">DATABASE INCIDENT REPORT</div>
           <div className="cr-incident-item"><em>v1.0</em> — 테이블 3개로 시작. 희망에 차 있었음</div>
-          <div className="cr-incident-item"><em>v2.0</em> — "이거 컬럼 하나만 추가하면 돼" (유명한 유언)</div>
-          <div className="cr-incident-item"><em>v3.0</em> — 마이그레이션 실패. 새벽 3시 긴급 회의</div>
-          <div className="cr-incident-item"><em>v4.0</em> — "아 그냥 다 밀고 새로 하자"</div>
-          <div className="cr-incident-item"><em>v5.0</em> — 누군가 프로덕션 DB에 DROP TABLE 실행</div>
-          <div className="cr-incident-item"><em>v6.0</em> — 이번엔 진짜 완벽하다고 했음 (아님)</div>
-          <div className="cr-incident-item"><em>v7.0</em> — 현재 버전. 아직 살아있는 게 기적</div>
+          <div className="cr-incident-item"><em>v1.5</em> — "이거 컬럼 하나만 추가하면 돼" (유명한 유언)</div>
+          <div className="cr-incident-item"><em>v3.2</em> — 마이그레이션 실패. 새벽 3시 긴급 회의</div>
+          <div className="cr-incident-item"><em>v4.5</em> — "아 그냥 다 밀고 새로 하자"</div>
+          <div className="cr-incident-item"><em>v6.0</em> — 누군가 프로덕션 DB에 DROP TABLE 실행</div>
+          <div className="cr-incident-item"><em>v12.0</em> — 이번엔 진짜 완벽하다고 했음 (아님)</div>
+          <div className="cr-incident-item"><em>v23.0</em> — ERD 새로 그림. 셋째가 더 예뻤음</div>
+          <div className="cr-incident-item"><em>v41.0</em> — 스키마 변경 PR 올리면 팀원이 울음</div>
+          <div className="cr-incident-item"><em>v58.3</em> — "이번이 최종이다" (17번째 최종)</div>
+          <div className="cr-incident-item"><em>v69.0</em> — 진짜최종_final_v2_이거찐찐막.sql</div>
+          <div className="cr-incident-item"><em>v74.0</em> — 아무도 스키마를 건드리지 않기로 서약함</div>
+          <div className="cr-incident-item"><em>v76.9</em> — 서약 3시간 만에 깨짐</div>
+          <div className="cr-incident-item"><em>v77.0</em> — 현재 버전. 살아있는 게 기적을 넘어 전설</div>
           <div className="cr-incident-item" style={{ marginTop: 20, color: "#777" }}>
-            이 DB는 7번의 삶과 죽음을 경험했습니다<br />
-            고양이도 9번인데 거의 다 씀
+            이 DB는 77번의 삶과 죽음을 경험했습니다<br />
+            고양이는 9번인데 우리는 77번임<br />
+            더 이상 환생 여력이 없습니다
           </div>
         </div>
 
@@ -256,17 +289,7 @@ export default function Credits() {
           </div>
           <div className="cr-stat-row">
             <div>
-              <div className="cr-stat-num">0%</div>
-              <div className="cr-stat-label">이멍뭉 진행도</div>
-            </div>
-            <div>
-              <div className="cr-stat-num">1</div>
-              <div className="cr-stat-label">최멍철 발언 수</div>
-            </div>
-          </div>
-          <div className="cr-stat-row">
-            <div>
-              <div className="cr-stat-num">7</div>
+              <div className="cr-stat-num">77</div>
               <div className="cr-stat-label">DB 환생 횟수</div>
             </div>
             <div>
@@ -287,8 +310,12 @@ export default function Credits() {
 
         <div className="cr-block">
           <div className="cr-role-label">Powered by</div>
-          <div className="cr-person">himideo</div>
-          <div className="cr-sub">하이미디오 아카데미</div>
+          <div className="cr-person" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+            <span>himidea</span>
+            <span style={{ fontSize: "18px", color: "#555" }}>x</span>
+            <img src="/IBM_logo.svg.png" alt="IBM" style={{ height: "28px" }} />
+          </div>
+          <div className="cr-sub">하이미디어 아카데미</div>
         </div>
 
         <div className="cr-line" />
@@ -314,12 +341,20 @@ export default function Credits() {
 
         <div className="cr-end">
           <div className="cr-end-text">A Popups Production</div>
-          <div className="cr-end-logo">PuPoo</div>
+          <div className="cr-end-logo"><img src="/bottom_logo.png" alt="PuPoo" style={{ height: "36px", display: "block", margin: "0 auto" }} /></div>
           <div className="cr-end-year">© 2026</div>
           <div className="cr-paw">🐾</div>
         </div>
 
       </div>
+
+      <button
+        type="button"
+        className={`cr-replay${ended ? " show" : ""}`}
+        onClick={(e) => { e.stopPropagation(); setEnded(false); setReplayKey(k => k + 1); }}
+      >
+        다시보기
+      </button>
 
       {showModal && (
         <div className="cr-modal-overlay" onClick={(e) => e.stopPropagation()}>
@@ -329,7 +364,7 @@ export default function Credits() {
             <div className="cr-modal-desc">{modalMsg.desc}</div>
             <div className="cr-modal-btns">
               <button type="button" className="cr-modal-btn stay" onClick={(e) => { e.stopPropagation(); setShowModal(false); }}>더 볼게요</button>
-              <button type="button" className="cr-modal-btn leave" onClick={(e) => { e.stopPropagation(); navigate(-1); }}>나갈래요</button>
+              <button type="button" className="cr-modal-btn leave" onClick={(e) => { e.stopPropagation(); navigate("/"); }}>나갈래요</button>
             </div>
           </div>
         </div>
