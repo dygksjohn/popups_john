@@ -378,6 +378,9 @@ function executeLabel(confirmation) {
 function executeActionLabel(confirmation) {
   const actionKey = confirmation?.actionKey;
   const executeType = confirmation?.executeType || confirmation?.type;
+  if (actionKey === "notification_draft_create") return "알림 초안 저장";
+  if (actionKey === "notification_draft_update") return "알림 초안 수정 저장";
+  if (executeType === "SAVE_NOTIFICATION_DRAFT") return "알림 초안 저장";
   const actionLabels = {
     notice_create: "공지 저장",
     notice_update: "공지 수정 저장",
@@ -540,6 +543,7 @@ function ConfirmCard({ confirmation, onConfirm, mobile = false }) {
       <button
         type="button"
         onClick={onConfirm}
+        disabled={isConfirming}
         style={{
           width: "100%",
           border: "none",
@@ -549,7 +553,8 @@ function ConfirmCard({ confirmation, onConfirm, mobile = false }) {
           padding: "10px 12px",
           fontSize: 12.5,
           fontWeight: 700,
-          cursor: "pointer",
+          cursor: isConfirming ? "default" : "pointer",
+          opacity: isConfirming ? 0.6 : 1,
           fontFamily: ds.ff,
         }}
       >
@@ -707,7 +712,7 @@ function ActionHintCard({ messageType, mobile = false }) {
   );
 }
 
-function ActionConfirmCard({ confirmation, onConfirm, mobile = false }) {
+function ActionConfirmCard({ confirmation, onConfirm, isConfirming = false, mobile = false }) {
   if (!confirmation) return null;
   const label = executeActionLabel(confirmation);
   const actionKey = confirmation?.actionKey;
@@ -759,6 +764,7 @@ function ActionConfirmCard({ confirmation, onConfirm, mobile = false }) {
       <button
         type="button"
         onClick={onConfirm}
+        disabled={isConfirming}
         style={{
           width: "100%",
           border: "none",
@@ -768,7 +774,8 @@ function ActionConfirmCard({ confirmation, onConfirm, mobile = false }) {
           padding: "10px 12px",
           fontSize: 12.5,
           fontWeight: 700,
-          cursor: "pointer",
+          cursor: isConfirming ? "default" : "pointer",
+          opacity: isConfirming ? 0.6 : 1,
           fontFamily: ds.ff,
         }}
       >
@@ -778,7 +785,7 @@ function ActionConfirmCard({ confirmation, onConfirm, mobile = false }) {
   );
 }
 
-function Bubble({ msg, isLast, mobile = false, onConfirm }) {
+function Bubble({ msg, isLast, mobile = false, onConfirm, isConfirming = false }) {
   const isBot = msg.role === "bot";
   return (
     <div className="cb-msg" style={{ display: "flex", flexDirection: isBot ? "row" : "row-reverse", alignItems: "flex-end", gap: 8, marginBottom: 6 }}>
@@ -801,7 +808,7 @@ function Bubble({ msg, isLast, mobile = false, onConfirm }) {
         {isBot && <ActionHintCard messageType={msg.messageType} mobile={mobile} />}
         {isBot && <ActionValidationCard messageType={msg.messageType} executionInfo={msg.executionInfo} mobile={mobile} />}
         {isBot && <ActionUnsupportedCard messageType={msg.messageType} executionInfo={msg.executionInfo} mobile={mobile} />}
-        {isBot && <ActionConfirmCard confirmation={msg.confirmation} onConfirm={onConfirm} mobile={mobile} />}
+        {isBot && <ActionConfirmCard confirmation={msg.confirmation} onConfirm={onConfirm} isConfirming={isConfirming} mobile={mobile} />}
       </div>
     </div>
   );
@@ -940,7 +947,7 @@ export default function AdminChatBot() {
   const {
     isOpen, toggle, close,
     messages, input, setInput,
-    isTyping, sendMessage, clearMessages, confirmExecute,
+    isTyping, isConfirming, sendMessage, clearMessages, confirmExecute,
   } = useChatBot();
 
   const bottomRef = useRef(null);
@@ -1041,7 +1048,7 @@ export default function AdminChatBot() {
             <>
               <div className="cb-panel" style={{ flex: 1, overflowY: "auto", padding: isMobile ? "14px 12px 6px" : "16px 14px 6px", background: "#F9FAFB" }}>
                 {messages.map((msg, i) => (
-                  <Bubble key={msg.id} msg={msg} isLast={isLastInGroup(i)} mobile={isMobile} onConfirm={confirmExecute} />
+                  <Bubble key={msg.id} msg={msg} isLast={isLastInGroup(i)} mobile={isMobile} onConfirm={confirmExecute} isConfirming={isConfirming} />
                 ))}
                 {isTyping && <Typing mobile={isMobile} />}
                 <div ref={bottomRef} />
