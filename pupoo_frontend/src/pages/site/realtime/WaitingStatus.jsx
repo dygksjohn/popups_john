@@ -66,7 +66,7 @@ const styles = `
     align-items: center;
     gap: 0;
     flex-wrap: nowrap;
-    margin-left: auto;
+    margin-left: 0;
     border: 1px solid #d9e1ec;
     border-radius: 14px;
     overflow: hidden;
@@ -1698,10 +1698,6 @@ export default function WaitingStatus() {
         {eventId ? (
           <>
             <div className="wt-top-actions">
-              <button className="wt-back-btn" onClick={() => navigate("/realtime/waitingstatus")}>
-                <ArrowLeft size={15} />
-                목록으로
-              </button>
               <div className="wt-event-mode-nav">
                 {EVENT_REALTIME_BUTTONS.map((button) => (
                   <button
@@ -1716,6 +1712,12 @@ export default function WaitingStatus() {
               </div>
             </div>
             <WaitingContent eventId={eventId} />
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 32 }}>
+              <button className="wt-back-btn" onClick={() => navigate("/realtime/waitingstatus")}>
+                <ArrowLeft size={15} />
+                목록으로
+              </button>
+            </div>
           </>
         ) : (
           <RealtimeEventSelector

@@ -50,7 +50,7 @@ const styles = `
   .ck-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
   .ck-container.with-event { padding-top: 20px; }
   .ck-container.selector-mode { padding-top: 32px; }
-  .ck-page-shell { max-width: 1120px; margin: 0 auto; }
+  .ck-page-shell { max-width: 1400px; margin: 0 auto; }
   .ck-top-actions {
     display: flex;
     align-items: center;
@@ -86,7 +86,7 @@ const styles = `
     align-items: center;
     gap: 0;
     flex-wrap: nowrap;
-    margin-left: auto;
+    margin-left: 0;
     border: 1px solid #d9e1ec;
     border-radius: 14px;
     overflow: hidden;
@@ -130,9 +130,9 @@ const styles = `
     line-height: 1;
   }
   .rt-live-badge.planned {
-    background: #eff6ff;
-    border-color: #bfdbfe;
-    color: #2563eb;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #90C450;
     justify-content: center;
     gap: 0;
   }
@@ -210,8 +210,8 @@ const styles = `
     transition: all 0.15s;
   }
   .ck-refresh-btn:hover {
-    border-color: #1a4fd6;
-    color: #1a4fd6;
+    border-color: #90C450;
+    color: #90C450;
     background: #f5f8ff;
   }
   .ck-timestamp {
@@ -237,12 +237,13 @@ const styles = `
   }
   .ck-stat-card {
     background: #fff;
-    border: 1px solid #e9ecef;
-    border-radius: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
     padding: 20px 22px;
     display: flex;
     align-items: center;
     gap: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
   }
   .ck-stat-icon {
     width: 44px;
@@ -265,10 +266,11 @@ const styles = `
 
   .ck-card {
     background: #fff;
-    border: 1px solid #e9ecef;
-    border-radius: 13px;
-    padding: 22px 22px 20px;
-    margin-bottom: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
   }
   .ck-live-count {
     font-size: 12px;
@@ -279,13 +281,15 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
     padding-bottom: 14px;
-    border-bottom: 1px solid #f1f3f5;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 10px;
+    flex-wrap: wrap;
   }
   .ck-card-title {
-    font-size: 15px;
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: 800;
     color: #111827;
     display: flex;
     align-items: center;
@@ -296,7 +300,7 @@ const styles = `
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    background: #eff4ff;
+    background: #f0fdf4;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -468,7 +472,7 @@ const styles = `
   .ck-progress-fill {
     height: 100%;
     border-radius: inherit;
-    background: #1a4fd6;
+    background: #90C450;
     transition: width 0.5s ease;
   }
   .ck-progress-meta {
@@ -1290,10 +1294,6 @@ export default function CheckinStatus() {
         {eventId ? (
           <>
             <div className="ck-top-actions">
-              <button className="ck-back-btn" onClick={() => navigate("/realtime/checkinstatus")}>
-                <ArrowLeft size={15} />
-                목록으로
-              </button>
               <div className="ck-event-mode-nav">
                 {EVENT_REALTIME_BUTTONS.map((button) => (
                   <button
@@ -1308,6 +1308,12 @@ export default function CheckinStatus() {
               </div>
             </div>
             <CheckinContent eventId={eventId} />
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 32 }}>
+              <button className="ck-back-btn" onClick={() => navigate("/realtime/checkinstatus")}>
+                <ArrowLeft size={15} />
+                목록으로
+              </button>
+            </div>
           </>
         ) : (
           <RealtimeEventSelector

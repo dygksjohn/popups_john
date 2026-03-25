@@ -20,7 +20,13 @@ const css = `
   }
   @keyframes cr-roll {
     0% { top: 100vh; }
-    100% { top: -6000px; }
+    100% { top: -5000px; }
+  }
+  @media (max-width: 640px) {
+    @keyframes cr-roll {
+      0% { top: 100vh; }
+      100% { top: -4000px; }
+    }
   }
 
   .cr-logo {
@@ -117,6 +123,29 @@ const css = `
   @keyframes cr-beat {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.2); }
+  }
+
+  @media (max-width: 640px) {
+    .cr-scroll { padding: 0 20px; }
+    .cr-logo { font-size: 40px; }
+    .cr-team { font-size: 13px; letter-spacing: 4px; margin-bottom: 40px; }
+    .cr-tagline { font-size: 15px; margin-bottom: 80px; }
+    .cr-block { margin-bottom: 60px; }
+    .cr-role-label { font-size: 12px; letter-spacing: 3px; margin-bottom: 14px; }
+    .cr-person { font-size: 22px; }
+    .cr-sub { font-size: 14px; }
+    .cr-detail { font-size: 13px; max-width: 100%; }
+    .cr-line { margin-bottom: 60px; }
+    .cr-incident { margin-bottom: 60px; }
+    .cr-incident-title { font-size: 15px; letter-spacing: 1px; }
+    .cr-incident-item { font-size: 14px; }
+    .cr-stat-row { gap: 24px; }
+    .cr-stat-num { font-size: 24px; }
+    .cr-stat-label { font-size: 11px; }
+    .cr-thanks-label { font-size: 15px; }
+    .cr-thanks { font-size: 14px; }
+    .cr-end-logo { font-size: 24px; }
+    .cr-replay { bottom: 20px; padding: 10px 24px; font-size: 13px; }
   }
 
   /* 모달 */
