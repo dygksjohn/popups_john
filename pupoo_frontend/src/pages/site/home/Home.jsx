@@ -27,11 +27,11 @@ const dogImg = (id) => DOG_IMGS[Math.abs(Number(id) || 0) % DOG_IMGS.length];
 
 const HOME_HERO_VIDEOS = [
   {
-    src: toPublicAssetUrl("/uploads/home/home-1.mov"),
+    src: toPublicAssetUrl("/uploads/home/home-1.mp4"),
     poster: toPublicAssetUrl("/uploads/home/home-1-poster.jpg"),
   },
   {
-    src: toPublicAssetUrl("/uploads/home/home-2.mov"),
+    src: toPublicAssetUrl("/uploads/home/home-2.mp4"),
     poster: toPublicAssetUrl("/uploads/home/home-2-poster.jpg"),
   },
   {
@@ -696,5 +696,4 @@ export default function Home() {
       </div>
   );
 }
-
 

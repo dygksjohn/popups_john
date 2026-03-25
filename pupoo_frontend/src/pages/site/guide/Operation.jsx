@@ -320,7 +320,7 @@ const css = `
 `;
 
 const guideAsset = (fileName) => toPublicAssetUrl(`/uploads/guide/${fileName}`);
-const GUIDE_VIDEO_SRC = guideAsset("guide.mov");
+const GUIDE_VIDEO_SRC = guideAsset("guide.mp4");
 const GUIDE_VIDEO_POSTER = guideAsset("guide-poster.jpg");
 
 const GALLERY_1 = [
@@ -374,7 +374,7 @@ export default function Operation() {
           onCanPlay={() => setGuideReady(true)}
           onPlaying={() => setGuideReady(true)}
         >
-          <source src={GUIDE_VIDEO_SRC} type="video/quicktime" />
+          <source src={GUIDE_VIDEO_SRC} type="video/mp4" />
         </video>
         <div className="op-hero-overlay" />
         <F>
