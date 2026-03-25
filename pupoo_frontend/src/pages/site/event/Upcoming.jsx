@@ -18,7 +18,6 @@ import {
   BellRing,
   Tag,
   CalendarClock,
-  Check,
 } from "lucide-react";
 
 export const SERVICE_CATEGORIES = [
@@ -63,10 +62,14 @@ const styles = `
     font-size: 13px; font-weight: 500; color: #6b7280; background: transparent;
     cursor: pointer; font-family: inherit; transition: all 0.15s;
   }
-  .up-nav-btn:hover { background: #f3f4f6; color: #111827; }
-  .up-nav-btn.active { background: #1a4fd6; color: #fff; font-weight: 600; }
+  .up-nav-btn:hover { background: #f8f9fc; color: #111827; }
+  .up-nav-btn.active { background: #90C450; color: #fff; font-weight: 600; }
 
   .up-container { width: min(1400px, calc(100% - 40px)); margin: 0 auto; padding: 32px 0 64px; }
+
+  .up-toolbar-top { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; }
+  .up-toolbar-left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .up-search-box { position: relative; width: 280px; flex-shrink: 0; }
 
   .up-status-chip {
     display: inline-flex; align-items: center; gap: 7px;
@@ -75,18 +78,18 @@ const styles = `
     font-size: 16px; font-weight: 700; color: #111827;
     white-space: nowrap; flex-shrink: 0;
   }
-  .up-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #2563eb; animation: up-pulse 1.4s ease-in-out infinite; }
-  .up-status-count { color: #2563eb; font-weight: 800; }
+  .up-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #90C450; animation: up-pulse 1.4s ease-in-out infinite; }
+  .up-status-count { color: #90C450; font-weight: 800; }
   @keyframes up-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 
   .up-filter-btn {
-    height: 52px; padding: 0 18px; border: 1.5px solid #e2e8f0; border-radius: 14px;
-    background: #fff; font-size: 15.5px; font-weight: 600; color: #374151;
-    cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: inherit;
+    height: 36px; padding: 0 14px; border: 1px solid #e5e7eb; border-radius: 999px;
+    background: transparent; font-size: 14px; font-weight: 600; color: #6b7280;
+    cursor: pointer; display: flex; align-items: center; gap: 5px; font-family: inherit;
     transition: all 0.15s; white-space: nowrap;
   }
-  .up-filter-btn:hover { border-color: #2563eb; color: #2563eb; }
-  .up-filter-btn.active { border-color: #2563eb; background: #eff6ff; color: #2563eb; font-weight: 700; }
+  .up-filter-btn:hover { border-color: #90C450; color: #90C450; }
+  .up-filter-btn.active { border: none; background: #90C450; color: #fff; font-weight: 700; }
 
   /* Card grid */
   .up-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
@@ -99,75 +102,83 @@ const styles = `
 
   .up-thumb {
     width: 180px; flex-shrink: 0;
-    overflow: hidden; background: #eef2ff; position: relative;
+    overflow: hidden; background: #f4f8ee; position: relative;
   }
   .up-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s; }
   .up-event-card:hover .up-thumb img { transform: scale(1.03); }
   .up-thumb-fallback {
     width: 100%; height: 100%; min-height: 200px;
     display: flex; align-items: center; justify-content: center; font-size: 36px;
-    background: linear-gradient(135deg, #1a4fd6 0%, #6366f1 100%);
+    background: linear-gradient(135deg, #90C450 0%, rgb(99, 234, 241) 100%);
   }
   .up-d-badge {
-    position: absolute; top: 12px; right: 12px;
-    font-size: 14px; font-weight: 800; color: #fff;
-    padding: 4px 10px; border-radius: 8px;
+    position: absolute; top: 10px; right: 10px;
+    font-size: 13px; font-weight: 800; color: #fff;
+    padding: 3px 9px; border-radius: 7px;
     background: linear-gradient(135deg, #ef4444, #f97316);
     box-shadow: 0 2px 8px rgba(239,68,68,0.3);
   }
 
-  .up-event-body { flex: 1; padding: 20px 22px; display: flex; flex-direction: column; min-width: 0; }
+  .up-event-body { flex: 1; padding: 18px 20px; display: flex; flex-direction: column; min-width: 0; }
   .up-event-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-  .up-event-category { font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
-  .up-event-title { font-size: 17px; font-weight: 700; color: #111827; margin-bottom: 10px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .up-event-meta { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-  .up-event-meta-item { display: flex; align-items: center; gap: 6px; font-size: 14.5px; color: #6b7280; }
+  .up-event-category { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 6px; }
+  .up-event-title { font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 10px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .up-event-meta { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  .up-event-meta-item { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: #6b7280; }
   .up-event-footer { margin-top: auto; display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #f1f3f5; gap: 8px; }
-  .up-participants { font-size: 14px; color: #6b7280; }
-  .up-participants strong { font-size: 16px; font-weight: 800; color: #111827; }
-  .up-action-row { display: flex; align-items: center; gap: 6px; }
+  .up-participants { font-size: 13px; color: #6b7280; }
+  .up-participants strong { font-size: 15px; font-weight: 800; color: #111827; }
+  .up-action-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .up-alarm-btn {
-    height: 34px; padding: 0 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
-    cursor: pointer; display: flex; align-items: center; gap: 5px; font-family: inherit;
+    height: 34px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 4px; font-family: inherit;
     transition: all 0.15s;
   }
   .up-alarm-btn.off { border: 1px solid #e2e8f0; background: #fff; color: #374151; }
-  .up-alarm-btn.off:hover { border-color: #2563eb; color: #2563eb; }
-  .up-alarm-btn.on { border: 1px solid #2563eb; background: #eff6ff; color: #2563eb; }
+  .up-alarm-btn.off:hover { border-color: #90C450; color: #90C450; }
+  .up-alarm-btn.on { border: 1px solid #90C450; background: #f4f8ee; color: #90C450; }
   .up-pre-btn {
-    height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid transparent;
-    font-size: 14.5px; font-weight: 700; cursor: pointer; font-family: inherit;
-    background: #1a4fd6; color: #fff; transition: all 0.15s;
-    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    height: 34px; padding: 0 13px; border-radius: 8px; border: none;
+    font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+    background: #90C450; color: #fff; transition: all 0.15s; white-space: nowrap;
   }
   .up-pre-btn:hover { background: #1640b8; }
   .up-pre-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-  .up-pre-btn.done {
-    background: #ecfdf5;
-    color: #15803d;
-    border-color: #bbf7d0;
-    opacity: 0.9;
-  }
-  .up-pre-btn.done:hover {
-    background: #ecfdf5;
-  }
 
   @media (max-width: 900px) {
     .up-grid { grid-template-columns: 1fr; }
   }
+  @media (max-width: 860px) {
+    .up-toolbar-top { flex-direction: column; align-items: stretch; }
+    .up-toolbar-left { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; padding-bottom: 2px; }
+    .up-toolbar-left::-webkit-scrollbar { display: none; }
+    .up-search-box { width: 100%; }
+  }
   @media (max-width: 600px) {
+    .up-container { width: calc(100% - 20px); padding: 16px 0 40px; }
+    .up-status-chip { height: 44px; padding: 0 14px; font-size: 14px; border-radius: 12px; }
     .up-event-card { flex-direction: column; }
     .up-thumb { width: 100%; height: 180px; }
+    .up-thumb-fallback { min-height: 180px; }
+    .up-event-body { padding: 12px 14px 14px; }
+    .up-event-title { font-size: 15px; margin-bottom: 8px; }
+    .up-event-meta { gap: 3px; margin-bottom: 10px; }
+    .up-event-meta-item { font-size: 12.5px; }
+    .up-event-footer { flex-wrap: wrap; gap: 8px; }
+    .up-participants { font-size: 12px; }
+    .up-action-row { width: 100%; justify-content: flex-end; }
+    .up-alarm-btn { height: 36px; font-size: 13px; }
+    .up-pre-btn { height: 36px; flex: 1; justify-content: center; font-size: 13.5px; }
   }
 `;
 
 const CATEGORY_COLORS = {
-  컨퍼런스: { bg: "#eff4ff", color: "#1a4fd6" },
+  컨퍼런스: { bg: "#eff4ff", color: "#90C450" },
   워크샵: { bg: "#f5f3ff", color: "#7c3aed" },
   세미나: { bg: "#ecfdf5", color: "#059669" },
   포럼: { bg: "#fff7ed", color: "#d97706" },
   전시: { bg: "#fef2f2", color: "#dc2626" },
-  네트워킹: { bg: "#f0fdf4", color: "#16a34a" },
+  네트워킹: { bg: "#f0fdf4", color: "#90C450" },
 };
 
 function formatDate(value) {
@@ -293,7 +304,6 @@ export default function Upcoming() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submittingId, setSubmittingId] = useState(null);
-  const [appliedEventIds, setAppliedEventIds] = useState(() => new Set());
 
   useEffect(() => {
     let mounted = true;
@@ -344,42 +354,6 @@ export default function Upcoming() {
     };
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-
-    const fetchMyAppliedEvents = async () => {
-      if (!tokenStore.getAccess()) {
-        if (mounted) setAppliedEventIds(new Set());
-        return;
-      }
-
-      try {
-        const res = await axiosInstance.get("/api/users/me/event-registrations", {
-          params: { page: 0, size: 200, sort: "appliedAt,desc" },
-        });
-        const content = res?.data?.data?.content ?? [];
-        const activeStatuses = new Set(["APPLIED", "APPROVED"]);
-        const next = new Set(
-          content
-            .filter(
-              (item) =>
-                activeStatuses.has(String(item?.status || "").toUpperCase()) &&
-                item?.eventId != null,
-            )
-            .map((item) => Number(item.eventId)),
-        );
-        if (mounted) setAppliedEventIds(next);
-      } catch {
-        if (mounted) setAppliedEventIds(new Set());
-      }
-    };
-
-    fetchMyAppliedEvents();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   const filtered = events.filter((e) => {
     const matchQ = e.title.includes(query) || e.category.includes(query);
     const matchF = filter === "all" || e.category === filter;
@@ -398,11 +372,6 @@ export default function Upcoming() {
   const handlePreApply = async (ev, clickEvent) => {
     clickEvent.stopPropagation();
     if (!ev?.id || submittingId) return;
-
-    if (appliedEventIds.has(Number(ev.id))) {
-      navigate("/registration/applyhistory");
-      return;
-    }
 
     if (!tokenStore.getAccess()) {
       navigate("/auth/login", {
@@ -424,20 +393,10 @@ export default function Upcoming() {
       await axiosInstance.post("/api/event-registrations", {
         eventId: Number(ev.id),
       });
-      setAppliedEventIds((prev) => {
-        const next = new Set(prev);
-        next.add(Number(ev.id));
-        return next;
-      });
       navigate(`/payment/checkout?${params.toString()}`);
     } catch (e) {
       if (e?.response?.status === 409) {
-        setAppliedEventIds((prev) => {
-          const next = new Set(prev);
-          next.add(Number(ev.id));
-          return next;
-        });
-        navigate("/registration/applyhistory");
+        navigate(`/payment/checkout?${params.toString()}`);
       } else if (e?.response?.status === 401) {
         navigate("/auth/login", {
           state: { from: `${location.pathname}${location.search}` },
@@ -460,7 +419,7 @@ export default function Upcoming() {
       <PageHeader
         title="예정 행사"
         subtitle={SUBTITLE_MAP[currentPath]}
-        icon={<CalendarClock size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        icon={<CalendarClock size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={SERVICE_CATEGORIES}
@@ -476,26 +435,26 @@ export default function Upcoming() {
         ) : (
           <>
           {/* 검색 바 + 상태 칩 */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <div className="up-status-chip">
-              <div className="up-status-dot" />
-              예정 <span className="up-status-count">{events.length}</span>
+          <div className="up-toolbar-top">
+            <div className="up-toolbar-left">
+              <div className="up-status-chip">
+                <div className="up-status-dot" />
+                예정 <span className="up-status-count">{events.length}</span>
+              </div>
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  className={`up-filter-btn${filter === c ? " active" : ""}`}
+                  onClick={() => setFilter(filter === c ? "all" : c)}
+                >
+                  <Tag size={10} /> {c}
+                </button>
+              ))}
             </div>
-            {categories.map((c) => (
-              <button
-                key={c}
-                className={`up-filter-btn${filter === c ? " active" : ""}`}
-                onClick={() => setFilter(filter === c ? "all" : c)}
-              >
-                <Tag size={11} /> {c}
-              </button>
-            ))}
-            </div>
-            <div style={{ position: "relative", width: 280 }}>
+            <div className="up-search-box">
               <Search
                 size={16}
-                color={searchFocused ? "#2563eb" : "#94a3b8"}
+                color={searchFocused ? "#90C450" : "#94a3b8"}
                 style={{
                   position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
                   transition: "color 0.25s", zIndex: 1,
@@ -503,13 +462,8 @@ export default function Upcoming() {
               />
               {!searchFocused && !query && (
                 <span style={{
-                  position: "absolute", left: 38,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  fontSize: 15,
-                  color: "#94a3b8",
-                  fontWeight: 600,
-                  pointerEvents: "none", zIndex: 1,
+                  position: "absolute", left: 38, top: "50%", transform: "translateY(-50%)",
+                  fontSize: 15, color: "#94a3b8", fontWeight: 600, pointerEvents: "none", zIndex: 1,
                 }}>행사 검색</span>
               )}
               <input
@@ -518,9 +472,8 @@ export default function Upcoming() {
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
                 style={{
-                  width: "100%", height: 44,
-                  borderRadius: 12,
-                  border: searchFocused ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+                  width: "100%", height: 44, borderRadius: 12,
+                  border: searchFocused ? "2px solid #90C450" : "1.5px solid #e2e8f0",
                   padding: "0 14px 0 38px",
                   fontSize: 15, fontWeight: 700, color: "#0f172a",
                   background: "#fff", outline: "none",
@@ -547,7 +500,6 @@ export default function Upcoming() {
               color: "#374151",
             };
             const isOn = alarms[ev.id];
-            const isApplied = appliedEventIds.has(Number(ev.id));
             return (
               <div
                 key={ev.id}
@@ -607,20 +559,11 @@ export default function Upcoming() {
                         {isOn ? "알림 ON" : "알림"}
                       </button>
                       <button
-                        className={`up-pre-btn${isApplied ? " done" : ""}`}
+                        className="up-pre-btn"
                         onClick={(e) => handlePreApply(ev, e)}
                         disabled={submittingId === ev.id}
                       >
-                        {submittingId === ev.id
-                          ? "처리중"
-                          : isApplied
-                            ? (
-                              <>
-                                <Check size={13} />
-                                접수 완료
-                              </>
-                            )
-                            : "사전신청"}
+                        {submittingId === ev.id ? "처리중" : "사전신청"}
                       </button>
                     </div>
                   </div>

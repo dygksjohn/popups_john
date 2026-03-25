@@ -53,7 +53,7 @@ const styles = `
   .sc-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #f1f3f5; }
   .sc-card-title { font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin: 0; }
   .sc-card-title-icon { width: 24px; height: 24px; border-radius: 6px; background: #fffbeb; display: flex; align-items: center; justify-content: center; }
-  .sc-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f3f4f6; padding: 3px 10px; border-radius: 100px; }
+  .sc-card-tag { font-size: 11px; font-weight: 600; color: #6b7280; background: #f8f9fc; padding: 3px 10px; border-radius: 100px; }
 
   .sc-main-grid { display: grid; grid-template-columns: 320px 1fr; gap: 14px; }
 
@@ -64,13 +64,13 @@ const styles = `
     padding: 16px 18px; border: 1px solid #e9ecef; border-radius: 10px;
     background: #fff; cursor: pointer; transition: all 0.15s;
   }
-  .sc-day-item:hover { border-color: #02A17E; }
-  .sc-day-item.active { border-color: #02A17E; background: #f5f8ff; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
+  .sc-day-item:hover { border-color: #90C450; }
+  .sc-day-item.active { border-color: #90C450; background: #f5f8ff; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
   .sc-day-icon {
-    width: 44px; height: 44px; border-radius: 10px; background: #f3f4f6;
+    width: 44px; height: 44px; border-radius: 10px; background: #f8f9fc;
     display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .sc-day-icon.active { background: #02A17E; }
+  .sc-day-icon.active { background: #90C450; }
   .sc-day-icon .sc-day-d { font-size: 16px; font-weight: 900; color: #111827; line-height: 1; }
   .sc-day-icon.active .sc-day-d { color: #fff; }
   .sc-day-icon .sc-day-w { font-size: 9px; font-weight: 600; color: #9ca3af; }
@@ -79,7 +79,7 @@ const styles = `
   .sc-day-title { font-size: 14px; font-weight: 700; color: #111827; }
   .sc-day-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
   .sc-day-count {
-    font-size: 11px; font-weight: 700; color: #02A17E; background: #eff4ff;
+    font-size: 11px; font-weight: 700; color: #90C450; background: #eff4ff;
     padding: 3px 10px; border-radius: 100px;
   }
 
@@ -87,7 +87,7 @@ const styles = `
   .sc-timeline { display: flex; flex-direction: column; gap: 0; }
   .sc-time-group { margin-bottom: 20px; }
   .sc-time-label {
-    font-size: 12px; font-weight: 700; color: #02A17E; background: #eff4ff;
+    font-size: 12px; font-weight: 700; color: #90C450; background: #eff4ff;
     display: inline-flex; padding: 3px 10px; border-radius: 100px; margin-bottom: 10px;
   }
   .sc-event-list { display: flex; flex-direction: column; gap: 8px; }
@@ -96,8 +96,8 @@ const styles = `
     padding: 16px 18px; border: 1px solid #e9ecef; border-radius: 10px;
     background: #fff; transition: all 0.15s; cursor: pointer;
   }
-  .sc-event-item:hover { border-color: #02A17E; background: #f8faff; }
-  .sc-event-item.active { border-color: #10b981; background: #f0fdf9; }
+  .sc-event-item:hover { border-color: #90C450; background: #f8faff; }
+  .sc-event-item.active { border-color: #3a4520; background: #f0fdf9; }
   .sc-event-item.done { opacity: 0.55; }
   .sc-event-dot { margin-top: 4px; flex-shrink: 0; }
   .sc-event-info { flex: 1; }
@@ -108,7 +108,7 @@ const styles = `
   .sc-event-tag {
     font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 100px;
   }
-  .sc-event-tag.session { background: #eff4ff; color: #02A17E; }
+  .sc-event-tag.session { background: #eff4ff; color: #90C450; }
   .sc-event-tag.contest { background: #fef3c7; color: #d97706; }
   .sc-event-tag.experience { background: #fce7f3; color: #ec4899; }
   .sc-event-tag.ceremony { background: #f5f3ff; color: #8b5cf6; }
@@ -117,7 +117,7 @@ const styles = `
   }
   .sc-event-badge.live { background: #ecfdf5; color: #059669; }
   .sc-event-badge.upcoming { background: #fff7ed; color: #d97706; }
-  .sc-event-badge.done { background: #f3f4f6; color: #9ca3af; }
+  .sc-event-badge.done { background: #f8f9fc; color: #9ca3af; }
 
   @media (max-width: 1023px) {
     .sc-container { padding: 28px 20px 56px; }
@@ -349,13 +349,13 @@ function ScheduleContent({ eventDetail, programs, loading, error }) {
           {
             label: "행사 기간",
             value: `${days.length}일`,
-            icon: <CalendarDays size={20} color="#02A17E" />,
+            icon: <CalendarDays size={20} color="#90C450" />,
             bg: "#eff4ff",
           },
           {
             label: "선택 일자 프로그램",
             value: `${selectedPrograms.length}개`,
-            icon: <CalendarCheck size={20} color="#10b981" />,
+            icon: <CalendarCheck size={20} color="#3a4520" />,
             bg: "#ecfdf5",
           },
           {
@@ -446,9 +446,9 @@ function ScheduleContent({ eventDetail, programs, loading, error }) {
                       >
                         <div className="sc-event-dot">
                           {e.status === "done" ? (
-                            <CheckCircle2 size={16} color="#10b981" />
+                            <CheckCircle2 size={16} color="#3a4520" />
                           ) : e.status === "live" ? (
-                            <AlertCircle size={16} color="#10b981" />
+                            <AlertCircle size={16} color="#3a4520" />
                           ) : (
                             <Circle size={16} color="#d1d5db" />
                           )}
@@ -549,7 +549,7 @@ export default function ProgramAll() {
               Number(evt?.participantCount ?? evt?.participants ?? 0) || 0,
             imageUrl: imgById[String(evt?.eventId)] || evt?.imageUrl || null,
             thumbnail: imgById[String(evt?.eventId)] || evt?.imageUrl || null,
-            color: "#02A17E",
+            color: "#90C450",
           })),
         );
       } catch (e) {

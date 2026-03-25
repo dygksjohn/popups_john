@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   CalendarDays,
@@ -27,20 +27,13 @@ const styles = `
   .wt-root {
     box-sizing: border-box;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    background: #f0f4fa;
+    background: #f8f9fc;
     min-height: 100vh;
     flex: 1;
   }
   .wt-root *, .wt-root *::before, .wt-root *::after { box-sizing: border-box; font-family: inherit; }
   .wt-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
-  .wt-container.selector-mode { padding-top: 32px; }
-  .wt-top-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
-  }
+  .wt-container.selector-mode { padding-top: 16px; }
 
   .wt-back-btn {
     display: inline-flex;
@@ -51,50 +44,12 @@ const styles = `
     border: 1.5px solid #111827;
     background: #111827;
     color: #fff;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.15s;
-    margin-bottom: 20px;
     font-family: inherit;
     letter-spacing: -0.01em;
-  }
-  .wt-top-actions .wt-back-btn { margin-bottom: 0; }
-  .wt-event-mode-nav {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-left: auto;
-  }
-  .wt-mode-btn {
-    height: 44px;
-    border-radius: 12px;
-    border: 1px solid #d1d5db;
-    background: #f3f4f6;
-    color: #6b7280;
-    padding: 0 16px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: inherit;
-  }
-  .wt-mode-btn.active {
-    background: #02A17E;
-    color: #fff;
-    border-color: #02A17E;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.14);
-  }
-  .wt-mode-btn:hover {
-    background: #e5e7eb;
-    border-color: #cbd5e1;
-    color: #4b5563;
-  }
-  .wt-mode-btn.active:hover {
-    background: #028A6C;
-    border-color: #028A6C;
-    color: #fff;
   }
   .wt-back-btn:hover {
     background: #1f2937;
@@ -103,13 +58,14 @@ const styles = `
   .wt-back-btn:active {
     transform: scale(0.97);
   }
+  .wt-back-wrap { display: flex; justify-content: center; margin-top: 32px; }
 
   .wt-status-chip {
     display: inline-flex; align-items: center; gap: 8px;
     font-size: 14px; font-weight: 700;
     color: #ef4444;
   }
-  .wt-status-chip.planned { color: #02A17E; }
+  .wt-status-chip.planned { color: #90C450; }
   .wt-status-chip.ended { color: #9ca3af; }
   .wt-status-chip.cancelled { color: #b91c1c; }
   .wt-status-dot {
@@ -292,7 +248,7 @@ const styles = `
     cursor: pointer; color: #6b7280;
     transition: all 0.15s;
   }
-  .wt-refresh-btn:hover { border-color: #02A17E; color: #02A17E; background: #f5f8ff; }
+  .wt-refresh-btn:hover { border-color: #90C450; color: #90C450; background: #f5f8ff; }
   .wt-refresh-btn:active { transform: scale(0.93); }
 
   .wt-card {
@@ -360,60 +316,32 @@ const styles = `
     display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
   }
   .wt-toggle-group {
-    display: inline-flex; align-items: center; gap: 0;
+    display: flex; align-items: center; gap: 0;
+    border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;
   }
   .wt-toggle-btn {
-    border: 1px solid #e2e5ea;
-    background: #fff;
-    color: #9ca3af;
-    font-size: 14px;
-    font-weight: 600;
-    border-radius: 0;
-    padding: 9px 18px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    font-family: inherit;
-    white-space: nowrap;
-    margin-left: -1px;
+    height: 44px; padding: 0 20px; border: none;
+    background: transparent; color: #6b7280; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
   }
-  .wt-toggle-btn:first-child { border-radius: 10px 0 0 10px; margin-left: 0; }
-  .wt-toggle-btn:last-child { border-radius: 0 10px 10px 0; }
-  .wt-toggle-btn.active {
-    color: #fff;
-    background: #111827;
-    border-color: #111827;
-    z-index: 1;
-    position: relative;
-  }
-  .wt-toggle-btn:hover:not(.active) { background: #f9fafb; color: #374151; }
+  .wt-toggle-btn + .wt-toggle-btn { border-left: 1px solid #e5e7eb; }
+  .wt-toggle-btn:hover { color: #111827; background: #f9fafb; }
+  .wt-toggle-btn.active { background: #1f2937; color: #fff; }
   .wt-sort-group {
-    display: inline-flex; align-items: center; gap: 0;
+    display: flex; align-items: center; gap: 0;
+    border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;
     margin-left: auto;
   }
   .wt-sort-btn {
-    border: 1px solid #e2e5ea;
-    background: #fff;
-    color: #9ca3af;
-    font-size: 14px;
-    font-weight: 600;
-    border-radius: 0;
-    padding: 9px 18px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-    font-family: inherit;
-    margin-left: -1px;
+    height: 44px; padding: 0 20px; border: none;
+    background: transparent; color: #6b7280; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
   }
-  .wt-sort-btn:first-child { border-radius: 10px 0 0 10px; margin-left: 0; }
-  .wt-sort-btn:last-child { border-radius: 0 10px 10px 0; }
-  .wt-sort-btn.active {
-    color: #fff;
-    background: #111827;
-    border-color: #111827;
-    z-index: 1;
-    position: relative;
-  }
-  .wt-sort-btn:hover:not(.active) { background: #f9fafb; color: #374151; }
+  .wt-sort-btn + .wt-sort-btn { border-left: 1px solid #e5e7eb; }
+  .wt-sort-btn:hover { color: #111827; background: #f9fafb; }
+  .wt-sort-btn.active { background: #1f2937; color: #fff; }
   .wt-empty-state {
     min-height: 120px; border: none; border-radius: 12px; background: #f9fafb;
     color: #c5c9cf; font-size: 13px; line-height: 1.5; text-align: center; padding: 24px;
@@ -474,7 +402,7 @@ const styles = `
     border-radius: 99px; padding: 5px 12px;
     font-size: 13px; font-weight: 700; white-space: nowrap;
     border: none;
-    background: #f3f4f6; color: #6b7280;
+    background: #f8f9fc; color: #6b7280;
   }
   .wt-badge-dot {
     width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
@@ -488,7 +416,7 @@ const styles = `
   .wt-badge-busy .wt-badge-dot { background: #ea580c; }
   .wt-badge-critical { color: #dc2626; background: #fef2f2; }
   .wt-badge-critical .wt-badge-dot { background: #dc2626; }
-  .wt-badge-pending { color: #9ca3af; background: #f3f4f6; }
+  .wt-badge-pending { color: #9ca3af; background: #f8f9fc; }
   .wt-badge-pending .wt-badge-dot { background: #d1d5db; }
 
   .wt-chart-lead { margin: -2px 0 10px; font-size: 12px; color: #9ca3af; line-height: 1.4; }
@@ -499,7 +427,7 @@ const styles = `
     width: 100%; min-height: 6px; border-radius: 8px 8px 4px 4px; background: #CCF0E4;
     position: relative; cursor: default; transition: filter 0.15s;
   }
-  .wt-chart-bar.top { background: #02A17E; }
+  .wt-chart-bar.top { background: #90C450; }
   .wt-chart-bar:hover { filter: brightness(0.92); }
   .wt-chart-bar:hover .wt-chart-tooltip { display: flex; }
   .wt-chart-tooltip {
@@ -533,7 +461,7 @@ const styles = `
     width: 28px;
     height: 28px;
     border-radius: 8px;
-    background: #02A17E;
+    background: #90C450;
     color: #fff;
     font-size: 14px;
     font-weight: 800;
@@ -599,22 +527,29 @@ const styles = `
   }
   @media (max-width: 640px) {
     .wt-container { padding: 20px 16px 48px; }
-    .wt-container.selector-mode { padding-top: 88px; }
-    .wt-top-actions { align-items: stretch; }
-    .wt-event-mode-nav { width: 100%; margin-left: 0; }
-    .wt-mode-btn { flex: 1 1 calc(50% - 8px); min-width: 132px; }
-    .wt-hero-title { font-size: 22px; }
+    .wt-container.selector-mode { padding-top: 0; }
+    .wt-hero { padding: 18px 18px 20px; overflow: visible; }
+    .wt-hero-title { font-size: 19px; letter-spacing: 0; line-height: 1.4; word-break: keep-all; }
     .wt-hero-kpi-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, 1fr);
       width: 100%;
       margin-left: 0;
       margin-top: 14px;
     }
-    .wt-hero-kpi-value { font-size: 26px; }
-    .wt-card { padding: 22px 18px; }
+    .wt-hero-kpi { padding: 14px 14px; }
+    .wt-hero-kpi-value { font-size: 24px; }
+    .wt-hero-visitor { font-size: 13px; flex-wrap: wrap; row-gap: 2px; column-gap: 5px; line-height: 1.5; }
+    .wt-hero-visitor strong { font-size: 13px; }
+    .wt-back-btn { padding: 9px 22px; font-size: 13px; border-radius: 999px; }
+    .wt-card { padding: 20px 16px; }
+    .wt-card-title { font-size: 16px; }
+    .wt-toggle-btn { padding: 9px 12px; font-size: 13px; }
+    .wt-sort-btn { padding: 9px 12px; font-size: 13px; }
     .wt-program-list { grid-template-columns: 1fr; }
+    .wt-program-card { padding: 16px; }
     .wt-booth-list { grid-template-columns: 1fr; }
     .wt-zone-list { grid-template-columns: 1fr; }
+    .wt-zone-item { padding: 16px; }
     .wt-program-wait-min { font-size: 18px; }
     .wt-congestion-scroll { max-height: clamp(260px, 50vh, 420px); }
     .wt-sort-group { margin-left: 0; }
@@ -627,11 +562,12 @@ export const SERVICE_CATEGORIES = [
   { label: "예정 행사", path: "/realtime/waitingstatus?status=upcoming", countKey: "upcoming" },
   { label: "종료 행사", path: "/realtime/waitingstatus?status=ended", countKey: "ended" },
 ];
-const EVENT_REALTIME_BUTTONS = [
-  { key: "dashboard", label: "통합현황", path: "/realtime/dashboard" },
-  { key: "waiting", label: "대기현황", path: "/realtime/waitingstatus" },
-  { key: "checkin", label: "체크인 현황", path: "/realtime/checkinstatus" },
-  { key: "vote", label: "투표현황", path: "/realtime/votestatus" },
+
+const REALTIME_NAV_CATEGORIES = [
+  { label: "통합현황", path: "/realtime/dashboard" },
+  { label: "대기현황", path: "/realtime/waitingstatus" },
+  { label: "체크인현황", path: "/realtime/checkinstatus" },
+  { label: "투표현황", path: "/realtime/votestatus" },
 ];
 
 const ZONE_NAME_MAP = {
@@ -863,6 +799,7 @@ function compareBoothRows(a, b) {
 
 function WaitingContent({ eventId }) {
   const numericEventId = Number(eventId);
+  const navigate = useNavigate();
   const { tick } = useAutoRefresh(15000);
 
   const [eventDetail, setEventDetail] = useState(null);
@@ -1274,7 +1211,7 @@ function WaitingContent({ eventId }) {
       ) : null}
 
       <div className="wt-card wt-card-congestion">
-        <div className="wt-card-accent" style={{ background: "#02A17E" }} />
+        <div className="wt-card-accent" style={{ background: "#90C450" }} />
         <div className="wt-card-header wt-card-header-congestion">
           <div className="wt-card-actions">
             <div className="wt-toggle-group">
@@ -1478,7 +1415,12 @@ function WaitingContent({ eventId }) {
         )}
         </div>
       </div>
-
+      <div className="wt-back-wrap">
+        <button className="wt-back-btn" onClick={() => navigate("/realtime/waitingstatus")}>
+          <ArrowLeft size={14} />
+          목록으로
+        </button>
+      </div>
     </>
   );
 }
@@ -1486,6 +1428,8 @@ function WaitingContent({ eventId }) {
 export default function WaitingStatus() {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname.startsWith("/realtime/waitingstatus") ? "/realtime/waitingstatus" : location.pathname;
 
   const handleSelectEvent = (id) => {
     navigate(`/realtime/waitingstatus/${id}`);
@@ -1496,35 +1440,18 @@ export default function WaitingStatus() {
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
       <PageHeader
-        title={eventId ? "대기현황" : "실시간현황"}
+        title="대기현황"
         subtitle={eventId ? "프로그램 대기 상태를 실시간으로 확인합니다" : "행사별 대기 상태를 실시간으로 확인하세요"}
-        icon={<Timer size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<Timer size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
+        tabInactiveBg="rgb(235,235,235)"
+        categories={REALTIME_NAV_CATEGORIES}
+        currentPath={currentPath}
       />
       <main className={`wt-container${eventId ? "" : " selector-mode"}`}>
         {eventId ? (
-          <>
-            <div className="wt-top-actions">
-              <button className="wt-back-btn" onClick={() => navigate("/realtime/waitingstatus")}>
-                <ArrowLeft size={15} />
-                목록으로
-              </button>
-              <div className="wt-event-mode-nav">
-                {EVENT_REALTIME_BUTTONS.map((button) => (
-                  <button
-                    key={button.key}
-                    type="button"
-                    className={`wt-mode-btn${button.key === "waiting" ? " active" : ""}`}
-                    onClick={() => navigate(`${button.path}/${eventId}`)}
-                  >
-                    {button.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <WaitingContent eventId={eventId} />
-          </>
+          <WaitingContent eventId={eventId} />
         ) : (
           <RealtimeEventSelector
             onSelectEvent={handleSelectEvent}

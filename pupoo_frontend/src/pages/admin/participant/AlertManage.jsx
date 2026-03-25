@@ -103,88 +103,17 @@ const normalizeAlertItem = (item) => {
 };
 
 const buildDraftPayload = (item) => ({
-  notificationId: item.id ?? item.notificationId ?? null,
-  status: item.status ?? "draft",
   title: item.title,
   content: item.content,
-  notificationType: item.notificationType ?? "EVENT",
   alertMode: item.alertMode,
   eventId: item.eventId,
   eventName: item.eventName,
   eventStatus: item.eventStatus,
   alertTargetLabel: item.alertTargetLabel,
   specialTargetKey: item.specialTargetKey,
-  targetType: item.targetType ?? null,
-  targetId: item.targetId ?? null,
-  channels: item.channels ?? ["APP"],
   recipientScope: item.recipientScope ?? null,
   recipientScopes: item.recipientScopes ?? [],
 });
-
-const NOTIFICATION_DRAFT_KEY = "pupoo_admin_chatbot_notification_draft";
-const NOTIFICATION_SYNC_EVENT = "pupoo-admin-chatbot-sync-notification";
-
-const buildNotificationExecution = (item) => {
-  const notificationId = item?.id ?? item?.notificationId ?? null;
-  const alertMode = String(item?.alertMode ?? "event").toLowerCase();
-
-  if (notificationId != null) {
-    return {
-      supported: true,
-      executeType: "SEND_NOTIFICATION_DRAFT",
-      targetType: "NOTIFICATION_DRAFT",
-      status: String(item?.status ?? "draft").toUpperCase(),
-      supportedExecuteTypes: ["SEND_NOTIFICATION_DRAFT"],
-    };
-  }
-
-  if (alertMode === "event" && item?.eventId) {
-    if (!item?.targetType || item?.targetId == null) {
-      return {
-        supported: false,
-        reason: "이벤트 알림 발송에는 eventId, targetType, targetId가 모두 필요합니다.",
-        unsupportedActions: ["SCHEDULE_NOTIFICATION"],
-      };
-    }
-    return {
-      supported: true,
-      executeType: "SEND_EVENT_NOTIFICATION",
-      targetType: "EVENT_NOTIFICATION",
-      status: String(item?.status ?? "draft").toUpperCase(),
-      supportedExecuteTypes: ["SEND_EVENT_NOTIFICATION"],
-    };
-  }
-
-  if (alertMode === "important" || alertMode === "system") {
-    return {
-      supported: true,
-      executeType: "SEND_BROADCAST_NOTIFICATION",
-      targetType: "BROADCAST_NOTIFICATION",
-      status: String(item?.status ?? "draft").toUpperCase(),
-      supportedExecuteTypes: ["SEND_BROADCAST_NOTIFICATION"],
-    };
-  }
-
-  return {
-    supported: false,
-    reason: "현재 알림 초안은 발송 대상이 확정되지 않아 바로 실행할 수 없습니다.",
-    unsupportedActions: ["SCHEDULE_NOTIFICATION"],
-  };
-};
-
-const syncNotificationDraft = (detail) => {
-  if (typeof window === "undefined") return;
-  if (detail == null) {
-    sessionStorage.removeItem(NOTIFICATION_DRAFT_KEY);
-  } else {
-    sessionStorage.setItem(NOTIFICATION_DRAFT_KEY, JSON.stringify(detail));
-  }
-  window.dispatchEvent(
-    new CustomEvent(NOTIFICATION_SYNC_EVENT, {
-      detail,
-    }),
-  );
-};
 
 const resolveErrorMessage = (error, fallback) =>
   error?.response?.data?.error?.message || error?.message || fallback;
@@ -261,7 +190,7 @@ function Toast({ msg, type = "success", onDone }) {
     return () => clearTimeout(t);
   }, [onDone]);
   const bg =
-    type === "success" ? "#10B981" : type === "error" ? "#EF4444" : "#F59E0B";
+    type === "success" ? "#3a4520" : type === "error" ? "#EF4444" : "#F59E0B";
   return (
     <div
       style={{
@@ -528,7 +457,7 @@ function StatCard({ icon: I, label, value, sub }) {
 }
 function StatusDot({ status, label }) {
   const map = {
-    sent: { bg: ds.greenSoft, color: "#059669", dot: "#10B981" },
+    sent: { bg: ds.greenSoft, color: "#059669", dot: "#3a4520" },
     draft: { bg: ds.amberSoft, color: "#D97706", dot: "#F59E0B" },
   };
   const s = map[status] || map.draft;
@@ -563,7 +492,6 @@ function SlidePanel({
   isEdit,
   events = [],
   filter = "all",
-  onDraftChange,
 }) {
   const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
   const initialCreateFilter = useMemo(() => {
@@ -712,47 +640,11 @@ function SlidePanel({
     });
   }, [panelMode, specialOptions]);
 
-  const buildDraftSnapshot = useCallback(() => {
-    const recipientScopes =
-      panelMode === "event" ? normalizeRecipientScopes(form.recipientScopes) : [];
-    const selectedEvent =
-      events.find((event) => String(event.eventId) === String(form.eventId)) || null;
-    const specialTargetLabel = resolveSpecialTargetLabel(panelMode);
-
-    return {
-      ...form,
-      id: item?.id ?? form.id ?? null,
-      notificationId: item?.id ?? form.id ?? form.notificationId ?? null,
-      alertMode: panelMode,
-      notificationType:
-        panelMode === "system" ? "SYSTEM" : panelMode === "important" ? "NOTICE" : "EVENT",
-      targetType:
-        panelMode === "event"
-          ? "EVENT"
-          : panelMode === "system"
-            ? "SYSTEM"
-            : "NOTICE",
-      targetId:
-        panelMode === "event" && form.eventId ? Number(form.eventId) : 0,
-      channels: ["APP"],
-      eventId: panelMode === "event" && form.eventId ? Number(form.eventId) : null,
-      eventName: panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
-      eventStatus: panelMode === "event" ? selectedEvent?.status ?? null : null,
-      alertTargetLabel:
-        panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
-      specialTargetKey: panelMode === "event" ? "" : form.specialTargetKey,
-      recipientScope: panelMode === "event" ? recipientScopes[0] ?? null : null,
-      recipientScopes: panelMode === "event" ? recipientScopes : [],
-      target:
-        panelMode === "event" ? resolveRecipientTargetLabel(recipientScopes) : specialTargetLabel,
-      targetCount: panelMode === "event" ? form.targetCount ?? 0 : null,
-      status: form.status ?? "draft",
-    };
-  }, [events, form, item?.id, panelMode]);
-
+  const [visible, setVisible] = useState(false);
   useEffect(() => {
-    onDraftChange?.(buildDraftSnapshot());
-  }, [buildDraftSnapshot, onDraftChange]);
+    const t = setTimeout(() => setVisible(true), 20);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleSave = async () => {
     if (!form.title || !form.content) {
@@ -769,8 +661,40 @@ function SlidePanel({
       setErr("발송 대상을 1개 이상 선택해 주세요.");
       return;
     }
+    const normalizedRecipientScopes = normalizeRecipientScopes(recipientScopes);
+    const selectedEvent =
+      events.find((e) => String(e.eventId) === String(form.eventId)) || null;
+    const specialTargetLabel = resolveSpecialTargetLabel(panelMode);
     try {
-      await onSave(buildDraftSnapshot());
+      await onSave({
+        ...form,
+        alertMode: panelMode,
+        notificationType:
+          panelMode === "system"
+            ? "SYSTEM"
+            : panelMode === "important"
+              ? "NOTICE"
+              : "EVENT",
+        eventId:
+          panelMode === "event" && form.eventId ? Number(form.eventId) : null,
+        eventName:
+          panelMode === "event"
+            ? selectedEvent?.eventName ?? ""
+            : specialTargetLabel,
+        eventStatus: panelMode === "event" ? selectedEvent?.status ?? null : null,
+        alertTargetLabel:
+          panelMode === "event" ? selectedEvent?.eventName ?? "" : specialTargetLabel,
+        specialTargetKey: panelMode === "event" ? "" : form.specialTargetKey,
+        recipientScope:
+          panelMode === "event" ? normalizedRecipientScopes[0] : null,
+        recipientScopes:
+          panelMode === "event" ? normalizedRecipientScopes : [],
+        target:
+          panelMode === "event"
+            ? resolveRecipientTargetLabel(normalizedRecipientScopes)
+            : specialTargetLabel,
+        targetCount: panelMode === "event" ? form.targetCount ?? 0 : null,
+      });
     } catch (error) {
       setErr(resolveErrorMessage(error, "저장에 실패했습니다."));
     }
@@ -784,24 +708,38 @@ function SlidePanel({
           position: "fixed",
           inset: 0,
           zIndex: 4999,
-          background: "rgba(0,0,0,0.15)",
-          animation: "fadeIn .15s ease",
+          background: visible ? "rgba(10,10,18,0.55)" : "rgba(10,10,18,0)",
+          backdropFilter: visible ? "blur(4px)" : "none",
+          transition: "all .3s ease",
         }}
       />
       <div
         style={{
           position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
+          inset: 0,
           zIndex: 5000,
-          width: isMobile ? "100%" : 440,
-          maxWidth: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+          pointerEvents: "none",
+        }}
+      >
+      <div
+        style={{
+          pointerEvents: "auto",
+          width: isMobile ? "100%" : 520,
+          maxWidth: "96vw",
+          maxHeight: "min(700px, 90vh)",
           background: ds.card,
-          boxShadow: "-4px 0 30px rgba(0,0,0,0.08)",
+          borderRadius: isMobile ? 16 : 20,
+          boxShadow: "0 24px 80px rgba(0,0,0,0.25), 0 8px 24px rgba(0,0,0,0.12)",
           display: "flex",
           flexDirection: "column",
-          animation: "slideIn .25s cubic-bezier(.22,1,.36,1)",
+          overflow: "hidden",
+          transform: visible ? "translateY(0) scale(1)" : "translateY(20px) scale(0.98)",
+          opacity: visible ? 1 : 0,
+          transition: "all .35s cubic-bezier(.16,1,.3,1)",
         }}
       >
         <div
@@ -1091,6 +1029,7 @@ function SlidePanel({
           </button>
         </div>
       </div>
+      </div>
     </>
   );
 }
@@ -1110,57 +1049,7 @@ export default function AlertManage() {
   const [search, setSearch] = useState("");
   const [eventStatusFilter, setEventStatusFilter] = useState("all");
   const [selected, setSelected] = useState([]);
-  const [prefillExecution, setPrefillExecution] = useState(null);
   const show = (msg, type = "success") => setToast({ msg, type });
-  const syncPanelDraft = useCallback((draft) => {
-    if (!draft) return;
-    const detail = {
-      formData: buildDraftPayload(draft),
-      execution: buildNotificationExecution(draft),
-    };
-    setPrefillExecution(detail.execution);
-    syncNotificationDraft(detail);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-
-    const applyPrefill = (payload) => {
-      const formData = payload?.formData || payload;
-      if (!formData) return;
-      setPrefillExecution(payload?.execution || null);
-      setPanel({
-        type: "create",
-        item: {
-          ...formData,
-          alertMode: formData.alertMode || "event",
-          recipientScopes: formData.recipientScopes || ["INTEREST_SUBSCRIBERS"],
-        },
-        filter:
-          formData.alertMode === "system"
-            ? "system"
-            : formData.alertMode === "important"
-              ? "important"
-              : "all",
-      });
-    };
-
-    const savedDraft = sessionStorage.getItem(NOTIFICATION_DRAFT_KEY);
-    if (savedDraft) {
-      try {
-        applyPrefill(JSON.parse(savedDraft));
-      } catch {
-        // ignore storage parse failure
-      }
-    }
-
-    const handlePrefill = (event) => {
-        applyPrefill(event?.detail);
-      };
-
-    window.addEventListener("pupoo-admin-chatbot-prefill-notification", handlePrefill);
-    return () => window.removeEventListener("pupoo-admin-chatbot-prefill-notification", handlePrefill);
-  }, []);
   const loadItems = useCallback(async () => {
     const list = await adminNotificationApi.list();
     setItems(Array.isArray(list) ? list.map(normalizeAlertItem) : []);
@@ -1237,14 +1126,6 @@ export default function AlertManage() {
   const totalTarget = visible
     .filter((e) => e.status === "sent")
     .reduce((a, b) => a + Number(b.targetCount || 0), 0);
-  const prefillExecutionLabel =
-    prefillExecution?.executeType === "SEND_NOTIFICATION_DRAFT"
-      ? "저장된 초안 발송 가능"
-      : prefillExecution?.executeType === "SEND_EVENT_NOTIFICATION"
-        ? "이벤트 알림 발송 가능"
-        : prefillExecution?.executeType === "SEND_BROADCAST_NOTIFICATION"
-          ? "전체 알림 발송 가능"
-          : null;
   const eventFilterCounts = useMemo(
     () =>
       visible.reduce(
@@ -1291,16 +1172,12 @@ export default function AlertManage() {
 
   const handleCreate = async (f) => {
     await adminNotificationApi.createDraft(buildDraftPayload(f));
-    syncNotificationDraft(null);
-    setPrefillExecution(null);
     await loadItems();
     setPanel(null);
     show("알림이 저장되었습니다.");
   };
   const handleUpdate = async (f) => {
     await adminNotificationApi.updateDraft(f.id, buildDraftPayload(f));
-    syncNotificationDraft(null);
-    setPrefillExecution(null);
     await loadItems();
     setPanel(null);
     show("알림이 수정되었습니다.");
@@ -1344,38 +1221,6 @@ export default function AlertManage() {
   return (
     <div>
       <style>{styles}</style>
-      {prefillExecution && (
-        <div
-          style={{
-            marginBottom: 14,
-            background: prefillExecution.supported ? "#EFF6FF" : "#FEF2F2",
-            border: `1px solid ${prefillExecution.supported ? "#BFDBFE" : "#FECACA"}`,
-            color: prefillExecution.supported ? "#1D4ED8" : "#991B1B",
-            borderRadius: 10,
-            padding: "12px 14px",
-            fontSize: 12.5,
-            fontWeight: 600,
-            lineHeight: 1.6,
-          }}
-        >
-          {prefillExecution.supported
-            ? "챗봇 초안이 채워졌습니다. 즉시 발송은 가능하지만 예약 발송은 backend 미지원입니다."
-            : prefillExecution.reason || "현재 요청은 실행이 제한됩니다."}
-        </div>
-      )}
-
-      {prefillExecution?.supported && prefillExecutionLabel ? (
-        <div
-          style={{
-            marginBottom: 14,
-            color: "#1D4ED8",
-            fontSize: 12.5,
-            fontWeight: 700,
-          }}
-        >
-          {prefillExecutionLabel}
-        </div>
-      ) : null}
 
       <div
         style={{
@@ -1921,8 +1766,8 @@ export default function AlertManage() {
           ))}
         </div>
         {rows.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <Bell size={36} color={ds.ink4} style={{ marginBottom: 12 }} />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 20px", gap: 12 }}>
+            <Bell size={36} color={ds.ink4} style={{ display: "block" }} />
             <div style={{ fontSize: 14, fontWeight: 600, color: ds.ink3 }}>
               알림 내역이 없습니다
             </div>
@@ -1932,12 +1777,10 @@ export default function AlertManage() {
 
       {panel?.type === "create" && (
         <SlidePanel
-          item={panel.item}
           events={events}
           filter={panel.filter || eventStatusFilter}
           onSave={handleCreate}
           onClose={() => setPanel(null)}
-          onDraftChange={syncPanelDraft}
         />
       )}
       {panel?.type === "edit" && (
@@ -1948,7 +1791,6 @@ export default function AlertManage() {
           filter={panel.filter || eventStatusFilter}
           onSave={handleUpdate}
           onClose={() => setPanel(null)}
-          onDraftChange={syncPanelDraft}
         />
       )}
       {modal?.type === "delete" && (

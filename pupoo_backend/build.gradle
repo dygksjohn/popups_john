@@ -144,6 +144,22 @@ tasks.named('test') {
 // 로컬 개발 시 bootRun은 기본으로 local 프로필 사용 (AI moderation → localhost:8000)
 tasks.named('bootRun') {
 	systemProperty 'spring.profiles.active', System.getProperty('spring.profiles.active') ?: 'local'
+
+	// .env 파일을 읽어 환경변수로 주입
+	def envFile = file("${rootDir}/.env")
+	if (envFile.exists()) {
+		envFile.readLines().each { line ->
+			def trimmed = line.trim()
+			if (trimmed && !trimmed.startsWith('#')) {
+				def idx = trimmed.indexOf('=')
+				if (idx > 0) {
+					def key = trimmed.substring(0, idx).trim()
+					def value = trimmed.substring(idx + 1).trim()
+					environment(key, value)
+				}
+			}
+		}
+	}
 }
 
 tasks.register('installFrontendDependencies', Exec) {

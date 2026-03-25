@@ -24,7 +24,7 @@ const styles = `
   .pe-root {
     box-sizing: border-box;
     font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #f7f8fa;
+    background: #f8f9fc;
     min-height: 100vh;
     color: #1a1a1a;
   }

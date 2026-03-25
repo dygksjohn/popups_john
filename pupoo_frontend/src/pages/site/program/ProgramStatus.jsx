@@ -53,17 +53,17 @@ const PAGE_CONFIG = {
   current: {
     title: "현재 진행 프로그램",
     subtitle: "현재 진행 행사에 속한 프로그램을 확인하세요",
-    icon: <Zap size={42} color="#02A17E" strokeWidth={1.6} />,
+    icon: <Zap size={42} color="#90C450" strokeWidth={1.6} />,
   },
   upcoming: {
     title: "예정 프로그램",
     subtitle: "예정 행사에 속한 프로그램을 미리 확인하세요",
-    icon: <CalendarClock size={42} color="#02A17E" strokeWidth={1.6} />,
+    icon: <CalendarClock size={42} color="#90C450" strokeWidth={1.6} />,
   },
   closed: {
     title: "종료 프로그램",
     subtitle: "종료 행사에 속한 프로그램 이력을 확인하세요",
-    icon: <ArchiveX size={42} color="#02A17E" strokeWidth={1.6} />,
+    icon: <ArchiveX size={42} color="#90C450" strokeWidth={1.6} />,
   },
 };
 
@@ -73,7 +73,7 @@ const styles = `
 
   .ps-sub-tabs {
     display:flex; gap:8px; margin-bottom:24px;
-    background:#f3f4f6; border-radius:999px; padding:4px; width:fit-content;
+    background:#f8f9fc; border-radius:999px; padding:4px; width:fit-content;
   }
   .ps-sub-tab {
     padding:10px 24px; border-radius:999px; border:none;
@@ -170,7 +170,7 @@ const styles = `
     display:flex; flex-direction:column;
   }
   .ps-card-current:hover { box-shadow:0 6px 18px rgba(0,0,0,0.06); transform:translateY(-3px); }
-  .ps-card-current:hover .ps-card-current-btn { background:#02A17E; color:#fff; border-color:#02A17E; }
+  .ps-card-current:hover .ps-card-current-btn { background:#90C450; color:#fff; border-color:#90C450; }
   .ps-card-current-thumb { position:relative; overflow:hidden; background:#f1f5f9; }
   .ps-card-current-thumb img { width:100%; display:block; transition:transform 0.4s ease; }
   .ps-card-current:hover .ps-card-current-thumb img { transform:scale(1.03); }
@@ -185,7 +185,7 @@ const styles = `
     font-size:48px; background:linear-gradient(135deg, #E6F7F2 0%, #f8fafc 100%); color:#bfccdf;
   }
   .ps-card-current-body { padding:16px 18px 18px; flex:1; display:flex; flex-direction:column; }
-  .ps-card-current-category { font-size:13px; font-weight:700; color:#02A17E; margin-bottom:6px; letter-spacing:0.3px; }
+  .ps-card-current-category { font-size:13px; font-weight:700; color:#90C450; margin-bottom:6px; letter-spacing:0.3px; }
   .ps-card-current-title { font-size:16.5px; font-weight:700; color:#111827; margin-bottom:10px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .ps-card-current-meta { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; }
   .ps-card-current-meta-row { display:flex; align-items:center; gap:6px; font-size:14px; color:#6b7280; }
@@ -193,13 +193,13 @@ const styles = `
   .ps-card-current-progress-wrap { margin-bottom:10px; }
   .ps-card-current-progress-label { display:flex; justify-content:space-between; font-size:13px; color:#9ca3af; margin-bottom:5px; }
   .ps-card-current-progress-track { height:6px; background:#f1f3f5; border-radius:100px; overflow:hidden; }
-  .ps-card-current-progress-fill { height:100%; border-radius:100px; background:linear-gradient(90deg, #02A17E, #6366f1); transition:width 0.6s ease; }
+  .ps-card-current-progress-fill { height:100%; border-radius:100px; background:linear-gradient(90deg, #90C450, #6366f1); transition:width 0.6s ease; }
   .ps-card-current-btn {
     width:100%; height:42px; border:1px solid #e2e8f0; border-radius:10px; background:#fff;
     font-size:15px; font-weight:700; color:#374151; cursor:pointer; display:flex;
     align-items:center; justify-content:center; gap:4px; font-family:inherit; transition:all 0.15s;
   }
-  .ps-card-current-btn:hover { background:#02A17E; color:#fff; border-color:#02A17E; }
+  .ps-card-current-btn:hover { background:#90C450; color:#fff; border-color:#90C450; }
 
   /* ── Upcoming: 2-column horizontal cards (matching up-) ── */
   .ps-grid-upcoming { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
@@ -237,7 +237,7 @@ const styles = `
   .ps-card-upcoming-detail-btn {
     height:34px; padding:0 14px; border-radius:8px; border:none;
     font-size:14.5px; font-weight:700; cursor:pointer; font-family:inherit;
-    background:#02A17E; color:#fff; transition:all 0.15s; flex-shrink:0;
+    background:#90C450; color:#fff; transition:all 0.15s; flex-shrink:0;
     display:flex; align-items:center; gap:4px;
   }
   .ps-card-upcoming-detail-btn:hover { background:#1640b8; }
@@ -308,19 +308,55 @@ const styles = `
     .ps-wrap { padding:20px 16px 48px; }
     .ps-stats { grid-template-columns:repeat(2,1fr); }
     .ps-grid-current { grid-template-columns:1fr; }
-    .ps-toolbar-left { width:100%; flex-wrap:wrap; }
+    .ps-toolbar { flex-direction:column; align-items:stretch; gap:10px; }
+    .ps-toolbar-left { width:100%; flex-wrap:nowrap; border-radius:10px; height:40px; background:#f3f4f6; border:none; }
+    .ps-dropdown-btn { border-radius:10px 0 0 10px; height:40px; font-size:13px; }
+    .ps-search-input { border-radius:0 10px 10px 0; font-size:13px; }
+    .ps-filter {
+      display:flex; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; gap:8px;
+      padding-bottom:2px; width:100%;
+    }
+    .ps-filter::-webkit-scrollbar { display:none; }
+    .ps-filter button {
+      flex-shrink:0; border-radius:6px !important; margin-left:0 !important;
+      padding:5px 12px; font-size:12px; height:28px; display:flex; align-items:center;
+      border:none !important; background:rgb(235,235,235) !important; color:#888 !important;
+    }
+    .ps-filter button.active {
+      background:#111827 !important; color:#fff !important;
+    }
+    .ps-filter button:first-child { border-radius:999px !important; }
+    .ps-filter button:last-child { border-radius:999px !important; }
     .ps-select, .ps-search-wrap { width:100%; min-width:0; }
   }
   @media (max-width:600px) {
+    .ps-sub-tabs {
+      width:100%; overflow-x:auto; scrollbar-width:none; border-radius:12px; gap:4px;
+    }
+    .ps-sub-tabs::-webkit-scrollbar { display:none; }
+    .ps-sub-tab { padding:5px 12px; font-size:12px; height:28px; border-radius:6px !important; }
     .ps-card-upcoming { flex-direction:column; }
     .ps-card-upcoming-thumb { width:100%; height:180px; }
+    .ps-card-upcoming-body { padding:14px 16px; }
+    .ps-card-upcoming-title { font-size:15px; }
+    .ps-card-upcoming-meta-item { font-size:13px; }
+    .ps-card-upcoming-footer { flex-direction:column; align-items:flex-start; gap:8px; }
+    .ps-card-upcoming-detail-btn { width:100%; justify-content:center; }
     .ps-card-closed { flex-direction:column; }
     .ps-card-closed-thumb { width:100%; height:180px; }
+    .ps-card-closed-body { padding:14px 16px; }
+    .ps-card-closed-title { font-size:15px; }
+    .ps-card-closed-meta-row { font-size:13px; }
+    .ps-card-closed-footer { flex-direction:column; align-items:flex-start; gap:8px; }
+    .ps-card-closed-detail-btn { width:100%; justify-content:center; }
+    .ps-card-current-body { padding:12px 14px 14px; }
+    .ps-card-current-title { font-size:15px; }
+    .ps-card-current-meta-row { font-size:13px; }
   }
 `;
 
 const CATEGORY_COLORS = {
-  SESSION: { bg: "#E6F7F2", color: "#02A17E" },
+  SESSION: { bg: "#E6F7F2", color: "#90C450" },
   EXPERIENCE: { bg: "#ecfdf5", color: "#059669" },
   CONTEST: { bg: "#fff7ed", color: "#ea580c" },
   ETC: { bg: "#f3f4f6", color: "#374151" },
@@ -559,7 +595,7 @@ function CurrentCard({ program, onClick }) {
           <div className="ps-card-current-progress-wrap">
             <div className="ps-card-current-progress-label">
               <span>참가자 {participants.toLocaleString()}명 / {capacity.toLocaleString()}명</span>
-              <span style={{ fontWeight: 700, color: pct >= 80 ? "#ef4444" : "#02A17E" }}>{pct}%</span>
+              <span style={{ fontWeight: 700, color: pct >= 80 ? "#ef4444" : "#90C450" }}>{pct}%</span>
             </div>
             <div className="ps-card-current-progress-track">
               <div className="ps-card-current-progress-fill" style={{ width: `${pct}%` }} />

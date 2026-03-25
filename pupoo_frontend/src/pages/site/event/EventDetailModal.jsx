@@ -69,7 +69,7 @@ const modalStyles = `
   .evm-poster-panel {
     width: 400px;
     flex-shrink: 0;
-    background: #f3f4f6;
+    background: #f8f9fc;
     display: flex;
     flex-direction: column;
     position: relative;
@@ -82,7 +82,7 @@ const modalStyles = `
   }
   .evm-poster-fallback {
     width: 100%; height: 100%;
-    background: linear-gradient(135deg, #02A17E 0%, #6366f1 100%);
+    background: linear-gradient(135deg, #90C450 0%, #6366f1 100%);
     display: flex; align-items: center; justify-content: center;
     font-size: 80px;
   }
@@ -141,7 +141,7 @@ const modalStyles = `
 
   .evm-icon-btn {
     width: 34px; height: 34px; border-radius: 50%;
-    background: #f3f4f6;
+    background: #f8f9fc;
     border: 1px solid #e5e7eb;
     color: #6b7280; display: flex; align-items: center; justify-content: center;
     cursor: pointer; transition: all 0.15s;
@@ -159,7 +159,9 @@ const modalStyles = `
   .evm-qi-item {
     display: flex; align-items: center; gap: 10px;
     padding: 12px 14px;
-    background: #f8f9fc; border-radius: 10px;
+    background: #fff; border-radius: 12px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   }
   .evm-qi-icon {
     width: 36px; height: 36px; border-radius: 9px;
@@ -251,7 +253,7 @@ const modalStyles = `
   }
   .evm-guide-day-item:hover { border-color: #90b3ff; }
   .evm-guide-day-item.active {
-    border-color: #02A17E;
+    border-color: #90C450;
     background: #f5f8ff;
     box-shadow: 0 0 0 2px rgba(26,79,214,0.08) inset;
   }
@@ -259,7 +261,7 @@ const modalStyles = `
     width: 50px;
     height: 50px;
     border-radius: 10px;
-    background: #f3f4f6;
+    background: #f8f9fc;
     color: #111827;
     display: flex;
     flex-direction: column;
@@ -269,7 +271,7 @@ const modalStyles = `
     font-weight: 800;
   }
   .evm-guide-day-item.active .evm-guide-date-chip {
-    background: #02A17E;
+    background: #90C450;
     color: #fff;
   }
   .evm-guide-date-day { font-size: 12px; font-weight: 600; line-height: 1; opacity: 0.7; }
@@ -294,7 +296,7 @@ const modalStyles = `
     padding: 3px 10px;
     border-radius: 999px;
     background: #eff4ff;
-    color: #02A17E;
+    color: #90C450;
     font-size: 11px;
     font-weight: 700;
     margin-bottom: 8px;
@@ -319,6 +321,11 @@ const modalStyles = `
     background: #f8fbff;
     box-shadow: 0 2px 10px rgba(26,79,214,0.1);
   }
+  .evm-guide-program-item.inactive {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: default;
+  }
   .evm-guide-program-dot {
     width: 10px;
     height: 10px;
@@ -327,8 +334,8 @@ const modalStyles = `
     flex-shrink: 0;
   }
   .evm-guide-program-dot.done { background: #9ca3af; }
-  .evm-guide-program-dot.live { background: #10b981; }
-  .evm-guide-program-dot.upcoming { background: #02A17E; }
+  .evm-guide-program-dot.live { background: #3a4520; }
+  .evm-guide-program-dot.upcoming { background: #90C450; }
   .evm-guide-program-body { flex: 1; min-width: 0; }
   .evm-guide-program-name {
     font-size: 13.5px;
@@ -349,7 +356,7 @@ const modalStyles = `
     font-size: 11px;
     font-weight: 700;
     color: #6b7280;
-    background: #f3f4f6;
+    background: #f8f9fc;
     border-radius: 999px;
     padding: 3px 10px;
     flex-shrink: 0;
@@ -385,7 +392,7 @@ const modalStyles = `
   }
   .evm-speaker-name { font-size: 13.5px; font-weight: 700; color: #111827; }
   .evm-speaker-role { font-size: 11.5px; color: #6b7280; margin-top: 1px; }
-  .evm-speaker-topic { font-size: 11px; color: #02A17E; font-weight: 600; margin-top: 4px; }
+  .evm-speaker-topic { font-size: 11px; color: #90C450; font-weight: 600; margin-top: 4px; }
 
   /* Participants bar */
   .evm-participants-bar {
@@ -400,7 +407,7 @@ const modalStyles = `
   }
   .evm-part-count span { font-size: 14px; font-weight: 500; color: #9ca3af; }
   .evm-part-pct {
-    font-size: 14px; font-weight: 700; color: #02A17E;
+    font-size: 14px; font-weight: 700; color: #90C450;
   }
   .evm-part-track {
     height: 8px; background: #e5e7eb; border-radius: 100px;
@@ -408,51 +415,14 @@ const modalStyles = `
   }
   .evm-part-fill {
     height: 100%; border-radius: 100px;
-    background: linear-gradient(90deg, #02A17E, #6366f1);
+    background: linear-gradient(90deg, #90C450, #6366f1);
     transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
   }
   .evm-part-note {
     font-size: 13px; color: #6b7280; font-weight: 500;
     margin-top: 4px;
   }
-  .evm-part-note strong { color: #02A17E; font-weight: 800; }
-  .evm-header-participants {
-    margin: 0 24px 10px;
-    padding: 12px 14px;
-    border-radius: 12px;
-    background: #f8f9fc;
-    border: 1px solid #eef2f7;
-  }
-  .evm-header-participants-label {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    font-size: 13px;
-    color: #6b7280;
-    font-weight: 600;
-  }
-  .evm-header-participants-label strong {
-    color: #111827;
-    font-size: 14px;
-    font-weight: 800;
-  }
-  .evm-header-participants-pct {
-    font-weight: 800;
-    color: #02A17E;
-  }
-  .evm-header-participants-track {
-    height: 6px;
-    border-radius: 999px;
-    background: #e5e7eb;
-    overflow: hidden;
-  }
-  .evm-header-participants-fill {
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #02A17E, #6366f1);
-    transition: width 0.3s ease;
-  }
+  .evm-part-note strong { color: #90C450; font-weight: 800; }
 
   /* Location */
   .evm-map-placeholder {
@@ -497,8 +467,8 @@ const modalStyles = `
     transition: all 0.15s ease;
   }
   .evm-map-link:hover {
-    border-color: #02A17E;
-    color: #02A17E;
+    border-color: #90C450;
+    color: #90C450;
     background: #f8fbff;
   }
   .evm-map-organizer {
@@ -563,7 +533,7 @@ const modalStyles = `
   .evm-btn-secondary:hover { background: #f8f9fc; border-color: #d1d5db; }
   .evm-btn-primary {
     height: 48px; padding: 0 32px; border-radius: 12px;
-    border: none; background: #02A17E; color: #fff;
+    border: none; background: #90C450; color: #fff;
     font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
     display: flex; align-items: center; gap: 6px;
     transition: all 0.15s;
@@ -580,7 +550,7 @@ const modalStyles = `
     transition: all 0.15s ease;
   }
   .evm-inline-link-btn:hover {
-    border-color: #02A17E; color: #02A17E; background: #f8fbff;
+    border-color: #90C450; color: #90C450; background: #f8fbff;
   }
 
   /* Responsive */
@@ -595,7 +565,6 @@ const modalStyles = `
     .evm-poster-panel { width: 100%; height: 264px; }
     .evm-right-panel { max-height: none; }
     .evm-right-header { padding: 16px 20px 0; }
-    .evm-header-participants { margin: 0 20px 10px; }
     .evm-quick-info { grid-template-columns: repeat(2, 1fr); }
     .evm-speakers { grid-template-columns: 1fr; }
     .evm-contact-grid { grid-template-columns: 1fr; }
@@ -606,26 +575,53 @@ const modalStyles = `
     .evm-guide-grid { grid-template-columns: 1fr; }
   }
   @media (max-width: 767px) {
-    .evm-overlay { padding: 10px; }
-    .evm-modal {
-      max-height: calc(100vh - 20px);
-      border-radius: 14px;
-      width: min(100%, calc(100vw - 20px));
+    /* 오버레이: 하단 시트처럼 배치 */
+    .evm-overlay {
+      padding: 0;
+      align-items: flex-end;
     }
-    .evm-poster-panel { height: 196px; }
-    .evm-right-header { padding: 14px 14px 0; }
-    .evm-header-participants { margin: 0 14px 8px; }
-    .evm-topbar-right { top: 10px; right: 10px; gap: 6px; }
-    .evm-right-title { font-size: 19px; line-height: 1.25; }
-    .evm-right-sub { font-size: 13px; margin-bottom: 10px; }
-    .evm-content { padding: 14px 14px 18px; }
-    .evm-quick-info { grid-template-columns: 1fr; gap: 8px; margin-bottom: 18px; }
-    .evm-qi-item { padding: 10px 12px; }
-    .evm-qi-icon { width: 32px; height: 32px; border-radius: 8px; }
-    .evm-qi-label { font-size: 12px; }
-    .evm-qi-value { font-size: 14px; }
-    .evm-section { margin-bottom: 20px; }
-    .evm-section-header { margin-bottom: 10px; padding-bottom: 8px; }
+    /* 모달: 하단에서 올라오는 시트 형태, 높이 고정 */
+    .evm-modal {
+      width: 100%;
+      max-width: 100%;
+      height: calc(100vh - 56px);
+      max-height: calc(100vh - 56px);
+      border-radius: 20px 20px 0 0;
+      margin: 0;
+      transform: translateY(100%);
+    }
+    .evm-overlay.open .evm-modal {
+      transform: translateY(0);
+    }
+    /* 포스터: 높이 줄여서 컨텐츠 공간 확보 */
+    .evm-poster-panel { height: 200px; }
+    /* 우측 패널: 나머지 높이 채우고 내부 스크롤 가능하게 */
+    .evm-right-panel {
+      flex: 1;
+      min-height: 0;
+      max-height: calc(100vh - 56px - 200px);
+      overflow: hidden;
+    }
+    /* 버튼을 별도 행으로 — absolute 해제 */
+    .evm-topbar-right {
+      position: static;
+      display: flex;
+      justify-content: flex-end;
+      padding: 14px 14px 0;
+      gap: 8px;
+    }
+    .evm-right-header { padding: 6px 18px 0; }
+    .evm-right-title { font-size: 18px; line-height: 1.3; }
+    .evm-right-sub { font-size: 13px; margin-bottom: 14px; }
+    .evm-content { padding: 4px 18px 24px; }
+    /* 퀵인포: 2컬럼 (일시+시간 / 장소) */
+    .evm-quick-info { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+    .evm-qi-item { padding: 12px 12px; }
+    .evm-qi-icon { width: 30px; height: 30px; border-radius: 7px; }
+    .evm-qi-label { font-size: 11px; }
+    .evm-qi-value { font-size: 13px; word-break: keep-all; white-space: normal; line-height: 1.4; }
+    .evm-section { margin-bottom: 28px; }
+    .evm-section-header { margin-bottom: 12px; padding-bottom: 10px; }
     .evm-section-title { font-size: 14px; }
     .evm-desc { font-size: 13px; line-height: 1.65; }
     .evm-guide-panel-head {
@@ -649,8 +645,9 @@ const modalStyles = `
       align-items: flex-start;
       flex-wrap: wrap;
     }
+    /* CTA 바: 세로 배치 */
     .evm-cta-bar {
-      padding: 12px 14px;
+      padding: 12px 16px;
       flex-direction: column;
       align-items: stretch;
     }
@@ -664,8 +661,8 @@ const modalStyles = `
     .evm-btn-secondary {
       width: 100%;
       justify-content: center;
-      height: 44px;
-      font-size: 13.5px;
+      height: 46px;
+      font-size: 14px;
     }
   }
 `;
@@ -986,8 +983,6 @@ export default function EventDetailModal({ event, onClose }) {
   const overlayRef = useRef(null);
   const dayListRef = useRef(null);
   const dayItemRefs = useRef({});
-  const programScrollRef = useRef(null);
-  const programItemRefs = useRef({});
   const scrollDayList = (dir) => {
     if (dayListRef.current) dayListRef.current.scrollLeft += dir * 160;
   };
@@ -1242,26 +1237,6 @@ export default function EventDetailModal({ event, onClose }) {
       event?.participants ??
       0,
   );
-  const modalParticipantCount = Number(
-    detail?.participantCount ??
-      detail?.participants ??
-      event?.participantCount ??
-      event?.participants ??
-      0,
-  );
-  const modalCapacityRaw = Number(
-    detail?.capacity ??
-      detail?.maxParticipants ??
-      event?.capacity ??
-      event?.maxParticipants ??
-      preregistrationCount ??
-      0,
-  );
-  const modalCapacityCount = modalCapacityRaw > 0 ? modalCapacityRaw : 1;
-  const modalParticipationPct = Math.min(
-    100,
-    Math.round((modalParticipantCount / modalCapacityCount) * 100),
-  );
   const eventStart = parseDateTime(detail?.startAt ?? event?.startAt);
   const eventEnd = parseDateTime(detail?.endAt ?? event?.endAt);
   const eventDayCount =
@@ -1338,26 +1313,6 @@ export default function EventDetailModal({ event, onClose }) {
   const selectedPrograms = normalizedPrograms.filter(
     (item) => item.dateKey === effectiveDateKey,
   );
-  const liveProgram = selectedPrograms.find((item) => item.status === "live");
-  const liveProgramRefKey =
-    liveProgram?.id != null ? String(liveProgram.id) : "";
-
-  useEffect(() => {
-    if (!selectedPrograms.length || !liveProgramRefKey) return;
-    const target = programItemRefs.current[liveProgramRefKey];
-    const container = programScrollRef.current;
-    if (!target || !container) return;
-
-    requestAnimationFrame(() => {
-      const targetTop = target.offsetTop;
-      const targetHeight = target.offsetHeight;
-      const nextTop = Math.max(
-        0,
-        targetTop - container.clientHeight / 2 + targetHeight / 2,
-      );
-      container.scrollTo({ top: nextTop, behavior: "smooth" });
-    });
-  }, [effectiveDateKey, liveProgramRefKey, selectedPrograms.length]);
   const periods = ["오전", "오후", "저녁"];
   const programGroups = periods.map((period) => ({
     period,
@@ -1581,20 +1536,6 @@ export default function EventDetailModal({ event, onClose }) {
                 {dateLabel} · {timeLabel} · {loc}
               </div>
             </div>
-            <div className="evm-header-participants">
-              <div className="evm-header-participants-label">
-                <span>
-                  참가자 <strong>{modalParticipantCount.toLocaleString()}명 / {modalCapacityCount.toLocaleString()}명</strong>
-                </span>
-                <span className="evm-header-participants-pct">{modalParticipationPct}%</span>
-              </div>
-              <div className="evm-header-participants-track">
-                <div
-                  className="evm-header-participants-fill"
-                  style={{ width: `${modalParticipationPct}%` }}
-                />
-              </div>
-            </div>
 
           <div className="evm-body-scroll">
           {/* Body */}
@@ -1610,7 +1551,7 @@ export default function EventDetailModal({ event, onClose }) {
             <div className="evm-quick-info">
               <div className="evm-qi-item">
                 <div className="evm-qi-icon" style={{ background: "#eff4ff" }}>
-                  <Calendar size={17} color="#02A17E" />
+                  <Calendar size={17} color="#90C450" />
                 </div>
                 <div>
                   <div className="evm-qi-label">일시</div>
@@ -1628,7 +1569,7 @@ export default function EventDetailModal({ event, onClose }) {
               </div>
               <div className="evm-qi-item">
                 <div className="evm-qi-icon" style={{ background: "#ecfdf5" }}>
-                  <MapPin size={17} color="#10b981" />
+                  <MapPin size={17} color="#3a4520" />
                 </div>
                 <div>
                   <div className="evm-qi-label">장소</div>
@@ -1644,7 +1585,7 @@ export default function EventDetailModal({ event, onClose }) {
                   className="evm-section-icon"
                   style={{ background: "#eff4ff" }}
                 >
-                  <Building2 size={15} color="#02A17E" />
+                  <Building2 size={15} color="#90C450" />
                 </div>
                 <div className="evm-section-title">행사 소개</div>
               </div>
@@ -1715,7 +1656,7 @@ export default function EventDetailModal({ event, onClose }) {
                     </div>
                     <span className="evm-guide-pill">{selectedPrograms.length}개 프로그램</span>
                   </div>
-                  <div className="evm-guide-program-scroll" ref={programScrollRef}>
+                  <div className="evm-guide-program-scroll">
                     {programGroups.every((group) => group.items.length === 0) ? (
                       <div className="evm-guide-empty">등록된 프로그램이 없습니다.</div>
                     ) : (
@@ -1724,22 +1665,23 @@ export default function EventDetailModal({ event, onClose }) {
                           <div className="evm-guide-period">{group.period}</div>
                           {group.items.length > 0 && (
                             <div className="evm-guide-program-list">
-                              {group.items.map((item) => (
+                              {group.items.map((item) => {
+                                const isLive = item.status === "live";
+                                const isClickable = item.programId && isLive;
+                                const isInactive = item.status === "done" || item.status === "upcoming";
+                                return (
                                 <div
                                   key={item.id}
-                                  ref={(el) => {
-                                    if (el) programItemRefs.current[String(item.id)] = el;
-                                  }}
-                                  className={`evm-guide-program-item${item.programId ? " clickable" : ""}`}
-                                  role={item.programId ? "button" : undefined}
-                                  tabIndex={item.programId ? 0 : undefined}
+                                  className={`evm-guide-program-item${isClickable ? " clickable" : ""}${isInactive ? " inactive" : ""}`}
+                                  role={isClickable ? "button" : undefined}
+                                  tabIndex={isClickable ? 0 : undefined}
                                   onClick={
-                                    item.programId
+                                    isClickable
                                       ? () => handleViewProgramDetail(item.programId)
                                       : undefined
                                   }
                                   onKeyDown={
-                                    item.programId
+                                    isClickable
                                       ? (e) => {
                                           if (e.key === "Enter" || e.key === " ") {
                                             e.preventDefault();
@@ -1769,7 +1711,8 @@ export default function EventDetailModal({ event, onClose }) {
                                         : "예정"}
                                   </span>
                                 </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -1819,7 +1762,7 @@ export default function EventDetailModal({ event, onClose }) {
                   className="evm-section-icon"
                   style={{ background: "#ecfdf5" }}
                 >
-                  <Users size={15} color="#10b981" />
+                  <Users size={15} color="#3a4520" />
                 </div>
                 <div className="evm-section-title">일일 참가 현황</div>
               </div>
@@ -1878,7 +1821,7 @@ export default function EventDetailModal({ event, onClose }) {
               </div>
 
               <div className="evm-address">
-                <MapPin size={14} color="#02A17E" />
+                <MapPin size={14} color="#90C450" />
                 {loc}
               </div>
               {hasValidLocation && (
@@ -1913,7 +1856,7 @@ export default function EventDetailModal({ event, onClose }) {
                     className="evm-transport-icon"
                     style={{ background: "#eff4ff" }}
                   >
-                    <Train size={14} color="#02A17E" />
+                    <Train size={14} color="#90C450" />
                   </div>
                   <div>
                     <strong style={{ fontSize: "12px" }}>지하철</strong>
@@ -1926,7 +1869,7 @@ export default function EventDetailModal({ event, onClose }) {
                     className="evm-transport-icon"
                     style={{ background: "#ecfdf5" }}
                   >
-                    <Navigation size={14} color="#10b981" />
+                    <Navigation size={14} color="#3a4520" />
                   </div>
                   <div>
                     <strong style={{ fontSize: "12px" }}>버스</strong>
@@ -1981,7 +1924,7 @@ export default function EventDetailModal({ event, onClose }) {
                   className="evm-section-icon"
                   style={{ background: "#f0fdf4" }}
                 >
-                  <Phone size={15} color="#16a34a" />
+                  <Phone size={15} color="#90C450" />
                 </div>
                 <div className="evm-section-title">주최 및 문의</div>
               </div>
@@ -1997,7 +1940,7 @@ export default function EventDetailModal({ event, onClose }) {
               <div className="evm-contact-grid">
                 <div className="evm-contact-item">
                   <div className="evm-contact-icon">
-                    <Phone size={14} color="#02A17E" />
+                    <Phone size={14} color="#90C450" />
                   </div>
                   <div>
                     <div className="evm-contact-label">전화</div>
@@ -2008,7 +1951,7 @@ export default function EventDetailModal({ event, onClose }) {
                 </div>
                 <div className="evm-contact-item">
                   <div className="evm-contact-icon">
-                    <Mail size={14} color="#02A17E" />
+                    <Mail size={14} color="#90C450" />
                   </div>
                   <div>
                     <div className="evm-contact-label">이메일</div>
@@ -2044,14 +1987,28 @@ export default function EventDetailModal({ event, onClose }) {
                 <ExternalLink size={14} />
                 공유
               </button>
-              {regLoading ? (
+              {(() => {
+                const eventEnded = statusLabel === "ENDED" || statusLabel === "CLOSED";
+                const eventUpcoming = statusLabel === "PLANNED" || statusLabel === "UPCOMING";
+                const eventInactive = eventEnded || eventUpcoming;
+                if (regLoading) return (
                 <button
                   className="evm-btn-primary"
                   disabled={detailLoading || regLoading}
                 >
                   로딩중
                 </button>
-              ) : canApply ? (
+                );
+                if (eventInactive) return (
+                <button
+                  className="evm-btn-primary"
+                  disabled
+                  style={{ background: "#d1d5db", color: "#9ca3af", boxShadow: "none", cursor: "not-allowed" }}
+                >
+                  {eventEnded ? "행사 종료" : "행사 예정"}
+                </button>
+                );
+                if (canApply) return (
                 <button
                   className="evm-btn-primary"
                   onClick={handleApply}
@@ -2060,11 +2017,12 @@ export default function EventDetailModal({ event, onClose }) {
                   <Zap size={14} />
                   참가 신청
                 </button>
-              ) : canCancel ? (
+                );
+                if (canCancel) return (
                 <button
                   className="evm-btn-primary"
                   style={{
-                    background: "#10b981",
+                    background: "#3a4520",
                     boxShadow: "0 2px 12px rgba(16,185,129,0.25)",
                   }}
                   onClick={handleCancel}
@@ -2073,7 +2031,9 @@ export default function EventDetailModal({ event, onClose }) {
                   <CheckCircle size={14} />
                   신청 취소
                 </button>
-              ) : null}
+                );
+                return null;
+              })()}
             </div>
           </div>
           {/* /evm-cta-bar */}

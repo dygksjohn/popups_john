@@ -17,6 +17,7 @@ const PAGE_SIZE = 10;
 
 const SORT_OPTIONS = [
   { key: "recent", label: "최신순" },
+  { key: "views", label: "조회순" },
   { key: "oldest", label: "오래된순" },
 ];
 
@@ -118,7 +119,7 @@ export default function Notice() {
       <PageHeader
         title="공지사항"
         subtitle="중요한 행사와 서비스 소식을 확인해 보세요."
-        icon={<Megaphone size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<Megaphone size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}
@@ -149,7 +150,7 @@ export default function Notice() {
             gap: isMobile ? 12 : 8,
           }}
         >
-          <span style={{ fontSize: "15px", fontWeight: 600, color: "#222" }}>총 {totalFromApi}개</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>총 {totalFromApi}개</span>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto" }}>
             <div
@@ -157,21 +158,21 @@ export default function Notice() {
                 display: "flex",
                 alignItems: "center",
                 gap: 0,
-                background: "#f3f4f6",
-                borderRadius: isMobile ? 16 : 999,
-                height: isMobile ? "auto" : 42,
+                background: isMobile ? "transparent" : "#fff", border: isMobile ? "none" : "1px solid #e2e5ea",
+                borderRadius: 12,
+                height: isMobile ? "auto" : 48,
                 width: isMobile ? "100%" : "auto",
                 flexWrap: isMobile ? "wrap" : "nowrap",
-                padding: isMobile ? 6 : 0,
-                rowGap: isMobile ? 6 : 0,
+                padding: 0,
+                rowGap: isMobile ? 8 : 0,
               }}
             >
               {/* scope dropdown */}
-              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={scopeDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }} ref={scopeDdRef}>
                 <button
                   type="button"
                   onClick={() => setScopeDdOpen((v) => !v)}
-                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 120, display: "inline-flex", alignItems: "center", gap: 7 }}
+                  style={{ height: 40, width: isMobile ? "100%" : "auto", padding: "0 36px 0 14px", border: isMobile ? "none" : "none", background: isMobile ? "#f3f4f6" : "transparent", borderRadius: isMobile ? 8 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 120, display: "inline-flex", alignItems: "center", gap: 7 }}
                 >
                   <ListFilter size={14} style={{ color: "#9ca3af" }} />
                   {currentScopeLabel}
@@ -199,11 +200,11 @@ export default function Notice() {
               {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* sort button */}
-              <div style={{ position: "relative", flex: isMobile ? "1 1 calc(50% - 3px)" : "0 0 auto" }} ref={sortDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }} ref={sortDdRef}>
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((prev) => !prev)}
-                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 110, display: "inline-flex", alignItems: "center", gap: 7 }}
+                  style={{ height: 40, width: isMobile ? "100%" : "auto", padding: "0 36px 0 14px", border: isMobile ? "none" : "none", background: isMobile ? "#f3f4f6" : "transparent", borderRadius: isMobile ? 8 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 110, display: "inline-flex", alignItems: "center", gap: 7 }}
                 >
                   <SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />
                   {currentSortLabel}
@@ -257,11 +258,11 @@ export default function Notice() {
                     }
                   }}
                   style={{
-                    border: isMobile ? "1px solid #dbe2ea" : "none",
+                    border: isMobile ? "1px solid #e5e7eb" : "none",
                     background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: isMobile ? 999 : "0 999px 999px 0",
-                    height: 42,
+                    borderRadius: isMobile ? 999 : "0 12px 12px 0",
+                    height: 48,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",
@@ -301,7 +302,7 @@ export default function Notice() {
                 <span style={{ flex: 1, textAlign: "center" }}>제목</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
-                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>조회수</span>
+                <span style={{ width: 80, textAlign: "center", flexShrink: 0 }}>조회수</span>
               </div>
               )}
               {paged.map((notice, index) => {
@@ -344,7 +345,7 @@ export default function Notice() {
                               justifyContent: "center",
                               minWidth: 38,
                               padding: "4px 10px",
-                              borderRadius: 999,
+                              borderRadius: 12,
                               background: notice.pinned ? "#FEF2F2" : "#F3F4F6",
                               color: notice.pinned ? "#DC2626" : "#6B7280",
                               fontSize: 11,
@@ -366,7 +367,7 @@ export default function Notice() {
                             gap: 4,
                             minWidth: 40,
                             padding: "4px 10px",
-                            borderRadius: 999,
+                            borderRadius: 12,
                             border: `1px solid ${scopeBadge.borderColor}`,
                             background: scopeBadge.background,
                             color: scopeBadge.color,
@@ -402,8 +403,6 @@ export default function Notice() {
                           <span>관리자</span>
                           <span style={{ color: "#cbd5e1" }}>{"\u00b7"}</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(notice.createdAt)}</span>
-                          <span style={{ color: "#cbd5e1" }}>{"\u00b7"}</span>
-                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>조회수 {Number(notice?.viewCount ?? 0)}</span>
                         </div>
                       )}
                     </div>
@@ -413,11 +412,7 @@ export default function Notice() {
                         {fmtDate(notice.createdAt)}
                       </span>
                     )}
-                    {!isMobile && (
-                      <span style={{ width: 100, textAlign: "center", fontSize: 13, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>
-                        {Number(notice?.viewCount ?? 0)}
-                      </span>
-                    )}
+                    {!isMobile && <span style={{ width: 80, textAlign: "center", fontSize: 13, color: "#9ca3af", flexShrink: 0 }}>{notice.viewCount ?? 0}</span>}
                   </div>
                 );
               })}

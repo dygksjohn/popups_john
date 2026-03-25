@@ -1,8 +1,8 @@
 ﻿import PageHeader from "../components/PageHeader";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import RealtimeEventSelector from "./RealtimeEventSelector";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { RefreshCw, ArrowLeft, ScanLine } from "lucide-react";
 import {
   useRefresh,
   useAutoRefresh,
@@ -28,12 +28,6 @@ export const SUBTITLE_MAP = {
   "/realtime/checkinstatus": "참가자 체크인 현황을 실시간으로 확인합니다",
   "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 확인합니다",
 };
-const EVENT_REALTIME_BUTTONS = [
-  { key: "dashboard", label: "통합현황", path: "/realtime/dashboard" },
-  { key: "waiting", label: "대기현황", path: "/realtime/waitingstatus" },
-  { key: "checkin", label: "체크인 현황", path: "/realtime/checkinstatus" },
-  { key: "vote", label: "투표현황", path: "/realtime/votestatus" },
-];
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -46,76 +40,10 @@ const styles = `
   }
   .ck-root *, .ck-root *::before, .ck-root *::after { box-sizing: border-box; font-family: inherit; }
 
-  .ck-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
-  .ck-container.with-event { padding-top: 20px; }
-  .ck-container.selector-mode { padding-top: 32px; }
+  .ck-container { max-width: 1400px; margin: 0 auto; }
+  .ck-container.with-event { padding-top: 92px; }
+  .ck-container.selector-mode { padding-top: 16px; background: #F0F4FA; }
   .ck-page-shell { max-width: 1120px; margin: 0 auto; }
-  .ck-top-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
-  }
-  .ck-back-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 22px;
-    border-radius: 12px;
-    border: 1.5px solid #111827;
-    background: #111827;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: inherit;
-    letter-spacing: -0.01em;
-  }
-  .ck-back-btn:hover {
-    background: #1f2937;
-    border-color: #1f2937;
-  }
-  .ck-back-btn:active {
-    transform: scale(0.97);
-  }
-  .ck-event-mode-nav {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-left: auto;
-  }
-  .ck-mode-btn {
-    height: 44px;
-    border-radius: 12px;
-    border: 1px solid #d1d5db;
-    background: #f3f4f6;
-    color: #6b7280;
-    padding: 0 16px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: inherit;
-  }
-  .ck-mode-btn.active {
-    background: #02A17E;
-    color: #fff;
-    border-color: #02A17E;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.14);
-  }
-  .ck-mode-btn:hover {
-    background: #e5e7eb;
-    border-color: #cbd5e1;
-    color: #4b5563;
-  }
-  .ck-mode-btn.active:hover {
-    background: #028A6C;
-    border-color: #028A6C;
-    color: #fff;
-  }
 
   .rt-live-badge {
     display: inline-flex; align-items: center; gap: 6px;
@@ -132,7 +60,7 @@ const styles = `
     gap: 0;
   }
   .rt-live-badge.ended {
-    background: #f3f4f6;
+    background: #f8f9fc;
     border-color: #e5e7eb;
     color: #6b7280;
     justify-content: center;
@@ -409,7 +337,7 @@ const styles = `
   }
   .ck-status-chip-done { color: #166534; background: #ecfdf3; border-color: #bbf7d0; }
   .ck-status-chip-wait { color: #9a3412; background: #fff7ed; border-color: #fdba74; }
-  .ck-status-chip-pending { color: #4b5563; background: #f3f4f6; border-color: #d1d5db; }
+  .ck-status-chip-pending { color: #4b5563; background: #f8f9fc; border-color: #d1d5db; }
   .ck-status-chip-cancel { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
 
   .ck-progress-list {
@@ -551,6 +479,8 @@ const styles = `
   }
 
   @media (max-width: 900px) {
+    .ck-stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .ck-two-col { grid-template-columns: 1fr; }
     .ck-my-checkin-grid { grid-template-columns: 1fr; }
     .ck-my-split { grid-template-columns: 1fr; }
     .ck-my-program-item { grid-template-columns: 1fr; }
@@ -565,16 +495,34 @@ const styles = `
     }
   }
   @media (max-width: 640px) {
-    .ck-container { padding: 20px 16px 48px; }
-    .ck-container.with-event { padding-top: 20px; }
-    .ck-container.selector-mode { padding-top: 88px; }
-    .ck-top-actions { align-items: stretch; }
-    .ck-event-mode-nav { width: 100%; margin-left: 0; }
-    .ck-mode-btn { flex: 1 1 calc(50% - 8px); min-width: 132px; }
+    .ck-container { }
+    .ck-container.with-event { padding-top: 80px; }
+    .ck-container.selector-mode { padding-top: 0; }
+    .ck-stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .ck-stat-card { padding: 14px 14px; gap: 10px; }
+    .ck-two-col { grid-template-columns: 1fr; }
     .ck-card { padding: 20px 16px; }
     .ck-card-header { flex-wrap: wrap; gap: 8px; }
-    .ck-my-status-title { font-size: 24px; }
+    .ck-my-status-title { font-size: 22px; letter-spacing: 0; word-break: keep-all; }
+    .ck-back-btn { padding: 9px 22px; font-size: 13px; border-radius: 999px; }
   }
+  .ck-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #374151;
+    background: #f8f9fc;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-family: 'JeonjuCraftGothic', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  }
+  .ck-back-btn:hover { background: #e5e7eb; }
+  .ck-back-wrap { display: flex; justify-content: center; margin-top: 32px; }
 `;
 
 const unwrapData = (response, fallback) => response?.data?.data ?? response?.data ?? fallback;
@@ -1046,6 +994,7 @@ async function fetchEventsByIds(eventIds) {
 
 function CheckinContent({ eventId }) {
   const numericEventId = Number(eventId);
+  const navigate = useNavigate();
   const { tick } = useAutoRefresh(15000);
 
   const [loading, setLoading] = useState(true);
@@ -1360,16 +1309,49 @@ function CheckinContent({ eventId }) {
           />
         </div>
       </div>
+      <div className="ck-back-wrap">
+        <button className="ck-back-btn" onClick={() => navigate("/realtime/checkinstatus")}>
+          <ArrowLeft size={14} />
+          목록으로
+        </button>
+      </div>
     </>
   );
 }
 
 export default function CheckinStatus() {
   const { eventId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
+
+  const currentPath = useMemo(() => {
+    if (location.pathname.startsWith("/realtime/dashboard")) return "/realtime/dashboard";
+    if (location.pathname.startsWith("/realtime/waitingstatus")) return "/realtime/waitingstatus";
+    if (location.pathname.startsWith("/realtime/votestatus")) return "/realtime/votestatus";
+    return "/realtime/checkinstatus";
+  }, [location.pathname]);
 
   const handleSelectEvent = (id) => {
     navigate(`/realtime/checkinstatus/${id}`);
+  };
+
+  const handleNavigate = (path) => {
+    if (!eventId) {
+      navigate(path);
+      return;
+    }
+
+    const match = String(path || "").match(/^([^?#]*)(.*)$/);
+    const pathname = (match?.[1] || "").replace(/\/+$/, "");
+    const suffix = match?.[2] || "";
+    const lastSegment = pathname.split("/").filter(Boolean).at(-1);
+
+    if (lastSegment && /^\d+$/.test(lastSegment)) {
+      navigate(`${pathname}${suffix}`);
+      return;
+    }
+
+    navigate(`${pathname}/${eventId}${suffix}`);
   };
 
   return (
@@ -1377,36 +1359,18 @@ export default function CheckinStatus() {
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
       <PageHeader
-        title={eventId ? "체크인현황" : "실시간현황"}
-        subtitle={eventId ? "프로그램 참여 현황을 확인합니다." : "행사별 실시간 데이터를 한눈에 확인하세요"}
-        icon={<RefreshCw size={42} color="#02A17E" strokeWidth={1.6} />}
+        title="체크인현황"
+        subtitle={eventId ? "참가자 체크인 현황을 실시간으로 확인합니다" : "행사별 실시간 데이터를 한눈에 확인하세요"}
+        icon={<ScanLine size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
-        subtitleStyle={{ fontSize: 20 }}
+        tabInactiveBg="rgb(235,235,235)"
+        categories={SERVICE_CATEGORIES}
+        currentPath={currentPath}
       />
 
       <main className={`ck-container${eventId ? " with-event" : " selector-mode"}`}>
         {eventId ? (
-          <>
-            <div className="ck-top-actions">
-              <button className="ck-back-btn" onClick={() => navigate("/realtime/checkinstatus")}>
-                <ArrowLeft size={15} />
-                목록으로
-              </button>
-              <div className="ck-event-mode-nav">
-                {EVENT_REALTIME_BUTTONS.map((button) => (
-                  <button
-                    key={button.key}
-                    type="button"
-                    className={`ck-mode-btn${button.key === "checkin" ? " active" : ""}`}
-                    onClick={() => navigate(`${button.path}/${eventId}`)}
-                  >
-                    {button.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <CheckinContent eventId={eventId} />
-          </>
+          <CheckinContent eventId={eventId} />
         ) : (
           <RealtimeEventSelector onSelectEvent={handleSelectEvent} pageTitle="체크인 현황" />
         )}

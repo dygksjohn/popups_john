@@ -104,7 +104,7 @@ export default function FindPassword() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #EEF2F9 0%, #E3EAF6 100%)",
+        background: "linear-gradient(135deg, #f4f5ee 0%, #eaecdf 100%)",
         padding: "24px 16px",
       }}
     >
@@ -159,7 +159,7 @@ export default function FindPassword() {
               height: 46,
               border: "none",
               borderRadius: 8,
-              background: requestingCode ? "#5CCDB2" : "#3DBFA0",
+              background: requestingCode ? "#6B7A3D" : "#90C450",
               color: "#fff",
               fontSize: 15,
               fontWeight: 600,
@@ -195,7 +195,7 @@ export default function FindPassword() {
                 height: 46,
                 border: "none",
                 borderRadius: 8,
-                background: verifyingCode ? "#5CCDB2" : "#111827",
+                background: verifyingCode ? "#6B7A3D" : "#111827",
                 color: "#fff",
                 fontSize: 15,
                 fontWeight: 600,
@@ -208,7 +208,7 @@ export default function FindPassword() {
         ) : null}
 
         {successMessage ? (
-          <p style={{ marginTop: 12, color: "#02A17E", fontSize: 13 }}>
+          <p style={{ marginTop: 12, color: "#90C450", fontSize: 13 }}>
             {successMessage}
           </p>
         ) : null}

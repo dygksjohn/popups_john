@@ -413,7 +413,7 @@ export default function CommunityPostDetailPage({
                 href={toPublicAssetUrl(attachment.publicPath)}
                 target="_blank"
                 rel="noreferrer"
-                style={{ color: "#028A6C", fontSize: 14, fontWeight: 700, textDecoration: "none" }}
+                style={{ color: "#7ab33e", fontSize: 14, fontWeight: 700, textDecoration: "none" }}
               >
                 {attachment.originalName || "첨부파일 다운로드"}
               </a>

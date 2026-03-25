@@ -8,10 +8,9 @@ import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 import {
   createImageFallbackHandler,
   resolveImageUrl,
-  toPublicAssetUrl,
 } from "../../../shared/utils/publicAssetUrl";
 
-/* fallback dog images */
+/* ?? ?대?吏 ?대갚 ?? */
 const DOG_IMGS = [
   "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600&h=800&fit=crop",
   "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&h=800&fit=crop",
@@ -24,7 +23,7 @@ const DOG_IMGS = [
 ];
 const dogImg = (id) => DOG_IMGS[Math.abs(Number(id) || 0) % DOG_IMGS.length];
 
-/* shared event date formatter */
+/* ?? 怨듯넻 ?좎쭨 ?щ㎎ ?? */
 function fmtEventDate(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -103,7 +102,7 @@ function mapSession(raw, eventMap) {
   };
 }
 
-// ================= scroll reveal =================
+// ================= ?ㅽ겕濡?reveal ??=================
 function useScrollReveal(options = {}) {
   const { threshold = 0.15, rootMargin = "0px 0px -60px 0px" } = options;
   const ref = useRef(null);
@@ -112,13 +111,13 @@ function useScrollReveal(options = {}) {
     const el = ref.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.unobserve(el);
-        }
-      },
-      { threshold, rootMargin },
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            observer.unobserve(el);
+          }
+        },
+        { threshold, rootMargin },
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -129,21 +128,21 @@ function useScrollReveal(options = {}) {
 function RevealSection({ children, className = "", delay = 0 }) {
   const [ref, isVisible] = useScrollReveal();
   return (
-    <div
-      ref={ref}
-      className={className}
-      style={{
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "translateY(0)" : "translateY(40px)",
-        transition: `opacity 0.7s cubic-bezier(0.16,1,0.3,1) ${delay}s, transform 0.7s cubic-bezier(0.16,1,0.3,1) ${delay}s`,
-      }}
-    >
-      {children}
-    </div>
+      <div
+          ref={ref}
+          className={className}
+          style={{
+            opacity: isVisible ? 1 : 0,
+            transform: isVisible ? "translateY(0)" : "translateY(40px)",
+            transition: `opacity 0.7s cubic-bezier(0.16,1,0.3,1) ${delay}s, transform 0.7s cubic-bezier(0.16,1,0.3,1) ${delay}s`,
+          }}
+      >
+        {children}
+      </div>
   );
 }
 
-// ================= EVENT SECTION (DB-driven event cards) =================
+// ================= EVENT SECTION (DB ?곕룞 ??醫? ?? 怨좎젙) =================
 function EventSection() {
   const navigate = useNavigate();
   const [hoveredCard, setHoveredCard] = useState(null);
@@ -151,26 +150,26 @@ function EventSection() {
 
   useEffect(() => {
     eventApi
-      .getEvents({ page: 0, size: 100 })
-      .then((res) => {
-        const list = Array.isArray(res.data?.data?.content) ? res.data.data.content : Array.isArray(res.data?.data) ? res.data.data : [];
-        const currentRows = list
-          .filter(isCurrentEvent)
-          .sort((a, b) => toTimeValue(a?.startAt) - toTimeValue(b?.startAt));
-        const fallbackRows = list
-          .filter(isUpcomingEvent)
-          .sort((a, b) => toTimeValue(a?.startAt) - toTimeValue(b?.startAt));
-        const source = currentRows.length > 0 ? currentRows : fallbackRows;
-        setEvents(source.slice(0, 6).map(mapApiEvent));
-      })
-      .catch(() => setEvents([]));
+        .getEvents({ page: 0, size: 100 })
+        .then((res) => {
+          const list = Array.isArray(res.data?.data?.content) ? res.data.data.content : Array.isArray(res.data?.data) ? res.data.data : [];
+          const currentRows = list
+              .filter(isCurrentEvent)
+              .sort((a, b) => toTimeValue(a?.startAt) - toTimeValue(b?.startAt));
+          const fallbackRows = list
+              .filter(isUpcomingEvent)
+              .sort((a, b) => toTimeValue(a?.startAt) - toTimeValue(b?.startAt));
+          const source = currentRows.length > 0 ? currentRows : fallbackRows;
+          setEvents(source.slice(0, 6).map(mapApiEvent));
+        })
+        .catch(() => setEvents([]));
   }, []);
 
-  // split events into two groups of up to three items
+  // 醫?3媛?/ ??3媛?遺꾨같
   const leftItems = events.slice(0, 3);
   const rightItems = events.length > 3 ? events.slice(3, 6) : events.slice(0, Math.min(3, events.length));
   const sides = [
-    { items: leftItems, color: { bg: "bg-gradient-to-r from-[#E6F7F2] to-[#EDF9F5]", text: "text-[#02A17E]" } },
+    { items: leftItems, color: { bg: "bg-gradient-to-r from-[#E6F7F2] to-[#EDF9F5]", text: "text-[#90C450]" } },
     { items: rightItems, color: { bg: "bg-gradient-to-r from-emerald-50 to-teal-100/50", text: "text-teal-700" } },
   ];
   const groupDate = (items) => {
@@ -179,66 +178,66 @@ function EventSection() {
   };
 
   return (
-    <section className="w-full bg-gradient-to-b from-gray-50 to-white py-16">
-      <div className="max-w-[1400px] mx-auto px-[25px]">
-        <RevealSection>
-          <div className="text-center mb-10">
-            <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">진행 중인 행사 안내</p>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">현재 진행 중인 행사</h2>
-            <button onClick={() => navigate("/event/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#02A17E" }}>자세히 보기</button>
-          </div>
-        </RevealSection>
-        <RevealSection delay={0.15}>
-          {events.length === 0 ? (
-            <div className="text-center text-gray-400 py-12">진행 중인 행사가 없습니다.</div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 relative">
-              <div className="hidden lg:block absolute left-1/2 top-6 bottom-0 -translate-x-1/2">
-                <div className="w-px h-full" style={{ backgroundImage: "radial-gradient(circle, #d1d5db 1px, transparent 1px)", backgroundSize: "1px 5px" }} />
-              </div>
-              {sides.map((side, si) => (
-                <div key={si} className="space-y-4">
-                  <div className={`${side.color.bg} ${side.color.text} text-center py-3 rounded-xl font-semibold text-sm`}>{groupDate(side.items)}</div>
-                  <div className="space-y-4">
-                    {side.items.map((ev, idx) => (
-                      <EventCard
-                        key={ev.id || idx}
-                        event={{ title: ev.title, time: ev.startAt && ev.endAt ? `${fmtTime(ev.startAt)} ~ ${fmtTime(ev.endAt)}` : "시간 미정", location: ev.location }}
-                        isHovered={hoveredCard === `${si}-${idx}`}
-                        onHover={() => setHoveredCard(`${si}-${idx}`)}
-                        onLeave={() => setHoveredCard(null)}
-                        onClick={() => navigate("/event/current")}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+      <section className="w-full bg-gradient-to-b from-gray-50 to-white py-16">
+        <div className="max-w-[1400px] mx-auto px-[25px]">
+          <RevealSection>
+            <div className="text-center mb-10">
+              <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">진행 중인 행사 안내</p>
+              <h2 className="text-4xl font-bold text-gray-900 mb-4 leading-tight">현재 진행 중인 행사</h2>
+              <button onClick={() => navigate("/event/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#90C450" }}>자세히 보기</button>
             </div>
-          )}
-        </RevealSection>
-      </div>
-    </section>
+          </RevealSection>
+          <RevealSection delay={0.15}>
+            {events.length === 0 ? (
+                <div className="text-center text-gray-400 py-12">진행 중인 행사가 없습니다.</div>
+            ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 relative">
+                  <div className="hidden lg:block absolute left-1/2 top-6 bottom-0 -translate-x-1/2">
+                    <div className="w-px h-full" style={{ backgroundImage: "radial-gradient(circle, #d1d5db 1px, transparent 1px)", backgroundSize: "1px 5px" }} />
+                  </div>
+                  {sides.map((side, si) => (
+                      <div key={si} className="space-y-4">
+                        <div className={`${side.color.bg} ${side.color.text} text-center py-3 rounded-xl font-semibold text-sm`}>{groupDate(side.items)}</div>
+                        <div className="space-y-4">
+                          {side.items.map((ev, idx) => (
+                              <EventCard
+                                  key={ev.id || idx}
+                                  event={{ title: ev.title, time: ev.startAt && ev.endAt ? `${fmtTime(ev.startAt)} ~ ${fmtTime(ev.endAt)}` : "시간 미정", location: ev.location }}
+                                  isHovered={hoveredCard === `${si}-${idx}`}
+                                  onHover={() => setHoveredCard(`${si}-${idx}`)}
+                                  onLeave={() => setHoveredCard(null)}
+                                  onClick={() => navigate("/event/current")}
+                              />
+                          ))}
+                        </div>
+                      </div>
+                  ))}
+                </div>
+            )}
+          </RevealSection>
+        </div>
+      </section>
   );
 }
 
 function EventCard({ event, isHovered, onHover, onLeave, onClick }) {
   return (
-    <div className="cursor-pointer" onMouseEnter={onHover} onMouseLeave={onLeave} onClick={onClick}>
-      <div className={`rounded-xl p-5 border border-gray-200 transition-all duration-300 ${isHovered ? "bg-gray-100 border-gray-300" : "bg-white"}`}>
-        <div className="text-center">
-          <h3 className="text-base font-semibold text-gray-900 mb-1">{event.title}</h3>
-          <p className="text-[13px] text-gray-600 leading-tight">{event.time}</p>
-          <p className="text-[13px] text-gray-600 leading-tight">{event.location}</p>
-          <div className={`overflow-hidden transition-all duration-300 ease-out ${isHovered ? "max-h-16 mt-3" : "max-h-0 mt-0"}`}>
-            <button type="button" onClick={(e) => { e.stopPropagation(); onClick?.(); }} className="text-white text-xs font-semibold px-4 py-1.5 rounded-full" style={{ background: "#02A17E" }}>자세히 보기</button>
+      <div className="cursor-pointer" onMouseEnter={onHover} onMouseLeave={onLeave} onClick={onClick}>
+        <div className={`rounded-xl p-5 border border-gray-200 transition-all duration-300 ${isHovered ? "bg-gray-100 border-gray-300" : "bg-white"}`}>
+          <div className="text-center">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">{event.title}</h3>
+            <p className="text-[13px] text-gray-600 leading-tight">{event.time}</p>
+            <p className="text-[13px] text-gray-600 leading-tight">{event.location}</p>
+            <div className={`overflow-hidden transition-all duration-300 ease-out ${isHovered ? "max-h-16 mt-3" : "max-h-0 mt-0"}`}>
+              <button type="button" onClick={(e) => { e.stopPropagation(); onClick?.(); }} className="text-white text-xs font-semibold px-4 py-1.5 rounded-full" style={{ background: "#90C450" }}>자세히 보기</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
   );
 }
 
-// ================= infinite slider =================
+// ================= 臾댄븳猷⑦봽 ??=================
 function useInfiniteSlider(itemCount, slideSize) {
   const CLONES = 15;
   const CENTER = itemCount * 7;
@@ -268,7 +267,7 @@ function useInfiniteSlider(itemCount, slideSize) {
   return { index, realIndex, offset, transition, next, prev, goTo, setIndex, setTransition, CLONES };
 }
 
-// ================= SESSION LINEUP (session DB sync) =================
+// ================= SESSION LINEUP (?몄뀡 DB ?곕룞) =================
 function SessionLineup() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
@@ -279,11 +278,11 @@ function SessionLineup() {
         const evRes = await eventApi.getEvents({ page: 0, size: 100 });
         const events = Array.isArray(evRes.data?.data?.content) ? evRes.data.data.content : Array.isArray(evRes.data?.data) ? evRes.data.data : [];
         const currentEvents = events
-          .filter(isCurrentEvent)
-          .sort((a, b) => toTimeValue(a?.startAt) - toTimeValue(b?.startAt));
+            .filter(isCurrentEvent)
+            .sort((a, b) => toTimeValue(a?.startAt) - toTimeValue(b?.startAt));
         const sourceEvents = currentEvents.length > 0
-          ? currentEvents
-          : events.filter(isUpcomingEvent).sort((a, b) => toTimeValue(a?.startAt) - toTimeValue(b?.startAt));
+            ? currentEvents
+            : events.filter(isUpcomingEvent).sort((a, b) => toTimeValue(a?.startAt) - toTimeValue(b?.startAt));
         const targetEvents = sourceEvents.slice(0, 6);
         const eventMap = new Map(targetEvents.map((e) => [Number(e.eventId ?? e.id), e]));
 
@@ -343,93 +342,93 @@ function SessionLineup() {
   };
 
   return (
-    <div className="w-full bg-white py-20">
-      <div className="max-w-[1400px] mx-auto px-[25px]">
-        <RevealSection>
-          <div className="text-center mb-10">
-            <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">PuPoo Session</p>
-            <h2 className="text-xl md:text-3xl font-bold text-gray-900 mb-4 leading-tight">현재 행사에서 운영 중인 프로그램</h2>
-            <button onClick={() => navigate("/program/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#02A17E" }}>전체 프로그램 보기</button>
-          </div>
-        </RevealSection>
-        <RevealSection delay={0.12}>
-          {items.length === 0 ? (
-            <div className="text-center text-gray-400 py-12">연결된 프로그램이 없습니다.</div>
-          ) : (
-            <>
-              <div className="overflow-hidden cursor-grab active:cursor-grabbing" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} style={{ userSelect: "none" }}>
-                <div ref={trackRef} className="flex" style={{ gap: GAP, transform: `translate3d(-${slider.offset}px, 0, 0)`, transition: slider.transition ? "transform 600ms cubic-bezier(0.16,1,0.3,1)" : "none", willChange: "transform" }}>
-                  {extended.map((s, i) => {
-                    const isH = hovered === i;
-                    return (
-                      <div key={i} style={{ width: CARD_W, transform: isH ? "translateY(-4px)" : "translateY(0)", transition: "transform 0.3s cubic-bezier(0.16,1,0.3,1)" }} className="shrink-0" onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} onClick={() => navigate("/program/current")}>
-                        <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-[3/4]" style={{ boxShadow: isH ? "0 8px 24px rgba(0,0,0,0.12)" : "0 1px 4px rgba(0,0,0,0.04)", transition: "box-shadow 0.3s ease" }}>
-                          <img
-                            src={resolveImageUrl(s.image, dogImg(s.id))}
-                            alt={s.title}
-                            className={`w-full h-full object-cover transition-transform duration-500 ease-out ${isH ? "scale-[1.03]" : "scale-100"}`}
-                            draggable={false}
-                            onError={createImageFallbackHandler(dogImg(s.id))}
-                          />
-                          <div className="absolute inset-x-0 bottom-0 h-2/5" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55), transparent)" }} />
-                          <div className="absolute bottom-0 left-0 right-0 p-5">
-                            <p className="text-white font-bold text-lg leading-snug">{s.title}</p>
-                            <p className="text-white/60 text-sm mt-0.5">{s.eventName}</p>
-                            <p className="text-white/50 text-xs mt-1">
-                              {s.startAt ? `${fmtEventDate(s.startAt)} ${fmtTime(s.startAt)}` : "일정 미정"}
-                              {s.location ? ` · ${s.location}` : ""}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="mt-3">
-                          <span className="inline-block text-[11px] font-bold text-white px-2.5 py-1 rounded-md" style={{ background: "#02A17E" }}>{catLabel(s.category)}</span>
-                          <span className="inline-block text-[11px] font-medium bg-gray-200 text-gray-600 px-2.5 py-1 rounded-md ml-1.5">{s.eventName}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-8">
-                <div className="flex items-center gap-5">
+      <div className="w-full bg-white py-20">
+        <div className="max-w-[1400px] mx-auto px-[25px]">
+          <RevealSection>
+            <div className="text-center mb-10">
+              <p className="text-[14px] font-semibold text-gray-500 uppercase mb-1">PuPoo Session</p>
+              <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-4 leading-tight"><span className="md:hidden">현재 행사에서<br />운영 중인 프로그램</span><span className="hidden md:inline">현재 행사에서 운영 중인 프로그램</span></h2>
+              <button onClick={() => navigate("/program/current")} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-6 py-2 rounded-full transition-all duration-300" style={{ background: "#90C450" }}>전체 프로그램 보기</button>
+            </div>
+          </RevealSection>
+          <RevealSection delay={0.12}>
+            {items.length === 0 ? (
+                <div className="text-center text-gray-400 py-12">연결된 프로그램이 없습니다.</div>
+            ) : (
+                <>
+                  <div className="overflow-hidden cursor-grab active:cursor-grabbing" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} style={{ userSelect: "none" }}>
+                    <div ref={trackRef} className="flex" style={{ gap: GAP, transform: `translate3d(-${slider.offset}px, 0, 0)`, transition: slider.transition ? "transform 600ms cubic-bezier(0.16,1,0.3,1)" : "none", willChange: "transform" }}>
+                      {extended.map((s, i) => {
+                        const isH = hovered === i;
+                        return (
+                            <div key={i} style={{ width: CARD_W, transform: isH ? "translateY(-4px)" : "translateY(0)", transition: "transform 0.3s cubic-bezier(0.16,1,0.3,1)" }} className="shrink-0" onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} onClick={() => navigate("/program/current")}>
+                              <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-[3/4]" style={{ boxShadow: isH ? "0 8px 24px rgba(0,0,0,0.12)" : "0 1px 4px rgba(0,0,0,0.04)", transition: "box-shadow 0.3s ease" }}>
+                                <img
+                                    src={resolveImageUrl(s.image, dogImg(s.id))}
+                                    alt={s.title}
+                                    className={`w-full h-full object-cover transition-transform duration-500 ease-out ${isH ? "scale-[1.03]" : "scale-100"}`}
+                                    draggable={false}
+                                    onError={createImageFallbackHandler(dogImg(s.id))}
+                                />
+                                <div className="absolute inset-x-0 bottom-0 h-2/5" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55), transparent)" }} />
+                                <div className="absolute bottom-0 left-0 right-0 p-5">
+                                  <p className="text-white font-bold text-lg leading-snug">{s.title}</p>
+                                  <p className="text-white/60 text-sm mt-0.5">{s.eventName}</p>
+                                  <p className="text-white/50 text-xs mt-1">
+                                    {s.startAt ? `${fmtEventDate(s.startAt)} ${fmtTime(s.startAt)}` : "일정 미정"}
+                                    {s.location ? ` · ${s.location}` : ""}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-3">
+                                <span className="inline-block text-[11px] font-bold text-white px-2.5 py-1 rounded-md" style={{ background: "#90C450" }}>{catLabel(s.category)}</span>
+                                <span className="inline-block text-[11px] font-medium bg-gray-200 text-gray-600 px-2.5 py-1 rounded-md ml-1.5">{s.eventName}</span>
+                              </div>
+                            </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-8">
+                    <div className="flex items-center gap-5">
                   <span className="text-sm font-bold tabular-nums text-gray-900">
                     {String(slider.realIndex + 1).padStart(2, "0")}
                     <span className="text-gray-300 mx-1.5">/</span>
                     {String(items.length).padStart(2, "0")}
                   </span>
-                  <div className="flex gap-1.5">
-                    {items.map((_, i) => (
-                      <button key={i} onClick={() => slider.goTo(i)} className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`} />
-                    ))}
+                      <div className="flex gap-1.5">
+                        {items.map((_, i) => (
+                            <button key={i} onClick={() => slider.goTo(i)} className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`} />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={slider.prev} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all duration-200 hover:border-gray-400 active:scale-95">
+                        <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                      </button>
+                      <button onClick={slider.next} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all duration-200 hover:border-gray-400 active:scale-95">
+                        <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={slider.prev} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all duration-200 hover:border-gray-400 active:scale-95">
-                    <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                  </button>
-                  <button onClick={slider.next} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all duration-200 hover:border-gray-400 active:scale-95">
-                    <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </RevealSection>
+                </>
+            )}
+          </RevealSection>
+        </div>
       </div>
-    </div>
   );
 }
 
-// ================= RECOMMEND CAROUSEL (DB-driven) =================
+// ================= RECOMMEND CAROUSEL (DB ?곕룞) =================
 function RecommendCarousel() {
   const [events, setEvents] = useState([]);
   useEffect(() => {
     eventApi.getEvents({ page: 0, size: 8 })
-      .then((res) => {
-        const list = res.data?.data?.content || res.data?.data || [];
-        setEvents(list.map(mapApiEvent));
-      })
-      .catch(() => setEvents([]));
+        .then((res) => {
+          const list = res.data?.data?.content || res.data?.data || [];
+          setEvents(list.map(mapApiEvent));
+        })
+        .catch(() => setEvents([]));
   }, []);
 
   const items = events.length > 0 ? events : [];
@@ -460,55 +459,55 @@ function RecommendCarousel() {
   if (items.length === 0) return <div className="text-center text-gray-400 py-12">추천 행사를 불러오는 중입니다.</div>;
 
   return (
-    <div className="relative w-full">
-      <RevealSection>
-        <div className="overflow-hidden cursor-grab active:cursor-grabbing" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} style={{ userSelect: "none" }}>
-          <div ref={trackRef} className="flex" style={{ gap: GAP, transform: `translate3d(-${slider.offset}px, 0, 0)`, transition: slider.transition ? "transform 600ms cubic-bezier(0.16,1,0.3,1)" : "none", willChange: "transform" }}>
-            {extended.map((ev, i) => (
-              <div key={i} style={{ width: CARD_W }} className="shrink-0 group">
-                <div className="relative overflow-hidden rounded-2xl">
-                  <img src={resolveImageUrl(ev.image, dogImg(ev.id))} alt={ev.title} draggable={false} className="h-[260px] w-full object-cover transition-transform duration-700 group-hover:scale-105" onError={createImageFallbackHandler(dogImg(ev.id))} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-                <div className="mt-4">
-                  <div className="text-[17px] font-bold text-gray-900">{ev.title}</div>
-                  <div className="text-sm text-gray-500 mt-1.5">
-                    {ev.description ? (ev.description.length > 40 ? ev.description.slice(0, 40) + "..." : ev.description) : ev.startAt ? fmtEventDate(ev.startAt) : "상세 정보 보기"}
+      <div className="relative w-full">
+        <RevealSection>
+          <div className="overflow-hidden cursor-grab active:cursor-grabbing" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} style={{ userSelect: "none" }}>
+            <div ref={trackRef} className="flex" style={{ gap: GAP, transform: `translate3d(-${slider.offset}px, 0, 0)`, transition: slider.transition ? "transform 600ms cubic-bezier(0.16,1,0.3,1)" : "none", willChange: "transform" }}>
+              {extended.map((ev, i) => (
+                  <div key={i} style={{ width: CARD_W }} className="shrink-0 group">
+                    <div className="relative overflow-hidden rounded-2xl">
+                      <img src={resolveImageUrl(ev.image, dogImg(ev.id))} alt={ev.title} draggable={false} className="h-[260px] w-full object-cover transition-transform duration-700 group-hover:scale-105" onError={createImageFallbackHandler(dogImg(ev.id))} />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    </div>
+                    <div className="mt-4">
+                      <div className="text-[17px] font-bold text-gray-900">{ev.title}</div>
+                      <div className="text-sm text-gray-500 mt-1.5">
+                        {ev.description ? (ev.description.length > 40 ? ev.description.slice(0, 40) + "..." : ev.description) : ev.startAt ? fmtEventDate(ev.startAt) : "상세 정보 보기"}
+                      </div>
+                      <span className="inline-block mt-3 text-xs font-medium bg-gray-200 text-gray-600 px-3 py-1 rounded-md">{ev.location}</span>
+                    </div>
                   </div>
-                  <span className="inline-block mt-3 text-xs font-medium bg-gray-200 text-gray-600 px-3 py-1 rounded-md">{ev.location}</span>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="flex items-center justify-between mt-8">
-          <div className="flex items-center gap-5">
+          <div className="flex items-center justify-between mt-8">
+            <div className="flex items-center gap-5">
             <span className="text-sm font-bold tabular-nums text-gray-900">
               {String(slider.realIndex + 1).padStart(2, "0")}
               <span className="text-gray-300 mx-1.5">/</span>
               {String(items.length).padStart(2, "0")}
             </span>
-            <div className="flex gap-1.5">
-              {items.map((_, i) => (
-                <button key={i} onClick={() => slider.goTo(i)} className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`} />
-              ))}
+              <div className="flex gap-1.5">
+                {items.map((_, i) => (
+                    <button key={i} onClick={() => slider.goTo(i)} className={`h-[3px] rounded-full transition-all duration-500 ${i === slider.realIndex ? "w-8 bg-gray-900" : "w-3 bg-gray-300 hover:bg-gray-400"}`} />
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={slider.prev} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all hover:border-gray-400 active:scale-95">
+                <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <button onClick={slider.next} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all hover:border-gray-400 active:scale-95">
+                <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+              </button>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button onClick={slider.prev} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all hover:border-gray-400 active:scale-95">
-              <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <button onClick={slider.next} className="w-11 h-11 rounded-full border border-gray-200 bg-white flex items-center justify-center transition-all hover:border-gray-400 active:scale-95">
-              <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </div>
-        </div>
-      </RevealSection>
-    </div>
+        </RevealSection>
+      </div>
   );
 }
 
-// ================= NOTICE SECTION (API sync) =================
+// ================= NOTICE SECTION (API ?곕룞) =================
 function fmtDate(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
@@ -544,73 +543,61 @@ function NoticeSection() {
   ];
 
   return (
-    <section className="bg-black text-white py-24">
-      <div className="max-w-[1400px] mx-auto px-[25px] grid md:grid-cols-2 gap-16">
-        {sections.map((section, idx) => (
-          <RevealSection key={idx} delay={idx * 0.12}>
-            <div>
-              <div className="flex justify-between items-center mb-10">
-                <h3 className="text-3xl font-extrabold">{section.title}</h3>
-                <button type="button" className="text-sm text-white/70 hover:text-white transition" onClick={() => section.morePath && navigate(section.morePath)}>more +</button>
-              </div>
-              <div className="space-y-10">
-                {section.items.length > 0
-                  ? section.items.map((item, i) => (
-                      <div key={i} className="group cursor-pointer" onClick={() => section.morePath && navigate(section.morePath)}>
-                        <div className="flex justify-between">
-                          <div>
-                            <div className="text-lg font-semibold group-hover:text-gray-300 transition">{item.title}</div>
-                            <div className="mt-3 text-sm text-white/60">{item.date}</div>
-                          </div>
-                          <div className="text-3xl text-white/60 group-hover:text-white transition">+</div>
-                        </div>
-                        <div className="mt-6 border-b border-white/20" />
-                      </div>
-                    ))
-                  : [1, 2, 3].map((i) => (
-                      <div key={i} className="group cursor-pointer">
-                        <div className="flex justify-between">
-                          <div>
-                            <div className="text-lg font-semibold text-white/30">불러오는 중...</div>
-                            <div className="mt-3 text-sm text-white/20">-</div>
-                          </div>
-                        </div>
-                        <div className="mt-6 border-b border-white/20" />
-                      </div>
-                    ))}
-              </div>
-            </div>
-          </RevealSection>
-        ))}
-      </div>
-    </section>
+      <section className="bg-black text-white py-24">
+        <div className="max-w-[1400px] mx-auto px-[25px] grid md:grid-cols-2 gap-16">
+          {sections.map((section, idx) => (
+              <RevealSection key={idx} delay={idx * 0.12}>
+                <div>
+                  <div className="flex justify-between items-center mb-10">
+                    <h3 className="text-3xl font-extrabold">{section.title}</h3>
+                    <button type="button" className="text-sm text-white/70 hover:text-white transition" onClick={() => section.morePath && navigate(section.morePath)}>more +</button>
+                  </div>
+                  <div className="space-y-10">
+                    {section.items.length > 0
+                        ? section.items.map((item, i) => (
+                            <div key={i} className="group cursor-pointer" onClick={() => section.morePath && navigate(section.morePath)}>
+                              <div className="flex justify-between">
+                                <div>
+                                  <div className="text-lg font-semibold group-hover:text-gray-300 transition">{item.title}</div>
+                                  <div className="mt-3 text-sm text-white/60">{item.date}</div>
+                                </div>
+                                <div className="text-3xl text-white/60 group-hover:text-white transition">+</div>
+                              </div>
+                              <div className="mt-6 border-b border-white/20" />
+                            </div>
+                        ))
+                        : [1, 2, 3].map((i) => (
+                            <div key={i} className="group cursor-pointer">
+                              <div className="flex justify-between">
+                                <div>
+                                  <div className="text-lg font-semibold text-white/30">불러오는 중...</div>
+                                  <div className="mt-3 text-sm text-white/20">-</div>
+                                </div>
+                              </div>
+                              <div className="mt-6 border-b border-white/20" />
+                            </div>
+                        ))}
+                  </div>
+                </div>
+              </RevealSection>
+          ))}
+        </div>
+      </section>
   );
 }
 
 // ================= MAIN =================
 export default function Home() {
   const heroVideos = [
-    toPublicAssetUrl("home/1.mov"),
-    toPublicAssetUrl("home/2.mov"),
-    toPublicAssetUrl("home/3.mp4"),
+    "/1.mov",
+    "/2.mov",
+    "/3.mp4",
   ];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [fade, setFade] = useState(true);
   const [progress, setProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [viewportWidth, setViewportWidth] = useState(() =>
-    typeof window === "undefined" ? 1440 : window.innerWidth,
-  );
   const videoRef = useRef(null);
-  const isMobile = viewportWidth < 768;
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const syncViewport = () => setViewportWidth(window.innerWidth);
-    syncViewport();
-    window.addEventListener("resize", syncViewport);
-    return () => window.removeEventListener("resize", syncViewport);
-  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -633,83 +620,60 @@ export default function Home() {
   };
 
   return (
-    <div
-      style={
-        isMobile
-          ? {
-              paddingTop: "var(--pupoo-site-header-offset, 112px)",
-            }
-          : undefined
-      }
-    >
-      <section
-        className="relative h-screen w-full overflow-hidden"
-        style={
-          isMobile
-            ? {
-                height: "calc(100svh - var(--pupoo-site-header-offset, 112px))",
-                minHeight: "calc(100svh - var(--pupoo-site-header-offset, 112px))",
-              }
-            : undefined
-        }
-      >
-        <video ref={videoRef} key={currentVideoIndex} src={heroVideos[currentVideoIndex]} autoPlay muted playsInline className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${fade ? "opacity-100" : "opacity-0"}`} />
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="relative h-full flex items-center justify-center">
-          <div className="max-w-[1400px] w-full px-[25px] text-white">
-            <h1 className="text-2xl md:text-6xl font-extrabold leading-tight">
-              지금 가장 주목할
-              <br />
-              반려견 페스티벌
-            </h1>
-            <p className="mt-4 text-base md:text-xl text-white/90">참여 가능한 행사를 바로 확인해 보세요.</p>
+      <div>
+        <section className="relative h-screen w-full overflow-hidden">
+          <video ref={videoRef} key={currentVideoIndex} src={heroVideos[currentVideoIndex]} autoPlay muted playsInline className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${fade ? "opacity-100" : "opacity-0"}`} />
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative h-full flex items-center justify-center">
+            <div className="max-w-[1400px] w-full px-[25px] text-white">
+              <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
+                지금 가장 주목할
+                <br />
+                반려견 페스티벌
+              </h1>
+              <p className="mt-6 text-lg md:text-xl text-white/90">참여 가능한 행사를 바로 확인해 보세요.</p>
+            </div>
           </div>
-        </div>
-        <div
-          className="absolute left-1/2 -translate-x-1/2"
-          style={{
-            bottom: isMobile
-              ? "calc(env(safe-area-inset-bottom, 0px) + 40px)"
-              : 64,
-            width: isMobile ? "min(256px, calc(100vw - 44px))" : 300,
-          }}
-        >
-          <div className="relative h-[2px] bg-white/30">
-            <div className="absolute left-0 top-0 h-full bg-white transition-[width] duration-200 ease-linear" style={{ width: `${progress}%` }} />
+          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[300px]">
+            <div className="relative h-[2px] bg-white/30">
+              <div className="absolute left-0 top-0 h-full bg-white transition-[width] duration-200 ease-linear" style={{ width: `${progress}%` }} />
+            </div>
+            <div className="flex justify-between items-center mt-3 text-white text-sm">
+              <span>{String(currentVideoIndex + 1).padStart(2, "0")} / {String(heroVideos.length).padStart(2, "0")}</span>
+              <button type="button" onClick={togglePlay} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/20 transition">
+                {isPlaying ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+                ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z" /></svg>
+                )}
+              </button>
+            </div>
           </div>
-          <div className="flex justify-between items-center mt-2 text-white text-[13px]">
-            <span>{String(currentVideoIndex + 1).padStart(2, "0")} / {String(heroVideos.length).padStart(2, "0")}</span>
-            <button type="button" onClick={togglePlay} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/20 transition">
-              {isPlaying ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z" /></svg>
-              )}
-            </button>
+        </section>
+
+        <SessionLineup />
+        <EventSection />
+
+        <section className="bg-[#f4f5f7] py-24 overflow-hidden">
+          <div className="max-w-[1400px] mx-auto px-[25px]">
+            <RevealSection>
+              <h2 className="text-2xl md:text-3xl font-extrabold mb-8">
+                <span className="text-[#90C450]">당신이</span> 좋아할 만한 추천 행사
+              </h2>
+            </RevealSection>
+            <RevealSection delay={0.08}>
+              <div className="bg-[#e9eaee] rounded-xl px-6 py-4 text-sm text-gray-700 mb-12">사용자 취향에 맞는 행사를 추천하고 있습니다.</div>
+            </RevealSection>
+            <RecommendCarousel />
           </div>
-        </div>
-      </section>
+        </section>
 
-      <SessionLineup />
-      <EventSection />
-
-      <section className="bg-[#f4f5f7] py-24 overflow-hidden">
-        <div className="max-w-[1400px] mx-auto px-[25px]">
-          <RevealSection>
-            <h2 className="text-2xl md:text-3xl font-extrabold mb-8">
-                <span className="text-[#02A17E]">당신이</span> 좋아할 만한 추천 행사
-            </h2>
-          </RevealSection>
-          <RevealSection delay={0.08}>
-            <div className="bg-[#e9eaee] rounded-xl px-6 py-4 text-sm text-gray-700 mb-12">사용자 취향에 맞는 행사를 추천하고 있습니다.</div>
-          </RevealSection>
-          <RecommendCarousel />
-        </div>
-      </section>
-
-      <NoticeSection />
-    </div>
+        <NoticeSection />
+      </div>
   );
 }
+
+
+
 
 

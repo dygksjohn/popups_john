@@ -52,10 +52,10 @@ const ProgramScheduleDetail = () => {
   }[status] || status;
 
   const statusColor = {
-    ONGOING: '#10B981',
+    ONGOING: '#3a4520',
     UPCOMING: '#3DBFA0',
     ENDED: '#9E9E9E',
-  }[status] || '#10B981';
+  }[status] || '#3a4520';
 
   return (
     <div style={styles.page}>
@@ -109,7 +109,7 @@ const ProgramScheduleDetail = () => {
             <div style={styles.infoGrid}>
               <InfoItem icon="📅" label="날짜" value={date} color="#3DBFA0" />
               <InfoItem icon="🕐" label="시간" value={`${startTime} ~ ${endTime}`} color="#F59E0B" />
-              <InfoItem icon="📍" label="장소" value={location || '장소 미정'} color="#10B981" />
+              <InfoItem icon="📍" label="장소" value={location || '장소 미정'} color="#3a4520" />
               <InfoItem icon="🏷️" label="카테고리" value={category} color="#8B5CF6" />
             </div>
           </div>
@@ -449,7 +449,7 @@ const styles = {
   primaryBtn: {
     width: '100%',
     padding: '12px',
-    background: '#028A6C',
+    background: '#7ab33e',
     color: '#fff',
     border: 'none',
     borderRadius: '10px',

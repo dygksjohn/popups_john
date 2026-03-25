@@ -59,7 +59,7 @@ function HintBanner({ icon: Icon, children, variant = "default" }) {
   const bg = variant === "success" ? "#f0fdf4" : variant === "warn" ? "#fefce8" : "#f8f8fc";
   const border = variant === "success" ? "#bbf7d0" : variant === "warn" ? "#fef08a" : "#e8e6f0";
   const color = variant === "success" ? "#15803d" : variant === "warn" ? "#a16207" : "#555";
-  const iconColor = variant === "success" ? "#22c55e" : variant === "warn" ? "#eab308" : "#6c5ce7";
+  const iconColor = variant === "success" ? "#22c55e" : variant === "warn" ? "#eab308" : "#90C450";
   return (
     <div className="hint-banner" style={{ background: bg, borderColor: border, color }}>
       {Icon && <Icon size={16} style={{ color: iconColor, flexShrink: 0, marginTop: 1 }} />}
@@ -86,7 +86,7 @@ const DEFAULT_PET = { name: "", type: "DOG", age: "", weight: "M" };
 
 const styles = `
   /* ── Outer ── */
-  .signup-outer { background: #f3f4f6; min-height: 100vh; }
+  .signup-outer { background: #f8f9fc; min-height: 100vh; }
   .signup-inner {
     max-width: 1400px; margin: 0 auto; background: #fff;
     min-height: 100vh; padding: 90px 40px;
@@ -119,16 +119,16 @@ const styles = `
     background: #f0f0f0; color: #bbb; transition: all 0.3s;
     border: 2px solid transparent;
   }
-  .step-num.active { background: #6c5ce7; color: #fff; border-color: #6c5ce7; }
-  .step-num.done   { background: #6c5ce7; color: #fff; border-color: #6c5ce7; }
+  .step-num.active { background: #90C450; color: #fff; border-color: #90C450; }
+  .step-num.done   { background: #90C450; color: #fff; border-color: #90C450; }
   .step-txt { font-size: 14px; color: #bbb; font-weight: 500; transition: color 0.3s; }
   .step-txt.active { color: #333; font-weight: 700; }
-  .step-txt.done   { color: #6c5ce7; font-weight: 600; }
+  .step-txt.done   { color: #90C450; font-weight: 600; }
   .step-line {
     width: 80px; height: 2px; background: #e8e8e8;
     margin: 0 6px 34px; transition: background 0.3s;
   }
-  .step-line.done { background: #6c5ce7; }
+  .step-line.done { background: #90C450; }
 
   /* ── Card ── */
   .card-panel {
@@ -147,25 +147,24 @@ const styles = `
 
   /* ── Field ── */
   .field {
-    display: flex; align-items: flex-start;
-    padding: 24px 0; border-bottom: 1px solid #f0f0f0;
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 20px 0; border-bottom: 1px solid #f0f0f0;
   }
   .field:last-child { border-bottom: none; }
   .field-label {
     display: flex; align-items: center; gap: 4px;
-    min-width: 180px; width: 180px;
     font-size: 15px; font-weight: 700; color: #333;
-    padding-top: 16px; flex-shrink: 0;
+    flex-shrink: 0;
   }
-  .field-label .req { color: #6c5ce7; font-size: 14px; }
-  .field-body { flex: 1; min-width: 0; }
+  .field-label .req { color: #90C450; font-size: 14px; }
+  .field-body { width: 100%; min-width: 0; }
   .field-helper { margin-top: 10px; font-size: 13px; color: #aaa; line-height: 1.5; }
 
   /* ── Hint banner ── */
   .hint-banner {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     padding: 12px 20px; border-radius: 8px;
-    border: 1px solid #e8e6f0; font-size: 14px; text-align: center;
+    border: 1px solid #e8e6f0; font-size: 13px; text-align: center;
     line-height: 1.5; margin-top: 10px;
   }
 
@@ -178,9 +177,9 @@ const styles = `
     transition: border-color 0.2s; font-family: inherit;
     box-sizing: border-box;
   }
-  .fi:focus { border-color: #6c5ce7; }
+  .fi:focus { border-color: #90C450; }
   .fi::placeholder { color: #ccc; font-size: 15px; }
-  .fi:disabled { background: #fafafa; color: #aaa; }
+  .fi:disabled { background: #f8f9fc; color: #aaa; }
 
   /* ── Custom Select ── */
   .cselect-wrap { position: relative; display: inline-block; }
@@ -194,8 +193,8 @@ const styles = `
     box-shadow: 0 1px 3px rgba(0,0,0,.04); box-sizing: border-box;
   }
   .cselect-trigger:hover { border-color: #d1d5db; }
-  .cselect-trigger.open { border-color: #6c5ce7; box-shadow: 0 0 0 3px rgba(108,92,231,.08); }
-  .cselect-trigger:disabled { background: #fafafa; color: #aaa; cursor: not-allowed; }
+  .cselect-trigger.open { border-color: #90C450; box-shadow: 0 0 0 3px rgba(68,78,40,.08); }
+  .cselect-trigger:disabled { background: #f8f9fc; color: #aaa; cursor: not-allowed; }
   .cselect-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cselect-arrow { flex-shrink: 0; transition: transform 0.15s ease; color: #9ca3af; }
   .cselect-menu {
@@ -216,7 +215,7 @@ const styles = `
   .cselect-option.active { color: #111; font-weight: 700; }
 
   /* ── Radio ── */
-  .radio-row { display: flex; gap: 36px; align-items: center; padding-top: 14px; }
+  .radio-row { display: flex; gap: 36px; align-items: center; justify-content: center; padding-top: 6px; }
   .radio-item { display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 16px; color: #333; font-weight: 500; }
   .radio-item input[type="radio"] {
     appearance: none; -webkit-appearance: none;
@@ -225,7 +224,7 @@ const styles = `
     flex-shrink: 0; background: #fff;
   }
   .radio-item input[type="radio"]:checked {
-    border-color: #6c5ce7; background: #6c5ce7;
+    border-color: #90C450; background: #90C450;
     box-shadow: inset 0 0 0 4.5px #fff;
   }
 
@@ -262,8 +261,8 @@ const styles = `
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: background 0.15s; color: #fff;
   }
-  .btn-pet-add { background: #6c5ce7; }
-  .btn-pet-add:hover { background: #5a4bd1; }
+  .btn-pet-add { background: #90C450; }
+  .btn-pet-add:hover { background: #2d3519; }
   .btn-pet-del { background: #ccc; }
   .btn-pet-del:hover { background: #aaa; }
   .btn-pet-del:disabled { opacity: 0.3; cursor: not-allowed; }
@@ -272,7 +271,7 @@ const styles = `
   .verify-section { text-align: center; padding: 48px 0 20px; }
   .verify-icon-wrap {
     width: 72px; height: 72px; border-radius: 50%;
-    background: #f3f1fb; display: flex; align-items: center;
+    background: #eef3ed; display: flex; align-items: center;
     justify-content: center; margin: 0 auto 24px;
   }
   .verify-title { font-size: 26px; font-weight: 800; color: #111; margin-bottom: 12px; }
@@ -290,13 +289,13 @@ const styles = `
   }
   .otp-digit-box {
     width: 58px; height: 64px; border: 1.5px solid #ddd;
-    border-radius: 12px; background: #fafafa;
+    border-radius: 12px; background: #f8f9fc;
     text-align: center; font-size: 28px; font-weight: 700;
-    color: #2EB893; caret-color: #6c5ce7;
+    color: #90C450; caret-color: #90C450;
     outline: none; transition: border-color .15s, box-shadow .15s;
   }
   .otp-digit-box:focus {
-    border-color: #6c5ce7; box-shadow: 0 0 0 3px rgba(108,92,231,.12);
+    border-color: #90C450; box-shadow: 0 0 0 3px rgba(68,78,40,.12);
     background: #fff;
   }
   .otp-digit-box::placeholder { color: #ccc; font-weight: 400; }
@@ -310,7 +309,7 @@ const styles = `
     margin-bottom: 24px;
   }
   .countdown-bar .count-num {
-    font-size: 22px; font-weight: 800; color: #6c5ce7;
+    font-size: 22px; font-weight: 800; color: #90C450;
     font-variant-numeric: tabular-nums;
   }
 
@@ -329,7 +328,7 @@ const styles = `
     color: #888; font-weight: 500; font-size: 13px;
   }
   .info-summary-item .info-val {
-    background: #f3f1fb; color: #5a4fc7; font-weight: 600;
+    background: #eef3ed; color: #1a2d16; font-weight: 600;
     padding: 4px 14px; border-radius: 20px; font-size: 14px;
     letter-spacing: 0.3px;
   }
@@ -337,20 +336,22 @@ const styles = `
   /* ── Buttons ── */
   .btn-row { display: flex; gap: 14px; margin-top: 40px; justify-content: center; }
   .btn-primary {
-    flex: 1; max-width: 320px; height: 60px;
-    background: #6c5ce7; color: #fff; border: none; border-radius: 12px;
+    flex: 1; padding: 20px 24px;
+    background: #90C450; color: #fff; border: none; border-radius: 12px;
     font-size: 18px; font-weight: 700; cursor: pointer;
     transition: background 0.15s; font-family: inherit;
     display: flex; align-items: center; justify-content: center; gap: 8px;
+    box-sizing: border-box;
   }
-  .btn-primary:hover { background: #5a4bd1; }
+  .btn-primary:hover { background: #2d3519; }
   .btn-primary:disabled { background: #ddd; color: #aaa; cursor: not-allowed; }
   .btn-outline {
-    flex: 0 0 auto; min-width: 180px; height: 60px;
+    flex: 1; padding: 20px 24px;
     background: #fff; color: #555; border: 1px solid #ddd;
     border-radius: 12px; font-size: 18px; font-weight: 600;
     cursor: pointer; transition: all 0.15s; font-family: inherit;
     display: flex; align-items: center; justify-content: center; gap: 8px;
+    box-sizing: border-box;
   }
   .btn-outline:hover { background: #f8f8f8; border-color: #ccc; }
   .btn-text-link {
@@ -381,10 +382,11 @@ const styles = `
 
   /* ── Notice box ── */
   .notice-box {
-    display: flex; align-items: flex-start; gap: 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
     background: #f8f8fc; border: 1px solid #e8e6f0;
-    border-radius: 14px; padding: 24px 32px;
+    border-radius: 14px; padding: 24px 28px;
     margin-bottom: 40px; font-size: 15px; color: #555; line-height: 1.9;
+    text-align: center;
   }
   .notice-box b { color: #333; font-weight: 600; }
 
@@ -401,15 +403,15 @@ const styles = `
   .terms-item:last-child { border-bottom: none; }
   .terms-item-head { display: flex; align-items: center; gap: 12px; cursor: pointer; }
   .terms-item-head label { font-size: 16px; font-weight: 500; color: #333; cursor: pointer; flex: 1; }
-  .terms-item-head .terms-tag { font-size: 14px; font-weight: 600; color: #6c5ce7; }
+  .terms-item-head .terms-tag { font-size: 14px; font-weight: 600; color: #90C450; }
   .terms-item-head .terms-tag-opt { font-size: 14px; font-weight: 500; color: #999; }
   .btn-terms-view {
     padding: 8px 18px; font-size: 13px; font-weight: 600;
-    color: #6c5ce7; background: #fff; border: 1px solid #d4d0ef;
+    color: #90C450; background: #fff; border: 1px solid #b8ccb3;
     border-radius: 6px; cursor: pointer; white-space: nowrap;
     font-family: inherit; transition: all 0.15s; flex-shrink: 0;
   }
-  .btn-terms-view:hover { background: #f3f1fb; }
+  .btn-terms-view:hover { background: #eef3ed; }
   .terms-box {
     background: #fafbfc; border: 1px solid #eee; border-radius: 10px;
     padding: 24px; max-height: 200px; overflow-y: auto;
@@ -424,7 +426,7 @@ const styles = `
     transition: all 0.15s; background: #fff;
   }
   .terms-checkbox:checked {
-    border-color: #6c5ce7; background: #6c5ce7;
+    border-color: #90C450; background: #90C450;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 12 10 16 18 8'/%3E%3C/svg%3E");
     background-size: 16px; background-position: center; background-repeat: no-repeat;
   }
@@ -441,17 +443,51 @@ const styles = `
     .step-line { width: 36px; }
     .step-num { width: 42px; height: 42px; }
     .step-txt { font-size: 12px; }
-    .field { flex-direction: column; gap: 8px; }
-    .field-label { width: auto; min-width: auto; padding-top: 0; font-size: 14px; }
+    .field-label { font-size: 14px; }
     .fi { height: 48px; font-size: 15px; }
     .cselect-trigger { height: 48px; font-size: 14px; }
-    .btn-primary { height: 52px; font-size: 16px; max-width: none; }
-    .btn-outline { height: 52px; font-size: 15px; min-width: 110px; }
+    .btn-primary { padding: 18px 20px !important; font-size: 16px; max-width: none; }
+    .btn-outline { padding: 18px 20px !important; font-size: 15px; min-width: 110px; }
     .pet-grid { grid-template-columns: 1fr; }
     .verify-section { padding: 32px 0 10px; }
     .section-label { font-size: 18px; }
     .terms-all label { font-size: 15px; }
     .terms-item-head label { font-size: 14px; }
+  }
+  @media (max-width: 640px) {
+    .signup-inner { padding: 0 10px; }
+    .signup-wrap { padding: calc(var(--pupoo-site-header-offset, 72px) + 20px) 0 48px; }
+    .signup-title { font-size: 22px; gap: 8px; }
+    .signup-desc { font-size: 14px; margin-bottom: 32px; }
+    .card-panel { padding: 20px 14px; border-radius: 12px; margin-bottom: 20px; }
+    .step-bar { margin-bottom: 36px; gap: 0; }
+    .step-item { min-width: 60px; gap: 8px; }
+    .step-num { width: 36px; height: 36px; }
+    .step-txt { font-size: 11px; }
+    .step-line { width: 20px; margin-bottom: 26px; }
+    .section-label { font-size: 16px; margin-bottom: 20px; padding-bottom: 12px; }
+    .field { padding: 16px 0; }
+    .field-label { font-size: 13px; }
+    .fi { height: 46px; font-size: 14px; padding: 0 14px; }
+    .cselect-trigger { height: 46px; font-size: 13px; min-width: 90px; }
+    .btn-row { flex-direction: column; gap: 10px; margin-top: 24px; }
+    .btn-primary { padding: 20px 20px !important; font-size: 15px; }
+    .btn-outline { padding: 20px 20px !important; font-size: 14px; }
+    .hint-banner { font-size: 12px; padding: 8px 12px; }
+    .notice-box { padding: 16px 18px; font-size: 13px; line-height: 1.75; }
+    .terms-all { padding: 16px 18px; }
+    .terms-all label { font-size: 14px; }
+    .terms-item-head label { font-size: 13px; }
+    .btn-terms-view { padding: 6px 12px; font-size: 12px; }
+    .pet-card { padding: 16px 14px; }
+    .verify-section { padding: 20px 0 8px; }
+    .verify-title { font-size: 20px; }
+    .verify-desc { font-size: 14px; margin-bottom: 24px; }
+    .otp-digit-row { gap: 6px; margin: 20px auto 20px; max-width: 100%; }
+    .otp-digit-box { width: calc((100% - 30px) / 6); height: 56px; font-size: 22px; border-radius: 10px; }
+    .countdown-bar { font-size: 13px; padding: 12px 16px; }
+    .info-summary { padding: 14px 16px; font-size: 13px; gap: 10px 20px; }
+    .section-divider { margin: 24px 0; }
   }
 `;
 
@@ -698,7 +734,7 @@ export default function JoinNormal() {
           회원가입
         </h1>
         <p className="signup-desc">
-          {step === "AGREE" ? "서비스 이용을 위해 약관을 확인해 주세요." : step === "FORM" ? "간단한 정보만 입력하면 pupoo의 모든 서비스를 이용할 수 있어요." : step === "OTP" ? "휴대폰으로 전송된 인증번호를 확인해 주세요." : "마지막으로 이메일 인증을 완료해 주세요."}
+          {step === "AGREE" ? "서비스 이용을 위해 약관을 확인해 주세요." : step === "FORM" ? <>간단한 정보만 입력하면<br />pupoo의 모든 서비스를 이용할 수 있어요.</> : step === "OTP" ? "휴대폰으로 전송된 인증번호를 확인해 주세요." : "마지막으로 이메일 인증을 완료해 주세요."}
         </p>
 
         {/* Step */}
@@ -733,7 +769,7 @@ export default function JoinNormal() {
         {step === "AGREE" && (
           <>
             <div className="card-panel">
-              <div className="section-label"><ClipboardCheck size={22} style={{ color: "#6c5ce7" }} /> 약관 동의</div>
+              <div className="section-label"><ClipboardCheck size={22} style={{ color: "#90C450" }} /> 약관 동의</div>
 
               <div className="terms-all" onClick={() => handleAgreeAll(!agreeAll)}>
                 <input type="checkbox" className="terms-checkbox" checked={agreeAll} onChange={(e) => handleAgreeAll(e.target.checked)} />
@@ -797,7 +833,7 @@ export default function JoinNormal() {
               <button type="button" className="btn-outline" onClick={() => window.history.back()} disabled={loading}>
                 <ArrowLeft size={18} /> 취소
               </button>
-              <button type="submit" className="btn-primary" disabled={!agreeTerms || !agreePrivacy}>
+              <button type="submit" className="btn-primary">
                 동의하고 계속하기
               </button>
             </div>
@@ -808,16 +844,16 @@ export default function JoinNormal() {
         {step === "FORM" && (
           <>
             <div className="notice-box">
-              <Info size={18} style={{ color: "#6c5ce7", flexShrink: 0, marginTop: 2 }} />
+              <Info size={22} style={{ color: "#90C450" }} />
               <div>
                 본 서비스는 별도의 아이디 없이 <b>이메일</b>로 로그인합니다.<br />
-                가입 시 입력한 <b>휴대폰 번호</b>로 OTP 인증번호가 발송되며,
+                가입 시 입력한 <b>휴대폰 번호</b>로 OTP 인증번호가 발송되며,<br />
                 이후 <b>이메일 인증</b>까지 완료하면 가입이 완료됩니다.
               </div>
             </div>
 
             <div className="card-panel">
-              <div className="section-label"><PenLine size={20} style={{ color: "#6c5ce7" }} /> 가입 정보 입력</div>
+              <div className="section-label"><PenLine size={20} style={{ color: "#90C450" }} /> 가입 정보 입력</div>
 
               <div className="field">
                 <label className="field-label">회원구분</label>
@@ -909,12 +945,12 @@ export default function JoinNormal() {
             </div>
 
             <div className="card-panel">
-              <div className="section-label"><PawPrint size={20} style={{ color: "#6c5ce7" }} /> 반려동물 정보</div>
+              <div className="section-label"><PawPrint size={20} style={{ color: "#90C450" }} /> 반려동물 정보</div>
 
               {pets.map((pet, index) => (
                 <div className="pet-card" key={index}>
                   <div className="pet-card-head">
-                    <span className="pet-card-title"><PawPrint size={16} style={{ color: "#6c5ce7" }} /> 반려동물 {index + 1}</span>
+                    <span className="pet-card-title"><PawPrint size={16} style={{ color: "#90C450" }} /> 반려동물 {index + 1}</span>
                     <div className="pet-card-btns">
                       <button type="button" className="btn-pet-circle btn-pet-del" onClick={() => removePet(index)} disabled={loading || pets.length === 1}><Minus size={14} /></button>
                       <button type="button" className="btn-pet-circle btn-pet-add" onClick={addPet} disabled={loading}><Plus size={14} /></button>
@@ -953,10 +989,10 @@ export default function JoinNormal() {
                 문자로 받은<br />인증번호 6자리를 입력해주세요
               </div>
               <div style={{ fontSize: 14, color: "#888", marginBottom: 8 }}>
-                <b style={{ color: "#6c5ce7" }}>{form.mobile1}-{form.mobile2}-****</b> 로 발송되었습니다
+                <b style={{ color: "#90C450" }}>{form.mobile1}-{form.mobile2}-****</b> 로 발송되었습니다
               </div>
               {otpCooldown > 0 && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 14, color: "#6c5ce7", fontWeight: 600, marginBottom: 4 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 14, color: "#90C450", fontWeight: 600, marginBottom: 4 }}>
                   <Clock size={14} />
                   <span>남은 시간 {String(Math.floor(otpCooldown / 60)).padStart(2, "0")}:{String(otpCooldown % 60).padStart(2, "0")}</span>
                 </div>
@@ -1026,12 +1062,12 @@ export default function JoinNormal() {
 
               {!emailRequested && (
                 <>
-                  <div className="verify-icon-wrap"><Mail size={32} style={{ color: "#6c5ce7" }} /></div>
+                  <div className="verify-icon-wrap"><Mail size={32} style={{ color: "#90C450" }} /></div>
                   <div style={{ fontSize: 28, fontWeight: 800, color: "#111", lineHeight: 1.4, marginBottom: 8 }}>
                     이메일 인증을 진행해주세요
                   </div>
                   <div style={{ fontSize: 14, color: "#888", marginBottom: 4 }}>
-                    <b style={{ color: "#6c5ce7" }}>{form.email}</b> 로 인증 메일을 보내드립니다
+                    <b style={{ color: "#90C450" }}>{form.email}</b> 로 인증 메일을 보내드립니다
                   </div>
                   <div className="btn-row" style={{ justifyContent: "center", maxWidth: 360, margin: "32px auto 0" }}>
                     <button type="button" className="btn-primary" onClick={requestEmailVerification} disabled={loading}>
@@ -1047,7 +1083,7 @@ export default function JoinNormal() {
                     메일로 받은<br />인증 코드를 입력해주세요
                   </div>
                   <div style={{ fontSize: 14, color: "#888", marginBottom: 4 }}>
-                    <b style={{ color: "#6c5ce7" }}>{form.email}</b> 로 발송되었습니다
+                    <b style={{ color: "#90C450" }}>{form.email}</b> 로 발송되었습니다
                   </div>
                   {emailRequestMessage && (
                     <HintBanner icon={Mail}>{emailRequestMessage}</HintBanner>
