@@ -281,8 +281,9 @@ public class PostService {
     /**
      * 관리자 콘솔: 작성자와 무관하게 게시글 본문/제목 수정.
      * <p>
-     * 일반 사용자 수정({@link #updatePost})과 달리 AI 모더레이션 BLOCK을 적용하지 않는다.
-     * 운영자가 정정·복구 목적으로 글을 편집할 때 사용자 글이 AI에 의해 저장 불가(400)로 막히지 않도록 한다.
+     * 일반 사용자 수정({@link #updatePost})과 달리 저장 자체는 막지 않지만,
+     * AI 모더레이션 BLOCK 판정은 `board_banned_logs`에 로그로 남긴다.
+     * 운영자가 정정·복구 목적으로 글을 편집할 때 AI로 인해 저장이 실패(400)하지 않도록 한다.
      */
     @Transactional
     public void adminUpdatePost(Long adminUserId, Long postId, PostUpdateRequest req) {
@@ -294,6 +295,22 @@ public class PostService {
         if (req.getPostTitle() == null || req.getPostTitle().isBlank() || req.getContent() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content is required");
         }
+
+        // 관리자 수정에서도 AI 판정 결과를 로그로 남기기 위해 모더레이션 호출만 수행한다.
+        // (BLOCK이면 예외로 막지 않고, 로그만 남긴다.)
+        Long boardId = post.getBoard().getBoardId();
+        String textToModerate = req.getPostTitle() + " " + req.getContent();
+        ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), boardId, "POST");
+        if (modResult != null && modResult.isBlock()) {
+            bannedWordService.logAiModeration(
+                    boardId,
+                    post.getPostId(),
+                    BannedLogContentType.POST,
+                    adminUserId,
+                    modResult
+            );
+        }
+
         post.updateTitleAndContent(req.getPostTitle(), req.getContent());
     }
 

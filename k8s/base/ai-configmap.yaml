@@ -9,7 +9,9 @@ data:
   PUPOO_AI_LOG_LEVEL: "INFO"
   PUPOO_AI_BACKEND_BASE_URL: "http://pupoo-backend:80"
   PUPOO_AI_BACKEND_TIMEOUT_SECONDS: "15"
-  PUPOO_AI_MODERATION_TIMEOUT_SECONDS: "6"
+  # 금지어(RAG+watsonx LLM)는 정책/임베딩 검색이 길어질 수 있어 충분히 대기한다.
+  # 사용자 요청에 따라 최대 90초까지 기다리도록 설정한다.
+  PUPOO_AI_MODERATION_TIMEOUT_SECONDS: "90"
   PUPOO_AI_POSTER_PROVIDER: "openai"
   PUPOO_AI_POSTER_OPENAI_MODEL: "dall-e-3"
   PUPOO_AI_POSTER_OPENAI_BASE_URL: "https://api.openai.com/v1"

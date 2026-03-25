@@ -10,7 +10,9 @@ data:
   # Spring property: ai.moderation.base-url=${AI_MODERATION_BASE_URL:...}
   AI_MODERATION_BASE_URL: "http://pupoo-ai:80"
   AI_MODERATION_CONNECT_TIMEOUT_MS: "3000"
-  AI_MODERATION_READ_TIMEOUT_MS: "8000"
+  # 사용자 체감 대기시간을 맞추기 위해 충분히 크게 설정한다.
+  # (pupoo-backend WebClient의 responseTimeout + block 상한에 반영됨)
+  AI_MODERATION_READ_TIMEOUT_MS: "90000"
   # Backward-compat: (기존에 넣어두신 키) 남겨둬도 무방하지만, Spring은 AI_MODERATION_* 키를 우선으로 읽습니다.
   APP_AI_MODERATION_BASE_URL: "http://pupoo-ai:80"
   STORAGE_MODE: "S3"
