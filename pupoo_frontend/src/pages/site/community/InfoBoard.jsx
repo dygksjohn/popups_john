@@ -28,6 +28,9 @@ import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import BadgeTag from "./shared/BadgeTag";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
+import ModerationNoticeBox, {
+  normalizeModerationPayload,
+} from "./shared/ModerationNoticeBox";
 
 const PAGE_SIZE = 10;
 
@@ -82,7 +85,7 @@ function Overlay({ children, onClose }) {
   );
 }
 
-function WriteModal({ onClose, onSave, saving, errorMessage }) {
+function WriteModal({ onClose, onSave, saving, errorMessage, moderation }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [file, setFile] = useState(null);
@@ -175,6 +178,8 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
             <AlertTriangle size={14} /> {errorMessage}
           </div>
         ) : null}
+
+        <ModerationNoticeBox moderation={moderation} />
 
         <div style={{ marginBottom: 18 }}>
           <label
@@ -566,6 +571,12 @@ export default function InfoBoard() {
   const [writeModalOpen, setWriteModalOpen] = useState(false);
   const [writeSaving, setWriteSaving] = useState(false);
   const [writeError, setWriteError] = useState("");
+  const [writeModeration, setWriteModeration] = useState(null);
+
+  const getErrorMessage = useCallback((err, fallbackMessage) => {
+    const body = err?.response?.data;
+    return body?.error?.message || body?.message || body?.errorMessage || fallbackMessage;
+  }, []);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -770,6 +781,7 @@ export default function InfoBoard() {
 
     setWriteSaving(true);
     setWriteError("");
+    setWriteModeration(null);
     try {
       const created = await postApi.create({
         boardId: infoBoardId,
@@ -780,11 +792,23 @@ export default function InfoBoard() {
       if (file && createdPostId) {
         await fileApi.upload(file, "POST", createdPostId);
       }
+      const normalizedModeration = normalizeModerationPayload(created?.moderation);
+      console.debug("[InfoBoard] moderation payload:", {
+        decision: normalizedModeration?.decision ?? null,
+        message: normalizedModeration?.message ?? null,
+        reason: normalizedModeration?.reason ?? null,
+      });
+      setWriteModeration(normalizedModeration);
       setWriteModalOpen(false);
       await fetchAll();
     } catch (err) {
       console.error("[InfoBoard] create failed:", err);
-      setWriteError(err?.response?.data?.error?.message || "글 등록에 실패했습니다.");
+      console.debug("[InfoBoard] moderation error payload:", {
+        decision: null,
+        message: err?.response?.data?.error?.message ?? err?.response?.data?.message ?? null,
+        reason: err?.response?.data?.error?.reason ?? err?.response?.data?.reason ?? null,
+      });
+      setWriteError(getErrorMessage(err, "글 등록에 실패했습니다."));
     } finally {
       setWriteSaving(false);
     }
@@ -1063,10 +1087,20 @@ export default function InfoBoard() {
         attachmentLoading={attachmentLoading}
         attachmentError={attachmentError}
       />
+      {writeModalOpen ? (
+        <WriteModal
+          onClose={() => {
+            setWriteModalOpen(false);
+            setWriteError("");
+            setWriteModeration(null);
+          }}
+          onSave={submitPost}
+          saving={writeSaving}
+          errorMessage={writeError}
+          moderation={writeModeration}
+        />
+      ) : null}
 
     </>
   );
 }
-
-
-
