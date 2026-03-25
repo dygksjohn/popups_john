@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ModerationResult {
 
-    /** PASS | BLOCK */
+    /** PASS | ALLOW | WARN | REVIEW | BLOCK */
     private String action;
     private Float aiScore;
     private String reason;
@@ -22,5 +22,17 @@ public class ModerationResult {
 
     public boolean isBlock() {
         return "BLOCK".equalsIgnoreCase(action);
+    }
+
+    public boolean isWarn() {
+        return "WARN".equalsIgnoreCase(action);
+    }
+
+    public boolean isReview() {
+        return "REVIEW".equalsIgnoreCase(action);
+    }
+
+    public boolean isWarnOrReview() {
+        return isWarn() || isReview();
     }
 }

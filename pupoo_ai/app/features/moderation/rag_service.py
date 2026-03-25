@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import List, Tuple
 
@@ -14,6 +15,48 @@ from pupoo_ai.app.features.moderation.watsonx_client import is_watsonx_configure
 
 POLICY_DOC_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "policy_docs"
 logger = logging.getLogger(__name__)
+
+_SPACE_PATTERN = re.compile(r"\s+")
+_HARD_BLOCK_TERMS = (
+    "죽여버리고싶",
+    "죽여버릴거",
+    "죽이고싶",
+    "죽인다",
+    "죽어버려",
+    "죽어라",
+    "해치고싶",
+    "칼로찔러",
+    "살인하고싶",
+    "없애버리고싶",
+)
+_WARN_TERMS = (
+    "욕이나올것같",
+    "꺼져버렸으면좋겠",
+    "한대치고싶",
+    "패고싶",
+)
+
+
+def _precheck_text(text: str) -> tuple[str, str, list[str] | None] | None:
+    compact = _SPACE_PATTERN.sub("", text or "").lower()
+
+    matched_block = [term for term in _HARD_BLOCK_TERMS if term in compact]
+    if matched_block:
+        return (
+            "BLOCK",
+            "직접적인 위해 또는 폭력 표현이 감지되어 등록이 차단됩니다.",
+            matched_block,
+        )
+
+    matched_warn = [term for term in _WARN_TERMS if term in compact]
+    if matched_warn:
+        return (
+            "WARN",
+            "공격적 표현이 감지되어 주의가 필요합니다.",
+            matched_warn,
+        )
+
+    return None
 
 
 def build_policy_index(dry_run: bool = False) -> Tuple[int, int]:
@@ -69,26 +112,59 @@ def moderate_with_rag(
     metadata: dict | None = None,
 ) -> tuple[str, float | None, str | None, str, list[str] | None, list[str] | None]:
     safe_metadata = metadata or {}
+    logger.info(
+        "Moderation pipeline input. board_type=%s text_preview=%s metadata=%s",
+        board_type,
+        (text or "")[:200],
+        safe_metadata,
+    )
+
+    precheck = _precheck_text(text)
+    if precheck is not None:
+        decision, reason, matched_terms = precheck
+        logger.info(
+            "Moderation precheck hit. board_type=%s decision=%s matched_terms=%s",
+            board_type,
+            decision,
+            matched_terms,
+        )
+        return decision, 1.0 if decision == "BLOCK" else 0.7, reason, "keyword_precheck", matched_terms, None
+
     try:
         docs = retrieve_policies(text, top_k=5)
     except Exception:
         logger.exception("Milvus policy retrieval failed. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "정책 검색에 실패해서 등록을 막았어요.", "rag_error", None, None
+        return "BLOCK", None, "정책 검색에 실패하여 등록이 차단됩니다.", "rag_error", None, None
 
     if not docs:
         logger.error("No policy documents were retrieved. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "활성 정책을 찾지 못해 등록을 막았어요.", "rag_empty", None, None
+        return "BLOCK", None, "활성 정책을 찾지 못해 등록이 차단됩니다.", "rag_empty", None, None
 
     if not is_watsonx_configured():
         logger.error("watsonx is not configured. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "금칙어 검사를 완료하지 못해 등록을 막았어요.", "rag_watsonx_unconfigured", None, None
+        return "BLOCK", None, "금칙어 검토를 완료하지 못해 등록이 차단됩니다.", "rag_watsonx_unconfigured", None, None
 
     try:
         action, ai_score, reason, flagged_phrases, inferred_phrases = moderate_with_llm(text, docs)
     except Exception:
         logger.exception("watsonx moderation failed. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "금칙어 검사를 완료하지 못해 등록을 막았어요.", "rag_error", None, None
+        return "BLOCK", None, "금칙어 검토를 완료하지 못해 등록이 차단됩니다.", "rag_error", None, None
 
-    normalized = "PASS" if str(action or "").upper() == "PASS" else "BLOCK"
-    final_reason = reason or ("정책 위반 가능성이 없어요." if normalized == "PASS" else "정책 위반 가능성이 있어 등록을 막았어요.")
+    normalized = str(action or "").upper()
+    if normalized == "PASS":
+        normalized = "ALLOW"
+    elif normalized not in {"ALLOW", "WARN", "REVIEW", "BLOCK"}:
+        normalized = "BLOCK"
+
+    final_reason = reason or (
+        "정책 위반 가능성은 낮습니다."
+        if normalized in {"ALLOW", "WARN", "REVIEW"}
+        else "정책 위반 가능성이 있어 등록이 차단됩니다."
+    )
+    logger.info(
+        "Moderation pipeline final decision. board_type=%s decision=%s score=%s",
+        board_type,
+        normalized,
+        ai_score,
+    )
     return normalized, ai_score, final_reason, "rag_watsonx", flagged_phrases, inferred_phrases

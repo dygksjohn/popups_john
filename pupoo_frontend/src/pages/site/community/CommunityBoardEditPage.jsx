@@ -7,6 +7,9 @@ import { tokenStore } from "../../../app/http/tokenStore";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 import CommunityWriteLayout from "./shared/CommunityWriteLayout";
+import ModerationNoticeBox, {
+  normalizeModerationPayload,
+} from "./shared/ModerationNoticeBox";
 
 function ErrorBox({ message }) {
   if (!message) return null;
@@ -79,6 +82,11 @@ function SuccessBox({ message }) {
   );
 }
 
+function getErrorMessage(err, fallbackMessage) {
+  const body = err?.response?.data;
+  return body?.error?.message || body?.message || body?.errorMessage || fallbackMessage;
+}
+
 export default function CommunityBoardEditPage({
   pageTitle,
   pageSubtitle,
@@ -93,6 +101,7 @@ export default function CommunityBoardEditPage({
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
+  const [moderation, setModeration] = useState(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [initialTitle, setInitialTitle] = useState("");
@@ -166,15 +175,17 @@ export default function CommunityBoardEditPage({
     setSaving(true);
     setError("");
     setSuccessMessage("");
+    setModeration(null);
 
     try {
       const nextTitle = title.trim();
       const hasPostContentChange =
         nextTitle !== String(initialTitle || "").trim() || content !== String(initialContent || "");
+      let updateResult = null;
 
       // 파일만 교체하는 경우, 본문 수정 API(모더레이션 포함)를 건너뛰고 첨부 업로드만 수행한다.
       if (hasPostContentChange) {
-        await postApi.update(numericPostId, {
+        updateResult = await postApi.update(numericPostId, {
           postTitle: nextTitle,
           content,
         });
@@ -202,12 +213,24 @@ export default function CommunityBoardEditPage({
       }
       if (!isMountedRef.current) return;
 
+      const normalizedModeration = normalizeModerationPayload(updateResult?.moderation);
+      console.debug("[CommunityBoardEditPage] moderation payload:", {
+        decision: normalizedModeration?.decision ?? null,
+        message: normalizedModeration?.message ?? null,
+        reason: normalizedModeration?.reason ?? null,
+      });
+      setModeration(normalizedModeration);
       setSuccessMessage("수정 완료되었습니다.");
       setSaving(false);
     } catch (err) {
       console.error("[CommunityBoardEditPage] update failed:", err);
       if (!isMountedRef.current) return;
-      setError(err?.response?.data?.message || err?.response?.data?.error?.message || "글 수정에 실패했습니다.");
+      console.debug("[CommunityBoardEditPage] moderation error payload:", {
+        decision: null,
+        message: err?.response?.data?.error?.message ?? err?.response?.data?.message ?? null,
+        reason: err?.response?.data?.error?.reason ?? err?.response?.data?.reason ?? null,
+      });
+      setError(getErrorMessage(err, "글 수정에 실패했습니다."));
       setSaving(false);
     }
   };
@@ -266,6 +289,7 @@ export default function CommunityBoardEditPage({
         <ErrorBox message={error} />
         {saving && !successMessage ? <InProgressBox /> : null}
         <SuccessBox message={successMessage} />
+        <ModerationNoticeBox moderation={moderation} />
 
         {loading ? (
           <div style={{ fontSize: 14, color: "#64748b" }}>게시글 정보를 불러오는 중입니다.</div>
