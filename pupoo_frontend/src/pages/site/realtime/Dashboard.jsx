@@ -61,7 +61,7 @@ const styles = `
   .rt-root {
     box-sizing: border-box;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    background: #f0f4fa;
+    background: #F8F9FC;
     min-height: 100vh;
     flex: 1;
   }
@@ -97,7 +97,7 @@ const styles = `
     align-items: center;
     gap: 0;
     flex-wrap: nowrap;
-    margin-left: auto;
+    margin-left: 0;
     border: 1px solid #d9e1ec;
     border-radius: 14px;
     overflow: hidden;
@@ -147,7 +147,7 @@ const styles = `
     font-size: 14px; font-weight: 700;
     color: #ef4444;
   }
-  .rt-status-chip.planned { color: #02A17E; }
+  .rt-status-chip.planned { color: #90C450; }
   .rt-status-chip.ended { color: #9ca3af; }
   .rt-status-chip.cancelled { color: #b91c1c; }
   .rt-status-dot {
@@ -216,7 +216,7 @@ const styles = `
     cursor: pointer; color: #6b7280;
     transition: all 0.15s;
   }
-  .rt-refresh-btn:hover { border-color: #02A17E; color: #02A17E; background: #f5f8ff; }
+  .rt-refresh-btn:hover { border-color: #90C450; color: #90C450; background: #f5f8ff; }
   .rt-refresh-btn:active { transform: scale(0.93); }
 
   .rt-hero {
@@ -237,7 +237,7 @@ const styles = `
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #02A17E, #7c3aed, #02A17E);
+    background: linear-gradient(90deg, #90C450, #7c3aed, #90C450);
     background-size: 200% 100%;
     animation: rt-hero-bar 3s ease infinite;
   }
@@ -740,7 +740,7 @@ const styles = `
     border: none;
   }
   .rt-heat-legend-swatch.actual {
-    background: #02A17E;
+    background: #90C450;
     box-shadow: 0 0 4px rgba(37,99,235,0.4);
   }
   .rt-heat-legend-swatch.predicted {
@@ -868,7 +868,7 @@ const styles = `
   .rt-stat-value { font-size: 28px; font-weight: 800; color: #111827; line-height: 1; }
   .rt-stat-suffix { font-size: 20px; margin-left: 2px; }
   .rt-stat-sub { font-size: 14px; color: #9ca3af; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
-  .rt-stat-up { color: #10b981; }
+  .rt-stat-up { color: #90C450; }
   .rt-stat-down { color: #ef4444; }
   .rt-stat-bg {
     position: absolute; right: -10px; bottom: -10px;
@@ -1069,7 +1069,7 @@ const styles = `
     fill: url(#areaGradPredicted);
   }
   .rt-hourly-line-actual {
-    stroke: #02A17E;
+    stroke: #90C450;
     stroke-width: 2.5;
     fill: none;
     stroke-linecap: round;
@@ -1220,7 +1220,7 @@ const styles = `
   }
   @media (max-width: 640px) {
     .rt-container { padding: 20px 16px 48px; }
-    .rt-container.selector-mode { padding-top: 88px; }
+    .rt-container.selector-mode { padding-top: 16px; }
     .rt-top-actions { align-items: stretch; }
     .rt-event-mode-nav { width: 100%; margin-left: 0; overflow-x: auto; }
     .rt-mode-btn { flex: 0 0 auto; min-width: 112px; }
@@ -1615,7 +1615,7 @@ const getHeatTextColor = (pct) => {
 const getActivityColor = (pct) => {
   if (pct >= 80) return "#ef4444";
   if (pct >= 50) return "#f59e0b";
-  if (pct > 0) return "#10b981";
+  if (pct > 0) return "#90C450";
   return "#9ca3af";
 };
 
@@ -1908,8 +1908,8 @@ function HourlyTrendChart({ points, activeDateKey, isTodayForecast, isEnded = fa
         <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} preserveAspectRatio="none">
           <defs>
             <linearGradient id="areaGradActual" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={isEnded ? "#9ca3af" : "#02A17E"} stopOpacity="0.25" />
-              <stop offset="100%" stopColor={isEnded ? "#9ca3af" : "#02A17E"} stopOpacity="0.02" />
+              <stop offset="0%" stopColor={isEnded ? "#9ca3af" : "#90C450"} stopOpacity="0.25" />
+              <stop offset="100%" stopColor={isEnded ? "#9ca3af" : "#90C450"} stopOpacity="0.02" />
             </linearGradient>
             <linearGradient id="areaGradPredicted" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={isEnded ? "#b0b5bc" : "#8b5cf6"} stopOpacity="0.18" />
@@ -1933,7 +1933,7 @@ function HourlyTrendChart({ points, activeDateKey, isTodayForecast, isEnded = fa
               left: `calc(48px + (100% - 68px) * ${p.x / VIEW_W})`,
               top: `calc(20px + (100% - 50px) * ${p.y / VIEW_H})`,
               width: 10, height: 10, borderRadius: "50%",
-              background: isEnded ? "#9ca3af" : "#02A17E", border: "2px solid #fff",
+              background: isEnded ? "#9ca3af" : "#90C450", border: "2px solid #fff",
               boxShadow: isEnded ? "0 1px 4px rgba(156,163,175,0.3)" : "0 1px 4px rgba(37,99,235,0.3)",
               transform: "translate(-50%, -50%)",
               cursor: "pointer", zIndex: 3,
@@ -3042,11 +3042,11 @@ function DashboardContent({ eventId }) {
       </div>
 
       <div className="rt-card">
-        <div className="rt-card-accent" style={{ background: "#10b981" }} />
+        <div className="rt-card-accent" style={{ background: "#90C450" }} />
         <div className="rt-card-header">
           <div className="rt-card-title">
             <div className="rt-card-title-icon">
-              <Radio size={14} color="#10b981" />
+              <Radio size={14} color="#90C450" />
             </div>
             {isEndedEvent ? "종료 시점 바로 참여 프로그램" : "바로 참여 프로그램"}
           </div>
@@ -3086,11 +3086,11 @@ function DashboardContent({ eventId }) {
       </div>
 
       <div className="rt-card">
-        <div className="rt-card-accent" style={{ background: "#02A17E" }} />
+        <div className="rt-card-accent" style={{ background: "#90C450" }} />
         <div className="rt-card-header">
           <div className="rt-card-title">
             <div className="rt-card-title-icon">
-              <BarChart2 size={14} color="#02A17E" />
+              <BarChart2 size={14} color="#90C450" />
             </div>
             지금 행사장은 얼마나 붐빌까요?
           </div>
@@ -3267,7 +3267,7 @@ export default function Dashboard() {
       <PageHeader
         title={eventId ? "통합현황" : "실시간현황"}
         subtitle={eventId ? "행사의 실시간 운영 데이터를 확인합니다" : "행사별 실시간 데이터를 한눈에 확인하세요"}
-        icon={<Activity size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<Activity size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
       />
@@ -3275,10 +3275,6 @@ export default function Dashboard() {
         {eventId ? (
           <>
             <div className="rt-top-actions">
-              <button className="rt-back-btn" onClick={() => navigate("/realtime/dashboard")}>
-                <ArrowLeft size={15} />
-                목록으로
-              </button>
               <div className="rt-event-mode-nav">
                 {EVENT_REALTIME_BUTTONS.map((button) => (
                   <button
@@ -3293,6 +3289,12 @@ export default function Dashboard() {
               </div>
             </div>
             <DashboardContent eventId={eventId} />
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 32 }}>
+              <button className="rt-back-btn" onClick={() => navigate("/realtime/dashboard")}>
+                <ArrowLeft size={15} />
+                목록으로
+              </button>
+            </div>
           </>
         ) : (
           <RealtimeEventSelector

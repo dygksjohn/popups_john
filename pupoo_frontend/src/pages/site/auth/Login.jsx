@@ -603,12 +603,12 @@ const LoginPage = ({ leftBgImage = null }) => {
                   }}
                 >
                   <NaverBrandMark
-                    size={isMobile ? 18 : 20}
+                    size={isMobile ? 20 : 22}
                     rounded={4}
                     background="#FFFFFF"
                     color="#03C75A"
                   />
-                  <span>naver로 로그인</span>
+                  <span>네이버로 로그인</span>
                 </SocialButton>
               </div>
             </div>
