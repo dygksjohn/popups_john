@@ -143,11 +143,13 @@ export default function NaverJoin() {
       tokenStore.setAccess(accessToken);
       login();
 
-      sessionStorage.removeItem("naver_temp_password");
-      sessionStorage.removeItem("naver_provider_uid");
-      sessionStorage.removeItem("naver_email");
-      sessionStorage.removeItem("naver_nickname");
-      sessionStorage.removeItem("post_login_redirect");
+      [
+        "naver_temp_password",
+        "naver_provider_uid",
+        "naver_email",
+        "naver_nickname",
+        "post_login_redirect",
+      ].forEach((key) => sessionStorage.removeItem(key));
 
       navigate("/", { replace: true });
     } catch (e) {
@@ -188,6 +190,7 @@ export default function NaverJoin() {
     .nj-btn-primary:disabled { background: #f0f0f0; color: #bbb; cursor: not-allowed; }
     .nj-btn-secondary { width: 100%; height: 54px; margin-top: 12px; border-radius: 14px; border: 1.5px solid #e5e5e5; background: #fff; font-size: 15px; font-weight: 600; color: #666; cursor: pointer; transition: all 0.15s; font-family: inherit; }
     .nj-btn-secondary:hover:not(:disabled) { background: #f8f9fc; border-color: #ccc; }
+    .nj-btn-secondary:disabled { color: #bbb; cursor: not-allowed; }
     .nj-otp-info { display: flex; align-items: center; gap: 14px; padding: 18px 20px; background: #effcf4; border-radius: 16px; margin-bottom: 24px; border: 1px solid #c8f0d7; }
     .nj-otp-info-icon { width: 44px; height: 44px; border-radius: 50%; background: #03C75A; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; font-weight: 800; }
     .nj-otp-info-text { font-size: 15px; color: #666; line-height: 1.6; }
@@ -236,9 +239,16 @@ export default function NaverJoin() {
               <div className="nj-field">
                 <label className="nj-label">
                   이메일
-                  {hasNaverEmail && <span style={{ color: "#999", fontWeight: 400 }}>(네이버 연동)</span>}
+                  {hasNaverEmail && <span style={{ color: "#999", fontWeight: 400 }}> (네이버 연동)</span>}
                 </label>
-                <input className="nj-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" disabled={loading || hasNaverEmail} type="email" />
+                <input
+                  className="nj-input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="example@email.com"
+                  disabled={loading || hasNaverEmail}
+                  type="email"
+                />
                 {!emailTrim && (
                   <div className="nj-hint error">
                     이메일은 필수입니다. 네이버에서 이메일을 받지 못한 경우 직접 입력해 주세요.
@@ -247,20 +257,35 @@ export default function NaverJoin() {
               </div>
 
               <div className="nj-field">
-                <label className="nj-label">닉네임<span style={{ color: "#bbb", fontWeight: 400 }}>(선택)</span></label>
-                <input className="nj-input" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="사용할 닉네임" disabled={loading} />
+                <label className="nj-label">
+                  닉네임
+                  <span style={{ color: "#bbb", fontWeight: 400 }}> (선택)</span>
+                </label>
+                <input
+                  className="nj-input"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  placeholder="사용할 닉네임"
+                  disabled={loading}
+                />
               </div>
 
               <div className="nj-field">
                 <label className="nj-label">휴대폰 번호</label>
-                <input className="nj-input" value={phone} onChange={(e) => setPhone(normalizeDigits(e.target.value))} placeholder="01012345678" disabled={loading} inputMode="tel" />
+                <input
+                  className="nj-input"
+                  value={phone}
+                  onChange={(e) => setPhone(normalizeDigits(e.target.value))}
+                  placeholder="01012345678"
+                  disabled={loading}
+                  inputMode="tel"
+                />
                 <div className="nj-hint">본인 인증을 위한 인증번호가 발송됩니다.</div>
               </div>
 
               <button className="nj-btn-primary naver" onClick={sendOtp} disabled={!canSendOtp}>
                 {loading ? "발송 중..." : "인증번호 받기"}
               </button>
-
               <button className="nj-btn-secondary" type="button" onClick={() => navigate("/auth/login")} disabled={loading}>
                 로그인으로 돌아가기
               </button>
@@ -272,22 +297,28 @@ export default function NaverJoin() {
               <div className="nj-otp-info">
                 <div className="nj-otp-info-icon">N</div>
                 <div className="nj-otp-info-text">
-                  <strong>{phone || "입력한 번호"}</strong><br />
-                  인증번호가 발송되었어요.
+                  <strong>{phone || "휴대폰 번호"}</strong>로 받은 인증번호를 입력해 주세요.
                 </div>
               </div>
 
               <div className="nj-field">
                 <label className="nj-label">인증번호</label>
-                <input className="nj-input" value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ""))} placeholder="6자리 숫자 입력" maxLength={6} inputMode="numeric" disabled={loading} autoFocus style={{ letterSpacing: "8px", textAlign: "center", fontSize: "22px", fontWeight: 700 }} />
+                <input
+                  className="nj-input"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(normalizeDigits(e.target.value).slice(0, 6))}
+                  placeholder="6자리 인증번호"
+                  disabled={loading}
+                  inputMode="numeric"
+                />
+                <div className="nj-hint">문자를 받지 못했다면 잠시 후 다시 시도해 주세요.</div>
               </div>
 
               <button className="nj-btn-primary confirm" onClick={verifyOtpAndComplete} disabled={!canVerify}>
-                {loading ? "처리 중..." : "가입 완료"}
+                {loading ? "가입 처리 중..." : "회원가입 완료"}
               </button>
-
-              <button className="nj-btn-secondary" type="button" onClick={() => { setStep(STEP.FORM); setSignupKey(""); setOtpCode(""); setError(""); }} disabled={loading}>
-                다시 입력하기
+              <button className="nj-btn-secondary" type="button" onClick={sendOtp} disabled={loading}>
+                인증번호 다시 받기
               </button>
             </>
           )}
