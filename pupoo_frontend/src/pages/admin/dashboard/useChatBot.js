@@ -9,6 +9,184 @@ const NOTIFICATION_DRAFT_KEY = "pupoo_admin_chatbot_notification_draft";
 const NOTICE_SYNC_EVENT = "pupoo-admin-chatbot-sync-notice";
 const NOTIFICATION_SYNC_EVENT = "pupoo-admin-chatbot-sync-notification";
 
+const QUICK_ACTIONS = [
+  {
+    id: "summary_congestion",
+    label: "행사 현황 보기",
+    description: "진행 중 행사와 체크인 현황을 바로 볼 수 있어요.",
+    kind: "request",
+    prompt: "행사 현황 보여줘",
+    actionKey: "summary_get",
+    category: "summary",
+  },
+  {
+    id: "summary_applicants",
+    label: "참가자 수 보기",
+    description: "신청과 승인 현황을 빠르게 확인해요.",
+    kind: "request",
+    prompt: "참가자 수 알려줘",
+    actionKey: "applicants_get",
+    category: "summary",
+  },
+  {
+    id: "summary_refund",
+    label: "환불 현황 보기",
+    description: "요청, 승인, 완료 상태를 볼 수 있어요.",
+    kind: "request",
+    prompt: "환불 현황 알려줘",
+    actionKey: "refund_get",
+    category: "summary",
+  },
+  {
+    id: "prefill_notice",
+    label: "공지 작성하기",
+    description: "공지 초안부터 바로 시작할 수 있어요.",
+    kind: "apply",
+    actionKey: "prefill_notice_form",
+    category: "draft",
+    feedback: "공지 초안을 바로 열어드릴게요. 제목과 내용을 채워 주세요 🐶",
+    actions: [
+      {
+        type: "PREFILL_FORM",
+        actionKey: "prefill_notice_form",
+        payload: {
+          actionKey: "prefill_notice_form",
+          formType: "notice",
+          page: "notice",
+          route: "/admin/board/notice",
+          formData: { scope: "ALL", title: "", content: "", pinned: false, status: "DRAFT" },
+          execution: {
+            supported: false,
+            executeType: "SAVE_NOTICE",
+            targetType: "NOTICE",
+            reason: "공지 제목과 내용을 먼저 적어 주세요.",
+            missingFields: ["title", "content"],
+            supportedExecuteTypes: [],
+          },
+        },
+      },
+    ],
+  },
+  {
+    id: "prefill_notification",
+    label: "알림 초안 작성하기",
+    description: "알림 제목과 내용을 먼저 정리할 수 있어요.",
+    kind: "apply",
+    actionKey: "prefill_notification_form",
+    category: "draft",
+    feedback: "알림 초안을 열어둘게요. 제목과 내용을 먼저 채워 주세요 멍!",
+    actions: [
+      {
+        type: "PREFILL_FORM",
+        actionKey: "prefill_notification_form",
+        payload: {
+          actionKey: "prefill_notification_form",
+          formType: "notification",
+          page: "alertManage",
+          route: "/admin/participant/alert",
+          formData: { title: "", content: "", alertMode: "BROADCAST", notificationType: "NOTICE" },
+          execution: {
+            supported: false,
+            reason: "알림 제목과 내용을 먼저 입력해 주세요.",
+            missingFields: ["title", "content"],
+            supportedExecuteTypes: [],
+          },
+        },
+      },
+    ],
+  },
+  {
+    id: "start_broadcast_notification",
+    label: "전체 알림 보내기",
+    description: "전체 알림 발송에 필요한 정보를 먼저 채워요.",
+    kind: "apply",
+    actionKey: "notification_broadcast_send",
+    category: "execute",
+    feedback: "전체 알림 발송 준비를 도와드릴게요. 제목과 내용을 먼저 적어 주세요 🐾",
+    actions: [
+      {
+        type: "PREFILL_FORM",
+        actionKey: "prefill_notification_form",
+        payload: {
+          actionKey: "prefill_notification_form",
+          formType: "notification",
+          page: "alertManage",
+          route: "/admin/participant/alert",
+          formData: { title: "", content: "", alertMode: "BROADCAST", notificationType: "NOTICE" },
+          execution: {
+            supported: false,
+            executeType: "SEND_BROADCAST_NOTIFICATION",
+            targetType: "BROADCAST_NOTIFICATION",
+            reason: "전체 알림을 보내려면 제목과 내용이 필요해요.",
+            missingFields: ["title", "content"],
+            supportedExecuteTypes: [],
+          },
+        },
+      },
+    ],
+  },
+  {
+    id: "start_event_notification",
+    label: "행사 알림 보내기",
+    description: "행사 번호를 선택한 뒤 알림을 보낼 수 있어요.",
+    kind: "apply",
+    actionKey: "notification_event_send",
+    category: "execute",
+    feedback: "행사 알림 발송 준비를 열어둘게요. 행사 번호를 먼저 골라 주세요 🐶",
+    actions: [
+      {
+        type: "PREFILL_FORM",
+        actionKey: "prefill_notification_form",
+        payload: {
+          actionKey: "prefill_notification_form",
+          formType: "notification",
+          page: "alertManage",
+          route: "/admin/participant/alert",
+          formData: { title: "", content: "", alertMode: "EVENT", notificationType: "NOTICE", targetType: "EVENT" },
+          execution: {
+            supported: false,
+            executeType: "SEND_EVENT_NOTIFICATION",
+            targetType: "EVENT_NOTIFICATION",
+            reason: "행사 알림을 보내려면 행사 번호가 필요해요.",
+            missingFields: ["eventId", "title", "content"],
+            supportedExecuteTypes: [],
+          },
+        },
+      },
+    ],
+  },
+  {
+    id: "navigate_notice",
+    label: "공지 관리",
+    description: "공지 목록과 수정 화면으로 이동해요.",
+    kind: "apply",
+    actionKey: "navigate_notice_manage",
+    category: "navigate",
+    feedback: "공지 관리 화면으로 안내할게요.",
+    actions: [{ type: "NAVIGATE", actionKey: "navigate_notice_manage", payload: { route: "/admin/board/notice" } }],
+  },
+  {
+    id: "navigate_notification",
+    label: "알림 관리",
+    description: "알림 초안과 발송 상태를 관리해요.",
+    kind: "apply",
+    actionKey: "navigate_notification_manage",
+    category: "navigate",
+    feedback: "알림 관리 화면으로 안내할게요.",
+    actions: [{ type: "NAVIGATE", actionKey: "navigate_notification_manage", payload: { route: "/admin/participant/alert" } }],
+  },
+  {
+    id: "navigate_refund",
+    label: "환불 관리",
+    description: "환불 요청과 처리 상태를 바로 볼 수 있어요.",
+    kind: "apply",
+    actionKey: "navigate_refund_manage",
+    category: "navigate",
+    feedback: "환불 관리 화면으로 이동할게요.",
+    actions: [{ type: "NAVIGATE", actionKey: "navigate_refund_manage", payload: { route: "/admin/refunds" } }],
+  },
+];
+
 function readJsonStorage(key) {
   try {
     const raw = sessionStorage.getItem(key);
@@ -30,6 +208,29 @@ function writeJsonStorage(key, value) {
   }
 }
 
+function createBotMessage(id, text, extras = {}) {
+  return {
+    id,
+    role: "bot",
+    text,
+    ts: new Date(),
+    messageType: "default",
+    summary: null,
+    confirmation: null,
+    executionInfo: null,
+    ...extras,
+  };
+}
+
+function initialMessages() {
+  return [
+    createBotMessage(
+      1,
+      "안녕하세요! 멍비서 누리예요 🐶 조회, 화면 이동, 공지와 알림 초안 작성까지 바로 도와드릴게요.",
+    ),
+  ];
+}
+
 function resolveCurrentPage(pathname) {
   if (pathname.startsWith("/admin/board/notice")) return "notice";
   if (pathname.startsWith("/admin/event")) return "eventManage";
@@ -44,12 +245,13 @@ function resolveErrorMessage(payload) {
     payload?.message ||
     payload?.data?.message ||
     payload?.error?.message ||
-    "AI 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+    "지금은 요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요."
   );
 }
 
 function resolveActionKey(action) {
   if (action?.payload?.actionKey) return action.payload.actionKey;
+  if (action?.actionKey) return action.actionKey;
   if (action?.type === "PREFILL_FORM") {
     return action?.payload?.formType === "notice" ? "prefill_notice_form" : "prefill_notification_form";
   }
@@ -82,19 +284,20 @@ async function requestChat({ history, userMessage, context, confirmation }) {
   const url = buildRequestUrl(API_BASE_URL, "/api/chatbot/chat");
   const token = localStorage.getItem(TOKEN_KEY);
   if (!token) {
-    const error = new Error("로그인이 필요합니다. 관리자 계정으로 다시 로그인해 주세요.");
+    const error = new Error("로그인이 필요해요. 관리자 계정으로 다시 로그인해 주세요.");
     error.messageType = "unauthorized";
     error.status = 401;
     throw error;
   }
-  const headers = { "Content-Type": "application/json" };
-  headers.Authorization = `Bearer ${token}`;
 
   let response;
   try {
     response = await fetch(url, {
       method: "POST",
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({
         message: userMessage,
         history: history.map((message) => ({
@@ -106,7 +309,7 @@ async function requestChat({ history, userMessage, context, confirmation }) {
       }),
     });
   } catch {
-    throw new Error("AI 서버에 연결할 수 없습니다. 서버 실행 상태를 확인해 주세요.");
+    throw new Error("지금은 누리와 연결되지 않았어요. 잠시 후 다시 시도해 주세요.");
   }
 
   const rawText = await response.text();
@@ -114,26 +317,27 @@ async function requestChat({ history, userMessage, context, confirmation }) {
   try {
     payload = JSON.parse(rawText);
   } catch {
-    throw new Error(`[응답 파싱 실패] ${rawText.slice(0, 200)}`);
+    throw new Error(`응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요. (${rawText.slice(0, 120)})`);
   }
 
   if (!response.ok || payload?.success === false) {
     const error = new Error(resolveErrorMessage(payload));
     error.messageType = payload?.data?.messageType || "error";
     error.status = response.status;
-    error.code = payload?.code || null;
     if (response.status === 401) {
-      error.message = "로그인이 필요합니다. 관리자 계정으로 다시 로그인해 주세요.";
+      error.message = "로그인이 필요해요. 관리자 계정으로 다시 로그인해 주세요.";
       error.messageType = "unauthorized";
-    }
-    if (response.status === 403) {
-      error.message = "관리자 권한이 필요합니다. 권한을 확인해 주세요.";
+    } else if (response.status === 403) {
+      error.message = "관리자 권한이 필요해요. 권한을 다시 확인해 주세요.";
       error.messageType = "forbidden";
+    } else if (response.status === 404) {
+      error.message = "대상을 찾지 못했어요. 목록에서 다시 확인해 주세요.";
+      error.messageType = "not_found";
     }
     throw error;
   }
 
-  return payload?.data || { message: "응답을 받지 못했습니다.", messageType: "default", actions: [] };
+  return payload?.data || { message: "응답을 받지 못했어요.", messageType: "default", actions: [] };
 }
 
 function enrichBotMessage(baseMessage, response) {
@@ -160,18 +364,7 @@ export function useChatBot() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      role: "bot",
-      text: "관리자 작업을 도와드릴게요. 이동, 요약, 초안 생성, 저장이나 발송 실행이 필요하면 말씀해 주세요.",
-      ts: new Date(),
-      messageType: "default",
-      summary: null,
-      confirmation: null,
-      executionInfo: null,
-    },
-  ]);
+  const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -211,6 +404,8 @@ export function useChatBot() {
     }),
     [location.pathname, noticeDraft, notificationDraft],
   );
+
+  const quickActions = useMemo(() => QUICK_ACTIONS, []);
 
   const toggle = useCallback(() => setIsOpen((value) => !value), []);
   const close = useCallback(() => setIsOpen(false), []);
@@ -299,35 +494,36 @@ export function useChatBot() {
         applyActions(response.actions || []);
         setMessages((prev) => [
           ...prev,
-          enrichBotMessage(
-            {
-              id: idRef.current++,
-              role: "bot",
-              text: response.message || "응답을 받지 못했습니다.",
-              ts: new Date(),
-            },
-            response,
-          ),
+          enrichBotMessage(createBotMessage(idRef.current++, response.message || "응답을 받지 못했어요."), response),
         ]);
       } catch (error) {
         setMessages((prev) => [
           ...prev,
-          {
-            id: idRef.current++,
-            role: "bot",
-            text: error?.message || "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
-            ts: new Date(),
+          createBotMessage(idRef.current++, error?.message || "일시적인 오류가 있었어요. 잠시 후 다시 시도해 주세요.", {
             messageType: error?.messageType || "error",
-            summary: null,
-            confirmation: null,
-            executionInfo: null,
-          },
+          }),
         ]);
       } finally {
         setIsTyping(false);
       }
     },
     [applyActions, currentContext, input, isTyping, messages],
+  );
+
+  const triggerQuickAction = useCallback(
+    async (item) => {
+      if (!item) return;
+      if (item.kind === "request") {
+        await sendMessage(item.prompt);
+        return;
+      }
+
+      applyActions(item.actions || []);
+      if (item.feedback) {
+        setMessages((prev) => [...prev, createBotMessage(idRef.current++, item.feedback)]);
+      }
+    },
+    [applyActions, sendMessage],
   );
 
   const confirmExecute = useCallback(async () => {
@@ -355,29 +551,14 @@ export function useChatBot() {
       applyActions(response.actions || []);
       setMessages((prev) => [
         ...prev,
-        enrichBotMessage(
-          {
-            id: idRef.current++,
-            role: "bot",
-            text: response.message || "처리를 완료했습니다.",
-            ts: new Date(),
-          },
-          response,
-        ),
+        enrichBotMessage(createBotMessage(idRef.current++, response.message || "처리를 마쳤어요."), response),
       ]);
     } catch (error) {
       setMessages((prev) => [
         ...prev,
-        {
-          id: idRef.current++,
-          role: "bot",
-          text: error?.message || "실행 처리 중 오류가 발생했습니다.",
-          ts: new Date(),
-            messageType: error?.messageType || "error",
-            summary: null,
-            confirmation: null,
-            executionInfo: null,
-        },
+        createBotMessage(idRef.current++, error?.message || "실행 중에 문제가 있었어요.", {
+          messageType: error?.messageType || "error",
+        }),
       ]);
     } finally {
       setIsTyping(false);
@@ -387,18 +568,7 @@ export function useChatBot() {
 
   const clearMessages = useCallback(() => {
     setPendingConfirmation(null);
-    setMessages([
-      {
-        id: idRef.current++,
-        role: "bot",
-        text: "대화를 초기화했습니다. 필요한 작업을 말씀해 주세요.",
-        ts: new Date(),
-        messageType: "default",
-        summary: null,
-        confirmation: null,
-        executionInfo: null,
-      },
-    ]);
+    setMessages([createBotMessage(idRef.current++, "대화를 다시 시작할게요. 필요한 작업을 말씀해 주세요 🐾")]);
   }, []);
 
   return {
@@ -410,6 +580,8 @@ export function useChatBot() {
     setInput,
     isTyping,
     isConfirming,
+    quickActions,
+    triggerQuickAction,
     sendMessage,
     clearMessages,
     confirmExecute,

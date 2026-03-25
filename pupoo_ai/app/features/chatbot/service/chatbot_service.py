@@ -1,4 +1,4 @@
-"""챗봇 서비스 계층."""
+"""챗봇 서비스 오케스트레이션."""
 
 from pupoo_ai.app.features.chatbot.dto.request import ChatRequest
 from pupoo_ai.app.features.chatbot.dto.response import ChatResponse
@@ -26,16 +26,17 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
     if intent is not None:
         if intent.intent_type == "ambiguous":
             return ChatResponse(
-                message="어떤 작업을 하시려는지 확인이 필요해요. 조회인지 실행인지 조금 더 구체적으로 말씀해 주세요.",
+                message="원하시는 작업을 한 번만 더 골라 주세요. 누리가 가장 가까운 흐름으로 이어드릴게요.",
                 messageType="ambiguous",
                 actions=[],
             )
         if intent.intent_type == "low_confidence":
             return ChatResponse(
-                message="요청을 정확히 이해하지 못했어요. 조금 더 자세히 알려주실 수 있을까요?",
+                message="요청을 정확히 이해하지 못했어요. 어떤 작업을 원하시는지 조금만 더 알려 주세요.",
                 messageType="low_confidence",
                 actions=[],
             )
+
         planned_action = ActionPlanner().plan(intent, request.context)
         if planned_action.intent_type == "navigation":
             return NavigationActionHandler().handle(planned_action)
@@ -57,5 +58,5 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
     reply = await invoke_bedrock(messages)
     reply_text = str(reply or "").strip()
     if not reply_text:
-        reply_text = "무엇을 도와드릴까요? 조회, 화면 이동, 초안 작성, 실행 요청을 말씀해 주세요."
+        reply_text = "무엇을 도와드릴까요? 조회, 화면 이동, 공지나 알림 초안 작성까지 바로 도와드릴게요."
     return ChatResponse(message=reply_text, actions=[])
