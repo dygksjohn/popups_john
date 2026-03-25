@@ -149,7 +149,7 @@ const css = `
 }
 .kd-hero::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
-  background: linear-gradient(90deg, #6366f1, #a78bfa, #6366f1);
+  background: linear-gradient(90deg, #90C450, #b5d98a, #90C450);
   background-size: 200% 100%;
   animation: kd-bar 3s ease infinite;
 }
@@ -265,15 +265,15 @@ const css = `
   font-size: 19px; font-weight: 700; color: #111; line-height: 1.4;
 }
 .kd-product-spec-link {
-  color: #6366f1; text-decoration: none; cursor: pointer; font-weight: 700;
+  color: #90C450; text-decoration: none; cursor: pointer; font-weight: 700;
 }
 .kd-product-spec-link:hover { text-decoration: underline; }
 .kd-product-spec-speaker {
   cursor: pointer; transition: all 0.15s;
   grid-column: 1 / -1;
-  border: 1px solid #e0e4ff; background: #f8f9ff;
+  border: 1px solid #e0f0d0; background: #f5fae8;
 }
-.kd-product-spec-speaker:hover { border-color: #c7d2fe; background: #E6F7F2; box-shadow: 0 2px 12px rgba(99,102,241,0.08); }
+.kd-product-spec-speaker:hover { border-color: #d4e8b8; background: #f0f8e0; box-shadow: 0 2px 12px rgba(144,196,80,0.08); }
 .kd-speaker-row {
   display: flex; align-items: center; gap: 14px;
   min-height: 36px;
@@ -286,10 +286,10 @@ const css = `
 }
 .kd-speaker-av-sm img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .kd-speaker-row-name { font-size: 19px; font-weight: 700; color: #111; }
-.kd-speaker-row-arrow { color: #a5b4fc; margin-left: auto; flex-shrink: 0; transition: all 0.15s; }
-.kd-product-spec-speaker:hover .kd-speaker-row-arrow { color: #6366f1; transform: translateX(3px); }
+.kd-speaker-row-arrow { color: #b5d98a; margin-left: auto; flex-shrink: 0; transition: all 0.15s; }
+.kd-product-spec-speaker:hover .kd-speaker-row-arrow { color: #90C450; transform: translateX(3px); }
 .kd-speaker-row-name { font-size: 19px; font-weight: 700; color: #111; }
-.kd-speaker-row-hint { font-size: 12px; color: #a5b4fc; font-weight: 600; margin-left: 4px; }
+.kd-speaker-row-hint { font-size: 12px; color: #b5d98a; font-weight: 600; margin-left: 4px; }
 .kd-product-desc-wrap {
   margin-top: 28px;
 }
@@ -307,7 +307,7 @@ const css = `
   border: 1px solid #eef0f4;
 }
 .kd-product-more {
-  border: none; background: none; color: #6366f1; font-size: 14px;
+  border: none; background: none; color: #90C450; font-size: 14px;
   font-weight: 700; cursor: pointer; padding: 12px 0 0; font-family: inherit;
 }
 .kd-product-more:hover { text-decoration: underline; }
