@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
+import time
 from pathlib import Path
 from typing import List, Tuple
 
@@ -42,6 +44,8 @@ _SEED_SCORE_THRESHOLDS = {
     "REVIEW": 0.82,
     "BLOCK": 0.82,
 }
+_STORE_LOCK = threading.Lock()
+_STORE_CACHE: dict[tuple[str, int], PolicyVectorStore] = {}
 
 
 def _precheck_text(text: str) -> tuple[str, str, list[str] | None] | None:
@@ -130,11 +134,25 @@ def build_policy_index(dry_run: bool = False) -> Tuple[int, int]:
     return len(chunks), embedder.dim
 
 
+def _get_policy_vector_store(dim: int, collection_name: str) -> PolicyVectorStore:
+    key = (collection_name, dim)
+    cached = _STORE_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    with _STORE_LOCK:
+        cached = _STORE_CACHE.get(key)
+        if cached is None:
+            cached = PolicyVectorStore(dim=dim, collection_name=collection_name)
+            _STORE_CACHE[key] = cached
+        return cached
+
+
 def retrieve_policies(query: str, top_k: int = 5) -> List[dict]:
     embedder = get_embedding_service()
-    q_vecs = embedder.embed_texts([query])
     active = load_active_policy()
-    store = PolicyVectorStore(dim=embedder.dim, collection_name=active.collection)
+    store = _get_policy_vector_store(dim=embedder.dim, collection_name=active.collection)
+    q_vecs = embedder.embed_texts([query])
     results = store.search(q_vecs, top_k=top_k)
     if not results:
         return []
@@ -160,6 +178,7 @@ def moderate_with_rag(
     metadata: dict | None = None,
 ) -> tuple[str, float | None, str | None, str, list[str] | None, list[str] | None]:
     safe_metadata = metadata or {}
+    started_at = time.perf_counter()
     logger.info(
         "Moderation pipeline input. board_type=%s text_preview=%s metadata=%s",
         board_type,
@@ -179,7 +198,14 @@ def moderate_with_rag(
         return decision, 1.0 if decision == "BLOCK" else 0.7, reason, "keyword_precheck", matched_terms, None
 
     try:
+        retrieval_started_at = time.perf_counter()
         docs = retrieve_policies(text, top_k=8)
+        logger.info(
+            "Moderation retrieval completed. board_type=%s docs=%d elapsed_ms=%.1f",
+            board_type,
+            len(docs),
+            (time.perf_counter() - retrieval_started_at) * 1000,
+        )
     except Exception:
         logger.exception("Milvus policy retrieval failed. board_type=%s metadata=%s", board_type, safe_metadata)
         return "BLOCK", None, "정책 검색에 실패하여 등록이 차단됩니다.", "rag_error", None, None
@@ -204,7 +230,13 @@ def moderate_with_rag(
         return "BLOCK", None, "금칙어 검토를 완료하지 못해 등록이 차단됩니다.", "rag_watsonx_unconfigured", None, None
 
     try:
+        llm_started_at = time.perf_counter()
         action, ai_score, reason, flagged_phrases, inferred_phrases = moderate_with_llm(text, docs)
+        logger.info(
+            "Moderation llm completed. board_type=%s elapsed_ms=%.1f",
+            board_type,
+            (time.perf_counter() - llm_started_at) * 1000,
+        )
     except Exception:
         logger.exception("watsonx moderation failed. board_type=%s metadata=%s", board_type, safe_metadata)
         return "BLOCK", None, "금칙어 검토를 완료하지 못해 등록이 차단됩니다.", "rag_error", None, None
@@ -221,9 +253,10 @@ def moderate_with_rag(
         else "정책 위반 가능성이 있어 등록이 차단됩니다."
     )
     logger.info(
-        "Moderation pipeline final decision. board_type=%s decision=%s score=%s",
+        "Moderation pipeline final decision. board_type=%s decision=%s score=%s total_elapsed_ms=%.1f",
         board_type,
         normalized,
         ai_score,
+        (time.perf_counter() - started_at) * 1000,
     )
     return normalized, ai_score, final_reason, "rag_watsonx", flagged_phrases, inferred_phrases
