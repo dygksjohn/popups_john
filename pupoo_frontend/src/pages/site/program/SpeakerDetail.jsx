@@ -5,7 +5,7 @@ import PageHeader from "../components/PageHeader";
 import { programApi } from "../../../app/http/programApi";
 import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 
-const AVATAR_COLORS = ["#02A17E", "#059669", "#d97706", "#dc2626", "#7c3aed"];
+const AVATAR_COLORS = ["#90C450", "#059669", "#d97706", "#dc2626", "#7c3aed"];
 
 function avatarColor(id) {
   return AVATAR_COLORS[Math.abs(Number(id) || 0) % AVATAR_COLORS.length];
@@ -15,7 +15,7 @@ const css = `
 .sp-root {
   min-height: 100vh;
   font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-  background: #f0f4fa;
+  background: #f8f9fc;
   flex: 1;
 }
 .sp-root *, .sp-root *::before, .sp-root *::after { box-sizing: border-box; font-family: inherit; }
@@ -47,7 +47,7 @@ const css = `
 .sp-badge {
   display: inline-flex; align-items: center; width: fit-content;
   font-size: 13px; font-weight: 800; padding: 4px 10px; border-radius: 6px;
-  background: #eff4ff; color: #02A17E; border: 1px solid #02A17E;
+  background: #eff4ff; color: #90C450; border: 1px solid #90C450;
   margin-bottom: 14px;
 }
 .sp-name {
@@ -62,7 +62,7 @@ const css = `
 .sp-chip {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 10px 18px; border-radius: 12px;
-  border: 1px solid #eef0f4; background: #f7f8fa;
+  border: 1px solid #eef0f4; background: #f8f9fc;
   color: #333; font-size: 15px; font-weight: 600;
   transition: all 0.15s;
 }
@@ -98,14 +98,14 @@ const css = `
   font-size: 15px; font-weight: 700; color: #374151;
   cursor: pointer; transition: all 0.15s; font-family: inherit;
 }
-.sp-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+.sp-btn:hover { background: #f8f9fc; border-color: #9ca3af; }
 .sp-btn-dark { background: #111827; color: #fff; border-color: #111827; }
 .sp-btn-dark:hover { opacity: 0.85; background: #111827; border-color: #111827; }
 
 /* ── 로딩/에러 ── */
 .sp-center {
   min-height: 60vh; display: flex; align-items: center; justify-content: center;
-  color: #9ca3af; font-family: inherit; background: #f0f4fa;
+  color: #9ca3af; font-family: inherit; background: #f8f9fc;
 }
 
 @media (max-width: 900px) {
@@ -206,7 +206,7 @@ export default function SpeakerDetail() {
       <PageHeader
         title="연사 상세"
         subtitle="연사의 프로필과 소개를 확인합니다"
-        icon={<Mic2 size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<Mic2 size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
       />

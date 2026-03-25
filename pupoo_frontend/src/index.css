@@ -50,9 +50,13 @@ body {
 /* 모든 요소에 Kakao Big Sans 강제 적용 (인라인 스타일도 덮어씀) */
 *,
 *::before,
-*::after,
-*::placeholder {
+*::after {
   font-family: "Kakao Big Sans", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif !important;
+  letter-spacing: -0.5px !important;
+}
+
+*::placeholder {
+  font-family: "JeonjuCraftGothic", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif !important;
   letter-spacing: -0.5px !important;
 }
 

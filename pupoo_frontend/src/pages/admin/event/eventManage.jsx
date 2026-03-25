@@ -88,7 +88,7 @@ function Checkbox({ checked, onChange, size = 18 }) {
    ═══════════════════════════════════════════ */
 function MiniProgress({ value, max }) {
   const pct = max > 0 ? Math.min(Math.round((value / max) * 100), 100) : 0;
-  const color = pct >= 90 ? "#EF4444" : pct >= 70 ? "#F59E0B" : "#10B981";
+  const color = pct >= 90 ? "#EF4444" : pct >= 70 ? "#F59E0B" : "#3a4520";
   const r = 16,
     stroke = 3.5,
     circ = 2 * Math.PI * r;
@@ -144,7 +144,7 @@ function Toast({ msg, type = "success", onDone }) {
     return () => clearTimeout(t);
   }, [onDone]);
   const bg =
-    type === "success" ? "#10B981" : type === "error" ? "#EF4444" : "#F59E0B";
+    type === "success" ? "#3a4520" : type === "error" ? "#EF4444" : "#F59E0B";
   return (
     <div
       style={{
@@ -2133,7 +2133,7 @@ export default function EventManage({ subTab = "all" }) {
               icon={TrendingUp}
               label="진행 중"
               value={activeEvents}
-              color="#10B981"
+              color="#3a4520"
               mobile={isMobile}
             />
             <StatCard

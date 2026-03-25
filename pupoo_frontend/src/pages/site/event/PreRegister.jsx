@@ -54,8 +54,8 @@ const styles = `
     font-size: 13px; font-weight: 500; color: #6b7280; background: transparent;
     cursor: pointer; font-family: inherit; transition: all 0.15s;
   }
-  .pr-nav-btn:hover { background: #f3f4f6; color: #111827; }
-  .pr-nav-btn.active { background: #02A17E; color: #fff; font-weight: 600; }
+  .pr-nav-btn:hover { background: #f8f9fc; color: #111827; }
+  .pr-nav-btn.active { background: #90C450; color: #fff; font-weight: 600; }
 
   .pr-container { max-width: 1400px; margin: 0 auto; padding: 32px 25px 64px; }
 
@@ -70,12 +70,12 @@ const styles = `
     width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center;
     justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0;
   }
-  .pr-step.active .pr-step-num { background: #02A17E; color: #fff; }
-  .pr-step.done .pr-step-num { background: #10b981; color: #fff; }
+  .pr-step.active .pr-step-num { background: #90C450; color: #fff; }
+  .pr-step.done .pr-step-num { background: #3a4520; color: #fff; }
   .pr-step.idle .pr-step-num { background: #e9ecef; color: #9ca3af; }
   .pr-step-label { font-size: 13px; font-weight: 600; }
-  .pr-step.active .pr-step-label { color: #02A17E; }
-  .pr-step.done .pr-step-label { color: #10b981; }
+  .pr-step.active .pr-step-label { color: #90C450; }
+  .pr-step.done .pr-step-label { color: #3a4520; }
   .pr-step.idle .pr-step-label { color: #9ca3af; }
   .pr-step-arrow { color: #d1d5db; margin: 0 4px; }
 
@@ -101,14 +101,14 @@ const styles = `
     color: #111827; outline: none; font-family: inherit; background: #fff;
     transition: all 0.15s;
   }
-  .pr-input:focus { border-color: #02A17E; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
+  .pr-input:focus { border-color: #90C450; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
   .pr-select {
     width: 100%; height: 44px; padding: 0 36px 0 14px;
     border: 1px solid #e2e8f0; border-radius: 9px; font-size: 14px;
     color: #111827; outline: none; font-family: inherit; background: #fff;
     appearance: none; cursor: pointer; transition: all 0.15s;
   }
-  .pr-select:focus { border-color: #02A17E; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
+  .pr-select:focus { border-color: #90C450; box-shadow: 0 0 0 3px rgba(26,79,214,0.08); }
   .pr-select-wrap { position: relative; }
   .pr-select-icon { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
   .pr-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -119,11 +119,11 @@ const styles = `
     border: 2px solid #e2e8f0; border-radius: 10px; padding: 14px 12px;
     cursor: pointer; transition: all 0.15s; text-align: center;
   }
-  .pr-ticket-opt:hover { border-color: #02A17E; }
-  .pr-ticket-opt.selected { border-color: #02A17E; background: #f5f8ff; }
+  .pr-ticket-opt:hover { border-color: #90C450; }
+  .pr-ticket-opt.selected { border-color: #90C450; background: #f5f8ff; }
   .pr-ticket-name { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 2px; }
   .pr-ticket-price { font-size: 12px; color: #6b7280; }
-  .pr-ticket-opt.selected .pr-ticket-name { color: #02A17E; }
+  .pr-ticket-opt.selected .pr-ticket-name { color: #90C450; }
 
   /* Agree */
   .pr-agree-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f3f5; cursor: pointer; }
@@ -133,14 +133,14 @@ const styles = `
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     transition: all 0.15s;
   }
-  .pr-checkbox.checked { border-color: #02A17E; background: #02A17E; }
+  .pr-checkbox.checked { border-color: #90C450; background: #90C450; }
   .pr-agree-label { font-size: 13px; color: #374151; }
   .pr-agree-required { font-size: 11px; font-weight: 600; color: #ef4444; margin-left: 4px; }
 
   /* Submit */
   .pr-submit {
     width: 100%; height: 50px; border: none; border-radius: 10px;
-    background: #02A17E; color: #fff; font-size: 15px; font-weight: 700;
+    background: #90C450; color: #fff; font-size: 15px; font-weight: 700;
     cursor: pointer; font-family: inherit; display: flex; align-items: center;
     justify-content: center; gap: 8px; margin-top: 24px; transition: background 0.15s;
   }
@@ -148,7 +148,7 @@ const styles = `
 
   /* Right panel */
   .pr-summary-card { background: #fff; border: 1px solid #e9ecef; border-radius: 13px; overflow: hidden; position: sticky; top: 24px; }
-  .pr-summary-banner { padding: 24px; background: linear-gradient(135deg, #02A17E 0%, #6366f1 100%); color: #fff; }
+  .pr-summary-banner { padding: 24px; background: linear-gradient(135deg, #90C450 0%, #6366f1 100%); color: #fff; }
   .pr-summary-banner-cat { font-size: 11px; font-weight: 600; opacity: 0.8; margin-bottom: 6px; }
   .pr-summary-banner-title { font-size: 17px; font-weight: 800; line-height: 1.3; }
   .pr-summary-body { padding: 20px 24px; }
@@ -162,7 +162,7 @@ const styles = `
   .pr-quota-label { font-weight: 600; color: #374151; }
   .pr-quota-val { color: #6b7280; }
   .pr-quota-track { height: 6px; background: #f1f3f5; border-radius: 100px; overflow: hidden; }
-  .pr-quota-fill { height: 100%; border-radius: 100px; background: #02A17E; }
+  .pr-quota-fill { height: 100%; border-radius: 100px; background: #90C450; }
 
   /* Success */
   .pr-success {
@@ -172,7 +172,7 @@ const styles = `
   .pr-success-icon { width: 72px; height: 72px; border-radius: 50%; background: #ecfdf5; display: flex; align-items: center; justify-content: center; }
   .pr-success-title { font-size: 22px; font-weight: 800; color: #111827; }
   .pr-success-sub { font-size: 14px; color: #6b7280; line-height: 1.6; }
-  .pr-success-code { background: #f3f4f6; border-radius: 8px; padding: 14px 24px; font-size: 18px; font-weight: 800; color: #02A17E; letter-spacing: 2px; }
+  .pr-success-code { background: #f8f9fc; border-radius: 8px; padding: 14px 24px; font-size: 18px; font-weight: 800; color: #90C450; letter-spacing: 2px; }
 
   @media (max-width: 1000px) {
     .pr-layout { grid-template-columns: 1fr; }
@@ -249,7 +249,7 @@ export default function PreRegister() {
       <PageHeader
         title="행사 사전 등록"
         subtitle={SUBTITLE_MAP[currentPath]}
-        icon={<ClipboardList size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<ClipboardList size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={SERVICE_CATEGORIES}
@@ -293,7 +293,7 @@ export default function PreRegister() {
           <div className="pr-card">
             <div className="pr-success">
               <div className="pr-success-icon">
-                <CheckCircle2 size={36} color="#10b981" />
+                <CheckCircle2 size={36} color="#3a4520" />
               </div>
               <div className="pr-success-title">사전 등록 완료!</div>
               <div className="pr-success-sub">
@@ -313,7 +313,7 @@ export default function PreRegister() {
             <div className="pr-card">
               <div className="pr-card-title">
                 <div className="pr-card-title-icon">
-                  <ClipboardList size={14} color="#02A17E" />
+                  <ClipboardList size={14} color="#90C450" />
                 </div>
                 사전 등록 신청
               </div>

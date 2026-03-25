@@ -103,14 +103,14 @@ const styles = `
   .loc-map-pin {
     width: 56px; height: 56px;
     border-radius: 50%;
-    background: #028A6C;
+    background: #7ab33e;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 6px 24px rgba(27,80,217,0.3), 0 0 0 8px rgba(27,80,217,0.12);
     position: relative; z-index: 1;
   }
   .loc-map-label {
     font-size: 14px; font-weight: 700;
-    color: #028A6C; background: #fff;
+    color: #7ab33e; background: #fff;
     padding: 7px 16px; border-radius: 100px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     position: relative; z-index: 1;
@@ -134,7 +134,7 @@ const styles = `
   .loc-map-cta {
     display: inline-flex; align-items: center; gap: 7px;
     padding: 10px 20px; border-radius: 10px;
-    background: #028A6C; color: #fff;
+    background: #7ab33e; color: #fff;
     font-size: 13px; font-weight: 700;
     border: none; cursor: pointer;
     font-family: inherit; transition: all 0.15s;
@@ -152,8 +152,8 @@ const styles = `
     background: #fff; font-size: 13px; font-weight: 600; color: #6B7280;
     cursor: pointer; font-family: inherit; transition: all 0.15s;
   }
-  .loc-transport-tab:hover { border-color: #028A6C; color: #028A6C; }
-  .loc-transport-tab.active { background: #028A6C; color: #fff; border-color: #028A6C; }
+  .loc-transport-tab:hover { border-color: #7ab33e; color: #7ab33e; }
+  .loc-transport-tab.active { background: #7ab33e; color: #fff; border-color: #7ab33e; }
   .loc-addr-wrap { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
   .loc-copy-btn {
     display: inline-flex; align-items: center; gap: 6px;
@@ -161,7 +161,7 @@ const styles = `
     background: #fff; font-size: 12px; font-weight: 600; color: #6B7280;
     cursor: pointer; font-family: inherit; transition: all 0.15s; flex-shrink: 0;
   }
-  .loc-copy-btn:hover { border-color: #028A6C; color: #028A6C; }
+  .loc-copy-btn:hover { border-color: #7ab33e; color: #7ab33e; }
   .loc-toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
     padding: 10px 20px; border-radius: 10px; background: #111827; color: #fff;
@@ -192,7 +192,7 @@ const styles = `
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
-  .loc-info-card-icon.blue   { background: #E6F7F2; color: #028A6C; }
+  .loc-info-card-icon.blue   { background: #E6F7F2; color: #7ab33e; }
   .loc-info-card-icon.amber  { background: #FEF3C7; color: #92400E; }
   .loc-info-card-icon.slate  { background: #F3F4F6; color: #374151; }
   .loc-info-card-title {
@@ -220,7 +220,7 @@ const styles = `
     font-size: 12px; color: #9CA3AF; margin-top: 2px;
   }
   .loc-detail-highlight {
-    font-weight: 700; color: #028A6C;
+    font-weight: 700; color: #7ab33e;
   }
 
   /* ── 섹션 헤더 ── */
@@ -230,7 +230,7 @@ const styles = `
   }
   .loc-sec-num {
     font-size: 13px; font-weight: 800;
-    color: #028A6C;
+    color: #7ab33e;
     width: 32px; height: 32px;
     background: #E6F7F2;
     border-radius: 50%;
@@ -260,7 +260,7 @@ const styles = `
     content: '';
     position: absolute; top: 0; left: 0;
     width: 100%; height: 3px;
-    background: #028A6C;
+    background: #7ab33e;
     opacity: 0; transition: opacity 0.2s;
   }
   .loc-tr-card:hover {
@@ -276,7 +276,7 @@ const styles = `
     display: flex; align-items: center; justify-content: center;
     margin-bottom: 16px;
   }
-  .loc-tr-icon.subway { background: #E6F7F2; color: #028A6C; }
+  .loc-tr-icon.subway { background: #E6F7F2; color: #7ab33e; }
   .loc-tr-icon.bus    { background: #D1FAE5; color: #065F46; }
   .loc-tr-icon.car    { background: #FEF3C7; color: #92400E; }
 
@@ -296,7 +296,7 @@ const styles = `
     font-size: 10px; font-weight: 800;
     flex-shrink: 0; margin-top: 1px;
   }
-  .loc-tr-badge.dark   { background: #028A6C; color: #fff; }
+  .loc-tr-badge.dark   { background: #7ab33e; color: #fff; }
   .loc-tr-badge.green  { background: #059669; color: #fff; }
   .loc-tr-badge.orange { background: #D97706; color: #fff; }
   .loc-tr-text {

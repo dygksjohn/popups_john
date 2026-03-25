@@ -24,7 +24,7 @@ const STATUS_META = {
 };
 
 const styles = `
-  .es-root { min-height: 100vh; background: #fafafa; }
+  .es-root { min-height: 100vh; background: #f8f9fc; }
   .es-wrap {
     width: min(1400px, calc(100% - 40px));
     margin: 0 auto; padding: 28px 0 72px;
@@ -90,7 +90,7 @@ const styles = `
   }
   .es-cal-day:nth-child(7) { border-right: none; }
   .es-cal-day:hover { background: #fafbfc; }
-  .es-cal-day.outside { background: #fafafa; }
+  .es-cal-day.outside { background: #f8f9fc; }
   .es-cal-day.outside .es-cal-day-num { color: #d4d4d8; }
   .es-cal-day-num {
     font-size: 12px; font-weight: 600; color: #52525b;
@@ -108,7 +108,7 @@ const styles = `
     border-radius: 4px; cursor: pointer; transition: background 0.12s;
     border: none; background: transparent; width: 100%; text-align: left; font-family: inherit;
   }
-  .es-cell-evt:hover { background: #f3f4f6; }
+  .es-cell-evt:hover { background: #f8f9fc; }
   .es-cell-evt-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
   .es-cell-evt-name {
     font-size: 14px; font-weight: 500; color: #4b4b4b;
@@ -126,7 +126,7 @@ const styles = `
   }
   .es-search-inner {
     flex: 1; display: flex; align-items: center; gap: 8px;
-    background: #f3f4f6; border-radius: 10px; padding: 0 12px; height: 40px;
+    background: #f8f9fc; border-radius: 10px; padding: 0 12px; height: 40px;
     transition: all 0.2s;
   }
   .es-search-inner:focus-within { background: #fff; box-shadow: 0 0 0 2px #3DBFA0; }
@@ -158,7 +158,7 @@ const styles = `
     background: transparent; color: #9ca3af; cursor: pointer;
     display: flex; align-items: center; justify-content: center; transition: all 0.12s;
   }
-  .es-mini-nav:hover { background: #f3f4f6; color: #374151; }
+  .es-mini-nav:hover { background: #f8f9fc; color: #374151; }
   .es-mini-wds { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
   .es-mini-wd {
     text-align: center; font-size: 13px; font-weight: 600; color: #b0b5bd; padding: 3px 0;
@@ -171,7 +171,7 @@ const styles = `
     padding: 5px 0; border-radius: 8px; cursor: pointer;
     transition: all 0.1s; border: none; background: transparent; font-family: inherit;
   }
-  .es-mini-day:hover { background: #f3f4f6; }
+  .es-mini-day:hover { background: #f8f9fc; }
   .es-mini-day.out { color: #d4d4d8; }
   .es-mini-day.today { background: #3DBFA0; color: #fff; font-weight: 700; }
 
@@ -201,10 +201,10 @@ const styles = `
   .es-list-scroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
   .es-list-item {
     display: flex; align-items: stretch; gap: 10px;
-    padding: 10px 12px; border-radius: 10px; background: #fafafa;
+    padding: 10px 12px; border-radius: 10px; background: #f8f9fc;
     cursor: pointer; transition: all 0.15s; border: 1px solid transparent;
   }
-  .es-list-item:hover { background: #f3f4f6; border-color: #e5e7eb; }
+  .es-list-item:hover { background: #f8f9fc; border-color: #e5e7eb; }
   .es-list-bar { width: 3px; border-radius: 2px; flex-shrink: 0; }
   .es-list-body { flex: 1; min-width: 0; }
   .es-list-name {
@@ -232,6 +232,21 @@ const styles = `
     .es-cal-day { min-height: 84px; padding: 5px 5px 6px; }
     .es-cell-evt-name { font-size: 10px; }
     .es-sidebar { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    /* 큰 달력 숨기고 미니 달력 + 목록 뷰로 전환 */
+    .es-cal-card { display: none; }
+    .es-layout { grid-template-columns: 1fr; }
+    .es-sidebar { grid-template-columns: 1fr; }
+    .es-mini { padding: 20px; }
+    .es-mini-title { font-size: 18px; }
+    .es-mini-nav { width: 32px; height: 32px; }
+    .es-mini-wd { font-size: 13px; padding: 6px 0; }
+    .es-mini-day { font-size: 15px; padding: 8px 0; border-radius: 10px; }
+    .es-mini-day.has-evt::after { width: 5px; height: 5px; }
+    .es-list-name { font-size: 14px; }
+    .es-list-meta { font-size: 12px; }
+    .es-list-scroll { max-height: none; }
   }
 `;
 
@@ -392,7 +407,7 @@ export default function EventSchedule() {
       <PageHeader
         title="행사 일정 안내"
         subtitle="조회할 월을 선택하면 해당 월 일정만 달력에 표시됩니다."
-        icon={<CalendarDays size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<CalendarDays size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={EVENT_CATEGORIES}

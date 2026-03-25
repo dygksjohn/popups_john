@@ -332,7 +332,7 @@ export function mapExperienceForHomepage(item) {
     "#d97706",
     "#ec4899",
     "#8b5cf6",
-    "#10b981",
+    "#3a4520",
     "#f59e0b",
   ];
   const bgs = [
@@ -398,7 +398,7 @@ export function mapContestForHomepage(item) {
 
 /** 세션 홈페이지 → Session.jsx */
 export function mapSessionForHomepage(item, speakersMap = {}) {
-  const colors = ["#10b981", "#1a4fd6", "#f59e0b", "#8b5cf6", "#ec4899"];
+  const colors = ["#3a4520", "#1a4fd6", "#f59e0b", "#8b5cf6", "#ec4899"];
   const idx = (item.programId ?? 0) % colors.length;
 
   let status = "upcoming";

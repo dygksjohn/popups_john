@@ -706,7 +706,7 @@ export default function ContestApply() {
               <div
                 style={{
                   fontSize: 12,
-                  color: "#028A6C",
+                  color: "#7ab33e",
                   fontWeight: 700,
                   marginBottom: 6,
                 }}

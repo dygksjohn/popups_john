@@ -20,24 +20,22 @@ export const postApi = {
   list(boardId, opts = {}) {
     if (boardId == null)
       throw new Error("postApi.list: boardId is required");
-    const { page = 0, size = 10, searchType, keyword, sort, sortKey } = opts;
+    const { page = 0, size = 10, searchType, keyword, sort } = opts;
     const params = { boardId, page, size };
     if (searchType != null && searchType !== "") params.searchType = searchType;
     if (keyword != null && keyword !== "") params.keyword = keyword;
     if (sort != null && sort !== "") params.sort = sort;
-    if (sortKey != null && sortKey !== "") params.sortKey = sortKey;
     return axiosInstance.get("/api/posts", { params }).then((res) => unwrap(res));
   },
 
   listByBoardType(boardType, opts = {}) {
     if (!boardType)
       throw new Error("postApi.listByBoardType: boardType is required");
-    const { page = 0, size = 10, searchType, keyword, sort, sortKey } = opts;
+    const { page = 0, size = 10, searchType, keyword, sort } = opts;
     const params = { boardType, page, size };
     if (searchType != null && searchType !== "") params.searchType = searchType;
     if (keyword != null && keyword !== "") params.keyword = keyword;
     if (sort != null && sort !== "") params.sort = sort;
-    if (sortKey != null && sortKey !== "") params.sortKey = sortKey;
     return axiosInstance.get("/api/posts", { params }).then((res) => unwrap(res));
   },
 

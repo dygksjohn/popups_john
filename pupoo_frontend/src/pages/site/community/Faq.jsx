@@ -10,6 +10,7 @@ import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import BadgeTag from "./shared/BadgeTag";
 
 const PAGE_SIZE = 10;
+const FETCH_SIZE = 100;
 const SORT_OPTIONS = [
   { key: "recent", label: "최신순" },
   { key: "views", label: "조회순" },
@@ -41,48 +42,75 @@ export default function CommunityFaq() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
-  const [totalElements, setTotalElements] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
 
   const fetchFaqs = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const keyword = search.trim();
-      const sort = sortKey === "views" ? "viewCount,desc" : "createdAt,desc";
-
-      const res = await axiosInstance.get("/api/faqs", {
-        params: {
-          page: Math.max(0, Number(page) - 1),
-          size: PAGE_SIZE,
-          sort,
-          searchType: "TITLE",
-          keyword: keyword || undefined,
-        },
+      const firstRes = await axiosInstance.get("/api/faqs", {
+        params: { page: 0, size: FETCH_SIZE, sort: "createdAt,desc" },
       });
+      const firstData = firstRes.data?.data || firstRes.data || {};
+      const rows = Array.isArray(firstData.content) ? [...firstData.content] : [];
+      const totalPages = Math.max(1, Number(firstData.totalPages) || 1);
 
-      const data = res?.data?.data ?? res?.data ?? {};
-      const rows = Array.isArray(data?.content) ? data.content : [];
+      if (totalPages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            axiosInstance.get("/api/faqs", {
+              params: { page: index + 1, size: FETCH_SIZE, sort: "createdAt,desc" },
+            }),
+          ),
+        );
+
+        rest.forEach((response) => {
+          const data = response.data?.data || response.data || {};
+          const content = Array.isArray(data.content) ? data.content : [];
+          rows.push(...content);
+        });
+      }
+
       setItems(rows);
-      setTotalElements(Number(data?.totalElements ?? 0) || 0);
-      setTotalPages(Math.max(1, Number(data?.totalPages ?? 1) || 1));
     } catch (err) {
       console.error("[Community FAQ] list fetch failed:", err);
       setError("FAQ 목록을 불러오지 못했습니다.");
       setItems([]);
-      setTotalElements(0);
-      setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, [page, search, sortKey]);
+  }, []);
 
   useEffect(() => {
     fetchFaqs();
   }, [fetchFaqs]);
 
+  const filteredItems = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return items;
+    return items.filter((item) =>
+      String(item?.title || "").toLowerCase().includes(keyword),
+    );
+  }, [items, search]);
+
+  const sortedItems = useMemo(() => {
+    const rows = [...filteredItems];
+    rows.sort((a, b) => {
+      if (sortKey === "views") {
+        const diff = Number(b?.viewCount || 0) - Number(a?.viewCount || 0);
+        if (diff !== 0) return diff;
+      }
+      return toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
+    });
+    return rows;
+  }, [filteredItems, sortKey]);
+
+  const totalElements = sortedItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedItems = items;
+  const pagedItems = useMemo(
+    () => sortedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [currentPage, sortedItems],
+  );
 
   useEffect(() => {
     setPage(1);
@@ -122,7 +150,7 @@ export default function CommunityFaq() {
       <PageHeader
         title="자주 묻는 질문"
         subtitle="자주 문의하는 내용을 빠르게 확인할 수 있는 안내 게시판입니다."
-        icon={<HelpCircle size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<HelpCircle size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
         categories={COMMUNITY_CATEGORIES}
@@ -158,13 +186,13 @@ export default function CommunityFaq() {
           </span>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: isMobile ? 16 : 999, height: isMobile ? "auto" : 42, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: isMobile ? 6 : 0, rowGap: isMobile ? 6 : 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, background: isMobile ? "transparent" : "#fff", border: isMobile ? "none" : "1px solid #e2e5ea", borderRadius: 12, height: isMobile ? "auto" : 48, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: 0, rowGap: isMobile ? 8 : 0 }}>
               {/* sort button */}
               <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }} ref={sortDdRef}>
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((prev) => !prev)}
-                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: 110, width: isMobile ? "100%" : "auto", display: "inline-flex", alignItems: "center", gap: 7 }}
+                  style={{ height: 48, padding: "0 36px 0 14px", border: isMobile ? "1px solid #e5e7eb" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 999 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 110, width: isMobile ? "100%" : "auto", display: "inline-flex", alignItems: "center", gap: 7 }}
                 >
                   <SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />
                   {currentSortLabel}
@@ -212,11 +240,11 @@ export default function CommunityFaq() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   style={{
-                    border: "none",
-                    background: "transparent",
+                    border: isMobile ? "1px solid #e5e7eb" : "none",
+                    background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: "0 999px 999px 0",
-                    height: 42,
+                    borderRadius: isMobile ? 999 : "0 12px 12px 0",
+                    height: 48,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",
@@ -251,7 +279,7 @@ export default function CommunityFaq() {
                 <span style={{ flex: 1, textAlign: "center" }}>제목</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>작성자</span>
                 <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>등록일</span>
-                <span style={{ width: 100, textAlign: "center", flexShrink: 0 }}>조회수</span>
+                <span style={{ width: 80, textAlign: "center", flexShrink: 0 }}>조회수</span>
               </div>}
               {pagedItems.map((faq, index) => {
                 const rowNumber = totalElements - ((currentPage - 1) * PAGE_SIZE) - index;
@@ -290,13 +318,13 @@ export default function CommunityFaq() {
                           <span style={{ color: "#cbd5e1" }}>·</span>
                           <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>{fmtDate(faq.createdAt)}</span>
                           <span style={{ color: "#cbd5e1" }}>·</span>
-                          <span style={{ color: "#9ca3af", whiteSpace: "nowrap" }}>조회수 {Number(faq?.viewCount ?? 0)}</span>
+                          <span style={{ color: "#9ca3af" }}>조회 {faq.viewCount ?? 0}</span>
                         </div>
                       )}
                     </div>
                     {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#6b7280", flexShrink: 0 }}>관리자</span>}
                     {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtDate(faq.createdAt)}</span>}
-                    {!isMobile && <span style={{ width: 100, textAlign: "center", fontSize: 14, color: "#9ca3af", whiteSpace: "nowrap", flexShrink: 0 }}>{Number(faq?.viewCount ?? 0)}</span>}
+                    {!isMobile && <span style={{ width: 80, textAlign: "center", fontSize: 13, color: "#9ca3af", flexShrink: 0 }}>{faq.viewCount ?? 0}</span>}
                   </div>
                 );
               })}

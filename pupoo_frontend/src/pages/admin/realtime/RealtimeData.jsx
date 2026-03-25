@@ -390,7 +390,7 @@ export default function RealtimeData() {
                         width: 4,
                         height: 4,
                         borderRadius: "50%",
-                        background: c.live ? "#10B981" : "#F59E0B",
+                        background: c.live ? "#3a4520" : "#F59E0B",
                       }}
                     />
                     {c.live ? "LIVE" : "투표중"}
