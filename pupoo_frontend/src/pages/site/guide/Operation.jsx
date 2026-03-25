@@ -132,9 +132,13 @@ const css = `
 }
 .op-hero-video{
   position:absolute;inset:0;width:100%;height:100%;
-  object-fit:cover;z-index:0;opacity:.45;
+  object-fit:cover;z-index:0;opacity:.42;
 }
-.op-hero>*:not(.op-hero-video){position:relative;z-index:2;}
+.op-hero-overlay{
+  position:absolute;inset:0;z-index:1;
+  background:linear-gradient(180deg, rgba(0,0,0,.42) 0%, rgba(0,0,0,.62) 100%);
+}
+.op-hero>*:not(.op-hero-video):not(.op-hero-overlay){position:relative;z-index:2;}
 .op-hero-over{
   font-size:17px;font-weight:600;color:rgba(255,255,255,.7);
   letter-spacing:-.01em;margin-bottom:16px;
@@ -316,6 +320,7 @@ const css = `
 `;
 
 const guideAsset = (fileName) => toPublicAssetUrl(`/uploads/guide/${fileName}`);
+const GUIDE_VIDEO_SRC = guideAsset("guide.mov");
 
 const GALLERY_1 = [
   { img: guideAsset("guide1.jpg"), label: "QR 체크인 현장", caption: "QR 코드 하나로 빠르게 입장. 모바일과 출력물 모두 가능합니다." },
@@ -353,7 +358,17 @@ export default function Operation() {
 
       {/* ── HERO (video bg) ── */}
       <section className="op-hero">
-        <video className="op-hero-video" src={guideAsset("GettyImages-1191409523.mov")} autoPlay muted loop playsInline />
+        <video
+          className="op-hero-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+        >
+          <source src={GUIDE_VIDEO_SRC} type="video/quicktime" />
+        </video>
+        <div className="op-hero-overlay" />
         <F>
           <div className="op-hero-over">현장 운영 안내</div>
           <h1>입장부터<br />퇴장까지</h1>
