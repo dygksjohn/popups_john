@@ -50,6 +50,8 @@ import JoinSocial from "./pages/site/auth/join/JoinSocial";
 import KakaoCallback from "./pages/site/auth/KakaoCallback";
 import KakaoJoin from "./pages/site/auth/join/KakaoJoin";
 import KakaoOtp from "./pages/site/auth/join/KakaoOtp";
+import NaverCallback from "./pages/site/auth/NaverCallback";
+import NaverJoin from "./pages/site/auth/join/NaverJoin";
 
 /* Google */
 import GoogleCallback from "./pages/site/auth/GoogleCallback";
@@ -476,8 +478,18 @@ export default function App() {
               </PublicOnly>
             }
           />
+          <Route path="/naver/callback" element={<NaverCallback />} />
+          <Route path="/auth/naver/callback" element={<NaverCallback />} />
           <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
+          <Route
+            path="/auth/join/naver"
+            element={
+              <PublicOnly>
+                <NaverJoin />
+              </PublicOnly>
+            }
+          />
           <Route
             path="/auth/join/google"
             element={

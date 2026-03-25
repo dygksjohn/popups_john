@@ -112,9 +112,8 @@ export default function JoinSelect() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const defaultKakaoRedirectUri = `${window.location.origin}/auth/kakao/callback`;
+  const kakaoRedirectUri = `${window.location.origin}/auth/kakao/callback`;
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
-  const KAKAO_REDIRECT_URI = import.meta.env.VITE_KAKAO_REDIRECT_URI || defaultKakaoRedirectUri;
 
   const handleKakaoContinue = () => {
     tokenStore.clear();
@@ -126,7 +125,7 @@ export default function JoinSelect() {
     if (!KAKAO_REST_KEY) { alert("VITE_KAKAO_REST_KEY가 설정되지 않았습니다."); return; }
     const params = new URLSearchParams({
       response_type: "code", client_id: KAKAO_REST_KEY,
-      redirect_uri: KAKAO_REDIRECT_URI, through_account: "true", prompt: "login",
+      redirect_uri: kakaoRedirectUri, through_account: "true", prompt: "login",
     });
     const authorizeUrl = `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
     window.location.href = `https://accounts.kakao.com/login/?login_type=normal&continue=${encodeURIComponent(authorizeUrl)}`;
@@ -139,11 +138,11 @@ export default function JoinSelect() {
     sessionStorage.removeItem("google_email");
     sessionStorage.removeItem("google_nickname");
     const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    const GOOGLE_REDIRECT_URI = import.meta.env.VITE_GOOGLE_REDIRECT_URI || `${window.location.origin}/auth/google/callback`;
+    const googleRedirectUri = `${window.location.origin}/auth/google/callback`;
     if (!GOOGLE_CLIENT_ID) { alert("VITE_GOOGLE_CLIENT_ID가 설정되지 않았습니다."); return; }
     const params = new URLSearchParams({
       response_type: "code", client_id: GOOGLE_CLIENT_ID,
-      redirect_uri: GOOGLE_REDIRECT_URI,
+      redirect_uri: googleRedirectUri,
       scope: "openid email profile", prompt: "select_account",
     });
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
