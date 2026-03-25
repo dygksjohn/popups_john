@@ -14,6 +14,7 @@ import com.popups.pupoo.storage.infrastructure.StorageKeyGenerator.UploadTargetT
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
@@ -89,9 +91,10 @@ public class StorageController {
         FileResponse file = storageService.getFile(fileId);
         FileDownloadResponse data = new FileDownloadResponse();
         data.fileName = file.getOriginalName();
-        data.downloadUrl = file.getPublicPath();
+        String redirectUrl = resolveRedirectUrl(file.getPublicPath());
+        data.downloadUrl = redirectUrl;
         return ResponseEntity.status(302)
-                .header(HttpHeaders.LOCATION, URI.create(file.getPublicPath()).toString())
+                .header(HttpHeaders.LOCATION, URI.create(redirectUrl).toString())
                 .body(ApiResponse.success(data));
     }
 
@@ -108,5 +111,23 @@ public class StorageController {
     ) {
         storageService.deleteByAdmin(fileId, reason);
         return ApiResponse.success(new IdResponse(fileId));
+    }
+
+    private String resolveRedirectUrl(String publicPath) {
+        if (!StringUtils.hasText(publicPath)) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "file public path not found");
+        }
+        if (isAbsoluteUrl(publicPath)) {
+            return publicPath;
+        }
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path(publicPath.startsWith("/") ? publicPath : "/" + publicPath)
+                .build()
+                .toUriString();
+    }
+
+    private boolean isAbsoluteUrl(String value) {
+        String normalized = value.toLowerCase();
+        return normalized.startsWith("http://") || normalized.startsWith("https://");
     }
 }
