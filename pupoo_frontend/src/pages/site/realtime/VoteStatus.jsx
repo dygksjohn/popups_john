@@ -69,37 +69,41 @@ const styles = `
   .vt-event-mode-nav {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 0;
+    flex-wrap: nowrap;
     margin-left: auto;
+    border: 1px solid #d9e1ec;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
   }
   .vt-mode-btn {
     height: 44px;
-    border-radius: 12px;
-    border: 1px solid #d1d5db;
-    background: #f3f4f6;
-    color: #6b7280;
-    padding: 0 16px;
+    border: none;
+    border-right: 1px solid #e6ebf3;
+    background: #fff;
+    color: #8b95a7;
+    padding: 0 22px;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 800;
     cursor: pointer;
     transition: all 0.15s;
     font-family: inherit;
+    white-space: nowrap;
   }
+  .vt-mode-btn:last-child { border-right: none; }
   .vt-mode-btn.active {
-    background: #02A17E;
+    background: #111827;
     color: #fff;
-    border-color: #02A17E;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+    border-right-color: #111827;
+    box-shadow: none;
   }
   .vt-mode-btn:hover {
-    background: #e5e7eb;
-    border-color: #cbd5e1;
-    color: #4b5563;
+    background: #f8fafc;
+    color: #64748b;
   }
   .vt-mode-btn.active:hover {
-    background: #028A6C;
-    border-color: #028A6C;
+    background: #0f172a;
     color: #fff;
   }
   .vt-back-btn:hover { background: #1f2937; border-color: #1f2937; }
@@ -315,8 +319,8 @@ const styles = `
 	  @media (max-width: 640px) {
 	    .vt-container { padding: 20px 16px 48px; }
 	    .vt-top-actions { align-items: stretch; }
-	    .vt-event-mode-nav { width: 100%; margin-left: 0; }
-	    .vt-mode-btn { flex: 1 1 calc(50% - 8px); min-width: 132px; }
+	    .vt-event-mode-nav { width: 100%; margin-left: 0; overflow-x: auto; }
+	    .vt-mode-btn { flex: 0 0 auto; min-width: 112px; }
 	    .vt-live-header { flex-wrap: wrap; }
 	    .vt-live-actions { width: 100%; justify-content: flex-end; }
 	    .vt-hero { padding: 22px 18px; }
@@ -556,6 +560,12 @@ function VoteContent({ eventId }) {
           return {
             key: contest?.key || `contest-${contest?.programId}`,
             programId: Number(contest?.programId),
+            eventId: Number(
+              contest?.eventId ??
+                contest?.contestEventId ??
+                contest?.programEventId ??
+                eventId,
+            ),
             title: contest?.title || `콘테스트 #${contest?.programId ?? "-"}`,
             status: contest?.status || toContestStatus(contest),
             totalVotes: toNumber(contest?.totalVotes),
@@ -811,7 +821,25 @@ function VoteContent({ eventId }) {
           </div>
           <button
             className="vt-selector-link"
-            onClick={() => navigate("/program/contest")}
+            onClick={() => {
+              const contestProgramId = Number(activeContest?.programId);
+              const contestEventId = Number(
+                activeContest?.eventId ??
+                  eventDetail?.eventId ??
+                  eventId,
+              );
+              if (Number.isFinite(contestProgramId) && contestProgramId > 0) {
+                const safeContestEventId =
+                  Number.isFinite(contestEventId) && contestEventId > 0
+                    ? contestEventId
+                    : eventId;
+                navigate(
+                  `/program/contest/${safeContestEventId}/detail/${contestProgramId}#candidates`,
+                );
+                return;
+              }
+              navigate("/program/contest");
+            }}
           >
             투표참여 페이지로 이동
           </button>
