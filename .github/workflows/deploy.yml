@@ -92,6 +92,13 @@ jobs:
       EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
       EKS_NAMESPACE: ${{ vars.EKS_NAMESPACE }}
       OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL || 'dall-e-3' }}
+      APP_STORAGE_MODE: ${{ vars.APP_STORAGE_MODE || 's3' }}
+      STORAGE_S3_BUCKET: ${{ vars.STORAGE_S3_BUCKET || 'pupoo-storage' }}
+      STORAGE_S3_REGION: ${{ vars.STORAGE_S3_REGION || vars.AWS_REGION || 'ap-northeast-2' }}
+      APP_STORAGE_KEY_PREFIX: ${{ vars.APP_STORAGE_KEY_PREFIX || 'uploads' }}
+      APP_STORAGE_CDN_BASE_URL: ${{ vars.APP_STORAGE_CDN_BASE_URL || vars.VITE_CDN_BASE_URL || 'https://cdn.pupoo.site' }}
+      APP_STORAGE_SERVICE_ENDPOINT: ${{ vars.APP_STORAGE_SERVICE_ENDPOINT || '' }}
+      APP_STORAGE_PATH_STYLE_ACCESS: ${{ vars.APP_STORAGE_PATH_STYLE_ACCESS || 'false' }}
 
     steps:
       - name: Checkout repository
@@ -341,6 +348,23 @@ jobs:
                 -p="[ { \"op\": \"remove\", \"path\": \"/data/${legacy_key}\" } ]"
             fi
           done
+
+      - name: Sync backend runtime config
+        run: |
+          cat > /tmp/pupoo-backend-config-patch.yaml <<EOF
+          data:
+            STORAGE_MODE: "${APP_STORAGE_MODE}"
+            STORAGE_S3_BUCKET: "${STORAGE_S3_BUCKET}"
+            STORAGE_S3_REGION: "${STORAGE_S3_REGION}"
+            STORAGE_S3_KEY_PREFIX: "${APP_STORAGE_KEY_PREFIX}"
+            APP_STORAGE_CDN_BASE_URL: "${APP_STORAGE_CDN_BASE_URL}"
+            APP_STORAGE_SERVICE_ENDPOINT: "${APP_STORAGE_SERVICE_ENDPOINT}"
+            APP_STORAGE_PATH_STYLE_ACCESS: "${APP_STORAGE_PATH_STYLE_ACCESS}"
+          EOF
+
+          kubectl -n "${EKS_NAMESPACE:-pupoo}" patch configmap pupoo-backend-config \
+            --type merge \
+            --patch-file /tmp/pupoo-backend-config-patch.yaml
 
       - name: Sync AI runtime secrets
         env:

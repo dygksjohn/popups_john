@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Resolves final public URLs from storage keys.
@@ -80,17 +81,30 @@ public class StorageUrlResolver {
     }
 
     private String resolveBaseUrl() {
+        String publicBaseUrl = normalizeBaseUrl(storageProperties.getPublicBaseUrl());
+        if (isLocalMode() && StringUtils.hasText(publicBaseUrl)) {
+            return publicBaseUrl;
+        }
+
         String cdnBaseUrl = normalizeBaseUrl(storageProperties.getCdnBaseUrl());
         if (StringUtils.hasText(cdnBaseUrl)) {
             return cdnBaseUrl;
         }
 
-        String publicBaseUrl = normalizeBaseUrl(storageProperties.getPublicBaseUrl());
         if (StringUtils.hasText(publicBaseUrl)) {
             return publicBaseUrl;
         }
 
         return "";
+    }
+
+    private boolean isLocalMode() {
+        String mode = storageProperties.getMode();
+        if (!StringUtils.hasText(mode)) {
+            return true;
+        }
+        String normalizedMode = mode.trim().toLowerCase(Locale.ROOT);
+        return normalizedMode.equals("local");
     }
 
     private boolean isAbsoluteUrl(String value) {
