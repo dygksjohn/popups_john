@@ -33,6 +33,12 @@ export const LazyInlineVideo = memo(
     const localRef = useRef(null);
     const [shouldLoad, setShouldLoad] = useState(false);
     const [loadFailed, setLoadFailed] = useState(false);
+    const [isReady, setIsReady] = useState(false);
+
+    useEffect(() => {
+      setIsReady(false);
+      setLoadFailed(false);
+    }, [src]);
 
     useEffect(() => {
       const target = localRef.current;
@@ -76,7 +82,7 @@ export const LazyInlineVideo = memo(
 
       if (!active) {
         element.pause();
-      } else if (active && shouldLoad && autoPlay) {
+      } else if (shouldLoad && autoPlay) {
         const playPromise = element.play();
         if (playPromise?.catch) {
           playPromise.catch(() => {});
@@ -90,26 +96,38 @@ export const LazyInlineVideo = memo(
     }, [active, loadFailed, shouldLoad, src]);
 
     return (
-      <video
-        ref={localRef}
-        className={className}
-        style={style}
-        autoPlay={autoPlay}
-        muted={muted}
-        loop={loop}
-        playsInline={playsInline}
-        preload={preload}
-        poster={poster || undefined}
-        onEnded={onEnded}
-        onTimeUpdate={onTimeUpdate}
-        onLoadedMetadata={onLoadedMetadata}
-        onError={() => setLoadFailed(true)}
-      >
-        {resolvedSource ? (
-          <source src={resolvedSource} type={guessVideoType(resolvedSource)} />
+      <div className="relative h-full w-full overflow-hidden">
+        {poster && !isReady ? (
+          <img
+            src={poster}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
         ) : null}
-        {fallbackContent || "브라우저가 영상을 지원하지 않습니다."}
-      </video>
+        <video
+          ref={localRef}
+          className={className}
+          style={style}
+          autoPlay={autoPlay}
+          muted={muted}
+          loop={loop}
+          playsInline={playsInline}
+          preload={preload}
+          poster={poster || undefined}
+          onEnded={onEnded}
+          onTimeUpdate={onTimeUpdate}
+          onLoadedMetadata={onLoadedMetadata}
+          onCanPlay={() => setIsReady(true)}
+          onPlaying={() => setIsReady(true)}
+          onError={() => setLoadFailed(true)}
+        >
+          {resolvedSource ? (
+            <source src={resolvedSource} type={guessVideoType(resolvedSource)} />
+          ) : null}
+          {fallbackContent || "브라우저가 영상을 지원하지 않습니다."}
+        </video>
+      </div>
     );
   }),
 );
