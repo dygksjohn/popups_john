@@ -68,6 +68,20 @@ const GoogleIcon = () => (
   </svg>
 );
 
+const clearPendingSocialJoin = () => {
+  [
+    "kakao_provider_uid",
+    "kakao_email",
+    "kakao_nickname",
+    "google_provider_uid",
+    "google_email",
+    "google_nickname",
+    "naver_provider_uid",
+    "naver_email",
+    "naver_nickname",
+  ].forEach((key) => sessionStorage.removeItem(key));
+};
+
 // ?? Animated geometric shapes for the left panel ?????????????????????????????
 const FloatingShape = ({ style }) => (
   <div
@@ -243,7 +257,8 @@ const LoginPage = ({ leftBgImage = null }) => {
       }
 
       tokenStore.setAccess(accessToken);
-        login();
+      clearPendingSocialJoin();
+      login();
       const redirectTo = resolvePostLoginRedirect();
       sessionStorage.removeItem("post_login_redirect");
       navigate(redirectTo, { replace: true });

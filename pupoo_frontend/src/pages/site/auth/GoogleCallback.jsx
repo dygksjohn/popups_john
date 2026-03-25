@@ -36,6 +36,20 @@ const clearCodeGuard = (code) => {
   }
 };
 
+const clearPendingSocialJoin = () => {
+  [
+    "kakao_provider_uid",
+    "kakao_email",
+    "kakao_nickname",
+    "google_provider_uid",
+    "google_email",
+    "google_nickname",
+    "naver_provider_uid",
+    "naver_email",
+    "naver_nickname",
+  ].forEach((key) => sessionStorage.removeItem(key));
+};
+
 export default function GoogleCallback() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -72,9 +86,7 @@ export default function GoogleCallback() {
       if (isDuplicateCode(code)) return;
       markCodeGuard(code);
 
-      sessionStorage.removeItem("google_provider_uid");
-      sessionStorage.removeItem("google_email");
-      sessionStorage.removeItem("google_nickname");
+      clearPendingSocialJoin();
 
       try {
         const data = await authApi.googleLogin({ code, redirectUri });
@@ -99,6 +111,7 @@ export default function GoogleCallback() {
 
           tokenStore.setAccess(accessToken);
           login();
+          clearPendingSocialJoin();
 
           const redirectTo = resolvePostLoginRedirect();
           sessionStorage.removeItem("post_login_redirect");

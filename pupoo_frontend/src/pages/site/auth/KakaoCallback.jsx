@@ -40,6 +40,20 @@ const clearCodeGuard = (code) => {
   }
 };
 
+const clearPendingSocialJoin = () => {
+  [
+    "kakao_provider_uid",
+    "kakao_email",
+    "kakao_nickname",
+    "google_provider_uid",
+    "google_email",
+    "google_nickname",
+    "naver_provider_uid",
+    "naver_email",
+    "naver_nickname",
+  ].forEach((key) => sessionStorage.removeItem(key));
+};
+
 export default function KakaoCallback() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -80,9 +94,7 @@ export default function KakaoCallback() {
       markCodeGuard(code);
 
       // ✅ 이전 카카오 가입 세션 값 초기화(꼬임 방지)
-      sessionStorage.removeItem("kakao_provider_uid");
-      sessionStorage.removeItem("kakao_email");
-      sessionStorage.removeItem("kakao_nickname");
+      clearPendingSocialJoin();
 
       try {
         const data = await authApi.kakaoLogin({ code, redirectUri });
@@ -111,6 +123,7 @@ export default function KakaoCallback() {
 
           tokenStore.setAccess(accessToken);
           login();
+          clearPendingSocialJoin();
 
           const redirectTo = resolvePostLoginRedirect();
           sessionStorage.removeItem("post_login_redirect");

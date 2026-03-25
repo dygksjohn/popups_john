@@ -165,6 +165,7 @@ function ComingSoon() {
 function PublicOnly({ children }) {
   const { isAuthed } = useAuth();
   const location = useLocation();
+  const isSocialJoinPath = location.pathname.startsWith("/auth/join/");
   const hasPendingSocialJoin =
     typeof window !== "undefined" &&
     (
@@ -173,7 +174,7 @@ function PublicOnly({ children }) {
       sessionStorage.getItem("google_provider_uid")
     );
 
-  if (isAuthed && !hasPendingSocialJoin) {
+  if (isAuthed && (!isSocialJoinPath || !hasPendingSocialJoin)) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
   }
 
