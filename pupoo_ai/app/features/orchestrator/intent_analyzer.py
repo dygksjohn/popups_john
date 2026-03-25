@@ -102,7 +102,12 @@ class IntentAnalyzer:
         best = scored[0]
         second = scored[1] if len(scored) > 1 else None
 
-        if second is not None and best.score - second.score <= 1:
+        if (
+            second is not None
+            and best.score >= best.threshold
+            and second.score >= second.threshold
+            and best.score - second.score <= 1
+        ):
             return IntentResult(
                 intent_type="ambiguous",
                 target="unknown",
@@ -149,6 +154,8 @@ class IntentAnalyzer:
             Candidate("notice_create", "execute", "save_notice", threshold=6, requires_confirmation=True, score=self._score_notice_execute(compact, context, "create")),
             Candidate("notice_update", "execute", "save_notice", threshold=6, requires_confirmation=True, score=self._score_notice_execute(compact, context, "update")),
             Candidate("notice_hide", "execute", "save_notice", threshold=6, requires_confirmation=True, score=self._score_notice_execute(compact, context, "hide")),
+            Candidate("notification_draft_create", "execute", "save_notification_draft", threshold=6, requires_confirmation=True, score=self._score_notification_execute(compact, context, "draft_create")),
+            Candidate("notification_draft_update", "execute", "save_notification_draft", threshold=6, requires_confirmation=True, score=self._score_notification_execute(compact, context, "draft_update")),
             Candidate("notification_draft_delete", "execute", "delete_notification_draft", threshold=7, requires_confirmation=True, score=self._score_notification_execute(compact, context, "delete")),
             Candidate("notification_draft_send", "execute", "send_notification_draft", threshold=7, requires_confirmation=True, score=self._score_notification_execute(compact, context, "draft_send")),
             Candidate("notification_event_send", "execute", "send_event_notification", threshold=7, requires_confirmation=True, score=self._score_notification_execute(compact, context, "event_send")),
@@ -199,6 +206,18 @@ class IntentAnalyzer:
 
     def _score_notification_execute(self, compact: str, context: ChatContext | None, mode: str) -> int:
         score = self._group_score(compact, "notification", 2) + self._group_score(compact, "execute", 2)
+        if mode == "draft_create":
+            score += self._group_score(compact, "create", 2)
+            if self._contains_any(compact, ("저장", "초안", "작성")):
+                score += 2
+            if context and context.notification_draft is not None and context.notification_draft.notification_id is None:
+                score += 1
+        if mode == "draft_update":
+            score += self._group_score(compact, "update", 3)
+            if self._contains_any(compact, ("저장", "수정", "변경")):
+                score += 2
+            if context and context.notification_draft is not None and context.notification_draft.notification_id is not None:
+                score += 3
         if mode == "delete":
             score += self._group_score(compact, "delete", 3)
             if context and context.notification_draft is not None and context.notification_draft.notification_id is not None:

@@ -174,6 +174,7 @@ export function useChatBot() {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [noticeDraft, setNoticeDraft] = useState(() => readJsonStorage(NOTICE_DRAFT_KEY));
   const [notificationDraft, setNotificationDraft] = useState(() => readJsonStorage(NOTIFICATION_DRAFT_KEY));
   const [pendingConfirmation, setPendingConfirmation] = useState(null);
@@ -254,6 +255,8 @@ export function useChatBot() {
           case "notice_create":
           case "notice_update":
           case "notice_hide":
+          case "notification_draft_create":
+          case "notification_draft_update":
           case "notification_draft_delete":
           case "notification_draft_send":
           case "notification_event_send":
@@ -328,7 +331,7 @@ export function useChatBot() {
   );
 
   const confirmExecute = useCallback(async () => {
-    if (!pendingConfirmation || isTyping) return;
+    if (!pendingConfirmation || isTyping || isConfirming) return;
 
     const userMessage = {
       id: idRef.current++,
@@ -339,6 +342,7 @@ export function useChatBot() {
 
     setMessages((prev) => [...prev, userMessage]);
     setIsTyping(true);
+    setIsConfirming(true);
 
     try {
       const response = await requestChat({
@@ -377,8 +381,9 @@ export function useChatBot() {
       ]);
     } finally {
       setIsTyping(false);
+      setIsConfirming(false);
     }
-  }, [applyActions, currentContext, isTyping, messages, pendingConfirmation]);
+  }, [applyActions, currentContext, isConfirming, isTyping, messages, pendingConfirmation]);
 
   const clearMessages = useCallback(() => {
     setPendingConfirmation(null);
@@ -404,6 +409,7 @@ export function useChatBot() {
     input,
     setInput,
     isTyping,
+    isConfirming,
     sendMessage,
     clearMessages,
     confirmExecute,

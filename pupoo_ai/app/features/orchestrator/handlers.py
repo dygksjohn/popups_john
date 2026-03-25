@@ -337,13 +337,21 @@ class ExecuteActionHandler:
     def validation_failure(self, message: str, actions: list[dict] | None = None) -> ChatResponse:
         return ChatResponse(message=message, messageType="validation", actions=actions or [])
 
+    def low_confidence(self, message: str, actions: list[dict] | None = None) -> ChatResponse:
+        return ChatResponse(message=message, messageType="low_confidence", actions=actions or [])
+
     def prepare(self, planned_action: PlannedAction, context: ChatContext) -> ChatResponse:
+        preflight_response = self._handle_preflight_failure(planned_action)
+        if preflight_response is not None:
+            return preflight_response
         if not self._can_prepare_execute(planned_action):
             return self.validation_failure(
                 "실행 요청 해석이 아직 충분히 명확하지 않습니다. 조회인지 실행인지 조금 더 구체적으로 말씀해 주세요.",
             )
         if planned_action.target == "save_notice":
             return self._prepare_notice(planned_action, context)
+        if planned_action.target == "save_notification_draft":
+            return self._prepare_notification(planned_action, context)
         if planned_action.target == "delete_notification_draft":
             return self._prepare_notification_delete(context)
         if planned_action.target in {
@@ -362,6 +370,44 @@ class ExecuteActionHandler:
         metadata = planned_action.metadata or {}
         confidence = str(metadata.get("confidence") or "").lower()
         return confidence == "high"
+
+    def _handle_preflight_failure(self, planned_action: PlannedAction) -> ChatResponse | None:
+        metadata = planned_action.metadata or {}
+        preflight = metadata.get("preflight") or {}
+        status = preflight.get("status")
+        if status in {None, "ok"}:
+            return None
+
+        payload = dict(metadata.get("candidate_payload") or {})
+        message = preflight.get("message") or "필요한 정보가 부족해요."
+        missing_fields = list(preflight.get("missingFields") or [])
+        action_key = (metadata.get("action_key") or planned_action.action_key or "")
+
+        if status == "unsupported":
+            return self.unsupported(message)
+
+        if action_key.startswith("notice_"):
+            actions = [self._prefill_notice_action(payload, supported=False)] if payload else [self._navigate_notice_action()]
+            if status == "low_confidence":
+                return self.low_confidence(message, actions=actions)
+            return self.validation_failure(message, actions=actions)
+
+        if action_key.startswith("notification_"):
+            actions = [
+                self._prefill_notification_action(
+                    payload,
+                    supported=False,
+                    missing_fields=missing_fields,
+                    reason=message,
+                )
+            ] if payload else [self._navigate_notification_action()]
+            if status == "low_confidence":
+                return self.low_confidence(message, actions=actions)
+            return self.validation_failure(message, actions=actions)
+
+        if status == "low_confidence":
+            return self.low_confidence(message)
+        return self.validation_failure(message)
 
     async def confirm(self, confirmation: dict, backend_client: BackendApiClient) -> ChatResponse:
         confirmation_type = str(confirmation.get("executeType") or confirmation.get("type") or "").upper()
@@ -389,7 +435,7 @@ class ExecuteActionHandler:
             )
             saved_notice = {**payload, "noticeId": saved.get("noticeId") or notice_id, "status": str(saved.get("status") or status)}
             return ChatResponse(
-                message=f"공지 저장이 완료되었습니다. noticeId={saved_notice.get('noticeId')}, status={saved_notice.get('status')}",
+                message="공지 저장이 완료됐어요.",
                 actions=[
                     {
                         "type": "PREFILL_FORM",
@@ -416,8 +462,37 @@ class ExecuteActionHandler:
                 return self.validation_failure("삭제할 알림 초안 id가 없습니다.")
             await backend_client.delete_notification_draft(int(notification_id))
             return ChatResponse(
-                message=f"알림 초안 삭제가 완료되었습니다. notificationId={notification_id}",
+                message="알림 초안 삭제가 완료됐어요.",
                 actions=[self._prefill_notification_action({}, supported=False, reason="삭제가 완료되어 기존 초안 정보를 유지하지 않습니다.")],
+            )
+
+        if confirmation_type == "SAVE_NOTIFICATION_DRAFT":
+            draft_body = self._build_notification_draft_body(payload)
+            notification_id = payload.get("notificationId")
+            saved = await (
+                backend_client.update_notification_draft(int(notification_id), draft_body)
+                if notification_id
+                else backend_client.create_notification_draft(draft_body)
+            )
+            saved_payload = {
+                **payload,
+                "notificationId": saved.get("id") or saved.get("notificationId") or notification_id,
+                "title": saved.get("title") or payload.get("title", ""),
+                "content": saved.get("content") or payload.get("content", ""),
+                "alertMode": saved.get("alertMode") or payload.get("alertMode") or "event",
+                "eventId": saved.get("eventId") if "eventId" in saved else payload.get("eventId"),
+            }
+            saved_payload = self._apply_event_defaults(saved_payload)
+            return ChatResponse(
+                message="알림 초안 저장이 완료됐어요.",
+                actions=[
+                    self._prefill_notification_action(
+                        saved_payload,
+                        supported=True,
+                        execute_type="SEND_NOTIFICATION_DRAFT",
+                        reason="초안 저장이 완료됐어요. 필요하면 바로 발송할 수 있어요.",
+                    )
+                ],
             )
 
         if confirmation_type == "SEND_NOTIFICATION_DRAFT":
@@ -570,7 +645,7 @@ class ExecuteActionHandler:
 
         notification_capability = ((planned_action.metadata or {}).get("capabilities") or {}).get("notification") or {}
         supported_execute_types = notification_capability.get("supportedExecuteTypes") or []
-        if execute_type not in supported_execute_types:
+        if execute_type != "SAVE_NOTIFICATION_DRAFT" and execute_type not in supported_execute_types:
             return self.validation_failure(
                 "현재 초안 상태로는 이 실행을 바로 진행할 수 없습니다. 초안 정보를 다시 확인해 주세요.",
                 actions=[self._prefill_notification_action(payload, supported=False)],
@@ -597,9 +672,12 @@ class ExecuteActionHandler:
     def _resolve_notification_execute_type(self, planned_action: PlannedAction, context: ChatContext, payload: dict) -> str | None:
         action_key = (planned_action.metadata or {}).get("action_key") or planned_action.action_key
         explicit_mapping = {
+            "save_notification_draft": "SAVE_NOTIFICATION_DRAFT",
             "send_notification_draft": "SEND_NOTIFICATION_DRAFT",
             "send_event_notification": "SEND_EVENT_NOTIFICATION",
             "send_broadcast_notification": "SEND_BROADCAST_NOTIFICATION",
+            "notification_draft_create": "SAVE_NOTIFICATION_DRAFT",
+            "notification_draft_update": "SAVE_NOTIFICATION_DRAFT",
             "notification_draft_send": "SEND_NOTIFICATION_DRAFT",
             "notification_event_send": "SEND_EVENT_NOTIFICATION",
             "notification_broadcast_send": "SEND_BROADCAST_NOTIFICATION",
@@ -622,6 +700,7 @@ class ExecuteActionHandler:
 
     def _resolve_notification_target_type(self, execute_type: str) -> str:
         mapping = {
+            "SAVE_NOTIFICATION_DRAFT": "NOTIFICATION_DRAFT",
             "SEND_NOTIFICATION_DRAFT": "NOTIFICATION_DRAFT",
             "SEND_EVENT_NOTIFICATION": "EVENT_NOTIFICATION",
             "SEND_BROADCAST_NOTIFICATION": "BROADCAST_NOTIFICATION",
@@ -631,6 +710,7 @@ class ExecuteActionHandler:
 
     def _resolve_notification_label(self, execute_type: str) -> str:
         mapping = {
+            "SAVE_NOTIFICATION_DRAFT": "알림 초안 저장",
             "SEND_NOTIFICATION_DRAFT": "저장된 초안 발송",
             "SEND_EVENT_NOTIFICATION": "이벤트 알림 발송",
             "SEND_BROADCAST_NOTIFICATION": "전체 알림 발송",
@@ -639,6 +719,10 @@ class ExecuteActionHandler:
 
     def _build_notification_description(self, payload: dict, execute_type: str) -> str:
         lines = [f"- 제목: {payload.get('title') or '(없음)'}"]
+        if execute_type == "SAVE_NOTIFICATION_DRAFT":
+            lines.append(f"- alertMode: {payload.get('alertMode') or 'event'}")
+            if payload.get("notificationId") is not None:
+                lines.append(f"- notificationId: {payload.get('notificationId')}")
         if execute_type == "SEND_NOTIFICATION_DRAFT":
             lines.append(f"- notificationId: {payload.get('notificationId')}")
         if execute_type == "SEND_EVENT_NOTIFICATION":
