@@ -28,6 +28,9 @@ import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import BadgeTag from "./shared/BadgeTag";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
+import ModerationNoticeBox, {
+  normalizeModerationPayload,
+} from "./shared/ModerationNoticeBox";
 
 const PAGE_SIZE = 10;
 
@@ -82,7 +85,7 @@ function Overlay({ children, onClose }) {
   );
 }
 
-function WriteModal({ onClose, onSave, saving, errorMessage }) {
+function WriteModal({ onClose, onSave, saving, errorMessage, moderation }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [file, setFile] = useState(null);
@@ -175,6 +178,8 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
             <AlertTriangle size={14} /> {errorMessage}
           </div>
         ) : null}
+
+        <ModerationNoticeBox moderation={moderation} />
 
         <div style={{ marginBottom: 18 }}>
           <label
@@ -566,6 +571,12 @@ export default function InfoBoard() {
   const [writeModalOpen, setWriteModalOpen] = useState(false);
   const [writeSaving, setWriteSaving] = useState(false);
   const [writeError, setWriteError] = useState("");
+  const [writeModeration, setWriteModeration] = useState(null);
+
+  const getErrorMessage = useCallback((err, fallbackMessage) => {
+    const body = err?.response?.data;
+    return body?.error?.message || body?.message || body?.errorMessage || fallbackMessage;
+  }, []);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -770,6 +781,7 @@ export default function InfoBoard() {
 
     setWriteSaving(true);
     setWriteError("");
+    setWriteModeration(null);
     try {
       const created = await postApi.create({
         boardId: infoBoardId,
@@ -780,11 +792,23 @@ export default function InfoBoard() {
       if (file && createdPostId) {
         await fileApi.upload(file, "POST", createdPostId);
       }
+      const normalizedModeration = normalizeModerationPayload(created?.moderation);
+      console.debug("[InfoBoard] moderation payload:", {
+        decision: normalizedModeration?.decision ?? null,
+        message: normalizedModeration?.message ?? null,
+        reason: normalizedModeration?.reason ?? null,
+      });
+      setWriteModeration(normalizedModeration);
       setWriteModalOpen(false);
       await fetchAll();
     } catch (err) {
       console.error("[InfoBoard] create failed:", err);
-      setWriteError(err?.response?.data?.error?.message || "글 등록에 실패했습니다.");
+      console.debug("[InfoBoard] moderation error payload:", {
+        decision: null,
+        message: err?.response?.data?.error?.message ?? err?.response?.data?.message ?? null,
+        reason: err?.response?.data?.error?.reason ?? err?.response?.data?.reason ?? null,
+      });
+      setWriteError(getErrorMessage(err, "글 등록에 실패했습니다."));
     } finally {
       setWriteSaving(false);
     }
@@ -851,8 +875,8 @@ export default function InfoBoard() {
         >
           <span style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>총 {totalElements}개</span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", height: isMobile ? 40 : 48, flexWrap: isMobile ? "wrap" : "nowrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 0, background: isMobile ? "transparent" : "#fff", border: isMobile ? "none" : "1px solid #e2e5ea", borderRadius: 12, height: isMobile ? 40 : 48, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: 0, rowGap: isMobile ? 8 : 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", height: isMobile ? "auto" : 48, flexWrap: isMobile ? "wrap" : "nowrap", rowGap: isMobile ? 8 : 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, background: isMobile ? "transparent" : "#fff", border: isMobile ? "none" : "1px solid #e2e5ea", borderRadius: 12, height: isMobile ? "auto" : 48, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: 0, rowGap: isMobile ? 8 : 0 }}>
               {/* sort button */}
               <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }} ref={sortDdRef}>
                 <button
@@ -906,11 +930,11 @@ export default function InfoBoard() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{
-                    border: isMobile ? "1px solid #e5e7eb" : "none",
+                    border: isMobile ? "1px solid #e2e5ea" : "none",
                     background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: isMobile ? 999 : "0 12px 12px 0",
-                    height: 48,
+                    borderRadius: isMobile ? 12 : "0 12px 12px 0",
+                    height: isMobile ? 48 : 48,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",
@@ -1063,10 +1087,20 @@ export default function InfoBoard() {
         attachmentLoading={attachmentLoading}
         attachmentError={attachmentError}
       />
+      {writeModalOpen ? (
+        <WriteModal
+          onClose={() => {
+            setWriteModalOpen(false);
+            setWriteError("");
+            setWriteModeration(null);
+          }}
+          onSave={submitPost}
+          saving={writeSaving}
+          errorMessage={writeError}
+          moderation={writeModeration}
+        />
+      ) : null}
 
     </>
   );
 }
-
-
-

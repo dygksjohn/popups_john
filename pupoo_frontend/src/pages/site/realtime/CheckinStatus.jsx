@@ -576,7 +576,7 @@ const styles = `
   @media (max-width: 640px) {
     .ck-container { padding: 20px 16px 48px; }
     .ck-container.with-event { padding-top: 20px; }
-    .ck-container.selector-mode { padding-top: 88px; }
+    .ck-container.selector-mode { padding-top: 16px; }
     .ck-top-actions { align-items: stretch; }
     .ck-event-mode-nav { width: 100%; margin-left: 0; overflow-x: auto; }
     .ck-mode-btn { flex: 0 0 auto; min-width: 112px; }
@@ -1285,7 +1285,7 @@ export default function CheckinStatus() {
       <PageHeader
         title={eventId ? "체크인현황" : "실시간현황"}
         subtitle={eventId ? "프로그램 참여 현황을 확인합니다." : "행사별 실시간 데이터를 한눈에 확인하세요"}
-        icon={<RefreshCw size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<RefreshCw size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
       />

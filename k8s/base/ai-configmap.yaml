@@ -9,9 +9,7 @@ data:
   PUPOO_AI_LOG_LEVEL: "INFO"
   PUPOO_AI_BACKEND_BASE_URL: "http://pupoo-backend:80"
   PUPOO_AI_BACKEND_TIMEOUT_SECONDS: "15"
-  # 금지어(RAG+watsonx LLM)는 정책/임베딩 검색이 길어질 수 있어 충분히 대기한다.
-  # 사용자 요청에 따라 최대 90초까지 기다리도록 설정한다.
-  PUPOO_AI_MODERATION_TIMEOUT_SECONDS: "90"
+  PUPOO_AI_MODERATION_TIMEOUT_SECONDS: "30"
   PUPOO_AI_POSTER_PROVIDER: "openai"
   PUPOO_AI_POSTER_OPENAI_MODEL: "dall-e-3"
   PUPOO_AI_POSTER_OPENAI_BASE_URL: "https://api.openai.com/v1"
@@ -31,11 +29,8 @@ data:
   PUPOO_AI_WATSONX_LLM_ID: "meta-llama/llama-3-3-70b-instruct"
   PUPOO_AI_WATSONX_EMBEDDING_MODEL_ID: "ibm/granite-embedding-278m-multilingual"
   PUPOO_AI_WATSONX_EMBEDDING_DIM: "768"
-  # Milvus(Standalone): proxy Service DNS를 명시한다.
-  # 예) Helm release가 my-milvus, namespace가 milvus면:
-  #     my-milvus-milvus.milvus.svc.cluster.local
-  # 값은 운영 클러스터의 실제 Service 이름으로 교체해야 한다.
-  PUPOO_AI_MILVUS_HOST: "REPLACE_ME_MILVUS_PROXY_DNS"
+  # Milvus: 클러스터 내 서비스 DNS로 교체 (예: 동일 네임스페이스면 서비스 이름만)
+  PUPOO_AI_MILVUS_HOST: "my-milvus.milvus"
   PUPOO_AI_MILVUS_PORT: "19530"
   PUPOO_AI_MILVUS_TLS: "false"
   PUPOO_AI_MILVUS_COLLECTION: "policy_vectors"

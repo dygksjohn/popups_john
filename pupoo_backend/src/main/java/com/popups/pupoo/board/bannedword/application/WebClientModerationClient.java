@@ -34,7 +34,7 @@ public class WebClientModerationClient implements ModerationClient {
 
         if (!properties.isEnabled()) {
             log.warn("AI moderation is disabled by config (baseUrl={})", properties.getBaseUrl());
-            return blocked("AI 모더레이션이 비활성화되어 요청을 차단했어요.", "disabled");
+            return blocked("\u0041\u0049 \uBAA8\uB354\uB808\uC774\uC158\uC774 \uBE44\uD65C\uC131\uD654\uB418\uC5B4 \uC694\uCCAD\uC744 \uCC28\uB2E8\uD588\uC2B5\uB2C8\uB2E4.", "disabled");
         }
 
         try {
@@ -67,13 +67,13 @@ public class WebClientModerationClient implements ModerationClient {
                     .block(Duration.ofMillis(Math.max(1000, properties.getReadTimeoutMs()) + 500L));
 
             if (response == null) {
-                return blocked("AI 서버 응답이 없어 요청을 차단했어요.", "error");
+                return blocked("\u0041\u0049 \uC11C\uBC84 \uC751\uB2F5\uC774 \uC5C6\uC5B4 \uC694\uCCAD\uC744 \uCC28\uB2E8\uD588\uC2B5\uB2C8\uB2E4.", "error");
             }
 
-            String result = asString(response.get("result"));
+            String decision = asString(response.get("decision"));
             String action = asString(response.get("action"));
-            String normalized = "PASS".equalsIgnoreCase(result) ? "PASS"
-                    : "PASS".equalsIgnoreCase(action) ? "PASS" : "BLOCK";
+            String result = asString(response.get("result"));
+            String normalized = normalizeAction(decision, action, result);
             String reason = asString(response.get("reason"));
             String stack = asString(response.get("stack"));
             Float score = asFloat(response.get("score"));
@@ -91,13 +91,13 @@ public class WebClientModerationClient implements ModerationClient {
             log.warn("AI moderation API error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
             log.warn("AI moderation API error context: boardId={}, contentType={}, baseUrl={}, textLen={}, preview='{}'",
                     boardId, contentType, properties.getBaseUrl(), textLen, preview);
-            return blocked("AI 서버 오류로 요청을 차단했어요.", "error");
+            return blocked("\u0041\u0049 \uC11C\uBC84 \uC624\uB958\uB85C \uC694\uCCAD\uC744 \uCC28\uB2E8\uD588\uC2B5\uB2C8\uB2E4.", "error");
         } catch (Exception e) {
             String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             log.warn("AI moderation call failed: {} (baseUrl={})", errMsg, properties.getBaseUrl(), e);
             log.warn("AI moderation call failed context: boardId={}, contentType={}, baseUrl={}, textLen={}, preview='{}'",
                     boardId, contentType, properties.getBaseUrl(), textLen, preview);
-            return blocked("AI 서버 연결 실패로 요청을 차단했어요.", "error");
+            return blocked("\u0041\u0049 \uC11C\uBC84 \uC5F0\uACB0 \uC2E4\uD328\uB85C \uC694\uCCAD\uC744 \uCC28\uB2E8\uD588\uC2B5\uB2C8\uB2E4.", "error");
         }
     }
 
@@ -107,6 +107,30 @@ public class WebClientModerationClient implements ModerationClient {
                 .reason(reason)
                 .stack(stack)
                 .build();
+    }
+
+    private String normalizeAction(String decision, String action, String result) {
+        String primary = asString(decision);
+        String secondary = asString(action);
+        String tertiary = asString(result);
+
+        if (isAllowLike(primary) || isAllowLike(secondary) || isAllowLike(tertiary)) {
+            return "ALLOW";
+        }
+        if ("WARN".equalsIgnoreCase(primary) || "WARN".equalsIgnoreCase(secondary) || "WARN".equalsIgnoreCase(tertiary)) {
+            return "WARN";
+        }
+        if ("REVIEW".equalsIgnoreCase(primary) || "REVIEW".equalsIgnoreCase(secondary) || "REVIEW".equalsIgnoreCase(tertiary)) {
+            return "REVIEW";
+        }
+        if ("BLOCK".equalsIgnoreCase(primary) || "BLOCK".equalsIgnoreCase(secondary) || "BLOCK".equalsIgnoreCase(tertiary)) {
+            return "BLOCK";
+        }
+        return "BLOCK";
+    }
+
+    private boolean isAllowLike(String value) {
+        return "PASS".equalsIgnoreCase(value) || "ALLOW".equalsIgnoreCase(value);
     }
 
     private String asString(Object value) {

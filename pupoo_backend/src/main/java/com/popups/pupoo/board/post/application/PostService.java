@@ -1,37 +1,39 @@
 // file: src/main/java/com/popups/pupoo/board/post/application/PostService.java
 package com.popups.pupoo.board.post.application;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.popups.pupoo.board.bannedword.application.BannedWordService;
-import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
-import com.popups.pupoo.board.bannedword.application.ModerationClient;
-import com.popups.pupoo.board.bannedword.application.ModerationResult;
+import com.popups.pupoo.board.bannedword.application.ContentModerationService;
 import com.popups.pupoo.board.bannedword.application.ModerationBlockMessageResolver;
+import com.popups.pupoo.board.bannedword.application.ModerationResult;
+import com.popups.pupoo.board.bannedword.domain.enums.BannedLogContentType;
 import com.popups.pupoo.board.boardinfo.domain.enums.BoardType;
 import com.popups.pupoo.board.boardinfo.domain.model.Board;
 import com.popups.pupoo.board.boardinfo.persistence.BoardRepository;
 import com.popups.pupoo.board.post.domain.enums.PostStatus;
 import com.popups.pupoo.board.post.domain.model.Post;
 import com.popups.pupoo.board.post.dto.PostCreateRequest;
+import com.popups.pupoo.board.post.dto.PostModerationResponse;
 import com.popups.pupoo.board.post.dto.PostResponse;
 import com.popups.pupoo.board.post.dto.PostUpdateRequest;
 import com.popups.pupoo.board.post.persistence.PostRepository;
-import com.popups.pupoo.reply.persistence.PostCommentRepository;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.common.search.SearchType;
+import com.popups.pupoo.reply.persistence.PostCommentRepository;
 import com.popups.pupoo.user.persistence.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -43,7 +45,7 @@ public class PostService {
     private final PostCommentRepository postCommentRepository;
     private final BoardRepository boardRepository;
     private final BannedWordService bannedWordService;
-    private final ModerationClient moderationClient;
+    private final ContentModerationService contentModerationService;
     private final UserRepository userRepository;
     private final ModerationBlockMessageResolver moderationBlockMessageResolver;
 
@@ -83,11 +85,11 @@ public class PostService {
     }
 
     public Page<PostResponse> getPublicPosts(Long boardId,
-                                              BoardType boardType,
-                                              SearchType searchType,
-                                              String keyword,
-                                              Pageable pageable,
-                                              String sortKey) {
+                                             BoardType boardType,
+                                             SearchType searchType,
+                                             String keyword,
+                                             Pageable pageable,
+                                             String sortKey) {
         Long resolvedBoardId = resolveBoardId(boardId, boardType);
         SearchType effectiveType = (searchType != null) ? searchType : SearchType.TITLE_CONTENT;
 
@@ -176,17 +178,22 @@ public class PostService {
     }
 
     private PostResponse toResponse(Post post) {
-        return toResponse(post, null);
+        return toResponse(post, null, null);
     }
 
     private PostResponse toResponse(Post post, Long commentCount) {
+        return toResponse(post, commentCount, null);
+    }
+
+    private PostResponse toResponse(Post post, Long commentCount, ModerationResult moderationResult) {
         return PostResponse.from(
                 post,
                 getWriterEmail(post.getUserId()),
                 getWriterNickname(post.getUserId()),
                 post.getPostTitle(),
                 post.getContent(),
-                commentCount
+                commentCount,
+                PostModerationResponse.from(moderationResult)
         );
     }
 
@@ -205,7 +212,7 @@ public class PostService {
     }
 
     @Transactional
-    public Long createPost(Long userId, PostCreateRequest req) {
+    public PostResponse createPost(Long userId, PostCreateRequest req) {
         if (req == null) {
             log.warn("createPost called with null req (userId={})", userId);
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "request is required");
@@ -216,7 +223,6 @@ public class PostService {
         int contentLen = content == null ? 0 : content.length();
         String titlePreview = title == null ? "null" : (title.length() <= 40 ? title : title.substring(0, 40) + "...");
         String contentPreview = content == null ? "null" : (content.length() <= 40 ? content : content.substring(0, 40) + "...");
-        // debugging: 400 등으로 moderation 이전에 막히는 케이스가 있어, info 대신 warn으로 항상 노출한다.
         log.warn("createPost request: userId={}, boardId={}, postTitleLen={}, contentLen={}, titlePreview='{}', contentPreview='{}'",
                 userId, req.getBoardId(), titleLen, contentLen, titlePreview, contentPreview);
 
@@ -236,9 +242,10 @@ public class PostService {
             String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
             log.warn("Calling AI moderation for post: textLen={}, preview='{}'",
                     textToModerate.length(), textToModerate.length() <= 60 ? textToModerate : textToModerate.substring(0, 60) + "...");
-            modResult = moderationClient.moderate(textToModerate.trim(), req.getBoardId(), "POST");
+            modResult = contentModerationService.moderatePost(board, req.getPostTitle(), req.getContent());
             if (modResult != null && modResult.isBlock()) {
-                // 생성 단계에서 BLOCK 된 요청도 로그에 남긴다 (contentId는 아직 없음).
+                log.warn("Final moderation decision: operation=create, boardId={}, boardType={}, decision={}, result=fail",
+                        board.getBoardId(), board.getBoardType(), modResult.getAction());
                 bannedWordService.logAiModeration(
                         req.getBoardId(),
                         null,
@@ -246,8 +253,7 @@ public class PostService {
                         userId,
                         modResult
                 );
-                // 기술/서버 장애 등으로 BLOCK 된 경우에도 reason/stack을 반영해 안내문구를 다르게 노출한다.
-                String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("게시글", modResult);
+                String msg = moderationBlockMessageResolver.resolveCreateBlockMessage("\uAC8C\uC2DC\uAE00", modResult);
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED, msg);
             }
         }
@@ -265,26 +271,24 @@ public class PostService {
                 .build();
 
         Post saved = postRepository.save(post);
-        return saved.getPostId();
+        log.info("Final moderation decision: operation=create, boardId={}, boardType={}, decision={}, result=success, moderationIncluded={}",
+                board.getBoardId(),
+                board.getBoardType(),
+                modResult != null ? modResult.getAction() : "SKIP",
+                PostModerationResponse.from(modResult) != null);
+        return toResponse(saved, null, modResult);
     }
 
     @Transactional
-    public void updatePost(Long userId, Long postId, PostUpdateRequest req) {
+    public PostResponse updatePost(Long userId, Long postId, PostUpdateRequest req) {
         if (userId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         Post post = postRepository.findByPostIdAndUserIdAndDeletedFalse(postId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "No permission to update"));
 
-        applyPostUpdateWithModeration(post, req, userId);
+        return applyPostUpdateWithModeration(post, req, userId);
     }
 
-    /**
-     * 관리자 콘솔: 작성자와 무관하게 게시글 본문/제목 수정.
-     * <p>
-     * 일반 사용자 수정({@link #updatePost})과 달리 저장 자체는 막지 않지만,
-     * AI 모더레이션 BLOCK 판정은 `board_banned_logs`에 로그로 남긴다.
-     * 운영자가 정정·복구 목적으로 글을 편집할 때 AI로 인해 저장이 실패(400)하지 않도록 한다.
-     */
     @Transactional
     public void adminUpdatePost(Long adminUserId, Long postId, PostUpdateRequest req) {
         if (adminUserId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
@@ -299,8 +303,7 @@ public class PostService {
         // 관리자 수정에서도 AI 판정 결과를 로그로 남기기 위해 모더레이션 호출만 수행한다.
         // (BLOCK이면 예외로 막지 않고, 로그만 남긴다.)
         Long boardId = post.getBoard().getBoardId();
-        String textToModerate = req.getPostTitle() + " " + req.getContent();
-        ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), boardId, "POST");
+        ModerationResult modResult = contentModerationService.moderatePost(post.getBoard(), req.getPostTitle(), req.getContent());
         if (modResult != null && modResult.isBlock()) {
             bannedWordService.logAiModeration(
                     boardId,
@@ -314,15 +317,17 @@ public class PostService {
         post.updateTitleAndContent(req.getPostTitle(), req.getContent());
     }
 
-    private void applyPostUpdateWithModeration(Post post, PostUpdateRequest req, Long userIdForModeration) {
+    private PostResponse applyPostUpdateWithModeration(Post post, PostUpdateRequest req, Long userIdForModeration) {
         if (req.getPostTitle() == null || req.getPostTitle().isBlank() || req.getContent() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "postTitle/content is required");
         }
 
+        ModerationResult modResult = null;
         if (!bannedWordService.shouldSkipModeration(userIdForModeration)) {
-            String textToModerate = (req.getPostTitle() != null ? req.getPostTitle() : "") + " " + (req.getContent() != null ? req.getContent() : "");
-            ModerationResult modResult = moderationClient.moderate(textToModerate.trim(), post.getBoard().getBoardId(), "POST");
+            modResult = contentModerationService.moderatePost(post.getBoard(), req.getPostTitle(), req.getContent());
             if (modResult != null && modResult.isBlock()) {
+                log.warn("Final moderation decision: operation=update, boardId={}, boardType={}, postId={}, decision={}, result=fail",
+                        post.getBoard().getBoardId(), post.getBoard().getBoardType(), post.getPostId(), modResult.getAction());
                 bannedWordService.logAiModeration(
                         post.getBoard().getBoardId(),
                         post.getPostId(),
@@ -332,13 +337,18 @@ public class PostService {
                 );
                 throw new BusinessException(
                         ErrorCode.VALIDATION_FAILED,
-                        moderationBlockMessageResolver.resolveUpdateBlockMessage("게시글", modResult)
+                        moderationBlockMessageResolver.resolveUpdateBlockMessage("\uAC8C\uC2DC\uAE00", modResult)
                 );
             }
-            post.updateTitleAndContent(req.getPostTitle(), req.getContent());
-        } else {
-            post.updateTitleAndContent(req.getPostTitle(), req.getContent());
         }
+        post.updateTitleAndContent(req.getPostTitle(), req.getContent());
+        log.info("Final moderation decision: operation=update, boardId={}, boardType={}, postId={}, decision={}, result=success, moderationIncluded={}",
+                post.getBoard().getBoardId(),
+                post.getBoard().getBoardType(),
+                post.getPostId(),
+                modResult != null ? modResult.getAction() : "SKIP",
+                PostModerationResponse.from(modResult) != null);
+        return toResponse(post, null, modResult);
     }
 
     @Transactional

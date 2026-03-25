@@ -103,7 +103,7 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const kakaoRedirectUri = `${window.location.origin}/auth/kakao/callback`;
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
-  const naverRedirectUri = `${window.location.origin}/auth/naver/callback`;
+  const naverRedirectUri = `${window.location.origin}/naver/callback`;
   const NAVER_CLIENT_ID = import.meta.env.VITE_NAVER_CLIENT_ID;
   const resolvePostLoginRedirect = () => {
     const target =
@@ -603,12 +603,12 @@ const LoginPage = ({ leftBgImage = null }) => {
                   }}
                 >
                   <NaverBrandMark
-                    size={isMobile ? 18 : 20}
+                    size={isMobile ? 20 : 22}
                     rounded={4}
                     background="#FFFFFF"
                     color="#03C75A"
                   />
-                  <span>naver로 로그인</span>
+                  <span>네이버로 로그인</span>
                 </SocialButton>
               </div>
             </div>

@@ -4,6 +4,11 @@ import { authApi } from "../api/authApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
 import {
+  clearSocialJoinState,
+  getSocialJoinState,
+  setSocialJoinState,
+} from "../socialJoinStorage";
+import {
   getSmsRequestErrorMessage,
   normalizeDigits,
   toKoreanPhoneE164,
@@ -29,28 +34,29 @@ export default function GoogleJoin() {
   const { login } = useAuth();
   const didInitRef = useRef(false);
 
-  const googleSession = useMemo(
-    () => ({
-      providerUid: sessionStorage.getItem("google_provider_uid") ?? "",
-      email: sessionStorage.getItem("google_email") ?? "",
-      nickname: sessionStorage.getItem("google_nickname") ?? "",
-    }),
-    [],
-  );
+  const googleSession = useMemo(() => getSocialJoinState("google") || ({
+    providerUid: "",
+    email: "",
+    nickname: "",
+    tempPassword: "",
+    signupKey: "",
+    phone: "",
+    step: "FORM",
+  }), []);
 
   const [providerUid] = useState(googleSession.providerUid);
   const [email, setEmail] = useState(googleSession.email);
   const [nickname, setNickname] = useState(googleSession.nickname);
-  const [phone, setPhone] = useState("");
-  const [step, setStep] = useState(STEP.INIT);
-  const [signupKey, setSignupKey] = useState("");
+  const [phone, setPhone] = useState(googleSession.phone || "");
+  const [step, setStep] = useState(googleSession.step || STEP.INIT);
+  const [signupKey, setSignupKey] = useState(googleSession.signupKey || "");
   const [otpCode, setOtpCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const [tempPassword] = useState(() => {
     const key = "google_temp_password";
-    const existing = sessionStorage.getItem(key);
+    const existing = googleSession.tempPassword || sessionStorage.getItem(key);
     if (existing) return existing;
 
     const rand = `${crypto.randomUUID()}-${Math.random().toString(36).slice(2)}`;
@@ -88,8 +94,21 @@ export default function GoogleJoin() {
       return;
     }
 
-    setStep(STEP.FORM);
+    setStep(googleSession.signupKey ? STEP.OTP : STEP.FORM);
   }, [navigate, providerUid]);
+
+  useEffect(() => {
+    if (!providerUid) return;
+    setSocialJoinState("google", {
+      providerUid,
+      email,
+      nickname,
+      tempPassword,
+      signupKey,
+      phone,
+      step,
+    });
+  }, [email, nickname, phone, providerUid, signupKey, step, tempPassword]);
 
   const sendOtp = async () => {
     if (!canSendOtp) return;
@@ -116,6 +135,15 @@ export default function GoogleJoin() {
 
       setSignupKey(key);
       setStep(STEP.OTP);
+      setSocialJoinState("google", {
+        providerUid,
+        email: emailTrim,
+        nickname: nickTrim,
+        tempPassword,
+        signupKey: key,
+        phone,
+        step: STEP.OTP,
+      });
 
       if (res?.devOtp) {
         setOtpCode(String(res.devOtp));
@@ -151,13 +179,8 @@ export default function GoogleJoin() {
       tokenStore.setAccess(accessToken);
       login();
 
-      [
-        "google_temp_password",
-        "google_provider_uid",
-        "google_email",
-        "google_nickname",
-        "post_login_redirect",
-      ].forEach((key) => sessionStorage.removeItem(key));
+      clearSocialJoinState("google");
+      sessionStorage.removeItem("post_login_redirect");
 
       navigate("/", { replace: true });
     } catch (e) {

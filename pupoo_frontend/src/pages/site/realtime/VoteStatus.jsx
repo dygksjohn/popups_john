@@ -47,7 +47,7 @@ const styles = `
   .vt-root *, .vt-root *::before, .vt-root *::after { box-sizing: border-box; font-family: inherit; }
   .vt-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
   .vt-container.with-event { padding-top: 20px; }
-  .vt-container.selector-mode { padding-top: 32px; }
+  .vt-container.selector-mode { padding-top: 16px; }
   .vt-page-shell { max-width: 1400px; margin: 0 auto; }
   .vt-top-actions {
     display: flex;
@@ -198,7 +198,7 @@ const styles = `
   }
   .vt-timestamp { font-size: 14px; color: #9ca3af; font-weight: 500; font-variant-numeric: tabular-nums; }
   .vt-refresh-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #6b7280; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; }
-  .vt-refresh-btn:hover { border-color: #02A17E; color: #02A17E; background: #f5f8ff; }
+  .vt-refresh-btn:hover { border-color: #90C450; color: #90C450; background: #f5f8ff; }
   .vt-refresh-btn:active { transform: scale(0.93); }
 
   .vt-status-chip {
@@ -208,7 +208,7 @@ const styles = `
   .vt-status-chip-active { background: #ecfdf3; color: #166534; border: 1px solid #bbf7d0; }
   .vt-status-chip-active .vt-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: vt-pulse 1.6s ease-in-out infinite; }
   .vt-status-chip-ended { background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
-  .vt-status-chip-planned { background: #E6F7F2; color: #02A17E; border: 1px solid #CCF0E4; }
+  .vt-status-chip-planned { background: #E6F7F2; color: #90C450; border: 1px solid #CCF0E4; }
   @keyframes vt-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.75); } }
 
   /* ── 카드 ── */
@@ -241,11 +241,11 @@ const styles = `
     padding: 6px 10px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
   }
   .vt-selector-status-btn:hover { border-color: #94a3b8; background: #f8fafc; }
-  .vt-selector-status-btn.active { border-color: #02A17E; background: #E6F7F2; color: #028A6C; }
+  .vt-selector-status-btn.active { border-color: #90C450; background: #E6F7F2; color: #028A6C; }
   .vt-selector-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
   .vt-selector-item { min-width: 200px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; padding: 14px; text-align: left; cursor: pointer; transition: all 0.15s; }
   .vt-selector-item:hover { border-color: #cbd5e1; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-  .vt-selector-item.active { border-color: #02A17E; background: #f8fbff; box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12); }
+  .vt-selector-item.active { border-color: #90C450; background: #f8fbff; box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12); }
   .vt-selector-empty { min-width: 100%; border: 1px dashed #dbe3ef; border-radius: 10px; background: #fafcff; color: #6b7280; font-size: 12px; font-weight: 600; text-align: center; padding: 14px 12px; }
   .vt-selector-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
   .vt-selector-name { margin: 0; font-size: 13px; font-weight: 800; color: #111827; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -254,7 +254,7 @@ const styles = `
   .vt-selector-status-live { color: #166534; background: #ecfdf3; border-color: #bbf7d0; }
   .vt-selector-status-wait { color: #854d0e; background: #fffbeb; border-color: #fde68a; }
   .vt-selector-status-end { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
-  .vt-selector-link { border: 0; background: transparent; color: #02A17E; font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; }
+  .vt-selector-link { border: 0; background: transparent; color: #90C450; font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; }
   .vt-selector-link:hover { text-decoration: underline; }
 
   /* ── 순위 + 상세 ── */
@@ -303,7 +303,7 @@ const styles = `
   .vt-notice::before {
     content: "ℹ"; display: flex; align-items: center; justify-content: center;
     width: 28px; height: 28px; border-radius: 8px;
-    background: #02A17E; color: #fff; font-size: 14px; font-weight: 800; flex-shrink: 0;
+    background: #90C450; color: #fff; font-size: 14px; font-weight: 800; flex-shrink: 0;
   }
   .vt-empty { text-align: center; padding: 44px 0; color: #c5c9cf; font-size: 14px; font-weight: 500; }
 
@@ -1022,7 +1022,7 @@ export default function VoteStatus() {
       <PageHeader
         title={eventId ? "투표현황" : "실시간현황"}
         subtitle={eventId ? "진행 중인 투표의 실시간 결과를 확인합니다" : "행사별 실시간 데이터를 한눈에 확인하세요"}
-        icon={<Vote size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<Vote size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
       />

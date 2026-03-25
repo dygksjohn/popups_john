@@ -5,6 +5,7 @@ namespace: pupoo
 
 resources:
   - namespace.yaml
+  - gp3-storageclass.yaml
   - backend-serviceaccount.yaml
   - ai-serviceaccount.yaml
   - backend-configmap.yaml
