@@ -7,10 +7,11 @@ data:
   SPRING_PROFILES_ACTIVE: "prod"
   SERVER_PORT: "8080"
   AI_SERVICE_BASE_URL: "http://pupoo-ai:80"
+  AI_MODERATION_ENABLED: "true"
   # Spring property: ai.moderation.base-url=${AI_MODERATION_BASE_URL:...}
   AI_MODERATION_BASE_URL: "http://pupoo-ai:80"
-  AI_MODERATION_CONNECT_TIMEOUT_MS: "3000"
-  AI_MODERATION_READ_TIMEOUT_MS: "8000"
+  AI_MODERATION_CONNECT_TIMEOUT_MS: "5000"
+  AI_MODERATION_READ_TIMEOUT_MS: "30000"
   # Backward-compat: (기존에 넣어두신 키) 남겨둬도 무방하지만, Spring은 AI_MODERATION_* 키를 우선으로 읽습니다.
   APP_AI_MODERATION_BASE_URL: "http://pupoo-ai:80"
   STORAGE_MODE: "S3"
