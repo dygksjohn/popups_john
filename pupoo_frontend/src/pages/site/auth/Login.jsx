@@ -89,7 +89,7 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const kakaoRedirectUri = `${window.location.origin}/auth/kakao/callback`;
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
-  const naverRedirectUri = `${window.location.origin}/naver/callback`;
+  const naverRedirectUri = `${window.location.origin}/auth/naver/callback`;
   const NAVER_CLIENT_ID = import.meta.env.VITE_NAVER_CLIENT_ID;
   const resolvePostLoginRedirect = () => {
     const target =
@@ -104,6 +104,13 @@ const LoginPage = ({ leftBgImage = null }) => {
       console.error("Kakao env missing");
       return;
     }
+
+    tokenStore.clear();
+    sessionStorage.removeItem("kakao_auth_code");
+    sessionStorage.removeItem("kakao_oauth_code_guard");
+    sessionStorage.removeItem("kakao_provider_uid");
+    sessionStorage.removeItem("kakao_email");
+    sessionStorage.removeItem("kakao_nickname");
 
     // Redirect priority after login success
     // 1. from passed by ProtectedRoute
@@ -127,6 +134,13 @@ const LoginPage = ({ leftBgImage = null }) => {
       console.error("Naver env missing");
       return;
     }
+
+    tokenStore.clear();
+    sessionStorage.removeItem("naver_oauth_state");
+    sessionStorage.removeItem("naver_oauth_code_guard");
+    sessionStorage.removeItem("naver_provider_uid");
+    sessionStorage.removeItem("naver_email");
+    sessionStorage.removeItem("naver_nickname");
 
     const redirectTo = resolvePostLoginRedirect();
     sessionStorage.setItem("post_login_redirect", redirectTo);
@@ -191,6 +205,11 @@ const LoginPage = ({ leftBgImage = null }) => {
     const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     const googleRedirectUri = `${window.location.origin}/auth/google/callback`;
     if (!GOOGLE_CLIENT_ID) { setToast("VITE_GOOGLE_CLIENT_ID가 설정되지 않았습니다."); return; }
+    tokenStore.clear();
+    sessionStorage.removeItem("google_oauth_code_guard");
+    sessionStorage.removeItem("google_provider_uid");
+    sessionStorage.removeItem("google_email");
+    sessionStorage.removeItem("google_nickname");
     const redirectTo = resolvePostLoginRedirect();
     sessionStorage.setItem("post_login_redirect", redirectTo);
     const params = new URLSearchParams({

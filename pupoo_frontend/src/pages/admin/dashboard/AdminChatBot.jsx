@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Minus, RotateCcw, Send, Sparkles, X } from "lucide-react";
+import Lottie from "lottie-react";
+import dogLottie from "../../../../public/dog-lottie.json";
 import ds from "../shared/designTokens";
 import { useChatBot } from "./useChatBot";
 
@@ -84,6 +86,39 @@ function Avatar({ small = false }) {
       }}
     >
       🐶
+    </div>
+  );
+}
+
+function DogAvatar({ small = false }) {
+  const size = small ? 34 : 72;
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: small ? 12 : 18,
+        background: "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,244,238,0.98) 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: small
+          ? "0 6px 14px rgba(0,0,0,0.14)"
+          : "0 12px 28px rgba(255,107,107,0.22)",
+        overflow: "hidden",
+        flexShrink: 0,
+      }}
+    >
+      <Lottie
+        animationData={dogLottie}
+        loop
+        autoplay
+        style={{
+          width: small ? 34 : 84,
+          height: small ? 34 : 84,
+          transform: small ? "scale(1.1)" : "scale(1.18)",
+        }}
+      />
     </div>
   );
 }
@@ -677,7 +712,7 @@ export default function AdminChatBot() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Avatar small={false} />
+              <Avatar small />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 700 }}>멍비서 누리</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
@@ -770,7 +805,28 @@ export default function AdminChatBot() {
             fontSize: isMobile ? 22 : 24,
           }}
         >
-          🐶
+          <div
+            style={{
+              width: isMobile ? 52 : 60,
+              height: isMobile ? 52 : 60,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+              borderRadius: "50%",
+            }}
+          >
+            <Lottie
+              animationData={dogLottie}
+              loop
+              autoplay
+              style={{
+                width: isMobile ? 58 : 68,
+                height: isMobile ? 58 : 68,
+                transform: "scale(1.12)",
+              }}
+            />
+          </div>
         </button>
       )}
     </>

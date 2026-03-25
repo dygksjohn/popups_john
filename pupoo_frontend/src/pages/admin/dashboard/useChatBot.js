@@ -8,6 +8,9 @@ const NOTICE_DRAFT_KEY = "pupoo_admin_chatbot_notice_draft";
 const NOTIFICATION_DRAFT_KEY = "pupoo_admin_chatbot_notification_draft";
 const NOTICE_SYNC_EVENT = "pupoo-admin-chatbot-sync-notice";
 const NOTIFICATION_SYNC_EVENT = "pupoo-admin-chatbot-sync-notification";
+const DASHBOARD_TARGET_KEY = "pupoo_admin_dashboard_target";
+const DASHBOARD_TARGET_EVENT = "pupoo-admin-dashboard-target";
+const ADMIN_DASHBOARD_ROUTE = "/admin/dashboard";
 
 const QUICK_ACTIONS = [
   {
@@ -205,6 +208,18 @@ function writeJsonStorage(key, value) {
     sessionStorage.setItem(key, JSON.stringify(value));
   } catch {
     // ignore storage failures
+  }
+}
+
+function setDashboardTarget(page) {
+  if (!page) return;
+  try {
+    sessionStorage.setItem(DASHBOARD_TARGET_KEY, page);
+  } catch {
+    // ignore storage failures
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(DASHBOARD_TARGET_EVENT, { detail: { page } }));
   }
 }
 
@@ -415,11 +430,24 @@ export function useChatBot() {
       normalizeActions(actions).forEach((action) => {
         switch (action?.actionKey) {
           case "navigate_dashboard":
+            setDashboardTarget("dashboard");
+            navigate(ADMIN_DASHBOARD_ROUTE);
+            break;
           case "navigate_notice_manage":
+            setDashboardTarget("notice");
+            navigate(ADMIN_DASHBOARD_ROUTE);
+            break;
           case "navigate_notification_manage":
+            setDashboardTarget("alertManage");
+            navigate(ADMIN_DASHBOARD_ROUTE);
+            break;
           case "navigate_event_manage":
+            setDashboardTarget("eventManage");
+            navigate(ADMIN_DASHBOARD_ROUTE);
+            break;
           case "navigate_refund_manage":
-            if (action?.payload?.route) navigate(action.payload.route);
+            setDashboardTarget("refundManage");
+            navigate(ADMIN_DASHBOARD_ROUTE);
             break;
           case "prefill_notice_form": {
             const storedPayload = {
@@ -430,7 +458,8 @@ export function useChatBot() {
             };
             writeJsonStorage(NOTICE_DRAFT_KEY, storedPayload);
             setNoticeDraft(storedPayload);
-            if (action?.payload?.route) navigate(action.payload.route);
+            setDashboardTarget(action?.payload?.page || "notice");
+            navigate(ADMIN_DASHBOARD_ROUTE);
             window.dispatchEvent(new CustomEvent("pupoo-admin-chatbot-prefill-notice", { detail: storedPayload }));
             break;
           }
@@ -443,7 +472,8 @@ export function useChatBot() {
             };
             writeJsonStorage(NOTIFICATION_DRAFT_KEY, storedPayload);
             setNotificationDraft(storedPayload);
-            if (action?.payload?.route) navigate(action.payload.route);
+            setDashboardTarget(action?.payload?.page || "alertManage");
+            navigate(ADMIN_DASHBOARD_ROUTE);
             window.dispatchEvent(new CustomEvent("pupoo-admin-chatbot-prefill-notification", { detail: storedPayload }));
             break;
           }
@@ -513,6 +543,20 @@ export function useChatBot() {
   const triggerQuickAction = useCallback(
     async (item) => {
       if (!item) return;
+      if (item.id === "summary_refund") {
+        applyActions([
+          {
+            type: "NAVIGATE",
+            actionKey: "navigate_refund_manage",
+            payload: { route: "/admin/refunds" },
+          },
+        ]);
+        setMessages((prev) => [
+          ...prev,
+          createBotMessage(idRef.current++, "환불 관리 화면으로 바로 안내해드릴게요."),
+        ]);
+        return;
+      }
       if (item.kind === "request") {
         await sendMessage(item.prompt);
         return;

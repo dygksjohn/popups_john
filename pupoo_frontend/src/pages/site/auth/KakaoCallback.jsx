@@ -134,6 +134,7 @@ export default function KakaoCallback() {
         sessionStorage.setItem("kakao_email", data.email ?? "");
         sessionStorage.setItem("kakao_nickname", data.nickname ?? "");
 
+        tokenStore.clear();
         navigate("/auth/join/kakao", { replace: true });
       } catch (e) {
         clearCodeGuard(code);

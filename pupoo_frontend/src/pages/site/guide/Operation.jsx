@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 function useReveal(th = 0.1) {
   const ref = useRef(null);
@@ -314,17 +315,19 @@ const css = `
 }
 `;
 
+const guideAsset = (fileName) => toPublicAssetUrl(`/uploads/guide/${fileName}`);
+
 const GALLERY_1 = [
-  { img: "/uploads/guide/guide1.jpg", label: "QR 체크인 현장", caption: "QR 코드 하나로 빠르게 입장. 모바일과 출력물 모두 가능합니다." },
-  { img: "/uploads/guide/guide2.jpg", label: "접종 서류 확인", caption: "등록증과 접종 증명서를 현장에서 빠르게 확인합니다." },
-  { img: "/uploads/guide/guide3.jpg", label: "부스 프로그램", caption: "다양한 부스와 프로그램에 자유롭게 참여하세요." },
-  { img: "/uploads/guide/guide4.jpg", label: "반려동물 놀이터", caption: "안전한 공간에서 반려동물과 함께 즐기세요." },
+  { img: guideAsset("guide1.jpg"), label: "QR 체크인 현장", caption: "QR 코드 하나로 빠르게 입장. 모바일과 출력물 모두 가능합니다." },
+  { img: guideAsset("guide2.jpg"), label: "접종 서류 확인", caption: "등록증과 접종 증명서를 현장에서 빠르게 확인합니다." },
+  { img: guideAsset("guide3.jpg"), label: "부스 프로그램", caption: "다양한 부스와 프로그램에 자유롭게 참여하세요." },
+  { img: guideAsset("guide4.jpg"), label: "반려동물 놀이터", caption: "안전한 공간에서 반려동물과 함께 즐기세요." },
 ];
 
 const GALLERY_2 = [
-  { img: "/uploads/guide/guide1-1.jpg", label: "안전 관리", caption: "목줄과 하네스 착용은 필수입니다." },
-  { img: "/uploads/guide/guide2-1.jpg", label: "응급 부스", caption: "응급 상황 대비 부스가 상시 운영됩니다." },
-  { img: "/uploads/guide/guide3-1.jpg", label: "클린 존", caption: "배변 봉투 무료 제공. 깨끗한 현장을 함께 만들어요." },
+  { img: guideAsset("guide1-1.jpg"), label: "안전 관리", caption: "목줄과 하네스 착용은 필수입니다." },
+  { img: guideAsset("guide2-1.jpg"), label: "응급 부스", caption: "응급 상황 대비 부스가 상시 운영됩니다." },
+  { img: guideAsset("guide3-1.jpg"), label: "클린 존", caption: "배변 봉투 무료 제공. 깨끗한 현장을 함께 만들어요." },
 ];
 
 const STEPS = [
@@ -350,7 +353,7 @@ export default function Operation() {
 
       {/* ── HERO (video bg) ── */}
       <section className="op-hero">
-        <video className="op-hero-video" src="/uploads/guide/GettyImages-1212649256.mov" autoPlay muted loop playsInline />
+        <video className="op-hero-video" src={guideAsset("GettyImages-1212649256.mov")} autoPlay muted loop playsInline />
         <F>
           <div className="op-hero-over">현장 운영 안내</div>
           <h1>입장부터<br />퇴장까지</h1>
