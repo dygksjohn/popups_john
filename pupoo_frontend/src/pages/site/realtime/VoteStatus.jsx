@@ -43,7 +43,7 @@ const formatTimestamp = (date) => {
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
-  .vt-root { box-sizing: border-box; min-height: 100vh; background: #f0f4fa; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; flex: 1; }
+  .vt-root { box-sizing: border-box; min-height: 100vh; background: #F8F9FC; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; flex: 1; }
   .vt-root *, .vt-root *::before, .vt-root *::after { box-sizing: border-box; font-family: inherit; }
   .vt-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
   .vt-container.with-event { padding-top: 20px; }
@@ -71,7 +71,7 @@ const styles = `
     align-items: center;
     gap: 0;
     flex-wrap: nowrap;
-    margin-left: auto;
+    margin-left: 0;
     border: 1px solid #d9e1ec;
     border-radius: 14px;
     overflow: hidden;
@@ -139,9 +139,9 @@ const styles = `
   /* ── 히어로 ── */
   .vt-hero {
     border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 40px 44px;
-    margin-bottom: 20px;
+    border-radius: 16px;
+    padding: 32px 36px;
+    margin-bottom: 16px;
     background: linear-gradient(135deg, #fff 0%, #fafbff 100%);
     color: #111827;
     position: relative;
@@ -153,7 +153,7 @@ const styles = `
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #6366f1, #a78bfa, #6366f1);
+    background: linear-gradient(90deg, #90C450, #7c3aed, #90C450);
     background-size: 200% 100%;
     animation: vt-hero-bar 3s ease infinite;
   }
@@ -164,30 +164,30 @@ const styles = `
   .vt-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
   .vt-hero-main { min-width: 0; flex: 1 1 auto; }
   .vt-hero-title-row { display: flex; align-items: center; gap: 12px; }
-  .vt-hero-title { margin: 0; font-size: 32px; line-height: 1.15; letter-spacing: -0.03em; font-weight: 900; color: #111827; }
-  .vt-hero-meta { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 16px; font-size: 15px; color: #9ca3af; }
+  .vt-hero-title { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; font-weight: 800; color: #111827; }
+  .vt-hero-meta { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 14px; font-size: 14px; color: #9ca3af; }
   .vt-hero-meta-item { display: inline-flex; align-items: center; gap: 5px; }
   .vt-hero-divider { margin: 16px 0; border: none; border-top: 1px solid #f0f0f0; }
   .vt-hero-summary { display: flex; align-items: center; gap: 10px; font-size: 15px; color: #9ca3af; font-weight: 500; }
   .vt-hero-summary strong { font-weight: 800; color: #111827; font-size: 16px; }
   .vt-hero-summary-dot {
     width: 10px; height: 10px; border-radius: 50%;
-    background: #6366f1; box-shadow: 0 0 6px rgba(99,102,241,0.4);
+    background: #90C450; box-shadow: 0 0 6px rgba(144,196,80,0.4);
     animation: vt-pulse 1.6s ease-in-out infinite; flex-shrink: 0;
   }
 
   .vt-hero-kpi-grid {
     margin-top: 0;
-    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px; width: min(760px, 100%); margin-left: auto; flex-shrink: 0;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px; width: min(640px, 100%); margin-left: auto; flex-shrink: 0;
   }
   .vt-hero-kpi {
-    border: 1px solid #ebebeb; border-radius: 16px;
-    background: #fff; padding: 24px 26px;
+    border: 1px solid #ebebeb; border-radius: 14px;
+    background: #fff; padding: 20px 22px;
   }
-  .vt-hero-kpi-label { font-size: 14px; color: #6b7280; font-weight: 700; margin-bottom: 12px; }
+  .vt-hero-kpi-label { font-size: 13px; color: #9ca3af; font-weight: 600; margin-bottom: 10px; }
   .vt-hero-kpi-row { display: flex; align-items: baseline; gap: 4px; }
-  .vt-hero-kpi-value { font-size: 38px; line-height: 1; font-weight: 900; color: #111827; letter-spacing: -0.02em; }
+  .vt-hero-kpi-value { font-size: 36px; line-height: 1; font-weight: 800; color: #111827; letter-spacing: -0.02em; }
   .vt-hero-kpi-unit { font-size: 18px; color: #9ca3af; font-weight: 700; }
   .vt-hero-kpi-bar { margin-top: 14px; height: 10px; border-radius: 99px; background: #f0f0f0; overflow: hidden; }
   .vt-hero-kpi-bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
@@ -1031,10 +1031,6 @@ export default function VoteStatus() {
           {eventId ? (
             <>
               <div className="vt-top-actions">
-                <button className="vt-back-btn" onClick={() => navigate("/realtime/votestatus")}>
-                  <ArrowLeft size={15} />
-                  목록으로
-                </button>
                 <div className="vt-event-mode-nav">
                   {EVENT_REALTIME_BUTTONS.map((button) => (
                     <button
@@ -1049,6 +1045,12 @@ export default function VoteStatus() {
                 </div>
               </div>
               <VoteContent eventId={eventId} />
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 32 }}>
+                <button className="vt-back-btn" onClick={() => navigate("/realtime/votestatus")}>
+                  <ArrowLeft size={15} />
+                  목록으로
+                </button>
+              </div>
             </>
           ) : (
             <RealtimeEventSelector

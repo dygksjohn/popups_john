@@ -80,15 +80,25 @@ const Footer = () => (
             <img src="/bottom_logo.png" alt="Pupoo" style={{ height: 24, width: "auto", display: "block", opacity: 0.8 }} />
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            {SNS.map((s) => (
-              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer"
-                style={{ display: "block", opacity: 0.7, transition: "opacity 0.2s" }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
-              >
-                {s.icon}
-              </a>
-            ))}
+            {SNS.map((s) =>
+              s.href.startsWith("/") ? (
+                <Link key={s.label} to={s.href}
+                  style={{ display: "block", opacity: 0.7, transition: "opacity 0.2s" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
+                >
+                  {s.icon}
+                </Link>
+              ) : (
+                <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "block", opacity: 0.7, transition: "opacity 0.2s" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
+                >
+                  {s.icon}
+                </a>
+              )
+            )}
           </div>
         </div>
 
@@ -164,13 +174,21 @@ const Footer = () => (
 
           {/* SNS 아이콘 */}
           <div className="flex items-center gap-5 flex-shrink-0">
-            {SNS.map((s) => (
-              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer"
-                className="block opacity-80 hover:opacity-100 transition-opacity duration-200"
-              >
-                {s.icon}
-              </a>
-            ))}
+            {SNS.map((s) =>
+              s.href.startsWith("/") ? (
+                <Link key={s.label} to={s.href}
+                  className="block opacity-80 hover:opacity-100 transition-opacity duration-200"
+                >
+                  {s.icon}
+                </Link>
+              ) : (
+                <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer"
+                  className="block opacity-80 hover:opacity-100 transition-opacity duration-200"
+                >
+                  {s.icon}
+                </a>
+              )
+            )}
           </div>
         </div>
 
