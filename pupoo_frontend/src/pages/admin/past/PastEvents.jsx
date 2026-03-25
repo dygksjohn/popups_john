@@ -81,7 +81,7 @@ function StatCard({ icon: I, label, value, sub, color = ds.ink3 }) {
 
 /* ── 원형 프로그레스 ── */
 function MiniProgress({ pct }) {
-  const color = pct >= 90 ? "#EF4444" : pct >= 70 ? "#F59E0B" : "#10B981";
+  const color = pct >= 90 ? "#EF4444" : pct >= 70 ? "#F59E0B" : "#3a4520";
   const r = 18, stroke = 4, circ = 2 * Math.PI * r;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -269,7 +269,7 @@ export default function PastEvents() {
             {[
               { l: "참가자", v: (ev.participants || 0).toLocaleString(), c: ds.brand },
               { l: "수용 인원", v: (ev.capacity || 0).toLocaleString(), c: "#8B5CF6" },
-              { l: "체험존 이용률", v: `${ev.zoneUsage || 0}%`, c: "#10B981" },
+              { l: "체험존 이용률", v: `${ev.zoneUsage || 0}%`, c: "#3a4520" },
               { l: "이벤트 참여율", v: `${ev.eventRate || 0}%`, c: "#F59E0B" },
             ].map((s) => (
               <div
@@ -378,7 +378,7 @@ export default function PastEvents() {
           label="평균 체험 이용률"
           value={`${avgZoneUsage}%`}
           sub="체험존 평균"
-          color="#10B981"
+          color="#3a4520"
         />
         <StatCard
           icon={Zap}
@@ -556,7 +556,7 @@ export default function PastEvents() {
                       {(r.participants || 0).toLocaleString()}
                     </td>
                     <td style={{ padding: "12px 14px", textAlign: "right" }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: (r.zoneUsage || 0) >= 70 ? "#10B981" : ds.ink4 }}>{r.zoneUsage || 0}%</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: (r.zoneUsage || 0) >= 70 ? "#3a4520" : ds.ink4 }}>{r.zoneUsage || 0}%</span>
                     </td>
                     <td style={{ padding: "12px 14px", textAlign: "right" }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: (r.eventRate || 0) >= 70 ? ds.brand : ds.ink4 }}>{r.eventRate || 0}%</span>
@@ -606,7 +606,7 @@ export default function PastEvents() {
                 {[
                   { l: "참가자", v: (ev.participants || 0).toLocaleString(), c: ds.brand },
                   { l: "수용 인원", v: (ev.capacity || 0).toLocaleString(), c: "#8B5CF6" },
-                  { l: "체험 이용률", v: `${ev.zoneUsage || 0}%`, c: "#10B981" },
+                  { l: "체험 이용률", v: `${ev.zoneUsage || 0}%`, c: "#3a4520" },
                   { l: "이벤트 참여율", v: `${ev.eventRate || 0}%`, c: "#F59E0B" },
                 ].map((s) => (
                   <div

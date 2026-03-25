@@ -103,7 +103,7 @@ function Toast({ msg, type = "success", onDone }) {
         top: 24,
         right: 24,
         zIndex: 9999,
-        background: type === "success" ? "#10B981" : "#EF4444",
+        background: type === "success" ? "#3a4520" : "#EF4444",
         color: "#fff",
         padding: "12px 22px",
         borderRadius: 10,
@@ -1556,7 +1556,7 @@ export default function ZoneManage({ subTab = "all" }) {
               icon={Clock}
               label="운영 중"
               value={booths.filter((b) => b.status === "OPEN").length}
-              color="#10B981"
+              color="#3a4520"
             />
             <StatCard
               icon={Users}

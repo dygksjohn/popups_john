@@ -108,7 +108,7 @@ function buttonStyle(kind = "neutral") {
       padding: "0 18px",
       borderRadius: 10,
       border: "none",
-      background: "#028A6C",
+      background: "#7ab33e",
       fontSize: 14,
       fontWeight: 800,
       color: "#fff",
@@ -261,7 +261,7 @@ function GalleryWriteModal({
                 style={{
                   minHeight: 100,
                   borderRadius: 14,
-                  border: `2px dashed ${dragOver ? "#028A6C" : "#5CCDB2"}`,
+                  border: `2px dashed ${dragOver ? "#7ab33e" : "#5CCDB2"}`,
                   background: dragOver ? "#E6F7F2" : "#f8fafc",
                   padding: 20,
                   cursor: "pointer",
@@ -273,8 +273,8 @@ function GalleryWriteModal({
                   transition: "background 0.15s, border-color 0.15s",
                 }}
               >
-                <Upload size={24} color="#028A6C" />
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#028A6C" }}>
+                <Upload size={24} color="#7ab33e" />
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#7ab33e" }}>
                   {dragOver ? "여기에 놓으세요" : "클릭하여 파일 선택 또는 이미지를 여기에 드래그"}
                 </span>
                 <input
@@ -319,7 +319,7 @@ function GalleryWriteModal({
                         flexShrink: 0,
                         borderRadius: 12,
                         overflow: "hidden",
-                        border: dragIndex === index ? "2px solid #028A6C" : dropIndex === index ? "2px solid #5CCDB2" : "1px solid #e2e8f0",
+                        border: dragIndex === index ? "2px solid #7ab33e" : dropIndex === index ? "2px solid #5CCDB2" : "1px solid #e2e8f0",
                         background: "#fff",
                         boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
                         position: "relative",
@@ -330,7 +330,7 @@ function GalleryWriteModal({
                       <div style={{ aspectRatio: "1", position: "relative", background: "#f1f5f9" }}>
                         <img src={previewUrls[index]} alt={file.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                         {index === 0 ? (
-                          <span style={{ position: "absolute", top: 6, left: 6, padding: "4px 8px", borderRadius: 6, background: "#028A6C", color: "#fff", fontSize: 11, fontWeight: 800 }}>
+                          <span style={{ position: "absolute", top: 6, left: 6, padding: "4px 8px", borderRadius: 6, background: "#7ab33e", color: "#fff", fontSize: 11, fontWeight: 800 }}>
                             대표
                           </span>
                         ) : null}
@@ -415,7 +415,7 @@ function GalleryEditModal({ open, item, onClose, onSubmit, loading, error }) {
   );
 }
 
-function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, onEdit, liked, canEdit }) {
+function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, onEdit, liked, canEdit, isMobile }) {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -448,10 +448,10 @@ function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, onEdi
   return (
     <>
       <div style={backdropStyle()} onClick={onClose} />
-      <div style={overlayStyle()} onClick={onClose}>
-        <div onClick={(e) => e.stopPropagation()} style={{ ...modalShellStyle("min(1060px, 100%)"), display: "flex", flexDirection: "row", overflow: "hidden" }}>
-          {/* Left: Image */}
-          <div style={{ flex: "0 0 600px", position: "relative", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", height: 620, overflow: "hidden" }}>
+      <div style={{ ...overlayStyle(), alignItems: isMobile ? "flex-end" : "center", padding: isMobile ? 0 : 20 }} onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} style={{ ...modalShellStyle(isMobile ? "100%" : "min(1060px, 100%)"), display: "flex", flexDirection: isMobile ? "column" : "row", overflow: "hidden", borderRadius: isMobile ? "20px 20px 0 0" : 22, maxHeight: isMobile ? "calc(100vh - 56px)" : "90vh" }}>
+          {/* Image */}
+          <div style={{ flex: isMobile ? "0 0 auto" : "0 0 600px", width: isMobile ? "100%" : undefined, position: "relative", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", height: isMobile ? 260 : 620, overflow: "hidden" }}>
             {currentImage ? (
               <img src={currentImage} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             ) : (
@@ -469,8 +469,8 @@ function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, onEdi
             )}
           </div>
 
-          {/* Right: Info */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, maxHeight: "90vh", overflow: "auto" }}>
+          {/* Info */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, maxHeight: isMobile ? "calc(100vh - 56px - 260px)" : "90vh", overflow: "auto" }}>
             {/* Close button */}
             <div style={{ display: "flex", justifyContent: "flex-end", padding: "16px 20px 0" }}>
               <button type="button" onClick={onClose} style={{ width: 34, height: 34, borderRadius: 999, border: "none", background: "#f3f4f6", color: "#6b7280", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
@@ -480,7 +480,7 @@ function GalleryViewer({ item, eventName, onClose, onToggleLike, onReport, onEdi
 
             {/* Content */}
             <div style={{ padding: "12px 28px 28px", flex: 1, display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#028A6C", marginBottom: 12 }}>{eventName}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#7ab33e", marginBottom: 12 }}>{eventName}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", lineHeight: 1.35, marginBottom: 12 }}>{item.title}</div>
               {item.description && <div style={{ fontSize: 14, lineHeight: 1.8, color: "#6b7280", whiteSpace: "pre-wrap", marginBottom: 20 }}>{item.description}</div>}
 
@@ -557,6 +557,19 @@ export default function EventGallery() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
   const userClosedViewerRef = useRef(false);
+
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+  const isMobile = viewportWidth < 768;
+
 
   const eventNameMap = useMemo(() => Object.fromEntries(events.map((event) => [String(event.eventId), event.eventName])), [events]);
 
@@ -803,23 +816,23 @@ export default function EventGallery() {
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Noto Sans KR', sans-serif" }}>
       <style>{`.board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
-      <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" icon={<Images size={42} color="#02A17E" strokeWidth={1.6} />} titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }} subtitleStyle={{ fontSize: 20 }} categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
+      <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" icon={<Images size={42} color="#90C450" strokeWidth={1.6} />} titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }} subtitleStyle={{ fontSize: 20 }} categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
       <main
         style={{
-          width: "min(1400px, calc(100% - 40px))",
+          width: isMobile ? "calc(100% - 20px)" : "min(1400px, calc(100% - 40px))",
           margin: "0 auto",
-          padding: "36px 0 64px",
+          padding: isMobile ? "20px 0 40px" : "36px 0 64px",
         }}
       >
         <section>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginBottom: 24 }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 0, background: "#f3f4f6", borderRadius: 999, height: 42 }}>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", justifyContent: "flex-end", gap: isMobile ? 10 : 8, marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, background: isMobile ? "transparent" : "#f3f4f6", borderRadius: 999, height: isMobile ? "auto" : 44, flexWrap: isMobile ? "wrap" : "nowrap", padding: 0, rowGap: isMobile ? 8 : 0 }}>
               {/* event dropdown */}
-              <div style={{ position: "relative", flex: "0 0 auto" }} ref={eventDdRef}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }} ref={eventDdRef}>
                 <button
                   type="button"
                   onClick={() => setEventDdOpen((v) => !v)}
-                  style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 280, display: "inline-flex", alignItems: "center", gap: 7 }}
+                  style={{ height: 44, padding: "0 36px 0 14px", border: isMobile ? "1px solid #e5e7eb" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 999 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: isMobile ? 0 : 280, width: isMobile ? "100%" : "auto", display: "inline-flex", alignItems: "center", gap: 7 }}
                 >
                   <ListFilter size={14} style={{ color: "#9ca3af" }} />
                   {currentEventLabel}
@@ -854,19 +867,19 @@ export default function EventGallery() {
                 )}
               </div>
 
-              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* search input */}
-              <div style={{ position: "relative", flex: "1 1 auto", minWidth: 280 }}>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "1 1 auto", minWidth: isMobile ? 0 : 280, width: isMobile ? "100%" : "auto" }}>
                 <Search size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", pointerEvents: "none" }} />
-                <input className="board-search-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="갤러리 제목 또는 행사명으로 검색" style={{ width: "100%", height: 42, border: "none", background: "transparent", padding: "0 14px 0 40px", fontSize: 13, fontWeight: 500, color: "#111827", outline: "none" }} />
+                <input className="board-search-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="갤러리 제목 또는 행사명으로 검색" style={{ width: "100%", height: 44, border: isMobile ? "1px solid #e5e7eb" : "none", background: isMobile ? "#fff" : "transparent", padding: "0 14px 0 40px", borderRadius: isMobile ? 999 : "0 999px 999px 0", fontSize: 13, fontWeight: 500, color: "#111827", outline: "none" }} />
               </div>
 
-              <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />
+              {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* sort button */}
-              <div style={{ position: "relative", flex: "0 0 auto" }} ref={sortDdRef}>
-                <button type="button" onClick={() => setSortMenuOpen((prev) => !prev)} style={{ height: 42, padding: "0 36px 0 14px", border: "none", background: "transparent", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", borderRadius: "0 999px 999px 0", minWidth: 110, display: "inline-flex", alignItems: "center", gap: 7 }}><SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />{currentSortLabel}</button>
+              <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }} ref={sortDdRef}>
+                <button type="button" onClick={() => setSortMenuOpen((prev) => !prev)} style={{ height: 44, padding: "0 36px 0 14px", border: isMobile ? "1px solid #e5e7eb" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 999 : "0 999px 999px 0", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 110, width: isMobile ? "100%" : "auto", display: "inline-flex", alignItems: "center", gap: 7 }}><SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />{currentSortLabel}</button>
                 <ChevronDown size={15} style={{ position: "absolute", right: 12, top: "50%", transform: sortMenuOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)", color: "#9ca3af", pointerEvents: "none", transition: "transform .15s ease" }} />
                 {sortMenuOpen && (
                   <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, minWidth: 200, background: "#fff", borderRadius: 16, padding: "8px 0", boxShadow: "0 4px 24px rgba(0,0,0,.10)", zIndex: 50, maxHeight: 280, overflowY: "auto" }}>
@@ -888,7 +901,7 @@ export default function EventGallery() {
               </div>
             </div>
 
-            {isAuthed ? <button type="button" onClick={() => { setWriteError(""); setWriteForm({ eventId: selectedEventId || "", title: "", description: "", files: [] }); setWriteOpen(true); }} style={{ height: 42, padding: "0 18px", borderRadius: 999, border: "none", background: "#028A6C", color: "#fff", display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 800, cursor: "pointer", flexShrink: 0 }}><Plus size={16} /> 글쓰기</button> : null}
+            {isAuthed ? <button type="button" onClick={() => { setWriteError(""); setWriteForm({ eventId: selectedEventId || "", title: "", description: "", files: [] }); setWriteOpen(true); }} style={{ height: 44, padding: "0 18px", borderRadius: 999, border: "none", background: "#7ab33e", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, fontWeight: 800, cursor: "pointer", flexShrink: 0, width: isMobile ? "100%" : "auto" }}><Plus size={16} /> 글쓰기</button> : null}
           </div>
           {reportNotice ? (
             <div style={{ padding: "16px 0 0" }}>
@@ -918,7 +931,7 @@ export default function EventGallery() {
         </section>
       </main>
       <GalleryWriteModal open={writeOpen} events={events} form={writeForm} onChange={(field, value) => setWriteForm((prev) => ({ ...prev, [field]: value }))} onFilesChange={(files) => setWriteForm((prev) => ({ ...prev, files }))} onClose={() => setWriteOpen(false)} onSubmit={handleCreate} loading={writeLoading} error={writeError} />
-      <GalleryViewer item={viewer} eventName={eventNameMap[String(viewer?.eventId)] || `행사 ${viewer?.eventId || ""}`} onClose={closeViewer} onToggleLike={() => viewer && toggleLike(viewer)} onReport={() => viewer && openGalleryReport(viewer)} onEdit={() => viewer && openEditModal(viewer)} liked={!!likedMap[viewer?.galleryId]} canEdit={meUserId != null && viewer?.userId === meUserId} />
+      <GalleryViewer item={viewer} eventName={eventNameMap[String(viewer?.eventId)] || `행사 ${viewer?.eventId || ""}`} onClose={closeViewer} onToggleLike={() => viewer && toggleLike(viewer)} onReport={() => viewer && openGalleryReport(viewer)} onEdit={() => viewer && openEditModal(viewer)} liked={!!likedMap[viewer?.galleryId]} canEdit={meUserId != null && viewer?.userId === meUserId} isMobile={isMobile} />
       <GalleryEditModal open={editOpen} item={editTarget} onClose={() => { setEditOpen(false); setEditTarget(null); }} onSubmit={handleEdit} loading={editLoading} error={editError} />
       <ReportModal open={Boolean(reportTarget)} title={reportTarget?.title || "신고하기"} onClose={() => setReportTarget(null)} onSubmit={submitGalleryReport} onSuccess={() => setReportNotice(reportTarget?.successMessage || "신고가 접수되었습니다.")} />
     </div>

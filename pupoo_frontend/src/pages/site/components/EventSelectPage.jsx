@@ -39,20 +39,20 @@ const styles = `
   }
 
   .ev-filter-btn:hover {
-    border-color: #02A17E;
-    color: #02A17E;
+    border-color: #90C450;
+    color: #90C450;
   }
 
   .ev-filter-btn.active {
-    background: #02A17E;
-    border-color: #02A17E;
+    background: #90C450;
+    border-color: #90C450;
     color: #fff;
   }
 
   .ev-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
   }
 
   .ev-card {
@@ -68,14 +68,14 @@ const styles = `
   }
 
   .ev-card:hover {
-    border-color: #b4c6f0;
+    border-color: #90C450;
     transform: translateY(-3px);
-    box-shadow: 0 8px 28px rgba(26, 79, 214, 0.08);
+    box-shadow: 0 8px 28px rgba(144, 196, 80, 0.12);
   }
 
   .ev-card-thumb {
     width: 100%;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 16 / 9;
     position: relative;
     overflow: hidden;
     display: flex;
@@ -90,6 +90,10 @@ const styles = `
     height: 100%;
     object-fit: cover;
     z-index: 0;
+    transition: transform 0.3s ease;
+  }
+  .ev-card:hover .ev-card-thumb img.ev-card-thumb-img {
+    transform: scale(1.04);
   }
 
   .ev-card-thumb-pattern {
@@ -199,10 +203,10 @@ const styles = `
   }
 
   .ev-card-name {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 800;
     color: #111827;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
     letter-spacing: -0.3px;
     line-height: 1.3;
   }
@@ -240,7 +244,7 @@ const styles = `
     width: 20px;
     height: 20px;
     border-radius: 5px;
-    background: #f3f4f6;
+    background: #f8f9fc;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -267,7 +271,7 @@ const styles = `
     gap: 4px;
     font-size: 13px;
     font-weight: 700;
-    color: #02A17E;
+    color: #90C450;
   }
 
   .ev-empty {
@@ -281,7 +285,7 @@ const styles = `
     height: 60px;
     border-radius: 50%;
     margin: 0 auto 16px;
-    background: #f3f4f6;
+    background: #f8f9fc;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -298,11 +302,7 @@ const styles = `
     font-size: 13px;
   }
 
-  @media (max-width: 1024px) {
-    .ev-grid { grid-template-columns: repeat(2, 1fr); }
-  }
-
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     .ev-grid { grid-template-columns: 1fr; }
     .ev-container { padding: 20px 16px 48px; }
   }
@@ -362,7 +362,7 @@ export default function EventSelectPage({ events = [], basePath }) {
         {filtered.length > 0 ? (
           <div className="ev-grid">
             {filtered.map((event) => {
-              const color = event?.color || "#02A17E";
+              const color = event?.color || "#90C450";
               const status = normalizeStatus(event?.status);
               const thumbnail = event?.imageUrl || event?.thumbnail;
               const participants = Number(event?.participants || 0);

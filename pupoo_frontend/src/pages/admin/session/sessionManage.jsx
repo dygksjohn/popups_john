@@ -113,7 +113,7 @@ function Toast({ msg, type = "success", onDone }) {
         top: 24,
         right: 24,
         zIndex: 9999,
-        background: type === "success" ? "#10B981" : "#EF4444",
+        background: type === "success" ? "#3a4520" : "#EF4444",
         color: "#fff",
         padding: "12px 22px",
         borderRadius: 10,
@@ -1362,7 +1362,7 @@ const handleDeleteAll = async () => {
               icon={Clock}
               label="진행 중"
               value={items.filter((e) => e.status === "active").length}
-              color="#10B981"
+              color="#3a4520"
             />
             <StatCard
               icon={Users}

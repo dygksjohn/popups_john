@@ -108,7 +108,7 @@ function Toast({ msg, type = "success", onDone }) {
     const t = setTimeout(onDone, 2200);
     return () => clearTimeout(t);
   }, [onDone]);
-  const bg = type === "success" ? "#10B981" : "#EF4444";
+  const bg = type === "success" ? "#3a4520" : "#EF4444";
   return (
     <div
       style={{
@@ -1310,7 +1310,7 @@ export default function ParticipantList({ subTab = "list" }) {
               icon={UserCheck}
               label="승인 완료"
               value={approved}
-              color="#10B981"
+              color="#3a4520"
             />
             <StatCard
               icon={Clock}

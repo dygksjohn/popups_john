@@ -1,14 +1,13 @@
-﻿import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX, Menu, ChevronDown, ChevronRight } from "lucide-react";
+import { Bell, LogIn, UserPlus, Search, LogOut, UserCircle, CalendarHeart, MessageCircleHeart, TicketCheck, Activity, X, MapPin, Calendar, SearchX, Menu, ChevronDown, ChevronRight } from "lucide-react";
 import {
   notificationApi,
   NOTIFICATION_UNREAD_COUNT_EVENT,
   emitNotificationUnreadCount,
 } from "../../../app/http/notificationApi";
 import { eventApi } from "../../../app/http/eventApi";
-import { connectNotificationStream } from "../../../features/notification/api/notificationStream";
 import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 const FONT = "'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
@@ -156,7 +155,7 @@ const MegaLink = ({ item, onNavigate }) => {
    PROMO ICON MAP
 ????????????????????????????????????????????? */
 const PROMO_ICONS = {
-  event: { Icon: CalendarHeart, bg: "#eff4ff", color: "#02A17E" },
+  event: { Icon: CalendarHeart, bg: "#eff4ff", color: "#90C450" },
   community: { Icon: MessageCircleHeart, bg: "#fef3f2", color: "#e04545" },
   registration: { Icon: TicketCheck, bg: "#ecfdf5", color: "#059669" },
   realtime: { Icon: Activity, bg: "#fef9ee", color: "#ea580c" },
@@ -286,15 +285,6 @@ const DropdownCard = ({ menuData, onNavigate, topOffset = 92 }) => {
         ))}
       </div>
 
-      {/* Divider */}
-      {promo && (
-        <div style={{ width: 1, background: "#f0f0f0", margin: "0 36px", flexShrink: 0 }} />
-      )}
-
-      {/* Promo card */}
-      {promo && (
-        <PromoCard promo={promo} />
-      )}
     </div>
   );
 };
@@ -600,12 +590,27 @@ const SearchPanel = ({
 /* ?????????????????????????????????????????????
    MAIN HEADER
 ????????????????????????????????????????????? */
+function fmtDate(str) {
+  if (!str) return "";
+  const d = new Date(str), now = new Date();
+  const diff = Math.floor((now - d) / 1000);
+  if (diff < 60) return "방금";
+  if (diff < 3600) return Math.floor(diff / 60) + "분 전";
+  if (diff < 86400) return Math.floor(diff / 3600) + "시간 전";
+  if (diff < 604800) return Math.floor(diff / 86400) + "일 전";
+  return d.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+}
+
 export default function PupooHeader() {
   const navigate = useNavigate();
   const { isAuthed, logout } = useAuth();
   const [activeMenu, setActiveMenu] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifList, setNotifList] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const notifRef = useRef(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenuKey, setExpandedMenuKey] = useState(null);
   const [viewportWidth, setViewportWidth] = useState(() =>
@@ -613,9 +618,6 @@ export default function PupooHeader() {
   );
   const [unreadCount, setUnreadCount] = useState(0);
   const unreadCountRef = useRef(0);
-  const streamRef = useRef(null);
-  const reconnectTimerRef = useRef(null);
-  const reconnectAttemptRef = useRef(0);
   const headerRef = useRef(null);
   const location = useLocation();
   const isHome = location.pathname === "/";
@@ -645,85 +647,32 @@ export default function PupooHeader() {
     unreadCountRef.current = unreadCount;
   }, [unreadCount]);
 
-  const syncUnreadCount = useCallback(async ({ forceEmit = false } = {}) => {
-    try {
-      const nextCount = Math.max(
-        0,
-        Number(await notificationApi.getUnreadCount()) || 0,
-      );
-      const prevCount = unreadCountRef.current;
-      unreadCountRef.current = nextCount;
-      setUnreadCount(nextCount);
-      if (forceEmit || prevCount !== nextCount) {
-        emitNotificationUnreadCount(nextCount);
-      }
-    } catch {
-      unreadCountRef.current = 0;
-      setUnreadCount(0);
-    }
-  }, []);
-
   useEffect(() => {
     if (!isAuthed) {
-      streamRef.current?.close?.();
-      streamRef.current = null;
-      if (reconnectTimerRef.current) {
-        window.clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
-      }
-      reconnectAttemptRef.current = 0;
       unreadCountRef.current = 0;
       setUnreadCount(0);
-      emitNotificationUnreadCount(0);
       return;
     }
-
     let disposed = false;
-
-    const clearReconnectTimer = () => {
-      if (reconnectTimerRef.current) {
-        window.clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
+    const syncUnreadCount = async ({ forceEmit = false } = {}) => {
+      try {
+        const nextCount = Math.max(0, Number(await notificationApi.getUnreadCount()) || 0);
+        if (disposed) return;
+        const prevCount = unreadCountRef.current;
+        unreadCountRef.current = nextCount;
+        setUnreadCount(nextCount);
+        if (forceEmit || prevCount !== nextCount) emitNotificationUnreadCount(nextCount);
+      } catch {
+        if (disposed) return;
+        unreadCountRef.current = 0;
+        setUnreadCount(0);
       }
     };
-
-    const closeStream = () => {
-      streamRef.current?.close?.();
-      streamRef.current = null;
-    };
-
-    const scheduleReconnect = () => {
-      if (disposed) return;
-      clearReconnectTimer();
-      const attempt = Math.min(reconnectAttemptRef.current + 1, 5);
-      reconnectAttemptRef.current = attempt;
-      const delay = Math.min(1000 * 2 ** (attempt - 1), 30000);
-      reconnectTimerRef.current = window.setTimeout(() => {
-        reconnectTimerRef.current = null;
-        connectStream();
-      }, delay);
-    };
-
-    const connectStream = () => {
-      if (disposed) return;
-      closeStream();
-      streamRef.current = connectNotificationStream({
-        onOpen: () => {
-          reconnectAttemptRef.current = 0;
-        },
-        onNotification: () => {
-          syncUnreadCount();
-        },
-        onError: () => {
-          closeStream();
-          scheduleReconnect();
-        },
-      });
-    };
-
     syncUnreadCount({ forceEmit: true });
-    connectStream();
-
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      syncUnreadCount();
+    }, 5000);
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") syncUnreadCount();
     };
@@ -732,12 +681,11 @@ export default function PupooHeader() {
     window.addEventListener("focus", handleWindowFocus);
     return () => {
       disposed = true;
-      clearReconnectTimer();
-      closeStream();
+      window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [isAuthed, syncUnreadCount]);
+  }, [isAuthed]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -796,8 +744,8 @@ export default function PupooHeader() {
   };
 
   const useSolidMobileHeader = isMobile;
-  const isWhiteMode = useSolidMobileHeader || !isHome || scrolled || activeMenu !== null || searchOpen || mobileMenuOpen;
-  const isLight = !useSolidMobileHeader && isHome && !scrolled && !activeMenu && !searchOpen;
+  const isWhiteMode = useSolidMobileHeader || !isHome || scrolled || activeMenu !== null || mobileMenuOpen;
+  const isLight = !useSolidMobileHeader && isHome && !scrolled && !activeMenu;
   const textColor = isWhiteMode ? "#222" : "#fff";
   const iconColor = isWhiteMode ? "#222" : "#fff";
   const mobileActionIconStyle = {
@@ -806,7 +754,6 @@ export default function PupooHeader() {
     borderRadius: 8,
     border: "none",
     background: "none",
-    position: "relative",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -890,7 +837,9 @@ export default function PupooHeader() {
         }
         .kakao-icon-btn:hover {
           background-color: rgba(0,0,0,0.06);
-          transform: scale(1.08);
+        }
+        .kakao-icon-btn:active {
+          background-color: rgba(0,0,0,0.10);
         }
         .kakao-icon-btn.light:hover {
           background-color: rgba(255,255,255,0.15);
@@ -937,25 +886,6 @@ export default function PupooHeader() {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
         }
-        .kakao-unread-badge {
-          position: absolute;
-          top: 4px;
-          right: 3px;
-          min-width: 17px;
-          height: 17px;
-          padding: 0 4px;
-          border-radius: 999px;
-          background: #ef4444;
-          color: #fff;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 10px;
-          font-weight: 700;
-          line-height: 1;
-          pointer-events: none;
-          box-shadow: 0 0 0 2px #fff;
-        }
         /* ?? CTA Button ?? */
         .kakao-cta {
           display: inline-flex;
@@ -963,7 +893,7 @@ export default function PupooHeader() {
           gap: 6px;
           padding: 8px 18px;
           border-radius: 999px;
-          background: #02A17E;
+          background: #90C450;
           color: #fff;
           font-family: 'JeonjuCraftGothic', Pretendard, sans-serif;
           font-size: 13px;
@@ -977,7 +907,7 @@ export default function PupooHeader() {
           margin-right: 8px;
         }
         .kakao-cta:hover {
-          background: #028A6C;
+          background: #7ab33e;
           transform: scale(1.04);
           box-shadow: 0 4px 20px rgba(37,99,235,0.4);
         }
@@ -986,7 +916,7 @@ export default function PupooHeader() {
         }
         .kakao-cta.light {
           background: #fff;
-          color: #02A17E;
+          color: #90C450;
           box-shadow: 0 2px 12px rgba(0,0,0,0.1);
         }
         .kakao-cta.light:hover {
@@ -1014,13 +944,6 @@ export default function PupooHeader() {
             height: 38px;
             border-radius: 10px;
           }
-          .kakao-unread-badge {
-            top: 2px;
-            right: 1px;
-            min-width: 16px;
-            height: 16px;
-            font-size: 9px;
-          }
         }
         @media (max-width: 767px) {
           .kakao-icon-btn {
@@ -1028,9 +951,113 @@ export default function PupooHeader() {
             height: 34px;
             border-radius: 9px;
           }
-          .kakao-unread-badge {
-            top: 1px;
-            right: 0;
+        }
+
+        /* 알림 패널 */
+        .notif-badge {
+          position: absolute;
+          top: 4px;
+          right: 4px;
+          min-width: 16px;
+          height: 16px;
+          padding: 0 4px;
+          border-radius: 999px;
+          background: #ef4444;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 700;
+          line-height: 16px;
+          text-align: center;
+          pointer-events: none;
+        }
+        .notif-panel {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          width: 320px;
+          max-height: 400px;
+          overflow-y: auto;
+          background: #fff;
+          border-radius: 16px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+          border: 1px solid rgba(0,0,0,0.06);
+          z-index: 9999;
+          animation: notifSlideDown 0.2s ease;
+        }
+        @keyframes notifSlideDown {
+          from { opacity: 0; transform: translateY(-8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .notif-panel-head {
+          padding: 16px 20px 12px;
+          font-family: ${FONT};
+          font-size: 15px;
+          font-weight: 700;
+          color: #222;
+          border-bottom: 1px solid #f0f0f0;
+          letter-spacing: -0.02em;
+        }
+        .notif-empty {
+          padding: 32px 20px;
+          text-align: center;
+          font-family: ${FONT};
+          font-size: 13px;
+          color: #999;
+        }
+        .notif-item {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          width: 100%;
+          padding: 14px 20px;
+          background: none;
+          border: none;
+          border-bottom: 1px solid #f5f5f5;
+          text-align: left;
+          cursor: pointer;
+          transition: background 0.15s;
+          font-family: ${FONT};
+        }
+        .notif-item:hover {
+          background: #f8f9fa;
+        }
+        .notif-item:last-of-type {
+          border-bottom: none;
+        }
+        .notif-item-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: #333;
+          line-height: 1.4;
+        }
+        .notif-item-content {
+          font-size: 12px;
+          color: #777;
+          line-height: 1.4;
+        }
+        .notif-item-date {
+          font-size: 11px;
+          color: #aaa;
+          margin-top: 2px;
+        }
+        .notif-footer {
+          padding: 10px 20px;
+          text-align: center;
+          font-size: 11px;
+          color: #bbb;
+          border-top: 1px solid #f0f0f0;
+        }
+
+        /* 모바일 알림 패널 */
+        @media (max-width: 1023px) {
+          .notif-panel {
+            position: fixed;
+            top: 56px;
+            left: 12px;
+            right: 12px;
+            width: auto;
+            max-height: calc(100vh - 80px);
+            border-radius: 14px;
           }
         }
       `}</style>
@@ -1076,10 +1103,10 @@ export default function PupooHeader() {
               }}
             >
               <img
-                src={isLight ? "/logo_white2.png" : "/logo_olive.png"}
+                src={isLight ? "/logo_white7.png" : "/logo_olive7.png"}
                 alt="Pupoo"
                 style={{
-                  height: isMobile ? 17 : isTablet ? 22 : 28,
+                  height: isMobile ? 26 : isTablet ? 28 : 34,
                   width: "auto",
                   display: "block",
                 }}
@@ -1117,14 +1144,6 @@ export default function PupooHeader() {
             >
               {!isAuthed ? (
                 <>
-                  <button
-                    type="button"
-                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
-                    onClick={() => { setSearchOpen((v) => !v); setActiveMenu(null); }}
-                  >
-                    <Search size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">검색</span>
-                  </button>
                   <Link
                     to="/auth/login"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
@@ -1142,24 +1161,55 @@ export default function PupooHeader() {
                 </>
               ) : (
                 <>
-                  <button
-                    type="button"
-                    className={`kakao-icon-btn ${isLight ? "light" : ""}`}
-                    onClick={() => { setSearchOpen((v) => !v); setActiveMenu(null); }}
-                  >
-                    <Search size={20} color={iconColor} strokeWidth={1.8} />
-                    <span className="ktt">검색</span>
-                  </button>
+                  {/* 알림 벨 (데스크탑) */}
+                  <div ref={notifRef} style={{ position: "relative" }}>
+                    <button
+                      className={`kakao-icon-btn ${isLight ? "light" : ""}`}
+                      onClick={() => setNotifOpen((v) => !v)}
+                      type="button"
+                      aria-label="알림"
+                      style={{ position: "relative" }}
+                    >
+                      <Bell size={20} color={iconColor} strokeWidth={1.8} />
+                      <span className="ktt">알림</span>
+                      {unreadCount > 0 && (
+                        <span className="notif-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                      )}
+                    </button>
+                    {notifOpen && (
+                      <div className="notif-panel">
+                        <div className="notif-panel-head">알림</div>
+                        {notifLoading ? (
+                          <div className="notif-empty">불러오는 중…</div>
+                        ) : notifList.length === 0 ? (
+                          <div className="notif-empty">새 알림이 없습니다.</div>
+                        ) : (
+                          notifList.map((n) => (
+                            <div
+                              key={n.inboxId}
+                              className="notif-item"
+                              onClick={() => {
+                                notificationApi.click(n.inboxId);
+                                setNotifOpen(false);
+                                if (n.targetUrl) navigate(n.targetUrl);
+                              }}
+                            >
+                              <div className="notif-item-title">{n.title}</div>
+                              <div className="notif-item-content">{n.content}</div>
+                              <div className="notif-item-date">{fmtDate(n.createdAt)}</div>
+                            </div>
+                          ))
+                        )}
+                        <div className="notif-footer">최근 5개만 표시됩니다</div>
+                      </div>
+                    )}
+                  </div>
+
                   <Link
                     to="/mypage"
                     className={`kakao-icon-btn ${isLight ? "light" : ""}`}
                   >
                     <UserCircle size={20} color={iconColor} strokeWidth={1.8} />
-                    {unreadCount > 0 ? (
-                      <span className="kakao-unread-badge">
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                      </span>
-                    ) : null}
                     <span className="ktt">마이페이지</span>
                   </Link>
                   <button
@@ -1185,19 +1235,18 @@ export default function PupooHeader() {
                 flexShrink: 0,
               }}
             >
-              <button
-                type="button"
-                style={{ ...mobileActionIconStyle, cursor: "pointer" }}
-                aria-label="검색"
-                title="검색"
-                onClick={() => {
-                  setSearchOpen((v) => !v);
-                  setActiveMenu(null);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <Search size={18} color={iconColor} strokeWidth={1.8} />
-              </button>
+              {/* Bell - mobile (첫 번째) */}
+              {isAuthed && (
+                <button
+                  type="button"
+                  style={{ ...mobileActionIconStyle, cursor: "pointer", position: "relative" }}
+                  aria-label="알림"
+                  onClick={() => { setNotifOpen(v => !v); setActiveMenu(null); setMobileMenuOpen(false); }}
+                >
+                  <Bell size={20} color={iconColor} strokeWidth={1.8} />
+                  {unreadCount > 0 && <span className="notif-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+                </button>
+              )}
               {isAuthed ? (
                 <Link
                   to="/mypage"
@@ -1210,12 +1259,7 @@ export default function PupooHeader() {
                     setMobileMenuOpen(false);
                   }}
                 >
-                  <UserCircle size={18} color={iconColor} strokeWidth={1.8} />
-                  {unreadCount > 0 ? (
-                    <span className="kakao-unread-badge">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  ) : null}
+                  <UserCircle size={20} color={iconColor} strokeWidth={1.8} />
                 </Link>
               ) : (
                 <Link
@@ -1229,7 +1273,7 @@ export default function PupooHeader() {
                     setMobileMenuOpen(false);
                   }}
                 >
-                  <LogIn size={18} color={iconColor} strokeWidth={1.9} />
+                  <LogIn size={20} color={iconColor} strokeWidth={1.9} />
                 </Link>
               )}
               <button
@@ -1244,16 +1288,49 @@ export default function PupooHeader() {
                 }}
               >
                 {mobileMenuOpen
-                  ? <X size={18} color={iconColor} strokeWidth={1.8} />
-                  : <Menu size={18} color={iconColor} strokeWidth={1.8} />
+                  ? <X size={20} color={iconColor} strokeWidth={1.8} />
+                  : <Menu size={20} color={iconColor} strokeWidth={1.8} />
                 }
               </button>
             </div>
           </div>
         </header>
 
+        {/* mobile notif panel */}
+        {notifOpen && isMobile && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 9997 }} onClick={() => setNotifOpen(false)} />
+        )}
+        {notifOpen && isMobile && (
+          <div className="notif-panel" style={{ zIndex: 9998 }}>
+            <div className="notif-panel-head">알림</div>
+            {notifLoading ? (
+              <div className="notif-empty">불러오는 중...</div>
+            ) : notifList.length === 0 ? (
+              <div className="notif-empty">새 알림이 없어요</div>
+            ) : (
+              notifList.map((n) => (
+                <button key={n.inboxId} className="notif-item" onClick={async () => {
+                  try {
+                    const res = await notificationApi.click(n.inboxId);
+                    setNotifList(prev => prev.filter(x => x.inboxId !== n.inboxId));
+                    setUnreadCount(v => Math.max(0, v - 1));
+                    if (res?.targetType === "EVENT") navigate("/event/current");
+                    else if (res?.targetType === "NOTICE") navigate("/community/notice/" + res.targetId);
+                  } catch {}
+                  setNotifOpen(false);
+                }}>
+                  <span className="notif-item-title">{n.title}</span>
+                  {n.content && <span className="notif-item-content">{n.content}</span>}
+                  <span className="notif-item-date">{fmtDate(n.receivedAt)}</span>
+                </button>
+              ))
+            )}
+            <div className="notif-footer">최근 5개만 표시됩니다</div>
+          </div>
+        )}
 
         {/* ?? DROPDOWN CARD ?? */}
+
         {!isCompact && activeMenu && megaMenuData[activeMenu] && (
           <DropdownCard
             menuData={megaMenuData[activeMenu]}
@@ -1261,7 +1338,6 @@ export default function PupooHeader() {
             topOffset={headerHeight}
           />
         )}
-
         {isCompact && mobileMenuOpen && (
           <div
             style={{
@@ -1407,11 +1483,11 @@ export default function PupooHeader() {
                     style={{
                       display: "flex", alignItems: "center", justifyContent: "space-between",
                       padding: "18px 24px", textDecoration: "none",
-                      color: "#02A17E", fontSize: 16, fontWeight: 500, fontFamily: FONT,
+                      color: "#90C450", fontSize: 16, fontWeight: 500, fontFamily: FONT,
                     }}
                   >
                     회원가입
-                    <ChevronRight size={16} color="#02A17E" strokeWidth={1.5} />
+                    <ChevronRight size={16} color="#90C450" strokeWidth={1.5} />
                   </Link>
                 </>
               ) : (

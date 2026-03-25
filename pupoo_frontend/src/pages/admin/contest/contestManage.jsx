@@ -119,7 +119,7 @@ function Toast({ msg, type = "success", onDone }) {
         top: 24,
         right: 24,
         zIndex: 9999,
-        background: type === "success" ? "#10B981" : "#EF4444",
+        background: type === "success" ? "#3a4520" : "#EF4444",
         color: "#fff",
         padding: "12px 22px",
         borderRadius: 10,
@@ -2358,7 +2358,7 @@ export default function ContestManage({
           {
             label: "총 참가팀",
             value: `${allP}팀`,
-            icon: <Users size={18} color="#10B981" />,
+            icon: <Users size={18} color="#3a4520" />,
             bg: ds.greenSoft,
           },
           {
@@ -2863,7 +2863,7 @@ export default function ContestManage({
                     padding: "8px 16px",
                     borderRadius: 9,
                     border: "none",
-                    background: "linear-gradient(135deg,#10b981,#059669)",
+                    background: "linear-gradient(135deg,#3a4520,#059669)",
                     color: "#fff",
                     fontSize: 12.5,
                     fontWeight: 700,

@@ -249,7 +249,7 @@ export default function ReviewWritePage() {
               padding: "0 18px",
               borderRadius: 10,
               border: "none",
-              background: "#028A6C",
+              background: "#7ab33e",
               fontSize: 14,
               fontWeight: 800,
               color: "#fff",

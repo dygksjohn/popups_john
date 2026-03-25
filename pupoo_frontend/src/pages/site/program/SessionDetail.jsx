@@ -27,9 +27,9 @@ import {
 
 const FONT = "'JeonjuCraftGothic', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
 
-const AVATAR_COLORS = ["#02A17E", "#059669", "#d97706", "#dc2626", "#7c3aed"];
+const AVATAR_COLORS = ["#90C450", "#059669", "#d97706", "#dc2626", "#7c3aed"];
 const CATEGORY_META = {
-  SESSION: { label: "세션/강연", bg: "#eff4ff", color: "#02A17E" },
+  SESSION: { label: "세션/강연", bg: "#eff4ff", color: "#90C450" },
   EXPERIENCE: { label: "체험", bg: "#ecfdf5", color: "#059669" },
   CONTEST: { label: "콘테스트", bg: "#fef3c7", color: "#b45309" },
   ETC: { label: "프로그램", bg: "#f3f4f6", color: "#4b5563" },
@@ -133,7 +133,7 @@ const css = `
   font-size: 15px; font-weight: 700; color: #374151;
   cursor: pointer; transition: all 0.15s; font-family: inherit;
 }
-.kd-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+.kd-btn:hover { background: #f8f9fc; border-color: #9ca3af; }
 .kd-btn-dark {
   background: #111827; color: #fff; border-color: #111827;
 }
@@ -254,7 +254,7 @@ const css = `
 }
 .kd-product-spec {
   display: flex; flex-direction: column; gap: 6px;
-  padding: 18px 22px; border-radius: 14px; background: #f7f8fa;
+  padding: 18px 22px; border-radius: 14px; background: #f8f9fc;
   border: 1px solid #eef0f4;
 }
 .kd-product-spec-label {
@@ -413,7 +413,7 @@ const css = `
   padding: 20px 24px; background: #fafbfc; border: 1px solid #eef0f4;
   border-radius: 14px; cursor: pointer; transition: all 0.15s;
 }
-.kd-speaker:hover { border-color: #d1d5db; background: #f3f4f6; }
+.kd-speaker:hover { border-color: #d1d5db; background: #f8f9fc; }
 .kd-speaker-av {
   width: 56px; height: 56px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -432,7 +432,7 @@ const css = `
   padding: 18px 22px; background: #fafbfc; border: 1px solid #eef0f4;
   border-radius: 14px; cursor: pointer; transition: all 0.15s;
 }
-.kd-event-banner:hover { border-color: #d1d5db; background: #f3f4f6; }
+.kd-event-banner:hover { border-color: #d1d5db; background: #f8f9fc; }
 .kd-event-thumb {
   width: 48px; height: 48px; border-radius: 12px;
   object-fit: cover; flex-shrink: 0; background: #e8ecf4;
@@ -456,15 +456,26 @@ const css = `
   .kd-product { grid-template-columns: 1fr; gap: 32px; }
   .kd-product-img { position: static; }
   .kd-product-title { font-size: 24px; }
-  .kd-product-specs { grid-template-columns: 1fr; }
+  .kd-product-specs { grid-template-columns: 1fr 1fr; }
   .kd-recommend-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kd-recommend-card { height: 450px; }
 }
 @media (max-width: 640px) {
-  .kd-container { padding: 20px 16px 48px; }
+  .kd-container { padding: 16px 16px 48px; }
+  .kd-product { gap: 20px; }
   .kd-product-title { font-size: 20px; }
+  .kd-product-specs { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kd-product-spec { padding: 14px 14px; }
+  .kd-product-spec-value { font-size: 15px; }
+  .kd-product-divider { margin: 16px 0; }
+  .kd-product-desc-wrap { margin-top: 20px; }
+  .kd-product-desc-label { font-size: 15px; }
+  .kd-product-desc { font-size: 14px; line-height: 1.7; padding: 14px 16px; }
+  .kd-recommend { padding-top: 32px; margin-bottom: 40px; }
   .kd-recommend-grid { grid-template-columns: 1fr; gap: 16px; }
-  .kd-recommend-card { height: 400px; }
+  .kd-recommend-card { height: 340px; }
+  .kd-bottom-btns { gap: 8px; }
+  .kd-btn { padding: 10px 20px; font-size: 14px; }
 }
 `;
 
@@ -579,7 +590,7 @@ export default function SessionDetail() {
       <PageHeader
         title="프로그램 상세"
         subtitle="프로그램의 상세 정보를 확인합니다"
-        icon={<Tag size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<Tag size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
       />

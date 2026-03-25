@@ -32,8 +32,8 @@ const SERVICE_CATEGORIES = [
 ];
 
 const METRIC_COLORS = {
-  participants: "#2563eb",
-  rate: "#10b981",
+  participants: "#90C450",
+  rate: "#3a4520",
   rating: "#f59e0b",
 };
 
@@ -72,7 +72,7 @@ function clamp(value, min = 0, max = 100) {
 function getProgramCategoryMeta(category) {
   const normalized = String(category || "").toUpperCase();
   if (normalized.includes("SESSION")) {
-    return { label: "세션/강연", bg: "#eff6ff", color: "#2563eb" };
+    return { label: "세션/강연", bg: "#f4f8ee", color: "#90C450" };
   }
   if (normalized.includes("EXPERIENCE")) {
     return { label: "체험존", bg: "#ecfdf5", color: "#059669" };
@@ -199,10 +199,10 @@ function downloadResultImage(event) {
 
   /* ── 4 metric cards ── */
   const metrics = [
-    { label: "참가자", value: `${event.participants.toLocaleString()}명`, sub: "", color: "#2563eb", bg: "#eff6ff" },
-    { label: "출석률(총참가자/사전등록자)", value: `${event.participationRate}%`, sub: "", color: "#10b981", bg: "#ecfdf5" },
+    { label: "참가자", value: `${event.participants.toLocaleString()}명`, sub: "", color: "#90C450", bg: "#f4f8ee" },
+    { label: "출석률(총참가자/사전등록자)", value: `${event.participationRate}%`, sub: "", color: "#3a4520", bg: "#ecfdf5" },
     { label: "별점", value: `${event.ratingText}`, sub: "/ 5.0", color: "#f59e0b", bg: "#fffbeb" },
-    { label: "후기", value: `${event.reviewCount.toLocaleString()}건`, sub: "", color: "#7c3aed", bg: "#f5f3ff" },
+    { label: "후기", value: `${event.reviewCount.toLocaleString()}건`, sub: "", color: "#6B7A3D", bg: "#f0f2e8" },
   ];
   const cardY = hdrH + 28;
   const cardW = (W - 48 * 2 - 16 * 3) / 4;
@@ -260,9 +260,9 @@ function downloadResultImage(event) {
   const donutCx1 = d1x + colW / 2;
   const donutCy1 = btmY + btmH / 2 + 8;
   const donutR1 = Math.min(colW, btmH) * 0.28;
-  drawDonut(donutCx1, donutCy1, donutR1, 14, pct1, "#e8f4fd", "#2563eb");
+  drawDonut(donutCx1, donutCy1, donutR1, 14, pct1, "#eef4e0", "#90C450");
 
-  ctx.fillStyle = "#2563eb"; ctx.font = "900 32px sans-serif"; ctx.textAlign = "center";
+  ctx.fillStyle = "#90C450"; ctx.font = "900 32px sans-serif"; ctx.textAlign = "center";
   ctx.fillText(`${Math.round(pct1)}%`, donutCx1, donutCy1 + 12);
   ctx.textAlign = "left";
 
@@ -316,9 +316,9 @@ function downloadResultImage(event) {
 
   ctx.beginPath();
   ctx.arc(gaugeCx, gaugeCy, gaugeR, Math.PI, Math.PI + gaugeAngle);
-  ctx.strokeStyle = "#10b981"; ctx.lineWidth = 14; ctx.lineCap = "round"; ctx.stroke();
+  ctx.strokeStyle = "#3a4520"; ctx.lineWidth = 14; ctx.lineCap = "round"; ctx.stroke();
 
-  ctx.fillStyle = "#10b981"; ctx.font = "900 32px sans-serif"; ctx.textAlign = "center";
+  ctx.fillStyle = "#3a4520"; ctx.font = "900 32px sans-serif"; ctx.textAlign = "center";
   ctx.fillText(`${event.participationRate}%`, gaugeCx, gaugeCy + 4);
 
   ctx.fillStyle = "#94a3b8"; ctx.font = "600 12px sans-serif";
@@ -346,7 +346,7 @@ function downloadResultImage(event) {
 }
 
 /* ── Donut Ring (참가자수 / 출석률) ── */
-function DonutStatCard({ icon, label, value, max, suffix = "", maxSuffix, color, bg }) {
+function DonutStatCard({ icon, label, value, max, suffix = "", maxSuffix, color, bg, compact = false }) {
   const [animated, setAnimated] = useState(0);
 
   useEffect(() => {
@@ -362,24 +362,23 @@ function DonutStatCard({ icon, label, value, max, suffix = "", maxSuffix, color,
     requestAnimationFrame(tick);
   }, [value]);
 
-  const percent = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   const animPercent = max > 0 ? Math.min(100, (animated / max) * 100) : 0;
-  const r = 66;
-  const stroke = 14;
+  const r = compact ? 42 : 66;
+  const stroke = compact ? 10 : 14;
   const circumference = 2 * Math.PI * r;
   const dashOffset = circumference - (circumference * animPercent) / 100;
 
   const display = Math.round(animated).toLocaleString();
 
   return (
-    <div style={{ padding: "22px 22px 18px", borderRadius: 18, border: "1px solid #e2e8f0", background: "#fff", display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, alignSelf: "flex-start" }}>
-        <div style={{ width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: bg }}>
+    <div style={{ padding: compact ? "14px 14px 12px" : "22px 22px 18px", borderRadius: 18, border: "1px solid #e2e8f0", background: "#fff", display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: compact ? 10 : 16, alignSelf: "flex-start", minWidth: 0 }}>
+        <div style={{ width: compact ? 28 : 34, height: compact ? 28 : 34, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: bg, flexShrink: 0 }}>
           {icon}
         </div>
-        <div style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{label}</div>
+        <div style={{ fontSize: compact ? 12 : 14, color: "#64748b", fontWeight: 700, lineHeight: 1.3, wordBreak: "keep-all" }}>{label}</div>
       </div>
-      <div style={{ position: "relative", width: r * 2 + stroke, height: r * 2 + stroke, marginBottom: 12 }}>
+      <div style={{ position: "relative", width: r * 2 + stroke, height: r * 2 + stroke, marginBottom: compact ? 8 : 12 }}>
         <svg width={r * 2 + stroke} height={r * 2 + stroke} style={{ transform: "rotate(-90deg)" }}>
           <circle cx={r + stroke / 2} cy={r + stroke / 2} r={r} fill="none" stroke="#f1f5f9" strokeWidth={stroke} />
           <circle cx={r + stroke / 2} cy={r + stroke / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
@@ -388,8 +387,8 @@ function DonutStatCard({ icon, label, value, max, suffix = "", maxSuffix, color,
           />
         </svg>
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: 18, fontWeight: 900, color }}>{display}{suffix}</span>
-          {maxSuffix && <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, marginTop: 2 }}>{maxSuffix}</span>}
+          <span style={{ fontSize: compact ? 14 : 18, fontWeight: 900, color }}>{display}{suffix}</span>
+          {maxSuffix && <span style={{ fontSize: compact ? 10 : 11, color: "#94a3b8", fontWeight: 600, marginTop: 2 }}>{maxSuffix}</span>}
         </div>
       </div>
     </div>
@@ -397,7 +396,7 @@ function DonutStatCard({ icon, label, value, max, suffix = "", maxSuffix, color,
 }
 
 /* ── Star Rating (별점) ── */
-function StarRatingCard({ label, value, color, bg }) {
+function StarRatingCard({ label, value, color, bg, compact = false }) {
   const [animated, setAnimated] = useState(0);
 
   useEffect(() => {
@@ -413,34 +412,35 @@ function StarRatingCard({ label, value, color, bg }) {
     requestAnimationFrame(tick);
   }, [value]);
 
+  const starSize = compact ? 18 : 28;
   const stars = [];
   for (let i = 0; i < 5; i++) {
     const fill = Math.min(1, Math.max(0, animated - i));
     stars.push(
-      <div key={i} style={{ position: "relative", width: 28, height: 28 }}>
-        <Star size={28} color="#e2e8f0" fill="#e2e8f0" strokeWidth={0} />
+      <div key={i} style={{ position: "relative", width: starSize, height: starSize }}>
+        <Star size={starSize} color="#e2e8f0" fill="#e2e8f0" strokeWidth={0} />
         <div style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${fill * 100}%` }}>
-          <Star size={28} color={color} fill={color} strokeWidth={0} />
+          <Star size={starSize} color={color} fill={color} strokeWidth={0} />
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: "22px 22px 18px", borderRadius: 18, border: "1px solid #e2e8f0", background: "#fff" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: bg }}>
-          <Star size={16} color={color} />
+    <div style={{ padding: compact ? "14px 14px 12px" : "22px 22px 18px", borderRadius: 18, border: "1px solid #e2e8f0", background: "#fff" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8, marginBottom: compact ? 10 : 16 }}>
+        <div style={{ width: compact ? 28 : 34, height: compact ? 28 : 34, borderRadius: compact ? 8 : 10, display: "flex", alignItems: "center", justifyContent: "center", background: bg, flexShrink: 0 }}>
+          <Star size={compact ? 13 : 16} color={color} />
         </div>
-        <div style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{label}</div>
+        <div style={{ fontSize: compact ? 12 : 14, color: "#64748b", fontWeight: 700 }}>{label}</div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+        <div style={{ display: "flex", gap: compact ? 2 : 4 }}>
           {stars}
         </div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-          <span style={{ fontSize: 28, fontWeight: 900, color }}>{animated.toFixed(1)}</span>
-          <span style={{ fontSize: 14, color: "#94a3b8", fontWeight: 600 }}>/ 5.0</span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+          <span style={{ fontSize: compact ? 20 : 28, fontWeight: 900, color }}>{animated.toFixed(1)}</span>
+          <span style={{ fontSize: compact ? 11 : 14, color: "#94a3b8", fontWeight: 600 }}>/ 5.0</span>
         </div>
       </div>
     </div>
@@ -448,7 +448,7 @@ function StarRatingCard({ label, value, color, bg }) {
 }
 
 /* ── Bar Card (후기수) ── */
-function BarStatCard({ icon, label, value, suffix = "", color, bg, actionLabel, onAction }) {
+function BarStatCard({ icon, label, value, suffix = "", color, bg, compact = false }) {
   const [animated, setAnimated] = useState(0);
 
   useEffect(() => {
@@ -472,38 +472,15 @@ function BarStatCard({ icon, label, value, suffix = "", color, bg, actionLabel, 
   }, [value]);
 
   return (
-    <div style={{ padding: "22px 22px 18px", borderRadius: 18, border: "1px solid #e2e8f0", background: "#fff" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 16 }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: bg }}>
-            {icon}
-          </div>
-          <div style={{ fontSize: 14, color: "#64748b", fontWeight: 700 }}>{label}</div>
+    <div style={{ padding: compact ? "14px 14px 12px" : "22px 22px 18px", borderRadius: 18, border: "1px solid #e2e8f0", background: "#fff" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8, marginBottom: compact ? 10 : 16 }}>
+        <div style={{ width: compact ? 28 : 34, height: compact ? 28 : 34, borderRadius: compact ? 8 : 10, display: "flex", alignItems: "center", justifyContent: "center", background: bg, flexShrink: 0 }}>
+          {icon}
         </div>
-        {actionLabel ? (
-          <button
-            type="button"
-            onClick={onAction}
-            style={{
-              height: 28,
-              padding: "0 10px",
-              borderRadius: 999,
-              border: "1px solid #ddd6fe",
-              background: "#f5f3ff",
-              color: "#6d28d9",
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-            }}
-          >
-            {actionLabel}
-          </button>
-        ) : null}
+        <div style={{ fontSize: compact ? 12 : 14, color: "#64748b", fontWeight: 700 }}>{label}</div>
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ width: "55%", height: 6, borderRadius: 3, background: "#f1f5f9", overflow: "hidden" }}>
+        <div style={{ width: "55%", height: compact ? 5 : 6, borderRadius: 3, background: "#f1f5f9", overflow: "hidden" }}>
           <div style={{
             height: "100%", borderRadius: 3, background: color,
             width: `${barWidth}%`,
@@ -511,8 +488,8 @@ function BarStatCard({ icon, label, value, suffix = "", color, bg, actionLabel, 
           }} />
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-          <span style={{ fontSize: 28, fontWeight: 900, color }}>{Math.round(animated).toLocaleString()}</span>
-          <span style={{ fontSize: 14, color: "#94a3b8", fontWeight: 600 }}>{suffix}</span>
+          <span style={{ fontSize: compact ? 20 : 28, fontWeight: 900, color }}>{Math.round(animated).toLocaleString()}</span>
+          <span style={{ fontSize: compact ? 11 : 14, color: "#94a3b8", fontWeight: 600 }}>{suffix}</span>
         </div>
       </div>
     </div>
@@ -540,7 +517,7 @@ function MonthDropdown({ month, setMonth }) {
         style={{
           width: "100%", height: 52, padding: "0 16px",
           borderRadius: 14,
-          border: open ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+          border: open ? "2px solid #90C450" : "1.5px solid #e2e8f0",
           background: "#fff", cursor: "pointer",
           display: "flex", alignItems: "center", gap: 10,
           transition: "border-color 0.25s, box-shadow 0.25s",
@@ -548,7 +525,7 @@ function MonthDropdown({ month, setMonth }) {
           position: "relative",
         }}
       >
-        <Calendar size={16} color={open ? "#2563eb" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
+        <Calendar size={16} color={open ? "#90C450" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
         {!open && !hasValue && (
           <span style={{
             position: "absolute", left: 42, top: "50%",
@@ -563,7 +540,7 @@ function MonthDropdown({ month, setMonth }) {
           fontSize: 15, fontWeight: 800, color: "#0f172a",
           opacity: hasValue ? 1 : 0, transition: "opacity 0.2s",
         }}>{label}</span>
-        <ChevronDown size={16} color={open ? "#2563eb" : "#94a3b8"}
+        <ChevronDown size={16} color={open ? "#90C450" : "#94a3b8"}
           style={{ transition: "transform 0.25s, color 0.25s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
         />
       </button>
@@ -583,8 +560,8 @@ function MonthDropdown({ month, setMonth }) {
                 style={{
                   width: "100%", padding: "10px 14px",
                   borderRadius: 10, border: "none",
-                  background: month === val ? "#eff6ff" : "transparent",
-                  color: month === val ? "#2563eb" : "#334155",
+                  background: month === val ? "#f4f8ee" : "transparent",
+                  color: month === val ? "#90C450" : "#334155",
                   fontSize: 16, fontWeight: month === val ? 800 : 600,
                   cursor: "pointer", textAlign: "left",
                   transition: "background 0.15s",
@@ -782,11 +759,6 @@ export default function Closed() {
     setProgramFilter("전체");
   }, []);
 
-  const handleMoveToEventReviews = useCallback(() => {
-    if (!selected?.id) return;
-    navigate(`/community/review?eventId=${selected.id}`);
-  }, [navigate, selected?.id]);
-
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'Noto Sans KR', sans-serif" }}>
       <style>{`
@@ -806,7 +778,7 @@ export default function Closed() {
       <PageHeader
         title="종료 행사"
         subtitle="종료된 행사 결과를 행사별 그래프로 확인하세요"
-        icon={<ArchiveX size={42} color="#1a4fd6" strokeWidth={1.6} />}
+        icon={<ArchiveX size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{
           fontSize: isMobile ? 30 : isTablet ? 38 : 46,
           lineHeight: isMobile ? "1.25" : isTablet ? "52px" : "66px",
@@ -850,7 +822,7 @@ export default function Closed() {
                   style={{
                     width: "100%", height: 52, padding: "0 16px",
                     borderRadius: 14,
-                    border: yearOpen ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+                    border: yearOpen ? "2px solid #90C450" : "1.5px solid #e2e8f0",
                     background: "#fff", cursor: "pointer",
                     display: "flex", alignItems: "center", gap: 10,
                     transition: "border-color 0.25s, box-shadow 0.25s",
@@ -858,7 +830,7 @@ export default function Closed() {
                     position: "relative",
                   }}
                 >
-                  <Calendar size={16} color={yearOpen ? "#2563eb" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
+                  <Calendar size={16} color={yearOpen ? "#90C450" : "#94a3b8"} style={{ transition: "color 0.25s" }} />
                   {!yearOpen && year === "all" && (
                     <span style={{
                       position: "absolute", left: 42, top: "50%",
@@ -878,7 +850,7 @@ export default function Closed() {
                     {year === "all" ? "" : `${year}년`}
                   </span>
                   <ChevronDown
-                    size={16} color={yearOpen ? "#2563eb" : "#94a3b8"}
+                    size={16} color={yearOpen ? "#90C450" : "#94a3b8"}
                     style={{
                       transition: "transform 0.25s, color 0.25s",
                       transform: yearOpen ? "rotate(180deg)" : "rotate(0deg)",
@@ -901,8 +873,8 @@ export default function Closed() {
                         style={{
                           width: "100%", padding: "10px 14px",
                           borderRadius: 10, border: "none",
-                          background: year === value ? "#eff6ff" : "transparent",
-                          color: year === value ? "#2563eb" : "#334155",
+                          background: year === value ? "#f4f8ee" : "transparent",
+                          color: year === value ? "#90C450" : "#334155",
                           fontSize: 16, fontWeight: year === value ? 800 : 600,
                           cursor: "pointer", textAlign: "left",
                           transition: "background 0.15s",
@@ -926,7 +898,7 @@ export default function Closed() {
               <div style={{ position: "relative", width: isMobile ? "100%" : 280 }}>
                 <Search
                   size={16}
-                  color={searchFocused ? "#2563eb" : "#94a3b8"}
+                  color={searchFocused ? "#90C450" : "#94a3b8"}
                   style={{
                     position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
                     transition: "color 0.25s", zIndex: 1,
@@ -951,7 +923,7 @@ export default function Closed() {
                   style={{
                     width: "100%", height: 44,
                     borderRadius: 12,
-                    border: searchFocused ? "2px solid #2563eb" : "1.5px solid #e2e8f0",
+                    border: searchFocused ? "2px solid #90C450" : "1.5px solid #e2e8f0",
                     padding: "0 14px 0 38px",
                     fontSize: 15, fontWeight: 700, color: "#0f172a",
                     background: "#fff", outline: "none",
@@ -983,7 +955,7 @@ export default function Closed() {
                     <span style={{ fontSize: 14, fontWeight: 600, color: "#bbb" }}>{filtered.length}</span>
                   </div>
                   {selected && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, background: "#2563eb", color: "#fff", fontSize: 13, fontWeight: 700, maxWidth: "100%" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, background: "#90C450", color: "#fff", fontSize: 13, fontWeight: 700, maxWidth: "100%" }}>
                       <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", opacity: 0.6 }} />
                       {selected.title}
                     </span>
@@ -1002,8 +974,8 @@ export default function Closed() {
                           border: "none",
                           borderRight: !isMobile && ((isTablet && idx % 2 !== 1) || (!isTablet && idx % 4 !== 3)) ? "1px solid #f1f5f9" : "none",
                           borderBottom: "1px solid #f1f5f9",
-                          borderLeft: active ? "3px solid #2563eb" : "3px solid transparent",
-                          background: active ? "#eff6ff" : "#fff",
+                          borderLeft: active ? "3px solid #90C450" : "3px solid transparent",
+                          background: active ? "#f4f8ee" : "#fff",
                           padding: isMobile ? "16px" : "20px 20px",
                           cursor: "pointer",
                           textAlign: "left",
@@ -1013,7 +985,7 @@ export default function Closed() {
                         onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "#fff"; }}
                       >
                         <div style={{
-                          fontSize: 15, fontWeight: 700, color: active ? "#2563eb" : "#555",
+                          fontSize: 15, fontWeight: 700, color: active ? "#90C450" : "#555",
                           lineHeight: 1.45,
                           display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
                           marginBottom: 12,
@@ -1061,7 +1033,7 @@ export default function Closed() {
                     {selected.image ? (
                       <img src={resolveImageUrl(selected.image)} alt={selected.title} style={{ width: "100%", height: "100%", minHeight: isMobile ? 220 : 420, maxHeight: isMobile ? 300 : "none", objectFit: "cover", display: "block" }} />
                     ) : (
-                      <div style={{ minHeight: isMobile ? 220 : 420, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, color: "#94a3b8", background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)" }}>
+                      <div style={{ minHeight: isMobile ? 220 : 420, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, color: "#94a3b8", background: "linear-gradient(180deg, #f8fafc 0%, #f4f8ee 100%)" }}>
                         <ImageOff size={36} />
                         <span style={{ fontSize: 15, fontWeight: 700 }}>행사 이미지가 없습니다.</span>
                       </div>
@@ -1071,7 +1043,7 @@ export default function Closed() {
                   <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 24, overflow: "hidden", boxShadow: "0 18px 36px rgba(15,23,42,0.05)" }}>
                     <div style={{ padding: isMobile ? "18px 16px" : "26px 28px", borderBottom: "1px solid #eef2f7", background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "flex-start", flexDirection: isMobile ? "column" : "row", gap: 12 }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 999, background: "#eff6ff", color: "#1d4ed8", fontSize: 15, fontWeight: 500 }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 999, background: "#f4f8ee", color: "#6B7A3D", fontSize: 15, fontWeight: 500 }}>
                           <Archive size={12} /> 선택된 종료 행사
                         </div>
                         <button
@@ -1115,38 +1087,40 @@ export default function Closed() {
                       </p>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: isMobile ? 10 : 14, marginTop: 22 }}>
                         <DonutStatCard
-                          icon={<Users size={16} color="#2563eb" />}
+                          icon={<Users size={isMobile ? 13 : 16} color="#90C450" />}
                           label="참가자수"
                           value={selected.participants}
                           max={Math.max(selected.participants || 0, 1)}
                           suffix="명"
-                          color="#2563eb"
-                          bg="#eff6ff"
+                          color="#90C450"
+                          bg="#f4f8ee"
+                          compact={isMobile}
                         />
                         <DonutStatCard
-                          icon={<Calendar size={16} color="#10b981" />}
-                          label="출석률(총참가자/사전등록자)"
+                          icon={<Calendar size={isMobile ? 13 : 16} color="#3a4520" />}
+                          label={isMobile ? "출석률" : "출석률(총참가자/사전등록자)"}
                           value={selected.participationRate}
                           max={100}
                           suffix="%"
-                          color="#10b981"
+                          color="#3a4520"
                           bg="#ecfdf5"
+                          compact={isMobile}
                         />
                         <StarRatingCard
                           label="별점"
                           value={selected.rating}
                           color="#f59e0b"
                           bg="#fffbeb"
+                          compact={isMobile}
                         />
                         <BarStatCard
-                          icon={<MessageSquareText size={16} color="#7c3aed" />}
+                          icon={<MessageSquareText size={isMobile ? 13 : 16} color="#6B7A3D" />}
                           label="후기 수"
                           value={selected.reviewCount}
                           suffix="건"
-                          color="#7c3aed"
-                          bg="#f5f3ff"
-                          actionLabel="행사 후기"
-                          onAction={handleMoveToEventReviews}
+                          color="#6B7A3D"
+                          bg="#f0f2e8"
+                          compact={isMobile}
                         />
                       </div>
                       <div style={{ marginTop: 24, paddingTop: 22, borderTop: "1px solid #eef2f7" }}>
@@ -1158,10 +1132,10 @@ export default function Closed() {
                               type="button"
                               onClick={() => setProgramFilter("전체")}
                               style={{
-                                padding: "10px 26px", borderRadius: 999, border: "none", cursor: "pointer",
+                                padding: isMobile ? "7px 14px" : "10px 26px", borderRadius: 999, border: "none", cursor: "pointer",
                                 background: programFilter === "전체" ? "#1e293b" : "rgb(241,241,241)",
                                 color: programFilter === "전체" ? "#fff" : "rgb(51,65,85)",
-                                fontSize: 15, fontWeight: programFilter === "전체" ? 700 : 500, transition: "all 0.2s",
+                                fontSize: isMobile ? 13 : 15, fontWeight: programFilter === "전체" ? 700 : 500, transition: "all 0.2s",
                               }}
                             >
                               전체 {selectedProgramSummary.total || 0}개
@@ -1174,10 +1148,10 @@ export default function Closed() {
                                   key={key}
                                   onClick={() => setProgramFilter(key)}
                                   style={{
-                                    padding: "10px 26px", borderRadius: 999, border: "none", cursor: "pointer",
+                                    padding: isMobile ? "7px 14px" : "10px 26px", borderRadius: 999, border: "none", cursor: "pointer",
                                     background: programFilter === key ? "#1e293b" : "rgb(241,241,241)",
                                     color: programFilter === key ? "#fff" : "rgb(51,65,85)",
-                                    fontSize: 15, fontWeight: programFilter === key ? 700 : 500, transition: "all 0.2s",
+                                    fontSize: isMobile ? 13 : 15, fontWeight: programFilter === key ? 700 : 500, transition: "all 0.2s",
                                   }}
                                 >
                                   {key} {value}개
@@ -1322,23 +1296,23 @@ export default function Closed() {
                     {filtered.slice(0, visibleCount).map((event) => {
                       const active = event.id === selected?.id;
                       return (
-                        <div key={event.id} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) 170px 110px 140px 110px", alignItems: "center", gap: isMobile ? 12 : 16, padding: isMobile ? "16px" : "16px 24px", borderTop: "1px solid #f1f5f9", background: active ? "#eff6ff" : "#f9fafb" }}>
+                        <div key={event.id} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) 170px 110px 140px 110px", alignItems: "center", gap: isMobile ? 12 : 16, padding: isMobile ? "16px" : "16px 24px", borderTop: "1px solid #f1f5f9", background: active ? "#f4f8ee" : "#f9fafb" }}>
                           <button type="button" onClick={() => handleSelectEvent(event.id)} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "pointer", display: "grid", gap: 6 }}>
                             <div style={{ fontSize: 15, fontWeight: 600, color: "rgb(121,121,121)" }}>{event.title}</div>
                             <div style={{ fontSize: 12, color: "rgb(121,121,121)" }}>{event.dateLabel} · {event.location}</div>
                           </button>
                           <div style={{ display: "grid", gap: 4 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                              <Users size={11} color="#2563eb" />
+                              <Users size={11} color="#90C450" />
                               <span style={{ fontSize: 13, fontWeight: 800, color: "rgb(121,121,121)" }}>{event.participants.toLocaleString()}명</span>
                             </div>
                             <div style={{ width: "100%", height: 4, borderRadius: 2, background: "#e5e7eb", overflow: "hidden" }}>
-                              <div style={{ height: "100%", borderRadius: 2, background: "#2563eb", width: `${clamp((event.participants / Math.max(event.capacity || 0, event.participants || 0, 1)) * 100)}%`, transition: "width 0.3s" }} />
+                              <div style={{ height: "100%", borderRadius: 2, background: "#90C450", width: `${clamp((event.participants / Math.max(event.capacity || 0, event.participants || 0, 1)) * 100)}%`, transition: "width 0.3s" }} />
                             </div>
                           </div>
                           {(() => {
                             const r = event.participationRate;
-                            const rateColor = r >= 70 ? "#10b981" : r >= 40 ? "#f59e0b" : "#ef4444";
+                            const rateColor = r >= 70 ? "#3a4520" : r >= 40 ? "#f59e0b" : "#ef4444";
                             const ratePercent = clamp(r);
                             const miniR = 10;
                             const miniC = 2 * Math.PI * miniR;
@@ -1406,7 +1380,7 @@ export default function Closed() {
                           justifyContent: "center", gap: 8,
                           transition: "all 0.2s",
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.borderColor = "#2563eb"; e.currentTarget.style.color = "#2563eb"; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "#f4f8ee"; e.currentTarget.style.borderColor = "#90C450"; e.currentTarget.style.color = "#90C450"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#475569"; }}
                       >
                         <ChevronDown size={16} />

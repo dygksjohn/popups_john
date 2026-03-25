@@ -115,7 +115,7 @@ export default function AdminLogin() {
       <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 420, margin: "0 20px" }}>
         {/* 로고 */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <img src="/logo_white.png" alt="PuPoo" style={{ height: 48, objectFit: "contain", display: "block", margin: "0 auto", filter: "drop-shadow(0 2px 12px rgba(0,0,0,0.15))" }} />
+          <img src="/bottom_logo.png" alt="PuPoo" style={{ height: 48, objectFit: "contain", display: "block", margin: "0 auto", filter: "drop-shadow(0 2px 12px rgba(0,0,0,0.15))" }} />
           <div style={{ fontSize: 13.5, color: "rgba(255,255,255,0.78)", marginTop: 8, fontWeight: 500 }}>
             반려동물 행사 관리 플랫폼
           </div>

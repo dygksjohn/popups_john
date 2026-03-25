@@ -63,7 +63,7 @@ function Toast({ msg, type = "success", onDone }) {
     return () => clearTimeout(t);
   }, [onDone]);
   const bg =
-    type === "success" ? "#10B981" : type === "error" ? "#EF4444" : "#F59E0B";
+    type === "success" ? "#3a4520" : type === "error" ? "#EF4444" : "#F59E0B";
   return (
     <div
       style={{

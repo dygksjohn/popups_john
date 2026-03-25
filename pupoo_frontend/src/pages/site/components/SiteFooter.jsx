@@ -9,7 +9,29 @@ const NAV_LINKS = [
   { label: "회사소개", to: "/policy/aboutus" },
 ];
 
+
+const HeartIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <style>{`
+      @keyframes pupoo-beat {
+        0%, 100% { transform: scale(1); }
+        15% { transform: scale(1.25); }
+        30% { transform: scale(1); }
+        45% { transform: scale(1.15); }
+        60% { transform: scale(1); }
+      }
+      .pupoo-heart { animation: pupoo-beat 1.5s ease-in-out infinite; transform-origin: center; }
+    `}</style>
+    <path className="pupoo-heart" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#fff" />
+  </svg>
+);
+
 const SNS = [
+  {
+    label: "PuPoo",
+    href: "/credits",
+    icon: <HeartIcon />,
+  },
   {
     label: "YouTube",
     href: "https://www.youtube.com/channel/UCmKrFZb9Dts6PyA6Wmc_zYA",
@@ -40,73 +62,130 @@ const SNS = [
 ];
 
 const Footer = () => (
-  <footer style={{ backgroundColor: "#1e1e1e", width: "100%", position: "relative", zIndex: 1000 }}>
-    <div style={{ maxWidth: 1712, margin: "0 auto", padding: "0 20px" }}>
+  <footer className="w-full relative z-[1000] isolate pointer-events-auto">
 
-      {/* 상단: 로고 + SNS */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "28px 0 20px",
-        borderBottom: "1px solid #2e2e2e",
-      }}>
-        <Link to="/" style={{ flexShrink: 0 }}>
-          <img src="/logo_white.png" alt="Pupoo" style={{ height: 18, width: "auto", display: "block", opacity: 0.85 }} />
-        </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          {SNS.map((s) => (
-            <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer"
-              style={{ display: "block", opacity: 0.7, transition: "opacity 0.2s" }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
+    {/* ── 모바일 레이아웃 (md 미만) ── */}
+    <div className="md:hidden" style={{ backgroundColor: "#1e1e1e" }}>
+      <div style={{ maxWidth: 1712, margin: "0 auto", padding: "0 20px" }}>
+
+        {/* 상단: 로고 + SNS */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "28px 0 20px",
+          borderBottom: "1px solid #2e2e2e",
+        }}>
+          <Link to="/" style={{ flexShrink: 0 }}>
+            <img src="/bottom_logo.png" alt="Pupoo" style={{ height: 24, width: "auto", display: "block", opacity: 0.8 }} />
+          </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            {SNS.map((s) => (
+              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer"
+                style={{ display: "block", opacity: 0.7, transition: "opacity 0.2s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
+              >
+                {s.icon}
+              </a>
+            ))}
+          </div>
+        </div>
+
+        {/* 정책 링크 + 앱 다운로드 */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+          gap: "12px 16px",
+          padding: "20px 0",
+          borderBottom: "1px solid #2e2e2e",
+        }}>
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              style={{
+                color: "#777",
+                fontSize: 12,
+                fontWeight: 500,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                transition: "color 0.2s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#777")}
             >
-              {s.icon}
-            </a>
+              {link.label}
+            </Link>
           ))}
         </div>
-      </div>
 
-      {/* 정책 링크 - 모바일에서 2열 그리드 */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-        gap: "12px 16px",
-        padding: "20px 0",
-        borderBottom: "1px solid #2e2e2e",
-      }}>
-        {NAV_LINKS.map((link) => (
-          <Link
-            key={link.to}
-            to={link.to}
-            style={{
-              color: "#777",
-              fontSize: 12,
-              fontWeight: 500,
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              transition: "color 0.2s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#777")}
-          >
-            {link.label}
-          </Link>
-        ))}
-      </div>
-
-      {/* 하단: 회사 정보 */}
-      <div style={{ padding: "20px 0 28px" }}>
-        <div style={{ color: "#555", fontSize: 11, lineHeight: 1.8 }}>
-          <div>© {new Date().getFullYear()} pupoo. All rights reserved.</div>
-          <div>(주)푸푸컴퍼니 · 서울특별시 서초구 강남대로 405 통영빌딩 8층</div>
-          <div>본 서비스는 프로젝트용으로 제작되었습니다. 대표이사 : 홍길동</div>
+        {/* 하단: 회사 정보 */}
+        <div style={{ padding: "20px 0 28px" }}>
+          <div style={{ color: "#555", fontSize: 11, lineHeight: 1.8 }}>
+            <div>© {new Date().getFullYear()} pupoo. All rights reserved.</div>
+            <div>(주)푸푸컴퍼니 · 서울특별시 서초구 강남대로 405 통영빌딩 8층</div>
+            <div>본 서비스는 프로젝트용으로 제작되었습니다. 대표이사 : 홍길동</div>
+          </div>
         </div>
-      </div>
 
+      </div>
     </div>
+
+    {/* ── PC 레이아웃 (md 이상) ── */}
+    <div className="hidden md:block" style={{ backgroundColor: "#2a2a2a" }}>
+      <div className="max-w-[1712px] mx-auto px-10">
+
+        {/* 상단: 로고 | 네비게이션 | SNS 아이콘 */}
+        <div className="flex items-center justify-between py-8 border-b border-[#3a3a3a]">
+          {/* 로고 */}
+          <Link to="/" className="flex-shrink-0">
+            <img
+              src="/bottom_logo.png"
+              alt="Pupoo"
+              style={{ height: 28, width: "auto", display: "block", opacity: 0.8 }}
+            />
+          </Link>
+
+          {/* 네비게이션 */}
+          <nav className="flex items-center gap-8">
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="text-[#8a8a8a] text-sm font-medium tracking-[0.08em] whitespace-nowrap transition-colors duration-200 hover:text-white"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* SNS 아이콘 */}
+          <div className="flex items-center gap-5 flex-shrink-0">
+            {SNS.map((s) => (
+              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer"
+                className="block opacity-80 hover:opacity-100 transition-opacity duration-200"
+              >
+                {s.icon}
+              </a>
+            ))}
+          </div>
+        </div>
+
+        {/* 하단: 회사정보 */}
+        <div className="flex items-start justify-between py-8">
+          <div className="text-[#666] text-sm leading-relaxed space-y-1">
+            <div>© {new Date().getFullYear()} pupoo. All rights reserved.</div>
+            <div>(주)푸푸컴퍼니 서울특별시 서초구 강남대로 405 통영빌딩 8층</div>
+            <div>본 서비스는 프로젝트용으로 제작되었습니다. 대표이사 : 홍길동</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </footer>
 );
 
