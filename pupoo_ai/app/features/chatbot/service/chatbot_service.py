@@ -3,6 +3,7 @@
 from pupoo_ai.app.features.chatbot.dto.request import ChatRequest
 from pupoo_ai.app.features.chatbot.dto.response import ChatResponse
 from pupoo_ai.app.features.chatbot.service.bedrock_client import invoke_bedrock
+from pupoo_ai.app.features.chatbot.prompts.system import SYSTEM_PROMPT, USER_SYSTEM_PROMPT
 from pupoo_ai.app.features.orchestrator.action_planner import ActionPlanner
 from pupoo_ai.app.features.orchestrator.backend_api_client import BackendApiClient
 from pupoo_ai.app.features.orchestrator.handlers import (
@@ -15,7 +16,29 @@ from pupoo_ai.app.features.orchestrator.handlers import (
 from pupoo_ai.app.features.orchestrator.intent_analyzer import IntentAnalyzer
 
 
+def _is_user_role(request: ChatRequest) -> bool:
+    return getattr(request.context, "role", "admin") == "user"
+
+
+async def _user_chat(request: ChatRequest) -> ChatResponse:
+    """유저용 챗봇: 인텐트 분석 없이 LLM 자유 대화."""
+    history = list(request.history)
+    while history and history[0].role == "assistant":
+        history.pop(0)
+
+    messages = [{"role": message.role, "content": [{"text": message.content}]} for message in history]
+    messages.append({"role": "user", "content": [{"text": request.message}]})
+    reply = await invoke_bedrock(messages, system_prompt=USER_SYSTEM_PROMPT)
+    reply_text = str(reply or "").strip()
+    if not reply_text:
+        reply_text = "무엇이 궁금하세요? 행사, 로그인, 결제, 환불 등 뭐든 물어봐 주세요 🐾"
+    return ChatResponse(message=reply_text, actions=[])
+
+
 async def chat(request: ChatRequest, authorization: str | None = None) -> ChatResponse:
+    if _is_user_role(request):
+        return await _user_chat(request)
+
     intent = IntentAnalyzer().analyze(request.message, request.context)
     backend_client = BackendApiClient(authorization)
     execute_handler = ExecuteActionHandler()
