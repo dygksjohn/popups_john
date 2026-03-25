@@ -50,6 +50,7 @@ class ExecutionContext(BaseModel):
 class ChatContext(BaseModel):
     current_page: str = Field(default="", alias="currentPage")
     route: str = ""
+    role: str = Field(default="admin", description="'admin' 또는 'user'")
     notice_draft: NoticeDraftContext | None = Field(default=None, alias="noticeDraft")
     notice_execution: ExecutionContext | None = Field(default=None, alias="noticeExecution")
     notification_draft: NotificationDraftContext | None = Field(default=None, alias="notificationDraft")
