@@ -1,22 +1,17 @@
-"""내부 모더레이션 API 라우터.
+"""내부 모더레이션 API 라우터."""
 
-기능:
-- 백엔드가 호출하는 사전 차단용 AI moderation 엔드포인트를 제공한다.
-
-설명:
-- 이 라우터는 저장 전 텍스트 검사를 담당한다.
-- 신고 접수 후 관리자 승인으로 상태를 바꾸는 신고 기반 모더레이션과는 별도 흐름이다.
-
-흐름:
-- 내부 토큰 검증 -> RAG 기반 정책 검색/판단 -> 구조화된 PASS/BLOCK 응답 반환
-"""
+import asyncio
+import logging
 
 from fastapi import APIRouter, Depends
 
 from pupoo_ai.app.core.auth import verify_internal_token
+from pupoo_ai.app.core.config import settings
 from pupoo_ai.app.core.constants import INTERNAL_API_PREFIX
 from pupoo_ai.app.features.moderation.rag_service import moderate_with_rag
 from pupoo_ai.app.features.moderation.schemas import ModerateRequest, ModerateResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix=INTERNAL_API_PREFIX,
@@ -25,16 +20,51 @@ router = APIRouter(
 )
 
 
+def _block_response(reason: str, stack: str) -> ModerateResponse:
+    return ModerateResponse(
+        result="BLOCK",
+        action="BLOCK",
+        reason=reason,
+        score=None,
+        ai_score=None,
+        stack=stack,
+        flagged_phrases=None,
+        inferred_phrases=None,
+    )
+
+
 @router.post("/moderate", response_model=ModerateResponse)
 async def moderate(body: ModerateRequest) -> ModerateResponse:
-    # 기능: 입력 텍스트의 정책 위반 여부를 사전 차단 기준으로 판단한다.
-    # 설명: 정책 문서 검색 결과와 LLM 판단을 묶어 백엔드가 바로 사용할 응답으로 변환한다.
-    # 흐름: 요청 수신 -> moderate_with_rag 호출 -> 응답 모델 구성.
-    action, ai_score, reason, stack, flagged_phrases, inferred_phrases = moderate_with_rag(body.text)
+    content = (body.content or body.text or "").strip()
+    board_type = (body.board_type or body.content_type or "").strip() or None
+    metadata = dict(body.metadata or {})
+    if body.board_id is not None:
+        metadata.setdefault("boardId", body.board_id)
+    if board_type:
+        metadata.setdefault("boardType", board_type)
+
+    if not content:
+        return _block_response("검사할 내용이 비어 있어 등록을 막았어요.", "validation")
+
+    try:
+        result, score, reason, stack, flagged_phrases, inferred_phrases = await asyncio.wait_for(
+            asyncio.to_thread(moderate_with_rag, content, board_type, metadata),
+            timeout=settings.moderation_timeout_seconds,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Moderation timed out. board_type=%s metadata=%s", board_type, metadata)
+        return _block_response("금칙어 검사 시간이 초과되어 등록을 막았어요.", "timeout")
+    except Exception:
+        logger.exception("Moderation failed unexpectedly. board_type=%s metadata=%s", board_type, metadata)
+        return _block_response("금칙어 검사를 완료하지 못해 등록을 막았어요.", "error")
+
+    normalized = "PASS" if str(result or "").upper() == "PASS" else "BLOCK"
     return ModerateResponse(
-        action=action,
-        ai_score=ai_score,
+        result=normalized,
+        action=normalized,
         reason=reason,
+        score=score,
+        ai_score=score,
         stack=stack,
         flagged_phrases=flagged_phrases,
         inferred_phrases=inferred_phrases,

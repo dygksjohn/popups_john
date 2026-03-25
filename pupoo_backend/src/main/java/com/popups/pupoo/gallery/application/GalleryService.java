@@ -57,10 +57,11 @@ public class GalleryService {
         PageRequest pageable = PageRequest.of(page, size);
         String sk = sortOption == null ? "latest" : sortOption.trim().toLowerCase();
         String kw = (keyword == null || keyword.isBlank()) ? null : keyword;
+        String status = GalleryStatus.PUBLIC.name();
 
         Page<Gallery> res = "likes".equals(sk)
-                ? galleryRepository.searchByKeywordSortedByLikes(GalleryStatus.PUBLIC, kw, pageable)
-                : galleryRepository.searchByKeywordSortedByLatest(GalleryStatus.PUBLIC, kw, pageable);
+                ? galleryRepository.searchByKeywordSortedByLikes(status, kw, pageable)
+                : galleryRepository.searchByKeywordSortedByLatest(status, kw, pageable);
         return res.map(this::toResponse);
     }
 
@@ -68,10 +69,11 @@ public class GalleryService {
         PageRequest pageable = PageRequest.of(page, size);
         String sk = sortOption == null ? "latest" : sortOption.trim().toLowerCase();
         String kw = (keyword == null || keyword.isBlank()) ? null : keyword;
+        String status = GalleryStatus.PUBLIC.name();
 
         Page<Gallery> res = "likes".equals(sk)
-                ? galleryRepository.searchByEventIdAndKeywordSortedByLikes(eventId, GalleryStatus.PUBLIC, kw, pageable)
-                : galleryRepository.searchByEventIdAndKeywordSortedByLatest(eventId, GalleryStatus.PUBLIC, kw, pageable);
+                ? galleryRepository.searchByEventIdAndKeywordSortedByLikes(eventId, status, kw, pageable)
+                : galleryRepository.searchByEventIdAndKeywordSortedByLatest(eventId, status, kw, pageable);
         return res.map(this::toResponse);
     }
 

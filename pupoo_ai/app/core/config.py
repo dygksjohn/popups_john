@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     congestion_model_dir: str = ""
     backend_base_url: str = ""
     backend_timeout_seconds: float = 15.0
+    moderation_timeout_seconds: float = 6.0
+    poster_provider: str = "openai"
+    poster_openai_model: str = "dall-e-3"
+    poster_openai_base_url: str = "https://api.openai.com/v1"
+    poster_bedrock_model: str = "amazon.titan-image-generator-v1"
+    poster_default_width: int = 400
+    poster_default_height: int = 847
+    poster_storage_prefix: str = "posters/generated"
+    poster_timeout_seconds: float = 20.0
 
     # watsonx.ai 설정 (RAG용)
     watsonx_api_key: str = ""
