@@ -35,7 +35,6 @@ const styles = {
     margin: 0,
     letterSpacing: "-1px",
     lineHeight: "66px",
-    wordBreak: "keep-all",
   },
   breadcrumb: {
     display: "flex",
@@ -62,7 +61,6 @@ const styles = {
     fontWeight: 400,
     margin: "8px 0 0",
     lineHeight: 1.6,
-    wordBreak: "keep-all",
   },
   searchArea: {
     display: "flex",
@@ -80,12 +78,11 @@ const styles = {
     padding: "13px 8px",
     fontSize: 17,
     fontWeight: 600,
-    background: "#f3f4f6",
+    background: "rgb(235,235,235)",
     border: "none",
     cursor: "pointer",
     transition: "all 0.15s",
-    fontFamily:
-      "'JeonjuCraftGothic', Apple SD Gothic Neo, Malgun Gothic, '맑은 고딕', sans-serif",
+    fontFamily: "'JeonjuCraftGothic', Apple SD Gothic Neo, Malgun Gothic, '맑은 고딕', sans-serif",
     color: "#6b7280",
     textAlign: "center",
     whiteSpace: "nowrap",
@@ -97,28 +94,15 @@ const styles = {
   },
   tabActive: {
     color: "#fff",
-    background: "#02A17E",
+    background: "#90C450",
     borderRadius: 8,
   },
   tabHover: {
-    color: "#02A17E",
+    color: "#90C450",
   },
 };
 
-export default function PageHeader({
-  title,
-  subtitle,
-  icon,
-  titleStyle,
-  subtitleStyle,
-  categories,
-  currentPath,
-  breadcrumbTitle,
-  onTabClick,
-  tabCounts,
-  children,
-  className,
-}) {
+export default function PageHeader({ title, subtitle, icon, titleStyle, subtitleStyle, categories, currentPath, breadcrumbTitle, onTabClick, tabCounts, children, className, tabInactiveBg, bgColor }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window === "undefined" ? 1440 : window.innerWidth,
@@ -132,14 +116,10 @@ export default function PageHeader({
   const currentEventId = programMatch?.[1] || null;
 
   const isProgramTabPath = (path) =>
-    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/[^/?#]+)?$/.test(
-      path,
-    );
+    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)(?:\/[^/?#]+)?$/.test(path);
 
   const hasEventIdInPath = (path) =>
-    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)\/[^/?#]+$/.test(
-      path,
-    );
+    /^\/program\/(?:all|current|upcoming|closed|experience|session|contest)\/[^/?#]+$/.test(path);
 
   const resolveTargetPath = (path) => {
     if (!currentEventId) return path;
@@ -165,124 +145,97 @@ export default function PageHeader({
   const section = pathSegments[0] || "";
   const sectionLabel = SECTION_LABELS[section];
   const lastCrumb = breadcrumbTitle || title;
-  const breadcrumbItems = sectionLabel
-    ? ["홈", sectionLabel, lastCrumb]
-    : ["홈", lastCrumb];
+  const isDuplicate = sectionLabel && sectionLabel.replace(/\s/g, "") === lastCrumb.replace(/\s/g, "");
+  const breadcrumbItems = (sectionLabel && !isDuplicate) ? ["홈", sectionLabel, lastCrumb] : ["홈", lastCrumb];
 
   const isMobile = viewportWidth < 768;
-  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
-  const isCompact = viewportWidth < 1024;
 
   const pageHeaderStyle = {
     ...styles.pageHeader,
     paddingTop: isMobile
-      ? "calc(var(--pupoo-site-header-offset, 96px) + 48px)"
-      : isTablet
-        ? "calc(var(--pupoo-site-header-height, 72px) + 36px)"
-        : styles.pageHeader.paddingTop,
-    paddingBottom: isMobile ? 36 : undefined,
+      ? "calc(var(--pupoo-site-header-offset, 96px) + 20px)"
+      : styles.pageHeader.paddingTop,
+    paddingBottom: isMobile ? 20 : undefined,
+    ...(bgColor ? { backgroundColor: bgColor } : {}),
   };
 
   const innerStyle = {
     ...styles.inner,
-    width: isMobile
-      ? "calc(100% - 20px)"
-      : isTablet
-        ? "calc(100% - 28px)"
-        : styles.inner.width,
-  };
-
-  const topRowStyle = {
-    ...styles.topRow,
-    flexDirection: isMobile ? "column" : "row",
-    alignItems: isMobile ? "flex-start" : styles.topRow.alignItems,
-    gap: isMobile ? 12 : isTablet ? 16 : styles.topRow.gap,
+    width: isMobile ? "calc(100% - 32px)" : styles.inner.width,
   };
 
   const mergedTitleStyle = {
     ...styles.title,
-    fontSize: isMobile ? 18 : isTablet ? 30 : styles.title.fontSize,
-    lineHeight: isMobile ? "1.25" : isTablet ? "1.22" : styles.title.lineHeight,
     ...titleStyle,
+    fontSize: isMobile ? 22 : (titleStyle?.fontSize ?? styles.title.fontSize),
+    lineHeight: isMobile ? "1.3" : (titleStyle?.lineHeight ?? styles.title.lineHeight),
+    letterSpacing: isMobile ? "-0.5px" : (titleStyle?.letterSpacing ?? styles.title.letterSpacing),
   };
 
   const mergedSubtitleStyle = {
     ...styles.subtitle,
-    fontSize: isMobile ? 12 : isTablet ? 15 : styles.subtitle.fontSize,
-    margin: isMobile || isTablet ? "6px 0 0" : styles.subtitle.margin,
-    lineHeight: isMobile ? 1.5 : styles.subtitle.lineHeight,
     ...subtitleStyle,
-  };
-
-  const breadcrumbStyle = {
-    ...styles.breadcrumb,
-    width: isMobile ? "100%" : "auto",
-    justifyContent: isMobile ? "flex-start" : "flex-end",
-    whiteSpace: isMobile ? "normal" : styles.breadcrumb.whiteSpace,
-    flexWrap: isMobile ? "wrap" : "nowrap",
-    paddingTop: isMobile ? 0 : styles.breadcrumb.paddingTop,
-    fontSize: isMobile ? 12.5 : styles.breadcrumb.fontSize,
-    gap: isMobile ? 4 : styles.breadcrumb.gap,
-    lineHeight: isMobile ? 1.45 : 1,
-  };
-
-  const searchAreaStyle = {
-    ...styles.searchArea,
-    width: "100%",
-    padding: isMobile ? "16px 0 0" : isTablet ? "22px 0 0" : styles.searchArea.padding,
+    fontSize: isMobile ? 12 : (subtitleStyle?.fontSize ?? styles.subtitle.fontSize),
+    margin: isMobile ? "4px 0 0" : styles.subtitle.margin,
+    lineHeight: isMobile ? 1.5 : styles.subtitle.lineHeight,
+    color: isMobile ? "#9ca3af" : (subtitleStyle?.color ?? styles.subtitle.color),
   };
 
   const tabsStyle = {
     ...styles.tabs,
-    marginTop: isMobile ? 16 : isTablet ? 32 : styles.tabs.marginTop,
-    display: "flex",
+    marginTop: isMobile ? 14 : styles.tabs.marginTop,
     flexWrap: "nowrap",
-    overflowX: isMobile ? "auto" : isCompact ? "auto" : "visible",
+    overflowX: isMobile ? "auto" : "visible",
     overflowY: "hidden",
     gap: isMobile ? 6 : styles.tabs.gap,
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
     msOverflowStyle: "none",
-    paddingBottom: isMobile ? 4 : isCompact ? 2 : 0,
+    paddingBottom: isMobile ? 2 : 0,
   };
 
   return (
     <div style={pageHeaderStyle} className={className || ""}>
       <div style={innerStyle}>
-        <div style={topRowStyle}>
-          <div style={{ minWidth: 0, width: isMobile ? "100%" : "auto" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: isMobile ? "flex-start" : "center",
-                gap: isMobile ? 10 : 12,
-              }}
-            >
-              {icon && (
-                <span style={{ flexShrink: 0, transform: isMobile ? "scale(0.6)" : isTablet ? "scale(0.8)" : "none", transformOrigin: "left center" }}>
-                  {icon}
-                </span>
-              )}
-              <h1 style={mergedTitleStyle}>{title}</h1>
-            </div>
+        {isMobile ? (
+          /* ── 모바일 전용 심플 레이아웃 ── */
+          <div style={{ textAlign: "center" }}>
+            <h1 style={mergedTitleStyle}>{title}</h1>
             {subtitle && <p style={mergedSubtitleStyle}>{subtitle}</p>}
           </div>
-          <div style={breadcrumbStyle}>
-            <Home size={12} style={{ color: "#b0b5bd", flexShrink: 0 }} />
-            {breadcrumbItems.map((item, i) => (
-              <span key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                {i > 0 && <span style={styles.breadcrumbSep}>{">"}</span>}
-                <span
-                  style={i === breadcrumbItems.length - 1 ? styles.breadcrumbCurrent : undefined}
-                >
-                  {item}
+        ) : (
+          /* ── PC 레이아웃 ── */
+          <div style={styles.topRow}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {icon && icon}
+                <h1 style={mergedTitleStyle}>{title}</h1>
+              </div>
+              {subtitle && <p style={mergedSubtitleStyle}>{subtitle}</p>}
+            </div>
+            <div style={styles.breadcrumb}>
+              <Home size={12} style={{ color: "#b0b5bd" }} />
+              {breadcrumbItems.map((item, i) => (
+                <span key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {i > 0 && <span style={styles.breadcrumbSep}>{">"}</span>}
+                  <span style={i === breadcrumbItems.length - 1 ? styles.breadcrumbCurrent : undefined}>
+                    {item}
+                  </span>
                 </span>
-              </span>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {children && <div style={searchAreaStyle}>{children}</div>}
+        {children && (
+          <div style={{
+            ...styles.searchArea,
+            width: "100%",
+            padding: isMobile ? "16px 0 0" : styles.searchArea.padding,
+          }}>
+            {children}
+          </div>
+        )}
 
         {filteredCategories.length > 0 && (
           <div style={tabsStyle}>
@@ -291,26 +244,31 @@ export default function PageHeader({
               const isActive = activePath === targetPath;
               const isHovered = hoveredIdx === i;
 
-              let btnStyle = {
-                ...styles.tabBase,
-                flex: isCompact ? "0 0 auto" : 1,
+              let btnStyle = isMobile ? {
+                flex: "0 0 auto",
                 minWidth: 0,
-                width: isCompact ? "auto" : "100%",
-                minHeight: isMobile ? 34 : 44,
-                padding: isMobile
-                  ? "0 14px"
-                  : isTablet
-                    ? "11px 14px"
-                    : styles.tabBase.padding,
-                fontSize: isMobile ? 13 : isTablet ? 15 : styles.tabBase.fontSize,
+                width: "auto",
+                height: 32,
+                padding: "0 14px",
+                fontSize: 13,
+                fontWeight: 600,
+                fontFamily: styles.tabBase.fontFamily,
                 whiteSpace: "nowrap",
-                borderRadius: isMobile ? 999 : 0,
-                lineHeight: isMobile ? "34px" : undefined,
-              };
+                borderRadius: 8,
+                border: "none",
+                background: isActive ? "#111827" : "rgb(235,235,235)",
+                color: isActive ? "#fff" : "#888",
+                cursor: "pointer",
+                transition: "all 0.15s",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+              } : { ...styles.tabBase, ...(tabInactiveBg ? { background: tabInactiveBg } : {}) };
 
-              if (isActive) {
+              if (!isMobile && isActive) {
                 btnStyle = { ...btnStyle, ...styles.tabActive };
-              } else if (isHovered) {
+              } else if (!isMobile && isHovered) {
                 btnStyle = { ...btnStyle, ...styles.tabHover };
               }
 
@@ -318,34 +276,21 @@ export default function PageHeader({
                 <button
                   key={cat.path}
                   style={btnStyle}
-                  onClick={() => (onTabClick ? onTabClick(targetPath) : navigate(targetPath))}
+                  onClick={() => onTabClick ? onTabClick(targetPath) : navigate(targetPath)}
                   onMouseEnter={() => setHoveredIdx(i)}
                   onMouseLeave={() => setHoveredIdx(null)}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  {cat.icon && (
-                    <span style={{ display: "inline-flex", alignItems: "center", marginRight: 6 }}>
-                      {cat.icon}
-                    </span>
-                  )}
+                  {cat.icon && <span style={{ display: "inline-flex", alignItems: "center", marginRight: 6 }}>{cat.icon}</span>}
                   {cat.label}
                   {tabCounts && cat.countKey != null && (
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        minWidth: 22,
-                        height: isMobile ? 20 : 22,
-                        borderRadius: 11,
-                        padding: "0 6px",
-                        fontSize: isMobile ? 11 : 12,
-                        fontWeight: 700,
-                        lineHeight: 1,
-                        background: isActive ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.07)",
-                        color: isActive ? "#fff" : "#6b7280",
-                      }}
-                    >
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      minWidth: 22, height: isMobile ? 20 : 22, borderRadius: 11, padding: "0 6px",
+                      fontSize: isMobile ? 11 : 12, fontWeight: 700, lineHeight: 1,
+                      background: isActive ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.07)",
+                      color: isActive ? "#fff" : "#6b7280",
+                    }}>
                       {tabCounts[cat.countKey] ?? 0}
                     </span>
                   )}

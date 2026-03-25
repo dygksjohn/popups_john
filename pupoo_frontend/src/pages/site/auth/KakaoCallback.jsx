@@ -152,5 +152,42 @@ export default function KakaoCallback() {
     run();
   }, [location.search, navigate, login]);
 
-  return <div style={{ padding: 24 }}>카카오 로그인 처리중...</div>;
+  return (
+    <div style={{
+      position: "fixed", inset: 0,
+      background: "linear-gradient(135deg, #fffef5 0%, #fef9e7 50%, #fdf3d0 100%)",
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      zIndex: 99999, fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif",
+    }}>
+      <div style={{
+        width: 80, height: 80, borderRadius: 24,
+        background: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        marginBottom: 24, position: "relative",
+      }}>
+        <div style={{
+          width: 36, height: 36, border: "3px solid #f0e6c0", borderTopColor: "#FEE500",
+          borderRadius: "50%", animation: "kcb-spin .8s cubic-bezier(.4,0,.2,1) infinite",
+        }} />
+        <div style={{
+          position: "absolute", inset: -4, borderRadius: 28,
+          border: "2px solid transparent", borderTopColor: "rgba(254,229,0,0.25)",
+          animation: "kcb-spin 2s linear infinite",
+        }} />
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", marginBottom: 6 }}>카카오 로그인</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <span style={{ fontSize: 14, color: "#9ca3af" }}>계정을 확인하고 있어요</span>
+        <span style={{ display: "inline-flex", gap: 3, marginLeft: 2 }}>
+          <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#e6cf00", animation: "kcb-dot 1.2s ease-in-out infinite" }} />
+          <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#e6cf00", animation: "kcb-dot 1.2s ease-in-out 0.2s infinite" }} />
+          <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#e6cf00", animation: "kcb-dot 1.2s ease-in-out 0.4s infinite" }} />
+        </span>
+      </div>
+      <style>{`
+        @keyframes kcb-spin { to { transform: rotate(360deg); } }
+        @keyframes kcb-dot { 0%,80%,100% { opacity:.3; transform:scale(.8); } 40% { opacity:1; transform:scale(1.2); } }
+      `}</style>
+    </div>
+  );
 }

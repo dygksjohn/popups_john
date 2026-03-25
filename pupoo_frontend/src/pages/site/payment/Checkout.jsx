@@ -345,7 +345,7 @@ export default function Checkout() {
                 {error}
                 {error.includes("결제 내역") && (
                   <a href="/registration/paymenthistory"
-                    style={{ display: "block", color: "#028A6C", fontWeight: 600, fontSize: 13, marginTop: 4 }}>
+                    style={{ display: "block", color: "#7ab33e", fontWeight: 600, fontSize: 13, marginTop: 4 }}>
                     결제 내역 확인 &rarr;
                   </a>
                 )}

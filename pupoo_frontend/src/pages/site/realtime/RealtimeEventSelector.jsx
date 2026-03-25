@@ -28,7 +28,7 @@ const STATUS_CONFIG = {
   },
   upcoming: {
     label: "\uC608\uC815",
-    color: "#02A17E",
+    color: "#90C450",
     bg: "#E6F7F2",
     border: "#CCF0E4",
   },
@@ -47,7 +47,7 @@ const STATUS_CONFIG = {
 };
 
 const EVENT_VIEW_BUTTONS = [
-  { key: "dashboard", label: "통합현황", path: "/realtime/dashboard", color: "#02A17E" },
+  { key: "dashboard", label: "통합현황", path: "/realtime/dashboard", color: "#90C450" },
   { key: "waiting", label: "대기현황", path: "/realtime/waitingstatus", color: "#e67e22" },
   { key: "checkin", label: "체크인현황", path: "/realtime/checkinstatus", color: "#0ea5e9" },
   { key: "vote", label: "투표현황", path: "/realtime/votestatus", color: "#8b5cf6" },
@@ -60,10 +60,10 @@ const selectorStyles = `
     max-width: 1400px;
     margin: 0 auto;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    --rte-accent: #02A17E;
+    --rte-accent: #90C450;
     --rte-accent-light: rgba(78,86,231,0.08);
     --rte-live-dot: #ef4444;
-    --rte-upcoming-dot: #02A17E;
+    --rte-upcoming-dot: #90C450;
   }
   .rte-selector *, .rte-selector *::before, .rte-selector *::after {
     box-sizing: border-box;
@@ -80,14 +80,16 @@ const selectorStyles = `
     margin-bottom: 18px;
   }
   .rte-toolbar-left {
-    position: relative;
-    flex: 0 0 auto;
-    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0;
     background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 999px;
-    height: 42px;
-    width: 280px;
+    border: 1px solid #e2e5ea;
+    border-radius: 12px;
+    height: 48px;
+    min-width: 0;
+    flex: 0 0 auto;
+    width: 420px;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
   .rte-toolbar-left:focus-within {
@@ -96,13 +98,13 @@ const selectorStyles = `
   }
   .rte-dropdown { position: relative; flex: 0 0 auto; }
   .rte-dropdown-btn {
-    height: 46px; padding: 0 35px 0 22px; border-radius: 999px 0 0 999px;
-    border: none; background: transparent; color: rgb(156, 163, 175); font-size: 13px; font-weight: 500;
-    cursor: pointer; font-family: inherit;
+    height: 48px; padding: 0 36px 0 18px; border-radius: 12px 0 0 12px;
+    border: none; background: transparent; color: #9ca3af; font-size: 14px; font-weight: 500;
+    cursor: pointer; text-align: left; outline: none; font-family: inherit;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .rte-dropdown-arrow {
-    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
     color: #9ca3af; pointer-events: none; transition: transform .15s ease;
   }
   .rte-dropdown-arrow.open { transform: translateY(-50%) rotate(180deg); }
@@ -112,13 +114,13 @@ const selectorStyles = `
   .rte-dropdown-list {
     position: absolute; top: calc(100% + 8px); left: 0; min-width: 280px;
     background: #fff; border-radius: 16px; padding: 8px 0;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.12); z-index: 50;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10); z-index: 50;
     max-height: 280px; overflow-y: auto;
   }
   .rte-dropdown-item {
     display: flex; align-items: center; gap: 10px;
     width: 100%; padding: 11px 16px; border: none; background: none;
-    font-size: 13px; font-weight: 400; color: #6b7280; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: #6b7280; cursor: pointer;
     text-align: left; transition: background .1s ease; font-family: inherit;
   }
   .rte-dropdown-item:hover { background: #f9fafb; }
@@ -126,23 +128,24 @@ const selectorStyles = `
   .rte-dropdown-item .dd-icon { color: #9ca3af; flex-shrink: 0; }
   .rte-search-wrap {
     position: relative;
-    width: 100%;
+    flex: 1;
     height: 100%;
+    min-width: 0;
   }
   .rte-search-input {
     width: 100%;
     height: 100%;
     padding: 0 16px 0 40px;
-    border-radius: 999px;
+    border-radius: 0 12px 12px 0;
     border: none;
     background: transparent;
     color: #111827;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     outline: none;
     font-family: inherit;
   }
-  .rte-search-input::placeholder { color: #9ca3af; font-family: inherit; }
+  .rte-search-input::placeholder { color: #9ca3af; font-size: 13px; font-weight: 500; font-family: inherit; }
   .rte-search-icon {
     position: absolute;
     left: 14px;
@@ -152,33 +155,26 @@ const selectorStyles = `
     pointer-events: none;
   }
 
-  /* ── 필터 (ps-filter 스타일) ── */
+  /* ── 필터 탭 ── */
   .rte-filter-tabs {
-    display: inline-flex;
-    background: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0;
     border: 1px solid #e5e7eb;
-    border-radius: 999px;
-    padding: 4px;
-    gap: 4px;
+    border-radius: 12px;
+    overflow: hidden;
   }
   .rte-filter-tab {
-    padding: 8px 28px;
-    border-radius: 999px;
-    border: 1px solid transparent;
-    background: transparent;
-    font-size: 14px;
-    font-weight: 600;
-    color: #9ca3af;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: flex; align-items: center; gap: 6px;
-    white-space: nowrap;
+    height: 44px; padding: 0 22px; border: none;
+    background: transparent; color: #6b7280; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
   }
-  .rte-filter-tab:hover { color: #374151; }
+  .rte-filter-tab + .rte-filter-tab { border-left: 1px solid #e5e7eb; }
+  .rte-filter-tab:hover { color: #111827; background: #f9fafb; }
   .rte-filter-tab.active {
     background: #1f2937;
     color: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
   }
   .rte-filter-count {
     font-size: 11px;
@@ -271,7 +267,7 @@ const selectorStyles = `
     padding: 13px 10px;
     border-radius: 12px;
     border: 1px solid #e2e5ea;
-    background: #f7f8fa;
+    background: #f8f9fc;
     font-size: 14px;
     font-weight: 700;
     color: #4b5563;
@@ -485,7 +481,7 @@ const selectorStyles = `
   .rte-empty-icon {
     width: 52px; height: 52px;
     border-radius: 14px;
-    background: #f3f4f6;
+    background: #f8f9fc;
     display: flex; align-items: center; justify-content: center;
     margin: 0 auto 14px;
   }
@@ -502,10 +498,13 @@ const selectorStyles = `
     .rte-view-links { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 640px) {
-    .rte-toolbar { flex-direction: column; align-items: stretch; }
-    .rte-toolbar-left { max-width: 100%; width: 100%; }
+    .rte-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .rte-toolbar-left { width: 100%; }
+    .rte-filter-tabs { width: 100%; }
+    .rte-filter-tab { flex: 1; justify-content: center; font-size: 13px; padding: 0 12px; height: 40px; }
     .rte-row { padding: 22px 18px; }
-    .rte-name { font-size: 20px; }
+    .rte-name { font-size: 20px; white-space: normal; }
+    .rte-meta-line { gap: 8px; font-size: 13px; flex-wrap: wrap; }
     .rte-metrics-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
     .rte-metric-card { padding: 14px 12px; }
     .rte-metric-card-num { font-size: 22px; }
@@ -941,7 +940,7 @@ async function fetchAdminData(url, params, fallback) {
 }
 
 const THEME_CONFIGS = {
-  dashboard: { accent: "#02A17E", liveDot: "#ef4444", upcomingDot: "#02A17E" },
+  dashboard: { accent: "#90C450", liveDot: "#ef4444", upcomingDot: "#90C450" },
   waiting:   { accent: "#e67e22", liveDot: "#e67e22", upcomingDot: "#f59e0b" },
   checkin:   { accent: "#0ea5e9", liveDot: "#0ea5e9", upcomingDot: "#38bdf8" },
   vote:      { accent: "#8b5cf6", liveDot: "#8b5cf6", upcomingDot: "#a78bfa" },
@@ -957,7 +956,7 @@ const MiniRing = ({ percent, color, size = 52 }) => {
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f0f1f3" strokeWidth={sw} />
       {p > 0 && (
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color || "#02A17E"} strokeWidth={sw}
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color || "#90C450"} strokeWidth={sw}
           strokeDasharray={c} strokeDashoffset={offset}
           strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{ transition: "stroke-dashoffset 0.8s ease" }} />
@@ -978,7 +977,7 @@ const getMetricBarFill = (key, event) => {
 };
 
 const METRIC_BAR_COLORS = {
-  registrations: "#02A17E",
+  registrations: "#90C450",
   checkedIn: "#22c55e",
   avgWait: "#f59e0b",
   voteCount: "#8b5cf6",
@@ -1391,8 +1390,8 @@ export default function RealtimeEventSelector({ onSelectEvent, pageTitle, progra
                       const rawPercent = isPercent ? (typeof val === "number" ? val : parseFloat(val)) : null;
                       const hasRing = isPercent && Number.isFinite(rawPercent);
                       const barFill = !isPercent && val !== "-" ? getMetricBarFill(m.key, event) : null;
-                      const barColor = isEnded ? "#c5c9cf" : (METRIC_BAR_COLORS[m.key] || numColor || "#02A17E");
-                      const ringColor = isEnded ? "#c5c9cf" : (numColor || "#02A17E");
+                      const barColor = isEnded ? "#c5c9cf" : (METRIC_BAR_COLORS[m.key] || numColor || "#90C450");
+                      const ringColor = isEnded ? "#c5c9cf" : (numColor || "#90C450");
                       return (
                         <div className={`rte-metric-card${hasRing ? " has-ring" : ""}`} key={m.key}>
                           {hasRing && (

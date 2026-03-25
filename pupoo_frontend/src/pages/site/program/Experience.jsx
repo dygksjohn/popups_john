@@ -60,8 +60,9 @@ const styles = `
     padding:8px 14px; flex:1; min-width:180px; max-width:320px;
   }
   .ex-search-wrap input { border:none; outline:none; font-size:13px; color:#374151; background:transparent; width:100%; font-family:inherit; }
+  .ex-filter-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .ex-filter-btn { padding:8px 16px; border:1px solid #e2e5ea; border-radius:100px; background:#fff; font-size:12px; font-weight:600; color:#6b7280; cursor:pointer; transition:all 0.15s; font-family:inherit; }
-  .ex-filter-btn.active { background:#02A17E; border-color:#02A17E; color:#fff; }
+  .ex-filter-btn.active { background:#90C450; border-color:#90C450; color:#fff; }
   .ex-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
   .ex-stat { background:#fff; border:1px solid #e9ecef; border-radius:12px; padding:16px 18px; display:flex; align-items:center; gap:12px; }
   .ex-stat-ico { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -79,7 +80,7 @@ const styles = `
   .ex-event-badge { position:absolute; top:12px; right:12px; z-index:2; padding:4px 10px; border-radius:100px; background:rgba(0,0,0,0.45); backdrop-filter:blur(6px); font-size:10px; font-weight:600; color:#fff; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .ex-body { padding:16px 18px 18px; display:flex; flex-direction:column; gap:10px; flex:1; }
   .ex-card-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-  .ex-type-tag { font-size:10px; font-weight:700; background:#eff4ff; color:#02A17E; padding:3px 9px; border-radius:100px; }
+  .ex-type-tag { font-size:10px; font-weight:700; background:#eff4ff; color:#90C450; padding:3px 9px; border-radius:100px; }
   .ex-name { font-size:16px; font-weight:800; color:#111827; line-height:1.35; }
   .ex-desc { font-size:12.5px; color:#6b7280; line-height:1.45; }
   .ex-meta { display:flex; flex-direction:column; gap:6px; font-size:12px; color:#6b7280; }
@@ -88,7 +89,16 @@ const styles = `
   .ex-company { font-size:11.5px; color:#9ca3af; font-weight:500; }
   .ex-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 24px; }
   @media (max-width:1100px) { .ex-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-  @media (max-width:700px) { .ex-wrap { padding:20px 16px 48px; } .ex-stats { grid-template-columns:repeat(2,1fr); } .ex-grid { grid-template-columns:1fr; } }
+  @media (max-width:700px) {
+    .ex-wrap { padding:20px 16px 48px; }
+    .ex-stats { grid-template-columns:repeat(2,1fr); }
+    .ex-grid { grid-template-columns:1fr; }
+    .ex-toolbar { flex-direction:column; align-items:stretch; gap:10px; }
+    .ex-search-wrap { max-width:100%; min-width:0; border-radius:999px; height:44px; padding:0 16px; gap:10px; }
+    .ex-filter-row { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; padding-bottom:2px; }
+    .ex-filter-row::-webkit-scrollbar { display:none; }
+    .ex-filter-btn { flex-shrink:0; font-size:13px; padding:8px 14px; }
+  }
 `;
 
 export default function Experience() {
@@ -215,7 +225,7 @@ export default function Experience() {
             {
               label: "전체 체험존",
               value: booths.length,
-              ico: <Store size={18} color="#02A17E" />,
+              ico: <Store size={18} color="#90C450" />,
               bg: "#eff4ff",
             },
             {
@@ -258,15 +268,17 @@ export default function Experience() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              className={`ex-filter-btn${filter === f.key ? " active" : ""}`}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-            </button>
-          ))}
+          <div className="ex-filter-row">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                className={`ex-filter-btn${filter === f.key ? " active" : ""}`}
+                onClick={() => setFilter(f.key)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {loading && (

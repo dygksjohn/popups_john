@@ -17,7 +17,7 @@ export const reviewApi = {
    * @param {object} opts - { page (0-based), size, searchType, keyword }
    */
   list(opts = {}) {
-    const { page = 0, size = 10, searchType, keyword, rating, sortKey } = opts;
+    const { page = 0, size = 10, searchType, keyword, rating } = opts;
     const parsedPage = Number(page);
     const parsedSize = Number(size);
     const params = {
@@ -29,7 +29,6 @@ export const reviewApi = {
     if (searchType != null && searchType !== "") params.searchType = searchType;
     if (keyword != null && keyword !== "") params.keyword = keyword;
     if (rating != null && rating !== "") params.rating = rating;
-    if (sortKey != null && sortKey !== "") params.sortKey = sortKey;
     return axiosInstance.get("/api/reviews", { params }).then((res) => unwrap(res));
   },
 

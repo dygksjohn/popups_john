@@ -2,21 +2,19 @@
 package com.popups.pupoo.auth.api;
 
 import com.popups.pupoo.auth.application.AuthService;
+import com.popups.pupoo.auth.application.GoogleOAuthService;
 import com.popups.pupoo.auth.application.KakaoOAuthService;
-import com.popups.pupoo.auth.application.NaverOAuthService;
 import com.popups.pupoo.auth.application.PasswordResetService;
 import com.popups.pupoo.auth.application.SignupSessionService;
 import com.popups.pupoo.auth.dto.EmailVerificationRequestResponse;
+import com.popups.pupoo.auth.dto.GoogleOauthLoginRequest;
+import com.popups.pupoo.auth.dto.GoogleOauthLoginResponse;
 import com.popups.pupoo.auth.dto.KakaoExchangeRequest;
 import com.popups.pupoo.auth.dto.KakaoExchangeResponse;
 import com.popups.pupoo.auth.dto.KakaoOauthLoginRequest;
 import com.popups.pupoo.auth.dto.KakaoOauthLoginResponse;
 import com.popups.pupoo.auth.dto.LoginRequest;
 import com.popups.pupoo.auth.dto.LoginResponse;
-import com.popups.pupoo.auth.dto.NaverExchangeRequest;
-import com.popups.pupoo.auth.dto.NaverExchangeResponse;
-import com.popups.pupoo.auth.dto.NaverOauthLoginRequest;
-import com.popups.pupoo.auth.dto.NaverOauthLoginResponse;
 import com.popups.pupoo.auth.dto.PasswordResetConfirmRequest;
 import com.popups.pupoo.auth.dto.PasswordResetRequest;
 import com.popups.pupoo.auth.dto.PasswordResetRequestResponse;
@@ -59,7 +57,7 @@ public class AuthController {
     private final AuthService authService;
     private final SignupSessionService signupSessionService;
     private final KakaoOAuthService kakaoOAuthService;
-    private final NaverOAuthService naverOAuthService;
+    private final GoogleOAuthService googleOAuthService;
     private final PasswordResetService passwordResetService;
     private final boolean refreshCookieSecure;
     private final String refreshCookiePath;
@@ -67,14 +65,14 @@ public class AuthController {
     public AuthController(AuthService authService,
                           SignupSessionService signupSessionService,
                           KakaoOAuthService kakaoOAuthService,
-                          NaverOAuthService naverOAuthService,
+                          GoogleOAuthService googleOAuthService,
                           PasswordResetService passwordResetService,
                           @Value("${auth.refresh.cookie.secure:false}") boolean refreshCookieSecure,
                           @Value("${auth.refresh.cookie.path:/api/auth}") String refreshCookiePath) {
         this.authService = authService;
         this.signupSessionService = signupSessionService;
         this.kakaoOAuthService = kakaoOAuthService;
-        this.naverOAuthService = naverOAuthService;
+        this.googleOAuthService = googleOAuthService;
         this.passwordResetService = passwordResetService;
         this.refreshCookieSecure = refreshCookieSecure;
         this.refreshCookiePath = refreshCookiePath;
@@ -154,22 +152,16 @@ public class AuthController {
         return ApiResponse.success(kakaoOAuthService.login(req.getCode(), req.getRedirectUri(), response));
     }
 
-    @PostMapping("/oauth/naver/exchange")
-    public ApiResponse<NaverExchangeResponse> naverExchange(@RequestBody NaverExchangeRequest req) {
-        return ApiResponse.success(naverOAuthService.exchange(req.getCode(), req.getState(), req.getRedirectUri()));
-    }
-
-    @PostMapping("/oauth/naver/login")
-    public ApiResponse<NaverOauthLoginResponse> naverLogin(
-            @RequestBody NaverOauthLoginRequest req,
+    /**
+     * 구글 로그인 완료 후 토큰을 발급한다.
+     * 기존 회원은 access token과 refresh cookie를 받고, 신규 회원은 가입 유도 정보를 응답받는다.
+     */
+    @PostMapping("/oauth/google/login")
+    public ApiResponse<GoogleOauthLoginResponse> googleLogin(
+            @RequestBody GoogleOauthLoginRequest req,
             HttpServletResponse response
     ) {
-        return ApiResponse.success(naverOAuthService.login(
-                req.getCode(),
-                req.getState(),
-                req.getRedirectUri(),
-                response
-        ));
+        return ApiResponse.success(googleOAuthService.login(req.getCode(), req.getRedirectUri(), response));
     }
 
     /**

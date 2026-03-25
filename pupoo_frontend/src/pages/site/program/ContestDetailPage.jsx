@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Trophy,
@@ -10,17 +10,19 @@ import {
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { programApi } from "../../../app/http/programApi";
+import { petApi } from "../../../app/http/petApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { authApi } from "../auth/api/authApi";
 import {
   createImageFallbackHandler,
   resolveImageUrl,
+  toPublicAssetUrl,
 } from "../../../shared/utils/publicAssetUrl";
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
 
-  .cd-root { box-sizing: border-box; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; background: #f0f4fa; min-height: 100vh; flex: 1; }
+  .cd-root { box-sizing: border-box; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; background: #f8f9fc; min-height: 100vh; flex: 1; }
   .cd-root *, .cd-root *::before, .cd-root *::after { box-sizing: border-box; font-family: inherit; }
   .cd-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
 
@@ -35,7 +37,7 @@ const styles = `
     font-size: 15px; font-weight: 700; color: #374151;
     cursor: pointer; transition: all 0.15s; font-family: inherit;
   }
-  .cd-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+  .cd-btn:hover { background: #f8f9fc; border-color: #9ca3af; }
   .cd-btn-dark {
     background: #111827; color: #fff; border-color: #111827;
   }
@@ -51,7 +53,7 @@ const styles = `
   }
   .cd-hero::before {
     content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
-    background: linear-gradient(90deg, #6366f1, #a78bfa, #6366f1);
+    background: linear-gradient(90deg, #90C450, #6B7A3D, #90C450);
     background-size: 200% 100%;
     animation: cd-hero-bar 3s ease infinite;
   }
@@ -69,7 +71,7 @@ const styles = `
   .cd-hero-summary strong { font-weight: 800; color: #111827; font-size: 16px; }
   .cd-hero-dot {
     width: 10px; height: 10px; border-radius: 50%;
-    background: #6366f1; box-shadow: 0 0 6px rgba(99,102,241,0.4);
+    background: #90C450; box-shadow: 0 0 6px rgba(68,78,40,0.4);
     animation: cd-pulse 1.6s ease-in-out infinite; flex-shrink: 0;
   }
   @keyframes cd-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.75); } }
@@ -131,7 +133,7 @@ const styles = `
   .cd-candidate-body { padding: 16px 18px 18px; }
   .cd-candidate-name { font-size: 16px; font-weight: 800; color: #111827; }
   .cd-candidate-owner { margin-top: 4px; font-size: 13px; color: #9ca3af; }
-  .cd-candidate-votes { margin-top: 10px; font-size: 14px; font-weight: 800; color: #6366f1; }
+  .cd-candidate-votes { margin-top: 10px; font-size: 14px; font-weight: 800; color: #90C450; }
   .cd-candidate-actions { margin-top: 14px; }
   .cd-vote-btn {
     width: 100%; height: 44px; border-radius: 12px; border: none;
@@ -139,8 +141,8 @@ const styles = `
     transition: all 0.15s; font-family: inherit;
   }
   .cd-vote-btn:hover:not(:disabled) { background: #1f2937; }
-  .cd-vote-btn:disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
-  .cd-vote-btn.done { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+  .cd-vote-btn:disabled { background: #f8f9fc; color: #9ca3af; cursor: not-allowed; }
+  .cd-vote-btn.done { background: #f0f2e8; color: #90C450; border: 1px solid #c5cca8; }
 
   /* ── 투표 순위 ── */
   .cd-list { display: flex; flex-direction: column; gap: 12px; }
@@ -151,11 +153,32 @@ const styles = `
   .cd-item:hover { border-color: #e2e5ea; background: #f9fafb; }
   .cd-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
   .cd-rank { font-size: 13px; font-weight: 700; color: #9ca3af; margin-right: 6px; }
-  .cd-rank.top { color: #6366f1; }
+  .cd-rank.top { color: #90C450; }
   .cd-name { font-size: 17px; font-weight: 800; color: #111827; }
-  .cd-votes { font-size: 20px; font-weight: 900; color: #6366f1; letter-spacing: -0.02em; }
-  .cd-progress { height: 10px; border-radius: 99px; background: #f0f0f0; overflow: hidden; }
-  .cd-progress-fill { height: 100%; border-radius: 99px; background: #818cf8; transition: width 0.5s ease; }
+  .cd-votes { font-size: 20px; font-weight: 900; color: #ff4d8d; letter-spacing: -0.02em; }
+  .cd-progress { height: 22px; border-radius: 99px; background: #f5e6ea; overflow: visible; position: relative; }
+  .cd-progress-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, #ffb6c1 0%, #ff7eb3 40%, #ff4d8d 100%);
+    transition: width 0.6s cubic-bezier(.4,0,.2,1);
+    position: relative;
+    box-shadow: 0 2px 8px rgba(255,77,141,0.3);
+  }
+  .cd-progress-fill::after {
+    content: ''; position: absolute; inset: 3px 4px 3px auto;
+    width: 6px; border-radius: 99px;
+    background: rgba(255,255,255,.4);
+  }
+  .cd-heart-icon {
+    position: absolute; right: -13px; top: 50%; transform: translateY(-50%);
+    width: 26px; height: 26px; z-index: 2;
+    filter: drop-shadow(0 2px 4px rgba(255,77,141,0.4));
+    animation: cd-heart-beat 1.2s ease-in-out infinite;
+  }
+  @keyframes cd-heart-beat {
+    0%, 100% { transform: translateY(-50%) scale(1); }
+    50% { transform: translateY(-50%) scale(1.15); }
+  }
   .cd-meta { margin-top: 10px; font-size: 14px; color: #9ca3af; }
 
   .cd-empty { color: #c5c9cf; font-size: 14px; padding: 44px 0; text-align: center; font-weight: 500; }
@@ -176,6 +199,46 @@ const styles = `
     .cd-hero-kpi-grid { grid-template-columns: 1fr; }
     .cd-hero-kpi-value { font-size: 26px; }
   }
+
+  /* ── Pet Apply Modal ── */
+  .cd-modal-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,.45); display: flex;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .cd-modal {
+    width: 100%; max-width: 440px; background: #fff;
+    border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.18); padding: 26px;
+  }
+  .cd-modal-title { font-size: 17px; font-weight: 800; color: #111827; margin-bottom: 4px; }
+  .cd-modal-sub { font-size: 13px; color: #9ca3af; margin-bottom: 16px; }
+  .cd-modal-select {
+    width: 100%; height: 44px; border-radius: 10px; border: 1.5px solid #e5e7eb;
+    padding: 0 12px; font-size: 14px; color: #111827; margin-bottom: 16px;
+    background: #f9fafb; appearance: none; cursor: pointer; font-family: inherit;
+  }
+  .cd-modal-select:focus { outline: none; border-color: #90C450; box-shadow: 0 0 0 3px rgba(68,78,40,.12); }
+  .cd-upload-area {
+    width: 100%; border-radius: 12px; border: 2px dashed #e5e7eb; background: #f9fafb;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; cursor: pointer; transition: border-color .2s, background .2s;
+    padding: 28px 20px; margin-bottom: 16px; position: relative;
+  }
+  .cd-upload-area:hover { border-color: #90C450; background: #f4f5ee; }
+  .cd-upload-area.has-image { padding: 0; overflow: hidden; aspect-ratio: 1/1; border-style: solid; border-color: #e5e7eb; }
+  .cd-upload-icon { width: 48px; height: 48px; border-radius: 12px; background: #f0f2e8; display: flex; align-items: center; justify-content: center; border: 1px solid #c5cca8; }
+  .cd-upload-text { font-size: 14px; font-weight: 700; color: #374151; }
+  .cd-upload-hint { font-size: 12px; color: #9ca3af; }
+  .cd-upload-input { display: none; }
+  .cd-upload-preview { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cd-upload-change { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,.55); color: #fff; border: none; border-radius: 7px; font-size: 11px; font-weight: 700; padding: 5px 10px; cursor: pointer; }
+  .cd-modal-btns { display: flex; gap: 8px; }
+  .cd-modal-btn { flex: 1; height: 42px; border-radius: 10px; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: all .15s; font-family: inherit; }
+  .cd-modal-btn.cancel { background: #f8f9fc; color: #6b7280; border: 1px solid #e5e7eb; }
+  .cd-modal-btn.cancel:hover { background: #e5e7eb; }
+  .cd-modal-btn.confirm { background: linear-gradient(135deg, #90C450, #6B7A3D); color: #fff; border: none; box-shadow: 0 4px 12px rgba(68,78,40,.3); }
+  .cd-modal-btn.confirm:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(68,78,40,.4); }
+  .cd-modal-btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
 `;
 
 function formatTimeRange(startAt, endAt) {
@@ -320,9 +383,113 @@ export default function ContestDetailPage() {
     }
   };
 
-  const handleApply = () => {
+  /* ── 참가신청 (펫 모달) ── */
+  const [petModalOpen, setPetModalOpen] = useState(false);
+  const [petOptions, setPetOptions] = useState([]);
+  const [selectedPetId, setSelectedPetId] = useState(null);
+  const [applyImageUrl, setApplyImageUrl] = useState("");
+  const [applyImageFile, setApplyImageFile] = useState(null);
+  const [applySubmitting, setApplySubmitting] = useState(false);
+  const [myApplyStatus, setMyApplyStatus] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const handleApply = async () => {
     if (!eventId || !programId) return;
-    navigate(`/program/contest/${eventId}?apply=${programId}`);
+    if (myApplyStatus) {
+      window.alert("이미 참가 신청한 콘테스트입니다.");
+      return;
+    }
+
+    if (!tokenStore.getAccess()) {
+      try {
+        const refreshed = await authApi.refresh();
+        if (refreshed?.accessToken) tokenStore.setAccess(refreshed.accessToken);
+        else throw new Error();
+      } catch {
+        navigate("/auth/login", { state: { from: `/program/contest/${eventId}/detail/${programId}` } });
+        return;
+      }
+    }
+
+    try {
+      const petRes = await petApi.getMyPets();
+      const pets = Array.isArray(petRes?.pets) ? petRes.pets : Array.isArray(petRes) ? petRes : [];
+      if (!pets.length) {
+        window.alert("등록된 반려동물이 없습니다. 반려동물 등록 후 신청해주세요.");
+        navigate("/auth/mypage");
+        return;
+      }
+      setPetOptions(pets);
+      setSelectedPetId(pets[0]?.petId ?? null);
+      setApplyImageUrl("");
+      setApplyImageFile(null);
+      setPetModalOpen(true);
+    } catch (e) {
+      if (e?.response?.status === 401) {
+        navigate("/auth/login", { state: { from: `/program/contest/${eventId}/detail/${programId}` } });
+      } else {
+        window.alert(e?.response?.data?.message || e?.message || "반려동물 정보를 불러올 수 없습니다.");
+      }
+    }
+  };
+
+  const handleApplyImageChange = (e) => {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    const allowed = new Set(["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]);
+    if (!allowed.has(file.type?.toLowerCase())) {
+      window.alert("jpg, png, gif, webp 파일만 업로드할 수 있습니다.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      window.alert("이미지 용량은 2MB 이하만 가능합니다.");
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      setApplyImageUrl(String(evt?.target?.result || ""));
+      setApplyImageFile(file);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const submitApply = async () => {
+    if (!programId || !selectedPetId || applySubmitting) return;
+    setApplySubmitting(true);
+    try {
+      let uploadedImageUrl = null;
+      if (applyImageFile) {
+        try {
+          const form = new FormData();
+          form.append("file", applyImageFile);
+          const { axiosInstance } = await import("../../../app/http/axiosInstance");
+          const upRes = await axiosInstance.post("/api/galleries/image/upload", form, { headers: { "Content-Type": "multipart/form-data" } });
+          const rawPath = upRes?.data?.data?.publicPath ?? upRes?.data?.publicPath ?? null;
+          if (rawPath) uploadedImageUrl = toPublicAssetUrl(rawPath) || rawPath;
+        } catch {}
+      }
+      await programApi.createProgramApply({ programId: Number(programId), petId: Number(selectedPetId), imageUrl: uploadedImageUrl });
+      setMyApplyStatus("APPLIED");
+      setPetModalOpen(false);
+      setApplyImageUrl("");
+      setApplyImageFile(null);
+      window.alert("참가 신청이 완료됐습니다! 관리자 승인 후 투표 후보로 등록됩니다.");
+      await load({ silent: true });
+    } catch (e) {
+      if (e?.response?.status === 409) {
+        setMyApplyStatus("APPLIED");
+        setPetModalOpen(false);
+      } else if (e?.response?.status === 401) {
+        navigate("/auth/login", { state: { from: `/program/contest/${eventId}/detail/${programId}` } });
+      } else {
+        window.alert(e?.response?.data?.message || "신청에 실패했습니다. 다시 시도해주세요.");
+      }
+    } finally {
+      setApplySubmitting(false);
+    }
   };
 
   return (
@@ -331,7 +498,7 @@ export default function ContestDetailPage() {
       <PageHeader
         title="콘테스트 상세"
         subtitle="진행 중인 콘테스트의 투표 현황을 확인합니다"
-        icon={<Trophy size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<Trophy size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
       />
@@ -372,10 +539,10 @@ export default function ContestDetailPage() {
               type="button"
               className="cd-top-btn primary"
               onClick={handleApply}
-              disabled={contestPhase(program) === "ended"}
+              disabled={contestPhase(program) === "ended" || !!myApplyStatus}
             >
               <Heart size={15} />
-              {contestPhase(program) === "ended" ? "참가 마감" : "참가하기"}
+              {myApplyStatus ? "신청완료" : contestPhase(program) === "ended" ? "참가 마감" : "참가하기"}
             </button>
           </div>
         </section>
@@ -472,7 +639,13 @@ export default function ContestDetailPage() {
                         style={{
                           width: `${maxVotes > 0 ? (row.votes / maxVotes) * 100 : 0}%`,
                         }}
-                      />
+                      >
+                        {row.votes > 0 && (
+                          <svg className="cd-heart-icon" viewBox="0 0 24 24" fill="#ff4d8d" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                          </svg>
+                        )}
+                      </div>
                     </div>
                     <div className="cd-meta">{row.votes.toLocaleString()}표</div>
                   </div>
@@ -493,6 +666,47 @@ export default function ContestDetailPage() {
           </button>
         </div>
       </main>
+
+      {/* ── Pet Apply Modal ── */}
+      {petModalOpen && (
+        <div className="cd-modal-overlay" onClick={() => { setPetModalOpen(false); setApplyImageUrl(""); setApplyImageFile(null); }}>
+          <div className="cd-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="cd-modal-title">참가 신청</div>
+            <div className="cd-modal-sub">참가할 반려동물과 사진을 선택해 주세요</div>
+            <select className="cd-modal-select" value={selectedPetId ?? ""} onChange={(e) => setSelectedPetId(Number(e.target.value))}>
+              {petOptions.map((pet) => (
+                <option key={pet.petId} value={pet.petId}>{pet.petName || `Pet #${pet.petId}`}</option>
+              ))}
+            </select>
+            <label className={`cd-upload-area${applyImageUrl ? " has-image" : ""}`}>
+              <input type="file" accept="image/*" className="cd-upload-input" ref={fileInputRef} onChange={handleApplyImageChange} />
+              {applyImageUrl ? (
+                <>
+                  <img src={applyImageUrl} alt="preview" className="cd-upload-preview" />
+                  <span className="cd-upload-change">변경</span>
+                </>
+              ) : (
+                <>
+                  <div className="cd-upload-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <rect width="24" height="24" rx="6" fill="#e8eadc" />
+                      <path d="M12 7v10M7 12h10" stroke="#90C450" strokeWidth="2.2" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <div className="cd-upload-text">클릭하거나 이미지를 드래그하세요</div>
+                  <div className="cd-upload-hint">JPG, PNG, GIF, WEBP · 최대 2MB</div>
+                </>
+              )}
+            </label>
+            <div className="cd-modal-btns">
+              <button type="button" className="cd-modal-btn cancel" onClick={() => { setPetModalOpen(false); setApplyImageUrl(""); setApplyImageFile(null); }}>취소</button>
+              <button type="button" className="cd-modal-btn confirm" onClick={submitApply} disabled={!selectedPetId || applySubmitting}>
+                {applySubmitting ? "신청 중..." : "신청하기"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import java.util.Locale;
 public enum SocialProvider {
     NAVER,
     KAKAO,
+    GOOGLE,
     APPLE;
 
     public static SocialProvider from(String value) {

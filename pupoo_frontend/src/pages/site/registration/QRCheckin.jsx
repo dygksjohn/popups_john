@@ -98,7 +98,7 @@ const css = `
 
   .qr-page-bg {
     position: relative; min-height: 100vh; overflow: hidden;
-    background: #f6f6f6;
+    background: #f8f9fc;
     font-family: 'JeonjuCraftGothic', 'Pretendard', -apple-system, sans-serif;
   }
   .qr-page-content {
@@ -109,95 +109,82 @@ const css = `
     font-family: inherit;
   }
   .qr-root *, .qr-root *::before, .qr-root *::after { box-sizing: border-box; font-family: inherit; }
-  .qr-container { max-width: 960px; margin: 0 auto; padding: 36px 24px 80px; }
+  .qr-container { max-width: 1400px; margin: 0 auto; padding: 36px 0px 80px; }
 
   /* ── Filter Bar ── */
   .qr-filter-bar {
-    display: flex; align-items: center; gap: 10px;
-    margin-bottom: 32px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 18px; flex-wrap: wrap;
   }
-  .qr-filter-label {
-    font-size: 14px; font-weight: 700; color: #374151;
-    white-space: nowrap; flex-shrink: 0;
+  .qr-filter-left {
+    display: flex; align-items: center; gap: 0;
+    background: #fff; border: 1px solid #e2e5ea; border-radius: 12px;
+    height: 48px; min-width: 0; flex: 0 0 auto; width: 420px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .qr-filter-left:focus-within {
+    border-color: #111827; box-shadow: 0 0 0 2px rgba(17,24,39,.08);
   }
   .qr-dropdown-wrap {
-    position: relative; flex: 1; min-width: 200px;
+    position: relative; flex: 1; min-width: 0;
   }
   .qr-dropdown-btn {
-    width: 100%; height: 48px; padding: 0 42px 0 18px;
-    border: 1.5px solid #eee; border-radius: 14px;
-    background: #fff; color: #111;
-    font-size: 14px; font-weight: 600; cursor: pointer;
+    width: 100%; height: 48px; padding: 0 36px 0 18px; border-radius: 12px;
+    border: none; background: transparent; color: #111827;
+    font-size: 14px; font-weight: 500; cursor: pointer;
     text-align: left; outline: none; font-family: inherit;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     display: flex; align-items: center;
-    transition: border-color .15s, box-shadow .15s;
-    box-shadow: 0 1px 4px rgba(0,0,0,.04);
   }
-  .qr-dropdown-btn:hover { border-color: #ddd; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-  .qr-dropdown-btn:focus,
-  .qr-dropdown-btn.open {
-    border-color: #ddd; box-shadow: 0 2px 12px rgba(0,0,0,.08);
-  }
-  .qr-dropdown-btn:disabled { color: #9ca3af; background: #fafafa; cursor: not-allowed; }
+  .qr-dropdown-btn:disabled { color: #9ca3af; cursor: not-allowed; }
   .qr-dropdown-btn .placeholder { color: #9ca3af; font-weight: 500; }
   .qr-dropdown-arrow {
-    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
-    color: #bbb; pointer-events: none;
-    transition: transform .2s;
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    color: #9ca3af; pointer-events: none;
+    transition: transform .15s ease;
   }
   .qr-dropdown-arrow.open { transform: translateY(-50%) rotate(180deg); }
+  .qr-dropdown-divider {
+    width: 1px; height: 20px; background: #dbe2ea; flex-shrink: 0;
+  }
   .qr-dropdown-list {
-    position: absolute; top: calc(100% + 8px); left: 0; right: 0;
-    background: #fff; border: 1px solid #f0f0f0; border-radius: 16px;
-    box-shadow: 0 12px 40px rgba(0,0,0,.12);
-    z-index: 100; overflow: hidden;
-    animation: qr-dd-in .18s ease;
-    max-height: 340px; overflow-y: auto;
-    padding: 6px;
+    position: absolute; top: calc(100% + 8px); left: 0; min-width: 280px;
+    background: #fff; border-radius: 16px; padding: 8px 0;
+    box-shadow: 0 4px 24px rgba(0,0,0,.10); z-index: 100;
+    max-height: 280px; overflow-y: auto;
   }
   .qr-dropdown-item {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 16px; border-radius: 12px;
-    cursor: pointer; transition: background .12s;
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 11px 16px; border: none; background: none;
+    color: #6b7280; font-size: 13px; font-weight: 500; cursor: pointer;
+    text-align: left; transition: background .1s ease; font-family: inherit;
   }
-  .qr-dropdown-item:hover { background: #f5f7fa; }
-  .qr-dropdown-item.selected { background: #f3f4f6; }
-  .qr-dropdown-item.disabled {
-    opacity: .45;
-    cursor: not-allowed;
-  }
-  .qr-dropdown-item.disabled:hover {
-    background: transparent;
-  }
+  .qr-dropdown-item:hover { background: #f9fafb; }
+  .qr-dropdown-item.selected { color: #111827; font-weight: 600; }
   .qr-dd-icon {
-    width: 36px; height: 36px; border-radius: 10px;
-    background: #f3f4f6; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; color: #9ca3af; transition: all .12s;
+    color: #9ca3af; flex-shrink: 0;
   }
-  .qr-dropdown-item.selected .qr-dd-icon { background: #eef0ff; color: #02A17E; }
+  .qr-dropdown-item.selected .qr-dd-icon { color: #90C450; }
   .qr-dd-text { flex: 1; min-width: 0; }
   .qr-dd-title {
-    font-size: 14px; font-weight: 500; color: #555;
+    font-size: 13px; font-weight: 500; color: #555;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .qr-dropdown-item.selected .qr-dd-title { font-weight: 700; color: #111; }
+  .qr-dropdown-item.selected .qr-dd-title { font-weight: 600; color: #111; }
   .qr-dd-desc {
-    font-size: 12px; color: #b0b5bd; margin-top: 2px;
+    font-size: 11px; color: #b0b5bd; margin-top: 1px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  @keyframes qr-dd-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 
   .qr-btn-refresh {
-    display: flex; align-items: center; gap: 5px;
-    padding: 0 20px; height: 44px;
-    border-radius: 999px; border: none;
-    background: #2EB893; color: #fff;
-    font-size: 13px; font-weight: 700;
+    height: 44px; padding: 0 20px; border-radius: 12px;
+    border: 1px solid #e5e7eb; background: #1f2937; color: #fff;
+    font-size: 14px; font-weight: 600;
     cursor: pointer; font-family: inherit;
-    transition: background .15s; white-space: nowrap; flex-shrink: 0;
+    transition: all .15s; white-space: nowrap; flex-shrink: 0;
+    display: flex; align-items: center; gap: 6px;
   }
-  .qr-btn-refresh:hover { background: #028A6C; }
+  .qr-btn-refresh:hover { background: #111827; }
   .qr-btn-refresh:disabled { opacity: .5; cursor: not-allowed; }
 
   /* ── Ticket ── */
@@ -217,7 +204,7 @@ const css = `
   .qr-punch {
     position: absolute; z-index: 5;
     width: 16px; height: 16px; border-radius: 50%;
-    background: #f3f4f6;
+    background: #f8f9fc;
     box-shadow: inset 0 0 1px rgba(0,0,0,.04);
   }
   .qr-punch.left { left: -8px; }
@@ -243,7 +230,7 @@ const css = `
   .qr-svg { width: 100%; height: 100%; }
   .qr-img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
   .qr-code-id {
-    font-size: 20px; font-weight: 800; color: #02A17E;
+    font-size: 20px; font-weight: 800; color: #90C450;
     font-family: 'Courier New', monospace; letter-spacing: 3px; margin-bottom: 6px;
   }
 
@@ -251,11 +238,11 @@ const css = `
   .qr-left-desc { font-size: 12.5px; color: #9ca3af; text-align: center; line-height: 1.6; max-width: 300px; margin-bottom: 20px; }
   .qr-safety-box {
     display: flex; align-items: center; gap: 10px;
-    background: #f0f4ff; border-radius: 12px; padding: 12px 20px;
+    background: #f4f5ee; border-radius: 12px; padding: 12px 20px;
     margin-top: 16px;
   }
   .qr-safety-label { font-size: 11px; font-weight: 600; color: #6b7280; }
-  .qr-safety-number { font-size: 22px; font-weight: 900; color: #02A17E; letter-spacing: 3px; font-family: 'Courier New', monospace; }
+  .qr-safety-number { font-size: 14px; font-weight: 900; color: #90C450; letter-spacing: 3px; font-family: 'Courier New', monospace; }
 
   /* Timer with refresh icon */
   .qr-timer {
@@ -267,12 +254,12 @@ const css = `
     border: 1.5px solid #dde3ee; background: #fff;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; transition: all .2s; flex-shrink: 0;
-    color: #02A17E;
+    color: #90C450;
   }
-  .qr-refresh-btn:hover { border-color: #02A17E; background: #f0f4ff; }
+  .qr-refresh-btn:hover { border-color: #90C450; background: #f4f5ee; }
   .qr-refresh-btn .refresh-icon { transition: transform .3s ease; }
   .qr-timer-text { font-size: 12.5px; color: #888; line-height: 1.4; }
-  .qr-timer-text strong { font-weight: 800; color: #02A17E; font-size: 14px; }
+  .qr-timer-text strong { font-weight: 800; color: #90C450; font-size: 14px; }
   .qr-timer-text.warning strong { color: #f59e0b; }
   .qr-timer-text.danger strong { color: #ef4444; }
 
@@ -283,7 +270,7 @@ const css = `
     display: flex; align-items: center; gap: 6px;
     font-family: inherit; transition: all .15s;
   }
-  .qr-btn-enlarge:hover { border-color: #02A17E; color: #02A17E; }
+  .qr-btn-enlarge:hover { border-color: #90C450; color: #90C450; }
 
   /* Enlarge Modal */
   .qr-modal-overlay {
@@ -306,16 +293,16 @@ const css = `
   }
   .qr-modal-safety {
     display: inline-flex; align-items: center; gap: 10px;
-    background: #f0f4ff; border-radius: 12px; padding: 12px 24px;
+    background: #f4f5ee; border-radius: 12px; padding: 12px 24px;
     margin-bottom: 20px;
   }
   .qr-modal-timer { font-size: 13px; color: #9ca3af; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .qr-modal-close {
     padding: 12px 40px; border-radius: 12px; border: none;
-    background: #02A17E; color: #fff; font-size: 15px; font-weight: 700;
+    background: #90C450; color: #fff; font-size: 15px; font-weight: 700;
     cursor: pointer; font-family: inherit; transition: background .15s;
   }
-  .qr-modal-close:hover { background: #028A6C; }
+  .qr-modal-close:hover { background: #2d3519; }
   @keyframes qr-fade-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes qr-scale-in { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
   @keyframes qr-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -353,7 +340,7 @@ const css = `
   /* ── Admission Card (입장 가능) — gradient glassmorphism ── */
   .qr-admission-card {
     position: relative; overflow: hidden;
-    background: linear-gradient(135deg, #3DBFA0 0%, #02A17E 50%, #5CCDB2 100%);
+    background: linear-gradient(135deg, #6B7A3D 0%, #90C450 50%, #8A9B5A 100%);
     border-radius: 16px; padding: 24px 28px;
     margin-bottom: 24px; color: #fff;
   }
@@ -393,7 +380,7 @@ const css = `
   }
   .qr-noadmit-icon {
     width: 40px; height: 40px; border-radius: 12px;
-    background: #f3f4f6; display: flex; align-items: center; justify-content: center;
+    background: #f8f9fc; display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
   .qr-noadmit-text { font-size: 14px; font-weight: 600; color: #999; }
@@ -408,40 +395,72 @@ const css = `
   }
   .qr-action-outline { border: 1.5px solid #e0e0e0; background: #fff; color: #374151; }
   .qr-action-outline:hover { border-color: #999; }
-  .qr-action-primary { border: none; background: #02A17E; color: #fff; }
-  .qr-action-primary:hover { background: #028A6C; }
+  .qr-action-primary { border: none; background: #90C450; color: #fff; }
+  .qr-action-primary:hover { background: #2d3519; }
   .qr-action-btn:disabled { opacity: .45; cursor: not-allowed; }
 
-  /* ── Notice — redesigned ── */
+  /* ── Two-column layout: ticket + notice ── */
+  .qr-two-col {
+    display: flex; gap: 20px; align-items: stretch;
+  }
+  .qr-two-col > .qr-ticket-wrap { flex: 1; min-width: 0; }
+  .qr-two-col > .qr-notice { flex: 0 0 430px; margin-top: 0; }
+
+  /* ── Notice — card style ── */
   .qr-notice {
-    margin-top: 32px; padding: 28px 32px;
-    background: #f9fafb;
-    border-radius: 20px; border: 1px solid #f0f0f0;
-    box-shadow: 0 2px 12px rgba(0,0,0,.03);
+    padding: 0;
+    background: #fff;
+    border-radius: 20px; border: 1px solid #e9ecef;
+    box-shadow: 0 2px 12px rgba(0,0,0,.04);
+    display: flex; flex-direction: column;
+    overflow: hidden;
   }
-  .qr-notice-header {
-    display: flex; align-items: center; gap: 10px;
-    margin-bottom: 20px; padding-bottom: 16px;
-    border-bottom: 1.5px solid #f0f0f0;
+  .qr-notice-top {
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #90C450 0%, rgb(99, 241, 221) 100%);
+    color: #fff;
   }
-  .qr-notice-icon {
-    width: 36px; height: 36px; border-radius: 10px;
-    background: linear-gradient(135deg, #f0f4ff, #e8ecff);
+  .qr-notice-top-title {
+    font-size: 16px; font-weight: 800; letter-spacing: -0.3px;
+    margin-bottom: 4px;
+  }
+  .qr-notice-top-desc {
+    font-size: 12px; opacity: 0.85; font-weight: 500;
+  }
+  .qr-notice-body {
+    flex: 1; overflow-y: auto; padding: 8px 0;
+  }
+  .qr-notice-group {
+    padding: 16px 22px 12px;
+  }
+  .qr-notice-group + .qr-notice-group {
+    border-top: 1px solid #f3f4f6;
+  }
+  .qr-notice-group-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px;
+  }
+  .qr-notice-group-icon {
+    width: 28px; height: 28px; border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
   }
-  .qr-notice-title {
-    font-size: 16px; font-weight: 800; color: #111;
+  .qr-notice-group-icon.qr { background: #f0f2e8; }
+  .qr-notice-group-icon.shield { background: #fff1e6; }
+  .qr-notice-group-icon.help { background: #e8f0fe; }
+  .qr-notice-group-title {
+    font-size: 13px; font-weight: 700; color: #333;
   }
   .qr-notice-list { list-style: none; padding: 0; margin: 0; }
   .qr-notice-item {
-    font-size: 14.5px; color: #555; line-height: 1.8;
-    display: flex; align-items: flex-start; gap: 12px;
-    padding: 6px 0;
+    font-size: 13px; color: #666; line-height: 1.7;
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 3px 0;
   }
   .qr-notice-bullet {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: linear-gradient(135deg, #3DBFA0, #02A17E);
-    flex-shrink: 0; margin-top: 10px;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #ccc;
+    flex-shrink: 0; margin-top: 8px;
   }
 
   /* ── Expired fade ── */
@@ -465,10 +484,10 @@ const css = `
   .qr-expired-refresh {
     display: flex; align-items: center; gap: 6px;
     padding: 10px 28px; border-radius: 999px; border: none;
-    background: #02A17E; color: #fff; font-size: 14px; font-weight: 700;
+    background: #90C450; color: #fff; font-size: 14px; font-weight: 700;
     cursor: pointer; font-family: inherit; transition: background .15s;
   }
-  .qr-expired-refresh:hover { background: #028A6C; }
+  .qr-expired-refresh:hover { background: #2d3519; }
 
   /* ── Error banner ── */
   .qr-error-banner {
@@ -481,19 +500,70 @@ const css = `
   .qr-error-banner svg { flex-shrink: 0; margin-top: 1px; }
 
   @media (max-width: 780px) {
+    .qr-container { padding: 16px 16px 48px; }
+
+    /* 필터 바 */
+    .qr-filter-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+    .qr-filter-left { width: 100%; height: 40px; border-radius: 10px; background: #f3f4f6; border: none; }
+    .qr-dropdown-btn { height: 40px; font-size: 13px; border-radius: 10px; padding: 0 36px 0 14px; }
+    .qr-btn-refresh { width: 100%; justify-content: center; height: 40px; font-size: 13px; border-radius: 10px; }
+
+    /* 2열 → 1열 */
+    .qr-two-col { flex-direction: column; gap: 16px; }
+    .qr-two-col > .qr-notice { flex: none; }
+
+    /* 티켓 */
     .qr-ticket { flex-direction: column; min-height: auto; border-radius: 16px; }
-    .qr-ticket-left { flex: none; padding: 32px 24px; }
+    .qr-ticket-left { flex: none; padding: 28px 20px 24px; }
     .qr-ticket-left::after { display: none; }
     .qr-punch { display: none; }
-    .qr-ticket-right { padding: 28px 24px; }
-    .qr-box { width: 200px; height: 200px; }
-    .qr-info-grid { grid-template-columns: 1fr; gap: 14px; }
-    .qr-filter-bar { gap: 8px; }
-    .qr-dropdown-btn { height: 42px; font-size: 13px; border-radius: 10px; }
-    .qr-btn-refresh { height: 42px; font-size: 12px; padding: 0 14px; }
-    .qr-notice { padding: 20px 20px; }
-    .qr-notice-item { font-size: 13px; }
-    .qr-admission-card { padding: 20px 22px; }
+    .qr-box { width: 180px; height: 180px; padding: 16px; border-radius: 14px; }
+    .qr-left-title { font-size: 15px; }
+    .qr-left-desc { font-size: 12px; }
+    .qr-code-id { font-size: 16px; letter-spacing: 2px; }
+
+    /* 우측 정보 */
+    .qr-ticket-right { padding: 20px 20px 24px; }
+    .qr-ticket-header { margin-bottom: 20px; padding-bottom: 14px; }
+    .qr-ticket-title { font-size: 17px; }
+    .qr-ticket-badge { font-size: 11px; padding: 4px 10px; }
+    .qr-info-grid { grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+    .qr-info-label { font-size: 10px; margin-bottom: 4px; }
+    .qr-info-value { font-size: 13px; }
+
+    /* 입장 카드 */
+    .qr-admission-card { padding: 18px 20px; border-radius: 12px; margin-bottom: 18px; }
+    .qr-admission-icon { width: 34px; height: 34px; border-radius: 10px; }
+    .qr-admission-title { font-size: 15px; }
+    .qr-admission-body { font-size: 12px; }
+    .qr-noadmit-card { padding: 16px 18px; border-radius: 12px; margin-bottom: 18px; }
+    .qr-noadmit-text { font-size: 13px; }
+    .qr-noadmit-sub { font-size: 11px; }
+
+    /* 타이머 */
+    .qr-timer-bar { margin-bottom: 16px; }
+
+    /* 액션 버튼 */
+    .qr-action-row { gap: 8px; }
+    .qr-action-btn { height: 42px; border-radius: 10px; font-size: 13px; }
+
+    /* 에러 */
+    .qr-error-banner { font-size: 12px; padding: 12px 14px; border-radius: 10px; }
+
+    /* 안내사항 */
+    .qr-notice { border-radius: 14px; }
+    .qr-notice-top { padding: 16px 18px; }
+    .qr-notice-top-title { font-size: 14px; }
+    .qr-notice-top-desc { font-size: 11px; }
+    .qr-notice-group { padding: 12px 16px 8px; }
+    .qr-notice-group-icon { width: 24px; height: 24px; border-radius: 6px; }
+    .qr-notice-group-title { font-size: 12px; }
+    .qr-notice-item { font-size: 12px; line-height: 1.6; padding: 2px 0; }
+    .qr-notice-bullet { width: 4px; height: 4px; margin-top: 7px; }
+
+    /* 만료 오버레이 */
+    .qr-expired-text { font-size: 14px; }
+    .qr-expired-refresh { padding: 10px 24px; font-size: 13px; }
   }
 `;
 
@@ -519,12 +589,6 @@ function formatDateRange(startAt, endAt) {
 function formatRegistrationStatus(status) {
   const key = String(status || "").toUpperCase();
   return REGISTRATION_STATUS_LABEL[key] || String(status || "-");
-}
-
-function isRegistrationSelectable(registration) {
-  const status = String(registration?.status || "").toUpperCase();
-  if (status !== "APPROVED") return false;
-  return !Boolean(registration?.isRefundPending);
 }
 
 function getDownloadFilename(contentDisposition, fallback) {
@@ -573,10 +637,6 @@ export default function QRCheckin() {
   const ddRef = useRef(null);
 
   const registrationMap = useMemo(() => new Map(registrations.map((item) => [item.eventId, item])), [registrations]);
-  const selectableRegistrations = useMemo(
-    () => registrations.filter((item) => isRegistrationSelectable(item)),
-    [registrations],
-  );
 
   const safetyNumber = useMemo(() => {
     if (qrInfo?.safetyNumber) return qrInfo.safetyNumber;
@@ -625,39 +685,15 @@ export default function QRCheckin() {
       }
       setLoading(true); setError("");
       try {
-        const [regRes, paymentsRes, refundsRes] = await Promise.all([
-          axiosInstance.get("/api/users/me/event-registrations", { params: { page: 0, size: 200, sort: "appliedAt,desc" } }),
-          axiosInstance.get("/api/payments/my", { params: { page: 0, size: 200, sort: "requestedAt,desc" } }),
-          axiosInstance.get("/api/refunds/my", { params: { page: 0, size: 200, sort: "requestedAt,desc" } }),
-        ]);
-        const rows = regRes?.data?.data?.content ?? [];
-        const payments = paymentsRes?.data?.data?.content ?? [];
-        const refunds = refundsRes?.data?.data?.content ?? [];
-        const refundByPaymentId = new Map(
-          refunds
-            .filter((r) => r?.paymentId != null)
-            .map((r) => [Number(r.paymentId), r]),
-        );
-        const refundRequestedEventIds = new Set(
-          payments
-            .filter((p) => {
-              const refund = refundByPaymentId.get(Number(p?.paymentId));
-              return String(refund?.status || "").toUpperCase() === "REQUESTED";
-            })
-            .map((p) => Number(p?.eventId))
-            .filter(Number.isFinite),
-        );
+        const res = await axiosInstance.get("/api/users/me/event-registrations", { params: { page: 0, size: 200, sort: "appliedAt,desc" } });
+        const rows = res?.data?.data?.content ?? [];
         const dedup = []; const seen = new Set();
         for (const row of rows) { if (!row?.eventId || seen.has(row.eventId)) continue; seen.add(row.eventId); dedup.push(row); }
-        const merged = dedup.map((item) => ({
-          ...item,
-          isRefundPending: refundRequestedEventIds.has(Number(item?.eventId)),
-        }));
-        const selectable = merged.filter((item) => isRegistrationSelectable(item));
+        const approvedOnly = dedup.filter((r) => { const s = String(r?.status || "").toUpperCase(); return s === "APPROVED" || s === "승인완료"; });
         if (!mounted) return;
-        setRegistrations(merged);
-        const fallback = selectable[0] || null;
-        const selected = Number.isFinite(queryEventId) && selectable.some((r) => r.eventId === queryEventId) ? queryEventId : fallback?.eventId ?? null;
+        setRegistrations(approvedOnly);
+        const fallback = approvedOnly[0] || null;
+        const selected = Number.isFinite(queryEventId) && approvedOnly.some((r) => r.eventId === queryEventId) ? queryEventId : fallback?.eventId ?? null;
         setSelectedEventId(selected);
       } catch (e) {
         if (!mounted) return;
@@ -715,7 +751,7 @@ export default function QRCheckin() {
 
   const selectedLabel = selectedEventId
     ? (eventNameById[selectedEventId] || `이벤트 #${selectedEventId}`)
-    : selectableRegistrations.length === 0 ? "선택 가능한 이벤트가 없습니다" : "이벤트를 선택하세요";
+    : registrations.length === 0 ? "승인완료된 이벤트가 없습니다" : "이벤트를 선택하세요";
 
   const handleSendSMS = async () => {
     if (!qrInfo || !eventDetail) return;
@@ -746,18 +782,43 @@ export default function QRCheckin() {
     finally { setDownloading(false); }
   };
 
-  const notices = [
-    "QR 코드는 행사 시작 1시간 전부터 활성화됩니다.",
-    "이벤트별로 1인 1QR 정책이 적용됩니다.",
-    "행사 종료 후 QR은 자동 만료됩니다.",
-    "문제 발생 시 운영팀에 문의해 주세요.",
+  const noticeGroups = [
+    {
+      title: "QR 코드 이용 안내",
+      icon: "qr",
+      items: [
+        "QR 코드는 행사 시작 1시간 전부터 활성화됩니다.",
+        "이벤트별로 1인 1QR 정책이 적용됩니다.",
+        "QR 코드는 3분마다 자동 갱신되며, 만료 시 새로고침 해주세요.",
+        "행사 종료 후 QR은 자동 만료됩니다.",
+      ],
+    },
+    {
+      title: "입장 시 주의사항",
+      icon: "shield",
+      items: [
+        "입장 시 QR 코드를 스태프에게 직접 보여주세요.",
+        "스크린샷이 아닌 실시간 QR만 인정됩니다.",
+        "타인에게 QR을 양도하거나 공유할 수 없습니다.",
+        "안심번호는 개인정보 보호를 위해 제공됩니다.",
+      ],
+    },
+    {
+      title: "문제 발생 시",
+      icon: "help",
+      items: [
+        "QR이 표시되지 않을 경우 새로고침을 시도해 주세요.",
+        "문제가 지속되면 현장 운영팀에 문의해 주세요.",
+        "SMS 전송 기능으로 QR 정보를 문자로 받을 수 있습니다.",
+      ],
+    },
   ];
 
   return (
     <div className="qr-page-bg">
       <style>{css}</style>
       <div className="qr-page-content">
-        <PageHeader title="QR 체크인" icon={<QrCode size={40} strokeWidth={1.8} style={{ color: "#2EB893" }} />} subtitle={SUBTITLE_MAP[currentPath]} categories={SERVICE_CATEGORIES} />
+        <PageHeader title="QR 체크인" icon={<QrCode size={40} strokeWidth={1.8} style={{ color: "#90C450" }} />} subtitle={SUBTITLE_MAP[currentPath]} categories={SERVICE_CATEGORIES} />
 
         <div className="qr-root">
           <main className="qr-container">
@@ -766,55 +827,48 @@ export default function QRCheckin() {
           ) : (<>
           {/* ── Filter Bar ── */}
           <div className="qr-filter-bar">
-            <span className="qr-filter-label">행사 선택</span>
-            <div className="qr-dropdown-wrap" ref={ddRef}>
-              <button
-                type="button"
-                className={`qr-dropdown-btn${ddOpen ? " open" : ""}`}
-                onClick={() => { if (registrations.length > 0) setDdOpen((v) => !v); }}
-                disabled={loading || registrations.length === 0}
-              >
-                {selectedEventId ? selectedLabel : <span className="placeholder">{selectedLabel}</span>}
-              </button>
-              <div className={`qr-dropdown-arrow${ddOpen ? " open" : ""}`}>
-                <ChevronDown size={18} />
+            <div className="qr-filter-left">
+              <div className="qr-dropdown-wrap" ref={ddRef}>
+                <button
+                  type="button"
+                  className="qr-dropdown-btn"
+                  onClick={() => { if (registrations.length > 0) setDdOpen((v) => !v); }}
+                  disabled={loading || registrations.length === 0}
+                >
+                  {selectedEventId
+                    ? (eventNameById[selectedEventId] || `이벤트 #${selectedEventId}`)
+                    : <span className="placeholder">{registrations.length === 0 ? "승인완료된 이벤트가 없습니다" : "이벤트를 선택하세요"}</span>
+                  }
+                </button>
+                <ChevronDown size={15} className={`qr-dropdown-arrow${ddOpen ? " open" : ""}`} />
+                {ddOpen && registrations.length > 0 && (
+                  <div className="qr-dropdown-list">
+                    {registrations.map((item) => {
+                      const name = eventNameById[item.eventId] || `이벤트 #${item.eventId}`;
+                      const reg = registrationMap.get(item.eventId);
+                      const statusText = reg ? formatRegistrationStatus(reg.status) : "";
+                      return (
+                        <div
+                          key={item.applyId ?? item.eventId}
+                          className={`qr-dropdown-item${item.eventId === selectedEventId ? " selected" : ""}`}
+                          onClick={() => { setSelectedEventId(item.eventId); setDdOpen(false); }}
+                        >
+                          <span className="qr-dd-icon"><Calendar size={14} /></span>
+                          <span className="qr-dd-title">{name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              {ddOpen && registrations.length > 0 && (
-                <div className="qr-dropdown-list">
-                  {registrations.map((item) => {
-                    const name = eventNameById[item.eventId] || `이벤트 #${item.eventId}`;
-                    const reg = registrationMap.get(item.eventId);
-                    const isSelectable = isRegistrationSelectable(item);
-                    const statusText = item.isRefundPending ? "환불 대기" : (reg ? formatRegistrationStatus(reg.status) : "");
-                    return (
-                      <div
-                        key={item.applyId ?? item.eventId}
-                        className={`qr-dropdown-item${item.eventId === selectedEventId ? " selected" : ""}${!isSelectable ? " disabled" : ""}`}
-                        onClick={() => {
-                          if (!isSelectable) return;
-                          setSelectedEventId(item.eventId);
-                          setDdOpen(false);
-                        }}
-                      >
-                        <div className="qr-dd-icon">
-                          <Calendar size={16} />
-                        </div>
-                        <div className="qr-dd-text">
-                          <div className="qr-dd-title">{name}</div>
-                          <div className="qr-dd-desc">{statusText}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
             <button className="qr-btn-refresh" onClick={() => loadQr(selectedEventId)} disabled={!selectedEventId || loadingQr}>
               <RefreshCw size={14} /> {loadingQr ? "조회 중..." : "QR 조회"}
             </button>
           </div>
 
-          {/* ── Ticket Card ── */}
+          {/* ── Ticket + Notice 2-col ── */}
+          <div className="qr-two-col">
           <div className="qr-ticket-wrap">
             <div className={`qr-ticket${expired ? " expired" : ""}`}>
               {expired && (
@@ -971,21 +1025,34 @@ export default function QRCheckin() {
 
           {/* ── Notice ── */}
           <div className="qr-notice">
-            <div className="qr-notice-header">
-              <div className="qr-notice-icon">
-                <Info size={18} color="#02A17E" />
-              </div>
-              <div className="qr-notice-title">안내사항</div>
+            <div className="qr-notice-top">
+              <div className="qr-notice-top-title">안내사항</div>
+              <div className="qr-notice-top-desc">QR 체크인 이용 전 꼭 확인해 주세요</div>
             </div>
-            <ul className="qr-notice-list">
-              {notices.map((n, i) => (
-                <li key={i} className="qr-notice-item">
-                  <div className="qr-notice-bullet" />
-                  {n}
-                </li>
+            <div className="qr-notice-body">
+              {noticeGroups.map((group, gi) => (
+                <div key={gi} className="qr-notice-group">
+                  <div className="qr-notice-group-header">
+                    <div className={`qr-notice-group-icon ${group.icon}`}>
+                      {group.icon === "qr" && <QrCode size={14} color="#6fa834" />}
+                      {group.icon === "shield" && <ShieldCheck size={14} color="#e67e22" />}
+                      {group.icon === "help" && <Info size={14} color="#3b82f6" />}
+                    </div>
+                    <div className="qr-notice-group-title">{group.title}</div>
+                  </div>
+                  <ul className="qr-notice-list">
+                    {group.items.map((item, ii) => (
+                      <li key={ii} className="qr-notice-item">
+                        <div className="qr-notice-bullet" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
+          </div>{/* /qr-two-col */}
 
           {/* ── Enlarge Modal ── */}
           {showEnlarge && (
@@ -1022,7 +1089,7 @@ export default function QRCheckin() {
                   >
                     <RefreshCw size={16} className="refresh-icon" />
                   </button>
-                  <span><strong style={{ fontWeight: 800, color: "#02A17E", fontSize: 14 }}>{countdown}</strong>초 후 자동 새로고침</span>
+                  <span><strong style={{ fontWeight: 800, color: "#90C450", fontSize: 14 }}>{countdown}</strong>초 후 자동 새로고침</span>
                 </div>
 
                 <button className="qr-modal-close" onClick={() => setShowEnlarge(false)}>닫기</button>

@@ -182,7 +182,7 @@ export default function KakaoJoin() {
   const styles = `
     .kj-root {
       min-height: 100vh;
-      background: #f6f6f6;
+      background: #f8f9fc;
       font-family: 'JeonjuCraftGothic', 'Pretendard', -apple-system, sans-serif;
       padding: 0 20px;
       display: flex;
@@ -269,7 +269,7 @@ export default function KakaoJoin() {
       padding: 0 20px;
       border-radius: 14px;
       border: 1.5px solid #e5e5e5;
-      background: #fafafa;
+      background: #f8f9fc;
       font-size: 16px;
       font-weight: 500;
       color: #191919;
@@ -347,7 +347,7 @@ export default function KakaoJoin() {
       transition: all 0.15s;
       font-family: inherit;
     }
-    .kj-btn-secondary:hover:not(:disabled) { background: #fafafa; border-color: #ccc; }
+    .kj-btn-secondary:hover:not(:disabled) { background: #f8f9fc; border-color: #ccc; }
     .kj-btn-secondary:disabled { color: #bbb; cursor: not-allowed; }
     .kj-otp-info {
       display: flex;
@@ -395,9 +395,19 @@ export default function KakaoJoin() {
       color: #999;
       font-size: 17px;
     }
+    @media (max-width: 640px) {
+      .kj-root { padding: calc(var(--pupoo-site-header-offset, 72px) + 20px) 16px 40px; align-items: flex-start; }
+    }
     @media (max-width: 480px) {
-      .kj-card { padding: 44px 28px 36px; border-radius: 24px; max-width: 100%; }
-      .kj-title { font-size: 24px; }
+      .kj-card { padding: 32px 20px 28px; border-radius: 20px; max-width: 100%; }
+      .kj-title { font-size: 22px; }
+      .kj-subtitle { font-size: 14px; margin-bottom: 24px; }
+      .kj-input { height: 50px; font-size: 15px; padding: 0 16px; }
+      .kj-label { font-size: 14px; }
+      .kj-btn-primary { height: 52px; font-size: 16px; }
+      .kj-btn-secondary { height: 48px; font-size: 14px; }
+      .kj-otp-info { padding: 14px 16px; gap: 12px; }
+      .kj-otp-info-text { font-size: 14px; }
     }
   `;
 

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSearchParams, useLocation } from "react-router-dom";
 import {
   Plus,
   X,
@@ -122,26 +121,15 @@ function fmtDate(dt) {
 }
 
 /* ── API → 컴포넌트 데이터 매핑 ── */
-/** 백엔드 QnaStatus: WAITING | ANSWERED (구버전 CLOSED 호환) */
 function mapQnaFromApi(item) {
-  const raw = item?.status;
-  const answerStr = String(item.answer ?? item.answerContent ?? "").trim();
-  const hasAnswerMeta = item.answeredAt != null || answerStr.length > 0;
-  /** API QnaStatus(ANSWERED|WAITING) + answeredAt/본문과 일치 */
-  const isAnswered = raw === "ANSWERED" || raw === "CLOSED" || hasAnswerMeta;
-
+  const isClosed = item.status === "CLOSED";
   return {
     id: item.qnaId ?? item.inquiryId ?? item.id,
     qnaId: item.qnaId ?? item.inquiryId ?? item.id,
     title: item.title ?? item.inquiryTitle ?? "",
-    author:
-      item.writerNickname ??
-      item.nickname ??
-      item.author ??
-      item.userName ??
-      (item.userId ? `회원 #${item.userId}` : "익명"),
+    author: item.nickname ?? item.author ?? item.userName ?? "익명",
     content: item.content ?? "",
-    status: isAnswered ? "답변완료" : "대기중",
+    status: isClosed ? "답변완료" : "대기중",
     answer: item.answer ?? item.answerContent ?? "",
     answerDate: item.answeredAt
       ? fmtDate(item.answeredAt)
@@ -150,8 +138,6 @@ function mapQnaFromApi(item) {
         : "",
     views: item.viewCount ?? item.views ?? 0,
     date: fmtDate(item.createdAt ?? item.date),
-    publicationStatus: item.publicationStatus ?? "",
-    moderationHidden: Boolean(item.moderationHidden),
     _visible: true,
     _raw: item, // 원본 보관
   };
@@ -179,7 +165,7 @@ function Toast({ msg, type = "success", onDone }) {
     return () => clearTimeout(t);
   }, [onDone]);
   const bg =
-    type === "success" ? "#10B981" : type === "error" ? "#EF4444" : "#F59E0B";
+    type === "success" ? "#3a4520" : type === "error" ? "#EF4444" : "#F59E0B";
   return (
     <div
       style={{
@@ -384,7 +370,7 @@ function StarRating({ value, onChange, readonly }) {
 /* ── 상태 필 ── */
 function StatusPill({ status }) {
   const map = {
-    답변완료: { bg: ds.greenSoft, color: "#059669", dot: "#10B981" },
+    답변완료: { bg: ds.greenSoft, color: "#059669", dot: "#3a4520" },
     대기중: { bg: ds.amberSoft, color: "#D97706", dot: "#F59E0B" },
   };
   const s = map[status] || map["대기중"];
@@ -400,41 +386,12 @@ function StatusPill({ status }) {
         borderRadius: 99,
         background: s.bg,
         color: s.color,
-        fontFamily: ds.ff,
       }}
     >
       <span
         style={{ width: 5, height: 5, borderRadius: "50%", background: s.dot }}
       />
       {status}
-    </span>
-  );
-}
-
-/** 답변상태(StatusPill)와 동일한 타이포·레이아웃, 숨김 전용 색(다크 UI 대비) */
-function QnaHiddenPill() {
-  const bg = "rgba(148, 150, 166, 0.14)";
-  const color = ds.ink3;
-  const dot = ds.ink4;
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        fontSize: 11,
-        fontWeight: 700,
-        padding: "3px 10px",
-        borderRadius: 99,
-        background: bg,
-        color,
-        fontFamily: ds.ff,
-      }}
-    >
-      <span
-        style={{ width: 5, height: 5, borderRadius: "50%", background: dot }}
-      />
-      숨김
     </span>
   );
 }
@@ -451,22 +408,12 @@ function DetailModal({
   onDelete,
   onReply,
   replyLoading,
-  onQnaVisibilityChange,
-  visibilityLoading,
 }) {
   const isQna = boardType === "qna";
   const isReview = boardType === "review";
   const [replyText, setReplyText] = useState(item.answer || "");
   const [isReplying, setIsReplying] = useState(false);
   const hasReply = !!item.answer;
-  const qnaPub = item.publicationStatus === "HIDDEN" ? "HIDDEN" : "PUBLISHED";
-
-  const detailKey =
-    item?.qnaId ?? item?.postId ?? item?.reviewId ?? item?.id ?? "item";
-  useEffect(() => {
-    setReplyText(item?.answer || "");
-    setIsReplying(false);
-  }, [detailKey, item?.answer]);
 
   const handleSubmitReply = () => {
     if (!replyText.trim()) return;
@@ -490,7 +437,6 @@ function DetailModal({
             {config.detailTitle}
           </h3>
           <button
-            type="button"
             onClick={onClose}
             style={{
               width: 28,
@@ -564,7 +510,9 @@ function DetailModal({
                   borderBottom: `1px solid ${ds.line}`,
                 }}
               >
-                <span style={{ fontSize: 13, color: ds.ink3, fontWeight: 500 }}>
+                <span
+                  style={{ fontSize: 13, color: ds.ink3, fontWeight: 500 }}
+                >
                   {r.l}
                 </span>
                 {r.render ? (
@@ -578,86 +526,6 @@ function DetailModal({
                 )}
               </div>
             ))}
-          {isQna && onQnaVisibilityChange && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "9px 0",
-                borderBottom: `1px solid ${ds.line}`,
-                flexWrap: "wrap",
-                gap: 10,
-              }}
-            >
-              <span style={{ fontSize: 13, color: ds.ink3, fontWeight: 500 }}>
-                노출 상태
-              </span>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flexWrap: "wrap",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: qnaPub === "HIDDEN" ? "#92400E" : ds.ink,
-                  }}
-                >
-                  {qnaPub === "HIDDEN" ? "숨김" : "공개"}
-                </span>
-                <button
-                  type="button"
-                  disabled={visibilityLoading || qnaPub === "PUBLISHED"}
-                  onClick={() => onQnaVisibilityChange(item, "PUBLISHED")}
-                  style={{
-                    padding: "5px 12px",
-                    borderRadius: 6,
-                    border: `1px solid ${ds.line}`,
-                    background:
-                      qnaPub === "PUBLISHED" ? `${ds.brand}12` : ds.bg,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: qnaPub === "PUBLISHED" ? ds.brand : ds.ink3,
-                    cursor:
-                      visibilityLoading || qnaPub === "PUBLISHED"
-                        ? "default"
-                        : "pointer",
-                    fontFamily: ds.ff,
-                    opacity: visibilityLoading ? 0.65 : 1,
-                  }}
-                >
-                  공개로
-                </button>
-                <button
-                  type="button"
-                  disabled={visibilityLoading || qnaPub === "HIDDEN"}
-                  onClick={() => onQnaVisibilityChange(item, "HIDDEN")}
-                  style={{
-                    padding: "5px 12px",
-                    borderRadius: 6,
-                    border: "1px solid #FCD34D80",
-                    background: qnaPub === "HIDDEN" ? ds.amberSoft : ds.bg,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#92400E",
-                    cursor:
-                      visibilityLoading || qnaPub === "HIDDEN"
-                        ? "default"
-                        : "pointer",
-                    fontFamily: ds.ff,
-                    opacity: visibilityLoading ? 0.65 : 1,
-                  }}
-                >
-                  숨김으로
-                </button>
-              </div>
-            </div>
-          )}
           {item.content && (
             <div style={{ marginTop: 14 }}>
               <span style={{ fontSize: 12, color: ds.ink4, fontWeight: 600 }}>
@@ -788,7 +656,9 @@ function DetailModal({
                 >
                   <MessageCircle size={10} color="#fff" />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: ds.ink3 }}>
+                <span
+                  style={{ fontSize: 12, fontWeight: 700, color: ds.ink3 }}
+                >
                   {hasReply ? "답변 수정" : "운영자 답변 작성"}
                 </span>
               </div>
@@ -1012,7 +882,7 @@ function SlidePanel({
           right: 0,
           bottom: 0,
           zIndex: 5000,
-          width: ADMIN_BOARD_SLIDE_PANEL_WIDTH_PX,
+          width: 440,
           background: ds.bg,
           boxShadow: "-4px 0 30px rgba(0,0,0,0.08)",
           display: "flex",
@@ -1136,7 +1006,9 @@ function SlidePanel({
                     <Check size={12} color="#fff" strokeWidth={3} />
                   )}
                 </div>
-                <span style={{ fontSize: 13, color: ds.ink3 }}>상단 고정</span>
+                <span style={{ fontSize: 13, color: ds.ink3 }}>
+                  상단 고정
+                </span>
               </div>
             </Field>
           )}
@@ -1334,59 +1206,20 @@ function BoardRow({
           }}
         >
           <div style={{ ...mobileTextStyle, flex: 1 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                flexWrap: "wrap",
-                minWidth: 0,
-              }}
-            >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
               {boardType === "free" && item.pinned && (
                 <Star size={12} color="#F59E0B" fill="#F59E0B" />
               )}
-              {isQna && (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <StatusPill status={item.status} />
-                  {item.publicationStatus === "HIDDEN" && <QnaHiddenPill />}
-                </span>
-              )}
+              {isQna && <StatusPill status={item.status} />}
               {isReview && item.event && (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "3px 8px",
-                    borderRadius: 999,
-                    background: ds.lineSoft,
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    color: ds.ink3,
-                  }}
-                >
+                <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 8px", borderRadius: 999, background: ds.lineSoft, fontSize: 11.5, fontWeight: 700, color: ds.ink3 }}>
                   {item.event}
                 </span>
               )}
               {isReview && item.rating != null && (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 3,
-                  }}
-                >
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
                   <Star size={11} color="#F59E0B" fill="#F59E0B" />
-                  <span
-                    style={{ fontSize: 12, color: "#F59E0B", fontWeight: 700 }}
-                  >
+                  <span style={{ fontSize: 12, color: "#F59E0B", fontWeight: 700 }}>
                     {item.rating}
                   </span>
                 </span>
@@ -1419,12 +1252,10 @@ function BoardRow({
               <span style={{ color: ds.line }}>·</span>
               <span>{item.date}</span>
               <span style={{ color: ds.line }}>·</span>
-              <span
-                style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-              >
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <Eye size={12} /> {item.views}
               </span>
-              {boardType !== "qna" && item.answer && (
+              {item.answer && (
                 <span
                   style={{
                     display: "inline-flex",
@@ -1513,7 +1344,9 @@ function BoardRow({
         background: checked ? `${ds.brand}06` : "transparent",
       }}
       onMouseEnter={(e) =>
-        (e.currentTarget.style.background = checked ? `${ds.brand}0A` : ds.bg)
+        (e.currentTarget.style.background = checked
+          ? `${ds.brand}0A`
+          : ds.bg)
       }
       onMouseLeave={(e) =>
         (e.currentTarget.style.background = checked
@@ -1529,15 +1362,9 @@ function BoardRow({
           fontSize: 13,
           fontWeight: 700,
           color: ds.ink,
-          minWidth: 80,
-          maxWidth: 120,
+          minWidth: 72,
           flexShrink: 0,
-          marginRight: 14,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
         }}
-        title={item.author}
       >
         {item.author}
       </span>
@@ -1551,33 +1378,43 @@ function BoardRow({
         />
       )}
       {isQna && (
-        <span
-          style={{
-            marginRight: 8,
-            flexShrink: 0,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
+        <span style={{ marginRight: 8, flexShrink: 0 }}>
           <StatusPill status={item.status} />
-          {item.publicationStatus === "HIDDEN" && <QnaHiddenPill />}
         </span>
       )}
 
       <span
         style={{
           flex: 1,
-          minWidth: 0,
           fontSize: 13.5,
           color: ds.ink3,
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
-          display: "block",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
         }}
       >
         {item.title}
+        {item.answer && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 3,
+              fontSize: 10.5,
+              color: ds.brand,
+              fontWeight: 700,
+              background: `${ds.brand}08`,
+              padding: "1px 7px",
+              borderRadius: 4,
+              flexShrink: 0,
+            }}
+          >
+            <MessageCircle size={9} /> 답변완료
+          </span>
+        )}
       </span>
 
       {isReview && item.event && (
@@ -1746,12 +1583,83 @@ function LoadingIndicator() {
 /* ═══════════════════════════════════════════
    메인 컴포넌트
    ═══════════════════════════════════════════ */
-const BOARD_TAB_IDS = ["free", "info", "review", "qna", "faq", "banned"];
+function MobilePagination({ page, totalPages, onChange }) {
+  if (totalPages <= 1) return null;
 
-/** SlidePanel 너비와 동일 — 챗봇 밀어내기·오프셋에 사용 */
-const ADMIN_BOARD_SLIDE_PANEL_WIDTH_PX = 440;
+  const buttonStyle = {
+    minHeight: 40,
+    minWidth: 40,
+    padding: "0 12px",
+    borderRadius: 10,
+    border: `1px solid ${ds.line}`,
+    background: ds.bg,
+    color: ds.ink3,
+    fontSize: 13,
+    fontWeight: 700,
+    fontFamily: ds.ff,
+    cursor: "pointer",
+  };
 
-function BoardManageInner({ subTab }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        marginTop: 16,
+        flexWrap: "wrap",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => onChange(page - 1)}
+        disabled={page <= 1}
+        style={{
+          ...buttonStyle,
+          opacity: page <= 1 ? 0.45 : 1,
+          cursor: page <= 1 ? "default" : "pointer",
+        }}
+      >
+        이전
+      </button>
+      <div
+        style={{
+          minHeight: 40,
+          padding: "0 14px",
+          borderRadius: 10,
+          border: `1px solid ${ds.line}`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 13,
+          fontWeight: 800,
+          color: ds.ink2,
+          background: `${ds.brand}0A`,
+        }}
+      >
+        {page} / {totalPages}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(page + 1)}
+        disabled={page >= totalPages}
+        style={{
+          ...buttonStyle,
+          opacity: page >= totalPages ? 0.45 : 1,
+          cursor: page >= totalPages ? "default" : "pointer",
+        }}
+      >
+        다음
+      </button>
+    </div>
+  );
+}
+
+export default function BoardManage({ subTab = "free" }) {
+  if (subTab === "banned") {
+    return <BannedWordsManage />;
+  }
   const boardType = subTab || "free";
   const config = BOARD_CONFIG[boardType] || BOARD_CONFIG.free;
   const isQna = boardType === "qna";
@@ -1809,16 +1717,11 @@ function BoardManageInner({ subTab }) {
 
           if (!bId) {
             try {
-              const bRes = await axiosInstance.get(
-                "/api/boards?activeOnly=true",
-                {
-                  headers: authHeaders(),
-                },
-              );
+              const bRes = await axiosInstance.get("/api/boards?activeOnly=true", {
+                headers: authHeaders(),
+              });
               const boards = bRes.data?.data || bRes.data || [];
-              const targetBoard = boards.find(
-                (b) => b.boardType === boardTypeCode,
-              );
+              const targetBoard = boards.find((b) => b.boardType === boardTypeCode);
               bId = targetBoard?.boardId || null;
               if (type === "info") {
                 setInfoBoardId(bId);
@@ -1842,9 +1745,7 @@ function BoardManageInner({ subTab }) {
               id: p.postId,
               title: p.postTitle,
               content: p.content,
-              author:
-                p.writerNickname ||
-                (p.userId != null ? `회원 #${p.userId}` : "익명"),
+              author: `회원${p.userId}`,
               date: p.createdAt?.slice(0, 10)?.replace(/-/g, ".") || "",
               views: p.viewCount || 0,
               pinned: false,
@@ -1868,11 +1769,9 @@ function BoardManageInner({ subTab }) {
             ...prev,
             review: list.map((r) => ({
               id: r.reviewId,
-              title: r.reviewTitle || r.content?.slice(0, 30) || "후기",
+              title: r.content?.slice(0, 30) || "후기",
               content: r.content,
-              author:
-                r.writerNickname ||
-                (r.userId != null ? `회원 #${r.userId}` : "익명"),
+              author: `회원${r.userId}`,
               event: evMap[r.eventId] || `행사 #${r.eventId}`,
               rating: r.rating || 5,
               date: r.createdAt?.slice(0, 10)?.replace(/-/g, ".") || "",
@@ -1956,7 +1855,9 @@ function BoardManageInner({ subTab }) {
   const [qnaPage, setQnaPage] = useState(1);
   const [qnaTotalPages, setQnaTotalPages] = useState(0);
   const [qnaTotalElements, setQnaTotalElements] = useState(0);
+  const [mobilePage, setMobilePage] = useState(1);
   const QNA_PAGE_SIZE = 20;
+  const MOBILE_PAGE_SIZE = 6;
 
   /* ── 공통 UI 상태 ── */
   const [modal, setModal] = useState(null);
@@ -1966,20 +1867,6 @@ function BoardManageInner({ subTab }) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(new Set());
   const [saving, setSaving] = useState(false);
-
-  /** 작성/수정 슬라이드 패널 열릴 때 챗봇이 패널 왼쪽으로 밀리도록 CSS 변수 설정 */
-  useEffect(() => {
-    const root = document.documentElement;
-    if (panel != null) {
-      root.style.setProperty(
-        "--admin-board-panel-offset",
-        `${ADMIN_BOARD_SLIDE_PANEL_WIDTH_PX}px`,
-      );
-    } else {
-      root.style.removeProperty("--admin-board-panel-offset");
-    }
-    return () => root.style.removeProperty("--admin-board-panel-offset");
-  }, [panel]);
 
   /* ── Q&A 목록 조회 ── */
   const fetchQnaList = useCallback(async (page = 1) => {
@@ -2029,18 +1916,24 @@ function BoardManageInner({ subTab }) {
     );
   const totalCount = isQna ? qnaTotalElements : rows.length;
   const isMobile = viewportWidth < 768;
+  const mobileTotalPages =
+    isMobile && !isQna ? Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE)) : 1;
+  const mobilePageStart = (mobilePage - 1) * MOBILE_PAGE_SIZE;
+  const pagedRows =
+    isMobile && !isQna
+      ? rows.slice(mobilePageStart, mobilePageStart + MOBILE_PAGE_SIZE)
+      : rows;
+  const interactiveRows = isMobile && !isQna ? pagedRows : rows;
 
   /* ── 선택 관련 ── */
-  const getRowId = (r) =>
-    r.id ?? r.qnaId ?? r.postId ?? r.reviewId ?? r.inquiryId;
-  const stableListKey = (r) =>
-    `${boardType}-${r.qnaId ?? r.postId ?? r.reviewId ?? r.id ?? "row"}`;
+  const getRowId = (r) => r.id;
   const isAllSelected =
-    rows.length > 0 && rows.every((r) => selected.has(getRowId(r)));
+    interactiveRows.length > 0 &&
+    interactiveRows.every((r) => selected.has(getRowId(r)));
   const hasSelected = selected.size > 0;
   const toggleAll = () => {
     if (isAllSelected) setSelected(new Set());
-    else setSelected(new Set(rows.map(getRowId)));
+    else setSelected(new Set(interactiveRows.map(getRowId)));
   };
   const toggleOne = (id) => {
     setSelected((prev) => {
@@ -2052,6 +1945,21 @@ function BoardManageInner({ subTab }) {
   };
 
   const showToast = (msg, type = "success") => setToast({ msg, type });
+
+  useEffect(() => {
+    if (!isMobile || isQna) return undefined;
+    setMobilePage(1);
+    return undefined;
+  }, [boardType, search, isMobile, isQna]);
+
+  useEffect(() => {
+    if (!isMobile || isQna) return undefined;
+    const safeTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
+    if (mobilePage > safeTotalPages) {
+      setMobilePage(safeTotalPages);
+    }
+    return undefined;
+  }, [rows.length, mobilePage, isMobile, isQna]);
 
   /* ── 로컬 게시판 setter ── */
   const setBoard = (fn) =>
@@ -2085,16 +1993,11 @@ function BoardManageInner({ subTab }) {
 
           if (!bId) {
             try {
-              const bRes = await axiosInstance.get(
-                "/api/boards?activeOnly=true",
-                {
-                  headers: authHeaders(),
-                },
-              );
+              const bRes = await axiosInstance.get("/api/boards?activeOnly=true", {
+                headers: authHeaders(),
+              });
               const boards = bRes.data?.data || bRes.data || [];
-              const targetBoard = boards.find(
-                (b) => b.boardType === boardTypeCode,
-              );
+              const targetBoard = boards.find((b) => b.boardType === boardTypeCode);
               bId = targetBoard?.boardId || null;
               if (boardType === "info") {
                 setInfoBoardId(bId);
@@ -2185,14 +2088,11 @@ function BoardManageInner({ subTab }) {
       try {
         if (boardType === "free" || boardType === "info") {
           const postId = f.postId || f.id;
-          const postTitle = (f.title ?? f.postTitle ?? "").trim();
-          const content = f.content ?? "";
-          // 관리자는 작성자가 아닐 수 있으므로 /api/admin/posts (일반 PUT은 본인 글만 가능 → 403)
           await axiosInstance.put(
-            `/api/admin/posts/${postId}`,
+            `/api/posts/${postId}`,
             {
-              postTitle,
-              content,
+              postTitle: f.title,
+              content: f.content || "",
             },
             { headers: authHeaders() },
           );
@@ -2223,13 +2123,7 @@ function BoardManageInner({ subTab }) {
         fetchBoardData(boardType);
       } catch (err) {
         console.error(`[BoardManage] ${boardType} update error:`, err);
-        const msg =
-          err?.response?.data?.error?.message ||
-          err?.response?.data?.message ||
-          err?.response?.data?.data?.message ||
-          err?.message ||
-          "수정에 실패했습니다.";
-        showToast(String(msg), "error");
+        showToast("수정에 실패했습니다.", "error");
       } finally {
         setSaving(false);
       }
@@ -2262,11 +2156,9 @@ function BoardManageInner({ subTab }) {
       try {
         if (boardType === "free" || boardType === "info") {
           const postId = item.postId || id;
-          await axiosInstance.patch(
-            `/api/admin/posts/${postId}/delete`,
-            {},
-            { headers: authHeaders() },
-          );
+          await axiosInstance.delete(`/api/posts/${postId}`, {
+            headers: authHeaders(),
+          });
         } else if (boardType === "review") {
           const reviewId = item.reviewId || id;
           await axiosInstance.delete(
@@ -2398,35 +2290,6 @@ function BoardManageInner({ subTab }) {
     }
   };
 
-  /** QnA 공개 / 숨김 (관리자) */
-  const handleQnaVisibility = async (item, publicationStatus) => {
-    setSaving(true);
-    try {
-      const qnaId = item.qnaId ?? item.id;
-      await adminQnaApi.setVisibility(qnaId, publicationStatus);
-      showToast(
-        publicationStatus === "PUBLISHED"
-          ? "공개로 변경했습니다."
-          : "숨김 처리했습니다.",
-      );
-      await fetchQnaList(qnaPage);
-      setModal((m) => {
-        if (m?.type !== "detail") return m;
-        const mid = m.item?.qnaId ?? m.item?.id;
-        if (mid !== qnaId) return m;
-        return {
-          type: "detail",
-          item: { ...m.item, publicationStatus },
-        };
-      });
-    } catch (err) {
-      console.error("[BoardManage QnA] visibility error:", err);
-      showToast("노출 상태 변경에 실패했습니다.", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   /* ════════════════════════════════════════
      렌더링
      ════════════════════════════════════════ */
@@ -2518,12 +2381,7 @@ function BoardManageInner({ subTab }) {
                 <Trash2 size={12} /> 선택 삭제
               </button>
             )}
-            <div
-              style={{
-                position: "relative",
-                flex: isMobile ? "1 1 100%" : "0 0 auto",
-              }}
-            >
+            <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }}>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -2664,9 +2522,9 @@ function BoardManageInner({ subTab }) {
         {/* 리스트 */}
         {!boardLoading &&
           !(isQna && (qnaLoading || qnaError)) &&
-          rows.map((r) => (
+          pagedRows.map((r) => (
             <BoardRow
-              key={stableListKey(r)}
+              key={r.id}
               item={r}
               boardType={boardType}
               removing={removing === r.id}
@@ -2720,8 +2578,29 @@ function BoardManageInner({ subTab }) {
           )}
       </div>
 
+      {isMobile && !isQna && rows.length > MOBILE_PAGE_SIZE && (
+        <MobilePagination
+          page={mobilePage}
+          totalPages={mobileTotalPages}
+          onChange={(nextPage) => {
+            if (nextPage < 1 || nextPage > mobileTotalPages) return;
+            setMobilePage(nextPage);
+          }}
+        />
+      )}
+
       {/* ── Q&A 페이지네이션 ── */}
       {isQna && !qnaLoading && !qnaError && qnaTotalPages > 1 && (
+        isMobile ? (
+          <MobilePagination
+            page={qnaPage}
+            totalPages={qnaTotalPages}
+            onChange={(nextPage) => {
+              if (nextPage < 1 || nextPage > qnaTotalPages) return;
+              fetchQnaList(nextPage);
+            }}
+          />
+        ) : (
         <div
           style={{
             display: "flex",
@@ -2732,7 +2611,6 @@ function BoardManageInner({ subTab }) {
           }}
         >
           <button
-            type="button"
             onClick={() => fetchQnaList(qnaPage - 1)}
             disabled={qnaPage <= 1}
             style={{
@@ -2748,7 +2626,6 @@ function BoardManageInner({ subTab }) {
           </button>
           {Array.from({ length: qnaTotalPages }, (_, i) => (
             <button
-              type="button"
               key={i}
               onClick={() => fetchQnaList(i + 1)}
               style={{
@@ -2767,7 +2644,6 @@ function BoardManageInner({ subTab }) {
             </button>
           ))}
           <button
-            type="button"
             onClick={() => fetchQnaList(qnaPage + 1)}
             disabled={qnaPage >= qnaTotalPages}
             style={{
@@ -2782,6 +2658,7 @@ function BoardManageInner({ subTab }) {
             ›
           </button>
         </div>
+        )
       )}
 
       {/* ── 슬라이드 패널 ── */}
@@ -2797,7 +2674,6 @@ function BoardManageInner({ subTab }) {
       )}
       {panel?.type === "edit" && (
         <SlidePanel
-          key={`edit-${panel.item?.qnaId ?? panel.item?.postId ?? panel.item?.reviewId ?? panel.item?.id ?? "x"}`}
           item={panel.item}
           boardType={boardType}
           config={config}
@@ -2812,7 +2688,6 @@ function BoardManageInner({ subTab }) {
       {/* ── 상세 모달 ── */}
       {modal?.type === "detail" && (
         <DetailModal
-          key={`detail-${modal.item?.qnaId ?? modal.item?.postId ?? modal.item?.reviewId ?? modal.item?.id ?? "x"}`}
           item={modal.item}
           boardType={boardType}
           config={config}
@@ -2824,8 +2699,6 @@ function BoardManageInner({ subTab }) {
           onDelete={(item) => setModal({ type: "delete", item })}
           onReply={handleReply}
           replyLoading={saving}
-          onQnaVisibilityChange={isQna ? handleQnaVisibility : undefined}
-          visibilityLoading={saving}
         />
       )}
 
@@ -2858,21 +2731,4 @@ function BoardManageInner({ subTab }) {
       )}
     </div>
   );
-}
-
-export default function BoardManage({ subTab: subTabProp = "free" }) {
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const tabFromUrl = searchParams.get("tab");
-  const subTab =
-    location.pathname === "/admin/board" &&
-    tabFromUrl &&
-    BOARD_TAB_IDS.includes(tabFromUrl)
-      ? tabFromUrl
-      : subTabProp;
-
-  if (subTab === "banned") {
-    return <BannedWordsManage />;
-  }
-  return <BoardManageInner subTab={subTab} />;
 }
