@@ -30,8 +30,18 @@ function HScrollGallery({ images }) {
   const outerRef = useRef(null);
   const trackRef = useRef(null);
   const rafRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= 734,
+  );
 
   useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 734);
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) return;
     const update = () => {
       const outer = outerRef.current;
       const track = trackRef.current;
@@ -43,21 +53,49 @@ function HScrollGallery({ images }) {
       const maxShift = track.scrollWidth - window.innerWidth;
       track.style.transform = `translateX(${-progress * Math.max(maxShift, 0)}px)`;
     };
-
     const onScroll = () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(update);
     };
-
     window.addEventListener("scroll", onScroll, { passive: true });
     update();
     return () => {
       window.removeEventListener("scroll", onScroll);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [isMobile]);
 
-  /* outer height: 100vh viewport + extra to scroll through all cards */
+  if (isMobile) {
+    return (
+      <div style={{ padding: "0 0 40px" }}>
+        <div style={{
+          display: "flex", gap: 14, overflowX: "auto",
+          scrollSnapType: "x mandatory", scrollbarWidth: "none",
+          padding: "0 20px 8px", WebkitOverflowScrolling: "touch",
+        }}>
+          {images.map((img, i) => (
+            <div key={i} style={{ flex: "0 0 78vw", scrollSnapAlign: "start" }}>
+              <div style={{
+                width: "100%", height: 220, borderRadius: 16,
+                background: img.bg || "#1a1a2e", display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: 14, color: "rgba(255,255,255,0.7)",
+                fontWeight: 600, overflow: "hidden", position: "relative",
+              }}>
+                {img.img && <img src={img.img} alt={img.label || ""} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+                {img.label && <span style={{ position: "relative", zIndex: 1 }}>{img.label}</span>}
+              </div>
+              {img.caption && (
+                <div style={{ marginTop: 10, fontSize: 13, color: "#86868b", lineHeight: 1.6, paddingRight: 8 }}>
+                  {img.caption}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const totalCards = images.length;
   const outerH = `${100 + totalCards * 18}vh`;
 
@@ -67,8 +105,9 @@ function HScrollGallery({ images }) {
         <div ref={trackRef} className="op-hscroll-track">
           {images.map((img, i) => (
             <div key={i} className="op-hscroll-card">
-              <div className="op-hscroll-img" style={{ background: img.bg }}>
-                {img.label && <span>{img.label}</span>}
+              <div className="op-hscroll-img" style={{ background: img.bg || "#1a1a2e", position: "relative" }}>
+                {img.img && <img src={img.img} alt={img.label || ""} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+                {img.label && <span style={{ position: "relative", zIndex: 1 }}>{img.label}</span>}
               </div>
               {img.caption && <div className="op-hscroll-caption">{img.caption}</div>}
             </div>
@@ -82,34 +121,38 @@ function HScrollGallery({ images }) {
 const css = `
 .op{color:#1d1d1f;margin-top:80px;font-family:inherit;overflow-x:clip}
 
-/* ── HERO (white) ── */
+/* ── HERO (video bg) ── */
 .op-hero{
   min-height:100vh;display:flex;flex-direction:column;
   align-items:center;justify-content:center;text-align:center;
   padding:120px 24px;
-  background:#fff;
+  position:relative;overflow:hidden;
+  background:#000;
 }
+.op-hero-video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;z-index:0;opacity:.45;
+}
+.op-hero>*:not(.op-hero-video){position:relative;z-index:2;}
 .op-hero-over{
-  font-size:17px;font-weight:600;color:#6e6e73;
+  font-size:17px;font-weight:600;color:rgba(255,255,255,.7);
   letter-spacing:-.01em;margin-bottom:16px;
 }
 .op-hero h1{
-  font-size:clamp(48px,8vw,96px);font-weight:900;
+  font-size:clamp(60px,10vw,120px);font-weight:900;
   letter-spacing:-.04em;line-height:1.05;margin:0;
-  color:#1d1d1f;
+  color:#fff;
 }
 .op-hero p{
   font-size:clamp(17px,2vw,21px);font-weight:400;
-  color:#86868b;line-height:1.5;margin:20px 0 0;
+  color:rgba(255,255,255,.6);line-height:1.5;margin:20px 0 0;
   max-width:500px;
 }
 .op-scroll-hint{
   margin-top:48px;display:flex;flex-direction:column;align-items:center;gap:8px;
-  animation:op-bounce 2s ease infinite;
 }
-.op-scroll-hint span{font-size:13px;font-weight:500;color:#aeaeb2;letter-spacing:.02em}
-.op-scroll-hint svg{color:#aeaeb2}
-@keyframes op-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+.op-scroll-wheel{animation:op-wheel 1.6s ease infinite}
+@keyframes op-wheel{0%{transform:translateY(0);opacity:1}60%{transform:translateY(10px);opacity:0}61%{transform:translateY(0);opacity:0}100%{transform:translateY(0);opacity:1}}
 
 /* ── DARK SECTION ── */
 .op-dark{
@@ -158,7 +201,7 @@ const css = `
   text-align:center;
 }
 .op-section h2{
-  font-size:clamp(40px,6vw,80px);font-weight:900;
+  font-size:clamp(48px,7vw,96px);font-weight:900;
   letter-spacing:-.04em;line-height:1.08;margin:0 0 24px;
   color:#f5f5f7;
 }
@@ -256,21 +299,32 @@ const css = `
   .op-rule{flex-direction:column;gap:6px}
   .op-rule-t{min-width:0}
   .op-hscroll-card{width:80vw}
+  .op-hero{padding:80px 20px}
+  .op-hero h1{font-size:clamp(48px,12vw,80px)}
+  .op-section{padding:60px 20px}
+  .op-stats{padding:0 20px 64px}
+  .op-steps{padding:0 16px 64px}
+  .op-rules{padding:60px 20px}
+  .op-rules h2{font-size:clamp(32px,8vw,56px);margin-bottom:32px}
+  .op-notice{padding:0 20px 64px}
+  .op-notice p{font-size:14px}
+  .op-step{padding:28px 24px}
+  .op-step-title{font-size:22px}
+  .op-scroll-hint{margin-top:32px}
 }
 `;
 
 const GALLERY_1 = [
-  { bg: "linear-gradient(135deg,#1a1a2e 0%,#16213e 100%)", label: "QR 체크인 현장", caption: "QR 코드 하나로 빠르게 입장. 모바일과 출력물 모두 가능합니다." },
-  { bg: "linear-gradient(135deg,#0f3460 0%,#533483 100%)", label: "접종 서류 확인", caption: "등록증과 접종 증명서를 현장에서 빠르게 확인합니다." },
-  { bg: "linear-gradient(135deg,#2c3e50 0%,#3498db 100%)", label: "부스 프로그램", caption: "다양한 부스와 프로그램에 자유롭게 참여하세요." },
-  { bg: "linear-gradient(135deg,#1a1a2e 0%,#e94560 100%)", label: "반려동물 놀이터", caption: "안전한 공간에서 반려동물과 함께 즐기세요." },
+  { img: "/uploads/guide/guide1.jpg", label: "QR 체크인 현장", caption: "QR 코드 하나로 빠르게 입장. 모바일과 출력물 모두 가능합니다." },
+  { img: "/uploads/guide/guide2.jpg", label: "접종 서류 확인", caption: "등록증과 접종 증명서를 현장에서 빠르게 확인합니다." },
+  { img: "/uploads/guide/guide3.jpg", label: "부스 프로그램", caption: "다양한 부스와 프로그램에 자유롭게 참여하세요." },
+  { img: "/uploads/guide/guide4.jpg", label: "반려동물 놀이터", caption: "안전한 공간에서 반려동물과 함께 즐기세요." },
 ];
 
 const GALLERY_2 = [
-  { bg: "linear-gradient(135deg,#2d3436 0%,#636e72 100%)", label: "안전 관리", caption: "목줄과 하네스 착용은 필수입니다." },
-  { bg: "linear-gradient(135deg,#0c0c0c 0%,#434343 100%)", label: "응급 부스", caption: "응급 상황 대비 부스가 상시 운영됩니다." },
-  { bg: "linear-gradient(135deg,#1e272e 0%,#57606f 100%)", label: "클린 존", caption: "배변 봉투 무료 제공. 깨끗한 현장을 함께 만들어요." },
-  { bg: "linear-gradient(135deg,#2c2c54 0%,#474787 100%)", label: "안내 데스크", caption: "궁금한 점은 안내 스태프에게 문의하세요." },
+  { img: "/uploads/guide/guide1-1.jpg", label: "안전 관리", caption: "목줄과 하네스 착용은 필수입니다." },
+  { img: "/uploads/guide/guide2-1.jpg", label: "응급 부스", caption: "응급 상황 대비 부스가 상시 운영됩니다." },
+  { img: "/uploads/guide/guide3-1.jpg", label: "클린 존", caption: "배변 봉투 무료 제공. 깨끗한 현장을 함께 만들어요." },
 ];
 
 const STEPS = [
@@ -294,15 +348,18 @@ export default function Operation() {
     <div className="op">
       <style>{css}</style>
 
-      {/* ── HERO (white) ── */}
+      {/* ── HERO (video bg) ── */}
       <section className="op-hero">
+        <video className="op-hero-video" src="/uploads/guide/GettyImages-1212649256.mov" autoPlay muted loop playsInline />
         <F>
           <div className="op-hero-over">현장 운영 안내</div>
           <h1>입장부터<br />퇴장까지</h1>
-          <p>반려동물과 함께하는 행사, 알아야 할 모든 것을 준비했습니다.</p>
+          <p>반려동물과 함께하는 행사,<br />알아야 할 모든 것을 준비했습니다.</p>
           <div className="op-scroll-hint">
-            <span>Scroll</span>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+            <svg width="28" height="44" viewBox="0 0 28 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="1" y="1" width="26" height="42" rx="13" stroke="rgba(255,255,255,.4)" strokeWidth="2"/>
+              <line x1="14" y1="8" x2="14" y2="16" stroke="rgba(255,255,255,.4)" strokeWidth="2.5" strokeLinecap="round" className="op-scroll-wheel"/>
+            </svg>
           </div>
         </F>
       </section>

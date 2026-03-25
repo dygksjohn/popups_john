@@ -14,13 +14,15 @@ import {
   PartyPopper, Presentation, Compass, Store, Trophy, Megaphone,
   Cookie, Bath, Scissors, Puzzle, Shirt, HeartPulse,
   GraduationCap, Footprints, Pill, Watch, MoreHorizontal,
+  ChevronRight, ChevronLeft, Bell, Heart, Settings, ArrowLeftRight, Ticket,
+  AlertCircle,
 } from "lucide-react";
 
 const styles = `
   .mp-root {
     box-sizing: border-box;
     font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #f7f8fa;
+    background: #f8f9fc;
     min-height: 100vh;
     color: #1a1a1a;
   }
@@ -30,7 +32,7 @@ const styles = `
   }
   .mp-container {
     width: min(1400px, calc(100% - 40px));
-    margin: 0 auto;
+    margin: 60px auto 0;
     padding: 100px 0 64px;
   }
   .mp-layout {
@@ -65,7 +67,7 @@ const styles = `
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #5b9bf7, #7eb8ff);
+    background: linear-gradient(135deg, #7ab33e, #90C450);
     color: #fff;
     font-weight: 800;
     display: flex;
@@ -90,7 +92,7 @@ const styles = `
   .mp-joined {
     font-size: 11px;
     color: #888;
-    background: #f3f4f6;
+    background: #f8f9fc;
     border-radius: 999px;
     display: inline-flex;
     padding: 3px 10px;
@@ -146,14 +148,14 @@ const styles = `
     color: #555;
   }
   .mp-sidebar-nav-item.active {
-    background: #eef4ff;
-    color: #5b9bf7;
+    background: #f0f9e4;
+    color: #90C450;
     font-weight: 700;
   }
   .mp-sidebar-nav-arrow {
     font-size: 12px; color: #ccc; transition: color .12s;
   }
-  .mp-sidebar-nav-item.active .mp-sidebar-nav-arrow { color: #5b9bf7; }
+  .mp-sidebar-nav-item.active .mp-sidebar-nav-arrow { color: #90C450; }
   .mp-sidebar-nav-item:hover .mp-sidebar-nav-arrow { color: #999; }
   .mp-sidebar-nav-badge {
     background: #ef4444;
@@ -182,10 +184,10 @@ const styles = `
   }
   .mp-sidebar-btn.primary {
     border: none;
-    background: #5b9bf7;
+    background: #90C450;
     color: #fff;
   }
-  .mp-sidebar-btn.primary:hover { background: #4a8de6; }
+  .mp-sidebar-btn.primary:hover { background: #7ab33e; }
   .mp-sidebar-btn.ghost {
     border: 1px solid #e8eaed;
     background: #fff;
@@ -277,11 +279,11 @@ const styles = `
     font-weight: 500;
   }
   .mp-more-link {
-    font-size: 12px; color: #5b9bf7; font-weight: 600;
+    font-size: 12px; color: #90C450; font-weight: 600;
     cursor: pointer; border: none; background: none; padding: 0;
     transition: color .12s;
   }
-  .mp-more-link:hover { color: #4a8de6; }
+  .mp-more-link:hover { color: #7ab33e; }
   .mp-section-inner {
     padding: 20px;
     display: flex; flex-direction: column; flex: 1;
@@ -299,13 +301,13 @@ const styles = `
     width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
     font-size: 14px; color: #666; cursor: pointer; transition: background .12s;
   }
-  .mp-cal-nav:hover { background: #f3f4f6; }
+  .mp-cal-nav:hover { background: #f8f9fc; }
   .mp-cal-today {
     background: none; border: 1px solid #e5e7eb; border-radius: 6px;
     padding: 2px 10px; font-size: 12px; font-weight: 600; color: #555;
     cursor: pointer; transition: background .12s;
   }
-  .mp-cal-today:hover { background: #f3f4f6; }
+  .mp-cal-today:hover { background: #f8f9fc; }
   .mp-cal { margin-top: 12px; }
   .mp-cal-header {
     display: grid; grid-template-columns: repeat(7, 1fr);
@@ -321,13 +323,13 @@ const styles = `
     cursor: pointer; transition: background .12s; position: relative;
   }
   .mp-cal-cell.empty { cursor: default; }
-  .mp-cal-cell:not(.empty):hover { background: #f3f4f6; }
-  .mp-cal-cell.today { font-weight: 800; color: #5b9bf7; }
-  .mp-cal-cell.selected { background: #5b9bf7; color: #fff; font-weight: 700; }
-  .mp-cal-cell.selected:hover { background: #4a8de6; }
+  .mp-cal-cell:not(.empty):hover { background: #f8f9fc; }
+  .mp-cal-cell.today { font-weight: 800; color: #90C450; }
+  .mp-cal-cell.selected { background: #90C450; color: #fff; font-weight: 700; }
+  .mp-cal-cell.selected:hover { background: #7ab33e; }
   .mp-cal-cell.has-event::after {
     content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
-    width: 4px; height: 4px; border-radius: 50%; background: #5b9bf7;
+    width: 4px; height: 4px; border-radius: 50%; background: #90C450;
   }
   .mp-cal-cell.selected.has-event::after { background: #fff; }
   .mp-cal-events {
@@ -342,7 +344,7 @@ const styles = `
     border-top: 1px solid #f3f3f3;
   }
   .mp-cal-event-time {
-    color: #5b9bf7; font-size: 12px; font-weight: 700; flex-shrink: 0;
+    color: #90C450; font-size: 12px; font-weight: 700; flex-shrink: 0;
     min-width: 38px;
   }
   .mp-cal-event-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
@@ -350,7 +352,7 @@ const styles = `
   .mp-cal-event-loc { font-size: 11px; color: #aaa; flex-shrink: 0; }
   .mp-cal-event-status {
     font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
-    background: #eef4ff; color: #5b9bf7; flex-shrink: 0;
+    background: #f0f9e4; color: #90C450; flex-shrink: 0;
   }
 
   .mp-list {
@@ -375,7 +377,7 @@ const styles = `
     box-shadow: 0 4px 16px rgba(0,0,0,0.08);
   }
   .mp-item.mp-item-main {
-    background: linear-gradient(135deg, #5b9bf7 0%, #7eb8ff 100%);
+    background: linear-gradient(135deg, #7ab33e 0%, #90C450 100%);
     color: #fff;
   }
   .mp-item.mp-item-main .mp-item-title { color: #fff; font-size: 16px; }
@@ -455,7 +457,7 @@ const styles = `
   }
   .mp-noti-delete {
     border: none;
-    background: #f3f4f6;
+    background: #f8f9fc;
     color: #9ca3af;
     border-radius: 6px;
     padding: 4px 10px;
@@ -501,16 +503,16 @@ const styles = `
   }
   .mp-sub-card:hover { border-color: #c0c0c0; transform: translateY(-1px); }
   .mp-sub-card.active {
-    background: #eef4ff; border-color: #5b9bf7;
+    background: #f0f9e4; border-color: #90C450;
   }
-  .mp-sub-card.active:hover { border-color: #4a8de6; }
+  .mp-sub-card.active:hover { border-color: #7ab33e; }
   .mp-sub-card:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
   .mp-sub-card-icon {
     color: #bbb; transition: all .25s ease;
     display: flex; align-items: center; justify-content: center;
   }
   .mp-sub-card.active .mp-sub-card-icon {
-    color: #5b9bf7;
+    color: #90C450;
   }
   .mp-sub-card-label {
     font-size: 14px; font-weight: 300; color: #bbb;
@@ -523,7 +525,7 @@ const styles = `
     color: #d0d0d0; transition: all .25s ease;
   }
   .mp-sub-card.active .mp-sub-card-check {
-    color: #5b9bf7;
+    color: #90C450;
   }
 
   .mp-subscription-controls {
@@ -534,7 +536,7 @@ const styles = `
   .mp-channel-btn {
     border: none;
     border-radius: 8px;
-    background: #f3f4f6;
+    background: #f8f9fc;
     color: #aaa;
     font-size: 11px;
     font-weight: 600;
@@ -549,7 +551,7 @@ const styles = `
   }
   .mp-channel-btn.active {
     color: #fff;
-    background: #5b9bf7;
+    background: #90C450;
     font-weight: 700;
   }
   .mp-channel-btn:not(.active):hover {
@@ -612,12 +614,12 @@ const styles = `
   }
   .mp-btn:active { transform: scale(0.97); }
   .mp-btn.primary {
-    background: #5b9bf7;
+    background: #90C450;
     color: #fff;
   }
-  .mp-btn.primary:hover { background: #4a8de6; }
+  .mp-btn.primary:hover { background: #7ab33e; }
   .mp-btn.ghost {
-    background: #f3f4f6;
+    background: #f8f9fc;
     color: #555;
   }
   .mp-btn.ghost:hover { background: #e8eaed; }
@@ -636,9 +638,12 @@ const styles = `
   }
   .mp-empty-icon svg { color: #bbb; }
   .mp-danger {
-    margin: 10px 0;
-    color: #b91c1c;
-    font-size: 13px;
+    display: flex; align-items: center; gap: 8px;
+    margin: 12px 0; padding: 12px 16px;
+    background: #fef2f2; border: 1px solid #fecaca;
+    border-radius: 10px;
+    color: #991b1b; font-size: 13px; font-weight: 500;
+    line-height: 1.5;
   }
   .mp-modal-backdrop {
     position: fixed;
@@ -761,7 +766,7 @@ const styles = `
   @media (max-width: 767px) {
     .mp-container {
       width: calc(100% - 24px);
-      padding: 72px 0 28px;
+      padding: calc(var(--pupoo-site-header-offset, 72px) + 16px) 0 28px;
     }
     .mp-page-title {
       font-size: 19px;
@@ -824,6 +829,167 @@ const styles = `
     .mp-sub-grid {
       grid-template-columns: 1fr;
     }
+  }
+
+  /* ── Mobile Mypage ── */
+  .mp-mob-root {
+    background: #f8f9fc;
+    min-height: calc(100vh - var(--pupoo-site-header-offset, 60px) - 200px);
+    padding-bottom: 0;
+    font-family: "Pretendard Variable", "Pretendard", -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  .mp-mob-root * { box-sizing: border-box; font-family: inherit; }
+
+  /* Profile */
+  .mp-mob-profile {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: calc(var(--pupoo-site-header-offset, 80px) + 24px) 20px 24px;
+    background: #f8f9fc;
+  }
+  .mp-mob-avatar-wrap { position: relative; flex-shrink: 0; }
+  .mp-mob-avatar {
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7ab33e, #90C450);
+    color: #fff; font-weight: 800; font-size: 28px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .mp-mob-avatar-edit {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #222; color: #fff; border: 2px solid #f2f3f5;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+  }
+  .mp-mob-profile-info { flex: 1; min-width: 0; }
+  .mp-mob-name { font-size: 18px; font-weight: 800; color: #1a1a1a; margin-bottom: 5px; }
+  .mp-mob-bio { font-size: 13px; color: #888; line-height: 1.5; word-break: keep-all; }
+
+  /* Section padding */
+  .mp-mob-section { padding: 0 16px; margin-bottom: 12px; }
+
+  /* Membership/Stats card */
+  .mp-mob-stat-card {
+    background: #fff; border-radius: 16px;
+    padding: 18px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  }
+  .mp-mob-stat-left { display: flex; align-items: center; gap: 8px; }
+  .mp-mob-stat-dot {
+    width: 10px; height: 10px; border-radius: 50%; background: #90C450; flex-shrink: 0;
+  }
+  .mp-mob-stat-label { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+  .mp-mob-stat-right { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+  .mp-mob-stat-num { font-size: 20px; font-weight: 800; color: #1a1a1a; margin-right: 4px; }
+  .mp-mob-stat-unit { font-size: 13px; color: #888; font-weight: 500; }
+
+  /* 2-column shortcut buttons */
+  .mp-mob-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .mp-mob-shortcut {
+    background: #fff; border-radius: 14px; border: none;
+    padding: 18px 12px; font-size: 15px; font-weight: 700; color: #1a1a1a;
+    cursor: pointer; text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    transition: background .12s;
+  }
+  .mp-mob-shortcut:active { background: #f5f5f5; }
+
+  /* Section title */
+  .mp-mob-section-title {
+    font-size: 17px; font-weight: 800; color: #1a1a1a;
+    padding: 0 4px; margin-bottom: 12px;
+  }
+
+  /* 3-column icon grid */
+  .mp-mob-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .mp-mob-icon-btn {
+    background: #fff; border-radius: 16px; border: none;
+    padding: 22px 8px 18px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    transition: background .12s;
+  }
+  .mp-mob-icon-btn:active { background: #f5f5f5; }
+  .mp-mob-icon-label { font-size: 13px; font-weight: 600; color: #444; }
+
+  /* Activity list */
+  .mp-mob-list-card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+  .mp-mob-list-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px; background: none; border: none;
+    width: 100%; cursor: pointer; text-align: left;
+    border-bottom: 1px solid #f3f3f3;
+    transition: background .12s;
+  }
+  .mp-mob-list-item:last-child { border-bottom: none; }
+  .mp-mob-list-item:active { background: #f9f9f9; }
+  .mp-mob-list-icon { color: #555; flex-shrink: 0; }
+  .mp-mob-list-label { flex: 1; font-size: 15px; font-weight: 600; color: #1a1a1a; }
+  .mp-mob-list-badge {
+    background: #ef4444; color: #fff; border-radius: 999px;
+    padding: 2px 7px; font-size: 11px; font-weight: 700;
+    margin-right: 4px; line-height: 1.4;
+  }
+  .mp-mob-list-chevron { color: #ccc; flex-shrink: 0; }
+
+  /* Logout */
+  .mp-mob-logout {
+    display: block; width: calc(100% - 32px); margin: 8px 16px 0;
+    padding: 16px; background: none; border: none;
+    font-size: 14px; font-weight: 600; color: #aaa;
+    cursor: pointer; text-align: center;
+  }
+
+  /* 4-column stat grid */
+  .mp-mob-4col {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    background: #fff; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  }
+  .mp-mob-4col-cell {
+    padding: 18px 8px; text-align: center;
+    position: relative; cursor: pointer;
+    transition: background .12s; border: none; background: none;
+  }
+  .mp-mob-4col-cell:active { background: #f5f5f5; }
+  .mp-mob-4col-cell:not(:last-child)::after {
+    content: ''; position: absolute; right: 0; top: 20%; height: 60%;
+    width: 1px; background: #eee;
+  }
+  .mp-mob-4col-num { font-size: 22px; font-weight: 800; color: #1a1a1a; line-height: 1; margin-bottom: 6px; }
+  .mp-mob-4col-label { font-size: 11px; color: #999; font-weight: 500; }
+
+  /* Sub-page header */
+  .mp-mob-sub-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: calc(var(--pupoo-site-header-offset, 80px) + 16px) 16px 14px;
+    background: #f8f9fc;
+  }
+  .mp-mob-back-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 10px;
+    border: none; background: #fff; cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    transition: background .12s; flex-shrink: 0;
+  }
+  .mp-mob-back-btn:active { background: #eee; }
+  .mp-mob-sub-title {
+    font-size: 18px; font-weight: 800; color: #1a1a1a;
+  }
+  .mp-mob-sub-count {
+    font-size: 13px; color: #aaa; font-weight: 500; margin-left: auto;
+  }
+  .mp-mob-sub-content {
+    padding: 0 16px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
   }
 `;
 
@@ -1016,6 +1182,16 @@ function resolveRegistrationStatus(item, refundMap) {
 
 export default function MyPage() {
   const navigate = useNavigate();
+
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
+  useEffect(() => {
+    const sync = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, []);
+  const isMobile = viewportWidth < 768;
 
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
@@ -1590,6 +1766,461 @@ export default function MyPage() {
     );
   };
 
+  /* ── 모바일 레이아웃 ── */
+  const mobTab = activeTab; // "overview" = 홈
+  const goMobHome = () => setActiveTab("overview");
+
+  /* 모바일 프로필 수정 인라인 state */
+  const [mobNickname, setMobNickname] = useState("");
+  const [mobNickSaving, setMobNickSaving] = useState(false);
+  const [mobNickMsg, setMobNickMsg] = useState("");
+
+  // sync nickname when profile loads
+  useEffect(() => { if (profile?.nickname) setMobNickname(profile.nickname); }, [profile?.nickname]);
+
+  const handleMobNickSave = async () => {
+    const trimmed = mobNickname.trim();
+    if (!trimmed) { setMobNickMsg("닉네임을 입력해주세요."); return; }
+    if (trimmed === profile?.nickname) { setMobNickMsg("변경사항이 없습니다."); return; }
+    setMobNickSaving(true); setMobNickMsg("");
+    try {
+      await mypageApi.updateMe({ nickname: trimmed });
+      setMobNickMsg("저장 완료!");
+      // refresh profile
+      const fresh = await mypageApi.getMe();
+      if (fresh) setProfile(prev => ({ ...prev, ...fresh }));
+    } catch (e) {
+      setMobNickMsg(e?.response?.data?.message || e?.message || "저장에 실패했습니다.");
+    } finally { setMobNickSaving(false); }
+  };
+
+  if (isMobile) {
+    /* 서브 페이지 (탭이 overview가 아닐 때) */
+    if (mobTab !== "overview") {
+      const subTitles = { myinfo: "내 정보", events: "신청 행사", history: "참여 이력", notifications: "알림", profile: "회원정보 수정", qrcheckin: "QR 체크인", calendar: "나의 일정", interests: "관심 구독", pets: "반려동물" };
+      return (
+        <div className="mp-mob-root">
+          <style>{styles}</style>
+          <div className="mp-mob-sub-header">
+            <button className="mp-mob-back-btn" type="button" onClick={goMobHome}>
+              <ChevronLeft size={20} color="#333" strokeWidth={2} />
+            </button>
+            <span className="mp-mob-sub-title">{subTitles[mobTab] || "마이페이지"}</span>
+            {mobTab === "events" && <span className="mp-mob-sub-count">총 {registrations.length}건</span>}
+            {mobTab === "history" && <span className="mp-mob-sub-count">총 {participationRows.length}건</span>}
+            {mobTab === "notifications" && <span className="mp-mob-sub-count">총 {notifications.length}건</span>}
+            {mobTab === "pets" && <span className="mp-mob-sub-count">{pets.length}마리</span>}
+            {mobTab === "interests" && <span className="mp-mob-sub-count">{activeSubscriptions.length}개 구독 중</span>}
+          </div>
+          <div className="mp-mob-sub-content">
+
+            {/* 내 정보 */}
+            {mobTab === "myinfo" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div className="mp-mob-stat-card">
+                  <span className="mp-mob-stat-label">이름</span>
+                  <span className="mp-mob-stat-right">{profile?.nickname || "-"}</span>
+                </div>
+                <div className="mp-mob-stat-card">
+                  <span className="mp-mob-stat-label">이메일</span>
+                  <span className="mp-mob-stat-right" style={{ fontSize: 13 }}>{profile?.email || "-"}</span>
+                </div>
+                <div className="mp-mob-stat-card">
+                  <span className="mp-mob-stat-label">가입일</span>
+                  <span className="mp-mob-stat-right" style={{ fontSize: 13 }}>{fmtDate(profile?.createdAt)}</span>
+                </div>
+                <div className="mp-mob-stat-card">
+                  <span className="mp-mob-stat-label">신청 행사</span>
+                  <span className="mp-mob-stat-right">{loading ? "-" : statRequested}건</span>
+                </div>
+                <div className="mp-mob-stat-card">
+                  <span className="mp-mob-stat-label">참여 완료</span>
+                  <span className="mp-mob-stat-right">{loading ? "-" : statCompleted}건</span>
+                </div>
+                <div className="mp-mob-stat-card">
+                  <span className="mp-mob-stat-label">작성 후기</span>
+                  <span className="mp-mob-stat-right">{loading ? "-" : reviewCount}건</span>
+                </div>
+                <div className="mp-mob-stat-card">
+                  <span className="mp-mob-stat-label">QR 체크인</span>
+                  <span className="mp-mob-stat-right">{loading ? "-" : statQrUsed}회</span>
+                </div>
+              </div>
+            )}
+
+            {/* 신청 행사 */}
+            {mobTab === "events" && (
+              <div className="mp-list">
+                {registrations.length === 0 ? (
+                  <div className="mp-empty">
+                    <div className="mp-empty-icon"><CalendarDays size={26} strokeWidth={1.5} /></div>
+                    <span>신청 이력이 없습니다</span>
+                  </div>
+                ) : registrations.map((item) => renderRegistrationItem(item))}
+              </div>
+            )}
+
+            {/* 참여 이력 */}
+            {mobTab === "history" && (
+              <div className="mp-list">
+                {participationRows.length === 0 ? (
+                  <div className="mp-empty">
+                    <div className="mp-empty-icon"><QrCode size={26} strokeWidth={1.5} /></div>
+                    <span>참여 이력이 없습니다</span>
+                  </div>
+                ) : participationRows.map((row) => (
+                  <div className="mp-item" key={`history-${row.eventId}`}>
+                    <div className="mp-item-top">
+                      <div className="mp-item-title">{row.eventName}</div>
+                      <span className="mp-badge approved">참여 완료</span>
+                    </div>
+                    <div className="mp-item-meta">
+                      <span>{row.location}</span>
+                      <span>방문 {row.totalVisits}회</span>
+                      <span>부스 {row.boothCount}개</span>
+                      <span>최근 방문 {fmtDateTime(row.lastVisitedAt)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 알림 */}
+            {mobTab === "notifications" && (
+              <div className="mp-list">
+                {notifications.length === 0 ? (
+                  <div className="mp-empty">
+                    <div className="mp-empty-icon"><BellOff size={26} strokeWidth={1.5} /></div>
+                    <span>수신한 알림이 없습니다</span>
+                  </div>
+                ) : notifications.map((noti) => renderNotificationItem(noti, true))}
+              </div>
+            )}
+
+            {/* 회원정보 수정 (인라인) */}
+            {mobTab === "profile" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div className="mp-mob-stat-card" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#555" }}>닉네임</span>
+                  <input
+                    type="text"
+                    value={mobNickname}
+                    onChange={(e) => { setMobNickname(e.target.value); setMobNickMsg(""); }}
+                    maxLength={30}
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e0e0e0", fontSize: 15, fontWeight: 600, outline: "none" }}
+                  />
+                  <button
+                    type="button"
+                    disabled={mobNickSaving}
+                    onClick={handleMobNickSave}
+                    style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: "#90C450", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: mobNickSaving ? 0.6 : 1 }}
+                  >
+                    {mobNickSaving ? "저장 중..." : "닉네임 변경"}
+                  </button>
+                  {mobNickMsg && <div style={{ fontSize: 12, color: mobNickMsg === "저장 완료!" ? "#22c55e" : "#ef4444", textAlign: "center" }}>{mobNickMsg}</div>}
+                </div>
+                <div className="mp-mob-stat-card">
+                  <span className="mp-mob-stat-label">이메일</span>
+                  <span className="mp-mob-stat-right" style={{ fontSize: 13 }}>{profile?.email || "-"}</span>
+                </div>
+                <div className="mp-mob-stat-card">
+                  <span className="mp-mob-stat-label">가입일</span>
+                  <span className="mp-mob-stat-right" style={{ fontSize: 13 }}>{fmtDate(profile?.createdAt)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* QR 체크인 (인라인 이벤트 선택) */}
+            {mobTab === "qrcheckin" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {qrCandidates.length === 0 ? (
+                  <div className="mp-empty">
+                    <div className="mp-empty-icon"><QrCode size={26} strokeWidth={1.5} /></div>
+                    <span>승인된 행사가 없습니다</span>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 14, color: "#888", marginBottom: 4 }}>QR 체크인할 행사를 선택하세요</div>
+                    {qrCandidates.map((item) => {
+                      const detail = eventMap[String(item?.eventId)] || {};
+                      return (
+                        <button
+                          key={item.eventId}
+                          type="button"
+                          className="mp-item clickable"
+                          onClick={() => navigate(`/registration/qrcheckin?eventId=${item.eventId}`)}
+                          style={{ textAlign: "left" }}
+                        >
+                          <div className="mp-item-top">
+                            <div className="mp-item-title">{item?.eventName || detail?.eventName || "행사"}</div>
+                            <span className="mp-badge approved">승인</span>
+                          </div>
+                          <div className="mp-item-meta">
+                            <span>{detail?.location || ""}</span>
+                            <span>{fmtDate(detail?.startAt)}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* 나의 일정 (캘린더) */}
+            {mobTab === "calendar" && (
+              <div style={{ background: "#fff", borderRadius: 16, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,.05)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <span style={{ fontSize: 16, fontWeight: 800 }}>{calYear}년 {calMonth + 1}월</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <button type="button" className="mp-cal-nav" onClick={() => { const d = new Date(calYear, calMonth - 1, 1); setCalYear(d.getFullYear()); setCalMonth(d.getMonth()); }}>‹</button>
+                    <button type="button" className="mp-cal-today" onClick={() => { const t = new Date(); setCalYear(t.getFullYear()); setCalMonth(t.getMonth()); setCalSelected(t.getDate()); }}>오늘</button>
+                    <button type="button" className="mp-cal-nav" onClick={() => { const d = new Date(calYear, calMonth + 1, 1); setCalYear(d.getFullYear()); setCalMonth(d.getMonth()); }}>›</button>
+                  </div>
+                </div>
+                <div className="mp-cal">
+                  <div className="mp-cal-header">
+                    {["월","화","수","목","금","토","일"].map(d => <div key={d} className="mp-cal-dow">{d}</div>)}
+                  </div>
+                  <div className="mp-cal-body">
+                    {(() => {
+                      const first = new Date(calYear, calMonth, 1);
+                      const lastDate = new Date(calYear, calMonth + 1, 0).getDate();
+                      const startDay = (first.getDay() + 6) % 7;
+                      const cells = [];
+                      for (let i = 0; i < startDay; i++) cells.push(<div key={`e-${i}`} className="mp-cal-cell empty" />);
+                      for (let d = 1; d <= lastDate; d++) {
+                        const dateStr = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+                        const hasEvent = calEvents.some(ev => ev.date === dateStr);
+                        const isToday = d === new Date().getDate() && calMonth === new Date().getMonth() && calYear === new Date().getFullYear();
+                        const isSel = d === calSelected;
+                        cells.push(
+                          <div key={d} className={`mp-cal-cell${isToday ? " today" : ""}${isSel ? " selected" : ""}${hasEvent ? " has-event" : ""}`} onClick={() => setCalSelected(d)}>
+                            {d}
+                          </div>
+                        );
+                      }
+                      return cells;
+                    })()}
+                  </div>
+                </div>
+                <div className="mp-cal-events">
+                  {(() => {
+                    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(calSelected).padStart(2,"0")}`;
+                    const dayEvents = calEvents.filter(ev => ev.date === dateStr);
+                    if (dayEvents.length === 0) return (
+                      <div style={{ padding: "10px 0", textAlign: "center", fontSize: 12, color: "#ccc" }}>선택한 날짜에 일정이 없습니다</div>
+                    );
+                    return dayEvents.map((ev, i) => (
+                      <div key={i} className="mp-cal-event-item">
+                        <span className="mp-cal-event-time">{ev.time}</span>
+                        <div className="mp-cal-event-info">
+                          <span className="mp-cal-event-name">{ev.name}</span>
+                          {ev.location && <span className="mp-cal-event-loc">{ev.location}</span>}
+                        </div>
+                        {ev.status && <span className="mp-cal-event-status">{ev.status}</span>}
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* 관심 구독 */}
+            {mobTab === "interests" && (
+              <div>
+                {interests.length === 0 ? (
+                  <div className="mp-empty">
+                    <div className="mp-empty-icon"><Heart size={26} strokeWidth={1.5} /></div>
+                    <span>등록된 관심 카테고리가 없습니다</span>
+                  </div>
+                ) : (
+                  <div className="mp-sub-grid">
+                    {interests.filter(r => r?.isActive !== false).map((row) => {
+                      const interestId = Number(row?.interestId);
+                      const isSubscribed = activeSubscriptionMap.has(interestId);
+                      const saving = !!subscriptionSavingMap[interestId];
+                      return (
+                        <button
+                          key={interestId}
+                          type="button"
+                          className={`mp-sub-card${isSubscribed ? " active" : ""}`}
+                          disabled={saving}
+                          onClick={() => isSubscribed ? handleUnsubscribeInterest(interestId) : handleSubscribeInterest(interestId, row)}
+                        >
+                          <span className="mp-sub-card-check">
+                            {isSubscribed
+                              ? <CheckCircle2 size={18} strokeWidth={2.2} />
+                              : <Circle size={18} strokeWidth={1.5} />}
+                          </span>
+                          <span className="mp-sub-card-icon">
+                            {(() => {
+                              const IconComp = INTEREST_ICON[String(row?.interestName || "").toUpperCase()] || Star;
+                              return <IconComp size={32} strokeWidth={1.5} />;
+                            })()}
+                          </span>
+                          <span className="mp-sub-card-label">
+                            {interestLabel(row?.interestName)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 반려동물 */}
+            {mobTab === "pets" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {pets.length === 0 ? (
+                  <div className="mp-empty">
+                    <div className="mp-empty-icon"><PawPrint size={26} strokeWidth={1.5} /></div>
+                    <span>등록된 반려동물이 없습니다</span>
+                  </div>
+                ) : pets.map((pet) => (
+                  <div className="mp-item" key={`pet-${pet?.petId}`} style={{ padding: "16px 18px" }}>
+                    <div className="mp-item-top">
+                      <div className="mp-item-title" style={{ fontSize: 15 }}>{pet?.petName || "이름 없음"}</div>
+                      <button type="button" className="mp-btn ghost" style={{ padding: "5px 10px", fontSize: 12, borderRadius: 8 }} onClick={() => navigate(`/mypage/pets/${pet?.petId}/edit`)}>수정</button>
+                    </div>
+                    <div className="mp-item-meta" style={{ fontSize: 12 }}>
+                      <span>{formatPetBreed(pet?.petBreed)}</span>
+                      <span>{pet?.petAge ?? "-"}살</span>
+                      <span>{formatPetWeight(pet?.petWeight)}</span>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => navigate("/mypage/pets/new")}
+                  style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "2px dashed #ddd", background: "none", fontSize: 14, fontWeight: 700, color: "#999", cursor: "pointer" }}
+                >
+                  + 반려동물 등록
+                </button>
+              </div>
+            )}
+
+          </div>
+        </div>
+      );
+    }
+
+    /* 메인 홈 */
+    return (
+      <div className="mp-mob-root">
+        <style>{styles}</style>
+
+        {/* 프로필 */}
+        <div className="mp-mob-profile">
+          <div className="mp-mob-avatar-wrap">
+            <div className="mp-mob-avatar">{toInitial(profile?.nickname, profile?.email)}</div>
+          </div>
+          <div className="mp-mob-profile-info">
+            <div className="mp-mob-name">{profile?.nickname || "회원"}</div>
+            <div className="mp-mob-bio">{profile?.email || "-"}</div>
+          </div>
+        </div>
+
+        {/* 4칸 통계 */}
+        <div className="mp-mob-section">
+          <div className="mp-mob-4col">
+            <button className="mp-mob-4col-cell" type="button" onClick={() => setActiveTab("events")}>
+              <div className="mp-mob-4col-num">{loading ? "-" : statRequested}</div>
+              <div className="mp-mob-4col-label">신청 행사</div>
+            </button>
+            <button className="mp-mob-4col-cell" type="button" onClick={() => setActiveTab("history")}>
+              <div className="mp-mob-4col-num">{loading ? "-" : statCompleted}</div>
+              <div className="mp-mob-4col-label">참여 완료</div>
+            </button>
+            <button className="mp-mob-4col-cell" type="button" onClick={() => setActiveTab("notifications")}>
+              <div className="mp-mob-4col-num">{loading ? "-" : reviewCount}</div>
+              <div className="mp-mob-4col-label">작성 후기</div>
+            </button>
+            <button className="mp-mob-4col-cell" type="button" onClick={() => setActiveTab("qrcheckin")}>
+              <div className="mp-mob-4col-num">{loading ? "-" : statQrUsed}</div>
+              <div className="mp-mob-4col-label">QR 체크인</div>
+            </button>
+          </div>
+        </div>
+
+        {/* 나의 행사 */}
+        <div className="mp-mob-section" style={{ marginTop: 4 }}>
+          <div className="mp-mob-section-title">나의 행사</div>
+          <div className="mp-mob-list-card">
+            <button className="mp-mob-list-item" type="button" onClick={() => setActiveTab("events")}>
+              <span className="mp-mob-list-icon"><CalendarDays size={18} color="#90C450" strokeWidth={1.8} /></span>
+              <span className="mp-mob-list-label">신청 행사</span>
+              <ChevronRight size={16} className="mp-mob-list-chevron" />
+            </button>
+            <button className="mp-mob-list-item" type="button" onClick={() => setActiveTab("history")}>
+              <span className="mp-mob-list-icon"><CheckCircle2 size={18} color="#90C450" strokeWidth={1.8} /></span>
+              <span className="mp-mob-list-label">참여 이력</span>
+              <ChevronRight size={16} className="mp-mob-list-chevron" />
+            </button>
+            <button className="mp-mob-list-item" type="button" onClick={() => setActiveTab("calendar")}>
+              <span className="mp-mob-list-icon"><CalendarDays size={18} color="#e67e22" strokeWidth={1.8} /></span>
+              <span className="mp-mob-list-label">나의 일정</span>
+              <ChevronRight size={16} className="mp-mob-list-chevron" />
+            </button>
+            <button className="mp-mob-list-item" type="button" onClick={() => setActiveTab("qrcheckin")}>
+              <span className="mp-mob-list-icon"><QrCode size={18} color="#888" strokeWidth={1.8} /></span>
+              <span className="mp-mob-list-label">QR 체크인</span>
+              <ChevronRight size={16} className="mp-mob-list-chevron" />
+            </button>
+          </div>
+        </div>
+
+        {/* 나의 활동 */}
+        <div className="mp-mob-section" style={{ marginTop: 4 }}>
+          <div className="mp-mob-section-title">나의 활동</div>
+          <div className="mp-mob-list-card">
+            <button className="mp-mob-list-item" type="button" onClick={() => setActiveTab("notifications")}>
+              <span className="mp-mob-list-icon"><Bell size={18} strokeWidth={1.8} /></span>
+              <span className="mp-mob-list-label">알림</span>
+              {unreadCount > 0 && <span className="mp-mob-list-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+              <ChevronRight size={16} className="mp-mob-list-chevron" />
+            </button>
+            <button className="mp-mob-list-item" type="button" onClick={() => setActiveTab("interests")}>
+              <span className="mp-mob-list-icon"><Heart size={18} color="#e74c3c" strokeWidth={1.8} /></span>
+              <span className="mp-mob-list-label">관심 구독</span>
+              <span style={{ fontSize: 12, color: "#aaa", marginRight: 4 }}>{activeSubscriptions.length}개</span>
+              <ChevronRight size={16} className="mp-mob-list-chevron" />
+            </button>
+            <button className="mp-mob-list-item" type="button" onClick={() => setActiveTab("pets")}>
+              <span className="mp-mob-list-icon"><PawPrint size={18} color="#8b5cf6" strokeWidth={1.8} /></span>
+              <span className="mp-mob-list-label">반려동물</span>
+              <span style={{ fontSize: 12, color: "#aaa", marginRight: 4 }}>{pets.length}마리</span>
+              <ChevronRight size={16} className="mp-mob-list-chevron" />
+            </button>
+          </div>
+        </div>
+
+        {/* 설정 */}
+        <div className="mp-mob-section" style={{ marginTop: 4 }}>
+          <div className="mp-mob-section-title">설정</div>
+          <div className="mp-mob-list-card">
+            <button className="mp-mob-list-item" type="button" onClick={() => setActiveTab("myinfo")}>
+              <span className="mp-mob-list-icon"><Ticket size={18} strokeWidth={1.8} /></span>
+              <span className="mp-mob-list-label">내 정보</span>
+              <ChevronRight size={16} className="mp-mob-list-chevron" />
+            </button>
+            <button className="mp-mob-list-item" type="button" onClick={() => setActiveTab("profile")}>
+              <span className="mp-mob-list-icon"><Settings size={18} strokeWidth={1.8} /></span>
+              <span className="mp-mob-list-label">회원정보 수정</span>
+              <ChevronRight size={16} className="mp-mob-list-chevron" />
+            </button>
+          </div>
+        </div>
+
+        {/* 로그아웃 */}
+        <button className="mp-mob-logout" type="button" onClick={() => navigate("/auth/login")}>
+          로그아웃
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mp-root">
       <style>{styles}</style>
@@ -1664,7 +2295,7 @@ export default function MyPage() {
             <h1 className="mp-page-title">마이페이지</h1>
             <p className="mp-page-subtitle">나의 활동을 한눈에 확인하세요</p>
 
-            {error ? <div className="mp-danger">{error}</div> : null}
+            {error ? <div className="mp-danger"><AlertCircle size={16} style={{ flexShrink: 0 }} />{error}</div> : null}
 
             {activeTab === "overview" ? (
               <>

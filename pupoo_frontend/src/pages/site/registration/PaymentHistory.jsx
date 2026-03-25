@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CreditCard, Loader2, Inbox, CalendarDays, Wallet, Hash, ReceiptText, Search } from "lucide-react";
+import { CreditCard, Loader2, Inbox, CalendarDays, Wallet, Hash, ReceiptText } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import { axiosInstance } from "../../../app/http/axiosInstance";
@@ -60,10 +60,8 @@ const styles = `
     flex-shrink: 0;
     background: #d1d5db;
   }
-  .ph-summary-dot.dot-green { background: #16a34a; }
-  .ph-summary-dot.dot-amber { background: #ca8a04; }
-  .ph-summary-dot.dot-blue { background: #02A17E; }
-  .ph-summary-dot.dot-red { background: #ef4444; }
+  .ph-summary-dot.dot-green { background: #90C450; }
+  .ph-summary-dot.dot-blue { background: #90C450; }
   .ph-summary-text {
     display: flex;
     flex-direction: column;
@@ -82,13 +80,43 @@ const styles = `
     line-height: 1.2;
   }
 
-  /* ── 툴바 ── */
+  /* ── 서브탭 필터 ── */
+  .ph-sub-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    background: #f8f9fc;
+    border-radius: 999px;
+    padding: 4px;
+    width: fit-content;
+  }
+  .ph-sub-tab {
+    padding: 10px 24px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .ph-sub-tab:hover { color: #374151; }
+  .ph-sub-tab.active {
+    background: #1f2937;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+
+  /* ── 툴바 (검색) ── */
   .ph-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
     margin-bottom: 24px;
-    gap: 12px;
   }
   .ph-toolbar-left {
     display: flex;
@@ -110,65 +138,44 @@ const styles = `
     color: #111;
     font-weight: 800;
   }
-  .ph-filters {
-    display: inline-flex;
-    background: #f3f4f6;
-    border-radius: 999px;
-    padding: 4px;
-    gap: 4px;
-  }
-  .ph-filter {
-    border: 1px solid transparent;
-    background: transparent;
-    color: #9ca3af;
-    padding: 8px 20px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.15s ease;
-  }
-  .ph-filter:hover { color: #374151; }
-  .ph-filter.active {
-    background: #1f2937;
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-  }
-  .ph-toolbar-right {
+  .ph-search-wrap {
     display: flex;
     align-items: center;
-    gap: 10px;
-  }
-  .ph-search-wrap {
+    background: #fff;
+    border: 1px solid #e2e5ea;
+    border-radius: 12px;
+    height: 48px;
+    min-width: 0;
+    flex: 0 0 auto;
+    width: 320px;
     position: relative;
-    width: 260px;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .ph-search-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #94a3b8;
-    pointer-events: none;
+  .ph-search-wrap:focus-within {
+    border-color: #111827;
+    box-shadow: 0 0 0 2px rgba(17,24,39,0.08);
   }
   .ph-search-input {
     width: 100%;
-    height: 38px;
+    height: 100%;
+    padding: 0 16px 0 40px;
     border-radius: 12px;
-    border: 1.5px solid #e2e8f0;
-    padding: 0 12px 0 36px;
+    border: none;
+    background: transparent;
+    color: #111827;
     font-size: 14px;
-    font-weight: 600;
-    color: #0f172a;
-    background: #fff;
+    font-weight: 500;
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
   }
-  .ph-search-input:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  .ph-search-input::placeholder { color: #9ca3af; }
+  .ph-search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    pointer-events: none;
   }
 
   /* ── 카드 리스트 ── */
@@ -326,9 +333,31 @@ const styles = `
       justify-content: space-between;
       align-items: center;
     }
-    .ph-toolbar { flex-direction: column; align-items: flex-start; }
-    .ph-toolbar-right { width: 100%; flex-direction: column; align-items: stretch; }
+    .ph-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
     .ph-search-wrap { width: 100%; }
+    .ph-sub-tabs {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .ph-sub-tabs::-webkit-scrollbar { display: none; }
+    .ph-sub-tab { padding: 8px 16px; font-size: 14px; }
+  }
+  @media (max-width: 600px) {
+    .ph-wrap { width: calc(100% - 20px); padding: 0 0 48px; }
+    .ph-summary { margin: 20px 0; }
+    .ph-summary-card { padding: 14px 16px; }
+    .ph-summary-val { font-size: 20px; }
+    .ph-card { padding: 16px 14px; gap: 10px; }
+    .ph-card-title { font-size: 15px; margin-bottom: 6px; }
+    .ph-meta-item { font-size: 13px; }
+    .ph-amount { font-size: 18px; }
+    .ph-refund-btn { font-size: 13px; padding: 8px 14px; }
+    .ph-total { padding: 14px 16px; }
+    .ph-total-label { font-size: 14px; }
+    .ph-total-amount { font-size: 22px; }
   }
 `;
 
@@ -372,37 +401,19 @@ function methodLabelOf(paymentMethod) {
 
 function getStatusMeta(payment) {
   const refundStatus = String(payment?.refund?.status || "").toUpperCase();
-  if (refundStatus === "REQUESTED") return { label: "환불 대기", color: "#ca8a04" };
+  if (refundStatus === "REQUESTED") return { label: "환불 요청", color: "#ca8a04" };
   if (refundStatus === "APPROVED") return { label: "환불 승인", color: "#3DBFA0" };
   if (refundStatus === "REJECTED") return { label: "환불 거절", color: "#ef4444" };
   if (refundStatus === "REFUNDED") return { label: "환불 완료", color: "#6b7280" };
 
   switch (String(payment?.status || "").toUpperCase()) {
-    case "APPROVED": return { label: "결제 완료", color: "#16a34a" };
-    case "REQUESTED": return { label: "결제 요청", color: "#02A17E" };
+    case "APPROVED": return { label: "결제 완료", color: "#90C450" };
+    case "REQUESTED": return { label: "결제 요청", color: "#90C450" };
     case "FAILED": return { label: "결제 실패", color: "#ef4444" };
     case "CANCELLED": return { label: "취소됨", color: "#ef4444" };
     case "REFUNDED": return { label: "환불 완료", color: "#6b7280" };
     default: return { label: payment?.status || "-", color: "#6b7280" };
   }
-}
-
-const FILTERS = [
-  { key: "all", label: "전체" },
-  { key: "APPROVED", label: "승인" },
-  { key: "PENDING", label: "대기" },
-  { key: "CANCELLED", label: "취소" },
-  { key: "REJECTED", label: "거절" },
-];
-
-function getFilterKey(payment) {
-  const refundStatus = String(payment?.refund?.status || "").toUpperCase();
-  const paymentStatus = String(payment?.status || "").toUpperCase();
-
-  if (refundStatus === "REQUESTED" || paymentStatus === "REQUESTED") return "PENDING";
-  if (refundStatus === "REJECTED" || paymentStatus === "FAILED") return "REJECTED";
-  if (paymentStatus === "CANCELLED") return "CANCELLED";
-  return "APPROVED";
 }
 
 export default function PaymentHistory({ onNavigate }) {
@@ -412,8 +423,6 @@ export default function PaymentHistory({ onNavigate }) {
   const [payments, setPayments] = useState([]);
   const [refunds, setRefunds] = useState([]);
   const [refundingId, setRefundingId] = useState(null);
-  const [filter, setFilter] = useState("all");
-  const [query, setQuery] = useState("");
 
   const loadHistory = useCallback(async () => {
     if (!tokenStore.getAccess()) {
@@ -451,33 +460,11 @@ export default function PaymentHistory({ onNavigate }) {
     [payments, refundIndex],
   );
 
-  const filteredRows = useMemo(() => {
-    if (filter === "all") return paymentRows;
-    return paymentRows.filter((p) => getFilterKey(p) === filter);
-  }, [filter, paymentRows]);
-
-  const searchedRows = useMemo(() => {
-    const q = String(query || "").trim().toLowerCase();
-    if (!q) return filteredRows;
-    return filteredRows.filter((p) => {
-      const title = String(p?.eventTitle || "").toLowerCase();
-      const orderNo = String(p?.orderNo || `PAY-${p?.paymentId ?? ""}`).toLowerCase();
-      const method = String(methodLabelOf(p?.paymentMethod) || "").toLowerCase();
-      return title.includes(q) || orderNo.includes(q) || method.includes(q);
-    });
-  }, [filteredRows, query]);
-
   const stats = useMemo(() => {
-    const approved = paymentRows.filter((p) => getFilterKey(p) === "APPROVED");
-    const pending = paymentRows.filter((p) => getFilterKey(p) === "PENDING");
-    const cancelledRejected = paymentRows.filter(
-      (p) => getFilterKey(p) === "CANCELLED" || getFilterKey(p) === "REJECTED",
-    );
+    const approved = paymentRows.filter((p) => p.status === "APPROVED" && !p.refund);
     return {
       total: paymentRows.length,
       approved: approved.length,
-      pending: pending.length,
-      cancelledRejected: cancelledRejected.length,
       amount: approved.reduce((s, p) => s + toNumberAmount(p.amount), 0),
     };
   }, [paymentRows]);
@@ -520,11 +507,12 @@ export default function PaymentHistory({ onNavigate }) {
 
       <PageHeader
         title="결제 내역"
-        icon={<CreditCard size={40} strokeWidth={1.8} style={{ color: "#2EB893" }} />}
+        icon={<CreditCard size={40} strokeWidth={1.8} style={{ color: "#90C450" }} />}
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
         currentPath={currentPath}
         onNavigate={onNavigate}
+        bgColor="#fff"
       />
 
       <div className="ph-wrap">
@@ -545,17 +533,10 @@ export default function PaymentHistory({ onNavigate }) {
             </div>
           </div>
           <div className="ph-summary-card">
-            <div className="ph-summary-dot dot-amber" />
+            <div className="ph-summary-dot dot-blue" />
             <div className="ph-summary-text">
-              <div className="ph-summary-label">환불 대기</div>
-              <div className="ph-summary-val">{stats.pending}</div>
-            </div>
-          </div>
-          <div className="ph-summary-card">
-            <div className="ph-summary-dot dot-red" />
-            <div className="ph-summary-text">
-              <div className="ph-summary-label">취소 / 거절</div>
-              <div className="ph-summary-val">{stats.cancelledRejected}</div>
+              <div className="ph-summary-label">유효 금액</div>
+              <div className="ph-summary-val">{formatAmount(stats.amount)}</div>
             </div>
           </div>
         </div>
@@ -564,37 +545,14 @@ export default function PaymentHistory({ onNavigate }) {
         <div className="ph-toolbar">
           <div className="ph-toolbar-left">
             <span className="ph-toolbar-title">결제 내역</span>
-            {!loading && <span className="ph-count"><strong>{searchedRows.length}</strong>건</span>}
-          </div>
-          <div className="ph-toolbar-right">
-            <div className="ph-filters">
-              {FILTERS.map((f) => (
-                <button
-                  key={f.key}
-                  className={`ph-filter${filter === f.key ? " active" : ""}`}
-                  onClick={() => setFilter(f.key)}
-                  type="button"
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-            <div className="ph-search-wrap">
-              <Search size={15} className="ph-search-icon" />
-              <input
-                className="ph-search-input"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="검색"
-              />
-            </div>
+            {!loading && <span className="ph-count"><strong>{stats.total}</strong>건</span>}
           </div>
         </div>
 
         {/* 리스트 */}
         {loading ? (
           <PageLoading />
-        ) : (error || searchedRows.length === 0) ? (
+        ) : (error || paymentRows.length === 0) ? (
           <div className="ph-empty">
             <Inbox size={48} strokeWidth={1.2} />
             <span>{error || "결제 내역이 없습니다."}</span>
@@ -602,10 +560,10 @@ export default function PaymentHistory({ onNavigate }) {
         ) : (
           <>
             <div className="ph-list">
-              {searchedRows.map((payment) => {
+              {paymentRows.map((payment) => {
                 const meta = getStatusMeta(payment);
                 const canRefund = payment.status === "APPROVED" && !payment.refund;
-                const refundLabel = "환불";
+                const refundLabel = isAutoRefundEligible(payment) ? "환불" : "환불 신청";
 
                 return (
                   <div key={payment.paymentId || payment.orderNo} className="ph-card">

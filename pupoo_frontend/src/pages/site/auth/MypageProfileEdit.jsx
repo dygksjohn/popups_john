@@ -28,7 +28,7 @@ function formatDateTimeDisplay(value) {
 }
 
 const css = `
-  .pe-outer { background: #f3f4f6; min-height: 100vh; }
+  .pe-outer { background: #f8f9fc; min-height: 100vh; }
   .pe-inner {
     max-width: 1400px; margin: 0 auto; background: #fff;
     min-height: 100vh; padding: 0 40px;
@@ -42,7 +42,7 @@ const css = `
   }
   .pe-back-btn {
     display: inline-flex; align-items: center; gap: 8px;
-    background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px;
+    background: #f8f9fc; border: 1px solid #e5e7eb; border-radius: 10px;
     cursor: pointer;
     font-size: 15px; font-weight: 700; color: #374151;
     padding: 10px 20px; margin-bottom: 28px;
@@ -78,7 +78,7 @@ const css = `
     font-size: 15px; font-weight: 700; color: #333;
     padding-top: 16px; flex-shrink: 0;
   }
-  .pe-field-label .req { color: #6c5ce7; font-size: 14px; }
+  .pe-field-label .req { color: #90C450; font-size: 14px; }
   .pe-field-body { flex: 1; min-width: 0; }
   .pe-fi {
     width: 100%; height: 54px;
@@ -88,9 +88,9 @@ const css = `
     transition: border-color 0.2s; font-family: inherit;
     box-sizing: border-box;
   }
-  .pe-fi:focus { border-color: #6c5ce7; }
+  .pe-fi:focus { border-color: #90C450; }
   .pe-fi::placeholder { color: #ccc; font-size: 15px; }
-  .pe-fi:disabled { background: #fafafa; color: #aaa; }
+  .pe-fi:disabled { background: #f8f9fc; color: #aaa; }
   .pe-input-row { display: flex; gap: 10px; }
   .pe-btn-check {
     height: 54px; padding: 0 24px; background: #fff; color: #555;
@@ -100,7 +100,7 @@ const css = `
     transition: all 0.15s; flex-shrink: 0;
   }
   .pe-btn-check:hover { background: #f8f8f8; border-color: #ccc; }
-  .pe-btn-check:disabled { background: #fafafa; color: #aaa; cursor: not-allowed; }
+  .pe-btn-check:disabled { background: #f8f9fc; color: #aaa; cursor: not-allowed; }
   .pe-field-helper { margin-top: 10px; font-size: 13px; color: #aaa; line-height: 1.5; }
   .pe-field-msg {
     margin-top: 8px; font-size: 13px; line-height: 1.5;
@@ -119,7 +119,7 @@ const css = `
     background: #ddd; border-radius: 12px;
     cursor: pointer; transition: background 0.2s; flex-shrink: 0;
   }
-  .pe-toggle.on { background: #6c5ce7; }
+  .pe-toggle.on { background: #90C450; }
   .pe-toggle::after {
     content: ''; position: absolute; top: 2px; left: 2px;
     width: 20px; height: 20px; border-radius: 50%;
@@ -158,12 +158,12 @@ const css = `
   .pe-btn-row { display: flex; gap: 14px; margin-top: 40px; justify-content: center; }
   .pe-btn-primary {
     flex: 1; max-width: 320px; height: 60px;
-    background: #6c5ce7; color: #fff; border: none; border-radius: 12px;
+    background: #90C450; color: #fff; border: none; border-radius: 12px;
     font-size: 18px; font-weight: 700; cursor: pointer;
     transition: background 0.15s; font-family: inherit;
     display: flex; align-items: center; justify-content: center; gap: 8px;
   }
-  .pe-btn-primary:hover { background: #5a4bd1; }
+  .pe-btn-primary:hover { background: #2d3519; }
   .pe-btn-primary:disabled { background: #ddd; color: #aaa; cursor: not-allowed; }
   .pe-btn-outline {
     flex: 0 0 auto; min-width: 180px; height: 60px;
@@ -456,7 +456,7 @@ export default function MypageProfileEdit() {
                 </div>
 
                 <div className="pe-notice">
-                  <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 2, color: "#6c5ce7" }} />
+                  <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 2, color: "#90C450" }} />
                   <span>이메일과 휴대전화는 인증 절차를 통해 변경할 수 있습니다.</span>
                 </div>
 

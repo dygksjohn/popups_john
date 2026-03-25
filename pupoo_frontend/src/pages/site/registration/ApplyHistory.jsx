@@ -22,26 +22,19 @@ const SUBTITLE_MAP = {
 };
 
 const STATUS_META = {
-  APPLIED: { label: "신청 완료", bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
-  APPROVED: { label: "승인 완료", bg: "#E6F7F2", color: "#02A17E", border: "#CCF0E4" },
+  APPLIED: { label: "신청 완료", bg: "#f0fdf4", color: "#90C450", border: "#bbf7d0" },
+  APPROVED: { label: "승인 완료", bg: "#E6F7F2", color: "#90C450", border: "#CCF0E4" },
   CANCELLED: { label: "신청 취소", bg: "#fef2f2", color: "#ef4444", border: "#fecaca" },
   REJECTED: { label: "승인 거절", bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" },
 };
 
 const FILTERS = [
   { key: "all", label: "전체" },
+  { key: "APPLIED", label: "신청" },
   { key: "APPROVED", label: "승인" },
-  { key: "APPLIED", label: "대기" },
   { key: "CANCELLED", label: "취소" },
   { key: "REJECTED", label: "거절" },
 ];
-
-const REFUND_PENDING_META = {
-  label: "환불 대기",
-  bg: "#fff7ed",
-  color: "#ca8a04",
-  border: "#fed7aa",
-};
 
 const styles = `
   .ah-root {
@@ -84,8 +77,7 @@ const styles = `
     flex-shrink: 0;
     background: #d1d5db;
   }
-  .ah-summary-dot.dot-blue { background: #02A17E; }
-  .ah-summary-dot.dot-amber { background: #ca8a04; }
+  .ah-summary-dot.dot-blue { background: #90C450; }
   .ah-summary-dot.dot-red { background: #ef4444; }
   .ah-summary-text {
     display: flex;
@@ -105,93 +97,78 @@ const styles = `
     line-height: 1.2;
   }
 
-  /* ── 필터 + 건수 (한 줄) ── */
+  /* ── 툴바: 좌 검색 + 우 필터 ── */
   .ah-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
-    gap: 12px;
+    margin-bottom: 18px;
+    gap: 14px;
+    flex-wrap: wrap;
   }
   .ah-toolbar-left {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 0;
+    background: #fff;
+    border: 1px solid #e2e5ea;
+    border-radius: 12px;
+    height: 48px;
+    width: 420px;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .ah-toolbar-title {
-    font-size: 18px;
-    font-weight: 800;
-    color: #111;
-  }
-  .ah-count {
-    font-size: 14px;
-    color: #9ca3af;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .ah-count strong {
-    color: #111;
-    font-weight: 800;
-  }
-  .ah-filters {
-    display: inline-flex;
-    background: #f3f4f6;
-    border-radius: 999px;
-    padding: 4px;
-    gap: 4px;
-  }
-  .ah-filter {
-    border: 1px solid transparent;
-    background: transparent;
-    color: #9ca3af;
-    padding: 8px 20px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.15s ease;
-  }
-  .ah-filter:hover { color: #374151; }
-  .ah-filter.active {
-    background: #1f2937;
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-  }
-  .ah-toolbar-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  .ah-toolbar-left:focus-within {
+    border-color: #111827;
+    box-shadow: 0 0 0 2px rgba(17,24,39,0.08);
   }
   .ah-search-wrap {
     position: relative;
-    width: 260px;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    height: 100%;
   }
   .ah-search-icon {
     position: absolute;
-    left: 12px;
+    left: 14px;
     top: 50%;
     transform: translateY(-50%);
-    color: #94a3b8;
+    color: #9ca3af;
     pointer-events: none;
   }
   .ah-search-input {
+    height: 100%;
     width: 100%;
-    height: 38px;
+    padding: 0 16px 0 40px;
     border-radius: 12px;
-    border: 1.5px solid #e2e8f0;
-    padding: 0 12px 0 36px;
+    border: none;
+    background: transparent;
+    color: #111827;
     font-size: 14px;
-    font-weight: 600;
-    color: #0f172a;
-    background: #fff;
+    font-weight: 500;
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
   }
-  .ah-search-input:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  .ah-search-input::placeholder { color: #9ca3af; font-size: 13px; font-weight: 500; }
+  .ah-filters {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .ah-filter {
+    height: 44px; padding: 0 20px; border: none;
+    background: transparent; color: #6b7280; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .ah-filter + .ah-filter { border-left: 1px solid #e5e7eb; }
+  .ah-filter:hover { color: #111827; background: #f9fafb; }
+  .ah-filter.active {
+    background: #1f2937;
+    color: #fff;
   }
 
   /* ── 카드 리스트 ── */
@@ -272,7 +249,7 @@ const styles = `
     padding: 14px 28px;
     border-radius: 14px;
     border: none;
-    background: linear-gradient(135deg, #02A17E 0%, #3DBFA0 100%);
+    background: linear-gradient(135deg, #90C450 0%, #3DBFA0 100%);
     color: #fff;
     font-size: 15px;
     font-weight: 700;
@@ -291,12 +268,6 @@ const styles = `
   }
   .ah-qr-btn svg {
     flex-shrink: 0;
-  }
-  .ah-qr-btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    box-shadow: none;
-    transform: none;
   }
 
   /* ── 빈 상태 ── */
@@ -332,10 +303,22 @@ const styles = `
       width: 100%;
     }
     .ah-qr-btn { width: 100%; justify-content: center; }
-    .ah-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; }
-    .ah-toolbar-right { width: 100%; flex-direction: column; align-items: stretch; }
-    .ah-search-wrap { width: 100%; }
-    .ah-filter { padding: 7px 14px; font-size: 12px; }
+    .ah-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .ah-toolbar-left { width: 100%; }
+    .ah-filters { width: 100%; }
+    .ah-filter { flex: 1; justify-content: center; padding: 0 10px; height: 40px; font-size: 12px; }
+  }
+  @media (max-width: 600px) {
+    .ah-wrap { width: calc(100% - 20px); padding: 0 0 48px; }
+    .ah-summary { margin: 20px 0; }
+    .ah-summary-card { padding: 14px 16px; }
+    .ah-summary-val { font-size: 20px; }
+    .ah-card { padding: 16px 14px; gap: 10px; }
+    .ah-card-title { font-size: 15px; margin-bottom: 6px; }
+    .ah-meta-item { font-size: 13px; }
+    .ah-filters { overflow-x: auto; scrollbar-width: none; }
+    .ah-filters::-webkit-scrollbar { display: none; }
+    .ah-qr-btn { padding: 12px 18px; font-size: 14px; }
   }
 `;
 
@@ -363,7 +346,7 @@ export default function ApplyHistory() {
   const currentPath = "/registration/applyhistory";
   const [records, setRecords] = useState([]);
   const [filter, setFilter] = useState("all");
-  const [query, setQuery] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -382,35 +365,11 @@ export default function ApplyHistory() {
       setError("");
 
       try {
-        const [regRes, paymentsRes, refundsRes] = await Promise.all([
-          axiosInstance.get("/api/users/me/event-registrations", {
-            params: { page: 0, size: 200, sort: "appliedAt,desc" },
-          }),
-          axiosInstance.get("/api/payments/my", {
-            params: { page: 0, size: 200, sort: "requestedAt,desc" },
-          }),
-          axiosInstance.get("/api/refunds/my", {
-            params: { page: 0, size: 200, sort: "requestedAt,desc" },
-          }),
-        ]);
+        const res = await axiosInstance.get("/api/users/me/event-registrations", {
+          params: { page: 0, size: 200, sort: "appliedAt,desc" },
+        });
 
-        const rawItems = regRes?.data?.data?.content ?? [];
-        const payments = paymentsRes?.data?.data?.content ?? [];
-        const refunds = refundsRes?.data?.data?.content ?? [];
-        const refundByPaymentId = new Map(
-          refunds
-            .filter((r) => r?.paymentId != null)
-            .map((r) => [Number(r.paymentId), r]),
-        );
-        const refundRequestedEventIds = new Set(
-          payments
-            .filter((p) => {
-              const refund = refundByPaymentId.get(Number(p?.paymentId));
-              return String(refund?.status || "").toUpperCase() === "REQUESTED";
-            })
-            .map((p) => Number(p?.eventId))
-            .filter(Number.isFinite),
-        );
+        const rawItems = res?.data?.data?.content ?? [];
         const eventIds = [...new Set(rawItems.map((item) => item.eventId).filter(Boolean))];
 
         const eventResults = await Promise.all(
@@ -433,7 +392,6 @@ export default function ApplyHistory() {
             eventId: item.eventId,
             eventName: detail.eventName || `행사 #${item.eventId}`,
             status: item.status,
-            isRefundPending: refundRequestedEventIds.has(Number(item.eventId)),
             appliedAt: item.appliedAt,
             startAt: detail.startAt,
             endAt: detail.endAt,
@@ -461,37 +419,12 @@ export default function ApplyHistory() {
 
   const filtered = useMemo(() => {
     if (filter === "all") return records;
-    if (filter === "APPLIED") {
-      return records.filter((r) => r.status === "APPLIED" || r.isRefundPending);
-    }
-    if (filter === "APPROVED") {
-      return records.filter((r) => r.status === "APPROVED" && !r.isRefundPending);
-    }
     return records.filter((r) => r.status === filter);
   }, [filter, records]);
 
-  const searched = useMemo(() => {
-    const q = String(query || "").trim().toLowerCase();
-    if (!q) return filtered;
-    return filtered.filter((r) => {
-      const name = String(r?.eventName || "").toLowerCase();
-      const location = String(r?.location || "").toLowerCase();
-      return name.includes(q) || location.includes(q);
-    });
-  }, [filtered, query]);
-
   const counts = useMemo(() => {
-    const total = records.length;
-    const approved = records.filter(
-      (r) => r.status === "APPROVED" && !r.isRefundPending,
-    ).length;
-    const pending = records.filter(
-      (r) => r.status === "APPLIED" || r.isRefundPending,
-    ).length;
-    const cancelled = records.filter(
-      (r) => r.status === "CANCELLED" || r.status === "REJECTED",
-    ).length;
-    return { total, approved, pending, cancelled };
+    const c = (s) => records.filter((r) => r.status === s).length;
+    return { total: records.length, approved: c("APPLIED") + c("APPROVED"), cancelled: c("CANCELLED") + c("REJECTED") };
   }, [records]);
 
   return (
@@ -500,9 +433,10 @@ export default function ApplyHistory() {
 
       <PageHeader
         title="신청 내역 조회"
-        icon={<ClipboardList size={40} strokeWidth={1.8} style={{ color: "#2EB893" }} />}
+        icon={<ClipboardList size={40} strokeWidth={1.8} style={{ color: "#90C450" }} />}
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
+        bgColor="#fff"
       />
 
       <div className="ah-wrap">
@@ -518,15 +452,8 @@ export default function ApplyHistory() {
           <div className="ah-summary-card">
             <div className="ah-summary-dot dot-blue" />
             <div className="ah-summary-text">
-              <div className="ah-summary-label">승인</div>
+              <div className="ah-summary-label">승인 / 신청</div>
               <div className="ah-summary-val">{counts.approved}</div>
-            </div>
-          </div>
-          <div className="ah-summary-card">
-            <div className="ah-summary-dot dot-amber" />
-            <div className="ah-summary-text">
-              <div className="ah-summary-label">대기</div>
-              <div className="ah-summary-val">{counts.pending}</div>
             </div>
           </div>
           <div className="ah-summary-card">
@@ -538,49 +465,38 @@ export default function ApplyHistory() {
           </div>
         </div>
 
-        {/* 필터 + 건수 */}
+        {/* 검색 + 필터 */}
         <div className="ah-toolbar">
           <div className="ah-toolbar-left">
-            <span className="ah-toolbar-title">신청 내역</span>
-            {!loading && <span className="ah-count"><strong>{searched.length}</strong>건</span>}
-          </div>
-          <div className="ah-toolbar-right">
-            <div className="ah-filters">
-              {FILTERS.map((f) => (
-                <button
-                  key={f.key}
-                  className={`ah-filter${filter === f.key ? " active" : ""}`}
-                  onClick={() => setFilter(f.key)}
-                  type="button"
-                >{f.label}</button>
-              ))}
-            </div>
             <div className="ah-search-wrap">
               <Search size={15} className="ah-search-icon" />
-              <input
-                className="ah-search-input"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="검색"
-              />
+              <input className="ah-search-input" type="text" value={searchKeyword ?? ""} onChange={(e) => setSearchKeyword(e.target.value)} placeholder="행사명으로 검색하세요" />
             </div>
+          </div>
+          <div className="ah-filters">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                className={`ah-filter${filter === f.key ? " active" : ""}`}
+                onClick={() => setFilter(f.key)}
+                type="button"
+              >{f.label}</button>
+            ))}
           </div>
         </div>
 
         {/* 리스트 */}
         {loading ? (
           <PageLoading />
-        ) : (error || searched.length === 0) ? (
+        ) : (error || filtered.length === 0) ? (
           <div className="ah-empty">
             <Inbox size={48} strokeWidth={1.2} />
             <span>{error || "신청 내역이 없습니다."}</span>
           </div>
         ) : (
           <div className="ah-list">
-            {searched.map((record) => {
-              const meta = record.isRefundPending
-                ? REFUND_PENDING_META
-                : (STATUS_META[record.status] || { label: record.status, bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" });
+            {filtered.map((record) => {
+              const meta = STATUS_META[record.status] || { label: record.status, bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" };
               return (
                 <div
                   key={record.id}
@@ -617,11 +533,7 @@ export default function ApplyHistory() {
                     <button
                       className="ah-qr-btn"
                       type="button"
-                      disabled={Boolean(record.isRefundPending)}
-                      onClick={() => {
-                        if (record.isRefundPending) return;
-                        navigate(`/registration/qrcheckin?eventId=${record.eventId}`);
-                      }}
+                      onClick={() => navigate(`/registration/qrcheckin?eventId=${record.eventId}`)}
                     >
                       <QrCode size={18} /> QR 체크인
                     </button>

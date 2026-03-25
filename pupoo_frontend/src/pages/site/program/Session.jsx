@@ -44,14 +44,14 @@ const styles = `
     border:1px solid #e5e7eb; background:#fff; color:#6b7280;
     padding:7px 14px; border-radius:999px; font-size:12px; font-weight:700; cursor:pointer;
   }
-  .pg-filter button.active { background:#02A17E; border-color:#02A17E; color:#fff; }
+  .pg-filter button.active { background:#90C450; border-color:#90C450; color:#fff; }
 
   .pg-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
   .pg-card {
     background:#fff; border:1px solid #e9ecef; border-radius:14px; padding:0;
     display:flex; flex-direction:column; gap:12px; overflow:hidden;
   }
-  .pg-card.live { border-color:#10b981; background:#f0fdf9; }
+  .pg-card.live { border-color:#3a4520; background:#f0fdf9; }
   .pg-thumb {
     width:100%; aspect-ratio: 16/10;
     background: linear-gradient(135deg,#E6F7F2 0%, #f8fafc 100%);
@@ -69,7 +69,7 @@ const styles = `
   .pg-badge { padding:4px 10px; border-radius:999px; font-size:11px; font-weight:700; }
   .pg-badge.live { background:#ecfdf5; color:#059669; }
   .pg-badge.upcoming { background:#fff7ed; color:#d97706; }
-  .pg-badge.done { background:#f3f4f6; color:#9ca3af; }
+  .pg-badge.done { background:#f8f9fc; color:#9ca3af; }
   .pg-title { font-size:16px; font-weight:800; color:#111827; line-height:1.35; }
   .pg-desc { font-size:12.5px; color:#6b7280; line-height:1.45; min-height:36px; }
   .pg-meta { display:flex; flex-direction:column; gap:7px; font-size:12px; color:#6b7280; }
@@ -77,10 +77,10 @@ const styles = `
   .pg-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:8px; border-top:1px solid #f1f3f5; }
   .pg-cat { font-size:11px; font-weight:700; color:#8b5cf6; background:#f3e8ff; border-radius:999px; padding:3px 9px; }
   .pg-host { font-size:12px; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .pg-detail { border:0; background:transparent; color:#02A17E; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; }
+  .pg-detail { border:0; background:transparent; color:#90C450; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; }
   .pg-card.done-card {
     opacity: 0.52; pointer-events: none; filter: grayscale(0.4);
-    border-color: #e9ecef; background: #fafafa;
+    border-color: #e9ecef; background: #f8f9fc;
   }
   .pg-card.done-card .pg-detail { pointer-events: auto; cursor: not-allowed; color: #9ca3af; }
   .pg-card-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:56px 24px; }
@@ -238,7 +238,7 @@ function SessionList({ eventId }) {
         </div>
         <div className="pg-stat">
           <div className="pg-stat-ico" style={{ background: "#ecfdf5" }}>
-            <Clock size={18} color="#10b981" />
+            <Clock size={18} color="#3a4520" />
           </div>
           <div>
             <div className="pg-stat-lb">진행 중</div>

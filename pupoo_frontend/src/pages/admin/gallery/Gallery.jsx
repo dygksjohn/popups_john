@@ -188,7 +188,7 @@ function Toast({ msg, type = "success", onDone }) {
     return () => clearTimeout(t);
   }, [onDone]);
   const bg =
-    type === "success" ? "#10B981" : type === "error" ? "#EF4444" : "#F59E0B";
+    type === "success" ? "#3a4520" : type === "error" ? "#EF4444" : "#F59E0B";
   return (
     <div
       style={{
@@ -707,14 +707,14 @@ function DetailModal({ item, onClose, onEdit, onDelete, eventMap }) {
             <Pill
               color={
                 item.status === "PUBLIC"
-                  ? "#10B981"
+                  ? "#3a4520"
                   : item.status === "BLINDED"
                     ? "#F59E0B"
                     : ds.ink4
               }
               bg={
                 item.status === "PUBLIC"
-                  ? "#10B98110"
+                  ? "#3a452010"
                   : item.status === "BLINDED"
                     ? "#F59E0B10"
                     : "#94A3B810"

@@ -140,6 +140,20 @@ export const authApi = {
     });
   },
 
+  // 기능: 구글 로그인을 처리한다.
+  // 설명: 인가 코드를 백엔드로 전달하고 신규/기존 회원 여부를 응답받는다.
+  // 흐름: 구글 인가 code와 redirectUri 전달 -> 로그인 응답 수신 -> 호출부에서 신규/기존 회원 분기.
+  googleLogin(payload, options = {}) {
+    return apiClient.post("/api/auth/oauth/google/login", payload, {
+      ...options,
+      config: {
+        withCredentials: true,
+        ...(options?.config || {}),
+      },
+      fallbackMessage: "구글 로그인 처리에 실패했습니다.",
+    });
+  },
+
   // 기능: 마이페이지 이메일 변경 인증을 요청한다.
   // 설명: 새 이메일로 인증 토큰을 보내고, 최종 변경은 confirm 성공 시점에만 확정한다.
   // 흐름: 새 이메일 전달 -> 인증 발송 응답 수신 -> 확인 단계 대기.

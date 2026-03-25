@@ -17,15 +17,16 @@ const SocialButton = ({ onClick, style, children, compact = false }) => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: compact ? 7 : 8,
+        gap: compact ? 8 : 10,
         width: "100%",
-        padding: compact ? "9px 14px" : "10px 16px",
-        borderRadius: compact ? 7 : 8,
+        height: compact ? 48 : 54,
+        padding: compact ? "0 16px" : "0 20px",
+        borderRadius: compact ? 10 : 12,
         border: "none",
         cursor: "pointer",
-        fontSize: compact ? 13 : 14,
+        fontSize: compact ? 14 : 16,
         fontFamily: "'Noto Sans KR', sans-serif",
-        fontWeight: 500,
+        fontWeight: 600,
         transition: "filter 0.15s, box-shadow 0.15s",
         filter: hovered ? "brightness(0.93)" : "brightness(1)",
         ...style,
@@ -190,6 +191,20 @@ const LoginPage = ({ leftBgImage = null }) => {
   const isMobile = viewportWidth < 768;
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
 
+  const handleGoogleLogin = () => {
+    const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const GOOGLE_REDIRECT_URI = import.meta.env.VITE_GOOGLE_REDIRECT_URI || `${window.location.origin}/auth/google/callback`;
+    if (!GOOGLE_CLIENT_ID) { setToast("VITE_GOOGLE_CLIENT_ID가 설정되지 않았습니다."); return; }
+    const redirectTo = resolvePostLoginRedirect();
+    sessionStorage.setItem("post_login_redirect", redirectTo);
+    const params = new URLSearchParams({
+      response_type: "code", client_id: GOOGLE_CLIENT_ID,
+      redirect_uri: GOOGLE_REDIRECT_URI,
+      scope: "openid email profile", prompt: "select_account",
+    });
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  };
+
   const handleSocialClick = (name) => {
     setToast(`${name} 로그인은 곧 지원될 예정이에요`);
   };
@@ -235,7 +250,7 @@ const LoginPage = ({ leftBgImage = null }) => {
     width: "100%",
     padding: isMobile ? "12px 14px" : "13px 16px",
     borderRadius: 8,
-    border: `1.5px solid ${focusedField === fieldName ? "#4A90E2" : "#E2E8F0"}`,
+    border: `1.5px solid ${focusedField === fieldName ? "#90C450" : "#E2E8F0"}`,
     fontSize: isMobile ? 13.5 : 14,
     fontFamily: "'Noto Sans KR', sans-serif",
     color: "#2D3748",
@@ -264,7 +279,7 @@ const LoginPage = ({ leftBgImage = null }) => {
             : isTablet
               ? "18px 14px"
               : "24px 16px",
-          background: "linear-gradient(135deg, #EEF2F9 0%, #E3EAF6 100%)",
+          background: "#f8f9fc",
         }}
       >
         <div style={{ width: "100%", maxWidth: isTablet ? 760 : 860 }}>
@@ -273,134 +288,77 @@ const LoginPage = ({ leftBgImage = null }) => {
             className="login-card card-enter"
             style={{
               display: "flex",
-              flexDirection: isMobile ? "column" : "row",
-              borderRadius: 20,
+              flexDirection: "row",
+              borderRadius: isMobile ? 16 : 20,
               overflow: "hidden",
-              boxShadow:
-                "0 20px 60px rgba(74,100,180,0.18), 0 4px 16px rgba(0,0,0,0.08)",
+              boxShadow: isMobile
+                ? "0 8px 32px rgba(74,100,180,0.12)"
+                : "0 20px 60px rgba(74,100,180,0.18), 0 4px 16px rgba(0,0,0,0.08)",
               minHeight: isMobile ? "auto" : 500,
               marginTop: isMobile ? 0 : isTablet ? 60 : 100,
             }}
           >
-            {/* Left panel */}
+            {/* Left panel — desktop/tablet only */}
+            {!isMobile && (
             <div
               className="left-panel"
               style={{
-                width: isMobile ? "100%" : "48%",
-                minWidth: isMobile ? 0 : 260,
+                width: "48%",
+                minWidth: 260,
                 position: "relative",
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "flex-end",
-                padding: isMobile ? "22px 18px" : isTablet ? "30px 24px" : "40px 36px",
+                padding: isTablet ? "30px 24px" : "40px 36px",
                 background: leftBgImage
                   ? `url(${leftBgImage}) center/cover no-repeat`
-                  : "linear-gradient(145deg, #6B8CFF 0%, #4B6FE5 35%, #3A55CC 65%, #5B35CC 100%)",
-                borderRadius: isMobile ? "20px 20px 0 0" : "20px 0 0 20px",
+                  : "linear-gradient(145deg, #a8d96a 0%, #90C450 35%, #7ab33e 65%, #6fa834 100%)",
+                borderRadius: "20px 0 0 20px",
               }}
             >
-              {/* Geometric decorative shapes */}
               <FloatingShape
                 style={{
-                  width: 140,
-                  height: 140,
-                  top: 40,
-                  right: -30,
-                  borderRadius: 24,
-                  background:
-                    "linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.05))",
-                  backdropFilter: "blur(2px)",
-                  border: "1px solid rgba(255,255,255,0.2)",
+                  width: 140, height: 140, top: 40, right: -30, borderRadius: 24,
+                  background: "linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.05))",
+                  backdropFilter: "blur(2px)", border: "1px solid rgba(255,255,255,0.2)",
                 }}
                 className="shape-a"
               />
               <FloatingShape
                 style={{
-                  width: 90,
-                  height: 90,
-                  top: 100,
-                  left: 20,
-                  borderRadius: 18,
-                  background:
-                    "linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.04))",
+                  width: 90, height: 90, top: 100, left: 20, borderRadius: 18,
+                  background: "linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.04))",
                   border: "1px solid rgba(255,255,255,0.15)",
                 }}
                 className="shape-b"
               />
               <FloatingShape
                 style={{
-                  width: 60,
-                  height: 60,
-                  bottom: 160,
-                  right: 40,
-                  borderRadius: 12,
-                  background:
-                    "linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.06))",
+                  width: 60, height: 60, bottom: 160, right: 40, borderRadius: 12,
+                  background: "linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.06))",
                   border: "1px solid rgba(255,255,255,0.2)",
                 }}
                 className="shape-c"
               />
               <FloatingShape
                 style={{
-                  width: 200,
-                  height: 200,
-                  bottom: -60,
-                  right: -60,
-                  borderRadius: 36,
-                  background:
-                    "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02))",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  transform: "rotate(20deg)",
-                  opacity: 0.5,
+                  width: 200, height: 200, bottom: -60, right: -60, borderRadius: 36,
+                  background: "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02))",
+                  border: "1px solid rgba(255,255,255,0.1)", transform: "rotate(20deg)", opacity: 0.5,
                 }}
               />
-
-              {/* Overlay gradient for text legibility */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(to top, rgba(40,55,160,0.55) 0%, transparent 60%)",
-                  pointerEvents: "none",
-                }}
-              />
-
-              {/* Text content */}
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(40,55,160,0.55) 0%, transparent 60%)", pointerEvents: "none" }} />
               <div style={{ position: "relative", zIndex: 2 }}>
-                <h1
-                  style={{
-                    color: "#FFFFFF",
-                    fontSize: isMobile ? 20 : isTablet ? 22 : 26,
-                    fontWeight: 700,
-                    lineHeight: 1.45,
-                    letterSpacing: "-0.5px",
-                    marginBottom: isMobile ? 10 : 12,
-                    textShadow: "0 2px 12px rgba(0,0,30,0.25)",
-                  }}
-                >
-                  지금 로그인하고
-                  <br />
-                  푸푸와 함께 반려생활을
-                  <br />
-                  더 편하게 시작하세요
+                <h1 style={{ color: "#FFFFFF", fontSize: isTablet ? 22 : 26, fontWeight: 700, lineHeight: 1.45, letterSpacing: "-0.5px", marginBottom: 12, textShadow: "0 2px 12px rgba(0,0,30,0.25)" }}>
+                  지금 로그인하고<br />푸푸와 함께 반려생활을<br />더 편하게 시작하세요
                 </h1>
-                <p
-                  style={{
-                    color: "rgba(255,255,255,0.78)",
-                    fontSize: isMobile ? 11 : 12,
-                    fontWeight: 400,
-                    lineHeight: 1.6,
-                    letterSpacing: "0.2px",
-                  }}
-                >
-                  행사 신청부터 참여 기록, 알림까지
-                  <br />
-                  한 번에 관리할 수 있어요
+                <p style={{ color: "rgba(255,255,255,0.78)", fontSize: 12, fontWeight: 400, lineHeight: 1.6, letterSpacing: "0.2px" }}>
+                  행사 신청부터 참여 기록, 알림까지<br />한 번에 관리할 수 있어요
                 </p>
               </div>
             </div>
+            )}
 
             {/* Right panel */}
             <div
@@ -411,22 +369,24 @@ const LoginPage = ({ leftBgImage = null }) => {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
-                padding: isMobile ? "22px 18px" : isTablet ? "30px 24px" : "44px 40px",
-                borderRadius: isMobile ? "0 0 20px 20px" : "0 20px 20px 0",
+                padding: isMobile ? "28px 24px 24px" : isTablet ? "30px 24px" : "44px 40px",
+                borderRadius: isMobile ? 16 : "0 20px 20px 0",
               }}
             >
-              {/* Title */}
-              <div style={{ marginBottom: isMobile ? 22 : 32 }}>
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <span style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a" }}>로그인</span>
+              {/* 모바일 전용 브랜드 헤더 */}
+              {isMobile && (
+                <div style={{ textAlign: "center", marginBottom: 24 }}>
+                  <div style={{ fontSize: 13, color: "#a0aec0", fontWeight: 500, marginBottom: 6 }}>🐾 Pupoo</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a", marginBottom: 4 }}>반갑습니다</div>
+                  <div style={{ fontSize: 13, color: "#9ca3af", fontWeight: 400 }}>행사 신청부터 참여 기록까지 한번에</div>
                 </div>
+              )}
+              {/* Title — desktop/tablet only */}
+              {!isMobile && (
+              <div style={{ marginBottom: 32 }}>
+                <span style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", color: "#1a1a1a" }}>로그인</span>
               </div>
+              )}
 
               {/* ??? ID input ??? */}
               <div style={{ marginBottom: 12 }}>
@@ -476,7 +436,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                   style={{
                     width: 16,
                     height: 16,
-                    accentColor: "#4A90E2",
+                    accentColor: "#90C450",
                     cursor: "pointer",
                   }}
                 />
@@ -493,7 +453,7 @@ const LoginPage = ({ leftBgImage = null }) => {
                   borderRadius: 8,
                   border: "none",
                   background:
-                    "linear-gradient(90deg, #5591F5 0%, #4A82E8 100%)",
+                    "linear-gradient(90deg, #90C450 0%, #7ab33e 100%)",
                   color: "#fff",
                   fontSize: isMobile ? 14 : 15,
                   fontWeight: 600,
@@ -588,15 +548,13 @@ const LoginPage = ({ leftBgImage = null }) => {
 
                 {/* Google */}
                 <SocialButton
-                  onClick={() => handleSocialClick("Google")}
+                  onClick={handleGoogleLogin}
                   compact={isMobile}
                   style={{
                     background: "#FFFFFF",
                     color: "#3C4043",
                     border: "1.5px solid #DADCE0",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                    opacity: 0.35,
-                    filter: "grayscale(0.7)",
                     cursor: "pointer",
                   }}
                 >

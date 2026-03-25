@@ -12,8 +12,8 @@
   --color-sub: #6b7280;
   --color-sub-2: #7b8a84;
 
-  --color-accent: #16a34a;
-  --color-accent-2: #10b981;
+  --color-accent: #90C450;
+  --color-accent-2: #3a4520;
 
   --shadow-soft: 0 8px 22px rgba(0, 0, 0, 0.08);
   --shadow-soft-2: 0 16px 40px rgba(0, 0, 0, 0.1);
@@ -45,8 +45,12 @@ html {
 
 *,
 *::before,
-*::after,
-*::placeholder {
+*::after {
   font-family: "Kakao Big Sans", "Pretendard", sans-serif !important;
+  letter-spacing: -0.5px !important;
+}
+
+*::placeholder {
+  font-family: "JeonjuCraftGothic", "Pretendard", sans-serif !important;
   letter-spacing: -0.5px !important;
 }

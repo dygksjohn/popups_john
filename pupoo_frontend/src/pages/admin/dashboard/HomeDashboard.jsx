@@ -249,7 +249,6 @@ const normalizeCongestionPercentPrecise = (value) => {
   const clamped = Math.min(Math.max(scaled, 0), 100);
   return Math.round(clamped * 10) / 10;
 };
-
 const normalizeAiPredictionRows = (predictionPayload) => {
   const timeline = Array.isArray(predictionPayload?.timeline)
     ? predictionPayload.timeline
@@ -1125,7 +1124,9 @@ export default function HomeDashboard({ initialEventId = null }) {
     : snapshot.focusEvent
       ? snapshot.isPredictionCongestionView
         ? `${snapshot.focusEvent.eventName} · ${effectiveCongestionDate || "선택일"} 시간대별 예상 혼잡도`
-        : `${snapshot.focusEvent.eventName} 행사 기준 시간대별 실시간 혼잡도`
+        : isSelectedPlannedEvent
+          ? `${snapshot.focusEvent.eventName} · 일별 혼잡도 예측 대기`
+          : `${snapshot.focusEvent.eventName} 행사 기준 시간대별 실시간 혼잡도`
       : "행사를 선택하면 시간대별 혼잡 추이를 보여줍니다.";
 
   return (
@@ -1224,15 +1225,6 @@ export default function HomeDashboard({ initialEventId = null }) {
           handset={isHandset}
             action={(
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: isHandset ? "flex-start" : "flex-end", width: isHandset ? "100%" : "auto" }}>
-                {isAllEventCongestionView ? (
-                  <Pill color={ds.green} bg={ds.greenSoft}>
-                    {congestionGraphScope}
-                  </Pill>
-                ) : topBooth ? (
-                  <Pill color={topBooth.state.c} bg={topBooth.state.bg}>
-                    최고 혼잡 {topBooth.placeName} {topBooth.congestionLevel}%
-                  </Pill>
-                ) : null}
                 {selectedScope &&
                 (snapshot.focusEvent?.status === "ONGOING" ||
                   snapshot.focusEvent?.status === "PLANNED") ? (
@@ -1255,6 +1247,15 @@ export default function HomeDashboard({ initialEventId = null }) {
                       fontFamily: ds.ff,
                     }}
                   />
+                ) : null}
+                {isAllEventCongestionView ? (
+                  <Pill color={ds.green} bg={ds.greenSoft}>
+                    {congestionGraphScope}
+                  </Pill>
+                ) : topBooth ? (
+                  <Pill color={topBooth.state.c} bg={topBooth.state.bg}>
+                    최고 혼잡 {topBooth.placeName} {topBooth.congestionLevel}%
+                  </Pill>
                 ) : null}
               </div>
             )}
@@ -1452,12 +1453,7 @@ export default function HomeDashboard({ initialEventId = null }) {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       dot={false}
-                      activeDot={{
-                        r: 3.2,
-                        fill: ds.amber,
-                        stroke: ds.amber,
-                        strokeWidth: 0,
-                      }}
+                      activeDot={{ r: 3.2, fill: ds.amber, stroke: ds.amber, strokeWidth: 0 }}
                       connectNulls
                     />
                     {snapshot.isPredictionCongestionView ? (

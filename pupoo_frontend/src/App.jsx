@@ -13,7 +13,6 @@ import { adminNoticeApi, getToken, clearToken } from "./api/noticeApi";
 
 /* admin */
 import Dashboard from "./pages/admin/dashboard/Dashboard";
-import AdminChatBot from "./pages/admin/dashboard/AdminChatBot";
 import BoardManage from "./pages/admin/board/boardManage";
 import NoticeManage from "./pages/admin/board/Notice";
 import EventManage from "./pages/admin/event/eventManage";
@@ -51,8 +50,10 @@ import JoinSocial from "./pages/site/auth/join/JoinSocial";
 import KakaoCallback from "./pages/site/auth/KakaoCallback";
 import KakaoJoin from "./pages/site/auth/join/KakaoJoin";
 import KakaoOtp from "./pages/site/auth/join/KakaoOtp";
-import NaverCallback from "./pages/site/auth/NaverCallback";
-import NaverJoin from "./pages/site/auth/join/NaverJoin";
+
+/* Google */
+import GoogleCallback from "./pages/site/auth/GoogleCallback";
+import GoogleJoin from "./pages/site/auth/join/GoogleJoin";
 
 /* Payment */
 import Checkout from "./pages/site/payment/Checkout";
@@ -129,6 +130,7 @@ import EventGallery from "./pages/site/gallery/eventgallery";
 /* guide */
 import Operation from "./pages/site/guide/Operation";
 import LocationPage from "./pages/site/guide/Location";
+import Credits from "./pages/site/credits/Credits";
 
 function ComingSoon() {
   return (
@@ -225,10 +227,6 @@ function LegacyProgramRedirect({ target }) {
 }
 
 export default function App() {
-  const location = useLocation();
-  const showAdminChatBot =
-    location.pathname.startsWith("/admin") && location.pathname !== "/admin/login";
-
   return (
     <>
       <ScrollToTop />
@@ -479,8 +477,15 @@ export default function App() {
             }
           />
           <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
-          <Route path="/naver/callback" element={<NaverCallback />} />
-          <Route path="/auth/callback" element={<NaverCallback />} />
+          <Route path="/auth/google/callback" element={<GoogleCallback />} />
+          <Route
+            path="/auth/join/google"
+            element={
+              <PublicOnly>
+                <GoogleJoin />
+              </PublicOnly>
+            }
+          />
           <Route
             path="/auth/join/kakao"
             element={
@@ -497,14 +502,6 @@ export default function App() {
               </PublicOnly>
             }
           />
-          <Route
-            path="/auth/join/naver"
-            element={
-              <PublicOnly>
-                <NaverJoin />
-              </PublicOnly>
-            }
-          />
           <Route path="/join" element={<JoinSelect />} />
           <Route path="/find-password" element={<FindPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
@@ -518,14 +515,6 @@ export default function App() {
           <Route path="/event/eventschedule" element={<EventSchedule />} />
           <Route path="/payment/checkout" element={<Checkout />} />
           <Route path="/payment/approve" element={<PaymentApprove />} />
-          <Route
-            path="/payment/cancel"
-            element={<Navigate to="/registration/paymenthistory" replace />}
-          />
-          <Route
-            path="/payment/fail"
-            element={<Navigate to="/registration/paymenthistory" replace />}
-          />
           <Route
             path="/program/experience/:eventId?"
             element={<Experience />}
@@ -641,13 +630,13 @@ export default function App() {
           <Route path="/gallery/eventgallery" element={<EventGallery />} />
           <Route path="/guide/location" element={<LocationPage />} />
           <Route path="/guide/operation" element={<Operation />} />
+          <Route path="/credits" element={<Credits />} />
           <Route
             path="/guide/timetable"
             element={<Navigate to="/event/eventschedule" replace />}
           />
         </Route>
       </Routes>
-      {showAdminChatBot ? <AdminChatBot /> : null}
     </>
   );
 }

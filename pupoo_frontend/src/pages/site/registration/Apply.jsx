@@ -47,46 +47,31 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 28px;
-    gap: 16px;
+    margin-bottom: 18px;
+    gap: 14px;
     flex-wrap: wrap;
   }
   .reg-toolbar-left {
     display: flex;
     align-items: center;
-    gap: 8px;
-  }
-  .reg-toolbar-right {
-    display: inline-flex;
-    align-items: center;
     gap: 0;
     background: #fff;
-    border-radius: 999px;
-    height: 42px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border: 1px solid #e2e5ea;
+    border-radius: 12px;
+    height: 48px;
+    width: 420px;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .reg-status-filters { display: flex; gap: 0; }
-  .reg-status-btn {
-    height: 42px; padding: 0 20px; border-radius: 999px;
-    border: none; background: transparent;
-    font-size: 13px; font-weight: 600; color: #9ca3af; cursor: pointer;
-    transition: all 0.15s; font-family: inherit;
+  .reg-toolbar-left:focus-within {
+    border-color: #111827;
+    box-shadow: 0 0 0 2px rgba(17,24,39,0.08);
   }
-  .reg-status-btn.active { background: #1f2937; color: #fff; }
-  .reg-status-btn:not(.active):hover { color: #6b7280; }
-
   .reg-search-wrap {
     position: relative;
     display: flex;
     align-items: center;
-  }
-  .reg-search-wrap::before {
-    content: '';
-    width: 1px;
-    height: 20px;
-    background: #e5e7eb;
-    margin-right: 0;
-    flex-shrink: 0;
+    flex: 1;
+    height: 100%;
   }
   .reg-search-icon {
     position: absolute;
@@ -97,18 +82,47 @@ const styles = `
     pointer-events: none;
   }
   .reg-search-input {
-    height: 42px;
-    width: 260px;
-    padding: 0 14px 0 38px;
-    border-radius: 0 999px 999px 0;
+    height: 100%;
+    width: 100%;
+    padding: 0 16px 0 40px;
+    border-radius: 12px;
     border: none;
     background: transparent;
     color: #111827;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     outline: none;
+    font-family: inherit;
   }
   .reg-search-input::placeholder { color: #9ca3af; font-size: 13px; font-weight: 500; }
+  .reg-filter {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .reg-filter button {
+    height: 44px; padding: 0 22px; border: none;
+    background: transparent; color: #6b7280; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .reg-filter button + button { border-left: 1px solid #e5e7eb; }
+  .reg-filter button:hover { color: #111827; background: #f9fafb; }
+  .reg-filter button.active {
+    background: #1f2937; color: #fff;
+  }
+  .reg-filter-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 20px; padding: 0 6px;
+    border-radius: 999px; font-size: 11px; font-weight: 700;
+    background: rgba(255,255,255,0.2); margin-left: 2px;
+  }
+  .reg-filter button:not(.active) .reg-filter-count {
+    background: #f8f9fc; color: #9ca3af;
+  }
 
   .reg-total {
     font-size: 15px;
@@ -215,11 +229,11 @@ const styles = `
     align-items: center;
     gap: 5px;
   }
-  .reg-card-apply:hover { background: #02A17E; }
-  .reg-card-apply:active { background: #028A6C; transform: scale(0.97); }
+  .reg-card-apply:hover { background: #90C450; }
+  .reg-card-apply:active { background: #7ab33e; transform: scale(0.97); }
   .reg-card-apply:disabled { opacity: 0.35; cursor: not-allowed; }
   .reg-card-apply.secondary {
-    background: #f3f4f6;
+    background: #f8f9fc;
     color: #666;
   }
   .reg-card-apply.secondary:hover { background: #e5e7eb; }
@@ -251,6 +265,13 @@ const styles = `
   }
   @media (max-width: 640px) {
     .reg-event-list { grid-template-columns: 1fr; }
+    .reg-container { width: calc(100% - 20px); padding: 20px 0 48px; }
+    .reg-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .reg-toolbar-left { width: 100%; }
+    .reg-filter { width: 100%; }
+    .reg-filter button { flex: 1; justify-content: center; font-size: 13px; padding: 0 14px; height: 40px; }
+    .reg-card-body { padding: 16px 16px 14px; }
+    .reg-card-art { height: 180px; }
   }
 `;
 
@@ -420,43 +441,33 @@ export default function Apply() {
 
       <PageHeader
         title="행사 참가 신청"
-        icon={<TicketCheck size={40} strokeWidth={1.8} style={{ color: "#2EB893" }} />}
+        icon={<TicketCheck size={40} strokeWidth={1.8} style={{ color: "#90C450" }} />}
         subtitle={SUBTITLE_MAP[currentPath]}
         categories={SERVICE_CATEGORIES}
+        bgColor="#fff"
       />
 
       <main className="reg-container">
         <div className="reg-toolbar">
           <div className="reg-toolbar-left">
-            <span className="reg-total">총 {filteredEvents.length}건</span>
-          </div>
-          <div className="reg-toolbar-right">
-            <div className="reg-status-filters">
-              <button
-                type="button"
-                className={`reg-status-btn${statusFilter === "ONGOING" ? " active" : ""}`}
-                onClick={() => setStatusFilter("ONGOING")}
-              >
-                진행 중
-              </button>
-              <button
-                type="button"
-                className={`reg-status-btn${statusFilter === "PLANNED" ? " active" : ""}`}
-                onClick={() => setStatusFilter("PLANNED")}
-              >
-                예정
-              </button>
-            </div>
             <div className="reg-search-wrap">
-              <Search size={16} className="reg-search-icon" />
+              <Search size={15} className="reg-search-icon" />
               <input
                 className="reg-search-input"
                 type="text"
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="행사명 또는 장소 검색"
+                placeholder="행사명 또는 장소를 검색하세요"
               />
             </div>
+          </div>
+          <div className="reg-filter">
+            <button type="button" className={statusFilter === "ONGOING" ? "active" : ""} onClick={() => setStatusFilter("ONGOING")}>
+              진행 중<span className="reg-filter-count">{events.filter((e) => e.status === "ONGOING").length}</span>
+            </button>
+            <button type="button" className={statusFilter === "PLANNED" ? "active" : ""} onClick={() => setStatusFilter("PLANNED")}>
+              예정<span className="reg-filter-count">{events.filter((e) => e.status === "PLANNED").length}</span>
+            </button>
           </div>
         </div>
 

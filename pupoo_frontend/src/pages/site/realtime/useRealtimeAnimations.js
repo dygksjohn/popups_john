@@ -211,8 +211,8 @@ export const SHARED_ANIM_STYLES = `
     transition: all 0.15s;
   }
   .anim-refresh-btn:hover {
-    border-color: #02A17E;
-    color: #02A17E;
+    border-color: #90C450;
+    color: #90C450;
     background: #f5f8ff;
   }
   .anim-refresh-btn:active {
@@ -221,7 +221,7 @@ export const SHARED_ANIM_STYLES = `
 
   /* Timestamp update flash */
   @keyframes anim-flash {
-    0% { color: #02A17E; }
+    0% { color: #90C450; }
     100% { color: #9ca3af; }
   }
   .anim-flash { animation: anim-flash 1s ease; }
