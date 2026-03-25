@@ -321,6 +321,7 @@ const css = `
 
 const guideAsset = (fileName) => toPublicAssetUrl(`/uploads/guide/${fileName}`);
 const GUIDE_VIDEO_SRC = guideAsset("guide.mov");
+const GUIDE_VIDEO_POSTER = guideAsset("guide-poster.jpg");
 
 const GALLERY_1 = [
   { img: guideAsset("guide1.jpg"), label: "QR 체크인 현장", caption: "QR 코드 하나로 빠르게 입장. 모바일과 출력물 모두 가능합니다." },
@@ -352,12 +353,17 @@ const RULES = [
 ];
 
 export default function Operation() {
+  const [guideReady, setGuideReady] = useState(false);
+
   return (
     <div className="op">
       <style>{css}</style>
 
       {/* ── HERO (video bg) ── */}
       <section className="op-hero">
+        {!guideReady ? (
+          <img className="op-hero-video" src={GUIDE_VIDEO_POSTER} alt="" aria-hidden="true" />
+        ) : null}
         <video
           className="op-hero-video"
           autoPlay
@@ -365,6 +371,8 @@ export default function Operation() {
           loop
           playsInline
           preload="metadata"
+          onCanPlay={() => setGuideReady(true)}
+          onPlaying={() => setGuideReady(true)}
         >
           <source src={GUIDE_VIDEO_SRC} type="video/quicktime" />
         </video>
