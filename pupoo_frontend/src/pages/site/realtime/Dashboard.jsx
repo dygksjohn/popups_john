@@ -23,6 +23,7 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { aiApi } from "../../../app/http/aiApi";
+import { adminRealtimeApi } from "../../../app/http/adminRealtimeApi";
 import {
   formatKoreanTime,
   normalizePrediction,
@@ -1519,8 +1520,9 @@ const formatTime = (value) => {
 };
 
 const formatTimestamp = (value) => {
-  if (!value) return "--:--:--";
-  return value.toLocaleTimeString("ko-KR", {
+  const date = toValidDate(value);
+  if (!date) return "--:--:--";
+  return date.toLocaleTimeString("ko-KR", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -1560,6 +1562,14 @@ const getActivityColor = (pct) => {
 const safeNumber = (value, fallback = 0) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const toCongestionLevelOrNull = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  if (numeric < 1 || numeric > 5) return null;
+  return numeric;
 };
 
 const safePercent = (value) => clamp(Math.round(Number(value) || 0), 0, 100);
@@ -1615,8 +1625,38 @@ const estimateWaitMinutes = (value) => {
 const deriveCongestionPercentFromWait = (waitCount, waitMin) => {
   const teams = Math.max(0, safeNumber(waitCount));
   const minutes = Math.max(0, safeNumber(waitMin));
-  const score = Math.round(minutes * 2.2 + teams * 4);
+  const minuteScore = clamp(Math.round(minutes * 4), 0, 100);
+  const countScore = clamp(Math.round(teams * 5), 0, 100);
+  const score = Math.round(minuteScore * 0.7 + countScore * 0.3);
   return safePercent(score);
+};
+
+const deriveExpectedWaitMinutesFromQueue = (rows) => {
+  const normalized = toArray(rows)
+    .map((row) => ({
+      waitMin: Math.max(0, safeNumber(row?.waitMin)),
+      waitCount: Math.max(0, safeNumber(row?.waitCount)),
+    }))
+    .filter((row) => Number.isFinite(row.waitMin));
+
+  if (normalized.length === 0) return null;
+
+  const waitingRows = normalized.filter(
+    (row) => row.waitCount > 0 || row.waitMin > 0,
+  );
+  if (waitingRows.length === 0) return 0;
+
+  const totalTeams = waitingRows.reduce((sum, row) => sum + row.waitCount, 0);
+  if (totalTeams > 0) {
+    const weightedMinutes =
+      waitingRows.reduce((sum, row) => sum + row.waitMin * row.waitCount, 0) /
+      totalTeams;
+    return Math.max(0, Math.round(weightedMinutes));
+  }
+
+  const avgMinutes =
+    waitingRows.reduce((sum, row) => sum + row.waitMin, 0) / waitingRows.length;
+  return Math.max(0, Math.round(avgMinutes));
 };
 
 const getProgramGuideText = (congestionPercent) => {
@@ -1928,10 +1968,14 @@ function DashboardContent({ eventId }) {
   const aiRangeKeyRef = useRef("");
   const loadRequestIdRef = useRef(0);
   const lastAutoRefreshTickRef = useRef(tick);
+  const inFlightRef = useRef(false);
   const [selectedForecastDate, setSelectedForecastDate] = useState("");
 
   const loadData = useCallback(async (options = {}) => {
-    const { preserveLoading = false, forceAi = false } = options;
+    const { preserveLoading = false } = options;
+
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     const requestId = loadRequestIdRef.current + 1;
     loadRequestIdRef.current = requestId;
 
@@ -1943,133 +1987,127 @@ function DashboardContent({ eventId }) {
       aiLoadedAtRef.current = 0;
       aiRangeKeyRef.current = "";
       setLoading(false);
+      inFlightRef.current = false;
       return;
     }
 
     if (!preserveLoading) setLoading(true);
 
     try {
-      const [eventResponse, performanceResult, hourlyResult, congestionResult, programsResult] = await Promise.all([
-        eventApi.getEventDetail(numericEventId),
-        fetchAdminData("/api/analytics/events", { page: 0, size: 200 }, []),
-        fetchAdminData(`/api/analytics/events/${numericEventId}/congestion-by-hour`, {}, []),
-        fetchAdminData(`/api/dashboard/realtime/events/${numericEventId}/congestions`, { limit: 200 }, []),
-        programApi.getAllProgramsByEvent({
-          eventId: numericEventId,
-          sort: "startAt,asc",
-          pageSize: 200,
-        })
-          .then((data) => ({
-            data,
-            hasError: false,
-          }))
-          .catch(() => ({
-            data: [],
-            hasError: true,
-          })),
-      ]);
+      const response = await adminRealtimeApi.getDashboardSnapshot(numericEventId);
 
       if (requestId !== loadRequestIdRef.current) return;
 
-      const performanceRows = toArray(performanceResult?.data);
-      const hourlyData = toArray(hourlyResult?.data);
-      const latestCongestions = toArray(congestionResult?.data);
-      const basePrograms = Array.isArray(programsResult?.data) ? programsResult.data : [];
-      const allOperationalFailed =
-        Boolean(performanceResult?.hasError) &&
-        Boolean(hourlyResult?.hasError) &&
-        Boolean(congestionResult?.hasError) &&
-        Boolean(programsResult?.hasError);
+      const snapshot = unwrapData(response, null);
+      if (!snapshot || typeof snapshot !== "object") {
+        throw new Error("Dashboard snapshot is empty.");
+      }
 
-      const programDetails = await Promise.allSettled(
-        basePrograms.map((program) => programApi.getProgramDetail(program?.programId)),
-      );
-      const mergedPrograms = basePrograms.map((program, index) => {
-        const settled = programDetails[index];
-        if (settled?.status !== "fulfilled") return program;
-        const detail = unwrapData(settled.value, null);
-        if (!detail || typeof detail !== "object") return program;
+      const eventSummary = snapshot?.eventSummary || {};
+      const summaryCards = snapshot?.dashboardSummaryCards || {};
+      const performanceSummary = snapshot?.performance || {};
+      const congestionSummary = snapshot?.congestionSummary || {};
+      const predictionSummary = congestionSummary?.prediction || null;
+
+      const mappedPrograms = toArray(snapshot?.programCongestionSummaries).map((program) => {
+        const embeddedWaitCount = Math.max(0, safeNumber(program?.experienceWait?.waitCount));
+        const embeddedWaitMin = Math.max(0, safeNumber(program?.experienceWait?.waitMin));
+        const rawWaitCount = Math.max(0, safeNumber(program?.waitCount));
+        const rawWaitMin = Math.max(0, safeNumber(program?.waitMin));
+
+        const hasEmbeddedWait = embeddedWaitCount > 0 || embeddedWaitMin > 0;
+        const hasRawWait = rawWaitCount > 0 || rawWaitMin > 0;
+
         return {
           ...program,
-          ...detail,
-          experienceWait: detail?.experienceWait ?? program?.experienceWait ?? null,
+          experienceWait: hasEmbeddedWait
+            ? program?.experienceWait
+            : hasRawWait
+              ? {
+                waitCount: program?.waitCount ?? null,
+                waitMin: program?.waitMin ?? null,
+                updatedAt: null,
+              }
+              : null,
         };
       });
 
-      if (requestId !== loadRequestIdRef.current) return;
+      const mappedBooths = toArray(snapshot?.boothCongestionSummaries).map((booth) => ({
+        ...booth,
+        measuredAt: booth?.measuredAt ?? booth?.updatedAt ?? null,
+      }));
 
-      const detail = unwrapData(eventResponse, null);
-      const matchedPerformance = toArray(performanceRows).find(
-        (row) => Number(row.eventId) === numericEventId,
-      );
-      const detailStatus = String(detail?.status ?? "").toUpperCase();
-      const rawCheckinCount = Number(matchedPerformance?.checkinCount) || 0;
+      const predictedPercent = Number(congestionSummary?.predictedCongestionPercent);
+      const predictionPayload = predictionSummary || Number.isFinite(predictedPercent)
+        ? {
+          predictedAvgScore:
+            predictionSummary?.predictedAvgScore ??
+            (Number.isFinite(predictedPercent) ? predictedPercent : null),
+          predictedPeakScore:
+            predictionSummary?.predictedPeakScore ??
+            (Number.isFinite(predictedPercent) ? predictedPercent : null),
+          predictedLevel:
+            predictionSummary?.predictedLevel ??
+            congestionSummary?.predictedCongestionLevel ??
+            null,
+          predictedWaitMinutes: predictionSummary?.predictedWaitMinutes ?? null,
+          confidence: predictionSummary?.confidence ?? 0,
+          fallbackUsed: Boolean(predictionSummary?.fallbackUsed),
+          timeline: toArray(predictionSummary?.timeline).map((point) => ({
+            time: point?.time ?? null,
+            score: point?.score ?? null,
+            predictedLevel: point?.predictedLevel ?? null,
+          })),
+          baseTime:
+            congestionSummary?.latestPredictedAt ??
+            snapshot?.metadata?.serverTime ??
+            null,
+          targetType: "EVENT",
+          eventId: numericEventId,
+        }
+        : null;
+      const normalizedPrediction = normalizePrediction(predictionPayload);
 
-      setEventDetail(detail);
+      const detailStatus = String(eventSummary?.status ?? "").toUpperCase();
+      const approvedCount = Number(
+        summaryCards?.approvedApplicants ?? performanceSummary?.approvedRegistrationCount ?? 0,
+      ) || 0;
+      const rawCheckinCount = Number(performanceSummary?.checkinCount ?? 0) || 0;
+
+      setEventDetail({
+        eventId: eventSummary?.eventId ?? numericEventId,
+        eventName: eventSummary?.eventName || "행사 정보 없음",
+        status: eventSummary?.status || "",
+        startAt: eventSummary?.startAt || null,
+        endAt: eventSummary?.endAt || null,
+        location: eventSummary?.location || "",
+      });
       setPerformance({
-        approved:
-          Number(
-            matchedPerformance?.activeRegistrationCount ??
-            matchedPerformance?.approvedRegistrationCount,
-          ) || 0,
+        approved: approvedCount,
         checkin: detailStatus === "PLANNED" ? 0 : rawCheckinCount,
       });
-      setHourlyRows((prev) =>
-        hourlyResult?.hasError && prev.length > 0 ? prev : hourlyData,
-      );
-      setCongestionRows((prev) =>
-        congestionResult?.hasError && prev.length > 0 ? prev : latestCongestions,
-      );
-      setProgramRows((prev) =>
-        programsResult?.hasError && prev.length > 0 ? prev : mergedPrograms,
-      );
+      setHourlyRows(toArray(snapshot?.trendSummary?.hourlyRows));
+      setCongestionRows(mappedBooths);
+      setProgramRows(mappedPrograms);
+      aiPredictionRef.current = normalizedPrediction;
+      aiLoadedAtRef.current = Date.now();
+      aiRangeKeyRef.current = "";
+      setEventPrediction(normalizedPrediction);
+      setAiErrorMsg("");
       setErrorMsg("");
-      setLastLoadedAt(new Date());
-
-      const aiRangeParams = resolveAiRangeParams(detail, selectedForecastDate);
-      const aiRangeKey = JSON.stringify({
-        from: aiRangeParams?.from || null,
-        to: aiRangeParams?.to || null,
-      });
-
-      const now = Date.now();
-      const shouldLoadAi =
-        forceAi ||
-        !aiPredictionRef.current ||
-        aiRangeKeyRef.current !== aiRangeKey ||
-        now - aiLoadedAtRef.current >= AI_REFRESH_INTERVAL_MS;
-
-      if (shouldLoadAi) {
-        try {
-          const aiResponse = await aiApi.predictEventCongestion(numericEventId, aiRangeParams);
-          if (requestId !== loadRequestIdRef.current) return;
-          const aiPayload = normalizePrediction(unwrapData(aiResponse, null));
-          aiPredictionRef.current = aiPayload;
-          aiLoadedAtRef.current = now;
-          aiRangeKeyRef.current = aiRangeKey;
-          setEventPrediction(aiPayload);
-          setAiErrorMsg("");
-        } catch (aiError) {
-          if (requestId !== loadRequestIdRef.current) return;
-          console.error("[Realtime Dashboard] ai predict failed:", aiError);
-          setAiErrorMsg("AI prediction is temporarily unavailable.");
-        }
-      } else {
-        if (requestId !== loadRequestIdRef.current) return;
-        setEventPrediction(aiPredictionRef.current);
-        setAiErrorMsg("");
-      }
+      setLastLoadedAt(snapshot?.metadata?.serverTime || new Date());
     } catch (error) {
       if (requestId !== loadRequestIdRef.current) return;
       console.error("[Realtime Dashboard] load failed:", error);
-      console.error("[Realtime Dashboard] load failed:", error);
+      setErrorMsg("통합현황 데이터를 불러오지 못했습니다.");
     } finally {
+      inFlightRef.current = false;
       if (requestId === loadRequestIdRef.current && !preserveLoading) setLoading(false);
     }
-  }, [numericEventId, selectedForecastDate]);
+  }, [numericEventId]);
 
   const { spinning, refresh } = useRefresh(() => {
-    loadData({ preserveLoading: true, forceAi: true });
+    loadData({ preserveLoading: true });
   }, 800);
 
   useEffect(() => {
@@ -2080,6 +2118,7 @@ function DashboardContent({ eventId }) {
     if (!loading) {
       if (lastAutoRefreshTickRef.current === tick) return;
       lastAutoRefreshTickRef.current = tick;
+      if (document.visibilityState === "hidden") return;
       loadData({ preserveLoading: true });
     }
   }, [tick, loadData, loading]);
@@ -2087,12 +2126,16 @@ function DashboardContent({ eventId }) {
   const measuredCongestions = useMemo(
     () =>
       congestionRows
-        .map((row) => ({
-          ...row,
-          congestionLevel: Number(row?.congestionLevel),
-          congestionPercent: congestionLevelToPercent(row?.congestionLevel),
-        }))
-        .filter((row) => Number.isFinite(row.congestionLevel)),
+        .map((row) => {
+          const congestionLevel = toCongestionLevelOrNull(row?.congestionLevel);
+          return {
+            ...row,
+            congestionLevel,
+            congestionPercent:
+              congestionLevel === null ? null : congestionLevelToPercent(congestionLevel),
+          };
+        })
+        .filter((row) => row.congestionLevel !== null),
     [congestionRows],
   );
 
@@ -2255,6 +2298,14 @@ function DashboardContent({ eventId }) {
       bucket.count += 1;
       measuredHourBuckets.set(normalizedHour, bucket);
     };
+
+    if (isPastForecast && Array.isArray(chartTimeline) && chartTimeline.length > 0) {
+      chartTimeline.forEach((point) => {
+        const hour = toHour(point?.time);
+        if (!Number.isFinite(hour)) return;
+        pushMeasuredActual(hour, point?.score);
+      });
+    }
 
     const measuredRowsForDate = measuredCongestions.filter((row) => {
       if (!activeForecastDateKey) return true;
@@ -2479,10 +2530,21 @@ function DashboardContent({ eventId }) {
             ? startDate.getTime() <= now && now <= endDate.getTime()
             : true;
 
-        const waitCount = Math.max(0, safeNumber(program?.experienceWait?.waitCount));
-        const waitMin = Math.max(0, safeNumber(program?.experienceWait?.waitMin));
-        const hasWaitInfo = Boolean(program?.experienceWait);
-        const mappedCongestion = programCongestionMap.get(programId)?.congestionPercent;
+        const waitCount = Math.max(
+          0,
+          safeNumber(program?.experienceWait?.waitCount ?? program?.waitCount),
+        );
+        const waitMin = Math.max(
+          0,
+          safeNumber(program?.experienceWait?.waitMin ?? program?.waitMin),
+        );
+        const hasWaitInfo = waitCount > 0 || waitMin > 0;
+        const mappedCongestionRaw =
+          program?.currentCongestionPercent ?? programCongestionMap.get(programId)?.congestionPercent;
+        const mappedCongestion =
+          mappedCongestionRaw === null || mappedCongestionRaw === undefined
+            ? null
+            : safePercent(mappedCongestionRaw);
         const congestionPercent = safePercent(
           mappedCongestion ?? deriveCongestionPercentFromWait(waitCount, waitMin),
         );
@@ -2556,15 +2618,11 @@ function DashboardContent({ eventId }) {
           String(left.name).localeCompare(String(right.name), "ko-KR"),
       );
 
-    const shortWaitCandidates = candidates.filter(
-      (program) => program.waitMin <= 15 || program.waitCount <= 2,
+    const immediateCandidates = candidates.filter(
+      (program) => program.waitMin <= 5 && program.waitCount <= 2,
     );
 
-    if (shortWaitCandidates.length > 0) {
-      return shortWaitCandidates.slice(0, 8);
-    }
-
-    return candidates.slice(0, 8);
+    return immediateCandidates.slice(0, 8);
   }, [popularTopProgramIds, queueProgramRows]);
 
   const currentVisitors = isPlannedEvent ? 0 : performance.checkin;
@@ -2577,16 +2635,29 @@ function DashboardContent({ eventId }) {
   );
 
   const expectedWaitMinutes = useMemo(() => {
+    const queueBasedWait = deriveExpectedWaitMinutesFromQueue(queueProgramRows);
     const currentBasedWait = estimateWaitMinutes(currentCongestion);
     if (isTodayForecast && !isPlannedEvent) {
+      if (queueBasedWait != null) {
+        return queueBasedWait;
+      }
       return currentBasedWait;
     }
     const predictedWait = Number(eventPrediction?.waitMinutes);
     if (Number.isFinite(predictedWait) && predictedWait >= 0) {
       return Math.round(predictedWait);
     }
+    if (queueBasedWait != null) {
+      return queueBasedWait;
+    }
     return currentBasedWait;
-  }, [currentCongestion, eventPrediction?.waitMinutes, isPlannedEvent, isTodayForecast]);
+  }, [
+    currentCongestion,
+    eventPrediction?.waitMinutes,
+    isPlannedEvent,
+    isTodayForecast,
+    queueProgramRows,
+  ]);
 
   const waitKpiLabel = isTodayForecast && !isPlannedEvent
     ? "현재 예상 대기시간"

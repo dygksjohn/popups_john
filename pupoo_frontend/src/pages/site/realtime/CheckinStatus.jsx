@@ -12,6 +12,7 @@ import { axiosInstance } from "../../../app/http/axiosInstance";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
+import { adminRealtimeApi } from "../../../app/http/adminRealtimeApi";
 import MyCheckinStatusCard from "../../../components/checkin/MyCheckinStatusCard";
 import MyProgramList from "../../../components/checkin/MyProgramList";
 
@@ -28,6 +29,12 @@ export const SUBTITLE_MAP = {
   "/realtime/checkinstatus": "참가자 체크인 현황을 실시간으로 확인합니다",
   "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 확인합니다",
 };
+const EVENT_REALTIME_BUTTONS = [
+  { key: "dashboard", label: "통합현황", path: "/realtime/dashboard" },
+  { key: "waiting", label: "대기현황", path: "/realtime/waitingstatus" },
+  { key: "checkin", label: "체크인 현황", path: "/realtime/checkinstatus" },
+  { key: "vote", label: "투표현황", path: "/realtime/votestatus" },
+];
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
@@ -44,6 +51,49 @@ const styles = `
   .ck-container.with-event { padding-top: 92px; }
   .ck-container.selector-mode { padding-top: 16px; background: #F0F4FA; }
   .ck-page-shell { max-width: 1120px; margin: 0 auto; }
+  .ck-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .ck-event-mode-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+  .ck-mode-btn {
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background: #f3f4f6;
+    color: #6b7280;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .ck-mode-btn.active {
+    background: #02A17E;
+    color: #fff;
+    border-color: #02A17E;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+  }
+  .ck-mode-btn:hover {
+    background: #e5e7eb;
+    border-color: #cbd5e1;
+    color: #4b5563;
+  }
+  .ck-mode-btn.active:hover {
+    background: #028A6C;
+    border-color: #028A6C;
+    color: #fff;
+  }
 
   .rt-live-badge {
     display: inline-flex; align-items: center; gap: 6px;
@@ -501,6 +551,9 @@ const styles = `
     .ck-stat-grid { grid-template-columns: repeat(2, 1fr); }
     .ck-stat-card { padding: 14px 14px; gap: 10px; }
     .ck-two-col { grid-template-columns: 1fr; }
+    .ck-top-actions { align-items: stretch; }
+    .ck-event-mode-nav { width: 100%; margin-left: 0; }
+    .ck-mode-btn { flex: 1 1 calc(50% - 8px); min-width: 132px; }
     .ck-card { padding: 20px 16px; }
     .ck-card-header { flex-wrap: wrap; gap: 8px; }
     .ck-my-status-title { font-size: 22px; letter-spacing: 0; word-break: keep-all; }
@@ -1010,6 +1063,7 @@ function CheckinContent({ eventId }) {
   const [lastLoadedAt, setLastLoadedAt] = useState(new Date());
   const myQrImageUrlRef = useRef("");
   const myQrKeyRef = useRef("");
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     myQrImageUrlRef.current = myQrImageUrl;
@@ -1052,173 +1106,67 @@ function CheckinContent({ eventId }) {
         return;
       }
 
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+
       if (!preserveLoading) setLoading(true);
 
       try {
-        const [eventResponse, programsResponse] = await Promise.all([
-          eventApi.getEventDetail(numericEventId),
-          fetchProgramsByEvent(numericEventId),
-        ]);
-        let myProgramApplies = [];
-        let myProgramNotice = "";
-        if (!hasUsableUserAccessToken()) {
-          myProgramNotice = "로그인하면 내 체크인 상태를 바로 확인할 수 있습니다.";
-        } else {
-          try {
-            myProgramApplies = await fetchAllMyProgramApplies();
-          } catch (myProgramError) {
-            if (isUnauthorizedError(myProgramError)) {
-              myProgramNotice = "로그인하면 내 체크인 상태를 바로 확인할 수 있습니다.";
-            } else {
-              myProgramNotice = "내 체크인 데이터를 일부 불러오지 못했습니다.";
-            }
-          }
+        const response = await adminRealtimeApi.getCheckinStatusSnapshot(numericEventId);
+        const snapshot = unwrapData(response, null);
+        if (!snapshot || typeof snapshot !== "object") {
+          throw new Error("Checkin snapshot is empty.");
         }
 
-        const eventPayload = unwrapData(eventResponse, null);
-        const programs = toArray(programsResponse);
-        const allMyApplies = toArray(myProgramApplies);
-        const allApplyProgramIds = [...new Set(
-          allMyApplies.map((apply) => Number(apply?.programId)).filter(Number.isFinite),
-        )];
-        const knownProgramIds = new Set(
-          programs.map((program) => Number(program?.programId)).filter(Number.isFinite),
-        );
-        const missingProgramIds = allApplyProgramIds.filter((programId) => !knownProgramIds.has(programId));
-        const missingPrograms = await fetchProgramsByIds(missingProgramIds);
-        const mergedPrograms = [...programs, ...missingPrograms];
+        const eventSummary = snapshot?.eventSummary || {};
+        const mappedPrograms = toArray(snapshot?.myPrograms).map((item) => ({
+          programApplyId: item?.programApplyId ?? null,
+          programId: Number(item?.programId),
+          eventId: Number(item?.eventId ?? eventSummary?.eventId),
+          programName: item?.programName || `프로그램 ${item?.programId ?? "-"}`,
+          time: item?.time || "운영 시간 정보 없음",
+          status: String(item?.status || "PENDING").toUpperCase(),
+          requestNo: item?.requestNo || "",
+        }));
+        const mappedParticipatedEvents = toArray(snapshot?.participatedEvents).map((item) => ({
+          eventId: Number(item?.eventId),
+          eventName: item?.eventName || `행사 ${item?.eventId ?? "-"}`,
+          startAt: item?.startAt || null,
+        }));
 
-        const programById = new Map(
-          mergedPrograms.map((program) => [Number(program?.programId), program]),
-        );
-        const myEventIds = [...new Set(
-          allMyApplies
-            .map((apply) => {
-              const program = programById.get(Number(apply?.programId));
-              return Number(program?.eventId);
-            })
-            .filter(Number.isFinite),
-        )];
-        const eventRows = await fetchEventsByIds(myEventIds);
-        const eventById = new Map(
-          eventRows
-            .map((event) => [Number(event?.eventId), event])
-            .filter(([eventId]) => Number.isFinite(eventId)),
-        );
-        const eventPayloadEventId = Number(eventPayload?.eventId);
-        if (Number.isFinite(eventPayloadEventId) && eventPayload) {
-          eventById.set(eventPayloadEventId, eventPayload);
-        }
-
-        const nextMyPrograms = buildMyPrograms(mergedPrograms, allMyApplies, eventById);
-        const checkedInEventIds = [...new Set(
-          nextMyPrograms
-            .filter((item) => String(item.status).toUpperCase() === MY_STATUS.CHECKED_IN)
-            .map((item) => Number(item.eventId))
-            .filter(Number.isFinite),
-        )];
-        const nextParticipatedEvents = checkedInEventIds
-          .map((eventId) => eventById.get(eventId))
-          .filter(Boolean)
-          .map((event) => ({
-            eventId: Number(event?.eventId),
-            eventName: String(event?.eventName || event?.title || `행사 ${event?.eventId}`),
-            startAt: event?.startAt ?? null,
-          }))
-          .sort((left, right) => {
-            const leftStart = toValidDate(left.startAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-            const rightStart = toValidDate(right.startAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-            return leftStart - rightStart;
-          });
-        const myProgramMap = new Map();
-        nextMyPrograms.forEach((programItem) => {
-          const key = Number(programItem.programId);
-          if (!Number.isFinite(key)) return;
-          if (!myProgramMap.has(key)) myProgramMap.set(key, []);
-          myProgramMap.get(key).push(programItem);
-        });
-
-        const programStatsEntries = await Promise.all(
-          [...myProgramMap.keys()].map(async (programId) => {
-            const myProgramsInProgram = myProgramMap.get(programId) || [];
-            const programApplies = await fetchAllProgramApplies(programId);
-            const stats = buildProgramCheckinStats(programApplies, myProgramsInProgram);
-            return [programId, stats];
-          }),
-        );
-
-        const programStatsMap = new Map(programStatsEntries);
-        const primaryProgram = pickPrimaryProgram(nextMyPrograms);
-        const primaryStats = primaryProgram
-          ? programStatsMap.get(Number(primaryProgram.programId))
-          : null;
-        const primaryEventId = Number(primaryProgram?.eventId);
-        let nextMyQrInfo = null;
-        let nextMyQrImageUrl = "";
-        let nextMyQrKey = "";
-        if (
-          hasUsableUserAccessToken()
-          && Number.isFinite(primaryEventId)
-          && primaryEventId > 0
-        ) {
-          try {
-            const qrResponse = await axiosInstance.get("/api/qr/me", {
-              params: { eventId: primaryEventId },
-            });
-            nextMyQrInfo = unwrapData(qrResponse, null);
-            const qrId = Number(nextMyQrInfo?.qrId);
-            if (Number.isFinite(qrId) && qrId > 0) {
-              nextMyQrKey = `${primaryEventId}:${qrId}`;
-              if (
-                nextMyQrKey === myQrKeyRef.current
-                && myQrImageUrlRef.current
-              ) {
-                nextMyQrImageUrl = myQrImageUrlRef.current;
-              } else {
-                setMyQrLoading(true);
-                try {
-                  const qrImageResponse = await axiosInstance.get("/api/qr/me/download", {
-                    params: { eventId: primaryEventId },
-                    responseType: "blob",
-                  });
-                  if (qrImageResponse?.data) {
-                    nextMyQrImageUrl = URL.createObjectURL(qrImageResponse.data);
-                  }
-                } catch (qrImageError) {
-                  console.error("[Realtime Checkin] qr image load failed:", qrImageError);
-                } finally {
-                  setMyQrLoading(false);
-                }
-              }
-            }
-          } catch (qrError) {
-            if (!isUnauthorizedError(qrError)) {
-              console.error("[Realtime Checkin] qr load failed:", qrError);
-            }
-            setMyQrLoading(false);
-          }
-        } else {
-          setMyQrLoading(false);
-        }
-        const nextMyCheckin = buildMyCheckin(primaryProgram, primaryStats);
-        const nextProgramCheckinStatus = buildProgramCheckinStatus(primaryProgram, primaryStats);
-
-        setEventDetail(eventPayload);
-        setMyPrograms(nextMyPrograms);
-        setParticipatedEvents(nextParticipatedEvents);
-        setMyCheckin(nextMyCheckin);
+        const nextQrInfo = snapshot?.myQrInfo || null;
+        const nextQrImageUrl = String(nextQrInfo?.imageUrl || "").trim();
         setMyQrImageUrl((prev) => {
-          if (nextMyQrImageUrl === prev) return prev;
-          if (prev && String(prev).startsWith("blob:")) {
+          if (prev && prev !== nextQrImageUrl && String(prev).startsWith("blob:")) {
             URL.revokeObjectURL(prev);
           }
-          return nextMyQrImageUrl;
+          return nextQrImageUrl;
         });
-        myQrKeyRef.current = nextMyQrKey;
-        setMyQrInfo(nextMyQrInfo);
-        setProgramCheckinStatus(nextProgramCheckinStatus);
-        setErrorMsg(myProgramNotice);
-        setLastLoadedAt(new Date());
+        myQrKeyRef.current = nextQrInfo?.qrId
+          ? `${numericEventId}:${nextQrInfo.qrId}`
+          : "";
+
+        setEventDetail({
+          eventId: eventSummary?.eventId ?? numericEventId,
+          eventName: eventSummary?.eventName || `행사 ${numericEventId}`,
+          status: eventSummary?.status || "",
+          startAt: eventSummary?.startAt || null,
+          endAt: eventSummary?.endAt || null,
+          location: eventSummary?.location || "",
+        });
+        setMyPrograms(mappedPrograms);
+        setParticipatedEvents(mappedParticipatedEvents);
+        setMyCheckin(snapshot?.myCheckin || null);
+        setMyQrInfo(nextQrInfo);
+        setMyQrLoading(false);
+        setProgramCheckinStatus(snapshot?.programCheckinStatus || null);
+        setErrorMsg("");
+        setLastLoadedAt(
+          snapshot?.metadata?.serverTime ||
+          snapshot?.checkinSummary?.latestUpdatedAt ||
+          new Date(),
+        );
+        return;
       } catch (error) {
         console.error("[Realtime Checkin] load failed:", error);
         setMyPrograms([]);
@@ -1241,6 +1189,7 @@ function CheckinContent({ eventId }) {
           setErrorMsg("체크인 데이터를 불러오지 못했습니다.");
         }
       } finally {
+        inFlightRef.current = false;
         if (!preserveLoading) setLoading(false);
       }
     },
@@ -1257,6 +1206,7 @@ function CheckinContent({ eventId }) {
 
   useEffect(() => {
     if (!loading) {
+      if (document.visibilityState === "hidden") return;
       loadData({ preserveLoading: true });
     }
   }, [tick, loadData, loading]);
@@ -1370,9 +1320,29 @@ export default function CheckinStatus() {
 
       <main className={`ck-container${eventId ? " with-event" : " selector-mode"}`}>
         {eventId ? (
-          <CheckinContent eventId={eventId} />
+          <>
+            <div className="ck-top-actions">
+              <div className="ck-event-mode-nav">
+                {EVENT_REALTIME_BUTTONS.map((button) => (
+                  <button
+                    key={button.key}
+                    type="button"
+                    className={`ck-mode-btn${button.key === "checkin" ? " active" : ""}`}
+                    onClick={() => navigate(`${button.path}/${eventId}`)}
+                  >
+                    {button.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <CheckinContent eventId={eventId} />
+          </>
         ) : (
-          <RealtimeEventSelector onSelectEvent={handleSelectEvent} pageTitle="체크인 현황" />
+          <RealtimeEventSelector
+            onSelectEvent={handleSelectEvent}
+            pageTitle="체크인 현황"
+            metricType="checkin"
+          />
         )}
       </main>
     </div>

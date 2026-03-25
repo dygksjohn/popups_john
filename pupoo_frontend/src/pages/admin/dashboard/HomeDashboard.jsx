@@ -249,7 +249,6 @@ const normalizeCongestionPercentPrecise = (value) => {
   const clamped = Math.min(Math.max(scaled, 0), 100);
   return Math.round(clamped * 10) / 10;
 };
-
 const normalizeAiPredictionRows = (predictionPayload) => {
   const timeline = Array.isArray(predictionPayload?.timeline)
     ? predictionPayload.timeline
@@ -279,11 +278,20 @@ const normalizeAiPredictionRows = (predictionPayload) => {
       const lstmAtTime = lstmByTime.has(epoch)
         ? lstmByTime.get(epoch)
         : normalizedLstm;
+      const now = Date.now();
+      const isPastOrNow = time.getTime() <= now;
+      const measured =
+        isPastOrNow
+          ? normalizeCongestionPercentPrecise(point?.score)
+          : null;
       return {
         time,
         label: `${String(time.getHours()).padStart(2, "0")}:${String(time.getMinutes()).padStart(2, "0")}`,
-        lightgbm: normalizeCongestionPercentPrecise(point?.score),
-        lstm: lstmAtTime,
+        measured,
+        lightgbm: isPastOrNow
+          ? null
+          : normalizeCongestionPercentPrecise(point?.score),
+        lstm: isPastOrNow ? null : lstmAtTime,
       };
     })
     .filter(Boolean)
@@ -681,10 +689,15 @@ export default function HomeDashboard({ initialEventId = null }) {
       const selectedEvent = selectedEventId !== "ALL"
         ? allEvents.find((event) => String(event.eventId) === String(selectedEventId)) || null
         : null;
-      const selectedEventIsPlanned =
-        selectedEvent?.status === "PLANNED";
-      const selectedEventDate = selectedEventIsPlanned
-        ? clampDateToEventRange(selectedCongestionDate, selectedEvent)
+      const selectedEventStatus = selectedEvent?.status;
+      const selectedEventIsPlanned = selectedEventStatus === "PLANNED";
+      const selectedEventSupportsDateSelection =
+        selectedEventStatus === "PLANNED" || selectedEventStatus === "ONGOING";
+      const selectedEventDate = selectedEventSupportsDateSelection
+        ? clampDateToEventRange(
+            selectedCongestionDate || toDateInputValue(new Date()),
+            selectedEvent,
+          )
         : "";
       const focusEvent = selectedEvent || graphEvents[0] || liveEvents[0] || allEvents[0] || null;
       const isAllEventCongestionView = !selectedEvent && graphEvents.length > 0;
@@ -733,14 +746,14 @@ export default function HomeDashboard({ initialEventId = null }) {
         selectedEvent,
       );
       const [selectedEventPredictionPayload, selectedEventDailyPredictionRows] =
-        selectedEventIsPlanned
+        selectedEventSupportsDateSelection
           ? await Promise.all([
               safePayload(
                 `/api/admin/ai/events/${selectedEvent.eventId}/congestion/predict`,
                 selectedEventWindowParams,
                 null,
               ),
-              (async () => {
+              selectedEventIsPlanned ? (async () => {
                 const dateKeys = buildDateKeysFromRange(
                   selectedEvent?.startAt,
                   selectedEvent?.endAt,
@@ -780,20 +793,25 @@ export default function HomeDashboard({ initialEventId = null }) {
                   })
                   .filter((row) => Number.isFinite(Number(row.lightgbm)))
                   .sort((left, right) => left.dateKey.localeCompare(right.dateKey));
-              })(),
+              })() : Promise.resolve([]),
             ])
           : [null, []];
       const selectedPredictionRows = normalizeAiPredictionRows(
         selectedEventPredictionPayload,
       );
+      const useSelectedDatePrediction =
+        selectedEventSupportsDateSelection &&
+        Boolean(selectedEventDate) &&
+        selectedPredictionRows.length > 0;
       const realtimeFocusLine = focusEvent
         ? buildCongestionLine(focusEvent, focusCongestionPayload, ds.amber)
         : { rows: [], useDummy: false };
-      const focusLine = selectedEventIsPlanned
+      const focusLine = useSelectedDatePrediction && selectedPredictionRows.length > 0
         ? { rows: selectedPredictionRows, useDummy: false, isPrediction: true }
         : {
             rows: realtimeFocusLine.rows.map((row) => ({
               ...row,
+              measured: row.value,
               lightgbm: row.value,
               lstm: null,
             })),
@@ -965,7 +983,7 @@ export default function HomeDashboard({ initialEventId = null }) {
         allEvents,
         liveEvents,
         focusEvent,
-        selectedCongestionDate: selectedEventIsPlanned
+        selectedCongestionDate: selectedEventSupportsDateSelection
           ? selectedEventDate || null
           : null,
         isPredictionCongestionView: Boolean(focusLine.isPrediction),
@@ -1104,7 +1122,7 @@ export default function HomeDashboard({ initialEventId = null }) {
   const congestionSubtitle = isAllEventCongestionView
     ? `${congestionGraphScope}의 시간대별 실시간 혼잡도`
     : snapshot.focusEvent
-      ? showPlannedPrediction
+      ? snapshot.isPredictionCongestionView
         ? `${snapshot.focusEvent.eventName} · ${effectiveCongestionDate || "선택일"} 시간대별 예상 혼잡도`
         : isSelectedPlannedEvent
           ? `${snapshot.focusEvent.eventName} · 일별 혼잡도 예측 대기`
@@ -1207,28 +1225,28 @@ export default function HomeDashboard({ initialEventId = null }) {
           handset={isHandset}
             action={(
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: isHandset ? "flex-start" : "flex-end", width: isHandset ? "100%" : "auto" }}>
-                {isSelectedPlannedEvent ? (
-                  <>
-                    <input
-                      type="date"
-                      value={effectiveCongestionDate}
-                      min={focusEventStartDate || undefined}
-                      max={focusEventEndDate || undefined}
-                      onChange={(event) => {
-                        setSelectedCongestionDate(event.target.value);
-                      }}
-                      style={{
-                        height: 30,
-                        padding: "0 8px",
-                        borderRadius: 8,
-                        border: `1px solid ${ds.line}`,
-                        background: ds.card,
-                        color: ds.ink,
-                        fontSize: 12,
-                        fontFamily: ds.ff,
-                      }}
-                    />
-                  </>
+                {selectedScope &&
+                (snapshot.focusEvent?.status === "ONGOING" ||
+                  snapshot.focusEvent?.status === "PLANNED") ? (
+                  <input
+                    type="date"
+                    value={effectiveCongestionDate}
+                    min={focusEventStartDate || undefined}
+                    max={focusEventEndDate || undefined}
+                    onChange={(event) => {
+                      setSelectedCongestionDate(event.target.value);
+                    }}
+                    style={{
+                      height: 30,
+                      padding: "0 8px",
+                      borderRadius: 8,
+                      border: `1px solid ${ds.line}`,
+                      background: ds.card,
+                      color: ds.ink,
+                      fontSize: 12,
+                      fontFamily: ds.ff,
+                    }}
+                  />
                 ) : null}
                 {isAllEventCongestionView ? (
                   <Pill color={ds.green} bg={ds.greenSoft}>
@@ -1365,7 +1383,15 @@ export default function HomeDashboard({ initialEventId = null }) {
                     </ResponsiveContainer>
                   </div>
                 ) : null}
-                <div style={{ display: "grid", gridTemplateColumns: isHandset ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isHandset ? "1fr" : "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
+                  <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
+                    <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>
+                      현재 실시간 혼잡도
+                    </div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
+                      {formatNumber(snapshot.focusRealtimeSummary?.current || 0)}%
+                    </div>
+                  </div>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>
                       {snapshot.isPredictionCongestionView ? "예상 평균 혼잡도" : "평균 혼잡도"}
@@ -1404,6 +1430,20 @@ export default function HomeDashboard({ initialEventId = null }) {
                     />
                     <YAxis tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} width={34} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                     <Tooltip content={<ChartTip suffix="%" light showName />} />
+                    {snapshot.isPredictionCongestionView ? (
+                      <Line
+                        type="monotoneX"
+                        dataKey="measured"
+                        name="실측"
+                        stroke={ds.amber}
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        dot={false}
+                        activeDot={{ r: 3.2, fill: ds.amber, stroke: ds.amber, strokeWidth: 0 }}
+                        connectNulls
+                      />
+                    ) : null}
                     <Line
                       type="monotoneX"
                       dataKey="lightgbm"
