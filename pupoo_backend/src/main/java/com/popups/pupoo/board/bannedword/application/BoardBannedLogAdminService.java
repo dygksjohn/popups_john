@@ -32,7 +32,11 @@ public class BoardBannedLogAdminService {
                 ? boardBannedLogRepository.findAllByBoardIdOrderByLogIdDesc(boardId, pageable)
                 : boardBannedLogRepository.findAllByOrderByLogIdDesc(pageable);
         Map<Long, PostStatus> postStatusById = loadPostStatuses(page.getContent());
-        return page.map(log -> BoardBannedLogResponse.from(log, postStatusById.get(log.getContentId())));
+        return page.map(log -> {
+            Long contentId = log.getContentId();
+            PostStatus status = contentId != null ? postStatusById.get(contentId) : null;
+            return BoardBannedLogResponse.from(log, status);
+        });
     }
 
     private Map<Long, PostStatus> loadPostStatuses(List<BoardBannedLog> logs) {
