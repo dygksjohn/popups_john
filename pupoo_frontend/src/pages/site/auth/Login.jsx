@@ -87,14 +87,10 @@ const LoginPage = ({ leftBgImage = null }) => {
   const location = useLocation();
   const { login } = useAuth();
 
-  const defaultKakaoRedirectUri = `${window.location.origin}/auth/kakao/callback`;
+  const kakaoRedirectUri = `${window.location.origin}/auth/kakao/callback`;
   const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY;
-  const KAKAO_REDIRECT_URI =
-    import.meta.env.VITE_KAKAO_REDIRECT_URI || defaultKakaoRedirectUri;
-  const defaultNaverRedirectUri = `${window.location.origin}/naver/callback`;
+  const naverRedirectUri = `${window.location.origin}/naver/callback`;
   const NAVER_CLIENT_ID = import.meta.env.VITE_NAVER_CLIENT_ID;
-  const NAVER_REDIRECT_URI =
-    import.meta.env.VITE_NAVER_REDIRECT_URI || defaultNaverRedirectUri;
   const resolvePostLoginRedirect = () => {
     const target =
       location.state?.from ||
@@ -104,7 +100,7 @@ const LoginPage = ({ leftBgImage = null }) => {
   };
 
   const handleKakaoLogin = () => {
-    if (!KAKAO_REST_KEY || !KAKAO_REDIRECT_URI) {
+    if (!KAKAO_REST_KEY) {
       console.error("Kakao env missing");
       return;
     }
@@ -119,7 +115,7 @@ const LoginPage = ({ leftBgImage = null }) => {
     const params = new URLSearchParams({
       response_type: "code",
       client_id: KAKAO_REST_KEY,
-      redirect_uri: KAKAO_REDIRECT_URI,
+      redirect_uri: kakaoRedirectUri,
       through_account: "true",
       prompt: "login",
     });
@@ -127,7 +123,7 @@ const LoginPage = ({ leftBgImage = null }) => {
   };
 
   const handleNaverLogin = () => {
-    if (!NAVER_CLIENT_ID || !NAVER_REDIRECT_URI) {
+    if (!NAVER_CLIENT_ID) {
       console.error("Naver env missing");
       return;
     }
@@ -141,7 +137,7 @@ const LoginPage = ({ leftBgImage = null }) => {
     const params = new URLSearchParams({
       response_type: "code",
       client_id: NAVER_CLIENT_ID,
-      redirect_uri: NAVER_REDIRECT_URI,
+      redirect_uri: naverRedirectUri,
       state,
     });
     window.location.href = `https://nid.naver.com/oauth2.0/authorize?${params.toString()}`;
@@ -193,13 +189,13 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const handleGoogleLogin = () => {
     const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    const GOOGLE_REDIRECT_URI = import.meta.env.VITE_GOOGLE_REDIRECT_URI || `${window.location.origin}/auth/google/callback`;
+    const googleRedirectUri = `${window.location.origin}/auth/google/callback`;
     if (!GOOGLE_CLIENT_ID) { setToast("VITE_GOOGLE_CLIENT_ID가 설정되지 않았습니다."); return; }
     const redirectTo = resolvePostLoginRedirect();
     sessionStorage.setItem("post_login_redirect", redirectTo);
     const params = new URLSearchParams({
       response_type: "code", client_id: GOOGLE_CLIENT_ID,
-      redirect_uri: GOOGLE_REDIRECT_URI,
+      redirect_uri: googleRedirectUri,
       scope: "openid email profile", prompt: "select_account",
     });
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;

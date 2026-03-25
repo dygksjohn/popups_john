@@ -18,13 +18,10 @@ import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
 import EmptyState from "../components/EmptyState";
 import { reviewApi } from "../../../app/http/reviewApi";
-import { eventApi } from "../../../app/http/eventApi";
-import { reviewReplyApi } from "../../../app/http/replyApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import BadgeTag from "./shared/BadgeTag";
 import { htmlToPlainText } from "./shared/communityHtml";
-import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
 
 const PAGE_SIZE = 10;
 const REVIEW_FETCH_SIZE = 100;
@@ -82,8 +79,6 @@ export default function Review() {
   const ratingDdRef = useRef(null);
   const sortDdRef = useRef(null);
   const [items, setItems] = useState([]);
-  const [commentCountMap, setCommentCountMap] = useState({});
-  const [eventNameMap, setEventNameMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
@@ -101,6 +96,7 @@ export default function Review() {
           page: pageIndex,
           size: REVIEW_FETCH_SIZE,
           rating: ratingFilter === "ALL" ? undefined : Number(ratingFilter),
+          sortKey: sortOption,
         });
         const content = Array.isArray(data?.content) ? data.content : [];
         rows.push(...content);
@@ -112,27 +108,6 @@ export default function Review() {
       }
 
       setItems(rows);
-
-      const eventIds = [...new Set(rows.map((row) => row?.eventId).filter(Boolean))];
-      if (eventIds.length > 0) {
-        const entries = await Promise.all(
-          eventIds.map(async (eventId) => {
-            try {
-              const res = await eventApi.getEventDetail(eventId);
-              const eventDetail = res?.data?.data || {};
-              return [
-                eventId,
-                normalizeEventTitle(eventDetail?.eventName || `행사 ${eventId}`, eventDetail),
-              ];
-            } catch {
-              return [eventId, `행사 ${eventId}`];
-            }
-          }),
-        );
-        setEventNameMap(Object.fromEntries(entries));
-      } else {
-        setEventNameMap({});
-      }
     } catch (err) {
       console.error("[Review] load failed:", err);
       setItems([]);
@@ -140,7 +115,7 @@ export default function Review() {
     } finally {
       setLoading(false);
     }
-  }, [ratingFilter]);
+  }, [ratingFilter, sortOption]);
 
   useEffect(() => {
     loadReviews();
@@ -150,42 +125,10 @@ export default function Review() {
     setPage(1);
   }, [search, ratingFilter, sortOption]);
 
-  useEffect(() => {
-    if (!items.length) return;
-    const pendingItems = items.filter((item) => commentCountMap[item.reviewId] == null);
-    if (!pendingItems.length) return;
-
-    const loadCounts = async () => {
-      const pairs = await Promise.all(
-        pendingItems.map(async (item) => {
-          try {
-            const data = await reviewReplyApi.list(item.reviewId, 0, 1);
-            const total = Number(data?.totalElements);
-            const count = Number.isFinite(total)
-              ? total
-              : Array.isArray(data?.content)
-                ? data.content.length
-                : 0;
-            return [item.reviewId, count];
-          } catch {
-            return [item.reviewId, 0];
-          }
-        }),
-      );
-
-      setCommentCountMap((prev) => ({
-        ...prev,
-        ...Object.fromEntries(pairs),
-      }));
-    };
-
-    loadCounts().catch(() => {});
-  }, [commentCountMap, items]);
-
   const sortedFilteredItems = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     const filtered = items.filter((item) => {
-      const eventName = String(eventNameMap[item.eventId] || item.eventName || "").toLowerCase();
+      const eventName = String(item.eventName || "").toLowerCase();
       const title = String(item.reviewTitle || item.title || "").toLowerCase();
       const text = htmlToPlainText(item.content || "").toLowerCase();
       return !keyword || title.includes(keyword) || text.includes(keyword) || eventName.includes(keyword);
@@ -196,11 +139,11 @@ export default function Review() {
         return Number(b.viewCount || 0) - Number(a.viewCount || 0);
       }
       if (sortOption === "comments") {
-        return Number(commentCountMap[b.reviewId] || 0) - Number(commentCountMap[a.reviewId] || 0);
+        return Number(b.commentCount || 0) - Number(a.commentCount || 0);
       }
       return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
     });
-  }, [commentCountMap, eventNameMap, items, search, sortOption]);
+  }, [items, search, sortOption]);
 
   const totalPages = Math.max(1, Math.ceil(sortedFilteredItems.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -437,8 +380,8 @@ export default function Review() {
               </div>
               )}
               {pagedItems.map((item, index) => {
-                const commentCount = Number(commentCountMap[item.reviewId] || 0);
-                const eventLabel = eventNameMap[item.eventId] || item.eventName || `행사 ${item.eventId}`;
+                const commentCount = Number(item.commentCount || 0);
+                const eventLabel = item.eventName || `행사 ${item.eventId}`;
                 const reviewTitle = item.reviewTitle || item.title || "행사 후기";
                 const authorLabel =
                   item?.author ||
