@@ -81,3 +81,31 @@ Current example coverage:
 
 - `pupoo-backend-secret`: datasource credentials, auth salts/secrets, AI internal tokens, OpenAI config, Kakao OAuth, KakaoPay
 - `pupoo-ai-secret`: `PUPOO_AI_INTERNAL_TOKEN`, `OPENAI_API_KEY`
+
+### Milvus (standalone) on EKS
+
+Run Milvus in standalone mode to reduce resource pressure versus the default distributed chart.
+
+```bash
+helm repo add milvus https://milvus-io.github.io/milvus-helm/
+helm repo update
+kubectl create namespace milvus
+helm install my-milvus milvus/milvus -n milvus --create-namespace -f k8s/milvus-standalone.values.yaml
+```
+
+After install, resolve the Milvus proxy service DNS and set `PUPOO_AI_MILVUS_HOST` in `k8s/base/ai-configmap.yaml`.
+
+```bash
+kubectl get svc -n milvus
+```
+
+Example DNS:
+
+`my-milvus-milvus.milvus.svc.cluster.local`
+
+Then re-apply kustomize and restart AI deployment.
+
+```bash
+kubectl apply -k k8s/base
+kubectl rollout restart deployment/pupoo-ai -n pupoo
+```

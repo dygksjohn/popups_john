@@ -29,8 +29,11 @@ data:
   PUPOO_AI_WATSONX_LLM_ID: "meta-llama/llama-3-3-70b-instruct"
   PUPOO_AI_WATSONX_EMBEDDING_MODEL_ID: "ibm/granite-embedding-278m-multilingual"
   PUPOO_AI_WATSONX_EMBEDDING_DIM: "768"
-  # Milvus: 클러스터 내 서비스 DNS로 교체 (예: 동일 네임스페이스면 서비스 이름만)
-  PUPOO_AI_MILVUS_HOST: "my-milvus"
+  # Milvus(Standalone): proxy Service DNS를 명시한다.
+  # 예) Helm release가 my-milvus, namespace가 milvus면:
+  #     my-milvus-milvus.milvus.svc.cluster.local
+  # 값은 운영 클러스터의 실제 Service 이름으로 교체해야 한다.
+  PUPOO_AI_MILVUS_HOST: "REPLACE_ME_MILVUS_PROXY_DNS"
   PUPOO_AI_MILVUS_PORT: "19530"
   PUPOO_AI_MILVUS_TLS: "false"
   PUPOO_AI_MILVUS_COLLECTION: "policy_vectors"
