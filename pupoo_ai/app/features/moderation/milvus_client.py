@@ -30,6 +30,9 @@ _MILVUS_VARCHAR_LIMITS = {
     "chunk_text": 2048,
 }
 
+_PRIMARY_METRIC_TYPE = "COSINE"
+_FALLBACK_METRIC_TYPE = "IP"
+
 
 def _clip_varchar(value: object, field: str) -> str:
     s = "" if value is None else str(value)
@@ -76,18 +79,41 @@ def _ensure_collection(client: MilvusClient, collection_name: str, dim: int) -> 
         shards_num=2,
     )
 
+    metric_type = _PRIMARY_METRIC_TYPE
     index_params = IndexParams()
     index_params.add_index(
         "embedding",
         index_type="IVF_FLAT",
         index_name="policy_embedding_idx",
-        metric_type="COSINE",
+        metric_type=metric_type,
         nlist=1024,
     )
-    client.create_index(
-        collection_name=collection_name,
-        index_params=index_params,
-    )
+    try:
+        client.create_index(
+            collection_name=collection_name,
+            index_params=index_params,
+        )
+    except MilvusException as exc:
+        if metric_type != _PRIMARY_METRIC_TYPE:
+            raise
+        logger.warning(
+            "Milvus 인덱스 metric_type=%s 생성에 실패해 %s로 재시도합니다. 원인: %s",
+            _PRIMARY_METRIC_TYPE,
+            _FALLBACK_METRIC_TYPE,
+            exc,
+        )
+        index_params = IndexParams()
+        index_params.add_index(
+            "embedding",
+            index_type="IVF_FLAT",
+            index_name="policy_embedding_idx",
+            metric_type=_FALLBACK_METRIC_TYPE,
+            nlist=1024,
+        )
+        client.create_index(
+            collection_name=collection_name,
+            index_params=index_params,
+        )
 
 
 class PolicyVectorStore:
@@ -198,6 +224,6 @@ class PolicyVectorStore:
             data=list(query_embeddings),
             anns_field="embedding",
             limit=top_k,
-            search_params={"metric_type": "COSINE", "params": {"nprobe": 16}},
+            search_params={"metric_type": _FALLBACK_METRIC_TYPE, "params": {"nprobe": 16}},
             output_fields=["policy_id", "category", "source", "chunk_text"],
         )

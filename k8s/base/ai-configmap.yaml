@@ -30,7 +30,7 @@ data:
   PUPOO_AI_WATSONX_EMBEDDING_MODEL_ID: "ibm/granite-embedding-278m-multilingual"
   PUPOO_AI_WATSONX_EMBEDDING_DIM: "768"
   # Milvus: 클러스터 내 서비스 DNS로 교체 (예: 동일 네임스페이스면 서비스 이름만)
-  PUPOO_AI_MILVUS_HOST: "my-milvus"
+  PUPOO_AI_MILVUS_HOST: "my-milvus.milvus"
   PUPOO_AI_MILVUS_PORT: "19530"
   PUPOO_AI_MILVUS_TLS: "false"
   PUPOO_AI_MILVUS_COLLECTION: "policy_vectors"

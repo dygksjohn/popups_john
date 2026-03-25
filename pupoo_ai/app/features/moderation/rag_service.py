@@ -69,26 +69,48 @@ def moderate_with_rag(
     metadata: dict | None = None,
 ) -> tuple[str, float | None, str | None, str, list[str] | None, list[str] | None]:
     safe_metadata = metadata or {}
+    logger.info(
+        "Moderation pipeline input. board_type=%s text_preview=%s metadata=%s",
+        board_type,
+        (text or "")[:200],
+        safe_metadata,
+    )
+
     try:
         docs = retrieve_policies(text, top_k=5)
     except Exception:
         logger.exception("Milvus policy retrieval failed. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "정책 검색에 실패해서 등록을 막았어요.", "rag_error", None, None
+        return "BLOCK", None, "정책 검색에 실패해 등록을 차단합니다.", "rag_error", None, None
 
     if not docs:
         logger.error("No policy documents were retrieved. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "활성 정책을 찾지 못해 등록을 막았어요.", "rag_empty", None, None
+        return "BLOCK", None, "활성 정책을 찾지 못해 등록을 차단합니다.", "rag_empty", None, None
 
     if not is_watsonx_configured():
         logger.error("watsonx is not configured. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "금칙어 검사를 완료하지 못해 등록을 막았어요.", "rag_watsonx_unconfigured", None, None
+        return "BLOCK", None, "금칙어 검사를 완료하지 못해 등록을 차단합니다.", "rag_watsonx_unconfigured", None, None
 
     try:
         action, ai_score, reason, flagged_phrases, inferred_phrases = moderate_with_llm(text, docs)
     except Exception:
         logger.exception("watsonx moderation failed. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "금칙어 검사를 완료하지 못해 등록을 막았어요.", "rag_error", None, None
+        return "BLOCK", None, "금칙어 검사를 완료하지 못해 등록을 차단합니다.", "rag_error", None, None
 
-    normalized = "PASS" if str(action or "").upper() == "PASS" else "BLOCK"
-    final_reason = reason or ("정책 위반 가능성이 없어요." if normalized == "PASS" else "정책 위반 가능성이 있어 등록을 막았어요.")
+    normalized = str(action or "").upper()
+    if normalized == "PASS":
+        normalized = "ALLOW"
+    elif normalized not in {"ALLOW", "WARN", "REVIEW", "BLOCK"}:
+        normalized = "BLOCK"
+
+    final_reason = reason or (
+        "정책 위반 가능성이 낮습니다."
+        if normalized in {"ALLOW", "WARN", "REVIEW"}
+        else "정책 위반 가능성이 있어 등록을 차단합니다."
+    )
+    logger.info(
+        "Moderation pipeline final decision. board_type=%s decision=%s score=%s",
+        board_type,
+        normalized,
+        ai_score,
+    )
     return normalized, ai_score, final_reason, "rag_watsonx", flagged_phrases, inferred_phrases
