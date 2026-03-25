@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PageLoading from "../components/PageLoading";
+import EventDetailModal from "../event/EventDetailModal";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
@@ -109,6 +110,13 @@ function statusInfo(item) {
   if (isFinite(e) && now > e)
     return { label: "종료", color: "#9ca3af" };
   return { label: "진행 중", color: "#059669" };
+}
+
+function resolveEventMovePath(eventInfo) {
+  const status = String(eventInfo?.status ?? "").toUpperCase();
+  if (status.includes("END") || status.includes("CLOSED")) return "/event/closed";
+  if (status.includes("PLAN") || status.includes("UPCOMING")) return "/event/upcoming";
+  return "/event/current";
 }
 
 const css = `
@@ -230,9 +238,21 @@ const css = `
   margin: 0; font-size: 36px; line-height: 1.2; letter-spacing: -0.03em;
   font-weight: 900; color: #111;
 }
+.kd-product-event-top {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #02A17E;
+}
 .kd-product-event {
   margin-top: 10px; font-size: 16px; color: #999; font-weight: 500;
 }
+.kd-product-event-link {
+  margin-top: 10px; border: none; background: transparent; padding: 0;
+  font-size: 16px; color: #02A17E; font-weight: 700; cursor: pointer;
+  text-align: left; display: inline-flex; align-items: center; gap: 6px;
+}
+.kd-product-event-link:hover { text-decoration: underline; }
 .kd-product-status {
   margin-top: 16px;
   display: inline-flex; align-items: center; gap: 8px;
@@ -478,6 +498,7 @@ export default function SessionDetail() {
   const [program, setProgram] = useState(null);
   const [speaker, setSpeaker] = useState(null);
   const [eventInfo, setEventInfo] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [imgFailed, setImgFailed] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [relatedPrograms, setRelatedPrograms] = useState([]);
@@ -567,10 +588,34 @@ export default function SessionDetail() {
   const hasImg = !!heroImg && !imgFailed;
   const speakerImageUrl = toPublicAssetUrl(speaker?.speakerImageUrl);
   const title = program.programTitle || program.programName || "프로그램";
+  const eventMovePath = resolveEventMovePath(eventInfo);
+  const eventMoveLabel = eventInfo?.eventName
+    ? `${eventInfo.eventName}로 이동하기`
+    : "";
 
   const goSpeaker = () => {
     if (!speaker?.speakerId) return;
     navigate(`/program/speaker/detail?speakerId=${speaker.speakerId}&programId=${program.programId}`);
+  };
+
+  const openEventModal = () => {
+    if (!eventInfo?.eventId) return;
+    setSelectedEvent({
+      id: eventInfo.eventId,
+      eventId: eventInfo.eventId,
+      title: eventInfo.eventName ?? "행사",
+      category: eventInfo.category ?? eventInfo.eventCategory ?? "행사",
+      location: eventInfo.location ?? eventInfo.place ?? "장소 미정",
+      organizer: eventInfo.organizer ?? "정보 없음",
+      organizerPhone: eventInfo.organizerPhone ?? null,
+      organizerEmail: eventInfo.organizerEmail ?? null,
+      image: eventInfo.imageUrl ?? eventInfo.posterUrl ?? null,
+      date: fmtDate(eventInfo.startAt),
+      participants: Number(eventInfo.totalParticipantCount ?? 0) || 0,
+      capacity: Number(eventInfo.capacity ?? eventInfo.maxParticipants ?? 1) || 1,
+      fallback: "행사",
+      movePath: eventMovePath,
+    });
   };
 
   return (
@@ -600,9 +645,19 @@ export default function SessionDetail() {
               <span className="kd-product-status-dot" style={{ background: st.color }} />
               <span className="kd-product-status-text">{st.label}</span>
             </div>
+            {eventInfo?.eventName && (
+              <div className="kd-product-event-top">{eventInfo.eventName}</div>
+            )}
             <h1 className="kd-product-title">{title}</h1>
             {eventInfo?.eventName && (
-              <div className="kd-product-event">{eventInfo.eventName}</div>
+              <button
+                type="button"
+                className="kd-product-event-link"
+                onClick={openEventModal}
+              >
+                {eventMoveLabel}
+                <ArrowUpRight size={16} />
+              </button>
             )}
 
             <hr className="kd-product-divider" />
@@ -685,6 +740,12 @@ export default function SessionDetail() {
           </button>
         </div>
       </main>
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+        />
+      )}
     </div>
   );
 }

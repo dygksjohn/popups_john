@@ -86,6 +86,6 @@ public class ProgramAdminService {
     }
 
     private ProgramResponse toResponse(Program program) {
-        return ProgramResponse.from(program, storageUrlResolver.toPublicUrl(program.getImageUrl()));
+        return ProgramResponse.from(program, storageUrlResolver.toPublicUrl(program.getImageUrl()), 0L);
     }
 }
