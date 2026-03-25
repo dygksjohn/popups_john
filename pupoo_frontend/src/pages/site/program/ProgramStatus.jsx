@@ -576,10 +576,6 @@ function resolveCapacity(programRow, eventInfo, participants) {
 /* ── Card renderers ── */
 
 function CurrentCard({ program, onClick }) {
-  const capacity = program.capacity || 1;
-  const participants = program.participants || 0;
-  const pct = Math.min(100, Math.round((participants / capacity) * 100));
-
   return (
     <div className="ps-card-current" onClick={onClick}>
       <div className="ps-card-current-thumb">
@@ -620,15 +616,6 @@ function CurrentCard({ program, onClick }) {
           </div>
         </div>
         <div className="ps-card-current-footer">
-          <div className="ps-card-current-progress-wrap">
-            <div className="ps-card-current-progress-label">
-              <span>참가자 {participants.toLocaleString()}명 / {capacity.toLocaleString()}명</span>
-              <span style={{ fontWeight: 700, color: pct >= 80 ? "#ef4444" : "#90C450" }}>{pct}%</span>
-            </div>
-            <div className="ps-card-current-progress-track">
-              <div className="ps-card-current-progress-fill" style={{ width: `${pct}%` }} />
-            </div>
-          </div>
           <button
             className="ps-card-current-btn"
             onClick={(e) => { e.stopPropagation(); onClick(); }}
