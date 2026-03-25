@@ -353,7 +353,7 @@ export default function Operation() {
 
       {/* ── HERO (video bg) ── */}
       <section className="op-hero">
-        <video className="op-hero-video" src={guideAsset("GettyImages-1212649256.mov")} autoPlay muted loop playsInline />
+        <video className="op-hero-video" src={guideAsset("GettyImages-1191409523.mov")} autoPlay muted loop playsInline />
         <F>
           <div className="op-hero-over">현장 운영 안내</div>
           <h1>입장부터<br />퇴장까지</h1>
