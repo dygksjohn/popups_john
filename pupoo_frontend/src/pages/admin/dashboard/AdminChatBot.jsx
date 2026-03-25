@@ -389,7 +389,7 @@ function Bubble({ msg, isLast, onConfirm, onSelectAction, quickActionMap, isConf
 
   return (
     <div className="cb-msg" style={{ display: "flex", flexDirection: isBot ? "row" : "row-reverse", alignItems: "flex-end", gap: 8, marginBottom: 8 }}>
-      {isBot ? <DogAvatar small /> : null}
+      {isBot ? <Avatar small /> : null}
       <div style={{ maxWidth: mobile ? "86%" : "78%", display: "flex", flexDirection: "column", alignItems: isBot ? "flex-start" : "flex-end", gap: 2 }}>
         <div
           style={{
@@ -423,7 +423,7 @@ function Bubble({ msg, isLast, onConfirm, onSelectAction, quickActionMap, isConf
 function Typing({ mobile = false }) {
   return (
     <div className="cb-msg" style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: 8 }}>
-      <DogAvatar small />
+      <Avatar small />
       <div
         style={{
           padding: mobile ? "10px 14px" : "11px 18px",
@@ -597,7 +597,7 @@ function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobi
 function Welcome({ actions, onSelectAction, mobile = false }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: mobile ? "22px 14px 14px" : "28px 20px 20px", overflow: "auto", background: "#fff" }}>
-      <DogAvatar />
+      <Avatar />
       <div style={{ fontSize: mobile ? 18 : 20, fontWeight: 700, color: "#1F2937", marginTop: 14, letterSpacing: -0.4 }}>안녕하세요, 멍비서 누리예요 🐾</div>
       <div style={{ fontSize: mobile ? 12.5 : 13, color: "#6B7280", marginTop: 6, textAlign: "center", lineHeight: 1.6 }}>
         자주 쓰는 기능을 먼저 보여드릴게요. 필요한 작업을 바로 눌러도 되고, 자연어로 말씀해 주셔도 돼요.
@@ -712,7 +712,7 @@ export default function AdminChatBot() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <DogAvatar small />
+              <Avatar small />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 700 }}>멍비서 누리</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
@@ -805,7 +805,28 @@ export default function AdminChatBot() {
             fontSize: isMobile ? 22 : 24,
           }}
         >
-          🐶
+          <div
+            style={{
+              width: isMobile ? 52 : 60,
+              height: isMobile ? 52 : 60,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+              borderRadius: "50%",
+            }}
+          >
+            <Lottie
+              animationData={dogLottie}
+              loop
+              autoplay
+              style={{
+                width: isMobile ? 58 : 68,
+                height: isMobile ? 58 : 68,
+                transform: "scale(1.12)",
+              }}
+            />
+          </div>
         </button>
       )}
     </>

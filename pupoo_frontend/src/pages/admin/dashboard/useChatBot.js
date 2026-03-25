@@ -543,6 +543,20 @@ export function useChatBot() {
   const triggerQuickAction = useCallback(
     async (item) => {
       if (!item) return;
+      if (item.id === "summary_refund") {
+        applyActions([
+          {
+            type: "NAVIGATE",
+            actionKey: "navigate_refund_manage",
+            payload: { route: "/admin/refunds" },
+          },
+        ]);
+        setMessages((prev) => [
+          ...prev,
+          createBotMessage(idRef.current++, "환불 관리 화면으로 바로 안내해드릴게요."),
+        ]);
+        return;
+      }
       if (item.kind === "request") {
         await sendMessage(item.prompt);
         return;
