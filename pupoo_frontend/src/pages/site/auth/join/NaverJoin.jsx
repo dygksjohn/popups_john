@@ -4,7 +4,11 @@ import { authApi } from "../api/authApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
 import { NaverBrandMark } from "../../../../shared/ui/NaverBrandMark";
-import { getSmsRequestErrorMessage, normalizeDigits, toKoreanPhoneE164 } from "../../../../features/auth/utils/smsAuth";
+import {
+  getSmsRequestErrorMessage,
+  normalizeDigits,
+  toKoreanPhoneE164,
+} from "../../../../features/auth/utils/smsAuth";
 
 const STEP = {
   INIT: "INIT",
@@ -17,13 +21,14 @@ export default function NaverJoin() {
   const { login } = useAuth();
   const didInitRef = useRef(false);
 
-  const naverSession = useMemo(() => {
-    return {
+  const naverSession = useMemo(
+    () => ({
       providerUid: sessionStorage.getItem("naver_provider_uid") ?? "",
       email: sessionStorage.getItem("naver_email") ?? "",
       nickname: sessionStorage.getItem("naver_nickname") ?? "",
-    };
-  }, []);
+    }),
+    [],
+  );
 
   const [providerUid] = useState(naverSession.providerUid);
   const [email, setEmail] = useState(naverSession.email);
@@ -41,9 +46,9 @@ export default function NaverJoin() {
     if (existing) return existing;
 
     const rand = `${crypto.randomUUID()}-${Math.random().toString(36).slice(2)}`;
-    const pwd = rand.replace(/-/g, "").slice(0, 16) + "aA1!";
-    sessionStorage.setItem(key, pwd);
-    return pwd;
+    const password = rand.replace(/-/g, "").slice(0, 16) + "aA1!";
+    sessionStorage.setItem(key, password);
+    return password;
   });
 
   const hasNaverEmail = !!(naverSession.email || "").trim();
@@ -97,7 +102,7 @@ export default function NaverJoin() {
 
       const key = res?.signupKey;
       if (!key) {
-        setError("signupKey가 없습니다. 응답 구조 확인이 필요합니다.");
+        setError("가입 정보를 확인하지 못했어요. 다시 시도해 주세요.");
         return;
       }
 
@@ -108,8 +113,7 @@ export default function NaverJoin() {
         setOtpCode(String(res.devOtp));
       }
     } catch (e) {
-      return setError(getSmsRequestErrorMessage(e));
-      setError(e?.response?.data?.message ?? e?.message ?? "OTP 발송 실패");
+      setError(getSmsRequestErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -132,7 +136,7 @@ export default function NaverJoin() {
       const accessToken = res?.accessToken;
 
       if (!accessToken) {
-        setError("회원가입 완료 응답에 accessToken이 없습니다.");
+        setError("회원가입이 완료되지 않았어요. 다시 시도해 주세요.");
         return;
       }
 
@@ -147,198 +151,50 @@ export default function NaverJoin() {
 
       navigate("/", { replace: true });
     } catch (e) {
-      return setError("인증번호를 확인해주세요.");
-      setError(e?.response?.data?.message ?? e?.message ?? "가입 실패");
+      setError(
+        e?.response?.data?.message ??
+          e?.message ??
+          "인증번호를 다시 확인해 주세요.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const styles = `
-    .nj-root {
-      min-height: 100vh;
-      background: #f6f6f6;
-      font-family: 'JeonjuCraftGothic', 'Pretendard', -apple-system, sans-serif;
-      padding: 0 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+    .nj-root { min-height: 100vh; background: #f6f6f6; font-family: 'JeonjuCraftGothic', 'Pretendard', -apple-system, sans-serif; padding: 0 20px; display: flex; align-items: center; justify-content: center; }
     .nj-root *, .nj-root *::before, .nj-root *::after { box-sizing: border-box; font-family: inherit; }
-    .nj-card {
-      width: 100%;
-      max-width: 520px;
-      margin: 0 auto;
-      background: #fff;
-      border-radius: 28px;
-      padding: 56px 48px 48px;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.08);
-    }
-    .nj-logo {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-    .nj-title {
-      text-align: center;
-      font-size: 28px;
-      font-weight: 800;
-      color: #191919;
-      margin: 0 0 10px;
-      letter-spacing: -0.5px;
-    }
-    .nj-subtitle {
-      text-align: center;
-      font-size: 16px;
-      color: #999;
-      font-weight: 400;
-      margin: 0 0 36px;
-    }
-    .nj-step-bar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 36px;
-    }
-    .nj-step-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: #e5e5e5;
-      transition: all 0.2s;
-    }
-    .nj-step-dot.active {
-      width: 36px;
-      border-radius: 6px;
-      background: #03C75A;
-    }
-    .nj-step-dot.done {
-      background: #03C75A;
-    }
-    .nj-field {
-      margin-bottom: 20px;
-    }
-    .nj-label {
-      display: block;
-      font-size: 15px;
-      font-weight: 700;
-      color: #333;
-      margin-bottom: 10px;
-    }
-    .nj-input {
-      width: 100%;
-      height: 56px;
-      padding: 0 20px;
-      border-radius: 14px;
-      border: 1.5px solid #e5e5e5;
-      background: #fafafa;
-      font-size: 16px;
-      font-weight: 500;
-      color: #191919;
-      outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
+    .nj-card { width: 100%; max-width: 520px; margin: 0 auto; background: #fff; border-radius: 28px; padding: 56px 48px 48px; box-shadow: 0 8px 40px rgba(0,0,0,0.08); }
+    .nj-logo { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; }
+    .nj-title { text-align: center; font-size: 28px; font-weight: 800; color: #191919; margin: 0 0 10px; letter-spacing: -0.5px; }
+    .nj-subtitle { text-align: center; font-size: 16px; color: #999; font-weight: 400; margin: 0 0 36px; }
+    .nj-step-bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 36px; }
+    .nj-step-dot { width: 12px; height: 12px; border-radius: 50%; background: #e5e5e5; transition: all 0.2s; }
+    .nj-step-dot.active { width: 36px; border-radius: 6px; background: #03C75A; }
+    .nj-step-dot.done { background: #03C75A; }
+    .nj-field { margin-bottom: 20px; }
+    .nj-label { display: block; font-size: 15px; font-weight: 700; color: #333; margin-bottom: 10px; }
+    .nj-input { width: 100%; height: 56px; padding: 0 20px; border-radius: 14px; border: 1.5px solid #e5e5e5; background: #fafafa; font-size: 16px; font-weight: 500; color: #191919; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
     .nj-input:focus { border-color: #03C75A; background: #fff; box-shadow: 0 0 0 3px rgba(3,199,90,0.15); }
     .nj-input:disabled { background: #f0f0f0; color: #999; }
-    .nj-hint {
-      margin-top: 8px;
-      font-size: 13px;
-      color: #999;
-      line-height: 1.5;
-    }
+    .nj-hint { margin-top: 8px; font-size: 13px; color: #999; line-height: 1.5; }
     .nj-hint.error { color: #e54545; }
-    .nj-error {
-      background: #fff5f5;
-      border: 1px solid #fecaca;
-      border-radius: 14px;
-      padding: 14px 18px;
-      margin-bottom: 20px;
-      font-size: 14px;
-      color: #dc2626;
-      font-weight: 500;
-      line-height: 1.5;
-    }
-    .nj-btn-primary {
-      width: 100%;
-      height: 58px;
-      border-radius: 14px;
-      border: none;
-      font-size: 17px;
-      font-weight: 800;
-      cursor: pointer;
-      transition: all 0.15s;
-      margin-top: 12px;
-      font-family: inherit;
-      letter-spacing: -0.3px;
-    }
-    .nj-btn-primary.naver {
-      background: #03C75A;
-      color: #fff;
-    }
-    .nj-btn-primary.naver:hover:not(:disabled) {
-      background: #02b350;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 16px rgba(3,199,90,0.25);
-    }
-    .nj-btn-primary.confirm {
-      background: #191919;
-      color: #fff;
-    }
-    .nj-btn-primary.confirm:hover:not(:disabled) {
-      background: #333;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-    }
-    .nj-btn-primary:disabled {
-      background: #f0f0f0;
-      color: #bbb;
-      cursor: not-allowed;
-    }
-    .nj-btn-secondary {
-      width: 100%;
-      height: 54px;
-      margin-top: 12px;
-      border-radius: 14px;
-      border: 1.5px solid #e5e5e5;
-      background: #fff;
-      font-size: 15px;
-      font-weight: 600;
-      color: #666;
-      cursor: pointer;
-      transition: all 0.15s;
-      font-family: inherit;
-    }
-    .nj-otp-info {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 18px 20px;
-      background: #effcf4;
-      border-radius: 16px;
-      margin-bottom: 24px;
-      border: 1px solid #c8f0d7;
-    }
-    .nj-otp-info-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: #03C75A;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      flex-shrink: 0;
-      font-weight: 800;
-    }
-    .nj-otp-info-text {
-      font-size: 15px;
-      color: #666;
-      line-height: 1.6;
-    }
+    .nj-error { background: #fff5f5; border: 1px solid #fecaca; border-radius: 14px; padding: 14px 18px; margin-bottom: 20px; font-size: 14px; color: #dc2626; font-weight: 500; line-height: 1.5; }
+    .nj-btn-primary { width: 100%; height: 58px; border-radius: 14px; border: none; font-size: 17px; font-weight: 800; cursor: pointer; transition: all 0.15s; margin-top: 12px; font-family: inherit; letter-spacing: -0.3px; }
+    .nj-btn-primary.naver { background: #03C75A; color: #fff; }
+    .nj-btn-primary.naver:hover:not(:disabled) { background: #02b350; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(3,199,90,0.25); }
+    .nj-btn-primary.confirm { background: #191919; color: #fff; }
+    .nj-btn-primary.confirm:hover:not(:disabled) { background: #333; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+    .nj-btn-primary:disabled { background: #f0f0f0; color: #bbb; cursor: not-allowed; }
+    .nj-btn-secondary { width: 100%; height: 54px; margin-top: 12px; border-radius: 14px; border: 1.5px solid #e5e5e5; background: #fff; font-size: 15px; font-weight: 600; color: #666; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+    .nj-btn-secondary:hover:not(:disabled) { background: #f8f9fc; border-color: #ccc; }
+    .nj-otp-info { display: flex; align-items: center; gap: 14px; padding: 18px 20px; background: #effcf4; border-radius: 16px; margin-bottom: 24px; border: 1px solid #c8f0d7; }
+    .nj-otp-info-icon { width: 44px; height: 44px; border-radius: 50%; background: #03C75A; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; font-weight: 800; }
+    .nj-otp-info-text { font-size: 15px; color: #666; line-height: 1.6; }
     .nj-otp-info-text strong { color: #191919; font-weight: 700; }
+    .nj-loading-init { text-align: center; padding: 80px 20px; color: #999; font-size: 17px; }
+    @media (max-width: 640px) { .nj-root { padding: calc(var(--pupoo-site-header-offset, 72px) + 20px) 16px 40px; align-items: flex-start; } }
+    @media (max-width: 480px) { .nj-card { padding: 32px 20px 28px; border-radius: 20px; max-width: 100%; } .nj-title { font-size: 22px; } .nj-subtitle { font-size: 14px; margin-bottom: 24px; } .nj-input { height: 50px; font-size: 15px; padding: 0 16px; } .nj-btn-primary { height: 52px; font-size: 16px; } .nj-btn-secondary { height: 48px; font-size: 14px; } .nj-otp-info { padding: 14px 16px; gap: 12px; } .nj-otp-info-text { font-size: 14px; } }
   `;
 
   if (step === STEP.INIT) {
@@ -347,9 +203,7 @@ export default function NaverJoin() {
         <style>{styles}</style>
         <div className="nj-root">
           <div className="nj-card">
-            <div style={{ textAlign: "center", padding: "80px 20px", color: "#999", fontSize: 17 }}>
-              네이버 인증 확인 중...
-            </div>
+            <div className="nj-loading-init">네이버 인증 정보를 확인하고 있어요.</div>
           </div>
         </div>
       </>
@@ -367,9 +221,7 @@ export default function NaverJoin() {
 
           <h1 className="nj-title">네이버 회원가입</h1>
           <p className="nj-subtitle">
-            {step === STEP.FORM
-              ? "추가 정보를 입력하면 가입이 완료됩니다."
-              : "인증번호를 입력해 주세요"}
+            {step === STEP.FORM ? "추가 정보를 입력하면 가입이 완료됩니다" : "인증번호를 입력해 주세요"}
           </p>
 
           <div className="nj-step-bar">
@@ -382,15 +234,11 @@ export default function NaverJoin() {
           {step === STEP.FORM && (
             <>
               <div className="nj-field">
-                <label className="nj-label">이메일 {hasNaverEmail && <span style={{ color: "#999", fontWeight: 400 }}>(네이버 연동)</span>}</label>
-                <input
-                  className="nj-input"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="example@email.com"
-                  disabled={loading || hasNaverEmail}
-                  type="email"
-                />
+                <label className="nj-label">
+                  이메일
+                  {hasNaverEmail && <span style={{ color: "#999", fontWeight: 400 }}>(네이버 연동)</span>}
+                </label>
+                <input className="nj-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@email.com" disabled={loading || hasNaverEmail} type="email" />
                 {!emailTrim && (
                   <div className="nj-hint error">
                     이메일은 필수입니다. 네이버에서 이메일을 받지 못한 경우 직접 입력해 주세요.
@@ -399,43 +247,21 @@ export default function NaverJoin() {
               </div>
 
               <div className="nj-field">
-                <label className="nj-label">닉네임 <span style={{ color: "#bbb", fontWeight: 400 }}>(선택)</span></label>
-                <input
-                  className="nj-input"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="사용할 닉네임"
-                  disabled={loading}
-                />
+                <label className="nj-label">닉네임<span style={{ color: "#bbb", fontWeight: 400 }}>(선택)</span></label>
+                <input className="nj-input" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="사용할 닉네임" disabled={loading} />
               </div>
 
               <div className="nj-field">
                 <label className="nj-label">휴대폰 번호</label>
-                <input
-                  className="nj-input"
-                  value={phone}
-                  onChange={(e) => setPhone(normalizeDigits(e.target.value))}
-                  placeholder="01012345678"
-                  disabled={loading}
-                  inputMode="tel"
-                />
+                <input className="nj-input" value={phone} onChange={(e) => setPhone(normalizeDigits(e.target.value))} placeholder="01012345678" disabled={loading} inputMode="tel" />
                 <div className="nj-hint">본인 인증을 위한 인증번호가 발송됩니다.</div>
               </div>
 
-              <button
-                className="nj-btn-primary naver"
-                onClick={sendOtp}
-                disabled={!canSendOtp}
-              >
+              <button className="nj-btn-primary naver" onClick={sendOtp} disabled={!canSendOtp}>
                 {loading ? "발송 중..." : "인증번호 받기"}
               </button>
 
-              <button
-                className="nj-btn-secondary"
-                type="button"
-                onClick={() => navigate("/auth/login")}
-                disabled={loading}
-              >
+              <button className="nj-btn-secondary" type="button" onClick={() => navigate("/auth/login")} disabled={loading}>
                 로그인으로 돌아가기
               </button>
             </>
@@ -447,44 +273,20 @@ export default function NaverJoin() {
                 <div className="nj-otp-info-icon">N</div>
                 <div className="nj-otp-info-text">
                   <strong>{phone || "입력한 번호"}</strong><br />
-                  인증번호가 발송되었습니다.
+                  인증번호가 발송되었어요.
                 </div>
               </div>
 
               <div className="nj-field">
                 <label className="nj-label">인증번호</label>
-                <input
-                  className="nj-input"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="6자리 숫자 입력"
-                  maxLength={6}
-                  inputMode="numeric"
-                  disabled={loading}
-                  autoFocus
-                  style={{ letterSpacing: "8px", textAlign: "center", fontSize: "22px", fontWeight: 700 }}
-                />
+                <input className="nj-input" value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ""))} placeholder="6자리 숫자 입력" maxLength={6} inputMode="numeric" disabled={loading} autoFocus style={{ letterSpacing: "8px", textAlign: "center", fontSize: "22px", fontWeight: 700 }} />
               </div>
 
-              <button
-                className="nj-btn-primary confirm"
-                onClick={verifyOtpAndComplete}
-                disabled={!canVerify}
-              >
+              <button className="nj-btn-primary confirm" onClick={verifyOtpAndComplete} disabled={!canVerify}>
                 {loading ? "처리 중..." : "가입 완료"}
               </button>
 
-              <button
-                className="nj-btn-secondary"
-                type="button"
-                onClick={() => {
-                  setStep(STEP.FORM);
-                  setSignupKey("");
-                  setOtpCode("");
-                  setError("");
-                }}
-                disabled={loading}
-              >
+              <button className="nj-btn-secondary" type="button" onClick={() => { setStep(STEP.FORM); setSignupKey(""); setOtpCode(""); setError(""); }} disabled={loading}>
                 다시 입력하기
               </button>
             </>

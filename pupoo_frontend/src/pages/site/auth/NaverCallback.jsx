@@ -137,6 +137,7 @@ export default function NaverCallback() {
         sessionStorage.setItem("naver_email", data.email ?? "");
         sessionStorage.setItem("naver_nickname", data.nickname ?? "");
 
+        tokenStore.clear();
         navigate("/auth/join/naver", { replace: true });
       } catch (e) {
         clearCodeGuard(code);

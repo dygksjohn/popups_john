@@ -551,7 +551,7 @@ export default function Dashboard() {
               }}
             >
               <img
-                src="/logo_white.png"
+                src="/logo_white7.png"
                 alt="pupoo logo"
                 style={{
                   height: 20,

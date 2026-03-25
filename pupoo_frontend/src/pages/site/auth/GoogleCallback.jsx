@@ -95,6 +95,7 @@ export default function GoogleCallback() {
         sessionStorage.setItem("google_provider_uid", uid);
         sessionStorage.setItem("google_email", data.email ?? "");
         sessionStorage.setItem("google_nickname", data.nickname ?? "");
+        tokenStore.clear();
         navigate("/auth/join/google", { replace: true });
       } catch (e) {
         clearCodeGuard(code);

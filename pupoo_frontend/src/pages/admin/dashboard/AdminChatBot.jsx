@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Minus, RotateCcw, Send, Sparkles, X } from "lucide-react";
+import Lottie from "lottie-react";
+import dogLottie from "../../../../public/dog-lottie.json";
 import ds from "../shared/designTokens";
 import { useChatBot } from "./useChatBot";
 
@@ -84,6 +86,39 @@ function Avatar({ small = false }) {
       }}
     >
       🐶
+    </div>
+  );
+}
+
+function DogAvatar({ small = false }) {
+  const size = small ? 34 : 72;
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: small ? 12 : 18,
+        background: "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,244,238,0.98) 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: small
+          ? "0 6px 14px rgba(0,0,0,0.14)"
+          : "0 12px 28px rgba(255,107,107,0.22)",
+        overflow: "hidden",
+        flexShrink: 0,
+      }}
+    >
+      <Lottie
+        animationData={dogLottie}
+        loop
+        autoplay
+        style={{
+          width: small ? 34 : 84,
+          height: small ? 34 : 84,
+          transform: small ? "scale(1.1)" : "scale(1.18)",
+        }}
+      />
     </div>
   );
 }
@@ -354,7 +389,7 @@ function Bubble({ msg, isLast, onConfirm, onSelectAction, quickActionMap, isConf
 
   return (
     <div className="cb-msg" style={{ display: "flex", flexDirection: isBot ? "row" : "row-reverse", alignItems: "flex-end", gap: 8, marginBottom: 8 }}>
-      {isBot ? <Avatar small /> : null}
+      {isBot ? <DogAvatar small /> : null}
       <div style={{ maxWidth: mobile ? "86%" : "78%", display: "flex", flexDirection: "column", alignItems: isBot ? "flex-start" : "flex-end", gap: 2 }}>
         <div
           style={{
@@ -388,7 +423,7 @@ function Bubble({ msg, isLast, onConfirm, onSelectAction, quickActionMap, isConf
 function Typing({ mobile = false }) {
   return (
     <div className="cb-msg" style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: 8 }}>
-      <Avatar small />
+      <DogAvatar small />
       <div
         style={{
           padding: mobile ? "10px 14px" : "11px 18px",
@@ -562,7 +597,7 @@ function InputBar({ inputRef, input, setInput, onSend, isTyping, handleKey, mobi
 function Welcome({ actions, onSelectAction, mobile = false }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: mobile ? "22px 14px 14px" : "28px 20px 20px", overflow: "auto", background: "#fff" }}>
-      <Avatar />
+      <DogAvatar />
       <div style={{ fontSize: mobile ? 18 : 20, fontWeight: 700, color: "#1F2937", marginTop: 14, letterSpacing: -0.4 }}>안녕하세요, 멍비서 누리예요 🐾</div>
       <div style={{ fontSize: mobile ? 12.5 : 13, color: "#6B7280", marginTop: 6, textAlign: "center", lineHeight: 1.6 }}>
         자주 쓰는 기능을 먼저 보여드릴게요. 필요한 작업을 바로 눌러도 되고, 자연어로 말씀해 주셔도 돼요.
@@ -677,7 +712,7 @@ export default function AdminChatBot() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Avatar small={false} />
+              <DogAvatar small />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 700 }}>멍비서 누리</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
