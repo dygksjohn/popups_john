@@ -1,16 +1,4 @@
-"""모더레이션 정책 문서 청크 생성기.
-
-기능:
-- `policy_docs` 아래의 텍스트/JSON 정책 파일을 읽어 RAG 검색용 청크로 변환한다.
-
-설명:
-- 현재 구현은 `.txt`와 `.json`을 모두 읽는다.
-- JSON은 하나의 canonical 파일만 읽는 구조가 아니라 디렉터리 아래 모든 JSON 파일을 로드한다.
-- 따라서 다중 파일이 공존하면 검색 인덱스에도 함께 반영된다.
-
-흐름:
-- 정책 파일 탐색 -> 파일 형식별 파싱 -> PolicyChunk 리스트 생성
-"""
+"""모더레이션 정책 문서를 RAG 검색용 청크로 변환한다."""
 
 from __future__ import annotations
 
@@ -22,7 +10,6 @@ from typing import Iterable, List
 
 @dataclass
 class PolicyChunk:
-    # 기능: RAG 검색 단위 정책 청크를 표현한다.
     text: str
     policy_id: str
     category: str
@@ -44,7 +31,7 @@ def iter_policy_json_files(base_dir: Path) -> Iterable[Path]:
 
 
 def simple_chunk_text(text: str, max_chars: int = 800, overlap: int = 200) -> List[str]:
-    """긴 텍스트를 RAG 검색용 슬라이딩 윈도우 청크로 나눈다."""
+    """긴 텍스트를 단순 겹침 기반 청크로 분할한다."""
     paragraphs = [p.strip() for p in text.splitlines() if p.strip()]
     if not paragraphs:
         return []
@@ -66,14 +53,29 @@ def simple_chunk_text(text: str, max_chars: int = 800, overlap: int = 200) -> Li
     return chunks
 
 
+def _coerce_examples(policy: dict) -> list[str]:
+    examples = policy.get("examples") or []
+    if isinstance(examples, str):
+        examples = [examples]
+    return [str(example).strip() for example in examples if str(example).strip()]
+
+
 def _policy_json_to_chunk(policy: dict, file_source: str) -> PolicyChunk:
-    """정책 JSON 한 항목을 RAG 검색용 청크로 변환한다."""
+    """정책 JSON 항목 하나를 검색용 청크로 변환한다."""
+    action_type = str(policy.get("action_type") or "").strip().upper()
+    examples = _coerce_examples(policy)
+
     parts = [
-        policy.get("description", ""),
-        policy.get("violation_criteria", ""),
+        f"정책 ID: {policy.get('id') or policy.get('code') or ''}",
+        f"카테고리: {policy.get('category') or 'GENERAL'}",
+        f"판정: {action_type}" if action_type else "",
+        f"설명: {policy.get('description') or ''}",
+        f"위반 기준: {policy.get('violation_criteria') or ''}",
+        f"운영 가이드: {policy.get('ai_response_guide') or ''}",
+        "예시: " + " | ".join(examples) if examples else "",
         "키워드: " + ", ".join(policy.get("keywords") or []),
     ]
-    text = "\n".join(x for x in parts if x.strip())
+    text = "\n".join(part for part in parts if part.strip())
     policy_id = str(policy.get("id") or policy.get("code") or "")
     return PolicyChunk(
         text=text or policy_id,
@@ -84,7 +86,7 @@ def _policy_json_to_chunk(policy: dict, file_source: str) -> PolicyChunk:
 
 
 def load_policy_chunks_from_json(path: Path, policy_root: Path) -> List[PolicyChunk]:
-    """JSON 정책 파일 하나를 읽어 PolicyChunk 리스트로 변환한다."""
+    """JSON 정책 파일 하나를 읽어 청크 목록으로 변환한다."""
     chunks: List[PolicyChunk] = []
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -104,7 +106,7 @@ def load_policy_chunks_from_json(path: Path, policy_root: Path) -> List[PolicyCh
 
 
 def load_policy_chunks(policy_root: Path) -> List[PolicyChunk]:
-    """정책 문서를 읽어 RAG 검색용 PolicyChunk 리스트를 만든다."""
+    """정책 문서를 읽어 RAG 검색용 청크 목록을 만든다."""
     chunks: List[PolicyChunk] = []
 
     for path in iter_policy_files(policy_root):
@@ -119,8 +121,6 @@ def load_policy_chunks(policy_root: Path) -> List[PolicyChunk]:
                 )
             )
 
-    # 기능: JSON 정책 파일은 모두 로드한다.
-    # 설명: canonical 문서와 달리 현재 구현은 단일 파일 고정이 아니므로 다중 JSON 공존 시 함께 반영된다.
     for path in iter_policy_json_files(policy_root):
         chunks.extend(load_policy_chunks_from_json(path, policy_root))
 

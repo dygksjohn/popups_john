@@ -62,7 +62,7 @@ class ModerationRouterTest(unittest.IsolatedAsyncioTestCase):
     async def test_success_response_contains_legacy_fields(self):
         with patch(
             "pupoo_ai.app.api.routers.moderation.moderate_with_rag",
-            return_value=("PASS", 0.12, "정상입니다.", "rag_watsonx", None, None),
+            return_value=("ALLOW", 0.12, "정상입니다.", "rag_watsonx", None, None),
         ):
             response = await moderate(
                 ModerateRequest(content="정상 문장", board_type="POST")
@@ -77,7 +77,7 @@ class ModerationRouterTest(unittest.IsolatedAsyncioTestCase):
     async def test_check_endpoint_supports_review_decision(self):
         with patch(
             "pupoo_ai.app.api.routers.moderation.moderate_with_rag",
-            return_value=("REVIEW", 0.61, "운영자 검토가 필요합니다.", "rag_watsonx", None, None),
+            return_value=("REVIEW", 0.61, "운영팀 검토가 필요합니다.", "rag_watsonx", None, None),
         ):
             response = await moderate_check(
                 ModerateRequest(content="확인 필요한 문장", board_type="FREE")
@@ -133,6 +133,30 @@ class RagServiceTest(unittest.TestCase):
         self.assertEqual(result[0], "BLOCK")
         self.assertEqual(result[3], "rag_empty")
 
+    def test_seed_shortcut_returns_allow_without_llm(self):
+        with patch(
+            "pupoo_ai.app.features.moderation.rag_service.retrieve_policies",
+            return_value=[
+                {
+                    "chunk_text": "정상 예시",
+                    "policy_id": "SEED-ALLOW-001",
+                    "category": "SEED_ALLOW",
+                    "source": "moderation_seed_examples.json",
+                    "score": 0.91,
+                }
+            ],
+        ), patch(
+            "pupoo_ai.app.features.moderation.rag_service.is_watsonx_configured",
+            return_value=True,
+        ), patch(
+            "pupoo_ai.app.features.moderation.rag_service.moderate_with_llm",
+        ) as mocked_llm:
+            result = moderate_with_rag("오늘 산책이 즐거웠어요.", "FREE", {"boardId": 1})
+
+        mocked_llm.assert_not_called()
+        self.assertEqual(result[0], "ALLOW")
+        self.assertEqual(result[3], "seed_shortcut")
+
     def test_unconfigured_watsonx_is_blocked(self):
         with patch(
             "pupoo_ai.app.features.moderation.rag_service.retrieve_policies",
@@ -159,7 +183,7 @@ class RagServiceTest(unittest.TestCase):
         ):
             result = moderate_with_rag("문장", "POST", {"boardId": 1})
 
-        self.assertEqual(result[0], "PASS")
+        self.assertEqual(result[0], "ALLOW")
         self.assertEqual(result[1], 0.08)
         self.assertEqual(result[3], "rag_watsonx")
 
