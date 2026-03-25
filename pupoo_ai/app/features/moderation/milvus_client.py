@@ -30,6 +30,9 @@ _MILVUS_VARCHAR_LIMITS = {
     "chunk_text": 2048,
 }
 
+_PRIMARY_METRIC_TYPE = "COSINE"
+_FALLBACK_METRIC_TYPE = "IP"
+
 
 def _clip_varchar(value: object, field: str) -> str:
     s = "" if value is None else str(value)
@@ -58,36 +61,68 @@ def _ensure_collection(client: MilvusClient, collection_name: str, dim: int) -> 
     - chunk_text: varchar
     """
     if client.has_collection(collection_name):
-        return
+        try:
+            indexes = client.list_indexes(collection_name=collection_name)
+        except Exception:
+            indexes = []
+        if indexes:
+            return
+        logger.warning(
+            "Milvus 컬렉션은 존재하지만 인덱스가 없어 재생성합니다. collection=%s",
+            collection_name,
+        )
+    else:
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=dim),
+            FieldSchema(name="policy_id", dtype=DataType.VARCHAR, max_length=128),
+            FieldSchema(name="category", dtype=DataType.VARCHAR, max_length=64),
+            FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=256),
+            FieldSchema(name="chunk_text", dtype=DataType.VARCHAR, max_length=2048),
+        ]
+        schema = CollectionSchema(fields=fields, description="Policy RAG vectors")
 
-    fields = [
-        FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
-        FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=dim),
-        FieldSchema(name="policy_id", dtype=DataType.VARCHAR, max_length=128),
-        FieldSchema(name="category", dtype=DataType.VARCHAR, max_length=64),
-        FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=256),
-        FieldSchema(name="chunk_text", dtype=DataType.VARCHAR, max_length=2048),
-    ]
-    schema = CollectionSchema(fields=fields, description="Policy RAG vectors")
+        client.create_collection(
+            collection_name=collection_name,
+            schema=schema,
+            shards_num=2,
+        )
 
-    client.create_collection(
-        collection_name=collection_name,
-        schema=schema,
-        shards_num=2,
-    )
-
+    metric_type = _PRIMARY_METRIC_TYPE
     index_params = IndexParams()
     index_params.add_index(
         "embedding",
         index_type="IVF_FLAT",
         index_name="policy_embedding_idx",
-        metric_type="COSINE",
+        metric_type=metric_type,
         nlist=1024,
     )
-    client.create_index(
-        collection_name=collection_name,
-        index_params=index_params,
-    )
+    try:
+        client.create_index(
+            collection_name=collection_name,
+            index_params=index_params,
+        )
+    except MilvusException as exc:
+        if metric_type != _PRIMARY_METRIC_TYPE:
+            raise
+        logger.warning(
+            "Milvus 인덱스 metric_type=%s 생성에 실패해 %s로 재시도합니다. 원인: %s",
+            _PRIMARY_METRIC_TYPE,
+            _FALLBACK_METRIC_TYPE,
+            exc,
+        )
+        index_params = IndexParams()
+        index_params.add_index(
+            "embedding",
+            index_type="IVF_FLAT",
+            index_name="policy_embedding_idx",
+            metric_type=_FALLBACK_METRIC_TYPE,
+            nlist=1024,
+        )
+        client.create_index(
+            collection_name=collection_name,
+            index_params=index_params,
+        )
 
 
 class PolicyVectorStore:
@@ -198,6 +233,7 @@ class PolicyVectorStore:
             data=list(query_embeddings),
             anns_field="embedding",
             limit=top_k,
-            search_params={"metric_type": "COSINE", "params": {"nprobe": 16}},
+            search_params={"metric_type": _FALLBACK_METRIC_TYPE, "params": {"nprobe": 16}},
             output_fields=["policy_id", "category", "source", "chunk_text"],
         )
+        return results

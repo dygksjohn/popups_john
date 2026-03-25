@@ -77,7 +77,7 @@ public class PostController {
      * 게시글 작성(인증 필요)
      */
     @PostMapping
-    public ApiResponse<Long> createPost(@RequestBody PostCreateRequest req) {
+    public ApiResponse<PostResponse> createPost(@RequestBody PostCreateRequest req) {
         Long userId = securityUtil.currentUserId();
         return ApiResponse.success(postService.createPost(userId, req));
     }
@@ -88,8 +88,7 @@ public class PostController {
     @PutMapping("/{postId}")
     public ApiResponse<PostResponse> updatePost(@PathVariable Long postId, @RequestBody PostUpdateRequest req) {
         Long userId = securityUtil.currentUserId();
-        postService.updatePost(userId, postId, req);
-        return ApiResponse.success(postService.getPublicPost(postId));
+        return ApiResponse.success(postService.updatePost(userId, postId, req));
     }
 
     /**

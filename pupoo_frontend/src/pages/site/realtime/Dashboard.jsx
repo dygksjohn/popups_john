@@ -61,7 +61,7 @@ const styles = `
   .rt-root {
     box-sizing: border-box;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    background: #f0f4fa;
+    background: #F8F9FC;
     min-height: 100vh;
     flex: 1;
   }
@@ -1220,7 +1220,7 @@ const styles = `
   }
   @media (max-width: 640px) {
     .rt-container { padding: 20px 16px 48px; }
-    .rt-container.selector-mode { padding-top: 88px; }
+    .rt-container.selector-mode { padding-top: 16px; }
     .rt-top-actions { align-items: stretch; }
     .rt-event-mode-nav { width: 100%; margin-left: 0; overflow-x: auto; }
     .rt-mode-btn { flex: 0 0 auto; min-width: 112px; }
@@ -3090,7 +3090,7 @@ function DashboardContent({ eventId }) {
         <div className="rt-card-header">
           <div className="rt-card-title">
             <div className="rt-card-title-icon">
-              <BarChart2 size={14} color="#02A17E" />
+              <BarChart2 size={14} color="#90C450" />
             </div>
             지금 행사장은 얼마나 붐빌까요?
           </div>
@@ -3267,7 +3267,7 @@ export default function Dashboard() {
       <PageHeader
         title={eventId ? "통합현황" : "실시간현황"}
         subtitle={eventId ? "행사의 실시간 운영 데이터를 확인합니다" : "행사별 실시간 데이터를 한눈에 확인하세요"}
-        icon={<Activity size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<Activity size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
       />
