@@ -192,7 +192,7 @@ export default function CommunityFaq() {
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((prev) => !prev)}
-                  style={{ height: 48, padding: "0 36px 0 14px", border: isMobile ? "1px solid #e5e7eb" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 999 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 110, width: isMobile ? "100%" : "auto", display: "inline-flex", alignItems: "center", gap: 7 }}
+                  style={{ height: isMobile ? 48 : 48, padding: "0 36px 0 14px", border: isMobile ? "1px solid #e2e5ea" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 12 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 110, width: isMobile ? "100%" : "auto", display: "inline-flex", alignItems: "center", gap: 7 }}
                 >
                   <SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />
                   {currentSortLabel}
@@ -240,11 +240,11 @@ export default function CommunityFaq() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   style={{
-                    border: isMobile ? "1px solid #e5e7eb" : "none",
+                    border: isMobile ? "1px solid #e2e5ea" : "none",
                     background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: isMobile ? 999 : "0 12px 12px 0",
-                    height: 48,
+                    borderRadius: isMobile ? 12 : "0 12px 12px 0",
+                    height: isMobile ? 48 : 48,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",

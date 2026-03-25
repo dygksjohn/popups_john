@@ -66,7 +66,7 @@ const styles = `
     align-items: center;
     gap: 0;
     flex-wrap: nowrap;
-    margin-left: auto;
+    margin-left: 0;
     border: 1px solid #d9e1ec;
     border-radius: 14px;
     overflow: hidden;
@@ -114,7 +114,7 @@ const styles = `
     font-size: 14px; font-weight: 700;
     color: #ef4444;
   }
-  .wt-status-chip.planned { color: #02A17E; }
+  .wt-status-chip.planned { color: #90C450; }
   .wt-status-chip.ended { color: #9ca3af; }
   .wt-status-chip.cancelled { color: #b91c1c; }
   .wt-status-dot {
@@ -329,7 +329,7 @@ const styles = `
     cursor: pointer; color: #6b7280;
     transition: all 0.15s;
   }
-  .wt-refresh-btn:hover { border-color: #02A17E; color: #02A17E; background: #f5f8ff; }
+  .wt-refresh-btn:hover { border-color: #90C450; color: #90C450; background: #f5f8ff; }
   .wt-refresh-btn:active { transform: scale(0.93); }
 
   .wt-card {
@@ -536,7 +536,7 @@ const styles = `
     width: 100%; min-height: 6px; border-radius: 8px 8px 4px 4px; background: #CCF0E4;
     position: relative; cursor: default; transition: filter 0.15s;
   }
-  .wt-chart-bar.top { background: #02A17E; }
+  .wt-chart-bar.top { background: #90C450; }
   .wt-chart-bar:hover { filter: brightness(0.92); }
   .wt-chart-bar:hover .wt-chart-tooltip { display: flex; }
   .wt-chart-tooltip {
@@ -570,7 +570,7 @@ const styles = `
     width: 28px;
     height: 28px;
     border-radius: 8px;
-    background: #02A17E;
+    background: #90C450;
     color: #fff;
     font-size: 14px;
     font-weight: 800;
@@ -636,7 +636,7 @@ const styles = `
   }
   @media (max-width: 640px) {
     .wt-container { padding: 20px 16px 48px; }
-    .wt-container.selector-mode { padding-top: 88px; }
+    .wt-container.selector-mode { padding-top: 16px; }
     .wt-top-actions { align-items: stretch; }
     .wt-event-mode-nav { width: 100%; margin-left: 0; overflow-x: auto; }
     .wt-mode-btn { flex: 0 0 auto; min-width: 112px; }
@@ -1463,7 +1463,7 @@ function WaitingContent({ eventId }) {
       ) : null}
 
       <div className="wt-card wt-card-congestion">
-        <div className="wt-card-accent" style={{ background: "#02A17E" }} />
+        <div className="wt-card-accent" style={{ background: "#90C450" }} />
         <div className="wt-card-header wt-card-header-congestion">
           <div className="wt-card-actions">
             <div className="wt-toggle-group">
@@ -1690,7 +1690,7 @@ export default function WaitingStatus() {
       <PageHeader
         title={eventId ? "대기현황" : "실시간현황"}
         subtitle={eventId ? "프로그램 대기 상태를 실시간으로 확인합니다" : "행사별 대기 상태를 실시간으로 확인하세요"}
-        icon={<Timer size={42} color="#02A17E" strokeWidth={1.6} />}
+        icon={<Timer size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
       />
@@ -1698,10 +1698,6 @@ export default function WaitingStatus() {
         {eventId ? (
           <>
             <div className="wt-top-actions">
-              <button className="wt-back-btn" onClick={() => navigate("/realtime/waitingstatus")}>
-                <ArrowLeft size={15} />
-                목록으로
-              </button>
               <div className="wt-event-mode-nav">
                 {EVENT_REALTIME_BUTTONS.map((button) => (
                   <button
@@ -1716,6 +1712,12 @@ export default function WaitingStatus() {
               </div>
             </div>
             <WaitingContent eventId={eventId} />
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 32 }}>
+              <button className="wt-back-btn" onClick={() => navigate("/realtime/waitingstatus")}>
+                <ArrowLeft size={15} />
+                목록으로
+              </button>
+            </div>
           </>
         ) : (
           <RealtimeEventSelector

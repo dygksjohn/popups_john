@@ -816,7 +816,7 @@ export default function EventGallery() {
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Noto Sans KR', sans-serif" }}>
       <style>{`.board-search-input::placeholder{color:#9ca3af;font-size:13px;font-weight:500;}`}</style>
-      <PageHeader title="행사 갤러리" subtitle="실제 행사별 사진을 모아 보고 조회순, 좋아요순, 최신순으로 정렬할 수 있습니다" icon={<Images size={42} color="#90C450" strokeWidth={1.6} />} titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }} subtitleStyle={{ fontSize: 20 }} categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
+      <PageHeader title="행사 갤러리" subtitle={"실제 행사별 사진을 모아보고\n조회순, 좋아요순, 최신순으로 정렬할 수 있습니다"} icon={<Images size={42} color="#90C450" strokeWidth={1.6} />} titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }} subtitleStyle={{ fontSize: 20 }} categories={SERVICE_CATEGORIES} currentPath="/gallery/eventgallery" onNavigate={(path) => navigate(path)} />
       <main
         style={{
           width: isMobile ? "calc(100% - 20px)" : "min(1400px, calc(100% - 40px))",
@@ -832,7 +832,7 @@ export default function EventGallery() {
                 <button
                   type="button"
                   onClick={() => setEventDdOpen((v) => !v)}
-                  style={{ height: 44, padding: "0 36px 0 14px", border: isMobile ? "1px solid #e5e7eb" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 999 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: isMobile ? 0 : 280, width: isMobile ? "100%" : "auto", display: "inline-flex", alignItems: "center", gap: 7 }}
+                  style={{ height: 48, padding: "0 36px 0 14px", border: isMobile ? "1px solid #e2e5ea" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 12 : 0, color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: isMobile ? 0 : 280, width: isMobile ? "100%" : "auto", display: "inline-flex", alignItems: "center", gap: 7 }}
                 >
                   <ListFilter size={14} style={{ color: "#9ca3af" }} />
                   {currentEventLabel}
@@ -872,14 +872,14 @@ export default function EventGallery() {
               {/* search input */}
               <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "1 1 auto", minWidth: isMobile ? 0 : 280, width: isMobile ? "100%" : "auto" }}>
                 <Search size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", pointerEvents: "none" }} />
-                <input className="board-search-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="갤러리 제목 또는 행사명으로 검색" style={{ width: "100%", height: 44, border: isMobile ? "1px solid #e5e7eb" : "none", background: isMobile ? "#fff" : "transparent", padding: "0 14px 0 40px", borderRadius: isMobile ? 999 : "0 999px 999px 0", fontSize: 13, fontWeight: 500, color: "#111827", outline: "none" }} />
+                <input className="board-search-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="갤러리 제목 또는 행사명으로 검색" style={{ width: "100%", height: 48, border: isMobile ? "1px solid #e2e5ea" : "none", background: isMobile ? "#fff" : "transparent", padding: "0 14px 0 40px", borderRadius: isMobile ? 12 : "0 999px 999px 0", fontSize: 13, fontWeight: 500, color: "#111827", outline: "none" }} />
               </div>
 
               {!isMobile && <div style={{ width: 1, height: 20, background: "#dbe2ea", flexShrink: 0 }} />}
 
               {/* sort button */}
               <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }} ref={sortDdRef}>
-                <button type="button" onClick={() => setSortMenuOpen((prev) => !prev)} style={{ height: 44, padding: "0 36px 0 14px", border: isMobile ? "1px solid #e5e7eb" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 999 : "0 999px 999px 0", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 110, width: isMobile ? "100%" : "auto", display: "inline-flex", alignItems: "center", gap: 7 }}><SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />{currentSortLabel}</button>
+                <button type="button" onClick={() => setSortMenuOpen((prev) => !prev)} style={{ height: 48, padding: "0 36px 0 14px", border: isMobile ? "1px solid #e2e5ea" : "none", background: isMobile ? "#fff" : "transparent", borderRadius: isMobile ? 12 : "0 999px 999px 0", color: "#9ca3af", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left", outline: "none", fontFamily: "inherit", whiteSpace: "nowrap", minWidth: isMobile ? 0 : 110, width: isMobile ? "100%" : "auto", display: "inline-flex", alignItems: "center", gap: 7 }}><SlidersHorizontal size={14} style={{ color: "#9ca3af" }} />{currentSortLabel}</button>
                 <ChevronDown size={15} style={{ position: "absolute", right: 12, top: "50%", transform: sortMenuOpen ? "translateY(-50%) rotate(180deg)" : "translateY(-50%)", color: "#9ca3af", pointerEvents: "none", transition: "transform .15s ease" }} />
                 {sortMenuOpen && (
                   <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, minWidth: 200, background: "#fff", borderRadius: 16, padding: "8px 0", boxShadow: "0 4px 24px rgba(0,0,0,.10)", zIndex: 50, maxHeight: 280, overflowY: "auto" }}>
