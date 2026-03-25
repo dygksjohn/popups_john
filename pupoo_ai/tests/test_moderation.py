@@ -62,7 +62,7 @@ class ModerationRouterTest(unittest.IsolatedAsyncioTestCase):
     async def test_success_response_contains_legacy_fields(self):
         with patch(
             "pupoo_ai.app.api.routers.moderation.moderate_with_rag",
-            return_value=("ALLOW", 0.12, "정상입니다.", "rag_watsonx", None, None),
+            return_value=("ALLOW", 0.12, "정상 문장입니다.", "rag_watsonx", None, None),
         ):
             response = await moderate(
                 ModerateRequest(content="정상 문장", board_type="POST")
@@ -77,10 +77,10 @@ class ModerationRouterTest(unittest.IsolatedAsyncioTestCase):
     async def test_check_endpoint_supports_review_decision(self):
         with patch(
             "pupoo_ai.app.api.routers.moderation.moderate_with_rag",
-            return_value=("REVIEW", 0.61, "운영팀 검토가 필요합니다.", "rag_watsonx", None, None),
+            return_value=("REVIEW", 0.61, "운영자 검토가 필요합니다.", "rag_watsonx", None, None),
         ):
             response = await moderate_check(
-                ModerateRequest(content="확인 필요한 문장", board_type="FREE")
+                ModerateRequest(content="확인이 필요한 문장", board_type="FREE")
             )
 
         self.assertEqual(response.decision, "REVIEW")
@@ -151,7 +151,7 @@ class RagServiceTest(unittest.TestCase):
         ), patch(
             "pupoo_ai.app.features.moderation.rag_service.moderate_with_llm",
         ) as mocked_llm:
-            result = moderate_with_rag("오늘 산책이 즐거웠어요.", "FREE", {"boardId": 1})
+            result = moderate_with_rag("오늘 산책이 즐거웠어요", "FREE", {"boardId": 1})
 
         mocked_llm.assert_not_called()
         self.assertEqual(result[0], "ALLOW")

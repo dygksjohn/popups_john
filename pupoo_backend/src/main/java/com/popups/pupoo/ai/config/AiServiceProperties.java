@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 public class AiServiceProperties {
 
     private String baseUrl = "http://localhost:8000";
-    private String internalToken = "dev-internal-token";
+    private String internalToken = "";
     private long connectTimeoutMs = 500L;
     private long responseTimeoutMs = 1500L;
     private long maxInMemorySizeBytes = 5L * 1024L * 1024L;

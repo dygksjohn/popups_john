@@ -104,6 +104,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/auth/oauth/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/auth/oauth/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/auth/email/verification/confirm").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/chatbot/chat").permitAll()
 
             .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
@@ -188,7 +189,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.DELETE, "/api/galleries/*").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
 
             .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
-            .requestMatchers("/api/chatbot/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+            .requestMatchers("/api/admin/chatbot/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
             .requestMatchers("/internal/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 
             .requestMatchers("/api/users/me/**").hasAnyRole("USER", "SUPER_ADMIN")

@@ -22,10 +22,22 @@ const STEP = {
 
 const GoogleMark = () => (
   <svg width="28" height="28" viewBox="0 0 48 48">
-    <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.677 32.91 29.243 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.061 0 5.854 1.154 7.97 3.042l5.657-5.657C34.046 6.053 29.27 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
-    <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.061 0 5.854 1.154 7.97 3.042l5.657-5.657C34.046 6.053 29.27 4 24 4c-7.732 0-14.41 4.386-17.694 10.691z" />
-    <path fill="#4CAF50" d="M24 44c5.184 0 9.88-1.977 13.409-5.193l-6.191-5.238C29.211 35.091 26.715 36 24 36c-5.217 0-9.645-3.063-11.273-7.484l-6.525 5.03C9.435 39.556 16.216 44 24 44z" />
-    <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-1.056 2.89-3.207 5.259-6.085 6.57l6.191 5.238C36.973 37.342 44 31.245 44 24c0-1.341-.138-2.65-.389-3.917z" />
+    <path
+      fill="#FFC107"
+      d="M43.611 20.083H42V20H24v8h11.303C33.677 32.91 29.243 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.061 0 5.854 1.154 7.97 3.042l5.657-5.657C34.046 6.053 29.27 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+    />
+    <path
+      fill="#FF3D00"
+      d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.061 0 5.854 1.154 7.97 3.042l5.657-5.657C34.046 6.053 29.27 4 24 4c-7.732 0-14.41 4.386-17.694 10.691z"
+    />
+    <path
+      fill="#4CAF50"
+      d="M24 44c5.184 0 9.88-1.977 13.409-5.193l-6.191-5.238C29.211 35.091 26.715 36 24 36c-5.217 0-9.645-3.063-11.273-7.484l-6.525 5.03C9.435 39.556 16.216 44 24 44z"
+    />
+    <path
+      fill="#1976D2"
+      d="M43.611 20.083H42V20H24v8h11.303c-1.056 2.89-3.207 5.259-6.085 6.57l6.191 5.238C36.973 37.342 44 31.245 44 24c0-1.341-.138-2.65-.389-3.917z"
+    />
   </svg>
 );
 
@@ -34,15 +46,19 @@ export default function GoogleJoin() {
   const { login } = useAuth();
   const didInitRef = useRef(false);
 
-  const googleSession = useMemo(() => getSocialJoinState("google") || ({
-    providerUid: "",
-    email: "",
-    nickname: "",
-    tempPassword: "",
-    signupKey: "",
-    phone: "",
-    step: "FORM",
-  }), []);
+  const googleSession = useMemo(
+    () =>
+      getSocialJoinState("google") || {
+        providerUid: "",
+        email: "",
+        nickname: "",
+        tempPassword: "",
+        signupKey: "",
+        phone: "",
+        step: "FORM",
+      },
+    [],
+  );
 
   const [providerUid] = useState(googleSession.providerUid);
   const [email, setEmail] = useState(googleSession.email);
@@ -95,7 +111,7 @@ export default function GoogleJoin() {
     }
 
     setStep(googleSession.signupKey ? STEP.OTP : STEP.FORM);
-  }, [navigate, providerUid]);
+  }, [googleSession.signupKey, navigate, providerUid]);
 
   useEffect(() => {
     if (!providerUid) return;
@@ -172,7 +188,7 @@ export default function GoogleJoin() {
       const accessToken = res?.accessToken;
 
       if (!accessToken) {
-        setError("회원가입이 완료되지 않았어요. 다시 시도해 주세요.");
+        setError("회원가입을 완료하지 못했습니다. 다시 시도해 주세요.");
         return;
       }
 
@@ -239,7 +255,7 @@ export default function GoogleJoin() {
         <style>{styles}</style>
         <div className="gj-root">
           <div className="gj-card">
-            <div className="gj-loading-init">구글 인증 정보를 확인하고 있어요.</div>
+            <div className="gj-loading-init">구글 인증 정보를 확인하고 있습니다.</div>
           </div>
         </div>
       </>
@@ -259,11 +275,15 @@ export default function GoogleJoin() {
 
           <h1 className="gj-title">구글 회원가입</h1>
           <p className="gj-subtitle">
-            {step === STEP.FORM ? "추가 정보를 입력하면 가입이 완료됩니다" : "인증번호를 입력해 주세요"}
+            {step === STEP.FORM
+              ? "추가 정보를 입력하면 가입이 완료됩니다."
+              : "인증번호를 입력해 주세요."}
           </p>
 
           <div className="gj-step-bar">
-            <div className={`gj-step-dot ${step === STEP.FORM ? "active" : "done"}`} />
+            <div
+              className={`gj-step-dot ${step === STEP.FORM ? "active" : "done"}`}
+            />
             <div className={`gj-step-dot ${step === STEP.OTP ? "active" : ""}`} />
           </div>
 
@@ -274,7 +294,12 @@ export default function GoogleJoin() {
               <div className="gj-field">
                 <label className="gj-label">
                   이메일
-                  {hasGoogleEmail && <span style={{ color: "#999", fontWeight: 400 }}> (구글 연동)</span>}
+                  {hasGoogleEmail && (
+                    <span style={{ color: "#999", fontWeight: 400 }}>
+                      {" "}
+                      (구글 연동)
+                    </span>
+                  )}
                 </label>
                 <input
                   className="gj-input"
@@ -284,13 +309,18 @@ export default function GoogleJoin() {
                   disabled={loading || hasGoogleEmail}
                   type="email"
                 />
-                {!emailTrim && <div className="gj-hint error">이메일은 필수입니다.</div>}
+                {!emailTrim && (
+                  <div className="gj-hint error">이메일은 필수입니다.</div>
+                )}
               </div>
 
               <div className="gj-field">
                 <label className="gj-label">
                   닉네임
-                  <span style={{ color: "#bbb", fontWeight: 400 }}> (선택)</span>
+                  <span style={{ color: "#bbb", fontWeight: 400 }}>
+                    {" "}
+                    (선택)
+                  </span>
                 </label>
                 <input
                   className="gj-input"
@@ -311,13 +341,24 @@ export default function GoogleJoin() {
                   disabled={loading}
                   inputMode="tel"
                 />
-                <div className="gj-hint">본인 인증을 위한 인증번호가 발송됩니다.</div>
+                <div className="gj-hint">
+                  본인 인증을 위한 인증번호가 발송됩니다.
+                </div>
               </div>
 
-              <button className="gj-btn-primary google" onClick={sendOtp} disabled={!canSendOtp}>
+              <button
+                className="gj-btn-primary google"
+                onClick={sendOtp}
+                disabled={!canSendOtp}
+              >
                 {loading ? "발송 중..." : "인증번호 받기"}
               </button>
-              <button className="gj-btn-secondary" type="button" onClick={() => navigate("/auth/login")} disabled={loading}>
+              <button
+                className="gj-btn-secondary"
+                type="button"
+                onClick={() => navigate("/auth/login")}
+                disabled={loading}
+              >
                 로그인으로 돌아가기
               </button>
             </>
@@ -328,7 +369,8 @@ export default function GoogleJoin() {
               <div className="gj-otp-info">
                 <div className="gj-otp-info-icon">G</div>
                 <div className="gj-otp-info-text">
-                  <strong>{phone || "휴대폰 번호"}</strong>로 받은 인증번호를 입력해 주세요.
+                  <strong>{phone || "휴대폰 번호"}</strong>
+                  로 받은 인증번호를 입력해 주세요.
                 </div>
               </div>
 
@@ -337,18 +379,31 @@ export default function GoogleJoin() {
                 <input
                   className="gj-input"
                   value={otpCode}
-                  onChange={(e) => setOtpCode(normalizeDigits(e.target.value).slice(0, 6))}
+                  onChange={(e) =>
+                    setOtpCode(normalizeDigits(e.target.value).slice(0, 6))
+                  }
                   placeholder="6자리 인증번호"
                   disabled={loading}
                   inputMode="numeric"
                 />
-                <div className="gj-hint">문자를 받지 못했다면 잠시 후 다시 시도해 주세요.</div>
+                <div className="gj-hint">
+                  문자를 받지 못했다면 잠시 뒤 다시 시도해 주세요.
+                </div>
               </div>
 
-              <button className="gj-btn-primary confirm" onClick={verifyOtpAndComplete} disabled={!canVerify}>
+              <button
+                className="gj-btn-primary confirm"
+                onClick={verifyOtpAndComplete}
+                disabled={!canVerify}
+              >
                 {loading ? "가입 처리 중..." : "회원가입 완료"}
               </button>
-              <button className="gj-btn-secondary" type="button" onClick={sendOtp} disabled={loading}>
+              <button
+                className="gj-btn-secondary"
+                type="button"
+                onClick={sendOtp}
+                disabled={loading}
+              >
                 인증번호 다시 받기
               </button>
             </>

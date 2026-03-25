@@ -81,10 +81,18 @@ async def _run_moderation(body: ModerateRequest) -> ModerateResponse:
             timeout=settings.moderation_timeout_seconds,
         )
     except asyncio.TimeoutError:
-        logger.warning("Moderation timed out. board_type=%s metadata=%s", board_type, metadata)
+        logger.warning(
+            "Moderation timed out. board_type=%s metadata=%s",
+            board_type,
+            metadata,
+        )
         return _block_response("금칙어 검사가 지연되어 등록을 차단합니다.", "timeout")
     except Exception:
-        logger.exception("Moderation failed unexpectedly. board_type=%s metadata=%s", board_type, metadata)
+        logger.exception(
+            "Moderation failed unexpectedly. board_type=%s metadata=%s",
+            board_type,
+            metadata,
+        )
         return _block_response("금칙어 검사를 완료하지 못해 등록을 차단합니다.", "error")
 
     return _build_response(

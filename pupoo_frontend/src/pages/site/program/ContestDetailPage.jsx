@@ -12,6 +12,7 @@ import PageHeader from "../components/PageHeader";
 import { programApi } from "../../../app/http/programApi";
 import { petApi } from "../../../app/http/petApi";
 import { tokenStore } from "../../../app/http/tokenStore";
+import { axiosInstance } from "../../../app/http/axiosInstance";
 import { authApi } from "../auth/api/authApi";
 import {
   createImageFallbackHandler,
@@ -465,7 +466,6 @@ export default function ContestDetailPage() {
         try {
           const form = new FormData();
           form.append("file", applyImageFile);
-          const { axiosInstance } = await import("../../../app/http/axiosInstance");
           const upRes = await axiosInstance.post("/api/galleries/image/upload", form, { headers: { "Content-Type": "multipart/form-data" } });
           const rawPath = upRes?.data?.data?.publicPath ?? upRes?.data?.publicPath ?? null;
           if (rawPath) uploadedImageUrl = toPublicAssetUrl(rawPath) || rawPath;

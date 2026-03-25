@@ -124,6 +124,7 @@ uploads/
 # Kubernetes (로컬 전용 Secret — 커밋 금지)
 ############################################
 k8s/base/ai-secret.local.yaml
+k8s/base/backend-secret.local.yaml
 
 ############################################
 # Temporary
@@ -131,6 +132,7 @@ k8s/base/ai-secret.local.yaml
 *.swp
 *.tmp
 tmp_*
+ops-backup/
 
 ############################################
 # Old Workspace

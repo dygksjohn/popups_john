@@ -64,7 +64,7 @@ export default function GoogleCallback() {
       if (error) {
         navigate("/auth/login", {
           replace: true,
-          state: { error: "구글 인증이 취소되었거나 실패했습니다." },
+          state: { error: "구글 인증을 취소했거나 실패했습니다." },
         });
         return;
       }
@@ -72,7 +72,7 @@ export default function GoogleCallback() {
       if (!code) {
         navigate("/auth/login", {
           replace: true,
-          state: { error: "구글 인증 코드가 없어요." },
+          state: { error: "구글 인증 코드가 없습니다." },
         });
         return;
       }
@@ -88,7 +88,7 @@ export default function GoogleCallback() {
         if (!data || typeof data.newUser !== "boolean") {
           navigate("/auth/login", {
             replace: true,
-            state: { error: "구글 로그인 응답이 올바르지 않아요." },
+            state: { error: "구글 로그인 응답이 올바르지 않습니다." },
           });
           return;
         }
@@ -98,7 +98,7 @@ export default function GoogleCallback() {
           if (!accessToken) {
             navigate("/auth/login", {
               replace: true,
-              state: { error: "로그인 토큰을 받지 못했어요." },
+              state: { error: "로그인 토큰을 받지 못했습니다." },
             });
             return;
           }
@@ -117,7 +117,7 @@ export default function GoogleCallback() {
         if (!uid) {
           navigate("/auth/login", {
             replace: true,
-            state: { error: "구글 계정 정보를 확인하지 못했어요." },
+            state: { error: "구글 계정 정보를 확인하지 못했습니다." },
           });
           return;
         }
@@ -141,7 +141,7 @@ export default function GoogleCallback() {
             error:
               e?.response?.data?.message ??
               e?.message ??
-              "구글 로그인 처리에 실패했어요.",
+              "구글 로그인 처리에 실패했습니다.",
           },
         });
       }
@@ -191,10 +191,10 @@ export default function GoogleCallback() {
         />
       </div>
       <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", marginBottom: 6 }}>
-        구글 로그인
+        구글 로그인 처리 중
       </div>
       <div style={{ fontSize: 14, color: "#9ca3af" }}>
-        계정을 확인하고 있어요.
+        계정을 확인하고 있습니다.
       </div>
       <style>{`
         @keyframes gcb-spin { to { transform: rotate(360deg); } }

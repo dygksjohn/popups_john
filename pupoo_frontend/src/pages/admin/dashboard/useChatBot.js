@@ -296,7 +296,7 @@ function normalizeActions(actions) {
 }
 
 async function requestChat({ history, userMessage, context, confirmation }) {
-  const url = buildRequestUrl(API_BASE_URL, "/api/chatbot/chat");
+  const url = buildRequestUrl(API_BASE_URL, "/api/admin/chatbot/chat");
   const token = localStorage.getItem(TOKEN_KEY);
   if (!token) {
     const error = new Error("로그인이 필요해요. 관리자 계정으로 다시 로그인해 주세요.");
