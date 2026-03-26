@@ -9,6 +9,7 @@ import com.popups.pupoo.common.api.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -33,8 +34,12 @@ public class AdminAnalyticsController {
     }
 
     @GetMapping("/events/{eventId}/congestion-by-hour")
-    public ApiResponse<List<AdminCongestionByHourResponse>> congestionByHour(@PathVariable Long eventId) {
-        return ApiResponse.success(queryService.congestionByHour(eventId));
+    public ApiResponse<List<AdminCongestionByHourResponse>> congestionByHour(
+            @PathVariable Long eventId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+    ) {
+        return ApiResponse.success(queryService.congestionByHour(eventId, from, to));
     }
 
     @GetMapping("/yearly")

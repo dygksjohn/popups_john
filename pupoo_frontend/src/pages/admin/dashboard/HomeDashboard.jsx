@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Bell,
@@ -19,6 +19,7 @@ import {
   LineChart,
   Pie,
   PieChart,
+  ReferenceArea,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -300,6 +301,88 @@ const normalizeAiPredictionRows = (predictionPayload) => {
   return normalizedRows;
 };
 
+const buildHybridCongestionRows = (measuredRows, predictionRows, now = new Date()) => {
+  const nowHour = now.getHours();
+  const measuredByHour = new Map();
+
+  (Array.isArray(measuredRows) ? measuredRows : []).forEach((row) => {
+    const hour = Number(row?.hour);
+    if (!Number.isFinite(hour)) return;
+    measuredByHour.set(hour, {
+      hour,
+      label: `${String(hour).padStart(2, "0")}:00`,
+      measured: Number(row?.value) || 0,
+      lightgbm: null,
+      lstm: null,
+    });
+  });
+
+  const futureBuckets = new Map();
+  (Array.isArray(predictionRows) ? predictionRows : []).forEach((row) => {
+    const time = row?.time instanceof Date ? row.time : (row?.time ? new Date(row.time) : null);
+    if (!time || Number.isNaN(time.getTime())) return;
+    const hour = time.getHours();
+    if (hour <= nowHour) return;
+    const bucket = futureBuckets.get(hour) || { sumLightgbm: 0, countLightgbm: 0, sumLstm: 0, countLstm: 0 };
+    if (Number.isFinite(Number(row?.lightgbm))) {
+      bucket.sumLightgbm += Number(row.lightgbm);
+      bucket.countLightgbm += 1;
+    }
+    if (Number.isFinite(Number(row?.lstm))) {
+      bucket.sumLstm += Number(row.lstm);
+      bucket.countLstm += 1;
+    }
+    futureBuckets.set(hour, bucket);
+  });
+
+  futureBuckets.forEach((bucket, hour) => {
+    const lightgbm = bucket.countLightgbm > 0
+      ? Math.round((bucket.sumLightgbm / bucket.countLightgbm) * 10) / 10
+      : null;
+    const lstm = bucket.countLstm > 0
+      ? Math.round((bucket.sumLstm / bucket.countLstm) * 10) / 10
+      : null;
+    const current = measuredByHour.get(hour);
+    measuredByHour.set(hour, {
+      hour,
+      label: `${String(hour).padStart(2, "0")}:00`,
+      measured: current?.measured ?? null,
+      lightgbm,
+      lstm,
+    });
+  });
+  const rows = Array.from(measuredByHour.values()).sort((a, b) => a.hour - b.hour);
+  const lastMeasuredRow = [...rows]
+    .reverse()
+    .find((row) => row.hour <= nowHour && Number.isFinite(Number(row?.measured)));
+  const bridgeHour = lastMeasuredRow?.hour ?? null;
+  const bridgeValue = lastMeasuredRow?.measured ?? null;
+
+  return rows.map((row) => {
+    const isFuture = row.hour > nowHour;
+    const hasForecast = Number.isFinite(Number(row?.lightgbm));
+    const hasLstmForecast = Number.isFinite(Number(row?.lstm));
+    return {
+      ...row,
+      forecastLightgbm: isFuture
+        ? (hasForecast ? Number(row.lightgbm) : null)
+        : (bridgeHour !== null && row.hour === bridgeHour ? bridgeValue : null),
+      forecastLstm: isFuture
+        ? (hasLstmForecast ? Number(row.lstm) : null)
+        : (bridgeHour !== null && row.hour === bridgeHour ? bridgeValue : null),
+    };
+  });
+};
+
+const resolveCongestionPointValue = (row) => {
+  const measured = Number(row?.measured);
+  if (Number.isFinite(measured)) return measured;
+  const lightgbm = Number(row?.lightgbm);
+  if (Number.isFinite(lightgbm)) return lightgbm;
+  const fallback = Number(row?.value);
+  return Number.isFinite(fallback) ? fallback : 0;
+};
+
 const formatRelativeTime = (value) => {
   const target = value ? new Date(value) : null;
   if (!target || Number.isNaN(target.getTime())) return "방금 전";
@@ -505,6 +588,127 @@ const mergeCongestionChartRows = (lines = []) => {
   return Array.from(bucket.values()).sort((a, b) => a.hour - b.hour);
 };
 
+const toValidDate = (value) => {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+};
+
+const resolveEventHourRange = (events = [], fallbackStart = 9, fallbackEnd = 18) => {
+  const starts = events
+    .map((event) => toValidDate(event?.startAt))
+    .filter(Boolean)
+    .map((date) => date.getHours());
+  const ends = events
+    .map((event) => toValidDate(event?.endAt))
+    .filter(Boolean)
+    .map((date) => date.getHours());
+
+  if (!starts.length || !ends.length) {
+    return { minHour: fallbackStart, maxHour: fallbackEnd };
+  }
+
+  return {
+    minHour: Math.min(...starts),
+    maxHour: Math.max(...ends),
+  };
+};
+
+const normalizeLineRowsToRange = (rows = [], minHour = 9, maxHour = 18) => {
+  const safeMin = Number.isFinite(minHour) ? minHour : 9;
+  const safeMax = Number.isFinite(maxHour) ? maxHour : 18;
+  if (safeMax < safeMin) return rows;
+
+  const valueByHour = new Map(
+    (Array.isArray(rows) ? rows : [])
+      .filter((row) => Number.isFinite(Number(row?.hour)))
+      .map((row) => [Number(row.hour), Number(row.value)]),
+  );
+
+  const knownHours = Array.from(valueByHour.keys()).sort((a, b) => a - b);
+  if (!knownHours.length) {
+    return Array.from({ length: safeMax - safeMin + 1 }, (_, index) => {
+      const hour = safeMin + index;
+      return {
+        hour,
+        label: `${String(hour).padStart(2, "0")}:00`,
+        value: null,
+      };
+    });
+  }
+
+  if (knownHours.length === 1) {
+    const onlyHour = knownHours[0];
+    const onlyValue = valueByHour.get(onlyHour);
+    return Array.from({ length: safeMax - safeMin + 1 }, (_, index) => {
+      const hour = safeMin + index;
+      return {
+        hour,
+        label: `${String(hour).padStart(2, "0")}:00`,
+        value: onlyValue,
+      };
+    });
+  }
+
+  const normalized = [];
+  for (let hour = safeMin; hour <= safeMax; hour += 1) {
+    if (valueByHour.has(hour)) {
+      normalized.push({
+        hour,
+        label: `${String(hour).padStart(2, "0")}:00`,
+        value: valueByHour.get(hour),
+      });
+      continue;
+    }
+
+    const floorHour = knownHours.filter((h) => h < hour).pop();
+    const ceilHour = knownHours.find((h) => h > hour);
+    if (floorHour == null && ceilHour == null) {
+      normalized.push({
+        hour,
+        label: `${String(hour).padStart(2, "0")}:00`,
+        value: null,
+      });
+      continue;
+    }
+
+    if (floorHour == null) {
+      normalized.push({
+        hour,
+        label: `${String(hour).padStart(2, "0")}:00`,
+        value: valueByHour.get(ceilHour),
+      });
+      continue;
+    }
+    if (ceilHour == null) {
+      normalized.push({
+        hour,
+        label: `${String(hour).padStart(2, "0")}:00`,
+        value: valueByHour.get(floorHour),
+      });
+      continue;
+    }
+
+    const floorValue = Number(valueByHour.get(floorHour));
+    const ceilValue = Number(valueByHour.get(ceilHour));
+    const ratio = (hour - floorHour) / (ceilHour - floorHour);
+    const interpolated = floorValue + (ceilValue - floorValue) * ratio;
+    normalized.push({
+      hour,
+      label: `${String(hour).padStart(2, "0")}:00`,
+      value: Math.round(interpolated * 10) / 10,
+    });
+  }
+  return normalized;
+};
+
+const maskFutureHours = (rows = [], now = new Date()) => {
+  const nowHour = now.getHours();
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    ...row,
+    value: Number(row?.hour) > nowHour ? null : row?.value,
+  }));
+};
+
 const summarizeCongestionLines = (lines = []) => {
   const latestValues = lines
     .map((line) => Number(line.rows[line.rows.length - 1]?.value) || 0)
@@ -669,8 +873,13 @@ export default function HomeDashboard({ initialEventId = null }) {
 
       const allEvents = sortRealtimeEvents(toArray(eventPayload));
       const liveEvents = allEvents.filter((event) => event.status === "ONGOING");
-      const graphEventSelection = pickCongestionGraphEvents(allEvents, 10);
-      const graphEvents = graphEventSelection.items;
+      const graphEvents = liveEvents.slice(0, 10);
+      const graphEventSelection = {
+        items: graphEvents,
+        ongoingCount: graphEvents.length,
+        recentCount: 0,
+        totalCount: graphEvents.length,
+      };
       const recentLogs = toArray(logPayload).slice(0, 5);
       const eventPerformance = toArray(performancePayload)
         .map((event) => {
@@ -705,9 +914,19 @@ export default function HomeDashboard({ initialEventId = null }) {
         ...graphEventSelection,
         totalCount: graphEvents.length,
       };
-      const [focusCongestionPayload, focusBoothPayload, multiEventCongestionPayloads, multiEventRealtimePayloads] = await Promise.all([
+      const selectedEventWindowParams = buildEventDayWindowParams(
+        selectedEventDate,
+        selectedEvent,
+      );
+      const [focusCongestionPayload, focusBoothPayload, multiEventCongestionPayloads, multiEventRealtimePayloads, focusDashboardPayload] = await Promise.all([
         focusEvent
-          ? safePayload(`/api/admin/analytics/events/${focusEvent.eventId}/congestion-by-hour`, {}, [])
+          ? safePayload(
+              `/api/admin/analytics/events/${focusEvent.eventId}/congestion-by-hour`,
+              selectedEvent && selectedEventSupportsDateSelection
+                ? selectedEventWindowParams
+                : {},
+              [],
+            )
           : Promise.resolve([]),
         focusEvent
           ? safePayload(`/api/admin/dashboard/realtime/events/${focusEvent.eventId}/congestions`, { limit: 24 }, [])
@@ -715,7 +934,11 @@ export default function HomeDashboard({ initialEventId = null }) {
         isAllEventCongestionView
           ? Promise.all(
               graphEvents.map((event, index) =>
-                safePayload(`/api/admin/analytics/events/${event.eventId}/congestion-by-hour`, {}, []).then((payload) =>
+                safePayload(
+                  `/api/admin/analytics/events/${event.eventId}/congestion-by-hour`,
+                  buildEventDayWindowParams(toDateInputValue(new Date()), event),
+                  [],
+                ).then((payload) =>
                   buildCongestionLine(
                     event,
                     payload,
@@ -740,13 +963,16 @@ export default function HomeDashboard({ initialEventId = null }) {
               ),
             )
           : Promise.resolve([]),
+        selectedEvent
+          ? safePayload(`/api/admin/realtime/events/${selectedEvent.eventId}/dashboard`, {}, null)
+          : Promise.resolve(null),
       ]);
-      const selectedEventWindowParams = buildEventDayWindowParams(
-        selectedEventDate,
-        selectedEvent,
-      );
+      const todayDateKey = toDateInputValue(new Date());
+      const shouldUseAiPredictionView =
+        selectedEventIsPlanned ||
+        (selectedEventStatus === "ONGOING" && selectedEventDate === todayDateKey);
       const [selectedEventPredictionPayload, selectedEventDailyPredictionRows] =
-        selectedEventSupportsDateSelection
+        shouldUseAiPredictionView
           ? await Promise.all([
               safePayload(
                 `/api/admin/ai/events/${selectedEvent.eventId}/congestion/predict`,
@@ -800,14 +1026,27 @@ export default function HomeDashboard({ initialEventId = null }) {
         selectedEventPredictionPayload,
       );
       const useSelectedDatePrediction =
-        selectedEventSupportsDateSelection &&
+        shouldUseAiPredictionView &&
         Boolean(selectedEventDate) &&
         selectedPredictionRows.length > 0;
       const realtimeFocusLine = focusEvent
         ? buildCongestionLine(focusEvent, focusCongestionPayload, ds.amber)
         : { rows: [], useDummy: false };
       const focusLine = useSelectedDatePrediction && selectedPredictionRows.length > 0
-        ? { rows: selectedPredictionRows, useDummy: false, isPrediction: true }
+        ? (
+            selectedEventStatus === "ONGOING"
+              ? {
+                  rows: buildHybridCongestionRows(
+                    realtimeFocusLine.rows,
+                    selectedPredictionRows,
+                    new Date(),
+                  ),
+                  useDummy: false,
+                  isPrediction: true,
+                  isHybrid: true,
+                }
+              : { rows: selectedPredictionRows, useDummy: false, isPrediction: true, isHybrid: false }
+          )
         : {
             rows: realtimeFocusLine.rows.map((row) => ({
               ...row,
@@ -817,11 +1056,23 @@ export default function HomeDashboard({ initialEventId = null }) {
             })),
             useDummy: realtimeFocusLine.useDummy,
             isPrediction: false,
+            isHybrid: false,
           };
       const usingDummyCongestion = Boolean(focusLine.useDummy);
       const focusCongestion = focusLine.rows;
+      const allEventHourRange = resolveEventHourRange(graphEvents, 9, 18);
       const allEventCongestionLines = isAllEventCongestionView
-        ? multiEventCongestionPayloads
+        ? multiEventCongestionPayloads.map((line) => ({
+            ...line,
+            rows: maskFutureHours(
+              normalizeLineRowsToRange(
+                line.rows,
+                allEventHourRange.minHour,
+                allEventHourRange.maxHour,
+              ),
+              new Date(),
+            ),
+          }))
         : [];
       const allEventCongestionChartData = mergeCongestionChartRows(
         allEventCongestionLines,
@@ -844,6 +1095,26 @@ export default function HomeDashboard({ initialEventId = null }) {
           if (!hasMeasuredLevel) return null;
 
           const congestionLevel = normalizeCongestionPercent(rawLevel);
+          return {
+            ...row,
+            congestionLevel,
+            state: cong(congestionLevel),
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.congestionLevel - a.congestionLevel)
+        .slice(0, 5);
+      const topPrograms = toArray(focusDashboardPayload?.programCongestionSummaries)
+        .map((row) => {
+          const rawPercent = row?.currentCongestionPercent;
+          const rawLevel = row?.currentCongestionLevel;
+          const hasPercent = rawPercent !== null && rawPercent !== undefined && rawPercent !== "";
+          const hasLevel = rawLevel !== null && rawLevel !== undefined && rawLevel !== "";
+          if (!hasPercent && !hasLevel) return null;
+
+          const congestionLevel = hasPercent
+            ? normalizeCongestionPercent(rawPercent)
+            : normalizeCongestionPercent(Number(rawLevel) * 20);
           return {
             ...row,
             congestionLevel,
@@ -929,49 +1200,110 @@ export default function HomeDashboard({ initialEventId = null }) {
       const refundDonutRows = refundStatusRows.filter((row) => row.count > 0);
 
       const alerts = [];
-      if (requestedRefundCount > 0) {
-        alerts.push({
-          icon: RotateCcw,
-          color: ds.amber,
-          bg: ds.amberSoft,
-          message: `환불 요청 ${formatNumber(requestedRefundCount)}건이 승인 대기 중입니다.`,
-          detail: selectedEvent ? `${selectedEvent.eventName} 행사 기준 집계입니다.` : "결제 관리에서 우선 확인이 필요합니다.",
-        });
+      const highPrograms = topPrograms.filter((program) => program.congestionLevel >= 80);
+      const mediumPrograms = topPrograms.filter(
+        (program) => program.congestionLevel >= 60 && program.congestionLevel < 80,
+      );
+      const highBooths = topBooths.filter((booth) => booth.congestionLevel >= 80);
+      const mediumBooths = topBooths.filter(
+        (booth) => booth.congestionLevel >= 60 && booth.congestionLevel < 80,
+      );
+      const selectedEventName = selectedEvent?.eventName || focusEvent?.eventName || "선택 행사";
+
+      if (selectedEvent) {
+        if (highPrograms.length > 0) {
+          const primary = highPrograms[0];
+          alerts.push({
+            icon: Layers,
+            color: ds.red,
+            bg: ds.redSoft,
+            message: `${primary.programTitle} 프로그램 혼잡도가 매우 높습니다.`,
+            detail: `${selectedEventName} 기준 현재 혼잡도 ${primary.congestionLevel}%`,
+          });
+        }
+        if (highBooths.length > 0) {
+          const primary = highBooths[0];
+          alerts.push({
+            icon: Layers,
+            color: ds.red,
+            bg: ds.redSoft,
+            message: `${primary.placeName} 부스 혼잡도가 매우 높습니다.`,
+            detail: `${selectedEventName} 기준 현재 혼잡도 ${primary.congestionLevel}%`,
+          });
+        }
+        if (mediumPrograms.length > 0) {
+          const first = mediumPrograms.slice(0, 2).map((program) => program.programTitle).join(", ");
+          alerts.push({
+            icon: Radio,
+            color: ds.amber,
+            bg: ds.amberSoft,
+            message: `${first} 프로그램 혼잡도가 상승 중입니다.`,
+            detail: "프로그램 대기열 분산 안내 및 동선 안내를 권장합니다.",
+          });
+        }
+        if (mediumBooths.length > 0) {
+          const first = mediumBooths.slice(0, 2).map((booth) => booth.placeName).join(", ");
+          alerts.push({
+            icon: Radio,
+            color: ds.amber,
+            bg: ds.amberSoft,
+            message: `${first} 부스 혼잡도가 상승 중입니다.`,
+            detail: "현장 안내 인력 분산 배치 및 동선 유도 안내를 권장합니다.",
+          });
+        }
+        if ((focusRealtimeSummary?.current || 0) >= 70) {
+          alerts.push({
+            icon: Activity,
+            color: ds.red,
+            bg: ds.redSoft,
+            message: `${selectedEventName} 평균 혼잡도가 높습니다.`,
+            detail: `현재 평균 ${formatNumber(focusRealtimeSummary.current)}% · 최고 ${formatNumber(focusRealtimeSummary.peak)}%`,
+          });
+        } else if ((focusRealtimeSummary?.current || 0) > 0) {
+          alerts.push({
+            icon: Activity,
+            color: ds.green,
+            bg: ds.greenSoft,
+            message: `${selectedEventName} 혼잡도는 안정 구간입니다.`,
+            detail: `현재 평균 ${formatNumber(focusRealtimeSummary.current)}%`,
+          });
+        }
+      } else {
+        if ((allEventRealtimeSummary?.peak || 0) >= 80) {
+          alerts.push({
+            icon: Layers,
+            color: ds.red,
+            bg: ds.redSoft,
+            message: "진행 중 행사 중 일부 구간의 혼잡도가 매우 높습니다.",
+            detail: `현재 최고 혼잡도 ${formatNumber(allEventRealtimeSummary.peak)}%`,
+          });
+        }
+        if ((allEventRealtimeSummary?.current || 0) >= 60) {
+          alerts.push({
+            icon: Activity,
+            color: ds.amber,
+            bg: ds.amberSoft,
+            message: "진행 중 행사 평균 혼잡도가 상승했습니다.",
+            detail: `현재 평균 혼잡도 ${formatNumber(allEventRealtimeSummary.current)}%`,
+          });
+        } else if ((allEventRealtimeSummary?.eventCount || 0) > 0) {
+          alerts.push({
+            icon: Bell,
+            color: ds.green,
+            bg: ds.greenSoft,
+            message: "진행 중 행사 혼잡도는 전반적으로 안정적입니다.",
+            detail: `집계 행사 ${formatNumber(allEventRealtimeSummary.eventCount)}건 기준`,
+          });
+        }
       }
-      if (failedPaymentCount > 0) {
-        alerts.push({
-          icon: CreditCard,
-          color: ds.red,
-          bg: ds.redSoft,
-          message: `결제 실패 ${formatNumber(failedPaymentCount)}건이 있습니다.`,
-          detail: selectedEvent ? `${selectedEvent.eventName} 행사 기준 집계입니다.` : "승인 재시도 또는 결제수단 점검이 필요합니다.",
-        });
-      }
-      if (topBooths[0]?.congestionLevel >= 80) {
-        alerts.push({
-          icon: Layers,
-          color: ds.red,
-          bg: ds.redSoft,
-          message: `${topBooths[0].placeName} 부스가 가장 혼잡합니다.`,
-          detail: `혼잡도 ${topBooths[0].congestionLevel}%`,
-        });
-      }
-      if (summary.cancelledCount > 0 && !selectedEvent) {
-        alerts.push({
-          icon: CalendarDays,
-          color: ds.ink3,
-          bg: ds.lineSoft,
-          message: `취소된 행사 ${formatNumber(summary.cancelledCount)}건이 포함되어 있습니다.`,
-          detail: "홈 기준 전체 운영 현황에 반영되었습니다.",
-        });
-      }
+
       if (alerts.length === 0) {
         alerts.push({
           icon: Bell,
           color: ds.green,
           bg: ds.greenSoft,
-          message: "즉시 확인이 필요한 운영 이슈가 없습니다.",
-          detail: "실시간 지표 기준 정상 범위로 집계되었습니다.",
+          message: "현장 혼잡 알림 데이터가 아직 충분하지 않습니다.",
+          detail: "실시간 혼잡 데이터가 누적되면 자동으로 알림을 제공합니다.",
         });
       }
 
@@ -987,6 +1319,7 @@ export default function HomeDashboard({ initialEventId = null }) {
           ? selectedEventDate || null
           : null,
         isPredictionCongestionView: Boolean(focusLine.isPrediction),
+        isHybridCongestionView: Boolean(focusLine.isHybrid),
         plannedDailyCongestion: selectedEventDailyPredictionRows,
         focusCongestion,
         usingDummyCongestion: usingAnyDummyCongestion,
@@ -997,6 +1330,7 @@ export default function HomeDashboard({ initialEventId = null }) {
         allEventCongestionSummary,
         allEventRealtimeSummary,
         topBooths,
+        topPrograms,
         focusRealtimeSummary,
         eventPerformance,
         selectedPerformance,
@@ -1123,11 +1457,18 @@ export default function HomeDashboard({ initialEventId = null }) {
     ? `${congestionGraphScope}의 시간대별 실시간 혼잡도`
     : snapshot.focusEvent
       ? snapshot.isPredictionCongestionView
-        ? `${snapshot.focusEvent.eventName} · ${effectiveCongestionDate || "선택일"} 시간대별 예상 혼잡도`
+        ? snapshot.isHybridCongestionView
+          ? `${snapshot.focusEvent.eventName} · ${effectiveCongestionDate || "오늘"} 과거 실측 + 미래 예측 혼잡도`
+          : `${snapshot.focusEvent.eventName} · ${effectiveCongestionDate || "선택일"} 시간대별 예상 혼잡도`
         : isSelectedPlannedEvent
           ? `${snapshot.focusEvent.eventName} · 일별 혼잡도 예측 대기`
           : `${snapshot.focusEvent.eventName} 행사 기준 시간대별 실시간 혼잡도`
       : "행사를 선택하면 시간대별 혼잡 추이를 보여줍니다.";
+  const hybridForecastRows = snapshot.isHybridCongestionView
+    ? snapshot.focusCongestion.filter((row) => Number.isFinite(Number(row?.forecastLightgbm)))
+    : [];
+  const hybridForecastStartLabel = hybridForecastRows[0]?.label || null;
+  const hybridForecastEndLabel = hybridForecastRows[hybridForecastRows.length - 1]?.label || null;
 
   return (
     <div style={{ display: "flex", flexDirection: isCompact ? "column" : "row", gap: isHandset ? 14 : 20 }}>
@@ -1394,23 +1735,35 @@ export default function HomeDashboard({ initialEventId = null }) {
                   </div>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>
-                      {snapshot.isPredictionCongestionView ? "예상 평균 혼잡도" : "평균 혼잡도"}
+                      {snapshot.isPredictionCongestionView
+                        ? snapshot.isHybridCongestionView
+                          ? "평균 혼잡도 (실측+예측)"
+                          : "예상 평균 혼잡도"
+                        : "평균 혼잡도"}
                     </div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
-                      {formatNumber(average(snapshot.focusCongestion.map((row) => ({ value: row.lightgbm ?? 0 }))))}%
+                      {formatNumber(average(snapshot.focusCongestion.map((row) => ({ value: resolveCongestionPointValue(row) }))))}%
                     </div>
                   </div>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>
-                      {snapshot.isPredictionCongestionView ? "예상 최대 혼잡도" : "최고 혼잡도"}
+                      {snapshot.isPredictionCongestionView
+                        ? snapshot.isHybridCongestionView
+                          ? "최고 혼잡도 (실측+예측)"
+                          : "예상 최대 혼잡도"
+                        : "최고 혼잡도"}
                     </div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
-                      {formatNumber(Math.max(...snapshot.focusCongestion.map((row) => Number(row.lightgbm) || 0)))}%
+                      {formatNumber(Math.max(...snapshot.focusCongestion.map((row) => resolveCongestionPointValue(row))))}%
                     </div>
                   </div>
                   <div style={{ background: ds.bg, borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontSize: 11, color: ds.ink4, marginBottom: 6 }}>
-                      {snapshot.isPredictionCongestionView ? "예측 시간 포인트" : "집계 시간 포인트"}
+                      {snapshot.isPredictionCongestionView
+                        ? snapshot.isHybridCongestionView
+                          ? "실측/예측 시간 포인트"
+                          : "예측 시간 포인트"
+                        : "집계 시간 포인트"}
                     </div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: ds.ink }}>
                       {formatNumber(snapshot.focusCongestion.length)}
@@ -1430,11 +1783,20 @@ export default function HomeDashboard({ initialEventId = null }) {
                     />
                     <YAxis tick={{ fontSize: 11, fill: ds.ink4 }} axisLine={false} tickLine={false} width={34} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                     <Tooltip content={<ChartTip suffix="%" light showName />} />
+                    {snapshot.isHybridCongestionView && hybridForecastStartLabel && hybridForecastEndLabel ? (
+                      <ReferenceArea
+                        x1={hybridForecastStartLabel}
+                        x2={hybridForecastEndLabel}
+                        fill={ds.skySoft}
+                        fillOpacity={0.18}
+                        ifOverflow="extendDomain"
+                      />
+                    ) : null}
                     {snapshot.isPredictionCongestionView ? (
                       <Line
                         type="monotoneX"
                         dataKey="measured"
-                        name="실측"
+                        name="실측(과거)"
                         stroke={ds.amber}
                         strokeWidth={2}
                         strokeLinecap="round"
@@ -1444,35 +1806,75 @@ export default function HomeDashboard({ initialEventId = null }) {
                         connectNulls
                       />
                     ) : null}
-                    <Line
-                      type="monotoneX"
-                      dataKey="lightgbm"
-                      name={snapshot.isPredictionCongestionView ? "LightGBM" : "혼잡도"}
-                      stroke={ds.amber}
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      dot={false}
-                      activeDot={{ r: 3.2, fill: ds.amber, stroke: ds.amber, strokeWidth: 0 }}
-                      connectNulls
-                    />
-                    {snapshot.isPredictionCongestionView ? (
-                      <Line
-                        type="monotoneX"
-                        dataKey="lstm"
-                        name="LSTM"
-                        stroke={ds.amber}
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeDasharray="4 4"
-                        dot={false}
-                        activeDot={false}
-                        connectNulls
-                      />
-                    ) : null}
+                    {snapshot.isHybridCongestionView ? (
+                      <>
+                        <Line
+                          type="monotoneX"
+                          dataKey="forecastLightgbm"
+                          name="예측(LightGBM)"
+                          stroke={ds.sky}
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeDasharray="6 4"
+                          dot={false}
+                          activeDot={{ r: 3.2, fill: ds.sky, stroke: ds.sky, strokeWidth: 0 }}
+                          connectNulls
+                        />
+                        <Line
+                          type="monotoneX"
+                          dataKey="forecastLstm"
+                          name="예측(LSTM)"
+                          stroke={ds.violet}
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeDasharray="3 4"
+                          dot={false}
+                          activeDot={false}
+                          connectNulls
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Line
+                          type="monotoneX"
+                          dataKey="lightgbm"
+                          name={snapshot.isPredictionCongestionView ? "LightGBM(예측)" : "혼잡도"}
+                          stroke={ds.amber}
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          dot={false}
+                          activeDot={{ r: 3.2, fill: ds.amber, stroke: ds.amber, strokeWidth: 0 }}
+                          connectNulls
+                        />
+                        {snapshot.isPredictionCongestionView ? (
+                          <Line
+                            type="monotoneX"
+                            dataKey="lstm"
+                            name="LSTM"
+                            stroke={ds.amber}
+                            strokeWidth={2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeDasharray="4 4"
+                            dot={false}
+                            activeDot={false}
+                            connectNulls
+                          />
+                        ) : null}
+                      </>
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
+                {snapshot.isHybridCongestionView ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
+                    <Pill color={ds.amber} bg={ds.amberSoft}>실측(과거)</Pill>
+                    <Pill color={ds.sky} bg={ds.skySoft}>예측(LightGBM, 미래)</Pill>
+                    <Pill color={ds.violet} bg={ds.violetSoft}>예측(LSTM, 미래)</Pill>
+                  </div>
+                ) : null}
               </>
             ) : (
               <ChartEmpty

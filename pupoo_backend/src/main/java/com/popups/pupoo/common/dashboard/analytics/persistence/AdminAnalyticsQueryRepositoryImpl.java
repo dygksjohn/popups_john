@@ -16,7 +16,11 @@ public class AdminAnalyticsQueryRepositoryImpl implements AdminAnalyticsQueryRep
     private EntityManager em;
 
     @Override
-    public List<AdminCongestionByHourResponse> findAvgCongestionByHour(Long eventId) {
+    public List<AdminCongestionByHourResponse> findAvgCongestionByHour(
+            Long eventId,
+            LocalDateTime from,
+            LocalDateTime to
+    ) {
         String sql = """
             select
               hour(c.measured_at) as h,
@@ -24,6 +28,8 @@ public class AdminAnalyticsQueryRepositoryImpl implements AdminAnalyticsQueryRep
             from congestions c
             join event_program p on p.program_id = c.program_id
             where p.event_id = :eventId
+              and (:fromAt is null or c.measured_at >= :fromAt)
+              and (:toAt is null or c.measured_at <= :toAt)
               and c.measured_at <= :now
             group by hour(c.measured_at)
             order by h asc
@@ -32,6 +38,8 @@ public class AdminAnalyticsQueryRepositoryImpl implements AdminAnalyticsQueryRep
         @SuppressWarnings("unchecked")
         List<Object[]> rows = em.createNativeQuery(sql)
                 .setParameter("eventId", eventId)
+                .setParameter("fromAt", from)
+                .setParameter("toAt", to)
                 .setParameter("now", LocalDateTime.now())
                 .getResultList();
 

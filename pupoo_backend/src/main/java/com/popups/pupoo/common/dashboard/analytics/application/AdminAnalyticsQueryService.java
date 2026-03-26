@@ -52,8 +52,12 @@ public class AdminAnalyticsQueryService {
                 .getContent();
     }
 
-    public List<AdminCongestionByHourResponse> congestionByHour(Long eventId) {
-        return adminAnalyticsQueryRepository.findAvgCongestionByHour(eventId);
+    public List<AdminCongestionByHourResponse> congestionByHour(
+            Long eventId,
+            LocalDateTime from,
+            LocalDateTime to
+    ) {
+        return adminAnalyticsQueryRepository.findAvgCongestionByHour(eventId, from, to);
     }
 
     /**

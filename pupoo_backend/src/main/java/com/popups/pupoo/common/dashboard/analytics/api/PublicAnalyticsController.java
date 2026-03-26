@@ -39,6 +39,6 @@ public class PublicAnalyticsController {
 
     @GetMapping("/events/{eventId}/congestion-by-hour")
     public ApiResponse<List<AdminCongestionByHourResponse>> congestionByHour(@PathVariable Long eventId) {
-        return ApiResponse.success(queryService.congestionByHour(eventId));
+        return ApiResponse.success(queryService.congestionByHour(eventId, null, null));
     }
 }

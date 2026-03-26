@@ -48,6 +48,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -72,6 +73,7 @@ public class AiCongestionService {
     private static final int DEFAULT_WAIT_BASELINE = 50;
     private static final int DEFAULT_TARGET_WAIT_MIN = 15;
     private static final int MODEL_SEQUENCE_LENGTH = 60;
+    private static final Duration MEASURED_TIMELINE_NEAR_MATCH_TOLERANCE = Duration.ofMinutes(20);
     private static final double DEFAULT_SEQUENCE_FALLBACK_SCORE = 10.0;
     private static final int PLANNED_REFERENCE_MIN_SAMPLE_SIZE = MODEL_SEQUENCE_LENGTH * 6;
     private static final int PLANNED_REFERENCE_MAX_SAMPLE_SIZE = MODEL_SEQUENCE_LENGTH * 30;
@@ -1362,13 +1364,7 @@ public class AiCongestionService {
                 continue;
             }
 
-            Double measuredScore = measuredScoreByPoint.get(point.time());
-            if (measuredScore == null) {
-                Map.Entry<LocalDateTime, Double> floor = measuredScoreByPoint.floorEntry(point.time());
-                if (floor != null) {
-                    measuredScore = floor.getValue();
-                }
-            }
+            Double measuredScore = resolveNearestMeasuredScore(point.time(), measuredScoreByPoint);
 
             if (measuredScore == null) {
                 replaced.add(point);
@@ -1384,6 +1380,47 @@ public class AiCongestionService {
             ));
         }
         return replaced;
+    }
+
+    private Double resolveNearestMeasuredScore(
+            LocalDateTime pointTime,
+            TreeMap<LocalDateTime, Double> measuredScoreByPoint
+    ) {
+        Double exact = measuredScoreByPoint.get(pointTime);
+        if (exact != null) {
+            return exact;
+        }
+
+        Map.Entry<LocalDateTime, Double> floor = measuredScoreByPoint.floorEntry(pointTime);
+        Map.Entry<LocalDateTime, Double> ceil = measuredScoreByPoint.ceilingEntry(pointTime);
+
+        long nearestDiffSeconds = Long.MAX_VALUE;
+        Double nearestScore = null;
+
+        if (floor != null) {
+            long floorDiffSeconds = Math.abs(Duration.between(floor.getKey(), pointTime).getSeconds());
+            if (floorDiffSeconds < nearestDiffSeconds) {
+                nearestDiffSeconds = floorDiffSeconds;
+                nearestScore = floor.getValue();
+            }
+        }
+
+        if (ceil != null) {
+            long ceilDiffSeconds = Math.abs(Duration.between(ceil.getKey(), pointTime).getSeconds());
+            if (ceilDiffSeconds < nearestDiffSeconds) {
+                nearestDiffSeconds = ceilDiffSeconds;
+                nearestScore = ceil.getValue();
+            }
+        }
+
+        if (nearestScore == null) {
+            return null;
+        }
+
+        if (nearestDiffSeconds > MEASURED_TIMELINE_NEAR_MATCH_TOLERANCE.getSeconds()) {
+            return null;
+        }
+        return nearestScore;
     }
 
     private List<AiTimelinePoint> applyCalendarAdjustment(List<AiTimelinePoint> timeline) {
