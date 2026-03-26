@@ -28,6 +28,9 @@ import { COMMUNITY_CATEGORIES, getBoardBadge } from "./communityConfig";
 import BadgeTag from "./shared/BadgeTag";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
+import ModerationNoticeBox, {
+  normalizeModerationPayload,
+} from "./shared/ModerationNoticeBox";
 
 const PAGE_SIZE = 10;
 
@@ -82,7 +85,7 @@ function Overlay({ children, onClose }) {
   );
 }
 
-function WriteModal({ onClose, onSave, saving, errorMessage }) {
+function WriteModal({ onClose, onSave, saving, errorMessage, moderation }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [file, setFile] = useState(null);
@@ -175,6 +178,8 @@ function WriteModal({ onClose, onSave, saving, errorMessage }) {
             <AlertTriangle size={14} /> {errorMessage}
           </div>
         ) : null}
+
+        <ModerationNoticeBox moderation={moderation} />
 
         <div style={{ marginBottom: 18 }}>
           <label
@@ -548,7 +553,6 @@ export default function FreeBoard() {
   );
 
   const [allItems, setAllItems] = useState([]);
-  const [commentCountMap, setCommentCountMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
@@ -567,6 +571,12 @@ export default function FreeBoard() {
   const [writeModalOpen, setWriteModalOpen] = useState(false);
   const [writeSaving, setWriteSaving] = useState(false);
   const [writeError, setWriteError] = useState("");
+  const [writeModeration, setWriteModeration] = useState(null);
+
+  const getErrorMessage = useCallback((err, fallbackMessage) => {
+    const body = err?.response?.data;
+    return body?.error?.message || body?.message || body?.errorMessage || fallbackMessage;
+  }, []);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -623,36 +633,6 @@ export default function FreeBoard() {
     };
   }, []);
 
-  const loadCommentCounts = useCallback(async (rows) => {
-    const targets = rows.filter((row) => commentCountMap[row.postId] == null);
-    if (targets.length === 0) return;
-
-    const pairs = await Promise.all(
-      targets.map(async (row) => {
-        try {
-          const d = await postReplyApi.list(row.postId, 0, 1);
-          const total = Number(d?.totalElements);
-          const count = Number.isFinite(total)
-            ? total
-            : Array.isArray(d?.content)
-              ? d.content.length
-              : 0;
-          return [row.postId, count];
-        } catch {
-          return [row.postId, 0];
-        }
-      }),
-    );
-
-    setCommentCountMap((prev) => {
-      const next = { ...prev };
-      pairs.forEach(([postId, count]) => {
-        next[postId] = count;
-      });
-      return next;
-    });
-  }, [commentCountMap]);
-
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return allItems;
@@ -671,13 +651,13 @@ export default function FreeBoard() {
         if (diff !== 0) return diff;
       } else if (sortKey === "comments") {
         const diff =
-          (commentCountMap[b?.postId] ?? 0) - (commentCountMap[a?.postId] ?? 0);
+          Number(b?.commentCount ?? 0) - Number(a?.commentCount ?? 0);
         if (diff !== 0) return diff;
       }
       return toTimestamp(b?.createdAt) - toTimestamp(a?.createdAt);
     });
     return rows;
-  }, [filteredItems, sortKey, commentCountMap]);
+  }, [filteredItems, sortKey]);
 
   const totalElements = sortedItems.length;
   const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
@@ -695,18 +675,6 @@ export default function FreeBoard() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  useEffect(() => {
-    if (pagedItems.length > 0) {
-      loadCommentCounts(pagedItems).catch(() => {});
-    }
-  }, [pagedItems, loadCommentCounts]);
-
-  useEffect(() => {
-    if (sortKey === "comments" && filteredItems.length > 0) {
-      loadCommentCounts(filteredItems).catch(() => {});
-    }
-  }, [sortKey, filteredItems, loadCommentCounts]);
-
   const loadReplies = useCallback(async (postId) => {
     setReplyLoading(true);
     setReplyError("");
@@ -714,10 +682,6 @@ export default function FreeBoard() {
       const d = await postReplyApi.list(postId, 0, 200);
       const list = Array.isArray(d?.content) ? d.content : [];
       setReplies(list);
-      setCommentCountMap((prev) => ({
-        ...prev,
-        [postId]: Number(d?.totalElements ?? list.length) || 0,
-      }));
     } catch (err) {
       console.error("[FreeBoard] reply fetch failed:", err);
       setReplies([]);
@@ -817,6 +781,7 @@ export default function FreeBoard() {
 
     setWriteSaving(true);
     setWriteError("");
+    setWriteModeration(null);
     try {
       const created = await postApi.create({
         boardId: freeBoardId,
@@ -827,11 +792,23 @@ export default function FreeBoard() {
       if (file && createdPostId) {
         await fileApi.upload(file, "POST", createdPostId);
       }
+      const normalizedModeration = normalizeModerationPayload(created?.moderation);
+      console.debug("[FreeBoard] moderation payload:", {
+        decision: normalizedModeration?.decision ?? null,
+        message: normalizedModeration?.message ?? null,
+        reason: normalizedModeration?.reason ?? null,
+      });
+      setWriteModeration(normalizedModeration);
       setWriteModalOpen(false);
       await fetchAll();
     } catch (err) {
       console.error("[FreeBoard] create failed:", err);
-      setWriteError(err?.response?.data?.error?.message || "글 등록에 실패했습니다.");
+      console.debug("[FreeBoard] moderation error payload:", {
+        decision: null,
+        message: err?.response?.data?.error?.message ?? err?.response?.data?.message ?? null,
+        reason: err?.response?.data?.error?.reason ?? err?.response?.data?.reason ?? null,
+      });
+      setWriteError(getErrorMessage(err, "글 등록에 실패했습니다."));
     } finally {
       setWriteSaving(false);
     }
@@ -898,8 +875,8 @@ export default function FreeBoard() {
         >
           <span style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>총 {totalElements}개</span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", height: isMobile ? 40 : 48, flexWrap: isMobile ? "wrap" : "nowrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 0, background: isMobile ? "transparent" : "#fff", border: isMobile ? "none" : "1px solid #e2e5ea", borderRadius: 12, height: isMobile ? 40 : 48, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: 0, rowGap: isMobile ? 8 : 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", height: isMobile ? "auto" : 48, flexWrap: isMobile ? "wrap" : "nowrap", rowGap: isMobile ? 8 : 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 0, background: isMobile ? "transparent" : "#fff", border: isMobile ? "none" : "1px solid #e2e5ea", borderRadius: 12, height: isMobile ? "auto" : 48, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: 0, rowGap: isMobile ? 8 : 0 }}>
               {/* sort button */}
               <div style={{ position: "relative", flex: isMobile ? "1 1 100%" : "0 0 auto" }} ref={sortDdRef}>
                 <button
@@ -953,11 +930,11 @@ export default function FreeBoard() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{
-                    border: isMobile ? "1px solid #e5e7eb" : "none",
+                    border: isMobile ? "1px solid #e2e5ea" : "none",
                     background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: isMobile ? 999 : "0 12px 12px 0",
-                    height: 48,
+                    borderRadius: isMobile ? 12 : "0 12px 12px 0",
+                    height: isMobile ? 48 : 48,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",
@@ -1053,9 +1030,9 @@ export default function FreeBoard() {
                         <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 14 : 15, color: "#111827", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {item.postTitle}
                         </span>
-                        {(commentCountMap[item.postId] ?? 0) > 0 && (
+                        {Number(item.commentCount ?? 0) > 0 && (
                           <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0 }}>
-                            ({commentCountMap[item.postId]})
+                            ({Number(item.commentCount ?? 0)})
                           </span>
                         )}
                       </div>
@@ -1110,8 +1087,20 @@ export default function FreeBoard() {
         attachmentLoading={attachmentLoading}
         attachmentError={attachmentError}
       />
+      {writeModalOpen ? (
+        <WriteModal
+          onClose={() => {
+            setWriteModalOpen(false);
+            setWriteError("");
+            setWriteModeration(null);
+          }}
+          onSave={submitPost}
+          saving={writeSaving}
+          errorMessage={writeError}
+          moderation={writeModeration}
+        />
+      ) : null}
 
     </>
   );
 }
-

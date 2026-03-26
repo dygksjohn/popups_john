@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { toPublicAssetUrl } from "../../../shared/utils/publicAssetUrl";
 
 function useReveal(th = 0.1) {
   const ref = useRef(null);
@@ -131,9 +132,13 @@ const css = `
 }
 .op-hero-video{
   position:absolute;inset:0;width:100%;height:100%;
-  object-fit:cover;z-index:0;opacity:.45;
+  object-fit:cover;z-index:0;opacity:.42;
 }
-.op-hero>*:not(.op-hero-video){position:relative;z-index:2;}
+.op-hero-overlay{
+  position:absolute;inset:0;z-index:1;
+  background:linear-gradient(180deg, rgba(0,0,0,.42) 0%, rgba(0,0,0,.62) 100%);
+}
+.op-hero>*:not(.op-hero-video):not(.op-hero-overlay){position:relative;z-index:2;}
 .op-hero-over{
   font-size:17px;font-weight:600;color:rgba(255,255,255,.7);
   letter-spacing:-.01em;margin-bottom:16px;
@@ -314,17 +319,21 @@ const css = `
 }
 `;
 
+const guideAsset = (fileName) => toPublicAssetUrl(`/uploads/guide/${fileName}`);
+const GUIDE_VIDEO_SRC = guideAsset("guide.mp4");
+const GUIDE_VIDEO_POSTER = guideAsset("guide-poster.jpg");
+
 const GALLERY_1 = [
-  { img: "/uploads/guide/guide1.jpg", label: "QR 체크인 현장", caption: "QR 코드 하나로 빠르게 입장. 모바일과 출력물 모두 가능합니다." },
-  { img: "/uploads/guide/guide2.jpg", label: "접종 서류 확인", caption: "등록증과 접종 증명서를 현장에서 빠르게 확인합니다." },
-  { img: "/uploads/guide/guide3.jpg", label: "부스 프로그램", caption: "다양한 부스와 프로그램에 자유롭게 참여하세요." },
-  { img: "/uploads/guide/guide4.jpg", label: "반려동물 놀이터", caption: "안전한 공간에서 반려동물과 함께 즐기세요." },
+  { img: guideAsset("guide1.jpg"), caption: "QR 코드 하나로 빠르게 입장. 모바일과 출력물 모두 가능합니다." },
+  { img: guideAsset("guide2.jpg"), caption: "등록증과 접종 증명서를 현장에서 빠르게 확인합니다." },
+  { img: guideAsset("guide3.jpg"), caption: "다양한 부스와 프로그램에 자유롭게 참여하세요." },
+  { img: guideAsset("guide4.jpg"), caption: "안전한 공간에서 반려동물과 함께 즐기세요." },
 ];
 
 const GALLERY_2 = [
-  { img: "/uploads/guide/guide1-1.jpg", label: "안전 관리", caption: "목줄과 하네스 착용은 필수입니다." },
-  { img: "/uploads/guide/guide2-1.jpg", label: "응급 부스", caption: "응급 상황 대비 부스가 상시 운영됩니다." },
-  { img: "/uploads/guide/guide3-1.jpg", label: "클린 존", caption: "배변 봉투 무료 제공. 깨끗한 현장을 함께 만들어요." },
+  { img: guideAsset("guide1-1.jpg"), caption: "목줄과 하네스 착용은 필수입니다." },
+  { img: guideAsset("guide2-1.jpg"), caption: "응급 상황 대비 부스가 상시 운영됩니다." },
+  { img: guideAsset("guide3-1.jpg"), caption: "배변 봉투 무료 제공. 깨끗한 현장을 함께 만들어요." },
 ];
 
 const STEPS = [
@@ -344,13 +353,30 @@ const RULES = [
 ];
 
 export default function Operation() {
+  const [guideReady, setGuideReady] = useState(false);
+
   return (
     <div className="op">
       <style>{css}</style>
 
       {/* ── HERO (video bg) ── */}
       <section className="op-hero">
-        <video className="op-hero-video" src="/uploads/guide/GettyImages-1212649256.mov" autoPlay muted loop playsInline />
+        {!guideReady ? (
+          <img className="op-hero-video" src={GUIDE_VIDEO_POSTER} alt="" aria-hidden="true" />
+        ) : null}
+        <video
+          className="op-hero-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          onCanPlay={() => setGuideReady(true)}
+          onPlaying={() => setGuideReady(true)}
+        >
+          <source src={GUIDE_VIDEO_SRC} type="video/mp4" />
+        </video>
+        <div className="op-hero-overlay" />
         <F>
           <div className="op-hero-over">현장 운영 안내</div>
           <h1>입장부터<br />퇴장까지</h1>

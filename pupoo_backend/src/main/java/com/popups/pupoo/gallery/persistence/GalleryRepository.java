@@ -49,7 +49,7 @@ public interface GalleryRepository extends JpaRepository<Gallery, Long> {
         """, nativeQuery = true)
     Page<Gallery> searchByEventIdAndKeywordSortedByLatest(
             @Param("eventId") Long eventId,
-            @Param("status") GalleryStatus status,
+            @Param("status") String status,
             @Param("keyword") String keyword,
             Pageable pageable
     );
@@ -90,7 +90,7 @@ public interface GalleryRepository extends JpaRepository<Gallery, Long> {
         """, nativeQuery = true)
     Page<Gallery> searchByEventIdAndKeywordSortedByLikes(
             @Param("eventId") Long eventId,
-            @Param("status") GalleryStatus status,
+            @Param("status") String status,
             @Param("keyword") String keyword,
             Pageable pageable
     );
@@ -122,7 +122,7 @@ public interface GalleryRepository extends JpaRepository<Gallery, Long> {
           )
         """, nativeQuery = true)
     Page<Gallery> searchByKeywordSortedByLatest(
-            @Param("status") GalleryStatus status,
+            @Param("status") String status,
             @Param("keyword") String keyword,
             Pageable pageable
     );
@@ -160,7 +160,7 @@ public interface GalleryRepository extends JpaRepository<Gallery, Long> {
           )
         """, nativeQuery = true)
     Page<Gallery> searchByKeywordSortedByLikes(
-            @Param("status") GalleryStatus status,
+            @Param("status") String status,
             @Param("keyword") String keyword,
             Pageable pageable
     );

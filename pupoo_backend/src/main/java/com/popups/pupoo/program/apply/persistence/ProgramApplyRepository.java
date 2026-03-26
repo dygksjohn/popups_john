@@ -15,6 +15,10 @@ import java.util.Optional;
 import java.time.LocalDateTime;
 
 public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long> {
+    interface ProgramApplyCountProjection {
+        Long getProgramId();
+        long getApplyCount();
+    }
 
     Page<ProgramApply> findByUserId(Long userId, Pageable pageable);
 
@@ -61,6 +65,17 @@ public interface ProgramApplyRepository extends JpaRepository<ProgramApply, Long
     long countByProgramIdAndStatusIn(Long programId, Collection<ApplyStatus> statuses);
     long countByProgramIdAndCheckedInAtIsNotNull(Long programId);
     long countByProgramIdAndCheckedInAtBetween(Long programId, LocalDateTime fromInclusive, LocalDateTime toInclusive);
+    @Query("""
+        select pa.programId as programId, count(pa) as applyCount
+        from ProgramApply pa
+        where pa.programId in :programIds
+          and pa.status in :statuses
+        group by pa.programId
+    """)
+    List<ProgramApplyCountProjection> countByProgramIdInAndStatusInGrouped(
+            @Param("programIds") Collection<Long> programIds,
+            @Param("statuses") Collection<ApplyStatus> statuses
+    );
 
     /**
      *  환불 COMPLETED 시 자동 취소용(행사 기준):

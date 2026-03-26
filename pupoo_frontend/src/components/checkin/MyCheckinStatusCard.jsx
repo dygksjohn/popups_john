@@ -78,16 +78,6 @@ export default function MyCheckinStatusCard({ myCheckin, qrInfo, qrImageUrl, qrL
             <div className="ck-my-status-program-desc">{programDescription}</div>
           ) : null}
           <div className="program-time ck-my-status-desc">{programMetaText}</div>
-          <div className="ck-my-checkin-grid">
-            <div className="ck-my-checkin-item">
-              <div className="ck-my-checkin-label">내 순서</div>
-              <div className="ck-my-checkin-value">{positionText}</div>
-            </div>
-            <div className="ck-my-checkin-item">
-              <div className="ck-my-checkin-label">예상 대기시간</div>
-              <div className="ck-my-checkin-value">{expectedWaitTimeText}</div>
-            </div>
-          </div>
         </div>
 
         <div className="ck-my-right">

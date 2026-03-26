@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CalendarDays,
@@ -28,13 +28,20 @@ const styles = `
   .wt-root {
     box-sizing: border-box;
     font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
-    background: #f8f9fc;
+    background: #f0f4fa;
     min-height: 100vh;
     flex: 1;
   }
   .wt-root *, .wt-root *::before, .wt-root *::after { box-sizing: border-box; font-family: inherit; }
   .wt-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
-  .wt-container.selector-mode { padding-top: 16px; }
+  .wt-container.selector-mode { padding-top: 32px; }
+  .wt-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
 
   .wt-back-btn {
     display: inline-flex;
@@ -45,12 +52,54 @@ const styles = `
     border: 1.5px solid #111827;
     background: #111827;
     color: #fff;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.15s;
+    margin-bottom: 20px;
     font-family: inherit;
     letter-spacing: -0.01em;
+  }
+  .wt-top-actions .wt-back-btn { margin-bottom: 0; }
+  .wt-event-mode-nav {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: nowrap;
+    margin-left: 0;
+    border: 1px solid #d9e1ec;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .wt-mode-btn {
+    height: 44px;
+    border: none;
+    border-right: 1px solid #e6ebf3;
+    background: #fff;
+    color: #8b95a7;
+    padding: 0 22px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .wt-mode-btn:last-child { border-right: none; }
+  .wt-mode-btn.active {
+    background: #111827;
+    color: #fff;
+    border-right-color: #111827;
+    box-shadow: none;
+  }
+  .wt-mode-btn:hover {
+    background: #f8fafc;
+    color: #64748b;
+  }
+  .wt-mode-btn.active:hover {
+    background: #0f172a;
+    color: #fff;
   }
   .wt-back-btn:hover {
     background: #1f2937;
@@ -59,7 +108,6 @@ const styles = `
   .wt-back-btn:active {
     transform: scale(0.97);
   }
-  .wt-back-wrap { display: flex; justify-content: center; margin-top: 32px; }
 
   .wt-status-chip {
     display: inline-flex; align-items: center; gap: 8px;
@@ -349,32 +397,60 @@ const styles = `
     display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
   }
   .wt-toggle-group {
-    display: flex; align-items: center; gap: 0;
-    border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;
+    display: inline-flex; align-items: center; gap: 0;
   }
   .wt-toggle-btn {
-    height: 44px; padding: 0 20px; border: none;
-    background: transparent; color: #6b7280; font-size: 14px; font-weight: 600;
-    cursor: pointer; transition: all 0.15s; font-family: inherit;
-    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid #e2e5ea;
+    background: #fff;
+    color: #9ca3af;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 0;
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    white-space: nowrap;
+    margin-left: -1px;
   }
-  .wt-toggle-btn + .wt-toggle-btn { border-left: 1px solid #e5e7eb; }
-  .wt-toggle-btn:hover { color: #111827; background: #f9fafb; }
-  .wt-toggle-btn.active { background: #1f2937; color: #fff; }
+  .wt-toggle-btn:first-child { border-radius: 10px 0 0 10px; margin-left: 0; }
+  .wt-toggle-btn:last-child { border-radius: 0 10px 10px 0; }
+  .wt-toggle-btn.active {
+    color: #fff;
+    background: #111827;
+    border-color: #111827;
+    z-index: 1;
+    position: relative;
+  }
+  .wt-toggle-btn:hover:not(.active) { background: #f9fafb; color: #374151; }
   .wt-sort-group {
-    display: flex; align-items: center; gap: 0;
-    border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;
+    display: inline-flex; align-items: center; gap: 0;
     margin-left: auto;
   }
   .wt-sort-btn {
-    height: 44px; padding: 0 20px; border: none;
-    background: transparent; color: #6b7280; font-size: 14px; font-weight: 600;
-    cursor: pointer; transition: all 0.15s; font-family: inherit;
-    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid #e2e5ea;
+    background: #fff;
+    color: #9ca3af;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 0;
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    font-family: inherit;
+    margin-left: -1px;
   }
-  .wt-sort-btn + .wt-sort-btn { border-left: 1px solid #e5e7eb; }
-  .wt-sort-btn:hover { color: #111827; background: #f9fafb; }
-  .wt-sort-btn.active { background: #1f2937; color: #fff; }
+  .wt-sort-btn:first-child { border-radius: 10px 0 0 10px; margin-left: 0; }
+  .wt-sort-btn:last-child { border-radius: 0 10px 10px 0; }
+  .wt-sort-btn.active {
+    color: #fff;
+    background: #111827;
+    border-color: #111827;
+    z-index: 1;
+    position: relative;
+  }
+  .wt-sort-btn:hover:not(.active) { background: #f9fafb; color: #374151; }
   .wt-empty-state {
     min-height: 120px; border: none; border-radius: 12px; background: #f9fafb;
     color: #c5c9cf; font-size: 13px; line-height: 1.5; text-align: center; padding: 24px;
@@ -435,7 +511,7 @@ const styles = `
     border-radius: 99px; padding: 5px 12px;
     font-size: 13px; font-weight: 700; white-space: nowrap;
     border: none;
-    background: #f8f9fc; color: #6b7280;
+    background: #f3f4f6; color: #6b7280;
   }
   .wt-badge-dot {
     width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
@@ -449,7 +525,7 @@ const styles = `
   .wt-badge-busy .wt-badge-dot { background: #ea580c; }
   .wt-badge-critical { color: #dc2626; background: #fef2f2; }
   .wt-badge-critical .wt-badge-dot { background: #dc2626; }
-  .wt-badge-pending { color: #9ca3af; background: #f8f9fc; }
+  .wt-badge-pending { color: #9ca3af; background: #f3f4f6; }
   .wt-badge-pending .wt-badge-dot { background: #d1d5db; }
 
   .wt-chart-lead { margin: -2px 0 10px; font-size: 12px; color: #9ca3af; line-height: 1.4; }
@@ -560,31 +636,24 @@ const styles = `
   }
   @media (max-width: 640px) {
     .wt-container { padding: 20px 16px 48px; }
-    .wt-container.selector-mode { padding-top: 0; }
-    .wt-hero { padding: 18px 18px 20px; overflow: visible; }
-    .wt-hero-title { font-size: 19px; letter-spacing: 0; line-height: 1.4; word-break: keep-all; }
+    .wt-container.selector-mode { padding-top: 16px; }
+    .wt-top-actions { align-items: stretch; }
+    .wt-event-mode-nav { width: 100%; margin-left: 0; overflow-x: auto; }
+    .wt-mode-btn { flex: 0 0 auto; min-width: 112px; }
+    .wt-hero-title { font-size: 22px; }
     .wt-hero-kpi-grid {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: 1fr;
       width: 100%;
       margin-left: 0;
       margin-top: 14px;
     }
-    .wt-hero-kpi { padding: 14px 14px; }
-    .wt-hero-kpi-value { font-size: 24px; }
+    .wt-hero-kpi-value { font-size: 26px; }
     .wt-hero-kpi-split-value { font-size: 16px; }
-    .wt-hero-visitor { font-size: 13px; flex-wrap: wrap; row-gap: 2px; column-gap: 5px; line-height: 1.5; }
-    .wt-hero-visitor strong { font-size: 13px; }
     .wt-hero-visitor-name { font-size: 13px; }
-    .wt-back-btn { padding: 9px 22px; font-size: 13px; border-radius: 999px; }
-    .wt-card { padding: 20px 16px; }
-    .wt-card-title { font-size: 16px; }
-    .wt-toggle-btn { padding: 9px 12px; font-size: 13px; }
-    .wt-sort-btn { padding: 9px 12px; font-size: 13px; }
+    .wt-card { padding: 22px 18px; }
     .wt-program-list { grid-template-columns: 1fr; }
-    .wt-program-card { padding: 16px; }
     .wt-booth-list { grid-template-columns: 1fr; }
     .wt-zone-list { grid-template-columns: 1fr; }
-    .wt-zone-item { padding: 16px; }
     .wt-program-wait-min { font-size: 18px; }
     .wt-congestion-scroll { max-height: clamp(260px, 50vh, 420px); }
     .wt-sort-group { margin-left: 0; }
@@ -597,12 +666,11 @@ export const SERVICE_CATEGORIES = [
   { label: "예정 행사", path: "/realtime/waitingstatus?status=upcoming", countKey: "upcoming" },
   { label: "종료 행사", path: "/realtime/waitingstatus?status=ended", countKey: "ended" },
 ];
-
-const REALTIME_NAV_CATEGORIES = [
-  { label: "통합현황", path: "/realtime/dashboard" },
-  { label: "대기현황", path: "/realtime/waitingstatus" },
-  { label: "체크인현황", path: "/realtime/checkinstatus" },
-  { label: "투표현황", path: "/realtime/votestatus" },
+const EVENT_REALTIME_BUTTONS = [
+  { key: "dashboard", label: "통합현황", path: "/realtime/dashboard" },
+  { key: "waiting", label: "대기현황", path: "/realtime/waitingstatus" },
+  { key: "checkin", label: "체크인 현황", path: "/realtime/checkinstatus" },
+  { key: "vote", label: "투표현황", path: "/realtime/votestatus" },
 ];
 
 const ZONE_NAME_MAP = {
@@ -879,7 +947,6 @@ function compareBoothRows(a, b) {
 
 function WaitingContent({ eventId }) {
   const numericEventId = Number(eventId);
-  const navigate = useNavigate();
   const { tick } = useAutoRefresh(15000);
 
   const [eventDetail, setEventDetail] = useState(null);
@@ -1603,12 +1670,7 @@ function WaitingContent({ eventId }) {
         )}
         </div>
       </div>
-      <div className="wt-back-wrap">
-        <button className="wt-back-btn" onClick={() => navigate("/realtime/waitingstatus")}>
-          <ArrowLeft size={14} />
-          목록으로
-        </button>
-      </div>
+
     </>
   );
 }
@@ -1616,8 +1678,6 @@ function WaitingContent({ eventId }) {
 export default function WaitingStatus() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const currentPath = location.pathname.startsWith("/realtime/waitingstatus") ? "/realtime/waitingstatus" : location.pathname;
 
   const handleSelectEvent = (id) => {
     navigate(`/realtime/waitingstatus/${id}`);
@@ -1628,18 +1688,37 @@ export default function WaitingStatus() {
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
       <PageHeader
-        title="대기현황"
+        title={eventId ? "대기현황" : "실시간현황"}
         subtitle={eventId ? "프로그램 대기 상태를 실시간으로 확인합니다" : "행사별 대기 상태를 실시간으로 확인하세요"}
         icon={<Timer size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
-        tabInactiveBg="rgb(235,235,235)"
-        categories={REALTIME_NAV_CATEGORIES}
-        currentPath={currentPath}
       />
       <main className={`wt-container${eventId ? "" : " selector-mode"}`}>
         {eventId ? (
-          <WaitingContent eventId={eventId} />
+          <>
+            <div className="wt-top-actions">
+              <div className="wt-event-mode-nav">
+                {EVENT_REALTIME_BUTTONS.map((button) => (
+                  <button
+                    key={button.key}
+                    type="button"
+                    className={`wt-mode-btn${button.key === "waiting" ? " active" : ""}`}
+                    onClick={() => navigate(`${button.path}/${eventId}`)}
+                  >
+                    {button.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <WaitingContent eventId={eventId} />
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 32 }}>
+              <button className="wt-back-btn" onClick={() => navigate("/realtime/waitingstatus")}>
+                <ArrowLeft size={15} />
+                목록으로
+              </button>
+            </div>
+          </>
         ) : (
           <RealtimeEventSelector
             onSelectEvent={handleSelectEvent}

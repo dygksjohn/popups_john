@@ -5,9 +5,11 @@ import { reviewApi } from "../../../app/http/reviewApi";
 import { eventApi } from "../../../app/http/eventApi";
 import { programApi } from "../../../app/http/programApi";
 import { normalizeEventTitle } from "../../../shared/utils/eventDisplay";
+import { LazyInlineVideo } from "../../../shared/components/video/LazyInlineVideo";
 import {
   createImageFallbackHandler,
   resolveImageUrl,
+  toPublicAssetUrl,
 } from "../../../shared/utils/publicAssetUrl";
 
 /* ?? ?대?吏 ?대갚 ?? */
@@ -22,6 +24,21 @@ const DOG_IMGS = [
   "https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=600&h=800&fit=crop",
 ];
 const dogImg = (id) => DOG_IMGS[Math.abs(Number(id) || 0) % DOG_IMGS.length];
+
+const HOME_HERO_VIDEOS = [
+  {
+    src: toPublicAssetUrl("/uploads/home/home-1.mp4"),
+    poster: toPublicAssetUrl("/uploads/home/home-1-poster.jpg"),
+  },
+  {
+    src: toPublicAssetUrl("/uploads/home/home-2.mp4"),
+    poster: toPublicAssetUrl("/uploads/home/home-2-poster.jpg"),
+  },
+  {
+    src: toPublicAssetUrl("/uploads/home/home-3.mp4"),
+    poster: toPublicAssetUrl("/uploads/home/home-3-poster.jpg"),
+  },
+];
 
 /* ?? 怨듯넻 ?좎쭨 ?щ㎎ ?? */
 function fmtEventDate(iso) {
@@ -588,11 +605,6 @@ function NoticeSection() {
 
 // ================= MAIN =================
 export default function Home() {
-  const heroVideos = [
-    "/1.mov",
-    "/2.mov",
-    "/3.mp4",
-  ];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [fade, setFade] = useState(true);
   const [progress, setProgress] = useState(0);
@@ -602,11 +614,11 @@ export default function Home() {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    const updateProgress = () => { if (video.duration) setProgress((video.currentTime / video.duration) * 100); };
-    const handleEnded = () => {
-      setFade(false); setProgress(0);
-      setTimeout(() => { setCurrentVideoIndex((p) => (p === heroVideos.length - 1 ? 0 : p + 1)); setFade(true); }, 600);
-    };
+      const updateProgress = () => { if (video.duration) setProgress((video.currentTime / video.duration) * 100); };
+      const handleEnded = () => {
+        setFade(false); setProgress(0);
+        setTimeout(() => { setCurrentVideoIndex((p) => (p === HOME_HERO_VIDEOS.length - 1 ? 0 : p + 1)); setFade(true); }, 600);
+      };
     video.addEventListener("timeupdate", updateProgress);
     video.addEventListener("ended", handleEnded);
     return () => { video.removeEventListener("timeupdate", updateProgress); video.removeEventListener("ended", handleEnded); };
@@ -622,7 +634,19 @@ export default function Home() {
   return (
       <div>
         <section className="relative h-screen w-full overflow-hidden">
-          <video ref={videoRef} key={currentVideoIndex} src={heroVideos[currentVideoIndex]} autoPlay muted playsInline className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${fade ? "opacity-100" : "opacity-0"}`} />
+          <LazyInlineVideo
+            ref={videoRef}
+            key={currentVideoIndex}
+            src={HOME_HERO_VIDEOS[currentVideoIndex]?.src}
+            poster={HOME_HERO_VIDEOS[currentVideoIndex]?.poster}
+            autoPlay
+            muted
+            loop={false}
+            playsInline
+            preload="none"
+            active
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${fade ? "opacity-100" : "opacity-0"}`}
+          />
           <div className="absolute inset-0 bg-black/40" />
           <div className="relative h-full flex items-center justify-center">
             <div className="max-w-[1400px] w-full px-[25px] text-white">
@@ -639,7 +663,7 @@ export default function Home() {
               <div className="absolute left-0 top-0 h-full bg-white transition-[width] duration-200 ease-linear" style={{ width: `${progress}%` }} />
             </div>
             <div className="flex justify-between items-center mt-3 text-white text-sm">
-              <span>{String(currentVideoIndex + 1).padStart(2, "0")} / {String(heroVideos.length).padStart(2, "0")}</span>
+              <span>{String(currentVideoIndex + 1).padStart(2, "0")} / {String(HOME_HERO_VIDEOS.length).padStart(2, "0")}</span>
               <button type="button" onClick={togglePlay} className="flex items-center justify-center w-7 h-7 rounded-full hover:bg-white/20 transition">
                 {isPlaying ? (
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
@@ -672,8 +696,4 @@ export default function Home() {
       </div>
   );
 }
-
-
-
-
 

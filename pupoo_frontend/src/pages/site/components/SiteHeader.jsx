@@ -601,6 +601,14 @@ function fmtDate(str) {
   return d.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
 }
 
+function resolveNotificationTargetPath(targetType, targetId) {
+  if (targetType === "EVENT") return "/event/current";
+  if (targetType === "NOTICE" && targetId != null) {
+    return `/community/notice/${targetId}`;
+  }
+  return null;
+}
+
 export default function PupooHeader() {
   const navigate = useNavigate();
   const { isAuthed, logout } = useAuth();
@@ -626,6 +634,49 @@ export default function PupooHeader() {
   const isCompact = viewportWidth < 1024;
   const headerHeight = isMobile ? 72 : isTablet ? 72 : 92;
   const compactTopOffset = headerHeight;
+
+  useEffect(() => {
+    if (!isAuthed || !notifOpen) return undefined;
+
+    let disposed = false;
+
+    const loadNotifications = async () => {
+      setNotifLoading(true);
+      try {
+        const data = await notificationApi.getInbox(0, 5);
+        if (disposed) return;
+        setNotifList(Array.isArray(data?.items) ? data.items : []);
+      } catch {
+        if (disposed) return;
+        setNotifList([]);
+      } finally {
+        if (!disposed) setNotifLoading(false);
+      }
+    };
+
+    loadNotifications();
+    return () => {
+      disposed = true;
+    };
+  }, [isAuthed, notifOpen]);
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      const res = await notificationApi.click(notification.inboxId);
+      setNotifList((prev) => prev.filter((item) => item.inboxId !== notification.inboxId));
+      setUnreadCount((prev) => {
+        const next = Math.max(0, (Number(prev) || 0) - 1);
+        emitNotificationUnreadCount(next);
+        return next;
+      });
+      const targetPath = resolveNotificationTargetPath(res?.targetType, res?.targetId);
+      if (targetPath) navigate(targetPath);
+    } catch {
+      // ignore click errors in header panel
+    } finally {
+      setNotifOpen(false);
+    }
+  };
 
   /* ?? scroll listener ?? */
   useEffect(() => {
@@ -1185,19 +1236,16 @@ export default function PupooHeader() {
                           <div className="notif-empty">새 알림이 없습니다.</div>
                         ) : (
                           notifList.map((n) => (
-                            <div
+                            <button
                               key={n.inboxId}
                               className="notif-item"
-                              onClick={() => {
-                                notificationApi.click(n.inboxId);
-                                setNotifOpen(false);
-                                if (n.targetUrl) navigate(n.targetUrl);
-                              }}
+                              type="button"
+                              onClick={() => handleNotificationClick(n)}
                             >
                               <div className="notif-item-title">{n.title}</div>
                               <div className="notif-item-content">{n.content}</div>
-                              <div className="notif-item-date">{fmtDate(n.createdAt)}</div>
-                            </div>
+                              <div className="notif-item-date">{fmtDate(n.receivedAt)}</div>
+                            </button>
                           ))
                         )}
                         <div className="notif-footer">최근 5개만 표시됩니다</div>
@@ -1309,16 +1357,7 @@ export default function PupooHeader() {
               <div className="notif-empty">새 알림이 없어요</div>
             ) : (
               notifList.map((n) => (
-                <button key={n.inboxId} className="notif-item" onClick={async () => {
-                  try {
-                    const res = await notificationApi.click(n.inboxId);
-                    setNotifList(prev => prev.filter(x => x.inboxId !== n.inboxId));
-                    setUnreadCount(v => Math.max(0, v - 1));
-                    if (res?.targetType === "EVENT") navigate("/event/current");
-                    else if (res?.targetType === "NOTICE") navigate("/community/notice/" + res.targetId);
-                  } catch {}
-                  setNotifOpen(false);
-                }}>
+                <button key={n.inboxId} className="notif-item" onClick={() => handleNotificationClick(n)}>
                   <span className="notif-item-title">{n.title}</span>
                   {n.content && <span className="notif-item-content">{n.content}</span>}
                   <span className="notif-item-date">{fmtDate(n.receivedAt)}</span>

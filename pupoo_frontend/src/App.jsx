@@ -50,6 +50,8 @@ import JoinSocial from "./pages/site/auth/join/JoinSocial";
 import KakaoCallback from "./pages/site/auth/KakaoCallback";
 import KakaoJoin from "./pages/site/auth/join/KakaoJoin";
 import KakaoOtp from "./pages/site/auth/join/KakaoOtp";
+import NaverCallback from "./pages/site/auth/NaverCallback";
+import NaverJoin from "./pages/site/auth/join/NaverJoin";
 
 /* Google */
 import GoogleCallback from "./pages/site/auth/GoogleCallback";
@@ -163,8 +165,16 @@ function ComingSoon() {
 function PublicOnly({ children }) {
   const { isAuthed } = useAuth();
   const location = useLocation();
+  const isSocialJoinPath = location.pathname.startsWith("/auth/join/");
+  const hasPendingSocialJoin =
+    typeof window !== "undefined" &&
+    (
+      sessionStorage.getItem("kakao_provider_uid") ||
+      sessionStorage.getItem("naver_provider_uid") ||
+      sessionStorage.getItem("google_provider_uid")
+    );
 
-  if (isAuthed) {
+  if (isAuthed && (!isSocialJoinPath || !hasPendingSocialJoin)) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
   }
 
@@ -476,8 +486,18 @@ export default function App() {
               </PublicOnly>
             }
           />
+          <Route path="/naver/callback" element={<NaverCallback />} />
+          <Route path="/auth/naver/callback" element={<NaverCallback />} />
           <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
+          <Route
+            path="/auth/join/naver"
+            element={
+              <PublicOnly>
+                <NaverJoin />
+              </PublicOnly>
+            }
+          />
           <Route
             path="/auth/join/google"
             element={
@@ -518,6 +538,10 @@ export default function App() {
           <Route
             path="/program/experience/:eventId?"
             element={<Experience />}
+          />
+          <Route
+            path="/program/programstatus/:eventId?"
+            element={<ProgramStatus />}
           />
           <Route
             path="/program/current/:eventId?"

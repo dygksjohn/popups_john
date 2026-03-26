@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import PageLoading from "../components/PageLoading";
 import {
   ArrowLeft,
@@ -43,24 +43,71 @@ const formatTimestamp = (date) => {
 
 const styles = `
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
-  .vt-root { box-sizing: border-box; min-height: 100vh; background: #f8f9fc; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; flex: 1; }
+  .vt-root { box-sizing: border-box; min-height: 100vh; background: #F8F9FC; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif; flex: 1; }
   .vt-root *, .vt-root *::before, .vt-root *::after { box-sizing: border-box; font-family: inherit; }
   .vt-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
   .vt-container.with-event { padding-top: 20px; }
   .vt-container.selector-mode { padding-top: 16px; }
   .vt-page-shell { max-width: 1400px; margin: 0 auto; }
+  .vt-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
 
   .vt-back-btn {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 12px 22px; border-radius: 12px;
     border: 1.5px solid #111827; background: #111827; color: #fff;
-    font-size: 15px; font-weight: 700; cursor: pointer;
-    transition: all 0.15s;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    transition: all 0.15s; margin-bottom: 20px;
     font-family: inherit; letter-spacing: -0.01em;
+  }
+  .vt-top-actions .vt-back-btn { margin-bottom: 0; }
+  .vt-event-mode-nav {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: nowrap;
+    margin-left: 0;
+    border: 1px solid #d9e1ec;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .vt-mode-btn {
+    height: 44px;
+    border: none;
+    border-right: 1px solid #e6ebf3;
+    background: #fff;
+    color: #8b95a7;
+    padding: 0 22px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .vt-mode-btn:last-child { border-right: none; }
+  .vt-mode-btn.active {
+    background: #111827;
+    color: #fff;
+    border-right-color: #111827;
+    box-shadow: none;
+  }
+  .vt-mode-btn:hover {
+    background: #f8fafc;
+    color: #64748b;
+  }
+  .vt-mode-btn.active:hover {
+    background: #0f172a;
+    color: #fff;
   }
   .vt-back-btn:hover { background: #1f2937; border-color: #1f2937; }
   .vt-back-btn:active { transform: scale(0.97); }
-  .vt-back-wrap { display: flex; justify-content: center; margin-top: 32px; }
   .vt-live-header {
     display: flex;
     align-items: center;
@@ -92,9 +139,9 @@ const styles = `
   /* ── 히어로 ── */
   .vt-hero {
     border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 40px 44px;
-    margin-bottom: 20px;
+    border-radius: 16px;
+    padding: 32px 36px;
+    margin-bottom: 16px;
     background: linear-gradient(135deg, #fff 0%, #fafbff 100%);
     color: #111827;
     position: relative;
@@ -106,7 +153,7 @@ const styles = `
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #6366f1, #a78bfa, #6366f1);
+    background: linear-gradient(90deg, #90C450, #7c3aed, #90C450);
     background-size: 200% 100%;
     animation: vt-hero-bar 3s ease infinite;
   }
@@ -117,30 +164,30 @@ const styles = `
   .vt-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
   .vt-hero-main { min-width: 0; flex: 1 1 auto; }
   .vt-hero-title-row { display: flex; align-items: center; gap: 12px; }
-  .vt-hero-title { margin: 0; font-size: 32px; line-height: 1.15; letter-spacing: -0.03em; font-weight: 900; color: #111827; }
-  .vt-hero-meta { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 16px; font-size: 15px; color: #9ca3af; }
+  .vt-hero-title { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; font-weight: 800; color: #111827; }
+  .vt-hero-meta { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 14px; font-size: 14px; color: #9ca3af; }
   .vt-hero-meta-item { display: inline-flex; align-items: center; gap: 5px; }
   .vt-hero-divider { margin: 16px 0; border: none; border-top: 1px solid #f0f0f0; }
   .vt-hero-summary { display: flex; align-items: center; gap: 10px; font-size: 15px; color: #9ca3af; font-weight: 500; }
   .vt-hero-summary strong { font-weight: 800; color: #111827; font-size: 16px; }
   .vt-hero-summary-dot {
     width: 10px; height: 10px; border-radius: 50%;
-    background: #6366f1; box-shadow: 0 0 6px rgba(99,102,241,0.4);
+    background: #90C450; box-shadow: 0 0 6px rgba(144,196,80,0.4);
     animation: vt-pulse 1.6s ease-in-out infinite; flex-shrink: 0;
   }
 
   .vt-hero-kpi-grid {
     margin-top: 0;
-    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px; width: min(760px, 100%); margin-left: auto; flex-shrink: 0;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px; width: min(640px, 100%); margin-left: auto; flex-shrink: 0;
   }
   .vt-hero-kpi {
-    border: 1px solid #ebebeb; border-radius: 16px;
-    background: #fff; padding: 24px 26px;
+    border: 1px solid #ebebeb; border-radius: 14px;
+    background: #fff; padding: 20px 22px;
   }
-  .vt-hero-kpi-label { font-size: 14px; color: #6b7280; font-weight: 700; margin-bottom: 12px; }
+  .vt-hero-kpi-label { font-size: 13px; color: #9ca3af; font-weight: 600; margin-bottom: 10px; }
   .vt-hero-kpi-row { display: flex; align-items: baseline; gap: 4px; }
-  .vt-hero-kpi-value { font-size: 38px; line-height: 1; font-weight: 900; color: #111827; letter-spacing: -0.02em; }
+  .vt-hero-kpi-value { font-size: 36px; line-height: 1; font-weight: 800; color: #111827; letter-spacing: -0.02em; }
   .vt-hero-kpi-unit { font-size: 18px; color: #9ca3af; font-weight: 700; }
   .vt-hero-kpi-bar { margin-top: 14px; height: 10px; border-radius: 99px; background: #f0f0f0; overflow: hidden; }
   .vt-hero-kpi-bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
@@ -160,7 +207,7 @@ const styles = `
   }
   .vt-status-chip-active { background: #ecfdf3; color: #166534; border: 1px solid #bbf7d0; }
   .vt-status-chip-active .vt-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: vt-pulse 1.6s ease-in-out infinite; }
-  .vt-status-chip-ended { background: #f8f9fc; color: #6b7280; border: 1px solid #d1d5db; }
+  .vt-status-chip-ended { background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
   .vt-status-chip-planned { background: #E6F7F2; color: #90C450; border: 1px solid #CCF0E4; }
   @keyframes vt-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.75); } }
 
@@ -187,19 +234,14 @@ const styles = `
   /* ── 콘테스트 선택 ── */
   .vt-selector-wrap { margin-bottom: 14px; }
   .vt-selector-head-left { display: inline-flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
-  .vt-selector-status-filters {
-    display: flex; align-items: center; gap: 0;
-    border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;
-  }
+  .vt-selector-status-filters { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: 4px; }
   .vt-selector-status-btn {
-    height: 44px; padding: 0 20px; border: none;
-    background: transparent; color: #6b7280; font-size: 14px; font-weight: 600;
-    cursor: pointer; transition: all 0.15s; font-family: inherit;
-    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid #d1d5db; border-radius: 999px; background: #fff;
+    color: #475569; font-size: 12px; font-weight: 700; line-height: 1;
+    padding: 6px 10px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
   }
-  .vt-selector-status-btn + .vt-selector-status-btn { border-left: 1px solid #e5e7eb; }
-  .vt-selector-status-btn:hover { color: #111827; background: #f9fafb; }
-  .vt-selector-status-btn.active { background: #1f2937; color: #fff; }
+  .vt-selector-status-btn:hover { border-color: #94a3b8; background: #f8fafc; }
+  .vt-selector-status-btn.active { border-color: #90C450; background: #E6F7F2; color: #028A6C; }
   .vt-selector-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
   .vt-selector-item { min-width: 200px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; padding: 14px; text-align: left; cursor: pointer; transition: all 0.15s; }
   .vt-selector-item:hover { border-color: #cbd5e1; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
@@ -247,7 +289,7 @@ const styles = `
   .vt-detail-placeholder { font-size: 14px; color: #64748b; font-weight: 700; }
   .vt-detail-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .vt-detail-metric { border: 1px solid #eef0f4; border-radius: 14px; background: #fafbfc; padding: 18px 20px; transition: all 0.15s; }
-  .vt-detail-metric:hover { border-color: #e2e5ea; background: #f8f9fc; }
+  .vt-detail-metric:hover { border-color: #e2e5ea; background: #f3f4f6; }
   .vt-detail-metric-label { margin: 0 0 8px; font-size: 13px; color: #9ca3af; font-weight: 600; }
   .vt-detail-metric-value { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; color: #111827; font-weight: 900; }
 
@@ -274,37 +316,19 @@ const styles = `
     .vt-main-grid { grid-template-columns: 1fr; }
     .vt-ranking-list { max-height: 420px; }
   }
-  @media (max-width: 640px) {
-    .vt-container { padding: 20px 16px 48px; }
-    .vt-container.selector-mode { padding-top: 0; }
-    .vt-top-actions { align-items: stretch; }
-    .vt-event-mode-nav { width: 100%; margin-left: 0; }
-    .vt-mode-btn { flex: 1 1 calc(50% - 8px); min-width: 132px; }
-    .vt-live-header { flex-wrap: wrap; }
-    .vt-live-actions { width: 100%; justify-content: flex-end; }
-    .vt-hero { padding: 18px 18px 20px; overflow: visible; }
-    .vt-hero-title { font-size: 19px; letter-spacing: 0; line-height: 1.4; word-break: keep-all; }
-    .vt-hero-top { flex-wrap: wrap; gap: 12px; }
-    .vt-hero-kpi { padding: 14px 14px; }
-    .vt-hero-kpi-value { font-size: 24px; }
-    .vt-back-btn { padding: 9px 22px; font-size: 13px; border-radius: 999px; }
-    .vt-card { padding: 20px 16px; }
-    .vt-card-title { font-size: 16px; }
-    .vt-detail-name { font-size: 20px; }
-    .vt-detail-metrics { grid-template-columns: 1fr; }
+	  @media (max-width: 640px) {
+	    .vt-container { padding: 20px 16px 48px; }
+	    .vt-top-actions { align-items: stretch; }
+	    .vt-event-mode-nav { width: 100%; margin-left: 0; overflow-x: auto; }
+	    .vt-mode-btn { flex: 0 0 auto; min-width: 112px; }
+	    .vt-live-header { flex-wrap: wrap; }
+	    .vt-live-actions { width: 100%; justify-content: flex-end; }
+	    .vt-hero { padding: 22px 18px; }
+	    .vt-hero-title { font-size: 22px; }
+	    .vt-hero-kpi-value { font-size: 28px; }
+	    .vt-card { padding: 20px 18px; }
+	    .vt-detail-metrics { grid-template-columns: 1fr; }
     .vt-selector-head-left { width: 100%; }
-    .vt-selector-status-filters {
-      width: 100%; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap;
-      border: none; border-radius: 0; gap: 6px; background: transparent;
-    }
-    .vt-selector-status-filters::-webkit-scrollbar { display: none; }
-    .vt-selector-status-btn {
-      height: 28px; padding: 0 12px; font-size: 12px; border-radius: 6px;
-      background: rgb(235,235,235); color: #888; border: none;
-    }
-    .vt-selector-status-btn + .vt-selector-status-btn { border-left: none; }
-    .vt-selector-status-btn.active { background: #111827; color: #fff; }
-    .vt-ranking-list { max-height: clamp(280px, 50vh, 420px); }
   }
 `;
 
@@ -315,19 +339,18 @@ export const SERVICE_CATEGORIES = [
   { label: "종료 행사", path: "/realtime/votestatus?status=ended", countKey: "ended" },
 ];
 
-const REALTIME_NAV_CATEGORIES = [
-  { label: "통합현황", path: "/realtime/dashboard" },
-  { label: "대기현황", path: "/realtime/waitingstatus" },
-  { label: "체크인현황", path: "/realtime/checkinstatus" },
-  { label: "투표현황", path: "/realtime/votestatus" },
-];
-
 export const SUBTITLE_MAP = {
   "/realtime/dashboard": "행사 전체 현황을 실시간으로 모니터링합니다",
   "/realtime/waitingstatus": "대기열 현황을 실시간으로 확인합니다",
   "/realtime/checkinstatus": "참가자 체크인 현황을 실시간으로 확인합니다",
   "/realtime/votestatus": "진행 중인 투표의 실시간 결과를 확인합니다",
 };
+const EVENT_REALTIME_BUTTONS = [
+  { key: "dashboard", label: "통합현황", path: "/realtime/dashboard" },
+  { key: "waiting", label: "대기현황", path: "/realtime/waitingstatus" },
+  { key: "checkin", label: "체크인 현황", path: "/realtime/checkinstatus" },
+  { key: "vote", label: "투표현황", path: "/realtime/votestatus" },
+];
 
 const CONTEST_STATUS_FILTERS = [
   { key: "진행 중", label: "진행 중 콘테스트" },
@@ -537,6 +560,12 @@ function VoteContent({ eventId }) {
           return {
             key: contest?.key || `contest-${contest?.programId}`,
             programId: Number(contest?.programId),
+            eventId: Number(
+              contest?.eventId ??
+                contest?.contestEventId ??
+                contest?.programEventId ??
+                eventId,
+            ),
             title: contest?.title || `콘테스트 #${contest?.programId ?? "-"}`,
             status: contest?.status || toContestStatus(contest),
             totalVotes: toNumber(contest?.totalVotes),
@@ -705,6 +734,7 @@ function VoteContent({ eventId }) {
 
   const hasMoreThanFive = (activeContest?.items?.length ?? 0) > 5;
   const maxVotes = activeContest?.items?.[0]?.votes ?? 0;
+  const lastUpdated = formatTimestamp(lastLoadedAt);
 
   const summaryByStatus = useMemo(() => {
     return contests.reduce((acc, contest) => {
@@ -791,7 +821,25 @@ function VoteContent({ eventId }) {
           </div>
           <button
             className="vt-selector-link"
-            onClick={() => navigate("/program/contest")}
+            onClick={() => {
+              const contestProgramId = Number(activeContest?.programId);
+              const contestEventId = Number(
+                activeContest?.eventId ??
+                  eventDetail?.eventId ??
+                  eventId,
+              );
+              if (Number.isFinite(contestProgramId) && contestProgramId > 0) {
+                const safeContestEventId =
+                  Number.isFinite(contestEventId) && contestEventId > 0
+                    ? contestEventId
+                    : eventId;
+                navigate(
+                  `/program/contest/${safeContestEventId}/detail/${contestProgramId}#candidates`,
+                );
+                return;
+              }
+              navigate("/program/contest");
+            }}
           >
             투표참여 페이지로 이동
           </button>
@@ -952,12 +1000,6 @@ function VoteContent({ eventId }) {
           )}
         </aside>
       </section>
-      <div className="vt-back-wrap">
-        <button className="vt-back-btn" onClick={() => navigate("/realtime/votestatus")}>
-          <ArrowLeft size={14} />
-          목록으로
-        </button>
-      </div>
     </>
   );
 }
@@ -965,8 +1007,6 @@ function VoteContent({ eventId }) {
 export default function VoteStatus() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const currentPath = location.pathname.startsWith("/realtime/votestatus") ? "/realtime/votestatus" : location.pathname;
 
   const handleSelectEvent = useCallback(
     (selectedEventId) => {
@@ -980,19 +1020,38 @@ export default function VoteStatus() {
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
       <PageHeader
-        title="투표현황"
+        title={eventId ? "투표현황" : "실시간현황"}
         subtitle={eventId ? "진행 중인 투표의 실시간 결과를 확인합니다" : "행사별 실시간 데이터를 한눈에 확인하세요"}
         icon={<Vote size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
         subtitleStyle={{ fontSize: 20 }}
-        tabInactiveBg="rgb(235,235,235)"
-        categories={REALTIME_NAV_CATEGORIES}
-        currentPath={currentPath}
       />
       <main className={`vt-container${eventId ? " with-event" : " selector-mode"}`}>
         <div className="vt-page-shell">
           {eventId ? (
-            <VoteContent eventId={eventId} />
+            <>
+              <div className="vt-top-actions">
+                <div className="vt-event-mode-nav">
+                  {EVENT_REALTIME_BUTTONS.map((button) => (
+                    <button
+                      key={button.key}
+                      type="button"
+                      className={`vt-mode-btn${button.key === "vote" ? " active" : ""}`}
+                      onClick={() => navigate(`${button.path}/${eventId}`)}
+                    >
+                      {button.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <VoteContent eventId={eventId} />
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 32 }}>
+                <button className="vt-back-btn" onClick={() => navigate("/realtime/votestatus")}>
+                  <ArrowLeft size={15} />
+                  목록으로
+                </button>
+              </div>
+            </>
           ) : (
             <RealtimeEventSelector
               onSelectEvent={handleSelectEvent}

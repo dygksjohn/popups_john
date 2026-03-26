@@ -234,7 +234,7 @@ function EventThumb({ ev }) {
       <div
         className="ev-card-thumb-fallback"
         style={{
-          display: "flex",
+          display: ev.image ? "none" : "flex",
           background: "linear-gradient(135deg, rgb(144, 196, 80) 0%, rgb(99, 234, 241) 100%)",
         }}
       >
@@ -383,9 +383,6 @@ export default function Current() {
               </div>
             ) : null}
             {filtered.map((ev) => {
-              const safeCapacity = ev.capacity && ev.capacity > 0 ? ev.capacity : 1;
-              const safeParticipants = ev.participants ?? 0;
-              const pct = Math.min(100, Math.round((safeParticipants / safeCapacity) * 100));
               return (
                 <div
                   key={ev.id}
@@ -407,18 +404,6 @@ export default function Current() {
                       </div>
                     </div>
                     <div className="ev-event-footer">
-                      <div className="ev-progress-wrap">
-                        <div className="ev-progress-label">
-                          <span>참가자 {ev.participants.toLocaleString()}명 / {ev.capacity.toLocaleString()}명</span>
-                          <span style={{ fontWeight: 700, color: pct >= 80 ? "#ef4444" : "#90C450" }}>{pct}%</span>
-                        </div>
-                        <div className="ev-progress-track">
-                          <div
-                            className="ev-progress-fill"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
                       <button
                         className="ev-card-btn"
                         onClick={(e) => {

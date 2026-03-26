@@ -45,11 +45,12 @@ public class UserService {
      */
     @Transactional
     public User create(UserCreateRequest req) {
+        String normalizedPhone = normalizePhone(req.getPhone());
 
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new IllegalArgumentException("Email already exists");
         }
-        if (userRepository.existsByPhone(req.getPhone())) {
+        if (userRepository.existsByNormalizedPhone(normalizedPhone, toAlternatePhone(normalizedPhone))) {
             throw new IllegalArgumentException("Phone already exists");
         }
         if (userRepository.existsByNickname(req.getNickname())) {
@@ -60,7 +61,7 @@ public class UserService {
         user.setEmail(req.getEmail());
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         user.setNickname(req.getNickname());
-        user.setPhone(req.getPhone());
+        user.setPhone(normalizedPhone);
 
         user.setStatus(UserStatus.ACTIVE);
         user.setRoleName(RoleName.USER);
@@ -134,11 +135,12 @@ public class UserService {
      */
     @Transactional
     public User createWithPasswordHash(UserCreateRequest req, String passwordHash) {
+        String normalizedPhone = normalizePhone(req.getPhone());
 
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new IllegalArgumentException("Email already exists");
         }
-        if (userRepository.existsByPhone(req.getPhone())) {
+        if (userRepository.existsByNormalizedPhone(normalizedPhone, toAlternatePhone(normalizedPhone))) {
             throw new IllegalArgumentException("Phone already exists");
         }
         if (userRepository.existsByNickname(req.getNickname())) {
@@ -153,7 +155,7 @@ public class UserService {
         user.setEmail(req.getEmail());
         user.setPassword(passwordHash);
         user.setNickname(req.getNickname());
-        user.setPhone(req.getPhone());
+        user.setPhone(normalizedPhone);
 
         user.setStatus(UserStatus.ACTIVE);
         user.setRoleName(RoleName.USER);
@@ -163,5 +165,25 @@ public class UserService {
         user.setShowPet(req.isShowPet());
 
         return userRepository.save(user);
+    }
+
+    private String normalizePhone(String phone) {
+        if (phone == null) {
+            return "";
+        }
+        return phone.replaceAll("[^0-9]", "");
+    }
+
+    private String toAlternatePhone(String normalizedPhone) {
+        if (normalizedPhone == null || normalizedPhone.isBlank()) {
+            return "";
+        }
+        if (normalizedPhone.startsWith("82") && normalizedPhone.length() >= 11) {
+            return "0" + normalizedPhone.substring(2);
+        }
+        if (normalizedPhone.startsWith("0") && normalizedPhone.length() >= 10) {
+            return "82" + normalizedPhone.substring(1);
+        }
+        return normalizedPhone;
     }
 }

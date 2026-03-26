@@ -1,30 +1,24 @@
-"""모더레이션 API 요청/응답 스키마.
-
-기능:
-- 백엔드와 AI 서비스 간 moderation 요청 구조를 고정한다.
-
-설명:
-- 이 스키마는 저장 전 사전 차단 판단에 사용된다.
-- 신고 접수 후 관리자 승인 흐름과는 분리된 요청/응답 모델이다.
-"""
+"""모더레이션 내부 API 요청/응답 스키마."""
 
 from pydantic import BaseModel, Field
 
 
 class ModerateRequest(BaseModel):
-    """`POST /internal/moderate` 요청 모델."""
-
-    text: str = Field(..., min_length=1, description="검사할 원문 텍스트")
-    board_id: int | None = Field(None, description="게시판 ID")
-    content_type: str | None = Field(None, description="POST 또는 COMMENT")
+    content: str | None = Field(default=None, description="검사할 본문")
+    text: str | None = Field(default=None, description="하위 호환 본문 필드")
+    board_type: str | None = Field(default=None, description="게시판 구분")
+    content_type: str | None = Field(default=None, description="하위 호환 게시글 구분")
+    board_id: int | None = Field(default=None, description="게시판 ID")
+    metadata: dict = Field(default_factory=dict, description="추가 메타데이터")
 
 
 class ModerateResponse(BaseModel):
-    """모더레이션 판단 결과 응답 모델."""
-
-    action: str = Field(..., description="PASS 또는 BLOCK")
-    ai_score: float | None = Field(None, description="AI 판단 점수")
-    flagged_phrases: list[str] | None = Field(None, description="입력 원문에서 직접 발견된 문제 구문")
-    inferred_phrases: list[str] | None = Field(None, description="정책/문맥 해석으로 도출한 위반 키워드")
-    reason: str | None = Field(None, description="정책 판단 근거 요약")
-    stack: str = Field("rag_watsonx", description="판단에 사용된 처리 스택")
+    decision: str = Field(default="ALLOW", description="ALLOW, WARN, REVIEW, BLOCK")
+    result: str = Field(..., description="기존 호환용 PASS 또는 BLOCK")
+    action: str = Field(..., description="기존 호환용 PASS 또는 BLOCK")
+    reason: str | None = Field(default=None, description="판정 사유")
+    score: float | None = Field(default=None, description="판정 점수")
+    ai_score: float | None = Field(default=None, description="하위 호환 점수")
+    stack: str = Field(default="rag_watsonx", description="처리 스택")
+    flagged_phrases: list[str] | None = Field(default=None, description="직접 탐지된 문제 표현")
+    inferred_phrases: list[str] | None = Field(default=None, description="정책 해석으로 추론된 문제 표현")

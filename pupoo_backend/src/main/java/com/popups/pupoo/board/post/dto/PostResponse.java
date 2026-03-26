@@ -25,6 +25,7 @@ public class PostResponse {
     private boolean commentEnabled;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private PostModerationResponse moderation;
 
     public static PostResponse from(Post post) {
         return from(post, null);
@@ -48,6 +49,18 @@ public class PostResponse {
             String maskedContent,
             Long commentCount
     ) {
+        return from(post, writerEmail, writerNickname, maskedTitle, maskedContent, commentCount, null);
+    }
+
+    public static PostResponse from(
+            Post post,
+            String writerEmail,
+            String writerNickname,
+            String maskedTitle,
+            String maskedContent,
+            Long commentCount,
+            PostModerationResponse moderation
+    ) {
         PostResponse r = new PostResponse();
         r.postId = post.getPostId();
         r.boardId = post.getBoard().getBoardId();
@@ -63,6 +76,7 @@ public class PostResponse {
         r.commentEnabled = post.isCommentEnabled();
         r.createdAt = post.getCreatedAt();
         r.updatedAt = post.getUpdatedAt();
+        r.moderation = moderation;
         return r;
     }
 }

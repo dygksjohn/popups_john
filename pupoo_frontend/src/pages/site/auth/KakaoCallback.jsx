@@ -3,6 +3,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "./api/authApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { useAuth } from "./AuthProvider";
+import {
+  clearAllSocialJoinState,
+  setSocialJoinState,
+} from "./socialJoinStorage";
 
 const KAKAO_CODE_GUARD_KEY = "kakao_oauth_code_guard";
 
@@ -40,13 +44,15 @@ const clearCodeGuard = (code) => {
   }
 };
 
+const clearPendingSocialJoin = () => {
+  clearAllSocialJoinState();
+};
+
 export default function KakaoCallback() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const redirectUri =
-    import.meta.env.VITE_KAKAO_REDIRECT_URI ||
-    `${window.location.origin}/auth/kakao/callback`;
+  const redirectUri = `${window.location.origin}/auth/kakao/callback`;
   const resolvePostLoginRedirect = () => {
     const target = sessionStorage.getItem("post_login_redirect") || "/";
     return target.startsWith("/auth/") ? "/" : target;
@@ -82,9 +88,7 @@ export default function KakaoCallback() {
       markCodeGuard(code);
 
       // ✅ 이전 카카오 가입 세션 값 초기화(꼬임 방지)
-      sessionStorage.removeItem("kakao_provider_uid");
-      sessionStorage.removeItem("kakao_email");
-      sessionStorage.removeItem("kakao_nickname");
+      clearPendingSocialJoin();
 
       try {
         const data = await authApi.kakaoLogin({ code, redirectUri });
@@ -113,6 +117,7 @@ export default function KakaoCallback() {
 
           tokenStore.setAccess(accessToken);
           login();
+          clearPendingSocialJoin();
 
           const redirectTo = resolvePostLoginRedirect();
           sessionStorage.removeItem("post_login_redirect");
@@ -132,10 +137,16 @@ export default function KakaoCallback() {
           return;
         }
 
-        sessionStorage.setItem("kakao_provider_uid", uid);
-        sessionStorage.setItem("kakao_email", data.email ?? "");
-        sessionStorage.setItem("kakao_nickname", data.nickname ?? "");
+        setSocialJoinState("kakao", {
+          providerUid: uid,
+          email: data.email ?? "",
+          nickname: data.nickname ?? "",
+          signupKey: "",
+          phone: "",
+          step: "FORM",
+        });
 
+        tokenStore.clear();
         navigate("/auth/join/kakao", { replace: true });
       } catch (e) {
         clearCodeGuard(code);

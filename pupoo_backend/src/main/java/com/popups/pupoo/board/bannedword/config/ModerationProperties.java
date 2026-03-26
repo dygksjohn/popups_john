@@ -9,8 +9,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "ai.moderation")
 public class ModerationProperties {
 
-    private String baseUrl = "http://localhost:8000";
+    private String baseUrl = "http://pupoo-ai:80";
     private String internalToken = "dev-internal-token";
-    private int timeoutSeconds = 300;
+    private int connectTimeoutMs = 3000;
+    private int readTimeoutMs = 8000;
     private boolean enabled = true;
 }
