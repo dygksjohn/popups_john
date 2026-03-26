@@ -84,5 +84,5 @@ If local testing needs a concrete manifest, copy `backend-secret.example.yaml` t
 
 Current example coverage:
 
-- `pupoo-backend-secret`: datasource credentials, auth salts/secrets, AI internal tokens, OpenAI config, Kakao OAuth, KakaoPay
+- `pupoo-backend-secret`: datasource credentials, auth salts/secrets, AI internal tokens, OpenAI config, Kakao OAuth, Google OAuth, Naver OAuth, KakaoPay
 - `pupoo-ai-secret`: `PUPOO_AI_INTERNAL_TOKEN`, `OPENAI_API_KEY`
