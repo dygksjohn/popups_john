@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CommunityPagination from "./shared/CommunityPagination";
 import {
@@ -24,7 +24,6 @@ import BadgeTag from "./shared/BadgeTag";
 import { htmlToPlainText } from "./shared/communityHtml";
 
 const PAGE_SIZE = 10;
-const REVIEW_FETCH_SIZE = 100;
 
 const RATING_OPTIONS = [
   { value: "ALL", label: "별점 전체" },
@@ -46,11 +45,6 @@ function fmtDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function toTimestamp(value) {
-  const ts = Date.parse(String(value || ""));
-  return Number.isFinite(ts) ? ts : 0;
 }
 
 function renderStars(rating = 0, size = 14) {
@@ -79,78 +73,50 @@ export default function Review() {
   const ratingDdRef = useRef(null);
   const sortDdRef = useRef(null);
   const [items, setItems] = useState([]);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
 
-  const loadReviews = useCallback(async () => {
+  const loadReviews = useCallback(async (requestedPage = 1) => {
     setLoading(true);
     setError("");
     try {
-      const rows = [];
-      let pageIndex = 0;
-      let finished = false;
-
-      while (!finished && pageIndex < 20) {
-        const data = await reviewApi.list({
-          page: pageIndex,
-          size: REVIEW_FETCH_SIZE,
-          rating: ratingFilter === "ALL" ? undefined : Number(ratingFilter),
-          sortKey: sortOption,
-        });
-        const content = Array.isArray(data?.content) ? data.content : [];
-        rows.push(...content);
-
-        const totalPages = Number(data?.totalPages) || 0;
-        finished =
-          Boolean(data?.last) || totalPages === 0 || pageIndex + 1 >= totalPages;
-        pageIndex += 1;
-      }
-
-      setItems(rows);
+      const apiSortKey = sortOption === "latest" ? "recent" : sortOption;
+      const data = await reviewApi.list({
+        page: Math.max(0, (Number(requestedPage) || 1) - 1),
+        size: PAGE_SIZE,
+        searchType: "TITLE_CONTENT",
+        keyword: search.trim(),
+        rating: ratingFilter === "ALL" ? undefined : Number(ratingFilter),
+        sortKey: apiSortKey,
+      });
+      const content = Array.isArray(data?.content) ? data.content : [];
+      setItems(content);
+      setTotalElements(Number(data?.totalElements) || 0);
+      setTotalPages(Math.max(1, Number(data?.totalPages) || 1));
     } catch (err) {
       console.error("[Review] load failed:", err);
       setItems([]);
+      setTotalElements(0);
+      setTotalPages(1);
       setError(err?.response?.data?.message || "행사 후기를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
-  }, [ratingFilter, sortOption]);
+  }, [ratingFilter, search, sortOption]);
 
   useEffect(() => {
-    loadReviews();
-  }, [loadReviews]);
+    loadReviews(page);
+  }, [loadReviews, page]);
 
   useEffect(() => {
     setPage(1);
   }, [search, ratingFilter, sortOption]);
 
-  const sortedFilteredItems = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    const filtered = items.filter((item) => {
-      const eventName = String(item.eventName || "").toLowerCase();
-      const title = String(item.reviewTitle || item.title || "").toLowerCase();
-      const text = htmlToPlainText(item.content || "").toLowerCase();
-      return !keyword || title.includes(keyword) || text.includes(keyword) || eventName.includes(keyword);
-    });
-
-    return [...filtered].sort((a, b) => {
-      if (sortOption === "views") {
-        return Number(b.viewCount || 0) - Number(a.viewCount || 0);
-      }
-      if (sortOption === "comments") {
-        return Number(b.commentCount || 0) - Number(a.commentCount || 0);
-      }
-      return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
-    });
-  }, [items, search, sortOption]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedFilteredItems.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedItems = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return sortedFilteredItems.slice(start, start + PAGE_SIZE);
-  }, [currentPage, sortedFilteredItems]);
+  const pagedItems = items;
 
   const currentSortLabel = SORT_OPTIONS.find((option) => option.value === sortOption)?.label || "최신순";
   const currentRatingLabel = RATING_OPTIONS.find((option) => option.value === ratingFilter)?.label || "별점 전체";
@@ -220,7 +186,7 @@ export default function Review() {
             gap: isMobile ? 12 : 8,
           }}
         >
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>총 {sortedFilteredItems.length}개</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>총 {totalElements}개</span>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, width: isMobile ? "100%" : "auto", height: isMobile ? "auto" : 48, flexWrap: isMobile ? "wrap" : "nowrap", rowGap: isMobile ? 8 : 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 0, background: isMobile ? "transparent" : "#fff", border: isMobile ? "none" : "1px solid #e2e5ea", borderRadius: 12, height: isMobile ? "auto" : 48, width: isMobile ? "100%" : "auto", flexWrap: isMobile ? "wrap" : "nowrap", padding: 0, rowGap: isMobile ? 8 : 0 }}>
@@ -388,7 +354,7 @@ export default function Review() {
                   item?.nickname ||
                   item?.userName ||
                   (item?.userId ? `회원 #${item.userId}` : "익명 사용자");
-                const rowNumber = sortedFilteredItems.length - ((currentPage - 1) * PAGE_SIZE) - index;
+                const rowNumber = totalElements - ((currentPage - 1) * PAGE_SIZE) - index;
                 return (
                   <div
                     key={item.reviewId}
