@@ -71,7 +71,7 @@ export default function NaverCallback() {
       if (error) {
         navigate("/auth/login", {
           replace: true,
-          state: { error: "네이버 인증이 취소되었거나 실패했습니다." },
+          state: { error: "네이버 인증을 취소했거나 실패했습니다." },
         });
         return;
       }
@@ -79,7 +79,7 @@ export default function NaverCallback() {
       if (!code) {
         navigate("/auth/login", {
           replace: true,
-          state: { error: "네이버 인증 코드가 없어요." },
+          state: { error: "네이버 인증 코드가 없습니다." },
         });
         return;
       }
@@ -87,7 +87,7 @@ export default function NaverCallback() {
       if (!state || !storedState || state !== storedState) {
         navigate("/auth/login", {
           replace: true,
-          state: { error: "네이버 인증 상태값이 올바르지 않아요." },
+          state: { error: "네이버 인증 상태값이 올바르지 않습니다." },
         });
         return;
       }
@@ -104,7 +104,7 @@ export default function NaverCallback() {
         if (!data || typeof data.newUser !== "boolean") {
           navigate("/auth/login", {
             replace: true,
-            state: { error: "네이버 로그인 응답이 올바르지 않아요." },
+            state: { error: "네이버 로그인 응답이 올바르지 않습니다." },
           });
           return;
         }
@@ -114,7 +114,7 @@ export default function NaverCallback() {
           if (!accessToken) {
             navigate("/auth/login", {
               replace: true,
-              state: { error: "로그인 토큰을 받지 못했어요." },
+              state: { error: "로그인 토큰을 받지 못했습니다." },
             });
             return;
           }
@@ -133,7 +133,7 @@ export default function NaverCallback() {
         if (!uid) {
           navigate("/auth/login", {
             replace: true,
-            state: { error: "네이버 계정 정보를 확인하지 못했어요." },
+            state: { error: "네이버 계정 정보를 확인하지 못했습니다." },
           });
           return;
         }
@@ -158,7 +158,7 @@ export default function NaverCallback() {
             error:
               e?.response?.data?.message ??
               e?.message ??
-              "네이버 로그인 처리에 실패했어요.",
+              "네이버 로그인 처리에 실패했습니다.",
           },
         });
       }

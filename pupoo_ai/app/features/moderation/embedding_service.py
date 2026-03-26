@@ -1,12 +1,7 @@
 """모더레이션 임베딩 서비스.
 
 기능:
-- 정책 검색(Milvus)에 쓰는 텍스트 임베딩을 IBM watsonx.ai Embeddings API로 생성한다.
-
-설명:
-- BGE-M3 / 별도 embedding-service는 사용하지 않는다.
-- Milvus 컬렉션 벡터 차원은 `PUPOO_AI_WATSONX_EMBEDDING_DIM`과 선택한 모델 출력이 일치해야 한다.
-  (모델 변경 시 컬렉션 재구축 필요)
+- 정책 검색용 텍스트 임베딩을 IBM watsonx.ai Embeddings API로 생성한다.
 """
 
 from __future__ import annotations
@@ -20,7 +15,6 @@ from pupoo_ai.app.features.moderation.watsonx_client import is_watsonx_embedding
 
 logger = logging.getLogger(__name__)
 
-# watsonx API 배치 한도를 넘기지 않도록 나눔
 _EMBED_BATCH_SIZE = 32
 
 
@@ -34,14 +28,14 @@ class EmbeddingService(Protocol):
 
 
 class WatsonxEmbeddingService:
-    """watsonx.ai foundation model 임베딩 (langchain_ibm.WatsonxEmbeddings)."""
+    """watsonx.ai 임베딩 서비스."""
 
     def __init__(self) -> None:
         if not is_watsonx_embedding_configured():
             raise RuntimeError(
                 "watsonx 임베딩에 필요한 설정이 없습니다. "
-                "PUPOO_AI_WATSONX_API_KEY, PUPOO_AI_WATSONX_URL, PUPOO_AI_WATSONX_PROJECT_ID, "
-                "PUPOO_AI_WATSONX_EMBEDDING_MODEL_ID 를 설정하세요."
+                "PUPOO_AI_WATSONX_API_KEY, PUPOO_AI_WATSONX_URL, "
+                "PUPOO_AI_WATSONX_PROJECT_ID, PUPOO_AI_WATSONX_EMBEDDING_MODEL_ID를 확인해 주세요."
             )
         self._dim = settings.watsonx_embedding_dim
         self._client = None
@@ -65,24 +59,24 @@ class WatsonxEmbeddingService:
             return self._client
 
     def embed_texts(self, texts: Iterable[str]) -> List[List[float]]:
-        texts_list = [t if t is not None else "" for t in texts]
+        texts_list = [text if text is not None else "" for text in texts]
         if not texts_list:
             return []
 
-        wx = self._get_watsonx()
-        out: List[List[float]] = []
-        for i in range(0, len(texts_list), _EMBED_BATCH_SIZE):
-            batch = texts_list[i : i + _EMBED_BATCH_SIZE]
-            out.extend(wx.embed_documents(batch))
+        watsonx = self._get_watsonx()
+        embeddings: List[List[float]] = []
+        for index in range(0, len(texts_list), _EMBED_BATCH_SIZE):
+            batch = texts_list[index : index + _EMBED_BATCH_SIZE]
+            embeddings.extend(watsonx.embed_documents(batch))
 
-        if out and len(out[0]) != self._dim:
+        if embeddings and len(embeddings[0]) != self._dim:
             logger.warning(
                 "임베딩 벡터 길이(%d)가 PUPOO_AI_WATSONX_EMBEDDING_DIM(%d)과 다릅니다. "
-                "Milvus 스키마·설정을 모델에 맞게 조정하세요.",
-                len(out[0]),
+                "Milvus 스키마와 설정을 함께 확인해 주세요.",
+                len(embeddings[0]),
                 self._dim,
             )
-        return out
+        return embeddings
 
 
 _service_lock = threading.Lock()

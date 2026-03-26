@@ -26,15 +26,19 @@ export default function NaverJoin() {
   const { login } = useAuth();
   const didInitRef = useRef(false);
 
-  const naverSession = useMemo(() => getSocialJoinState("naver") || ({
-    providerUid: "",
-    email: "",
-    nickname: "",
-    tempPassword: "",
-    signupKey: "",
-    phone: "",
-    step: "FORM",
-  }), []);
+  const naverSession = useMemo(
+    () =>
+      getSocialJoinState("naver") || {
+        providerUid: "",
+        email: "",
+        nickname: "",
+        tempPassword: "",
+        signupKey: "",
+        phone: "",
+        step: "FORM",
+      },
+    [],
+  );
 
   const [providerUid] = useState(naverSession.providerUid);
   const [email, setEmail] = useState(naverSession.email);
@@ -87,7 +91,7 @@ export default function NaverJoin() {
     }
 
     setStep(naverSession.signupKey ? STEP.OTP : STEP.FORM);
-  }, [navigate, providerUid]);
+  }, [navigate, naverSession.signupKey, providerUid]);
 
   useEffect(() => {
     if (!providerUid) return;
@@ -164,7 +168,7 @@ export default function NaverJoin() {
       const accessToken = res?.accessToken;
 
       if (!accessToken) {
-        setError("회원가입이 완료되지 않았어요. 다시 시도해 주세요.");
+        setError("회원가입을 완료하지 못했습니다. 다시 시도해 주세요.");
         return;
       }
 
@@ -229,7 +233,7 @@ export default function NaverJoin() {
         <style>{styles}</style>
         <div className="nj-root">
           <div className="nj-card">
-            <div className="nj-loading-init">네이버 인증 정보를 확인하고 있어요.</div>
+            <div className="nj-loading-init">네이버 인증 정보를 확인하고 있습니다.</div>
           </div>
         </div>
       </>
@@ -247,11 +251,15 @@ export default function NaverJoin() {
 
           <h1 className="nj-title">네이버 회원가입</h1>
           <p className="nj-subtitle">
-            {step === STEP.FORM ? "추가 정보를 입력하면 가입이 완료됩니다" : "인증번호를 입력해 주세요"}
+            {step === STEP.FORM
+              ? "추가 정보를 입력하면 가입이 완료됩니다."
+              : "인증번호를 입력해 주세요."}
           </p>
 
           <div className="nj-step-bar">
-            <div className={`nj-step-dot ${step === STEP.FORM ? "active" : "done"}`} />
+            <div
+              className={`nj-step-dot ${step === STEP.FORM ? "active" : "done"}`}
+            />
             <div className={`nj-step-dot ${step === STEP.OTP ? "active" : ""}`} />
           </div>
 
@@ -262,7 +270,12 @@ export default function NaverJoin() {
               <div className="nj-field">
                 <label className="nj-label">
                   이메일
-                  {hasNaverEmail && <span style={{ color: "#999", fontWeight: 400 }}> (네이버 연동)</span>}
+                  {hasNaverEmail && (
+                    <span style={{ color: "#999", fontWeight: 400 }}>
+                      {" "}
+                      (네이버 연동)
+                    </span>
+                  )}
                 </label>
                 <input
                   className="nj-input"
@@ -274,7 +287,8 @@ export default function NaverJoin() {
                 />
                 {!emailTrim && (
                   <div className="nj-hint error">
-                    이메일은 필수입니다. 네이버에서 이메일을 받지 못한 경우 직접 입력해 주세요.
+                    이메일은 필수입니다. 네이버에서 이메일을 받지 못한 경우 직접 입력해
+                    주세요.
                   </div>
                 )}
               </div>
@@ -282,7 +296,10 @@ export default function NaverJoin() {
               <div className="nj-field">
                 <label className="nj-label">
                   닉네임
-                  <span style={{ color: "#bbb", fontWeight: 400 }}> (선택)</span>
+                  <span style={{ color: "#bbb", fontWeight: 400 }}>
+                    {" "}
+                    (선택)
+                  </span>
                 </label>
                 <input
                   className="nj-input"
@@ -303,13 +320,24 @@ export default function NaverJoin() {
                   disabled={loading}
                   inputMode="tel"
                 />
-                <div className="nj-hint">본인 인증을 위한 인증번호가 발송됩니다.</div>
+                <div className="nj-hint">
+                  본인 인증을 위한 인증번호가 발송됩니다.
+                </div>
               </div>
 
-              <button className="nj-btn-primary naver" onClick={sendOtp} disabled={!canSendOtp}>
+              <button
+                className="nj-btn-primary naver"
+                onClick={sendOtp}
+                disabled={!canSendOtp}
+              >
                 {loading ? "발송 중..." : "인증번호 받기"}
               </button>
-              <button className="nj-btn-secondary" type="button" onClick={() => navigate("/auth/login")} disabled={loading}>
+              <button
+                className="nj-btn-secondary"
+                type="button"
+                onClick={() => navigate("/auth/login")}
+                disabled={loading}
+              >
                 로그인으로 돌아가기
               </button>
             </>
@@ -320,7 +348,8 @@ export default function NaverJoin() {
               <div className="nj-otp-info">
                 <div className="nj-otp-info-icon">N</div>
                 <div className="nj-otp-info-text">
-                  <strong>{phone || "휴대폰 번호"}</strong>로 받은 인증번호를 입력해 주세요.
+                  <strong>{phone || "휴대폰 번호"}</strong>
+                  로 받은 인증번호를 입력해 주세요.
                 </div>
               </div>
 
@@ -329,18 +358,31 @@ export default function NaverJoin() {
                 <input
                   className="nj-input"
                   value={otpCode}
-                  onChange={(e) => setOtpCode(normalizeDigits(e.target.value).slice(0, 6))}
+                  onChange={(e) =>
+                    setOtpCode(normalizeDigits(e.target.value).slice(0, 6))
+                  }
                   placeholder="6자리 인증번호"
                   disabled={loading}
                   inputMode="numeric"
                 />
-                <div className="nj-hint">문자를 받지 못했다면 잠시 후 다시 시도해 주세요.</div>
+                <div className="nj-hint">
+                  문자를 받지 못했다면 잠시 뒤 다시 시도해 주세요.
+                </div>
               </div>
 
-              <button className="nj-btn-primary confirm" onClick={verifyOtpAndComplete} disabled={!canVerify}>
+              <button
+                className="nj-btn-primary confirm"
+                onClick={verifyOtpAndComplete}
+                disabled={!canVerify}
+              >
                 {loading ? "가입 처리 중..." : "회원가입 완료"}
               </button>
-              <button className="nj-btn-secondary" type="button" onClick={sendOtp} disabled={loading}>
+              <button
+                className="nj-btn-secondary"
+                type="button"
+                onClick={sendOtp}
+                disabled={loading}
+              >
                 인증번호 다시 받기
               </button>
             </>

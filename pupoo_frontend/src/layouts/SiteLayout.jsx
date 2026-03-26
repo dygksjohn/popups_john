@@ -1,7 +1,9 @@
+import { lazy, Suspense } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import SiteHeader from "../pages/site/components/SiteHeader";
 import SiteFooter from "../pages/site/components/SiteFooter";
-import SiteChatBot from "../pages/site/components/SiteChatBot";
+
+const SiteChatBot = lazy(() => import("../pages/site/components/SiteChatBot"));
 
 export default function SiteLayout() {
   const location = useLocation();
@@ -21,7 +23,11 @@ export default function SiteLayout() {
       {!isAdminPage && <SiteFooter />}
 
       {/* 유저용 챗봇 (관리자, 크레딧 제외) */}
-      {!isAdminPage && !hideChat && <SiteChatBot />}
+      {!isAdminPage && !hideChat && (
+        <Suspense fallback={null}>
+          <SiteChatBot />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -136,7 +136,7 @@
 | Analytics | `PublicAnalyticsController`, `AdminAnalyticsController` | 행사 분석/시간대별 혼잡도/연간 통계 | `event`, `payments`, `congestions`, AI 시계열 | KEEP | 실DB + 코드 |
 | Dashboard | `AdminDashboardController`, `DashboardController`, `AdminDashboardRealtimeController`, `PublicDashboardRealtimeController` | 관리자 요약, 행사/프로그램/부스 관리, 실시간 혼잡도 조회 | `users`, `event`, `event_program`, `booths`, `event_program_apply`, `payments`, `refunds`, `inquiries`, `notices`, `congestions` | KEEP | 실DB + 코드 |
 | Dashboard | `DashboardController` | `GET /api/admin/dashboard/{id}` | 위 요약 데이터 재사용 | REMOVE | 코드상 호환성용 별칭 |
-| Chatbot | `ChatbotProxyController` | `/api/chatbot/chat` | DB 직접 사용 없음, 외부 AI 서비스 프록시 | HOLD | 코드 근거만 존재 |
+| Chatbot | `ChatbotProxyController` | `/api/chatbot/chat`, `/api/admin/chatbot/chat` | DB 직접 사용 없음, 외부 AI 서비스 프록시 | HOLD | 사용자/관리자 경로 분리, 관리자 경로는 `/api/admin/**` 사용 |
 | Audit | `AdminLogAdminController` | 관리자 로그 목록 | `AdminLog`/`admin_logs` | KEEP | 실DB + 코드 |
 | Health | `HealthController` | `/api/health` | 없음 | REMOVE | 코드상 local/dev smoke-test, `actuator/health`와 중복 |
 | SPA | `SpaForwardController` | 비 API 정적 라우팅 포워드 | 없음 | 제외 | 페이지 라우팅용, API 인벤토리 대상 아님 |
@@ -166,3 +166,8 @@
 - 페이지와 직접 연결될 가능성이 높은 CRUD/조회성 API는 대부분 `KEEP`이다.
 - 즉시 정리 후보는 테스트/호환/중복 경로다.
 - 운영 보조형 API는 `HOLD`로 남기고 프론트 삭제 판단에서 별도 검토하는 것이 안전하다.
+## 현재 정리 메모
+
+- 인증, 게시글, 결제, AI 연동은 최신 RDS 정합성을 기준으로 유지한다.
+- 챗봇은 사용자용과 관리자용을 분리해 운영한다.
+- 관리자 전용 기능은 `/api/admin/**` 하위 원칙을 우선한다.

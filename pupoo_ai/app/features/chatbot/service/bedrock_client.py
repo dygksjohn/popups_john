@@ -36,5 +36,5 @@ async def invoke_bedrock(messages: list[dict], system_prompt: str = SYSTEM_PROMP
 async def generate_structured_draft(prompt: str) -> str:
     return await invoke_bedrock(
         messages=[{"role": "user", "content": [{"text": prompt}]}],
-        system_prompt="응답은 반드시 JSON 객체 하나만 반환한다.",
+        system_prompt="응답은 반드시 JSON 객체 하나만 반환합니다.",
     )

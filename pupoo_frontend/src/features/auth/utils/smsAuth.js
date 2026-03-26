@@ -23,10 +23,10 @@ function getErrorCode(error) {
   return String(error?.code || error?.response?.data?.code || error?.response?.data?.error?.code || "").toUpperCase();
 }
 
-export function getSmsRequestErrorMessage(error, fallbackMessage = "문자 발송에 실패했습니다. 잠시 후 다시 시도해주세요.") {
+export function getSmsRequestErrorMessage(error, fallbackMessage = "문자 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.") {
   const code = getErrorCode(error);
   if (code === "SMS_DISABLED" || code === "SMS_SEND_FAILED") {
-    return "문자 발송에 실패했습니다. 잠시 후 다시 시도해주세요.";
+    return "문자 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.";
   }
   return fallbackMessage;
 }

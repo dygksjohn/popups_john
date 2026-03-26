@@ -8,7 +8,7 @@ from pupoo_ai.app.core.config import settings
 
 
 class BackendApiError(Exception):
-    """Backend API 호출 실패."""
+    """백엔드 API 호출 실패."""
 
     def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
@@ -16,7 +16,7 @@ class BackendApiError(Exception):
 
 
 class BackendApiClient:
-    """관리자 오케스트레이션용 backend HTTP client."""
+    """관리자 오케스트레이션용 backend HTTP 클라이언트."""
 
     def __init__(self, authorization: str | None = None):
         self._base_url = settings.backend_base_url.rstrip("/")
@@ -67,13 +67,25 @@ class BackendApiClient:
         if self._authorization:
             headers["Authorization"] = self._authorization
 
-        async with httpx.AsyncClient(base_url=self._base_url, timeout=settings.backend_timeout_seconds) as client:
-            response = await client.request(method, path, params=params, json=json, headers=headers)
+        async with httpx.AsyncClient(
+            base_url=self._base_url,
+            timeout=settings.backend_timeout_seconds,
+        ) as client:
+            response = await client.request(
+                method,
+                path,
+                params=params,
+                json=json,
+                headers=headers,
+            )
 
         try:
             body = response.json()
         except ValueError as exc:  # pragma: no cover
-            raise BackendApiError("backend 응답을 해석하지 못했습니다.", status_code=response.status_code) from exc
+            raise BackendApiError(
+                "백엔드 응답을 해석하지 못했습니다.",
+                status_code=response.status_code,
+            ) from exc
 
         if response.is_success:
             return body.get("data", body)
@@ -82,6 +94,6 @@ class BackendApiClient:
             body.get("error", {}).get("message")
             or body.get("message")
             or body.get("data", {}).get("message")
-            or "backend 요청에 실패했습니다."
+            or "백엔드 요청에 실패했습니다."
         )
         raise BackendApiError(str(message), status_code=response.status_code)

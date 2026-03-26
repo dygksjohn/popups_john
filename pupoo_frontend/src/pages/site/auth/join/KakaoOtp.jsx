@@ -3,14 +3,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { authApi } from "../api/authApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
-import { useAuth } from "../AuthProvider"; // 
+import { useAuth } from "../AuthProvider";
 
 export default function KakaoOtp() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
 
-  // ✅ state 유실 대비: sessionStorage 백업 사용
+  // state 유실에 대비해 sessionStorage 값을 함께 복원한다.
   const ctx = useMemo(() => {
     const s = location.state || {};
     const fallback = JSON.parse(sessionStorage.getItem("kakao_signup_ctx") || "{}");
@@ -26,7 +26,7 @@ export default function KakaoOtp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // signupKey 없으면 진입 자체가 비정상
+  // signupKey가 없으면 비정상 진입으로 본다.
   useEffect(() => {
     if (!ctx.signupKey) {
       setError("signupKey가 없습니다. 카카오 가입을 다시 시작해주세요.");
@@ -52,7 +52,7 @@ export default function KakaoOtp() {
     try {
       setLoading(true);
 
-      // 1) OTP 검증
+      // OTP를 먼저 검증한다.
       const phoneToUse = (ctx.phone || "").replace(/[^0-9]/g, "");
 
       if (phoneToUse.length < 10) {
@@ -66,32 +66,35 @@ export default function KakaoOtp() {
       otpCode: otpNum,
       });
 
-      // 2) 가입 완료 + 토큰 발급
+      // 가입을 완료하고 토큰을 발급받는다.
       const completeRes = await authApi.signupComplete({
         signupKey: ctx.signupKey,
       });
 
       const accessToken = completeRes?.accessToken;
       if (!accessToken) {
-        setError("accessToken이 없습니다. 응답 구조 확인 필요");
+        setError("회원가입이 완료되지 않았어요. 다시 시도해 주세요.");
         return;
       }
 
       tokenStore.setAccess(accessToken);
       login();
 
-      // ✅ 카카오 가입 임시 데이터 제거
+      // 카카오 가입 임시 데이터를 정리한다.
       sessionStorage.removeItem("kakao_signup_ctx");
 
-      // 선택: provider 정보도 가입 완료 후 지워도 됨
+      // 필요하면 provider 정보도 가입 완료 후 함께 정리할 수 있다.
       // sessionStorage.removeItem("kakao_provider_uid");
       // sessionStorage.removeItem("kakao_email");
       // sessionStorage.removeItem("kakao_nickname");
 
       navigate("/", { replace: true });
     } catch (e) {
-      console.error(e);
-      setError(e?.response?.data?.message ?? e?.message ?? "OTP 인증 실패");
+      setError(
+        e?.response?.data?.message ??
+          e?.message ??
+          "인증번호를 다시 확인해 주세요.",
+      );
     } finally {
       setLoading(false);
     }

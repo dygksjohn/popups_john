@@ -44,12 +44,11 @@ import MypageProfileEdit from "./pages/site/auth/MypageProfileEdit";
 import MypagePetEditor from "./pages/site/auth/MypagePetEditor";
 import JoinSelect from "./pages/site/auth/join/JoinSelect";
 import JoinNormal from "./pages/site/auth/join/JoinNormal";
-import JoinSocial from "./pages/site/auth/join/JoinSocial";
+import { getSocialJoinState } from "./pages/site/auth/socialJoinStorage";
 
 /* Kakao */
 import KakaoCallback from "./pages/site/auth/KakaoCallback";
 import KakaoJoin from "./pages/site/auth/join/KakaoJoin";
-import KakaoOtp from "./pages/site/auth/join/KakaoOtp";
 import NaverCallback from "./pages/site/auth/NaverCallback";
 import NaverJoin from "./pages/site/auth/join/NaverJoin";
 
@@ -168,11 +167,10 @@ function PublicOnly({ children }) {
   const isSocialJoinPath = location.pathname.startsWith("/auth/join/");
   const hasPendingSocialJoin =
     typeof window !== "undefined" &&
-    (
-      sessionStorage.getItem("kakao_provider_uid") ||
-      sessionStorage.getItem("naver_provider_uid") ||
-      sessionStorage.getItem("google_provider_uid")
-    );
+    ["kakao", "naver", "google"].some((provider) => {
+      const joinState = getSocialJoinState(provider);
+      return !!(joinState?.providerUid || joinState?.signupKey);
+    });
 
   if (isAuthed && (!isSocialJoinPath || !hasPendingSocialJoin)) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
@@ -482,7 +480,7 @@ export default function App() {
             path="/auth/join/joinsocial"
             element={
               <PublicOnly>
-                <JoinSocial />
+                <Navigate to="/auth/join/joinselect" replace />
               </PublicOnly>
             }
           />
@@ -516,18 +514,17 @@ export default function App() {
           />
           <Route
             path="/auth/join/kakao/otp"
-            element={
-              <PublicOnly>
-                <KakaoOtp />
-              </PublicOnly>
-            }
+            element={<Navigate to="/auth/join/kakao" replace />}
           />
           <Route path="/join" element={<JoinSelect />} />
           <Route path="/find-password" element={<FindPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/join/select" element={<JoinSelect />} />
           <Route path="/join/normal" element={<JoinNormal />} />
-          <Route path="/join/social" element={<JoinSocial />} />
+          <Route
+            path="/join/social"
+            element={<Navigate to="/auth/join/joinselect" replace />}
+          />
           <Route path="/event/current" element={<Current />} />
           <Route path="/event/upcoming" element={<Upcoming />} />
           <Route path="/event/closed" element={<Closed />} />

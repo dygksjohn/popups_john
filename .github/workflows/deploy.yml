@@ -22,9 +22,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      eks: ${{ steps.filter.outputs.eks }}
+      ai_train: ${{ steps.filter.outputs.ai_train }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - ".github/workflows/deploy.yml"
+              - "pupoo_frontend/**"
+              - "scripts/check-import-case.mjs"
+            eks:
+              - ".github/workflows/deploy.yml"
+              - "k8s/**"
+              - "pupoo_ai/**"
+              - "pupoo_backend/**"
+            ai_train:
+              - ".github/workflows/deploy.yml"
+              - "pupoo_ai/app/features/congestion/**"
+              - "pupoo_ai/app/infrastructure/rds.py"
+              - "pupoo_ai/requirements.txt"
+
   frontend-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
     permissions:
       contents: read
       id-token: write
@@ -82,7 +117,10 @@ jobs:
   eks-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: frontend-deploy
+    needs: [changes, frontend-deploy]
+    if: >
+      (github.event_name == 'workflow_dispatch' || needs.changes.outputs.eks == 'true') &&
+      (needs.frontend-deploy.result == 'success' || needs.frontend-deploy.result == 'skipped')
     permissions:
       contents: read
       id-token: write
@@ -133,14 +171,26 @@ jobs:
         run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
 
       - name: Load datasource env for AI training
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
+        env:
+          PUPOO_AI_TRAIN_DB_URL: ${{ secrets.PUPOO_AI_TRAIN_DB_URL }}
+          PUPOO_AI_TRAIN_DB_USER: ${{ secrets.PUPOO_AI_TRAIN_DB_USER }}
+          PUPOO_AI_TRAIN_DB_PASSWORD: ${{ secrets.PUPOO_AI_TRAIN_DB_PASSWORD }}
         run: |
+          set -eo pipefail
           NS="${EKS_NAMESPACE:-pupoo}"
-          DS_URL="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_URL}' | base64 -d)"
-          DS_USER="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_USERNAME}' | base64 -d)"
-          DS_PASSWORD="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_PASSWORD}' | base64 -d)"
+          DS_URL="${PUPOO_AI_TRAIN_DB_URL}"
+          DS_USER="${PUPOO_AI_TRAIN_DB_USER}"
+          DS_PASSWORD="${PUPOO_AI_TRAIN_DB_PASSWORD}"
 
           if [ -z "${DS_URL}" ] || [ -z "${DS_USER}" ] || [ -z "${DS_PASSWORD}" ]; then
-            echo "SPRING_DATASOURCE_* is missing in pupoo-backend-secret"
+            DS_URL="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_URL}' | base64 -d)"
+            DS_USER="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_USERNAME}' | base64 -d)"
+            DS_PASSWORD="$(kubectl -n "$NS" get secret pupoo-backend-secret -o jsonpath='{.data.SPRING_DATASOURCE_PASSWORD}' | base64 -d)"
+          fi
+
+          if [ -z "${DS_URL}" ] || [ -z "${DS_USER}" ] || [ -z "${DS_PASSWORD}" ]; then
+            echo "PUPOO_AI_TRAIN_DB_* GitHub secret 또는 pupoo-backend-secret의 SPRING_DATASOURCE_* 값이 필요합니다"
             exit 1
           fi
 
@@ -151,17 +201,20 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Set up Python 3.12 for AI training
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install AI training dependencies
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
         working-directory: pupoo_ai
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Train congestion models
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
         working-directory: pupoo_ai
         run: |
           python -m app.features.congestion.train.train_congestion_models \
@@ -170,6 +223,7 @@ jobs:
             --output-dir ./artifacts/congestion
 
       - name: Verify trained model artifacts
+        if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai_train == 'true'
         working-directory: pupoo_ai
         run: |
           ls -al ./artifacts/congestion
@@ -257,6 +311,8 @@ jobs:
       - name: Sync backend runtime secrets
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AI_SERVICE_INTERNAL_TOKEN: ${{ secrets.AI_SERVICE_INTERNAL_TOKEN }}
+          AI_MODERATION_INTERNAL_TOKEN: ${{ secrets.AI_MODERATION_INTERNAL_TOKEN }}
           APP_AI_MODERATION_INTERNAL_TOKEN: ${{ secrets.APP_AI_MODERATION_INTERNAL_TOKEN }}
           AWS_AUTH_MESSAGING_ACCESS_KEY_ID: ${{ secrets.AWS_AUTH_MESSAGING_ACCESS_KEY_ID }}
           AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY: ${{ secrets.AWS_AUTH_MESSAGING_SECRET_ACCESS_KEY }}
@@ -279,6 +335,9 @@ jobs:
           KAKAOPAY_CANCEL_URL: ${{ secrets.KAKAOPAY_CANCEL_URL }}
           KAKAOPAY_FAIL_URL: ${{ secrets.KAKAOPAY_FAIL_URL }}
         run: |
+          set -eo pipefail
+          umask 077
+          trap 'rm -f /tmp/pupoo-backend-secret-patch.yaml' EXIT
           if [ -z "${OPENAI_API_KEY}" ]; then
             echo "OPENAI_API_KEY secret is required"
             exit 1
@@ -291,13 +350,19 @@ jobs:
             echo "SES_FROM_EMAIL secret is required"
             exit 1
           fi
-          CURRENT_AI_SERVICE_INTERNAL_TOKEN="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AI_SERVICE_INTERNAL_TOKEN}' | base64 -d)"
-          MODERATION_INTERNAL_TOKEN="${APP_AI_MODERATION_INTERNAL_TOKEN:-${CURRENT_AI_SERVICE_INTERNAL_TOKEN}}"
+          CURRENT_AI_SERVICE_INTERNAL_TOKEN="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AI_SERVICE_INTERNAL_TOKEN}' | base64 -d 2>/dev/null || true)"
+          SERVICE_INTERNAL_TOKEN="${AI_SERVICE_INTERNAL_TOKEN:-${CURRENT_AI_SERVICE_INTERNAL_TOKEN}}"
+          MODERATION_INTERNAL_TOKEN="${AI_MODERATION_INTERNAL_TOKEN:-${APP_AI_MODERATION_INTERNAL_TOKEN:-${SERVICE_INTERNAL_TOKEN}}}"
           SMS_ORIGINATION_NUMBER="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AWS_SMS_ORIGINATION_NUMBER}' | base64 -d 2>/dev/null || true)"
           SMS_SENDER_ID="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AWS_SMS_SENDER_ID}' | base64 -d 2>/dev/null || true)"
 
+          if [ -z "${SERVICE_INTERNAL_TOKEN}" ]; then
+            echo "AI_SERVICE_INTERNAL_TOKEN GitHub secret 또는 기존 pupoo-backend-secret 값이 필요합니다"
+            exit 1
+          fi
+
           if [ -z "${MODERATION_INTERNAL_TOKEN}" ]; then
-            echo "APP_AI_MODERATION_INTERNAL_TOKEN is missing and existing AI_SERVICE_INTERNAL_TOKEN could not be read"
+            echo "AI_MODERATION_INTERNAL_TOKEN, APP_AI_MODERATION_INTERNAL_TOKEN 또는 기존 AI_SERVICE_INTERNAL_TOKEN 값이 필요합니다"
             exit 1
           fi
 
@@ -317,6 +382,7 @@ jobs:
           stringData:
             OPENAI_API_KEY: "${OPENAI_API_KEY}"
             OPENAI_IMAGE_MODEL: "${OPENAI_IMAGE_MODEL}"
+            AI_SERVICE_INTERNAL_TOKEN: "${SERVICE_INTERNAL_TOKEN}"
             AI_MODERATION_INTERNAL_TOKEN: "${MODERATION_INTERNAL_TOKEN}"
             APP_AI_MODERATION_INTERNAL_TOKEN: "${MODERATION_INTERNAL_TOKEN}"
             AUTH_EMAIL_PROVIDER: "${AUTH_EMAIL_PROVIDER}"
@@ -357,6 +423,7 @@ jobs:
 
       - name: Sync backend runtime config
         run: |
+          set -eo pipefail
           cat > /tmp/pupoo-backend-config-patch.yaml <<EOF
           data:
             STORAGE_MODE: "${APP_STORAGE_MODE}"
@@ -377,15 +444,19 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PUPOO_AI_DB_PASSWORD: ${{ secrets.PUPOO_AI_DB_PASSWORD }}
           PUPOO_AI_INTERNAL_TOKEN: ${{ secrets.PUPOO_AI_INTERNAL_TOKEN }}
+          AI_SERVICE_INTERNAL_TOKEN: ${{ secrets.AI_SERVICE_INTERNAL_TOKEN }}
           PUPOO_AI_WATSONX_API_KEY: ${{ secrets.PUPOO_AI_WATSONX_API_KEY }}
           PUPOO_AI_WATSONX_PROJECT_ID: ${{ secrets.PUPOO_AI_WATSONX_PROJECT_ID }}
         run: |
-          CURRENT_AI_SERVICE_INTERNAL_TOKEN="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AI_SERVICE_INTERNAL_TOKEN}' | base64 -d)"
+          set -eo pipefail
+          umask 077
+          trap 'rm -f /tmp/pupoo-ai-secret-patch.yaml' EXIT
+          CURRENT_AI_SERVICE_INTERNAL_TOKEN="$(kubectl -n "${EKS_NAMESPACE:-pupoo}" get secret pupoo-backend-secret -o jsonpath='{.data.AI_SERVICE_INTERNAL_TOKEN}' | base64 -d 2>/dev/null || true)"
 
-          AI_INTERNAL_TOKEN="${PUPOO_AI_INTERNAL_TOKEN:-${CURRENT_AI_SERVICE_INTERNAL_TOKEN}}"
+          AI_INTERNAL_TOKEN="${PUPOO_AI_INTERNAL_TOKEN:-${AI_SERVICE_INTERNAL_TOKEN:-${CURRENT_AI_SERVICE_INTERNAL_TOKEN}}}"
 
           if [ -z "${AI_INTERNAL_TOKEN}" ]; then
-            echo "PUPOO_AI_INTERNAL_TOKEN is missing and existing AI_SERVICE_INTERNAL_TOKEN could not be read"
+            echo "PUPOO_AI_INTERNAL_TOKEN GitHub secret 또는 기존 AI_SERVICE_INTERNAL_TOKEN 값이 필요합니다"
             exit 1
           fi
 

@@ -4,9 +4,11 @@ import com.popups.pupoo.ai.config.AiServiceProperties;
 import com.popups.pupoo.ai.dto.AiCongestionPredictionResponse;
 import com.popups.pupoo.ai.dto.AiEventPredictionRequest;
 import com.popups.pupoo.ai.dto.AiInternalApiResponse;
+import com.popups.pupoo.ai.dto.AiPosterGenerateResponse;
 import com.popups.pupoo.ai.dto.AiProgramPredictionRequest;
 import com.popups.pupoo.ai.dto.AiProgramRecommendationRequest;
 import com.popups.pupoo.ai.dto.AiProgramRecommendationResponse;
+import com.popups.pupoo.event.dto.AdminEventPosterGenerateRequest;
 import io.netty.channel.ChannelOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +37,7 @@ public class AiInferenceClient {
         this.properties = properties;
         HttpClient httpClient = HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.toIntExact(properties.getConnectTimeoutMs()))
-                .responseTimeout(Duration.ofMillis(properties.getResponseTimeoutMs()));
+                .responseTimeout(Duration.ofMillis(resolveTransportResponseTimeoutMs()));
         ExchangeStrategies exchangeStrategies = ExchangeStrategies.builder()
                 .codecs(codecs -> codecs.defaultCodecs().maxInMemorySize(resolveMaxInMemorySize()))
                 .build();
@@ -73,12 +75,33 @@ public class AiInferenceClient {
         );
     }
 
+    public Optional<AiPosterGenerateResponse> generatePoster(AdminEventPosterGenerateRequest request) {
+        return post(
+                "/internal/poster/generate",
+                request,
+                new ParameterizedTypeReference<AiInternalApiResponse<AiPosterGenerateResponse>>() {
+                },
+                properties.getPosterResponseTimeoutMs(),
+                1
+        );
+    }
+
     private <T> Optional<T> post(
             String path,
             Object body,
             ParameterizedTypeReference<AiInternalApiResponse<T>> typeReference
     ) {
-        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        return post(path, body, typeReference, properties.getResponseTimeoutMs(), MAX_ATTEMPTS);
+    }
+
+    private <T> Optional<T> post(
+            String path,
+            Object body,
+            ParameterizedTypeReference<AiInternalApiResponse<T>> typeReference,
+            long responseTimeoutMs,
+            int maxAttempts
+    ) {
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 AiInternalApiResponse<T> response = webClient.post()
                         .uri(path)
@@ -87,18 +110,22 @@ public class AiInferenceClient {
                         .bodyValue(body)
                         .retrieve()
                         .bodyToMono(typeReference)
-                        .block(Duration.ofMillis(properties.getResponseTimeoutMs() + 300));
+                        .block(Duration.ofMillis(responseTimeoutMs + 300));
 
                 if (response != null && response.success() && response.data() != null) {
                     return Optional.of(response.data());
                 }
             } catch (Exception exception) {
-                if (attempt == MAX_ATTEMPTS) {
+                if (attempt == maxAttempts) {
                     log.warn("AI request failed. path={}, attempts={}", path, attempt, exception);
                 }
             }
         }
         return Optional.empty();
+    }
+
+    private long resolveTransportResponseTimeoutMs() {
+        return Math.max(properties.getResponseTimeoutMs(), properties.getPosterResponseTimeoutMs());
     }
 
     private int resolveMaxInMemorySize() {

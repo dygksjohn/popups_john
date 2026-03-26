@@ -20,8 +20,8 @@ spec:
     - host: api.pupoo.site
       http:
         paths:
-          # Temporary public AI path for the current admin chatbot frontend.
-          # Long term, this should move behind the backend or another auth gateway.
+          # 레거시 호환용 공개 AI 경로다.
+          # 관리자 챗봇의 정식 경로는 backend /api/admin/chatbot/** 이다.
           - path: /ai
             pathType: Prefix
             backend:

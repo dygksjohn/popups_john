@@ -1,6 +1,8 @@
 package com.popups.pupoo.event.application;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.popups.pupoo.ai.client.AiInferenceClient;
+import com.popups.pupoo.ai.dto.AiPosterGenerateResponse;
 import com.popups.pupoo.common.exception.BusinessException;
 import com.popups.pupoo.common.exception.ErrorCode;
 import com.popups.pupoo.event.dto.AdminEventPosterAssetResponse;
@@ -80,6 +82,7 @@ public class AdminEventPosterService {
     private final ObjectStoragePort objectStoragePort;
     private final StorageKeyGenerator storageKeyGenerator;
     private final StorageUrlResolver storageUrlResolver;
+    private final AiInferenceClient aiInferenceClient;
     private final String apiKey;
     private final String model;
     private final String baseUrl;
@@ -89,6 +92,7 @@ public class AdminEventPosterService {
             ObjectStoragePort objectStoragePort,
             StorageKeyGenerator storageKeyGenerator,
             StorageUrlResolver storageUrlResolver,
+            AiInferenceClient aiInferenceClient,
             @Value("${openai.image.api-key:}") String configuredApiKey,
             @Value("${openai.image.model:}") String configuredModel,
             @Value("${openai.image.base-url:https://api.openai.com}") String baseUrl
@@ -96,6 +100,7 @@ public class AdminEventPosterService {
         this.objectStoragePort = objectStoragePort;
         this.storageKeyGenerator = storageKeyGenerator;
         this.storageUrlResolver = storageUrlResolver;
+        this.aiInferenceClient = aiInferenceClient;
         this.apiKey = firstNonBlank(
                 configuredApiKey,
                 System.getenv("OPENAI_API_KEY"),
@@ -126,46 +131,41 @@ public class AdminEventPosterService {
     }
 
     public AdminEventPosterAssetResponse generatePoster(AdminEventPosterGenerateRequest request) {
-        ensureConfigured();
-        String prompt = buildPrompt(request);
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("model", model);
-        payload.put("prompt", prompt);
-        payload.put("size", POSTER_IMAGE_SIZE);
-        payload.put("quality", "standard");
-        payload.put("n", POSTER_IMAGE_COUNT);
-        payload.put("response_format", "b64_json");
-
         try {
-            log.info("AI poster generation started. model={}, size={}, baseUrl={}, eventName={}",
-                    model, POSTER_IMAGE_SIZE, baseUrl, request.eventName());
-            OpenAiImageGenerationResponse response = restClient.post()
-                    .uri("/v1/images/generations")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .body(payload)
-                    .retrieve()
-                    .body(OpenAiImageGenerationResponse.class);
+            log.info("AI poster generation delegated to pupoo_ai. eventName={}", request.eventName());
+            AiPosterGenerateResponse response = aiInferenceClient.generatePoster(request)
+                    .orElseThrow(() -> new BusinessException(
+                            ErrorCode.INTERNAL_ERROR,
+                            "AI poster generation failed"
+                    ));
 
-            if (response == null || response.data() == null || response.data().isEmpty()) {
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AI poster generation returned an empty response");
+            if (!StringUtils.hasText(response.imageUrl())) {
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AI poster generation returned an empty imageUrl");
             }
 
-            byte[] imageBytes = extractImageBytes(response.data().get(0));
-            log.info("AI poster generation received image bytes. bytes={}", imageBytes.length);
-            imageBytes = normalizePosterImage(imageBytes);
-            log.info("AI poster generation normalized image. bytes={}", imageBytes.length);
-            return storeImage(imageBytes, "png");
-        } catch (RestClientResponseException e) {
-            log.warn("AI poster generation failed: status={} body={}", e.getStatusCode().value(), e.getResponseBodyAsString());
-            throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR,
-                    "AI poster generation failed: " + e.getStatusCode().value()
+            return new AdminEventPosterAssetResponse(
+                    response.imageUrl(),
+                    firstNonBlank(
+                            response.storedName(),
+                            extractFileName(response.storageKey()),
+                            extractFileName(response.imageUrl())
+                    )
             );
-        } catch (Exception e) {
-            log.error("AI poster generation request crashed", e);
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            log.error("AI poster delegation request crashed", exception);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AI poster generation request crashed");
         }
+    }
+
+    private String extractFileName(String pathLike) {
+        if (!StringUtils.hasText(pathLike)) {
+            return "";
+        }
+        String normalized = pathLike.replace('\\', '/');
+        int slashIndex = normalized.lastIndexOf('/');
+        return slashIndex >= 0 ? normalized.substring(slashIndex + 1) : normalized;
     }
 
     private void ensureConfigured() {

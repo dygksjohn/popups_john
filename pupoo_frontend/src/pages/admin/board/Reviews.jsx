@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import ds, { statusMap } from "../shared/designTokens";
 import { Pill } from "../shared/Components";
-import DATA from "../shared/data";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
 
@@ -37,6 +36,12 @@ const styles = `
 const authHeaders = () => {
   const t = getToken();
   return t ? { Authorization: `Bearer ${t}` } : {};
+};
+
+const devError = (...args) => {
+  if (import.meta.env.DEV) {
+    console.error(...args);
+  }
 };
 
 function fmtDate(dt) {
@@ -552,14 +557,12 @@ export default function Reviews() {
    * - 응답: reviewId, eventId, userId, rating, reviewStatus, deleted, viewCount,
    *         createdAt, updatedAt, totalReportCount, pendingReportCount
    * - content는 admin 모더레이션 DTO에 없으므로 별도 조회 필요
-   *
-   * Fallback: GET /api/reviews (공개 API, content 포함하지만 PUBLIC만)
    */
   const fetchList = useCallback(async (p = 1) => {
     setLoading(true);
     setError(null);
     try {
-      // 1차: 관리자 모더레이션 엔드포인트 (모든 상태 조회)
+      // 기능: 관리자 모더레이션 엔드포인트만 기준으로 목록을 조회한다.
       const res = await axiosInstance.get("/api/admin/moderation/reviews", {
         params: { page: p - 1, size: PAGE_SIZE },
         headers: authHeaders(),
@@ -594,62 +597,13 @@ export default function Reviews() {
       setPage(p);
       setSelected(new Set());
     } catch (adminErr) {
-      console.warn(
-        "[Reviews] admin moderation endpoint 실패, public endpoint 시도:",
-        adminErr,
-      );
-      try {
-        // 2차 fallback: 공개 API (content 포함, PUBLIC만)
-        const res = await axiosInstance.get("/api/reviews", {
-          params: { page: p - 1, size: PAGE_SIZE },
-          headers: authHeaders(),
-        });
-        const payload = res.data?.data || res.data || {};
-        const list = payload.content || payload || [];
-
-        const mapped = list.map((r) => ({
-          id: r.reviewId,
-          reviewId: r.reviewId,
-          eventId: r.eventId,
-          userId: r.userId,
-          author: `회원${r.userId}`,
-          event: eventMapRef.current[r.eventId] || `행사 #${r.eventId}`,
-          rating: r.rating ?? 0,
-          content: r.content || "",
-          viewCount: r.viewCount || 0,
-          reviewStatus: r.status || "PUBLIC",
-          deleted: false,
-          createdAt: r.createdAt,
-          date: fmtDate(r.createdAt),
-          totalReportCount: 0,
-          pendingReportCount: 0,
-        }));
-
-        setItems(mapped);
-        setTotalPages(
-          payload.totalPages ||
-            Math.ceil((payload.totalElements || mapped.length) / PAGE_SIZE),
-        );
-        setTotalElements(payload.totalElements ?? mapped.length);
-        setPage(p);
-        setSelected(new Set());
-      } catch (publicErr) {
-        console.error("[Reviews] 모든 API 실패:", publicErr);
-        // 최종 fallback → mock
-        const mock = (DATA.reviews || []).map((r) => ({
-          ...r,
-          reviewId: r.id,
-          reviewStatus: "PUBLIC",
-          viewCount: r.views || 0,
-          totalReportCount: 0,
-          pendingReportCount: 0,
-        }));
-        setItems(mock);
-        setTotalPages(1);
-        setTotalElements(mock.length);
-        setPage(1);
-        setError("서버 연결 실패 — 샘플 데이터를 표시합니다.");
-      }
+      devError("[Reviews] 관리자 리뷰 목록 조회 실패:", adminErr);
+      setItems([]);
+      setTotalPages(1);
+      setTotalElements(0);
+      setPage(p);
+      setSelected(new Set());
+      setError("리뷰 데이터를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -674,7 +628,7 @@ export default function Reviews() {
       showToast("후기가 블라인드 처리되었습니다.");
       fetchList(page);
     } catch (err) {
-      console.error("[Reviews] 블라인드 실패:", err);
+      devError("[Reviews] 블라인드 실패:", err);
       showToast("블라인드 처리에 실패했습니다.", "error");
     } finally {
       setSaving(false);
@@ -696,7 +650,7 @@ export default function Reviews() {
       showToast("후기가 공개 복구되었습니다.");
       fetchList(page);
     } catch (err) {
-      console.error("[Reviews] 복구 실패:", err);
+      devError("[Reviews] 복구 실패:", err);
       showToast("복구 처리에 실패했습니다.", "error");
     } finally {
       setSaving(false);
@@ -724,7 +678,7 @@ export default function Reviews() {
         fetchList(page);
       }, 300);
     } catch (err) {
-      console.error("[Reviews] 삭제 실패:", err);
+      devError("[Reviews] 삭제 실패:", err);
       setRemoving(null);
       setConfirmModal(null);
       showToast("삭제에 실패했습니다.", "error");
@@ -753,7 +707,7 @@ export default function Reviews() {
       showToast(`${ids.length}건의 후기가 삭제되었습니다.`);
       fetchList(page);
     } catch (err) {
-      console.error("[Reviews] 일괄 삭제 실패:", err);
+      devError("[Reviews] 일괄 삭제 실패:", err);
       setConfirmModal(null);
       setSelected(new Set());
       showToast("일괄 삭제에 실패했습니다.", "error");

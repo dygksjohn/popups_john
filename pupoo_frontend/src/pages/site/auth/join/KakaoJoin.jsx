@@ -3,7 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { authApi } from "../api/authApi";
 import { tokenStore } from "../../../../app/http/tokenStore";
 import { useAuth } from "../AuthProvider";
-import { getSmsRequestErrorMessage, normalizeDigits, toKoreanPhoneE164 } from "../../../../features/auth/utils/smsAuth";
+import {
+  clearSocialJoinState,
+  getSocialJoinState,
+  setSocialJoinState,
+} from "../socialJoinStorage";
+import {
+  getSmsRequestErrorMessage,
+  normalizeDigits,
+  toKoreanPhoneE164,
+} from "../../../../features/auth/utils/smsAuth";
 
 const STEP = {
   INIT: "INIT",
@@ -14,52 +23,44 @@ const STEP = {
 export default function KakaoJoin() {
   const navigate = useNavigate();
   const { login } = useAuth();
-
-  // ✅ StrictMode 2회 실행 방지
   const didInitRef = useRef(false);
 
-  // ✅ 콜백에서 세션에 저장해 둔 카카오 정보
-  const kakaoSession = useMemo(() => {
-    return {
-      providerUid: sessionStorage.getItem("kakao_provider_uid") ?? "",
-      email: sessionStorage.getItem("kakao_email") ?? "",
-      nickname: sessionStorage.getItem("kakao_nickname") ?? "",
-    };
-  }, []);
+  const kakaoSession = useMemo(
+    () =>
+      getSocialJoinState("kakao") || {
+        providerUid: "",
+        email: "",
+        nickname: "",
+        tempPassword: "",
+        signupKey: "",
+        phone: "",
+        step: "FORM",
+      },
+    [],
+  );
 
-  // 입력값(신규회원)
   const [providerUid] = useState(kakaoSession.providerUid);
   const [email, setEmail] = useState(kakaoSession.email);
   const [nickname, setNickname] = useState(kakaoSession.nickname);
-  const [phone, setPhone] = useState("");
-
-  // 플로우 상태
-  const [step, setStep] = useState(STEP.INIT);
-
-  const [signupKey, setSignupKey] = useState("");
+  const [phone, setPhone] = useState(kakaoSession.phone || "");
+  const [step, setStep] = useState(kakaoSession.step || STEP.INIT);
+  const [signupKey, setSignupKey] = useState(kakaoSession.signupKey || "");
   const [otpCode, setOtpCode] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // ✅ 소셜 가입용 임시 비밀번호(사용자 입력 X)
-  // - 백엔드가 SOCIAL도 password 필수라서 자동 생성해서 보낸다.
   const [tempPassword] = useState(() => {
     const key = "kakao_temp_password";
-    const existing = sessionStorage.getItem(key);
+    const existing = kakaoSession.tempPassword || sessionStorage.getItem(key);
     if (existing) return existing;
 
-    // 간단/충분히 랜덤한 임시 비밀번호 생성(최소 12자)
     const rand = `${crypto.randomUUID()}-${Math.random().toString(36).slice(2)}`;
-    const pwd = rand.replace(/-/g, "").slice(0, 16) + "aA1!";
-    sessionStorage.setItem(key, pwd);
-    return pwd;
+    const password = rand.replace(/-/g, "").slice(0, 16) + "aA1!";
+    sessionStorage.setItem(key, password);
+    return password;
   });
 
-  // ✅ 카카오 이메일이 있으면 수정 불가(정책 A)
   const hasKakaoEmail = !!(kakaoSession.email || "").trim();
-
-  // ✅ 버튼 활성화 조건(정책 A: 이메일 필수)
   const emailTrim = (email || "").trim();
   const nickTrim = (nickname || "").trim() || "kakao_user";
   const phoneDigits = normalizeDigits(phone);
@@ -69,7 +70,7 @@ export default function KakaoJoin() {
     !loading &&
     step === STEP.FORM &&
     !!providerUid &&
-    !!emailTrim && // ✅ 정책 A: 이메일 필수
+    !!emailTrim &&
     !!phoneE164;
 
   const canVerify =
@@ -79,10 +80,6 @@ export default function KakaoJoin() {
     !!phoneE164 &&
     (otpCode || "").trim().length >= 4;
 
-  /**
-   * ✅ 페이지 진입 시 신규회원 전용 진입 검증
-   * - providerUid 없으면 잘못된 진입(새로고침/직접 접근) -> 로그인으로 복귀
-   */
   useEffect(() => {
     if (didInitRef.current) return;
     didInitRef.current = true;
@@ -92,10 +89,22 @@ export default function KakaoJoin() {
       return;
     }
 
-    setStep(STEP.FORM);
-  }, [navigate, providerUid]);
+    setStep(kakaoSession.signupKey ? STEP.OTP : STEP.FORM);
+  }, [kakaoSession.signupKey, navigate, providerUid]);
 
-  // 1) 신규회원: OTP 발송 (signup/start)
+  useEffect(() => {
+    if (!providerUid) return;
+    setSocialJoinState("kakao", {
+      providerUid,
+      email,
+      nickname,
+      tempPassword,
+      signupKey,
+      phone,
+      step,
+    });
+  }, [email, nickname, phone, providerUid, signupKey, step, tempPassword]);
+
   const sendOtp = async () => {
     if (!canSendOtp) return;
 
@@ -114,29 +123,33 @@ export default function KakaoJoin() {
       });
 
       const key = res?.signupKey;
-
       if (!key) {
-        console.error("signupStart response =", res);
-        setError("signupKey가 없습니다. 응답 구조 확인 필요");
+        setError("가입 정보를 확인하지 못했어요. 다시 시도해 주세요.");
         return;
       }
 
       setSignupKey(key);
       setStep(STEP.OTP);
+      setSocialJoinState("kakao", {
+        providerUid,
+        email: emailTrim,
+        nickname: nickTrim,
+        tempPassword,
+        signupKey: key,
+        phone,
+        step: STEP.OTP,
+      });
 
       if (res?.devOtp) {
         setOtpCode(String(res.devOtp));
       }
     } catch (e) {
-      console.error(e);
-      return setError(getSmsRequestErrorMessage(e));
-      setError(e?.response?.data?.message ?? e?.message ?? "OTP 발송 실패");
+      setError(getSmsRequestErrorMessage(e));
     } finally {
       setLoading(false);
     }
   };
 
-  // 2) 신규회원: OTP 검증 + 가입 완료(자동 로그인)
   const verifyOtpAndComplete = async () => {
     if (!canVerify) return;
 
@@ -151,34 +164,31 @@ export default function KakaoJoin() {
       });
 
       const res = await authApi.signupComplete({ signupKey });
-
       const accessToken = res?.accessToken;
+
       if (!accessToken) {
-        console.error("signupComplete response =", res);
-        setError("회원가입 완료 응답에 accessToken이 없습니다.");
+        setError("회원가입을 완료하지 못했습니다. 다시 시도해 주세요.");
         return;
       }
 
       tokenStore.setAccess(accessToken);
       login();
 
-      sessionStorage.removeItem("kakao_temp_password");
-      sessionStorage.removeItem("kakao_provider_uid");
-      sessionStorage.removeItem("kakao_email");
-      sessionStorage.removeItem("kakao_nickname");
+      clearSocialJoinState("kakao");
       sessionStorage.removeItem("post_login_redirect");
 
       navigate("/", { replace: true });
     } catch (e) {
-      console.error(e);
-      return setError("인증번호를 확인해주세요.");
-      setError(e?.response?.data?.message ?? e?.message ?? "가입 실패");
+      setError(
+        e?.response?.data?.message ??
+          e?.message ??
+          "인증번호를 다시 확인해 주세요.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // ───────── styles ─────────
   const styles = `
     .kj-root {
       min-height: 100vh;
@@ -190,7 +200,10 @@ export default function KakaoJoin() {
       justify-content: center;
       margin-top: 92px;
     }
-    .kj-root *, .kj-root *::before, .kj-root *::after { box-sizing: border-box; font-family: inherit; }
+    .kj-root *, .kj-root *::before, .kj-root *::after {
+      box-sizing: border-box;
+      font-family: inherit;
+    }
     .kj-card {
       width: 100%;
       max-width: 520px;
@@ -216,7 +229,11 @@ export default function KakaoJoin() {
       align-items: center;
       justify-content: center;
     }
-    .kj-kakao-icon svg { display: block; width: 28px; height: 28px; }
+    .kj-kakao-icon svg {
+      display: block;
+      width: 28px;
+      height: 28px;
+    }
     .kj-title {
       text-align: center;
       font-size: 28px;
@@ -277,16 +294,27 @@ export default function KakaoJoin() {
       outline: none;
       transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .kj-input:focus { border-color: #FEE500; background: #fff; box-shadow: 0 0 0 3px rgba(254,229,0,0.15); }
-    .kj-input:disabled { background: #f0f0f0; color: #999; }
-    .kj-input::placeholder { color: #bbb; }
+    .kj-input:focus {
+      border-color: #FEE500;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(254,229,0,0.15);
+    }
+    .kj-input:disabled {
+      background: #f0f0f0;
+      color: #999;
+    }
+    .kj-input::placeholder {
+      color: #bbb;
+    }
     .kj-hint {
       margin-top: 8px;
       font-size: 13px;
       color: #999;
       line-height: 1.5;
     }
-    .kj-hint.error { color: #e54545; }
+    .kj-hint.error {
+      color: #e54545;
+    }
     .kj-error {
       background: #fff5f5;
       border: 1px solid #fecaca;
@@ -348,8 +376,14 @@ export default function KakaoJoin() {
       transition: all 0.15s;
       font-family: inherit;
     }
-    .kj-btn-secondary:hover:not(:disabled) { background: #f8f9fc; border-color: #ccc; }
-    .kj-btn-secondary:disabled { color: #bbb; cursor: not-allowed; }
+    .kj-btn-secondary:hover:not(:disabled) {
+      background: #f8f9fc;
+      border-color: #ccc;
+    }
+    .kj-btn-secondary:disabled {
+      color: #bbb;
+      cursor: not-allowed;
+    }
     .kj-otp-info {
       display: flex;
       align-items: center;
@@ -375,20 +409,9 @@ export default function KakaoJoin() {
       color: #666;
       line-height: 1.6;
     }
-    .kj-otp-info-text strong { color: #191919; font-weight: 700; }
-    .kj-divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 24px 0;
-      color: #ccc;
-      font-size: 13px;
-    }
-    .kj-divider::before, .kj-divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: #eee;
+    .kj-otp-info-text strong {
+      color: #191919;
+      font-weight: 700;
     }
     .kj-loading-init {
       text-align: center;
@@ -397,29 +420,58 @@ export default function KakaoJoin() {
       font-size: 17px;
     }
     @media (max-width: 640px) {
-      .kj-root { padding: calc(var(--pupoo-site-header-offset, 72px) + 20px) 16px 40px; align-items: flex-start; margin-top: 24px; }
+      .kj-root {
+        padding: calc(var(--pupoo-site-header-offset, 72px) + 20px) 16px 40px;
+        align-items: flex-start;
+        margin-top: 24px;
+      }
     }
     @media (max-width: 480px) {
-      .kj-card { padding: 32px 20px 28px; border-radius: 20px; max-width: 100%; }
-      .kj-title { font-size: 22px; }
-      .kj-subtitle { font-size: 14px; margin-bottom: 24px; }
-      .kj-input { height: 50px; font-size: 15px; padding: 0 16px; }
-      .kj-label { font-size: 14px; }
-      .kj-btn-primary { height: 52px; font-size: 16px; }
-      .kj-btn-secondary { height: 48px; font-size: 14px; }
-      .kj-otp-info { padding: 14px 16px; gap: 12px; }
-      .kj-otp-info-text { font-size: 14px; }
+      .kj-card {
+        padding: 32px 20px 28px;
+        border-radius: 20px;
+        max-width: 100%;
+      }
+      .kj-title {
+        font-size: 22px;
+      }
+      .kj-subtitle {
+        font-size: 14px;
+        margin-bottom: 24px;
+      }
+      .kj-input {
+        height: 50px;
+        font-size: 15px;
+        padding: 0 16px;
+      }
+      .kj-label {
+        font-size: 14px;
+      }
+      .kj-btn-primary {
+        height: 52px;
+        font-size: 16px;
+      }
+      .kj-btn-secondary {
+        height: 48px;
+        font-size: 14px;
+      }
+      .kj-otp-info {
+        padding: 14px 16px;
+        gap: 12px;
+      }
+      .kj-otp-info-text {
+        font-size: 14px;
+      }
     }
   `;
 
-  // ───────── UI ─────────
   if (step === STEP.INIT) {
     return (
       <>
         <style>{styles}</style>
         <div className="kj-root">
           <div className="kj-card">
-            <div className="kj-loading-init">카카오 인증 확인 중...</div>
+            <div className="kj-loading-init">카카오 인증 정보를 확인하고 있습니다.</div>
           </div>
         </div>
       </>
@@ -431,11 +483,13 @@ export default function KakaoJoin() {
       <style>{styles}</style>
       <div className="kj-root">
         <div className="kj-card">
-          {/* 로고 */}
           <div className="kj-logo">
             <div className="kj-kakao-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M12 3C6.477 3 2 6.477 2 10.5c0 2.592 1.678 4.878 4.22 6.258-.186.694-.674 2.517-.771 2.906-.12.483.177.476.373.346.153-.102 2.438-1.653 3.42-2.322.244.022.492.033.758.033 5.523 0 10-3.477 10-7.722C22 6.477 17.523 3 12 3z" fill="#191919"/>
+                <path
+                  d="M12 3C6.477 3 2 6.477 2 10.5c0 2.592 1.678 4.878 4.22 6.258-.186.694-.674 2.517-.771 2.906-.12.483.177.476.373.346.153-.102 2.438-1.653 3.42-2.322.244.022.492.033.758.033 5.523 0 10-3.477 10-7.722C22 6.477 17.523 3 12 3z"
+                  fill="#191919"
+                />
               </svg>
             </div>
           </div>
@@ -443,23 +497,31 @@ export default function KakaoJoin() {
           <h1 className="kj-title">카카오 회원가입</h1>
           <p className="kj-subtitle">
             {step === STEP.FORM
-              ? "추가 정보를 입력하면 가입이 완료됩니다"
-              : "인증번호를 입력해주세요"}
+              ? "추가 정보를 입력하면 가입이 완료됩니다."
+              : "인증번호를 입력해 주세요."}
           </p>
 
-          {/* 스텝 인디케이터 */}
           <div className="kj-step-bar">
-            <div className={`kj-step-dot ${step === STEP.FORM ? "active" : "done"}`} />
+            <div
+              className={`kj-step-dot ${step === STEP.FORM ? "active" : "done"}`}
+            />
             <div className={`kj-step-dot ${step === STEP.OTP ? "active" : ""}`} />
           </div>
 
           {error && <div className="kj-error">{error}</div>}
 
-          {/* FORM 스텝 */}
           {step === STEP.FORM && (
             <>
               <div className="kj-field">
-                <label className="kj-label">이메일 {hasKakaoEmail && <span style={{ color: "#999", fontWeight: 400 }}>(카카오 연동)</span>}</label>
+                <label className="kj-label">
+                  이메일
+                  {hasKakaoEmail && (
+                    <span style={{ color: "#999", fontWeight: 400 }}>
+                      {" "}
+                      (카카오 연동)
+                    </span>
+                  )}
+                </label>
                 <input
                   className="kj-input"
                   value={email}
@@ -470,13 +532,20 @@ export default function KakaoJoin() {
                 />
                 {!emailTrim && (
                   <div className="kj-hint error">
-                    이메일은 필수입니다. 카카오에서 이메일을 받지 못한 경우 직접 입력해주세요.
+                    이메일은 필수입니다. 카카오에서 이메일을 받지 못한 경우 직접 입력해
+                    주세요.
                   </div>
                 )}
               </div>
 
               <div className="kj-field">
-                <label className="kj-label">닉네임 <span style={{ color: "#bbb", fontWeight: 400 }}>(선택)</span></label>
+                <label className="kj-label">
+                  닉네임
+                  <span style={{ color: "#bbb", fontWeight: 400 }}>
+                    {" "}
+                    (선택)
+                  </span>
+                </label>
                 <input
                   className="kj-input"
                   value={nickname}
@@ -496,7 +565,9 @@ export default function KakaoJoin() {
                   disabled={loading}
                   inputMode="tel"
                 />
-                <div className="kj-hint">본인 인증을 위한 인증번호가 발송됩니다</div>
+                <div className="kj-hint">
+                  본인 인증을 위한 인증번호가 발송됩니다.
+                </div>
               </div>
 
               <button
@@ -518,17 +589,26 @@ export default function KakaoJoin() {
             </>
           )}
 
-          {/* OTP 스텝 */}
           {step === STEP.OTP && (
             <>
               <div className="kj-otp-info">
                 <div className="kj-otp-info-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191919" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#191919"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
                   </svg>
                 </div>
                 <div className="kj-otp-info-text">
-                  <strong>{phone || "입력한 번호"}</strong>로<br/>인증번호가 발송되었습니다
+                  <strong>{phone || "입력한 번호"}</strong>
+                  로 인증번호가 발송되었습니다.
                 </div>
               </div>
 
@@ -537,13 +617,20 @@ export default function KakaoJoin() {
                 <input
                   className="kj-input"
                   value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ""))}
+                  onChange={(e) =>
+                    setOtpCode(e.target.value.replace(/[^0-9]/g, ""))
+                  }
                   placeholder="6자리 숫자 입력"
                   maxLength={6}
                   inputMode="numeric"
                   disabled={loading}
                   autoFocus
-                  style={{ letterSpacing: "8px", textAlign: "center", fontSize: "22px", fontWeight: 700 }}
+                  style={{
+                    letterSpacing: "8px",
+                    textAlign: "center",
+                    fontSize: "22px",
+                    fontWeight: 700,
+                  }}
                 />
               </div>
 

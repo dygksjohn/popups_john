@@ -71,13 +71,18 @@ kubectl apply -k k8s/base
 ### Required GitHub Actions secrets
 
 - `AWS_DEPLOY_ROLE_ARN`
+- `PUPOO_AI_TRAIN_DB_URL` (optional, recommended)
+- `PUPOO_AI_TRAIN_DB_USER` (optional, recommended)
+- `PUPOO_AI_TRAIN_DB_PASSWORD` (optional, recommended)
 
 ### Required in-cluster secrets
 
 Create `pupoo-backend-secret` and `pupoo-ai-secret` separately before running the deploy workflow.
 The `*.example.yaml` files are examples only and are intentionally not applied by `kustomize`.
+If local testing needs a concrete manifest, copy `backend-secret.example.yaml` to `backend-secret.local.yaml`.
+`backend-secret.local.yaml` must stay untracked and is ignored by git.
 
 Current example coverage:
 
-- `pupoo-backend-secret`: datasource credentials, auth salts/secrets, AI internal tokens, OpenAI config, Kakao OAuth, KakaoPay
+- `pupoo-backend-secret`: datasource credentials, auth salts/secrets, AI internal tokens, OpenAI config, Kakao OAuth, Google OAuth, Naver OAuth, KakaoPay
 - `pupoo-ai-secret`: `PUPOO_AI_INTERNAL_TOKEN`, `OPENAI_API_KEY`

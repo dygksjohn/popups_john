@@ -13,29 +13,35 @@ from pupoo_ai.app.features.moderation.chunking import PolicyChunk, load_policy_c
 from pupoo_ai.app.features.moderation.embedding_service import get_embedding_service
 from pupoo_ai.app.features.moderation.milvus_client import PolicyVectorStore
 from pupoo_ai.app.features.moderation.policy_state import load_active_policy
-from pupoo_ai.app.features.moderation.watsonx_client import is_watsonx_configured, moderate_with_llm
+from pupoo_ai.app.features.moderation.watsonx_client import (
+    is_watsonx_configured,
+    moderate_with_llm,
+)
 
 POLICY_DOC_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "policy_docs"
 logger = logging.getLogger(__name__)
 
 _SPACE_PATTERN = re.compile(r"\s+")
 _HARD_BLOCK_TERMS = (
-    "죽여버리고싶",
-    "죽여버릴거",
-    "죽이고싶",
-    "죽인다",
+    "죽여버리고싶다",
+    "죽여버리고 싶다",
+    "죽여버릴거야",
+    "죽이고싶다",
+    "죽이고 싶다",
     "죽어버려",
     "죽어라",
-    "해치고싶",
+    "때려죽이고싶다",
     "칼로찔러",
-    "살인하고싶",
-    "없애버리고싶",
+    "칼로 찔러",
+    "없애버리고싶다",
 )
 _WARN_TERMS = (
-    "욕이나올것같",
+    "패버리고싶다",
+    "패버리고 싶다",
+    "한대치고싶다",
+    "한 대 치고 싶다",
     "꺼져버렸으면좋겠",
-    "한대치고싶",
-    "패고싶",
+    "꺼져버렸으면 좋겠",
 )
 _SEED_SOURCE_NAME = "moderation_seed_examples.json"
 _SEED_SCORE_THRESHOLDS = {
@@ -55,7 +61,7 @@ def _precheck_text(text: str) -> tuple[str, str, list[str] | None] | None:
     if matched_block:
         return (
             "BLOCK",
-            "직접적인 위해 또는 폭력 표현이 감지되어 등록이 차단됩니다.",
+            "직접적인 위해 표현이 감지되어 등록을 차단합니다.",
             matched_block,
         )
 
@@ -63,7 +69,7 @@ def _precheck_text(text: str) -> tuple[str, str, list[str] | None] | None:
     if matched_warn:
         return (
             "WARN",
-            "공격적 표현이 감지되어 주의가 필요합니다.",
+            "공격적인 표현이 감지되어 주의가 필요합니다.",
             matched_warn,
         )
 
@@ -83,7 +89,9 @@ def _seed_decision_from_policy_id(policy_id: str | None) -> str | None:
     return None
 
 
-def _shortcut_from_retrieved_docs(docs: list[dict]) -> tuple[str, float, str, list[str] | None] | None:
+def _shortcut_from_retrieved_docs(
+    docs: list[dict],
+) -> tuple[str, float, str, list[str] | None] | None:
     if not docs:
         return None
 
@@ -101,12 +109,32 @@ def _shortcut_from_retrieved_docs(docs: list[dict]) -> tuple[str, float, str, li
             continue
 
         if decision == "ALLOW":
-            return "ALLOW", score, "운영 시드 예시와 매우 유사한 일반 문장으로 판단됩니다.", None
+            return (
+                "ALLOW",
+                score,
+                "운영 시드 예시와 매우 유사한 일반 문장으로 판단합니다.",
+                None,
+            )
         if decision == "WARN":
-            return "WARN", score, "운영 시드 예시와 유사한 공격적 표현으로 주의가 필요합니다.", None
+            return (
+                "WARN",
+                score,
+                "운영 시드 예시와 유사한 주의 표현으로 판단합니다.",
+                None,
+            )
         if decision == "REVIEW":
-            return "REVIEW", score, "운영 시드 예시와 유사해 검토 대기 처리합니다.", None
-        return "BLOCK", score, "운영 시드 예시와 유사한 위해 표현으로 등록이 차단됩니다.", None
+            return (
+                "REVIEW",
+                score,
+                "운영 시드 예시와 유사해 검토 대기로 처리합니다.",
+                None,
+            )
+        return (
+            "BLOCK",
+            score,
+            "운영 시드 예시와 유사한 위해 표현으로 판단하여 등록을 차단합니다.",
+            None,
+        )
 
     return None
 
@@ -152,8 +180,8 @@ def retrieve_policies(query: str, top_k: int = 5) -> List[dict]:
     embedder = get_embedding_service()
     active = load_active_policy()
     store = _get_policy_vector_store(dim=embedder.dim, collection_name=active.collection)
-    q_vecs = embedder.embed_texts([query])
-    results = store.search(q_vecs, top_k=top_k)
+    query_vectors = embedder.embed_texts([query])
+    results = store.search(query_vectors, top_k=top_k)
     if not results:
         return []
 
@@ -180,9 +208,9 @@ def moderate_with_rag(
     safe_metadata = metadata or {}
     started_at = time.perf_counter()
     logger.info(
-        "Moderation pipeline input. board_type=%s text_preview=%s metadata=%s",
+        "Moderation pipeline input. board_type=%s text_length=%d metadata=%s",
         board_type,
-        (text or "")[:200],
+        len(text or ""),
         safe_metadata,
     )
 
@@ -195,7 +223,14 @@ def moderate_with_rag(
             decision,
             matched_terms,
         )
-        return decision, 1.0 if decision == "BLOCK" else 0.7, reason, "keyword_precheck", matched_terms, None
+        return (
+            decision,
+            1.0 if decision == "BLOCK" else 0.7,
+            reason,
+            "keyword_precheck",
+            matched_terms,
+            None,
+        )
 
     try:
         retrieval_started_at = time.perf_counter()
@@ -207,12 +242,20 @@ def moderate_with_rag(
             (time.perf_counter() - retrieval_started_at) * 1000,
         )
     except Exception:
-        logger.exception("Milvus policy retrieval failed. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "정책 검색에 실패하여 등록이 차단됩니다.", "rag_error", None, None
+        logger.exception(
+            "Milvus policy retrieval failed. board_type=%s metadata=%s",
+            board_type,
+            safe_metadata,
+        )
+        return "BLOCK", None, "정책 검색에 실패하여 등록을 차단합니다.", "rag_error", None, None
 
     if not docs:
-        logger.error("No policy documents were retrieved. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "활성 정책을 찾지 못해 등록이 차단됩니다.", "rag_empty", None, None
+        logger.error(
+            "No policy documents were retrieved. board_type=%s metadata=%s",
+            board_type,
+            safe_metadata,
+        )
+        return "BLOCK", None, "활성 정책을 찾지 못해 등록을 차단합니다.", "rag_empty", None, None
 
     shortcut = _shortcut_from_retrieved_docs(docs)
     if shortcut is not None:
@@ -226,20 +269,38 @@ def moderate_with_rag(
         return decision, score, reason, "seed_shortcut", flagged_phrases, None
 
     if not is_watsonx_configured():
-        logger.error("watsonx is not configured. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "금칙어 검토를 완료하지 못해 등록이 차단됩니다.", "rag_watsonx_unconfigured", None, None
+        logger.error(
+            "watsonx is not configured. board_type=%s metadata=%s",
+            board_type,
+            safe_metadata,
+        )
+        return (
+            "BLOCK",
+            None,
+            "금칙어 검사를 완료하지 못해 등록을 차단합니다.",
+            "rag_watsonx_unconfigured",
+            None,
+            None,
+        )
 
     try:
         llm_started_at = time.perf_counter()
-        action, ai_score, reason, flagged_phrases, inferred_phrases = moderate_with_llm(text, docs)
+        action, ai_score, reason, flagged_phrases, inferred_phrases = moderate_with_llm(
+            text,
+            docs,
+        )
         logger.info(
             "Moderation llm completed. board_type=%s elapsed_ms=%.1f",
             board_type,
             (time.perf_counter() - llm_started_at) * 1000,
         )
     except Exception:
-        logger.exception("watsonx moderation failed. board_type=%s metadata=%s", board_type, safe_metadata)
-        return "BLOCK", None, "금칙어 검토를 완료하지 못해 등록이 차단됩니다.", "rag_error", None, None
+        logger.exception(
+            "watsonx moderation failed. board_type=%s metadata=%s",
+            board_type,
+            safe_metadata,
+        )
+        return "BLOCK", None, "금칙어 검사를 완료하지 못해 등록을 차단합니다.", "rag_error", None, None
 
     normalized = str(action or "").upper()
     if normalized == "PASS":
@@ -250,7 +311,7 @@ def moderate_with_rag(
     final_reason = reason or (
         "정책 위반 가능성은 낮습니다."
         if normalized in {"ALLOW", "WARN", "REVIEW"}
-        else "정책 위반 가능성이 있어 등록이 차단됩니다."
+        else "정책 위반 가능성이 있어 등록을 차단합니다."
     )
     logger.info(
         "Moderation pipeline final decision. board_type=%s decision=%s score=%s total_elapsed_ms=%.1f",
