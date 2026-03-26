@@ -1,8 +1,8 @@
 import pytest
 
-from pupoo_ai.app.core.auth import verify_internal_token
-from pupoo_ai.app.core.config import settings
-from pupoo_ai.app.core.exceptions import ApiException
+from app.core.auth import verify_internal_token
+from app.core.config import settings
+from app.core.exceptions import ApiException
 
 
 @pytest.mark.asyncio
