@@ -48,9 +48,13 @@ export const qnaApi = {
 /* ── 관리자용 (BoardManage) ── */
 // ✅ 관리자 전용 토큰(pupoo_admin_token)을 명시적으로 사용
 export const adminQnaApi = {
-  list: (uiPage = 1, size = 20) =>
+  list: (uiPage = 1, size = 20, opts = {}) =>
     axiosInstance.get("/api/qnas", {
-      params: { page: uiPage - 1, size },
+      params: {
+        page: uiPage - 1,
+        size,
+        ...(opts?.keyword ? { keyword: opts.keyword } : {}),
+      },
       headers: adminAuthHeaders(),
     }),
 
