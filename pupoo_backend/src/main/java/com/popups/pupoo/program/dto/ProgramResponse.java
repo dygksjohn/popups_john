@@ -24,9 +24,10 @@ public class ProgramResponse {
     private boolean ongoing;
     private boolean upcoming;
     private boolean ended;
+    private long participantCount;
     private ExperienceWaitResponse experienceWait;
 
-    public static ProgramResponse from(Program program, String imageUrl) {
+    public static ProgramResponse from(Program program, String imageUrl, long participantCount) {
         if (program == null) {
             throw new IllegalArgumentException("Program is null");
         }
@@ -44,6 +45,7 @@ public class ProgramResponse {
                 .ongoing(program.isOngoing())
                 .upcoming(program.isUpcoming())
                 .ended(program.isEnded())
+                .participantCount(Math.max(0, participantCount))
                 .experienceWait(null)
                 .build();
     }

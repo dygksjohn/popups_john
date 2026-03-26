@@ -6,11 +6,10 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-
-import java.util.HashMap;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -22,7 +21,8 @@ public class WebClientModerationClient implements ModerationClient {
 
     public WebClientModerationClient(
             @Qualifier("aiModerationWebClient") WebClient aiModerationWebClient,
-            ModerationProperties properties) {
+            ModerationProperties properties
+    ) {
         this.aiModerationWebClient = aiModerationWebClient;
         this.properties = properties;
     }
@@ -32,29 +32,31 @@ public class WebClientModerationClient implements ModerationClient {
         String preview = text == null ? "null" : text.length() <= 30 ? text : text.substring(0, 30) + "...";
         int textLen = text == null ? 0 : text.length();
 
-        if (text == null || text.trim().isEmpty()) {
-            log.warn("AI moderation request: text is blank (boardId={}, contentType={}, baseUrl={})", boardId, contentType, properties.getBaseUrl());
-        } else {
+        if (!properties.isEnabled()) {
+            log.warn("AI moderation is disabled by config (baseUrl={})", properties.getBaseUrl());
+            return blocked("\u0041\u0049 \uBAA8\uB354\uB808\uC774\uC158\uC774 \uBE44\uD65C\uC131\uD654\uB418\uC5B4 \uC694\uCCAD\uC744 \uCC28\uB2E8\uD588\uC2B5\uB2C8\uB2E4.", "disabled");
+        }
+
+        try {
+            Map<String, Object> metadata = new HashMap<>();
+            if (boardId != null) {
+                metadata.put("boardId", boardId);
+            }
+            if (contentType != null) {
+                metadata.put("boardType", contentType);
+            }
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("content", text != null ? text : "");
+            body.put("text", text != null ? text : "");
+            body.put("board_type", contentType);
+            body.put("content_type", contentType);
+            body.put("board_id", boardId);
+            body.put("metadata", metadata);
+
             log.info("AI moderation request: boardId={}, contentType={}, baseUrl={}, textLen={}, preview='{}'",
                     boardId, contentType, properties.getBaseUrl(), textLen, preview);
-        }
 
-        if (!properties.isEnabled()) {
-            // 필터링 기능이 비활성화된 경우에도, 정책상 검사가 완료되지 않은 것으로 보고 BLOCK 처리한다.
-            log.warn("AI moderation is disabled by config (baseUrl={})", properties.getBaseUrl());
-            return ModerationResult.builder()
-                    .action("BLOCK")
-                    .reason("AI 모더레이션이 비활성화되어 요청을 차단했습니다.")
-                    .stack("disabled")
-                    .build();
-        }
-        try {
-            Map<String, Object> body = new HashMap<>(Map.of("text", text != null ? text : ""));
-            if (boardId != null) body.put("board_id", boardId);
-            if (contentType != null) body.put("content_type", contentType);
-
-            log.info("AI moderation POST /internal/moderate payload: board_id={}, content_type={}, textLen={}",
-                    boardId, contentType, textLen);
             Map<?, ?> response = aiModerationWebClient
                     .post()
                     .uri("/internal/moderate")
@@ -62,23 +64,26 @@ public class WebClientModerationClient implements ModerationClient {
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(Map.class)
-                    .block(Duration.ofSeconds(properties.getTimeoutSeconds()));
+                    .block(Duration.ofMillis(Math.max(1000, properties.getReadTimeoutMs()) + 500L));
 
             if (response == null) {
-                // 응답을 받지 못한 경우에도 검사가 완료되지 않은 것으로 간주하고 BLOCK 처리
-                return ModerationResult.builder()
-                        .action("BLOCK")
-                        .reason("AI 서버 응답 없음으로 인해 요청을 차단했습니다.")
-                        .stack("error")
-                        .build();
+                return blocked("\u0041\u0049 \uC11C\uBC84 \uC751\uB2F5\uC774 \uC5C6\uC5B4 \uC694\uCCAD\uC744 \uCC28\uB2E8\uD588\uC2B5\uB2C8\uB2E4.", "error");
             }
-            String action = (String) response.get("action");
-            Object score = response.get("ai_score");
-            String reason = (String) response.get("reason");
-            String stack = (String) response.get("stack");
+
+            String decision = asString(response.get("decision"));
+            String action = asString(response.get("action"));
+            String result = asString(response.get("result"));
+            String normalized = normalizeAction(decision, action, result);
+            String reason = asString(response.get("reason"));
+            String stack = asString(response.get("stack"));
+            Float score = asFloat(response.get("score"));
+            if (score == null) {
+                score = asFloat(response.get("ai_score"));
+            }
+
             return ModerationResult.builder()
-                    .action(action != null ? action : "PASS")
-                    .aiScore(score instanceof Number ? ((Number) score).floatValue() : null)
+                    .action(normalized)
+                    .aiScore(score)
                     .reason(reason)
                     .stack(stack != null ? stack : "unknown")
                     .build();
@@ -86,23 +91,60 @@ public class WebClientModerationClient implements ModerationClient {
             log.warn("AI moderation API error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());
             log.warn("AI moderation API error context: boardId={}, contentType={}, baseUrl={}, textLen={}, preview='{}'",
                     boardId, contentType, properties.getBaseUrl(), textLen, preview);
-            // HTTP 오류 역시 필터링 미완료로 간주하여 BLOCK 처리
-            return ModerationResult.builder()
-                    .action("BLOCK")
-                    .reason("AI 서버 오류(" + e.getStatusCode() + ")로 인해 요청을 차단했습니다.")
-                    .stack("error")
-                    .build();
+            return blocked("\u0041\u0049 \uC11C\uBC84 \uC624\uB958\uB85C \uC694\uCCAD\uC744 \uCC28\uB2E8\uD588\uC2B5\uB2C8\uB2E4.", "error");
         } catch (Exception e) {
             String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             log.warn("AI moderation call failed: {} (baseUrl={})", errMsg, properties.getBaseUrl(), e);
             log.warn("AI moderation call failed context: boardId={}, contentType={}, baseUrl={}, textLen={}, preview='{}'",
                     boardId, contentType, properties.getBaseUrl(), textLen, preview);
-            // 네트워크 등 기타 예외 발생 시에도 BLOCK 처리
-            return ModerationResult.builder()
-                    .action("BLOCK")
-                    .reason("AI 서버 연결 실패로 인해 요청을 차단했습니다.")
-                    .stack("error")
-                    .build();
+            return blocked("\u0041\u0049 \uC11C\uBC84 \uC5F0\uACB0 \uC2E4\uD328\uB85C \uC694\uCCAD\uC744 \uCC28\uB2E8\uD588\uC2B5\uB2C8\uB2E4.", "error");
+        }
+    }
+
+    private ModerationResult blocked(String reason, String stack) {
+        return ModerationResult.builder()
+                .action("BLOCK")
+                .reason(reason)
+                .stack(stack)
+                .build();
+    }
+
+    private String normalizeAction(String decision, String action, String result) {
+        String primary = asString(decision);
+        String secondary = asString(action);
+        String tertiary = asString(result);
+
+        if (isAllowLike(primary) || isAllowLike(secondary) || isAllowLike(tertiary)) {
+            return "ALLOW";
+        }
+        if ("WARN".equalsIgnoreCase(primary) || "WARN".equalsIgnoreCase(secondary) || "WARN".equalsIgnoreCase(tertiary)) {
+            return "WARN";
+        }
+        if ("REVIEW".equalsIgnoreCase(primary) || "REVIEW".equalsIgnoreCase(secondary) || "REVIEW".equalsIgnoreCase(tertiary)) {
+            return "REVIEW";
+        }
+        if ("BLOCK".equalsIgnoreCase(primary) || "BLOCK".equalsIgnoreCase(secondary) || "BLOCK".equalsIgnoreCase(tertiary)) {
+            return "BLOCK";
+        }
+        return "BLOCK";
+    }
+
+    private boolean isAllowLike(String value) {
+        return "PASS".equalsIgnoreCase(value) || "ALLOW".equalsIgnoreCase(value);
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private Float asFloat(Object value) {
+        if (value instanceof Number number) {
+            return number.floatValue();
+        }
+        try {
+            return value == null ? null : Float.parseFloat(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
         }
     }
 }

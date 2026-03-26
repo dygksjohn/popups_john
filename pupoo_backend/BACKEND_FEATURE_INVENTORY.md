@@ -74,7 +74,7 @@
 | 도메인 | Controller | 실제 엔드포인트 묶음 | 사용 Entity / Table | 상태 | 판단 근거 |
 |---|---|---|---|---|---|
 | Board | `BoardController` | 게시판 목록, 관리자 게시판 생성/상세/수정/활성화 | `Board`/`boards` | KEEP | 실DB + 코드 |
-| Post | `PostController` | 게시글 목록/상세/신고/등록/수정/삭제/종료 | `Post`/`posts`, `StoredFile`/`files`, `ContentReport`/`content_reports` | KEEP | 실DB + 코드 |
+| Post | `PostController` | 게시글 목록/상세/신고/등록/수정/삭제/종료, 등록/수정 성공 응답 `PostResponse` | `Post`/`posts`, `StoredFile`/`files`, `ContentReport`/`content_reports` | KEEP | 실DB + 코드 |
 | Post | `AdminPostController` | 게시글 관리자 삭제 처리 | `Post`/`posts` | KEEP | 실DB + 코드 |
 | FAQ | `FaqController`, `AdminFaqController` | FAQ 조회/관리 | `Post`/`posts`, `Board`/`boards` | KEEP | 실DB + 코드 |
 | QnA | `QnaController`, `AdminQnaController` | QnA 등록/조회/수정/삭제/종료, 답변 등록/삭제 | `Post`/`posts`, `Board`/`boards` | KEEP | 실DB + 코드 |

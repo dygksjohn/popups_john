@@ -8,6 +8,9 @@ import { tokenStore } from "../../../app/http/tokenStore";
 import CommunityContentTextarea from "./shared/CommunityContentTextarea";
 import { hasMeaningfulCommunityContent } from "./shared/communityHtml";
 import CommunityWriteLayout from "./shared/CommunityWriteLayout";
+import ModerationNoticeBox, {
+  normalizeModerationPayload,
+} from "./shared/ModerationNoticeBox";
 
 const DRAFT_KEY_PREFIX = "draft_community_board_";
 
@@ -88,6 +91,11 @@ function getDraftKey(path) {
   return `${DRAFT_KEY_PREFIX}${(path || "").replace(/\//g, "_")}`;
 }
 
+function getErrorMessage(err, fallbackMessage) {
+  const body = err?.response?.data;
+  return body?.error?.message || body?.message || body?.errorMessage || fallbackMessage;
+}
+
 export default function CommunityBoardWritePage({
   pageTitle,
   pageSubtitle,
@@ -105,6 +113,7 @@ export default function CommunityBoardWritePage({
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
+  const [moderation, setModeration] = useState(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [file, setFile] = useState(null);
@@ -204,6 +213,7 @@ export default function CommunityBoardWritePage({
     setSaving(true);
     setError("");
     setSuccessMessage("");
+    setModeration(null);
 
     try {
       const created = await postApi.create({
@@ -224,12 +234,24 @@ export default function CommunityBoardWritePage({
         localStorage.removeItem(draftKey);
       } catch (_) {}
 
+      const normalizedModeration = normalizeModerationPayload(created?.moderation);
+      console.debug("[CommunityBoardWritePage] moderation payload:", {
+        decision: normalizedModeration?.decision ?? null,
+        message: normalizedModeration?.message ?? null,
+        reason: normalizedModeration?.reason ?? null,
+      });
+      setModeration(normalizedModeration);
       setSuccessMessage("등록 완료되었습니다.");
       setSaving(false);
     } catch (err) {
       console.error("[CommunityBoardWritePage] create failed:", err);
       if (!isMountedRef.current) return;
-      setError(err?.response?.data?.error?.message || "글 등록에 실패했습니다.");
+      console.debug("[CommunityBoardWritePage] moderation error payload:", {
+        decision: null,
+        message: err?.response?.data?.error?.message ?? err?.response?.data?.message ?? null,
+        reason: err?.response?.data?.error?.reason ?? err?.response?.data?.reason ?? null,
+      });
+      setError(getErrorMessage(err, "글 등록에 실패했습니다."));
       setSaving(false);
     }
   };
@@ -290,6 +312,7 @@ export default function CommunityBoardWritePage({
         <ErrorBox message={error} />
         {saving && !successMessage ? <InProgressBox /> : null}
         <SuccessBox message={successMessage} />
+        <ModerationNoticeBox moderation={moderation} />
 
         {loading ? (
           <div style={{ fontSize: 14, color: "#64748b" }}>게시판 정보를 확인하는 중입니다.</div>

@@ -15,6 +15,8 @@ spec:
         app: pupoo-backend
     spec:
       serviceAccountName: pupoo-backend
+      nodeSelector:
+        kubernetes.io/arch: amd64
       containers:
         - name: backend
           image: 593797021262.dkr.ecr.ap-northeast-2.amazonaws.com/pupoo-backend:latest

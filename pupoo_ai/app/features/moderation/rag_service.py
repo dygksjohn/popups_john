@@ -1,20 +1,11 @@
-"""RAG 기반 모더레이션 조합 서비스.
-
-기능:
-- 정책 문서 로드, 인덱싱, 정책 검색, 최종 moderation 판단 조합을 담당한다.
-
-설명:
-- 이 모듈은 저장 전 사전 차단 흐름에만 사용된다.
-- 신고 접수 후 관리자 승인으로 상태를 바꾸는 신고 기반 모더레이션과는 역할이 다르다.
-- policy_docs는 현재 단일 canonical 파일이 아니라 디렉터리 아래 여러 JSON/TXT를 함께 읽는다.
-
-흐름:
-- 정책 로드 -> 임베딩 생성 -> Milvus 저장/검색 -> watsonx 또는 fallback으로 판단
-"""
+"""RAG 기반 모더레이션 조합 서비스."""
 
 from __future__ import annotations
 
 import logging
+import re
+import threading
+import time
 from pathlib import Path
 from typing import List, Tuple
 
@@ -27,11 +18,100 @@ from pupoo_ai.app.features.moderation.watsonx_client import is_watsonx_configure
 POLICY_DOC_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "policy_docs"
 logger = logging.getLogger(__name__)
 
+_SPACE_PATTERN = re.compile(r"\s+")
+_HARD_BLOCK_TERMS = (
+    "죽여버리고싶",
+    "죽여버릴거",
+    "죽이고싶",
+    "죽인다",
+    "죽어버려",
+    "죽어라",
+    "해치고싶",
+    "칼로찔러",
+    "살인하고싶",
+    "없애버리고싶",
+)
+_WARN_TERMS = (
+    "욕이나올것같",
+    "꺼져버렸으면좋겠",
+    "한대치고싶",
+    "패고싶",
+)
+_SEED_SOURCE_NAME = "moderation_seed_examples.json"
+_SEED_SCORE_THRESHOLDS = {
+    "ALLOW": 0.84,
+    "WARN": 0.82,
+    "REVIEW": 0.82,
+    "BLOCK": 0.82,
+}
+_STORE_LOCK = threading.Lock()
+_STORE_CACHE: dict[tuple[str, int], PolicyVectorStore] = {}
+
+
+def _precheck_text(text: str) -> tuple[str, str, list[str] | None] | None:
+    compact = _SPACE_PATTERN.sub("", text or "").lower()
+
+    matched_block = [term for term in _HARD_BLOCK_TERMS if term in compact]
+    if matched_block:
+        return (
+            "BLOCK",
+            "직접적인 위해 또는 폭력 표현이 감지되어 등록이 차단됩니다.",
+            matched_block,
+        )
+
+    matched_warn = [term for term in _WARN_TERMS if term in compact]
+    if matched_warn:
+        return (
+            "WARN",
+            "공격적 표현이 감지되어 주의가 필요합니다.",
+            matched_warn,
+        )
+
+    return None
+
+
+def _seed_decision_from_policy_id(policy_id: str | None) -> str | None:
+    normalized = str(policy_id or "").upper()
+    if normalized.startswith("SEED-ALLOW-"):
+        return "ALLOW"
+    if normalized.startswith("SEED-WARN-"):
+        return "WARN"
+    if normalized.startswith("SEED-REVIEW-"):
+        return "REVIEW"
+    if normalized.startswith("SEED-BLOCK-"):
+        return "BLOCK"
+    return None
+
+
+def _shortcut_from_retrieved_docs(docs: list[dict]) -> tuple[str, float, str, list[str] | None] | None:
+    if not docs:
+        return None
+
+    for document in docs:
+        source = str(document.get("source") or "")
+        policy_id = str(document.get("policy_id") or "")
+        score = float(document.get("score") or 0.0)
+        decision = _seed_decision_from_policy_id(policy_id)
+
+        if not decision:
+            continue
+        if not source.endswith(_SEED_SOURCE_NAME):
+            continue
+        if score < _SEED_SCORE_THRESHOLDS[decision]:
+            continue
+
+        if decision == "ALLOW":
+            return "ALLOW", score, "운영 시드 예시와 매우 유사한 일반 문장으로 판단됩니다.", None
+        if decision == "WARN":
+            return "WARN", score, "운영 시드 예시와 유사한 공격적 표현으로 주의가 필요합니다.", None
+        if decision == "REVIEW":
+            return "REVIEW", score, "운영 시드 예시와 유사해 검토 대기 처리합니다.", None
+        return "BLOCK", score, "운영 시드 예시와 유사한 위해 표현으로 등록이 차단됩니다.", None
+
+    return None
+
 
 def build_policy_index(dry_run: bool = False) -> Tuple[int, int]:
-    # 기능: 정책 문서를 임베딩해 Milvus 인덱스를 구축한다.
-    # 설명: dry-run이면 실제 적재 없이 청크 수와 임베딩 차원만 확인한다.
-    # 흐름: 정책 로드 -> 임베더 선택 -> dry-run 분기 -> 임베딩 생성 -> Milvus upsert.
     chunks: List[PolicyChunk] = load_policy_chunks(POLICY_DOC_ROOT)
     if not chunks:
         return 0, 0
@@ -54,21 +134,31 @@ def build_policy_index(dry_run: bool = False) -> Tuple[int, int]:
     return len(chunks), embedder.dim
 
 
+def _get_policy_vector_store(dim: int, collection_name: str) -> PolicyVectorStore:
+    key = (collection_name, dim)
+    cached = _STORE_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    with _STORE_LOCK:
+        cached = _STORE_CACHE.get(key)
+        if cached is None:
+            cached = PolicyVectorStore(dim=dim, collection_name=collection_name)
+            _STORE_CACHE[key] = cached
+        return cached
+
+
 def retrieve_policies(query: str, top_k: int = 5) -> List[dict]:
-    # 기능: 입력 문장과 유사한 정책 청크를 검색한다.
-    # 설명: score는 벡터 검색 결과의 거리 값이며, 정책 위반 확률이 아니라 검색 유사도 성격이다.
-    # 흐름: 질의 임베딩 생성 -> Milvus 검색 -> 결과 필드 정규화.
     embedder = get_embedding_service()
-    q_vecs = embedder.embed_texts([query])
     active = load_active_policy()
-    store = PolicyVectorStore(dim=embedder.dim, collection_name=active.collection)
+    store = _get_policy_vector_store(dim=embedder.dim, collection_name=active.collection)
+    q_vecs = embedder.embed_texts([query])
     results = store.search(q_vecs, top_k=top_k)
     if not results:
         return []
 
-    hits = results[0]
     documents: List[dict] = []
-    for hit in hits:
+    for hit in results[0]:
         fields = hit.get("entity", {})
         documents.append(
             {
@@ -82,25 +172,91 @@ def retrieve_policies(query: str, top_k: int = 5) -> List[dict]:
     return documents
 
 
-def moderate_with_rag(text: str) -> tuple[str, float | None, str | None, str, list[str] | None, list[str] | None]:
-    """
-    RAG 기반 모더레이션: 정책 검색 후 watsonx LLM으로 판정·사유·문제 문구(원문·유추) 생성.
-    - 운영 정책: watsonx 미설정/오류 등 예상치 못한 상황은 안전하게 BLOCK 처리한다.
-    """
-    docs = retrieve_policies(text, top_k=5)
+def moderate_with_rag(
+    text: str,
+    board_type: str | None = None,
+    metadata: dict | None = None,
+) -> tuple[str, float | None, str | None, str, list[str] | None, list[str] | None]:
+    safe_metadata = metadata or {}
+    started_at = time.perf_counter()
+    logger.info(
+        "Moderation pipeline input. board_type=%s text_preview=%s metadata=%s",
+        board_type,
+        (text or "")[:200],
+        safe_metadata,
+    )
 
-    if is_watsonx_configured():
+    precheck = _precheck_text(text)
+    if precheck is not None:
+        decision, reason, matched_terms = precheck
+        logger.info(
+            "Moderation precheck hit. board_type=%s decision=%s matched_terms=%s",
+            board_type,
+            decision,
+            matched_terms,
+        )
+        return decision, 1.0 if decision == "BLOCK" else 0.7, reason, "keyword_precheck", matched_terms, None
+
+    try:
+        retrieval_started_at = time.perf_counter()
+        docs = retrieve_policies(text, top_k=8)
+        logger.info(
+            "Moderation retrieval completed. board_type=%s docs=%d elapsed_ms=%.1f",
+            board_type,
+            len(docs),
+            (time.perf_counter() - retrieval_started_at) * 1000,
+        )
+    except Exception:
+        logger.exception("Milvus policy retrieval failed. board_type=%s metadata=%s", board_type, safe_metadata)
+        return "BLOCK", None, "정책 검색에 실패하여 등록이 차단됩니다.", "rag_error", None, None
+
+    if not docs:
+        logger.error("No policy documents were retrieved. board_type=%s metadata=%s", board_type, safe_metadata)
+        return "BLOCK", None, "활성 정책을 찾지 못해 등록이 차단됩니다.", "rag_empty", None, None
+
+    shortcut = _shortcut_from_retrieved_docs(docs)
+    if shortcut is not None:
+        decision, score, reason, flagged_phrases = shortcut
+        logger.info(
+            "Moderation seed shortcut hit. board_type=%s decision=%s score=%s",
+            board_type,
+            decision,
+            score,
+        )
+        return decision, score, reason, "seed_shortcut", flagged_phrases, None
+
+    if not is_watsonx_configured():
+        logger.error("watsonx is not configured. board_type=%s metadata=%s", board_type, safe_metadata)
+        return "BLOCK", None, "금칙어 검토를 완료하지 못해 등록이 차단됩니다.", "rag_watsonx_unconfigured", None, None
+
+    try:
+        llm_started_at = time.perf_counter()
         action, ai_score, reason, flagged_phrases, inferred_phrases = moderate_with_llm(text, docs)
-        return action, ai_score, reason, "rag_watsonx", flagged_phrases, inferred_phrases
+        logger.info(
+            "Moderation llm completed. board_type=%s elapsed_ms=%.1f",
+            board_type,
+            (time.perf_counter() - llm_started_at) * 1000,
+        )
+    except Exception:
+        logger.exception("watsonx moderation failed. board_type=%s metadata=%s", board_type, safe_metadata)
+        return "BLOCK", None, "금칙어 검토를 완료하지 못해 등록이 차단됩니다.", "rag_error", None, None
 
-    logger.error("watsonx is not configured. Treating moderation result as BLOCK.")
-    return "BLOCK", None, "watsonx 설정이 없어 모더레이션을 수행할 수 없습니다.", "rag_milvus_stub", None, None
+    normalized = str(action or "").upper()
+    if normalized == "PASS":
+        normalized = "ALLOW"
+    elif normalized not in {"ALLOW", "WARN", "REVIEW", "BLOCK"}:
+        normalized = "BLOCK"
 
-    reasons = []
-    for document in docs:
-        snippet = document["chunk_text"][:200].replace("\n", " ")
-        reasons.append(f"[{document['policy_id']}] {snippet}")
-
-    # 기능: watsonx가 없을 때는 정책 근거만 반환하고 차단 결론을 강제하지 않는다.
-    # 설명: 이 fallback score는 검색 보조 정보일 뿐 canonical 정책 판단을 대체하지 않는다.
-    return "PASS", None, "\n".join(reasons), "rag_milvus_stub", None, None
+    final_reason = reason or (
+        "정책 위반 가능성은 낮습니다."
+        if normalized in {"ALLOW", "WARN", "REVIEW"}
+        else "정책 위반 가능성이 있어 등록이 차단됩니다."
+    )
+    logger.info(
+        "Moderation pipeline final decision. board_type=%s decision=%s score=%s total_elapsed_ms=%.1f",
+        board_type,
+        normalized,
+        ai_score,
+        (time.perf_counter() - started_at) * 1000,
+    )
+    return normalized, ai_score, final_reason, "rag_watsonx", flagged_phrases, inferred_phrases

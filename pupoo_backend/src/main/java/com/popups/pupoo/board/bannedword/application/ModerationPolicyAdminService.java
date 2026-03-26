@@ -50,7 +50,7 @@ public class ModerationPolicyAdminService {
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .bodyToMono(Map.class)
-                    .block(Duration.ofSeconds(properties.getTimeoutSeconds()));
+                    .block(Duration.ofMillis(Math.max(1000, properties.getReadTimeoutMs()) + 500L));
 
             if (response == null) {
                 throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AI 서버 응답 없음");
@@ -145,7 +145,7 @@ public class ModerationPolicyAdminService {
                     .body(BodyInserters.fromMultipartData(builder.build()))
                     .retrieve()
                     .bodyToMono(Map.class)
-                    .block(Duration.ofSeconds(properties.getTimeoutSeconds()));
+                    .block(Duration.ofMillis(Math.max(1000, properties.getReadTimeoutMs()) + 500L));
 
             if (response == null) {
                 moderationPolicyUploadService.markFailed(uploadId, "AI 서버 응답 없음");
@@ -219,4 +219,3 @@ public class ModerationPolicyAdminService {
         return ext.length() > 16 ? ext.substring(0, 16) : ext;
     }
 }
-

@@ -1,8 +1,8 @@
 ﻿import PageHeader from "../components/PageHeader";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import RealtimeEventSelector from "./RealtimeEventSelector";
-import { RefreshCw, ArrowLeft, ScanLine } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import {
   useRefresh,
   useAutoRefresh,
@@ -47,10 +47,10 @@ const styles = `
   }
   .ck-root *, .ck-root *::before, .ck-root *::after { box-sizing: border-box; font-family: inherit; }
 
-  .ck-container { max-width: 1400px; margin: 0 auto; }
-  .ck-container.with-event { padding-top: 92px; }
-  .ck-container.selector-mode { padding-top: 16px; background: #F0F4FA; }
-  .ck-page-shell { max-width: 1120px; margin: 0 auto; }
+  .ck-container { max-width: 1400px; margin: 0 auto; padding: 20px 0 64px; }
+  .ck-container.with-event { padding-top: 20px; }
+  .ck-container.selector-mode { padding-top: 32px; }
+  .ck-page-shell { max-width: 1400px; margin: 0 auto; }
   .ck-top-actions {
     display: flex;
     align-items: center;
@@ -58,40 +58,67 @@ const styles = `
     flex-wrap: wrap;
     margin-bottom: 20px;
   }
-  .ck-event-mode-nav {
-    display: flex;
+  .ck-back-btn {
+    display: inline-flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
-    margin-left: auto;
-  }
-  .ck-mode-btn {
-    height: 44px;
+    padding: 12px 22px;
     border-radius: 12px;
-    border: 1px solid #d1d5db;
-    background: #f3f4f6;
-    color: #6b7280;
-    padding: 0 16px;
-    font-size: 14px;
+    border: 1.5px solid #111827;
+    background: #111827;
+    color: #fff;
+    font-size: 16px;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.15s;
     font-family: inherit;
+    letter-spacing: -0.01em;
   }
+  .ck-back-btn:hover {
+    background: #1f2937;
+    border-color: #1f2937;
+  }
+  .ck-back-btn:active {
+    transform: scale(0.97);
+  }
+  .ck-event-mode-nav {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: nowrap;
+    margin-left: 0;
+    border: 1px solid #d9e1ec;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .ck-mode-btn {
+    height: 44px;
+    border: none;
+    border-right: 1px solid #e6ebf3;
+    background: #fff;
+    color: #8b95a7;
+    padding: 0 22px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .ck-mode-btn:last-child { border-right: none; }
   .ck-mode-btn.active {
-    background: #02A17E;
+    background: #111827;
     color: #fff;
-    border-color: #02A17E;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+    border-right-color: #111827;
+    box-shadow: none;
   }
   .ck-mode-btn:hover {
-    background: #e5e7eb;
-    border-color: #cbd5e1;
-    color: #4b5563;
+    background: #f8fafc;
+    color: #64748b;
   }
   .ck-mode-btn.active:hover {
-    background: #028A6C;
-    border-color: #028A6C;
+    background: #0f172a;
     color: #fff;
   }
 
@@ -103,14 +130,14 @@ const styles = `
     line-height: 1;
   }
   .rt-live-badge.planned {
-    background: #eff6ff;
-    border-color: #bfdbfe;
-    color: #2563eb;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #90C450;
     justify-content: center;
     gap: 0;
   }
   .rt-live-badge.ended {
-    background: #f8f9fc;
+    background: #f3f4f6;
     border-color: #e5e7eb;
     color: #6b7280;
     justify-content: center;
@@ -183,8 +210,8 @@ const styles = `
     transition: all 0.15s;
   }
   .ck-refresh-btn:hover {
-    border-color: #1a4fd6;
-    color: #1a4fd6;
+    border-color: #90C450;
+    color: #90C450;
     background: #f5f8ff;
   }
   .ck-timestamp {
@@ -210,12 +237,13 @@ const styles = `
   }
   .ck-stat-card {
     background: #fff;
-    border: 1px solid #e9ecef;
-    border-radius: 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
     padding: 20px 22px;
     display: flex;
     align-items: center;
     gap: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
   }
   .ck-stat-icon {
     width: 44px;
@@ -238,10 +266,11 @@ const styles = `
 
   .ck-card {
     background: #fff;
-    border: 1px solid #e9ecef;
-    border-radius: 13px;
-    padding: 22px 22px 20px;
-    margin-bottom: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
   }
   .ck-live-count {
     font-size: 12px;
@@ -252,13 +281,15 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
     padding-bottom: 14px;
-    border-bottom: 1px solid #f1f3f5;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 10px;
+    flex-wrap: wrap;
   }
   .ck-card-title {
-    font-size: 15px;
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: 800;
     color: #111827;
     display: flex;
     align-items: center;
@@ -269,7 +300,7 @@ const styles = `
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    background: #eff4ff;
+    background: #f0fdf4;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -387,7 +418,7 @@ const styles = `
   }
   .ck-status-chip-done { color: #166534; background: #ecfdf3; border-color: #bbf7d0; }
   .ck-status-chip-wait { color: #9a3412; background: #fff7ed; border-color: #fdba74; }
-  .ck-status-chip-pending { color: #4b5563; background: #f8f9fc; border-color: #d1d5db; }
+  .ck-status-chip-pending { color: #4b5563; background: #f3f4f6; border-color: #d1d5db; }
   .ck-status-chip-cancel { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
 
   .ck-progress-list {
@@ -441,7 +472,7 @@ const styles = `
   .ck-progress-fill {
     height: 100%;
     border-radius: inherit;
-    background: #1a4fd6;
+    background: #90C450;
     transition: width 0.5s ease;
   }
   .ck-progress-meta {
@@ -529,8 +560,6 @@ const styles = `
   }
 
   @media (max-width: 900px) {
-    .ck-stat-grid { grid-template-columns: repeat(2, 1fr); }
-    .ck-two-col { grid-template-columns: 1fr; }
     .ck-my-checkin-grid { grid-template-columns: 1fr; }
     .ck-my-split { grid-template-columns: 1fr; }
     .ck-my-program-item { grid-template-columns: 1fr; }
@@ -545,37 +574,16 @@ const styles = `
     }
   }
   @media (max-width: 640px) {
-    .ck-container { }
-    .ck-container.with-event { padding-top: 80px; }
-    .ck-container.selector-mode { padding-top: 0; }
-    .ck-stat-grid { grid-template-columns: repeat(2, 1fr); }
-    .ck-stat-card { padding: 14px 14px; gap: 10px; }
-    .ck-two-col { grid-template-columns: 1fr; }
+    .ck-container { padding: 20px 16px 48px; }
+    .ck-container.with-event { padding-top: 20px; }
+    .ck-container.selector-mode { padding-top: 16px; }
     .ck-top-actions { align-items: stretch; }
-    .ck-event-mode-nav { width: 100%; margin-left: 0; }
-    .ck-mode-btn { flex: 1 1 calc(50% - 8px); min-width: 132px; }
+    .ck-event-mode-nav { width: 100%; margin-left: 0; overflow-x: auto; }
+    .ck-mode-btn { flex: 0 0 auto; min-width: 112px; }
     .ck-card { padding: 20px 16px; }
     .ck-card-header { flex-wrap: wrap; gap: 8px; }
-    .ck-my-status-title { font-size: 22px; letter-spacing: 0; word-break: keep-all; }
-    .ck-back-btn { padding: 9px 22px; font-size: 13px; border-radius: 999px; }
+    .ck-my-status-title { font-size: 24px; }
   }
-  .ck-back-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 24px;
-    font-size: 15px;
-    font-weight: 600;
-    color: #374151;
-    background: #f8f9fc;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.15s;
-    font-family: 'JeonjuCraftGothic', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-  }
-  .ck-back-btn:hover { background: #e5e7eb; }
-  .ck-back-wrap { display: flex; justify-content: center; margin-top: 32px; }
 `;
 
 const unwrapData = (response, fallback) => response?.data?.data ?? response?.data ?? fallback;
@@ -1047,7 +1055,6 @@ async function fetchEventsByIds(eventIds) {
 
 function CheckinContent({ eventId }) {
   const numericEventId = Number(eventId);
-  const navigate = useNavigate();
   const { tick } = useAutoRefresh(15000);
 
   const [loading, setLoading] = useState(true);
@@ -1259,49 +1266,16 @@ function CheckinContent({ eventId }) {
           />
         </div>
       </div>
-      <div className="ck-back-wrap">
-        <button className="ck-back-btn" onClick={() => navigate("/realtime/checkinstatus")}>
-          <ArrowLeft size={14} />
-          목록으로
-        </button>
-      </div>
     </>
   );
 }
 
 export default function CheckinStatus() {
   const { eventId } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
-
-  const currentPath = useMemo(() => {
-    if (location.pathname.startsWith("/realtime/dashboard")) return "/realtime/dashboard";
-    if (location.pathname.startsWith("/realtime/waitingstatus")) return "/realtime/waitingstatus";
-    if (location.pathname.startsWith("/realtime/votestatus")) return "/realtime/votestatus";
-    return "/realtime/checkinstatus";
-  }, [location.pathname]);
 
   const handleSelectEvent = (id) => {
     navigate(`/realtime/checkinstatus/${id}`);
-  };
-
-  const handleNavigate = (path) => {
-    if (!eventId) {
-      navigate(path);
-      return;
-    }
-
-    const match = String(path || "").match(/^([^?#]*)(.*)$/);
-    const pathname = (match?.[1] || "").replace(/\/+$/, "");
-    const suffix = match?.[2] || "";
-    const lastSegment = pathname.split("/").filter(Boolean).at(-1);
-
-    if (lastSegment && /^\d+$/.test(lastSegment)) {
-      navigate(`${pathname}${suffix}`);
-      return;
-    }
-
-    navigate(`${pathname}/${eventId}${suffix}`);
   };
 
   return (
@@ -1309,13 +1283,11 @@ export default function CheckinStatus() {
       <style>{styles}</style>
       <style>{SHARED_ANIM_STYLES}</style>
       <PageHeader
-        title="체크인현황"
-        subtitle={eventId ? "참가자 체크인 현황을 실시간으로 확인합니다" : "행사별 실시간 데이터를 한눈에 확인하세요"}
-        icon={<ScanLine size={42} color="#90C450" strokeWidth={1.6} />}
+        title={eventId ? "체크인현황" : "실시간현황"}
+        subtitle={eventId ? "프로그램 참여 현황을 확인합니다." : "행사별 실시간 데이터를 한눈에 확인하세요"}
+        icon={<RefreshCw size={42} color="#90C450" strokeWidth={1.6} />}
         titleStyle={{ fontSize: 46, lineHeight: "66px", letterSpacing: "-1px" }}
-        tabInactiveBg="rgb(235,235,235)"
-        categories={SERVICE_CATEGORIES}
-        currentPath={currentPath}
+        subtitleStyle={{ fontSize: 20 }}
       />
 
       <main className={`ck-container${eventId ? " with-event" : " selector-mode"}`}>
@@ -1336,6 +1308,12 @@ export default function CheckinStatus() {
               </div>
             </div>
             <CheckinContent eventId={eventId} />
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 32 }}>
+              <button className="ck-back-btn" onClick={() => navigate("/realtime/checkinstatus")}>
+                <ArrowLeft size={15} />
+                목록으로
+              </button>
+            </div>
           </>
         ) : (
           <RealtimeEventSelector

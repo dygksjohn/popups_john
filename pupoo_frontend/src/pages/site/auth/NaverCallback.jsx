@@ -1,9 +1,13 @@
 import { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { authApi } from "./api/authApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { useAuth } from "./AuthProvider";
 import { NaverBrandMark } from "../../../shared/ui/NaverBrandMark";
+import {
+  clearAllSocialJoinState,
+  setSocialJoinState,
+} from "./socialJoinStorage";
 
 const NAVER_CODE_GUARD_KEY = "naver_oauth_code_guard";
 const NAVER_STATE_KEY = "naver_oauth_state";
@@ -41,13 +45,15 @@ const clearCodeGuard = (code) => {
   }
 };
 
+const clearPendingSocialJoin = () => {
+  clearAllSocialJoinState();
+};
+
 export default function NaverCallback() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const redirectUri =
-    import.meta.env.VITE_NAVER_REDIRECT_URI ||
-    `${window.location.origin}/naver/callback`;
+  const redirectUri = `${window.location.origin}${location.pathname}`;
 
   const resolvePostLoginRedirect = () => {
     const target = sessionStorage.getItem("post_login_redirect") || "/";
@@ -73,7 +79,7 @@ export default function NaverCallback() {
       if (!code) {
         navigate("/auth/login", {
           replace: true,
-          state: { error: "네이버 인증 code가 없습니다." },
+          state: { error: "네이버 인증 코드가 없어요." },
         });
         return;
       }
@@ -81,19 +87,15 @@ export default function NaverCallback() {
       if (!state || !storedState || state !== storedState) {
         navigate("/auth/login", {
           replace: true,
-          state: { error: "네이버 인증 상태값이 올바르지 않습니다." },
+          state: { error: "네이버 인증 상태값이 올바르지 않아요." },
         });
         return;
       }
 
-      if (isDuplicateCode(code)) {
-        return;
-      }
+      if (isDuplicateCode(code)) return;
       markCodeGuard(code);
 
-      sessionStorage.removeItem("naver_provider_uid");
-      sessionStorage.removeItem("naver_email");
-      sessionStorage.removeItem("naver_nickname");
+      clearPendingSocialJoin();
 
       try {
         const data = await authApi.naverLogin({ code, state, redirectUri });
@@ -102,7 +104,7 @@ export default function NaverCallback() {
         if (!data || typeof data.newUser !== "boolean") {
           navigate("/auth/login", {
             replace: true,
-            state: { error: "네이버 로그인 응답이 비정상입니다." },
+            state: { error: "네이버 로그인 응답이 올바르지 않아요." },
           });
           return;
         }
@@ -112,13 +114,14 @@ export default function NaverCallback() {
           if (!accessToken) {
             navigate("/auth/login", {
               replace: true,
-              state: { error: "accessToken이 없습니다." },
+              state: { error: "로그인 토큰을 받지 못했어요." },
             });
             return;
           }
 
           tokenStore.setAccess(accessToken);
           login();
+          clearPendingSocialJoin();
 
           const redirectTo = resolvePostLoginRedirect();
           sessionStorage.removeItem("post_login_redirect");
@@ -130,15 +133,21 @@ export default function NaverCallback() {
         if (!uid) {
           navigate("/auth/login", {
             replace: true,
-            state: { error: "네이버 UID가 없습니다." },
+            state: { error: "네이버 계정 정보를 확인하지 못했어요." },
           });
           return;
         }
 
-        sessionStorage.setItem("naver_provider_uid", uid);
-        sessionStorage.setItem("naver_email", data.email ?? "");
-        sessionStorage.setItem("naver_nickname", data.nickname ?? "");
+        setSocialJoinState("naver", {
+          providerUid: uid,
+          email: data.email ?? "",
+          nickname: data.nickname ?? "",
+          signupKey: "",
+          phone: "",
+          step: "FORM",
+        });
 
+        tokenStore.clear();
         navigate("/auth/join/naver", { replace: true });
       } catch (e) {
         clearCodeGuard(code);
@@ -147,14 +156,16 @@ export default function NaverCallback() {
           replace: true,
           state: {
             error:
-              e?.response?.data?.message ?? e?.message ?? "네이버 처리 실패",
+              e?.response?.data?.message ??
+              e?.message ??
+              "네이버 로그인 처리에 실패했어요.",
           },
         });
       }
     };
 
     run();
-  }, [location.search, navigate, login, redirectUri]);
+  }, [location.pathname, location.search, login, navigate, redirectUri]);
 
   return (
     <div
@@ -170,7 +181,7 @@ export default function NaverCallback() {
     >
       <NaverBrandMark size={56} rounded={16} />
       <div style={{ fontSize: 16, fontWeight: 700, color: "#191919" }}>
-        네이버 로그인 처리중...
+        네이버 로그인 처리 중
       </div>
     </div>
   );

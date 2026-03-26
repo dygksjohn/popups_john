@@ -25,6 +25,7 @@ import { countAdminStatuses, resolveAdminStatus } from "../shared/adminStatus";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken, clearToken } from "../../../api/noticeApi";
 import HomeDashboard from "./HomeDashboard";
+import AdminChatBot from "./AdminChatBot";
 
 /* page imports */
 import EventManage from "../event/eventManage";
@@ -43,6 +44,9 @@ import RefundManage from "../refund/RefundManage";
 import AdminLogManage from "../adminlog/AdminLogManage";
 import ReportManage from "../report/ReportManage";
 /**/
+
+const DASHBOARD_TARGET_KEY = "pupoo_admin_dashboard_target";
+const DASHBOARD_TARGET_EVENT = "pupoo-admin-dashboard-target";
 
 /* global animation CSS */
 
@@ -319,6 +323,38 @@ export default function Dashboard() {
     return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const syncDashboardTarget = (nextPage) => {
+      if (!nextPage || !DEFAULT_PAGE_TABS[nextPage]) return;
+      setNav(nextPage);
+      setSubTab(null);
+      try {
+        sessionStorage.removeItem(DASHBOARD_TARGET_KEY);
+      } catch {
+        // ignore storage failures
+      }
+    };
+
+    const readStoredTarget = () => {
+      try {
+        return sessionStorage.getItem(DASHBOARD_TARGET_KEY);
+      } catch {
+        return null;
+      }
+    };
+
+    syncDashboardTarget(readStoredTarget());
+
+    const handleDashboardTarget = (event) => {
+      syncDashboardTarget(event?.detail?.page || readStoredTarget());
+    };
+
+    window.addEventListener(DASHBOARD_TARGET_EVENT, handleDashboardTarget);
+    return () => window.removeEventListener(DASHBOARD_TARGET_EVENT, handleDashboardTarget);
+  }, []);
+
   const isMobile = viewportWidth < 1024;
   const isHandset = viewportWidth < 768;
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
@@ -550,7 +586,7 @@ export default function Dashboard() {
               }}
             >
               <img
-                src="/logo_white.png"
+                src="/logo_white7.png"
                 alt="pupoo logo"
                 style={{
                   height: 20,
@@ -891,6 +927,7 @@ export default function Dashboard() {
           {renderPage()}
         </div>
       </main>
+      <AdminChatBot />
     </div>
   );
 }

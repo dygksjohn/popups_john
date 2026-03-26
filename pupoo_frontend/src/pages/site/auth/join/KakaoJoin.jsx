@@ -188,6 +188,7 @@ export default function KakaoJoin() {
       display: flex;
       align-items: center;
       justify-content: center;
+      margin-top: 92px;
     }
     .kj-root *, .kj-root *::before, .kj-root *::after { box-sizing: border-box; font-family: inherit; }
     .kj-card {
@@ -396,7 +397,7 @@ export default function KakaoJoin() {
       font-size: 17px;
     }
     @media (max-width: 640px) {
-      .kj-root { padding: calc(var(--pupoo-site-header-offset, 72px) + 20px) 16px 40px; align-items: flex-start; }
+      .kj-root { padding: calc(var(--pupoo-site-header-offset, 72px) + 20px) 16px 40px; align-items: flex-start; margin-top: 24px; }
     }
     @media (max-width: 480px) {
       .kj-card { padding: 32px 20px 28px; border-radius: 20px; max-width: 100%; }

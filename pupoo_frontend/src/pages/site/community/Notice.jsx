@@ -258,11 +258,11 @@ export default function Notice() {
                     }
                   }}
                   style={{
-                    border: isMobile ? "1px solid #e5e7eb" : "none",
+                    border: isMobile ? "1px solid #e2e5ea" : "none",
                     background: isMobile ? "#fff" : "transparent",
                     padding: "0 14px 0 40px",
-                    borderRadius: isMobile ? 999 : "0 12px 12px 0",
-                    height: 48,
+                    borderRadius: isMobile ? 12 : "0 12px 12px 0",
+                    height: isMobile ? 48 : 48,
                     fontSize: 13,
                     fontWeight: 500,
                     color: "#111827",
