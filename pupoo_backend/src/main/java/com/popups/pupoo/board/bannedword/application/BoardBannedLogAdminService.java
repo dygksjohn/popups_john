@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -32,7 +33,11 @@ public class BoardBannedLogAdminService {
                 ? boardBannedLogRepository.findAllByBoardIdOrderByLogIdDesc(boardId, pageable)
                 : boardBannedLogRepository.findAllByOrderByLogIdDesc(pageable);
         Map<Long, PostStatus> postStatusById = loadPostStatuses(page.getContent());
-        return page.map(log -> BoardBannedLogResponse.from(log, postStatusById.get(log.getContentId())));
+        return page.map(log -> {
+            Long contentId = log.getContentId();
+            PostStatus postStatus = contentId == null ? null : postStatusById.get(contentId);
+            return BoardBannedLogResponse.from(log, postStatus);
+        });
     }
 
     private Map<Long, PostStatus> loadPostStatuses(List<BoardBannedLog> logs) {
@@ -43,7 +48,7 @@ public class BoardBannedLogAdminService {
             }
         }
         if (postIds.isEmpty()) {
-            return Map.of();
+            return Collections.emptyMap();
         }
         Map<Long, PostStatus> out = new HashMap<>();
         for (Post p : postRepository.findAllById(postIds)) {
