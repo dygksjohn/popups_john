@@ -20,5 +20,5 @@ class ModerateResponse(BaseModel):
     score: float | None = Field(default=None, description="판정 점수")
     ai_score: float | None = Field(default=None, description="하위 호환 점수")
     stack: str = Field(default="rag_watsonx", description="처리 스택")
-    flagged_phrases: list[str] | None = Field(default=None, description="직접 탐지된 문제 표현")
-    inferred_phrases: list[str] | None = Field(default=None, description="정책 해석으로 추론된 문제 표현")
+    flagged_phrases: list[str] | None = Field(default=None, description="입력에서 직접 확인한 문제 표현")
+    inferred_phrases: list[str] | None = Field(default=None, description="정책 문맥으로 추론한 문제 표현")

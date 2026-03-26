@@ -18,7 +18,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import ds from "../shared/designTokens";
-import DATA from "../shared/data";
 import { injectEventImages, loadImageCache } from "../shared/eventImageStore";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
@@ -27,6 +26,12 @@ import { resolveImageUrl } from "../../../shared/utils/publicAssetUrl";
 const authHeaders = () => {
   const t = getToken();
   return t ? { Authorization: `Bearer ${t}` } : {};
+};
+
+const devError = (...args) => {
+  if (import.meta.env.DEV) {
+    console.error(...args);
+  }
 };
 
 /* ── 커스텀 차트 툴팁 ── */
@@ -106,6 +111,7 @@ export default function PastEvents() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
+  const [loadError, setLoadError] = useState("");
 
   /* ── DB에서 지난 행사 로드 ── */
   useEffect(() => {
@@ -122,16 +128,19 @@ export default function PastEvents() {
             ...item,
             imageUrl: resolveImageUrl(item.imageUrl),
           }));
+          setLoadError("");
           setEvents(withImages);
           setSelectedId(withImages[0].id || withImages[0].eventId);
         } else {
+          setLoadError("");
           setEvents([]);
+          setSelectedId(null);
         }
       } catch (err) {
-        console.error("[PastEvents] API 로드 실패, mock 데이터 사용:", err);
-        const fallback = DATA.pastEvents || [];
-        setEvents(fallback);
-        if (fallback.length > 0) setSelectedId(fallback[0].id);
+        devError("[PastEvents] API 로드 실패:", err);
+        setEvents([]);
+        setSelectedId(null);
+        setLoadError("지난 행사 데이터를 불러오지 못했습니다.");
       } finally {
         setLoading(false);
       }
@@ -206,16 +215,22 @@ export default function PastEvents() {
             marginTop: 14,
           }}
         >
-          종료된 행사가 없습니다
+          {loadError || "종료된 행사가 없습니다"}
         </div>
-        <div style={{ fontSize: 13, color: ds.ink4, marginTop: 4 }}>
-          행사가 종료되면 여기에 표시됩니다
-        </div>
+        {!loadError && (
+          <div style={{ fontSize: 13, color: ds.ink4, marginTop: 4 }}>
+            행사가 종료되면 여기에 표시됩니다.
+          </div>
+        )}
       </div>
     );
   }
 
   if (!ev) return null;
+
+  const hourlyCongestion = Array.isArray(ev.hourlyCongestion)
+    ? ev.hourlyCongestion
+    : [];
 
   const totalParticipants = events.reduce(
     (a, b) => a + (b.participants || 0),
@@ -308,49 +323,55 @@ export default function PastEvents() {
         >
           시간대별 혼잡도
         </div>
-        <ResponsiveContainer width="100%" height={150}>
-          <AreaChart data={DATA.pastHourlyCongestion}>
-            <defs>
-              <linearGradient id="gCong" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={ds.ink4} stopOpacity={0.12} />
-                <stop offset="100%" stopColor={ds.ink4} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="rgba(255,255,255,0.08)"
-              vertical={false}
-            />
-            <XAxis
-              dataKey="time"
-              tick={{ fontSize: 10, fill: ds.ink4 }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fontSize: 10, fill: ds.ink4 }}
-              axisLine={false}
-              tickLine={false}
-              width={28}
-              tickFormatter={(v) => `${v}%`}
-              domain={[0, 100]}
-            />
-            <Tooltip content={<ChartTooltip />} />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke={ds.ink3}
-              strokeWidth={2}
-              fill="url(#gCong)"
-              dot={{
-                r: 3,
-                fill: ds.ink3,
-                stroke: "#fff",
-                strokeWidth: 2,
-              }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        {hourlyCongestion.length > 0 ? (
+          <ResponsiveContainer width="100%" height={150}>
+            <AreaChart data={hourlyCongestion}>
+              <defs>
+                <linearGradient id="gCong" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={ds.ink4} stopOpacity={0.12} />
+                  <stop offset="100%" stopColor={ds.ink4} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="rgba(255,255,255,0.08)"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="time"
+                tick={{ fontSize: 10, fill: ds.ink4 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: ds.ink4 }}
+                axisLine={false}
+                tickLine={false}
+                width={28}
+                tickFormatter={(v) => `${v}%`}
+                domain={[0, 100]}
+              />
+              <Tooltip content={<ChartTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke={ds.ink3}
+                strokeWidth={2}
+                fill="url(#gCong)"
+                dot={{
+                  r: 3,
+                  fill: ds.ink3,
+                  stroke: "#fff",
+                  strokeWidth: 2,
+                }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{ fontSize: 13, color: ds.ink4 }}>
+            시간대별 혼잡도 데이터가 없습니다.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -646,49 +667,55 @@ export default function PastEvents() {
             >
               시간대별 혼잡도
             </div>
-            <ResponsiveContainer width="100%" height={150}>
-              <AreaChart data={DATA.pastHourlyCongestion}>
-                <defs>
-                  <linearGradient id="gCong" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={ds.ink4} stopOpacity={0.12} />
-                    <stop offset="100%" stopColor={ds.ink4} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="rgba(255,255,255,0.08)"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="time"
-                  tick={{ fontSize: 10, fill: ds.ink4 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: ds.ink4 }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={28}
-                  tickFormatter={(v) => `${v}%`}
-                  domain={[0, 100]}
-                />
-                <Tooltip content={<ChartTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke={ds.ink3}
-                  strokeWidth={2}
-                  fill="url(#gCong)"
-                  dot={{
-                    r: 3,
-                    fill: ds.ink3,
-                    stroke: "#fff",
-                    strokeWidth: 2,
-                  }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {hourlyCongestion.length > 0 ? (
+              <ResponsiveContainer width="100%" height={150}>
+                <AreaChart data={hourlyCongestion}>
+                  <defs>
+                    <linearGradient id="gCong" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={ds.ink4} stopOpacity={0.12} />
+                      <stop offset="100%" stopColor={ds.ink4} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="rgba(255,255,255,0.08)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fontSize: 10, fill: ds.ink4 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: ds.ink4 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={28}
+                    tickFormatter={(v) => `${v}%`}
+                    domain={[0, 100]}
+                  />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke={ds.ink3}
+                    strokeWidth={2}
+                    fill="url(#gCong)"
+                    dot={{
+                      r: 3,
+                      fill: ds.ink3,
+                      stroke: "#fff",
+                      strokeWidth: 2,
+                    }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ fontSize: 13, color: ds.ink4 }}>
+                시간대별 혼잡도 데이터가 없습니다.
+              </div>
+            )}
           </div>
         </div>
       </div>

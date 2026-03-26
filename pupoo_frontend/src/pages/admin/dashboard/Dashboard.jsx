@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { lazy, Suspense, useState, useCallback, useEffect } from "react";
 import {
   AlertTriangle,
   Home,
@@ -25,7 +25,7 @@ import { countAdminStatuses, resolveAdminStatus } from "../shared/adminStatus";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken, clearToken } from "../../../api/noticeApi";
 import HomeDashboard from "./HomeDashboard";
-import AdminChatBot from "./AdminChatBot";
+const AdminChatBot = lazy(() => import("./AdminChatBot"));
 
 /* page imports */
 import EventManage from "../event/eventManage";
@@ -927,7 +927,9 @@ export default function Dashboard() {
           {renderPage()}
         </div>
       </main>
-      <AdminChatBot />
+      <Suspense fallback={null}>
+        <AdminChatBot />
+      </Suspense>
     </div>
   );
 }

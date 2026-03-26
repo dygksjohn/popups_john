@@ -2,8 +2,8 @@
 
 from pupoo_ai.app.features.chatbot.dto.request import ChatRequest
 from pupoo_ai.app.features.chatbot.dto.response import ChatResponse
-from pupoo_ai.app.features.chatbot.service.bedrock_client import invoke_bedrock
 from pupoo_ai.app.features.chatbot.prompts.system import SYSTEM_PROMPT, USER_SYSTEM_PROMPT
+from pupoo_ai.app.features.chatbot.service.bedrock_client import invoke_bedrock
 from pupoo_ai.app.features.orchestrator.action_planner import ActionPlanner
 from pupoo_ai.app.features.orchestrator.backend_api_client import BackendApiClient
 from pupoo_ai.app.features.orchestrator.handlers import (
@@ -15,23 +15,31 @@ from pupoo_ai.app.features.orchestrator.handlers import (
 )
 from pupoo_ai.app.features.orchestrator.intent_analyzer import IntentAnalyzer
 
+USER_FALLBACK_MESSAGE = (
+    "무엇을 도와드릴까요? 행사, 로그인, 결제, 환불, 체크인 같은 이용 방법을 안내해 드릴게요."
+)
+ADMIN_FALLBACK_MESSAGE = (
+    "무엇을 도와드릴까요? 운영 요약, 화면 이동, 공지나 알림 초안 준비까지 도와드릴게요."
+)
+
 
 def _is_user_role(request: ChatRequest) -> bool:
-    return getattr(request.context, "role", "admin") == "user"
+    return getattr(request.context, "role", "user") == "user"
 
 
 async def _user_chat(request: ChatRequest) -> ChatResponse:
-    """유저용 챗봇: 인텐트 분석 없이 LLM 자유 대화."""
+    """사용자 챗봇은 일반 안내와 질문 응답만 처리한다."""
     history = list(request.history)
     while history and history[0].role == "assistant":
         history.pop(0)
 
-    messages = [{"role": message.role, "content": [{"text": message.content}]} for message in history]
+    messages = [
+        {"role": message.role, "content": [{"text": message.content}]}
+        for message in history
+    ]
     messages.append({"role": "user", "content": [{"text": request.message}]})
     reply = await invoke_bedrock(messages, system_prompt=USER_SYSTEM_PROMPT)
-    reply_text = str(reply or "").strip()
-    if not reply_text:
-        reply_text = "무엇이 궁금하세요? 행사, 로그인, 결제, 환불 등 뭐든 물어봐 주세요 🐾"
+    reply_text = str(reply or "").strip() or USER_FALLBACK_MESSAGE
     return ChatResponse(message=reply_text, actions=[])
 
 
@@ -44,18 +52,21 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
     execute_handler = ExecuteActionHandler()
 
     if request.confirmation is not None:
-        return await execute_handler.confirm(request.confirmation.model_dump(), backend_client)
+        return await execute_handler.confirm(
+            request.confirmation.model_dump(),
+            backend_client,
+        )
 
     if intent is not None:
         if intent.intent_type == "ambiguous":
             return ChatResponse(
-                message="원하시는 작업을 한 번만 더 골라 주세요. 누리가 가장 가까운 흐름으로 이어드릴게요.",
+                message="원하시는 작업이 여러 가지로 해석될 수 있어요. 어떤 작업인지 한 번만 더 구체적으로 알려 주세요.",
                 messageType="ambiguous",
                 actions=[],
             )
         if intent.intent_type == "low_confidence":
             return ChatResponse(
-                message="요청을 정확히 이해하지 못했어요. 어떤 작업을 원하시는지 조금만 더 알려 주세요.",
+                message="요청을 정확히 이해하지 못했습니다. 필요한 작업을 조금 더 자세히 알려 주세요.",
                 messageType="low_confidence",
                 actions=[],
             )
@@ -76,10 +87,11 @@ async def chat(request: ChatRequest, authorization: str | None = None) -> ChatRe
     while history and history[0].role == "assistant":
         history.pop(0)
 
-    messages = [{"role": message.role, "content": [{"text": message.content}]} for message in history]
+    messages = [
+        {"role": message.role, "content": [{"text": message.content}]}
+        for message in history
+    ]
     messages.append({"role": "user", "content": [{"text": request.message}]})
-    reply = await invoke_bedrock(messages)
-    reply_text = str(reply or "").strip()
-    if not reply_text:
-        reply_text = "무엇을 도와드릴까요? 조회, 화면 이동, 공지나 알림 초안 작성까지 바로 도와드릴게요."
+    reply = await invoke_bedrock(messages, system_prompt=SYSTEM_PROMPT)
+    reply_text = str(reply or "").strip() or ADMIN_FALLBACK_MESSAGE
     return ChatResponse(message=reply_text, actions=[])

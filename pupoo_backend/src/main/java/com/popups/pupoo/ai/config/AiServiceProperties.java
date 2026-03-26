@@ -8,9 +8,10 @@ import org.springframework.stereotype.Component;
 public class AiServiceProperties {
 
     private String baseUrl = "http://localhost:8000";
-    private String internalToken = "dev-internal-token";
+    private String internalToken = "";
     private long connectTimeoutMs = 500L;
     private long responseTimeoutMs = 1500L;
+    private long posterResponseTimeoutMs = 30000L;
     private long maxInMemorySizeBytes = 5L * 1024L * 1024L;
 
     public String getBaseUrl() {
@@ -43,6 +44,14 @@ public class AiServiceProperties {
 
     public void setResponseTimeoutMs(long responseTimeoutMs) {
         this.responseTimeoutMs = responseTimeoutMs;
+    }
+
+    public long getPosterResponseTimeoutMs() {
+        return posterResponseTimeoutMs;
+    }
+
+    public void setPosterResponseTimeoutMs(long posterResponseTimeoutMs) {
+        this.posterResponseTimeoutMs = posterResponseTimeoutMs;
     }
 
     public long getMaxInMemorySizeBytes() {

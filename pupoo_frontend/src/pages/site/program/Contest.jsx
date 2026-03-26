@@ -1137,12 +1137,6 @@ function ContestContent({ eventId }) {
       setPetModalContestId(contestId);
       setPetModalOpen(true);
     } catch (e) {
-      console.error(
-        "🐾 getMyPets 에러:",
-        e?.response?.status,
-        e?.response?.data,
-        e?.message,
-      );
       if (e?.response?.status === 401) {
         navigate("/auth/login", {
           state: { from: `/program/contest/${eventId}` },
@@ -1206,8 +1200,6 @@ function ContestContent({ eventId }) {
         try {
           const form = new FormData();
           form.append("file", applyImageFile);
-          const { axiosInstance } =
-            await import("../../../app/http/axiosInstance");
           // 유저용 갤러리 임시 업로드 엔드포인트 사용
           const upRes = await axiosInstance.post(
             "/api/galleries/image/upload",
@@ -1221,13 +1213,8 @@ function ContestContent({ eventId }) {
           if (rawPath) {
             uploadedImageUrl = toPublicAssetUrl(rawPath) || rawPath;
           }
-          console.log("📁 이미지 업로드 성공:", uploadedImageUrl);
         } catch (uploadErr) {
-          console.error(
-            "📁 이미지 업로드 실패:",
-            uploadErr?.response?.status,
-            uploadErr?.response?.data?.message,
-          );
+          void uploadErr;
         }
       }
 

@@ -10,6 +10,7 @@ on:
       - main
     paths:
       - ".github/workflows/ci.yml"
+      - "pupoo_ai/**"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
@@ -19,6 +20,7 @@ on:
       - main
     paths:
       - ".github/workflows/ci.yml"
+      - "pupoo_ai/**"
       - "pupoo_backend/**"
       - "pupoo_frontend/**"
       - "scripts/check-import-case.mjs"
@@ -28,6 +30,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install AI dependencies
+        working-directory: pupoo_ai
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile AI sources
+        working-directory: pupoo_ai
+        run: python -m compileall app tests
+
+      - name: Run AI unit tests
+        working-directory: pupoo_ai
+        run: python -m unittest discover -s tests -p "test_*.py"
+
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -66,7 +97,7 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: frontend
+    needs: [ai, frontend]
     permissions:
       contents: read
 

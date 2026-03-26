@@ -60,10 +60,15 @@
 | Dashboard | `AdminDashboardController` | `/api/admin/dashboard/events`, `/programs`, `/program-applies`, `/booths`, `/past-events` | `event`, `event_program`, `event_program_apply`, `booths` | KEEP | 실DB + 코드 |
 | Dashboard Realtime | `AdminDashboardRealtimeController`, `PublicDashboardRealtimeController` | `/api/admin/dashboard/realtime/**`, `/api/dashboard/realtime/events/{eventId}/congestions` | `congestions` | KEEP | 실DB + 코드 |
 | Audit | `AdminLogAdminController` | `/api/admin/logs` | `AdminLog` / `admin_logs` | KEEP | 실DB + 코드 |
-| Chatbot | `ChatbotProxyController` | `POST /api/chatbot/chat` | DB 직접 사용 없음 | HOLD | 코드 근거만 존재 |
+| Chatbot | `ChatbotProxyController` | `POST /api/chatbot/chat`, `POST /api/admin/chatbot/chat` | DB 직접 사용 없음 | HOLD | 사용자/관리자 경로 분리, 관리자 경로는 `/api/admin/**` 사용 |
 | Health | `HealthController` | `GET /api/health` | 없음 | REMOVE | 코드상 local/dev smoke-test |
 
 ## 추가 확인 항목
 
 - `SecurityConfig`와 `EndpointPolicy`는 `/api/ping`을 허용하지만 실제 구현 컨트롤러가 없다.
 - `SUPER_ADMIN`은 실DB와 코드에 존재하므로 현재 정책 문구와 불일치한다.
+## 현재 정리 메모
+
+- 관리자 챗봇은 `POST /api/admin/chatbot/chat` 으로 유지한다.
+- 사용자 챗봇은 `POST /api/chatbot/chat` 으로 분리한다.
+- 공통 프록시는 `ApiResponse<T>` 규칙을 지키고, 관리자 경로는 `/api/admin/**` 정책을 따른다.

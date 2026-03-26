@@ -10,11 +10,11 @@
 
 ## 전제 조건
 
-- `/api/chatbot/**` 호출에는 관리자 JWT가 필요하다.
+- `/api/admin/chatbot/**` 가 관리자용 정식 경로이고 관리자 JWT가 필요하다.
 - `/api/admin/**` 호출에는 관리자 JWT가 필요하다.
 - 토큰 없음 또는 만료는 `401`
 - 일반 사용자 권한은 `403`
-- 챗봇 프록시는 `/api/chatbot/chat` 에서 받은 `Authorization` 헤더를 AI `/internal/chatbot/chat` 로 전달한다.
+- 챗봇 프록시는 `/api/admin/chatbot/chat` 에서 받은 `Authorization` 헤더를 AI `/internal/admin/chatbot/chat` 로 전달한다. (`/api/chatbot/chat` 는 사용자 경로)
 
 ## 액션 표
 
@@ -261,17 +261,17 @@ PUPOO_AI_BACKEND_BASE_URL=http://pupoo-backend:80
 
 ### 프록시 체인
 
-1. 프론트 -> `POST /api/chatbot/chat`
-2. backend 프록시 -> AI `POST /internal/chatbot/chat`
+1. 프론트 -> `POST /api/admin/chatbot/chat`
+2. backend 프록시 -> AI `POST /internal/admin/chatbot/chat`
 3. AI -> backend admin API 호출
 
 ### 로그 해석 기준
 
 | 경로 | 확인 포인트 |
 |---|---|
-| `/api/chatbot/chat` | `401/403` 이면 프론트 관리자 토큰 문제 |
-| `/api/chatbot/chat` | `503` 이면 backend -> AI 연결 문제 |
-| `/internal/chatbot/chat` | `401/403` 이면 AI가 받은 관리자 JWT 전달 또는 해석 문제 |
+| `/api/admin/chatbot/chat` | `401/403` 이면 프론트 관리자 토큰 문제 |
+| `/api/admin/chatbot/chat` | `503` 이면 backend -> AI 연결 문제 |
+| `/internal/admin/chatbot/chat` | `401/403` 이면 AI가 받은 관리자 JWT 전달 또는 해석 문제 |
 | `/api/admin/ai/summary` | `401/403` 이면 AI -> backend 관리자 인증 실패 |
 | `/api/admin/notices` | `400` 이면 필수 필드 또는 enum 오류 |
 | `/api/admin/notifications/event` | `404` 이면 `eventId` 불일치 |
@@ -293,3 +293,9 @@ PUPOO_AI_BACKEND_BASE_URL=http://pupoo-backend:80
 - 실행 전 확인 요청
 
 현재 미지원 범위는 예약 발송이다.
+## 현재 정리 메모
+
+- 관리자 챗봇 진입점은 `POST /api/admin/chatbot/chat` 이다.
+- 사용자 챗봇 진입점은 `POST /api/chatbot/chat` 이며 관리자 챗봇과 분리해서 취급한다.
+- backend 프록시는 사용자 요청을 AI `/internal/chatbot/chat` 으로, 관리자 요청을 AI `/internal/admin/chatbot/chat` 으로 전달한다.
+- 관리자용 초안 작성과 실행 준비는 관리자 권한과 `/api/admin/**` 규칙을 따라야 한다.

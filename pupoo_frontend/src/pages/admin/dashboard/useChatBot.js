@@ -346,7 +346,7 @@ function normalizeActions(actions) {
 }
 
 async function requestChat({ history, userMessage, context, confirmation }) {
-  const url = buildRequestUrl(API_BASE_URL, "/api/chatbot/chat");
+  const url = buildRequestUrl(API_BASE_URL, "/api/admin/chatbot/chat");
   const token = localStorage.getItem(TOKEN_KEY);
   if (!token) {
     const error = new Error(

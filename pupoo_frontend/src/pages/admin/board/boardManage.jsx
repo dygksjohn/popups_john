@@ -15,7 +15,6 @@ import {
   Loader2,
 } from "lucide-react";
 import ds from "../shared/designTokens";
-import DATA from "../shared/data";
 import { adminQnaApi, unwrap } from "../../../api/qnaApi";
 import { axiosInstance } from "../../../app/http/axiosInstance";
 import { getToken } from "../../../api/noticeApi";
@@ -24,6 +23,18 @@ import BannedWordsManage from "./BannedWordsManage";
 const authHeaders = () => {
   const t = getToken();
   return t ? { Authorization: `Bearer ${t}` } : {};
+};
+
+const devWarn = (...args) => {
+  if (import.meta.env.DEV) {
+    console.warn(...args);
+  }
+};
+
+const devError = (...args) => {
+  if (import.meta.env.DEV) {
+    console.error(...args);
+  }
 };
 
 const styles = `
@@ -1701,7 +1712,7 @@ export default function BoardManage({ subTab = "free" }) {
       setEventList(arr);
       eventListRef.current = arr;
     } catch (e) {
-      console.warn("[BoardManage] 행사 목록 로드 실패:", e);
+      devWarn("[BoardManage] 행사 목록 로드 실패:", e);
       setEventList([]);
     }
   }, []);
@@ -1801,7 +1812,7 @@ export default function BoardManage({ subTab = "free" }) {
                 const detail = detailRes.data?.data || detailRes.data || {};
                 return mapFaqFromApi(detail);
               } catch (detailErr) {
-                console.warn(
+                devWarn(
                   `[BoardManage FAQ] detail load failed: ${faq.postId}`,
                   detailErr,
                 );
@@ -1819,12 +1830,12 @@ export default function BoardManage({ subTab = "free" }) {
           }));
         }
       } catch (err) {
-        console.error(`[BoardManage] ${type} 로드 실패:`, err);
-        // fallback to mock data
+        devError(`[BoardManage] ${type} 로드 실패:`, err);
+        // 운영 경로에서는 실패 시 빈 목록으로 유지한다.
         if (type === "free")
           setLocalData((prev) => ({
             ...prev,
-            free: (DATA.boards || []).map((e) => ({ ...e, _visible: true })),
+            free: [],
           }));
         if (type === "info")
           setLocalData((prev) => ({
@@ -1834,7 +1845,7 @@ export default function BoardManage({ subTab = "free" }) {
         if (type === "review")
           setLocalData((prev) => ({
             ...prev,
-            review: (DATA.reviews || []).map((e) => ({ ...e, _visible: true })),
+            review: [],
           }));
         if (type === "faq")
           setLocalData((prev) => ({
@@ -1881,7 +1892,7 @@ export default function BoardManage({ subTab = "free" }) {
       setQnaTotalElements(d.totalElements ?? mapped.length);
       setQnaPage(page);
     } catch (err) {
-      console.error("[BoardManage QnA] fetch error:", err);
+      devError("[BoardManage QnA] fetch error:", err);
       setQnaError("질문 목록을 불러오는데 실패했습니다.");
     } finally {
       setQnaLoading(false);
@@ -1979,7 +1990,7 @@ export default function BoardManage({ subTab = "free" }) {
         showToast(config.toastCreate);
         fetchQnaList(1);
       } catch (err) {
-        console.error("[BoardManage QnA] create error:", err);
+        devError("[BoardManage QnA] create error:", err);
         showToast("등록에 실패했습니다.", "error");
       } finally {
         setSaving(false);
@@ -2054,7 +2065,7 @@ export default function BoardManage({ subTab = "free" }) {
         showToast(config.toastCreate);
         fetchBoardData(boardType);
       } catch (err) {
-        console.error(`[BoardManage] ${boardType} create error:`, err);
+        devError(`[BoardManage] ${boardType} create error:`, err);
         const status = err?.response?.status;
         if (boardType === "review" && status === 409) {
           showToast("이미 해당 행사에 후기가 등록되어 있습니다.", "error");
@@ -2078,7 +2089,7 @@ export default function BoardManage({ subTab = "free" }) {
         showToast(config.toastUpdate);
         fetchQnaList(qnaPage);
       } catch (err) {
-        console.error("[BoardManage QnA] update error:", err);
+        devError("[BoardManage QnA] update error:", err);
         showToast("수정에 실패했습니다.", "error");
       } finally {
         setSaving(false);
@@ -2122,7 +2133,7 @@ export default function BoardManage({ subTab = "free" }) {
         showToast(config.toastUpdate);
         fetchBoardData(boardType);
       } catch (err) {
-        console.error(`[BoardManage] ${boardType} update error:`, err);
+        devError(`[BoardManage] ${boardType} update error:`, err);
         showToast("수정에 실패했습니다.", "error");
       } finally {
         setSaving(false);
@@ -2142,7 +2153,7 @@ export default function BoardManage({ subTab = "free" }) {
         showToast(config.toastDelete);
         fetchQnaList(qnaPage);
       } catch (err) {
-        console.error("[BoardManage QnA] delete error:", err);
+        devError("[BoardManage QnA] delete error:", err);
         setModal(null);
         showToast("삭제에 실패했습니다.", "error");
       } finally {
@@ -2177,7 +2188,7 @@ export default function BoardManage({ subTab = "free" }) {
           fetchBoardData(boardType);
         }, 300);
       } catch (err) {
-        console.error(`[BoardManage] ${boardType} delete error:`, err);
+        devError(`[BoardManage] ${boardType} delete error:`, err);
         setRemoving(null);
         showToast("삭제에 실패했습니다.", "error");
       } finally {
@@ -2225,7 +2236,7 @@ export default function BoardManage({ subTab = "free" }) {
       setSelected(new Set());
       showToast(`${ids.length}건이 삭제되었습니다.`);
     } catch (err) {
-      console.error("[BoardManage] batch delete error:", err);
+      devError("[BoardManage] batch delete error:", err);
       setModal(null);
       showToast("일괄 삭제에 실패했습니다.", "error");
     } finally {
@@ -2245,7 +2256,7 @@ export default function BoardManage({ subTab = "free" }) {
         showToast("답변이 등록되었습니다.");
         fetchQnaList(qnaPage);
       } catch (err) {
-        console.error("[BoardManage QnA] reply error:", err);
+        devError("[BoardManage QnA] reply error:", err);
         showToast("답변 처리에 실패했습니다.", "error");
       } finally {
         setSaving(false);
@@ -2267,7 +2278,7 @@ export default function BoardManage({ subTab = "free" }) {
         showToast("답변이 수정되었습니다.");
         fetchBoardData("faq");
       } catch (err) {
-        console.error("[BoardManage FAQ] reply update error:", err);
+        devError("[BoardManage FAQ] reply update error:", err);
         showToast("답변 처리에 실패했습니다.", "error");
       } finally {
         setSaving(false);

@@ -4,6 +4,7 @@ import { authApi } from "./api/authApi";
 import { tokenStore } from "../../../app/http/tokenStore";
 import { useAuth } from "./AuthProvider";
 import { NaverBrandMark } from "../../../shared/ui/NaverBrandMark";
+import { clearAllSocialJoinState } from "./socialJoinStorage";
 
 // ?? Social button (reusable) ??????????????????????????????????????????????????
 const SocialButton = ({ onClick, style, children, compact = false }) => {
@@ -69,6 +70,7 @@ const GoogleIcon = () => (
 );
 
 const clearPendingSocialJoin = () => {
+  clearAllSocialJoinState();
   [
     "kakao_provider_uid",
     "kakao_email",
@@ -115,7 +117,7 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const handleKakaoLogin = () => {
     if (!KAKAO_REST_KEY) {
-      console.error("Kakao env missing");
+      setToast("카카오 로그인 설정이 준비되지 않았습니다.");
       return;
     }
 
@@ -145,7 +147,7 @@ const LoginPage = ({ leftBgImage = null }) => {
 
   const handleNaverLogin = () => {
     if (!NAVER_CLIENT_ID) {
-      console.error("Naver env missing");
+      setToast("네이버 로그인 설정이 준비되지 않았습니다.");
       return;
     }
 
@@ -218,7 +220,10 @@ const LoginPage = ({ leftBgImage = null }) => {
   const handleGoogleLogin = () => {
     const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     const googleRedirectUri = `${window.location.origin}/auth/google/callback`;
-    if (!GOOGLE_CLIENT_ID) { setToast("VITE_GOOGLE_CLIENT_ID가 설정되지 않았습니다."); return; }
+    if (!GOOGLE_CLIENT_ID) {
+      setToast("구글 로그인 설정이 준비되지 않았습니다.");
+      return;
+    }
     tokenStore.clear();
     sessionStorage.removeItem("google_oauth_code_guard");
     sessionStorage.removeItem("google_provider_uid");
@@ -263,7 +268,10 @@ const LoginPage = ({ leftBgImage = null }) => {
       sessionStorage.removeItem("post_login_redirect");
       navigate(redirectTo, { replace: true });
     } catch (e) {
-        setError(e?.response?.data?.message ?? "로그인에 실패했습니다. 다시 시도해 주세요.");
+        setError(
+          e?.response?.data?.message ??
+            "로그인에 실패했습니다. 아이디와 비밀번호를 다시 확인해 주세요.",
+        );
     } finally {
       setLoading(false);
     }

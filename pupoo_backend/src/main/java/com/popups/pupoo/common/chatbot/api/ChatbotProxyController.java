@@ -3,6 +3,9 @@ package com.popups.pupoo.common.chatbot.api;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.popups.pupoo.ai.config.AiServiceProperties;
+import com.popups.pupoo.common.api.ApiResponse;
+import com.popups.pupoo.common.api.ErrorResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -17,12 +20,12 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/chatbot")
+@RequestMapping
 public class ChatbotProxyController {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
@@ -30,56 +33,111 @@ public class ChatbotProxyController {
 
     private final WebClient webClient;
     private final AiServiceProperties properties;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
-    public ChatbotProxyController(WebClient.Builder builder, AiServiceProperties props) {
+    public ChatbotProxyController(WebClient.Builder builder, AiServiceProperties props, ObjectMapper objectMapper) {
         this.properties = props;
+        this.objectMapper = objectMapper;
         this.webClient = builder
                 .baseUrl(props.getBaseUrl())
                 .build();
     }
 
-    @PostMapping("/chat")
-    public ResponseEntity<Map<String, Object>> chat(
+    @PostMapping("/api/chatbot/chat")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> userChat(
             @RequestBody Map<String, Object> body,
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            HttpServletRequest request
+    ) {
+        return forwardChat(body, authorization, request, "/internal/chatbot/chat", "user");
+    }
+
+    @PostMapping("/api/admin/chatbot/chat")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> adminChat(
+            @RequestBody Map<String, Object> body,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            HttpServletRequest request
+    ) {
+        return forwardChat(body, authorization, request, "/internal/admin/chatbot/chat", "admin");
+    }
+
+    private ResponseEntity<ApiResponse<Map<String, Object>>> forwardChat(
+            Map<String, Object> body,
+            String authorization,
+            HttpServletRequest request,
+            String uri,
+            String role
     ) {
         try {
-            WebClient.RequestBodySpec request = webClient.post()
-                    .uri("/internal/chatbot/chat")
+            WebClient.RequestBodySpec webClientRequest = webClient.post()
+                    .uri(uri)
                     .contentType(MediaType.APPLICATION_JSON);
 
             if (StringUtils.hasText(properties.getInternalToken())) {
-                request.header(HEADER_INTERNAL_TOKEN, properties.getInternalToken());
+                webClientRequest.header(HEADER_INTERNAL_TOKEN, properties.getInternalToken());
             }
 
             if (StringUtils.hasText(authorization)) {
-                request.header(HttpHeaders.AUTHORIZATION, authorization);
+                webClientRequest.header(HttpHeaders.AUTHORIZATION, authorization);
             }
 
             @SuppressWarnings("unchecked")
-            Map<String, Object> result = request
-                    .bodyValue(body)
+            Map<String, Object> result = webClientRequest
+                    .bodyValue(withForcedRole(body, role))
                     .retrieve()
                     .bodyToMono(Map.class)
                     .block(TIMEOUT);
 
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(ApiResponse.success(extractData(result)));
         } catch (WebClientResponseException e) {
             log.warn("[chatbot-proxy] AI server error: status={}", e.getStatusCode());
             return ResponseEntity.status(e.getStatusCode())
-                    .body(parseErrorBody(e));
+                    .body(ApiResponse.fail(parseErrorBody(e, request)));
         } catch (Exception e) {
             log.warn("[chatbot-proxy] AI server unreachable: {}", e.getMessage());
             return ResponseEntity.status(503)
-                    .body(errorBody(
+                    .body(ApiResponse.fail(errorBody(
                             "AI_SERVER_UNAVAILABLE",
-                            "AI 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."
-                    ));
+                            "AI 서버와 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+                            503,
+                            request
+                    )));
         }
     }
 
-    private Map<String, Object> parseErrorBody(WebClientResponseException e) {
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> withForcedRole(Map<String, Object> body, String role) {
+        Map<String, Object> nextBody = new LinkedHashMap<>();
+        if (body != null) {
+            nextBody.putAll(body);
+        }
+
+        Object rawContext = nextBody.get("context");
+        Map<String, Object> context = new LinkedHashMap<>();
+        if (rawContext instanceof Map<?, ?> rawMap) {
+            rawMap.forEach((key, value) -> context.put(String.valueOf(key), value));
+        }
+        context.put("role", role);
+        nextBody.put("context", context);
+        return nextBody;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> extractData(Map<String, Object> result) {
+        if (result == null || result.isEmpty()) {
+            return Map.of();
+        }
+
+        Object data = result.get("data");
+        if (data instanceof Map<?, ?> map) {
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            map.forEach((key, value) -> normalized.put(String.valueOf(key), value));
+            return normalized;
+        }
+        return new LinkedHashMap<>(result);
+    }
+
+    private ErrorResponse parseErrorBody(WebClientResponseException e, HttpServletRequest request) {
         try {
             Map<String, Object> parsed = objectMapper.readValue(
                     e.getResponseBodyAsByteArray(),
@@ -89,12 +147,11 @@ public class ChatbotProxyController {
                 String message = extractMessage(parsed);
                 if (StringUtils.hasText(message)) {
                     String code = stringValue(parsed.get("code"));
-                    String messageType = extractMessageType(parsed);
                     return errorBody(
                             StringUtils.hasText(code) ? code : "AI_SERVER_ERROR",
                             message,
-                            messageType,
-                            extractActions(parsed)
+                            e.getStatusCode().value(),
+                            request
                     );
                 }
             }
@@ -103,36 +160,14 @@ public class ChatbotProxyController {
 
         return errorBody(
                 "AI_SERVER_ERROR",
-                "AI 서버에서 오류가 발생했습니다."
+                "AI 서버에서 오류가 발생했습니다.",
+                e.getStatusCode().value(),
+                request
         );
     }
 
-    private Map<String, Object> errorBody(String code, String message) {
-        return errorBody(code, message, "error", List.of());
-    }
-
-    private Map<String, Object> errorBody(String code, String message, String messageType, List<?> actions) {
-        return Map.of(
-                "success", false,
-                "code", code,
-                "message", message,
-                "data", Map.of(
-                        "message", message,
-                        "messageType", StringUtils.hasText(messageType) ? messageType : "error",
-                        "actions", actions == null ? List.of() : actions
-                )
-        );
-    }
-
-    private List<?> extractActions(Map<String, Object> parsed) {
-        Object data = parsed.get("data");
-        if (data instanceof Map<?, ?> dataMap) {
-            Object actions = dataMap.get("actions");
-            if (actions instanceof List<?> actionList) {
-                return actionList;
-            }
-        }
-        return List.of();
+    private ErrorResponse errorBody(String code, String message, int status, HttpServletRequest request) {
+        return new ErrorResponse(code, message, status, request.getRequestURI());
     }
 
     private String extractMessage(Map<String, Object> parsed) {
@@ -155,17 +190,6 @@ public class ChatbotProxyController {
         String topLevelMessage = stringValue(parsed.get("message"));
         if (StringUtils.hasText(topLevelMessage)) {
             return topLevelMessage;
-        }
-        return null;
-    }
-
-    private String extractMessageType(Map<String, Object> parsed) {
-        Object data = parsed.get("data");
-        if (data instanceof Map<?, ?> dataMap) {
-            String dataMessageType = stringValue(dataMap.get("messageType"));
-            if (StringUtils.hasText(dataMessageType)) {
-                return dataMessageType;
-            }
         }
         return null;
     }
